@@ -55,7 +55,7 @@ describe("fase 2: datos", () => {
     expect(summary.value).toBeGreaterThan(1.3);
     expect((await listTests(db, pid))[0]!.rsi).toBeCloseTo(summary.value, 9);
     expect(await history(db, pid, "rj_10_5", "rsi")).toHaveLength(1);
-    expect(await exportCsv(db)).toMatch(/;rj_10_5;;0;;240;3;rsi;/);
+    expect(await exportCsv(db)).toMatch(/;rj_10_5;;;;0;;240;3;rsi;/);
   });
 
   it("horizontal: sin vídeo, distancia directa", async () => {

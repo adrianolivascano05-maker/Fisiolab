@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { MIN_JUMPS } from "../calc/repeated";
 import { isSeries, optionalMarks, requiredMarks, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
-import { jumpLabels } from "../app/format";
+import { isJumpType, jumpLabels } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { videoStore } from "../app/videoStore";
@@ -37,7 +37,8 @@ export function MarkPage() {
   const t = test.data;
   if (!t) return <Page title="Marcar" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
   const back = `/pacientes/${t.patientId}`;
-  if (!t.video) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
+  if (!t.video || !isJumpType(t.type)) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
+  const type = t.type;
 
   if (!file) {
     return (
@@ -57,7 +58,7 @@ export function MarkPage() {
 
   return (
     <Page
-      title={`Marcar · ${jumpLabels[t.type].short}`}
+      title={`Marcar · ${jumpLabels[type].short}`}
       backTo={back}
       tone="media"
       action={
@@ -66,13 +67,13 @@ export function MarkPage() {
         </IconButton>
       }
     >
-      <Sheet open={help} onClose={() => setHelp(false)} title={`Cómo marcar un ${jumpLabels[t.type].short}`}>
-        <JumpHelp type={t.type} />
+      <Sheet open={help} onClose={() => setHelp(false)} title={`Cómo marcar un ${jumpLabels[type].short}`}>
+        <JumpHelp type={type} />
       </Sheet>
       <MarkingWorkspace
         testId={id}
         file={file}
-        type={t.type}
+        type={type}
         captureFps={t.video.captureFps}
         containerFps={t.video.containerFps}
         frameCount={t.video.frameCount ?? 1}

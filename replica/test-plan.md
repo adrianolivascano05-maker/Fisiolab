@@ -74,3 +74,18 @@ En el móvil Android de Fisiolab con Chrome, cuando la app esté publicada:
 - [ ] M6 Si el vídeo no abre: ¿el móvil graba en HEVC? (en Samsung, «Vídeos de alta eficiencia»)
 - [ ] M7 Instalar con el botón «Instalar la app» (o menú ⋮ → «Instalar app»), abrir desde el icono, cerrar y volver: ¿siguen los datos?
 - [ ] M8 Modo avión con la app instalada: ¿abre y deja medir?
+
+## F11 Movilidad (añadido el 2026-10-17, `e2e/rom.spec.ts`)
+
+| caso | qué comprueba |
+| --- | --- |
+| F11-H1 | lunge con el inclinómetro (sensor simulado): 3 lecturas 38/39/37 → media 38°, distancia a la pared 10,5 cm |
+| F11-H2 | rango desde el cero: flexión de cadera de 0 a 95°, aviso «Estable» |
+| F11-N1 | sin sensor: aviso a los 2,5 s y paso al goniómetro; valida 0-200° |
+| F11-H3 | ángulo sobre foto con 3 puntos (90°) y ajuste con el teclado (105°); el método se bloquea con lecturas |
+| F11-H4 | goniómetro sin lado; aviso de lecturas que difieren 8°; ficha y resumen |
+| F11-H5 | resumen por lados (40°, 35°, diferencia 5°) y evolución con dos líneas y tabla, con los datos de ejemplo |
+
+Unitarias: geometría del inclinómetro y de la foto (`src/calc/rom.test.ts`) y datos, CSV y migración 1 → 2
+(`src/data/rom.test.ts`). Pendiente a mano: medir en un Android real con el móvil apoyado en la tibia y comparar con
+un goniómetro.

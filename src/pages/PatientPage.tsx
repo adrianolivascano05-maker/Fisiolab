@@ -1,7 +1,6 @@
-import { Activity, ChartLine, Gauge, Pencil, Plus, Scale } from "lucide-react";
+import { Activity, ChartLine, Gauge, Pencil, Plus, Rotate3d, Scale } from "lucide-react";
 import { Link, useParams } from "react-router";
-import type { JumpType } from "../calc/results";
-import { fmt, fmtDateTime, jumpLabels, sideLabels } from "../app/format";
+import { fmt, fmtDateTime, isJumpType, testTitle } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
@@ -39,7 +38,9 @@ export function PatientPage() {
     patient.heightCm && `${fmt(patient.heightCm, 0)} cm`,
     patient.pushOffDistanceCm && `empuje ${fmt(patient.pushOffDistanceCm)} cm`,
   ].filter(Boolean);
-  const typesDone = [...new Set(tests.map((t) => t.type))] as JumpType[];
+  const typesDone = [...new Set(tests.map((t) => t.type))];
+  const lastJump = tests.find((t) => isJumpType(t.type));
+  const hasRom = tests.some((t) => t.movement !== null);
 
   return (
     <Page
@@ -66,9 +67,11 @@ export function PatientPage() {
 
       {tests.length > 0 && (
         <nav aria-label="Análisis" className="grid grid-cols-2 gap-2">
-          <Link to={`/pacientes/${id}/evolucion/${tests[0]!.type}`} className={tile}>
-            <ChartLine aria-hidden="true" className="size-5 shrink-0 text-accent" /> Evolución
-          </Link>
+          {lastJump && (
+            <Link to={`/pacientes/${id}/evolucion/${lastJump.type}`} className={tile}>
+              <ChartLine aria-hidden="true" className="size-5 shrink-0 text-accent" /> Evolución
+            </Link>
+          )}
           {(typesDone.includes("sj") || typesDone.includes("cmj")) && (
             <Link to={`/pacientes/${id}/perfil/fv`} className={tile}>
               <Gauge aria-hidden="true" className="size-5 shrink-0 text-accent" /> Perfil fuerza-velocidad
@@ -79,13 +82,18 @@ export function PatientPage() {
               <Scale aria-hidden="true" className="size-5 shrink-0 text-accent" /> Asimetría
             </Link>
           )}
+          {hasRom && (
+            <Link to={`/pacientes/${id}/movilidad`} className={tile}>
+              <Rotate3d aria-hidden="true" className="size-5 shrink-0 text-accent" /> Movilidad
+            </Link>
+          )}
         </nav>
       )}
 
       <h2 className="text-lg">Tests</h2>
       {tests.length === 0 ? (
         <EmptyState icon={Activity} title="Sin tests todavía">
-          Pulsa «Nueva medición» para registrar su primer salto.
+          Pulsa «Nueva medición» para registrar su primer salto o su movilidad.
         </EmptyState>
       ) : (
         <ul aria-label="Tests" className="flex flex-col gap-2">
@@ -95,14 +103,19 @@ export function PatientPage() {
                 <Card className="flex items-center justify-between gap-3 hover:border-accent">
                   <span className="flex flex-col">
                     <span className="font-semibold">
-                      {jumpLabels[t.type]?.short ?? t.type}
-                      {t.side && ` ${sideLabels[t.side]}`}
+                      {testTitle(t)}
                       {t.extraLoadKg > 0 && <span className="font-normal text-text-muted"> · {fmt(t.extraLoadKg, 0)} kg</span>}
                     </span>
                     <span className="text-sm text-text-muted">{fmtDateTime(t.performedAt)}</span>
                   </span>
                   <span className="nums text-right">
-                    {t.distanceCm !== null ? (
+                    {t.movement !== null ? (
+                      t.angleDeg === null ? (
+                        <span className="text-sm text-text-muted">—</span>
+                      ) : (
+                        <span className="text-xl">{fmt(t.angleDeg, 0)}°</span>
+                      )
+                    ) : t.distanceCm !== null ? (
                       <>
                         <span className="text-xl">{fmt(t.distanceCm, 0)}</span> <span className="text-text-muted">cm</span>
                       </>

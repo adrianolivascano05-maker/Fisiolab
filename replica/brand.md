@@ -88,7 +88,7 @@ Textos reescritos (los más vistos):
 
 1. Lista vacía: «Todavía no hay pacientes» / «Añade a tu primer paciente y mide su salto en un par de minutos.»
 2. Botón principal de la ficha: «Nueva medición» (antes «Nuevo test»).
-3. Ficha sin tests: «Pulsa «Nueva medición» para registrar su primer salto.»
+3. Ficha sin tests: «Pulsa «Nueva medición» para registrar su primer salto o su movilidad.»
 4. Título del selector: «Nueva medición».
 5. Aviso al crear: «Paciente añadido».
 6. Botón del marcado: «Calcular resultado».

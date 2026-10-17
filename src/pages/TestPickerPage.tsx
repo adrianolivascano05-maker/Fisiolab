@@ -4,11 +4,11 @@ import { Page } from "../app/Page";
 import { CategoryTile } from "../ui/CategoryTile";
 
 export const categories = [
-  { slug: "saltos", icon: Activity, title: "Saltos", detail: "CMJ, SJ, drop jump", phase: 1 },
+  { slug: "saltos", icon: Activity, title: "Saltos", detail: "CMJ, SJ, drop jump", phase: 1, ready: true },
   { slug: "fuerza", icon: Dumbbell, title: "Fuerza", detail: "Velocidad de barra, 1RM", phase: 3 },
   { slug: "sprint", icon: Timer, title: "Sprint", detail: "Tiempos y cambios de dirección", phase: 4 },
   { slug: "carrera", icon: Footprints, title: "Carrera", detail: "Contacto y frecuencia de paso", phase: 4 },
-  { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello", phase: 3 },
+  { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello", phase: 3, ready: true },
   { slug: "isquios", icon: Zap, title: "Nórdico", detail: "Ángulo de rotura", phase: 3 },
   { slug: "bienestar", icon: HeartPulse, title: "Bienestar", detail: "Sueño, fatiga, estrés, agujetas", phase: 3 },
 ] as const;
@@ -25,7 +25,7 @@ export function TestPickerPage() {
             to={`/pacientes/${id}/test/${c.slug}`}
             icon={c.icon}
             title={c.title}
-            detail={c.phase === 1 ? c.detail : `${c.detail} · próximamente`}
+            detail={"ready" in c ? c.detail : `${c.detail} · próximamente`}
           />
         ))}
       </div>

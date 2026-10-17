@@ -15,8 +15,8 @@ Fecha: 2026-10-17
 | | |
 | --- | --- |
 | Funciones imprescindibles | **13 / 13** |
-| Paridad con My Jump Lab | **65,5 / 100**: saltos completos (fases 1 y 2); faltan las fases 3-4 |
-| Pruebas | 52 unitarias (Vitest) + 51 en navegador (Playwright), en los dos modos de alojamiento |
+| Paridad con My Jump Lab | **67,9 / 100**: saltos completos (fases 1 y 2) y movilidad; falta el resto de las fases 3-4 |
+| Pruebas | 67 unitarias (Vitest) + 57 en navegador (Playwright), en los dos modos de alojamiento |
 | Fallos | 7 encontrados, 7 arreglados (`replica/bugs.md`); ninguno abierto |
 | Prueba real | vídeo de Pixel 7 Pro (120 fps guardado a 30): 30,7 cm; el usuario confirmó que la app publicada funciona en su Android |
 | Barrido de marca | limpio (`sweep.py`) |
@@ -27,6 +27,7 @@ Fecha: 2026-10-17
 - RSI modificado (marca opcional del inicio del movimiento).
 - Perfil fuerza-velocidad con óptimo y desequilibrio.
 - Asimetría.
+- Movilidad: 14 movimientos de tobillo (lunge), cadera, hombro y cuello, medidos con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.
 - Evolución con gráfica y tabla.
 - Exportación CSV para Excel, y copia de seguridad que se puede restaurar.
 - App instalable que funciona sin conexión.
@@ -36,7 +37,8 @@ Fecha: 2026-10-17
 
 **Pendiente:**
 - **Validación** contra My Jump Lab o una plataforma de fuerza: 10-20 saltos medidos a la vez. Hasta entonces, no usar para decisiones clínicas.
-- Fase 3: bienestar, velocidad de barra y 1RM, movilidad, nórdico.
+- Fase 3: bienestar, velocidad de barra y 1RM, nórdico (la movilidad ya está).
+- Probar la movilidad con el sensor de un Android real.
 - Fase 4: sprint, cambio de dirección, carrera, comparar pacientes.
 - `/replica-entrepreneur`: leer reseñas reales del original para mejorar sobre él.
 - Prueba con TalkBack.
@@ -66,6 +68,11 @@ Fecha: 2026-10-17
    - Voz: precisa, cercana y serena.
    - Las comprobaciones de marca registrada están pendientes; solo harían falta si algún día se vende.
 9. **Claude no crea cuentas ni usa claves.** El usuario activó GitHub Pages él mismo (Settings → Pages → Source: GitHub Actions).
+10. **Movilidad con tres métodos.** Inclinómetro del móvil (sin aparatos), ángulo sobre foto (si no hay sensor o para dejar constancia) y goniómetro (lo que ya se usa en la clínica).
+    - El resultado es la media de las lecturas (se recomiendan 3).
+    - La foto no se guarda, como el vídeo.
+    - El cuello en flexión, extensión y rotación no se mide con foto: en una sola imagen no sale fiable.
+    - No hay valores normales: solo se compara un lado con el otro y la evolución.
 
 ## 4. Fórmulas acordadas (`src/calc/`)
 
@@ -81,6 +88,9 @@ Fecha: 2026-10-17
 | Perfil F-V | recta F̄(v̄) por mínimos cuadrados, F por kg de masa corporal; F0, V0, Pmáx = F0·V0/4 | Samozino |
 | Perfil óptimo | pendiente que maximiza h con la misma Pmáx, **buscada numéricamente** con el modelo macroscópico de Samozino; desequilibrio = \|1 − SFv/SFvopt\|; <100 % = déficit de fuerza | sin la fórmula cerrada del artículo |
 | Asimetría | (mejor − peor) / mejor × 100, con el mejor salto de cada pierna del día | estándar |
+| Movilidad (móvil) | ángulo entre la dirección «arriba» al poner a cero y la actual; lunge: inclinación del borde largo respecto a la vertical | geometría; vale si el segmento se mueve en un plano vertical |
+| Movilidad (foto) | ángulo en el eje entre 3 puntos, pasado al valor clínico (directo, 180° − ángulo o ángulo − 90°); o inclinación de 2 puntos respecto a la vertical | goniometría estándar |
+| Movilidad (resultado) | media de las lecturas; aviso si difieren más de 5° | criterio propio |
 
 Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
 
@@ -106,8 +116,9 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
 ## 6. Código: mapa y comandos
 
 ```
-src/calc/        fórmulas puras + tests (jump, results, repeated, profile, asymmetry, video)
-src/data/        SQLite: worker, motor, migraciones (001_init.sql), repo.ts (una función por operación), seed
+src/calc/        fórmulas puras + tests (jump, results, repeated, profile, asymmetry, video, rom)
+src/data/        SQLite: worker, motor, migraciones (001_init, 002_rom), repo.ts (una función por operación), seed
+src/rom/         useInclinometer.ts (sensor), PhotoProtractor.tsx (ángulo sobre foto)
 src/video/       meta.ts (fps, fps de grabación Android, horas de fotogramas), timeline.ts, useTimeline.ts
 src/pages/       una pantalla por archivo (S01 PatientsPage … S25 JumpHelp); rutas en src/App.tsx
 src/ui/          componentes del sistema de diseño (FrameScrubber, MetricCard, Sheet, Logo…)
@@ -139,6 +150,6 @@ Convenciones:
 ## 7. Siguientes pasos recomendados
 
 1. **Validación:** pantalla o CSV para anotar la altura de My Jump Lab junto a la de Impulso y calcular la diferencia media.
-2. **Fase 3:** bienestar (pequeño), velocidad de barra y 1RM, movilidad (inclinómetro o ángulo sobre foto), nórdico.
+2. **Fase 3:** bienestar (pequeño), velocidad de barra y 1RM, nórdico.
 3. **`/replica-entrepreneur`:** quejas reales de los usuarios del original, convertidas en mejoras.
 4. **Confirmar el DRI** en el artículo de Brooks (2026).

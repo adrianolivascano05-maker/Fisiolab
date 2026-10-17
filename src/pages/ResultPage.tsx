@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { plausible } from "../calc/jump";
 import { needsVideo } from "../calc/results";
-import { fmt, fmtDateTime, jumpLabels, metricLabels, sideLabels } from "../app/format";
+import { fmt, fmtDateTime, isJumpType, jumpLabels, metricLabels, sideLabels, testTitle } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
@@ -13,6 +13,7 @@ import { Button } from "../ui/Button";
 import { MetricCard } from "../ui/Card";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { RomResult } from "./RomResult";
 
 const linkPrimary = "inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover";
 const linkSecondary = "inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border-input px-4 font-semibold hover:bg-surface";
@@ -35,19 +36,45 @@ export function ResultPage() {
   if (!test || !patient) return <Page title="Resultado" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
 
   const back = `/pacientes/${patient.id}`;
-  const summary = test.results.filter((r) => r.seriesIndex === 0);
-  const get = (m: string) => summary.find((r) => r.metric === m);
-  const again = new URLSearchParams({ tipo: test.type, carga: String(test.extraLoadKg) });
-  if (test.dropHeightCm) again.set("caida", String(test.dropHeightCm));
-  if (test.side) again.set("lado", test.side === "left" ? "right" : "left"); // la otra pierna
-  const title = `${jumpLabels[test.type].short}${test.side ? ` ${sideLabels[test.side]}` : ""} · ${patient.name}`;
-  const marked = summary.length > 0;
+  const deleteUi = (
+    <>
+      <Button variant="ghost" className="text-danger" onClick={() => setConfirm(true)}>
+        Borrar este test
+      </Button>
+      <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar este test?">
+        <p>Se borrarán sus marcas y resultados. No se puede deshacer.</p>
+        <Button variant="danger" block onClick={remove}>
+          Borrar
+        </Button>
+        <Button variant="secondary" block onClick={() => setConfirm(false)}>
+          Cancelar
+        </Button>
+      </Sheet>
+    </>
+  );
 
   async function remove() {
     await deleteTest(getDb(), id);
     toast("Test borrado", "success");
     navigate(back, { replace: true });
   }
+
+  if (!isJumpType(test.type)) {
+    return (
+      <Page title={`${testTitle({ ...test, movement: String(test.details.movement ?? "") })} · ${patient.name}`} backTo={back}>
+        <RomResult test={test} patient={patient} />
+        {deleteUi}
+      </Page>
+    );
+  }
+  const type = test.type;
+  const summary = test.results.filter((r) => r.seriesIndex === 0);
+  const get = (m: string) => summary.find((r) => r.metric === m);
+  const again = new URLSearchParams({ tipo: type, carga: String(test.extraLoadKg) });
+  if (test.dropHeightCm) again.set("caida", String(test.dropHeightCm));
+  if (test.side) again.set("lado", test.side === "left" ? "right" : "left"); // la otra pierna
+  const title = `${jumpLabels[type].short}${test.side ? ` ${sideLabels[test.side]}` : ""} · ${patient.name}`;
+  const marked = summary.length > 0;
 
   return (
     <Page title={title} backTo={back}>
@@ -73,17 +100,17 @@ export function ResultPage() {
       )}
 
       <div className="flex flex-col gap-2">
-        {needsVideo(test.type) ? (
+        {needsVideo(type) ? (
           <Link to={`/pacientes/${patient.id}/test/saltos/video?${again}`} className={linkPrimary}>
             <RotateCcw aria-hidden="true" className="size-5" />
-            {test.side ? `Ahora la pierna ${sideLabels[test.side === "left" ? "right" : "left"]}` : `Otro ${jumpLabels[test.type].short}`}
+            {test.side ? `Ahora la pierna ${sideLabels[test.side === "left" ? "right" : "left"]}` : `Otro ${jumpLabels[type].short}`}
           </Link>
         ) : (
           <Link to={`/pacientes/${patient.id}/test/saltos`} className={linkPrimary}>
             <RotateCcw aria-hidden="true" className="size-5" /> Otro salto
           </Link>
         )}
-        {needsVideo(test.type) && (
+        {needsVideo(type) && (
           <Link to={`/tests/${id}/marcar`} className={linkSecondary}>
             {marked ? "Revisar marcas y recalcular" : "Marcar"}
           </Link>
@@ -93,23 +120,11 @@ export function ResultPage() {
             <Scale aria-hidden="true" className="size-5" /> Ver asimetría
           </Link>
         )}
-        <Link to={`/pacientes/${patient.id}/evolucion/${test.type}`} className={linkGhost}>
+        <Link to={`/pacientes/${patient.id}/evolucion/${type}`} className={linkGhost}>
           <ChartLine aria-hidden="true" className="size-5" /> Ver evolución
         </Link>
-        <Button variant="ghost" className="text-danger" onClick={() => setConfirm(true)}>
-          Borrar este test
-        </Button>
+        {deleteUi}
       </div>
-
-      <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar este test?">
-        <p>Se borrarán sus marcas y resultados. No se puede deshacer.</p>
-        <Button variant="danger" block onClick={remove}>
-          Borrar
-        </Button>
-        <Button variant="secondary" block onClick={() => setConfirm(false)}>
-          Cancelar
-        </Button>
-      </Sheet>
     </Page>
   );
 }

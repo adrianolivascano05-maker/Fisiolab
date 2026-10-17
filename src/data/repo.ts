@@ -2,6 +2,7 @@
 // Las pantallas solo hablan con estas funciones, nunca con SQL.
 import { computeJump, type JumpOutput, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
 import { fvProfile, type FvProfile, type Point } from "../calc/profile";
+import { getMovement, methodLabels, movementLabel, romTypeFor, summarize, type RomMethod, type RomType } from "../calc/rom";
 import type { Db } from "./db";
 import type { Statement } from "./protocol";
 
@@ -131,16 +132,19 @@ export type Mark = { event: MarkEvent; frameIndex: number; timeS: number; series
 /** `seriesIndex` 0 es el resultado del test; 1, 2… los de cada salto de una serie. */
 export type Result = { metric: string; value: number; unit: string; seriesIndex: number };
 export type Side = "left" | "right";
+export type TestType = JumpType | RomType;
 
 export type Test = {
   id: string;
   patientId: string;
-  type: JumpType;
+  type: TestType;
   side: Side | null;
   performedAt: string;
   extraLoadKg: number;
   dropHeightCm: number | null;
   notes: string;
+  /** Parámetros propios del test; en movilidad, `movement` y `method`. */
+  details: Record<string, unknown>;
   video: VideoMeta | null;
   marks: Mark[];
   results: Result[];
@@ -165,11 +169,12 @@ export async function getTest(db: Db, id: string): Promise<Test | null> {
   const [row] = await db.query<{
     id: string;
     patient_id: string;
-    type: JumpType;
+    type: TestType;
     side: Side | null;
     performed_at: string;
     extra_load_kg: number;
     drop_height_cm: number | null;
+    details: string;
     notes: string;
   }>("select * from tests where id = ?", [id]);
   if (!row) return null;
@@ -198,6 +203,7 @@ export async function getTest(db: Db, id: string): Promise<Test | null> {
     extraLoadKg: row.extra_load_kg,
     dropHeightCm: row.drop_height_cm,
     notes: row.notes,
+    details: JSON.parse(row.details) as Record<string, unknown>,
     video: v
       ? {
           fileName: v.file_name,
@@ -234,9 +240,10 @@ export async function saveMarksAndCompute(db: Db, testId: string, marks: MarkInp
   const test = await getTest(db, testId);
   if (!test) throw new Error("El test no existe.");
   if (!test.video) throw new Error("El test no tiene vídeo.");
+  if (test.type.startsWith("rom_")) throw new Error("Este test no es de salto.");
   const patient = await getPatient(db, test.patientId);
   const out = computeJump({
-    type: test.type,
+    type: test.type as JumpType,
     captureFps: test.video.captureFps,
     marks,
     bodyMassKg: patient?.bodyMassKg ?? null,
@@ -272,13 +279,16 @@ export async function deleteTest(db: Db, id: string): Promise<void> {
 
 export type TestSummary = {
   id: string;
-  type: JumpType;
+  type: TestType;
   side: Side | null;
   performedAt: string;
   extraLoadKg: number;
   heightCm: number | null;
   rsi: number | null;
   distanceCm: number | null;
+  /** Movilidad: movimiento del catálogo y ángulo medido. */
+  movement: string | null;
+  angleDeg: number | null;
 };
 
 /** Tests de un paciente, el más reciente primero, con su resultado principal. */
@@ -287,7 +297,9 @@ export async function listTests(db: Db, patientId: string): Promise<TestSummary[
     `select t.id, t.type, t.side, t.performed_at as performedAt, t.extra_load_kg as extraLoadKg,
             (select value from results r where r.test_id = t.id and r.metric = 'jump_height_cm' and r.series_index = 0) as heightCm,
             (select value from results r where r.test_id = t.id and r.metric = 'rsi' and r.series_index = 0) as rsi,
-            (select value from results r where r.test_id = t.id and r.metric = 'jump_distance_cm' and r.series_index = 0) as distanceCm
+            (select value from results r where r.test_id = t.id and r.metric = 'jump_distance_cm' and r.series_index = 0) as distanceCm,
+            json_extract(t.details, '$.movement') as movement,
+            (select value from results r where r.test_id = t.id and r.metric = 'angle_deg' and r.series_index = 0) as angleDeg
        from tests t
       where t.patient_id = ?
       order by t.performed_at desc`,
@@ -436,6 +448,69 @@ export async function singleLegJumps(db: Db, patientId: string): Promise<SideJum
   );
 }
 
+// ---------- Movilidad (S19) ----------
+
+export type NewRomTest = {
+  patientId: string;
+  movement: string;
+  side: Side | null;
+  method: RomMethod;
+  /** Una o varias lecturas en grados; el resultado es su media. */
+  readings: number[];
+  /** Solo lunge: distancia del dedo gordo a la pared, en cm. */
+  wallDistanceCm?: number | null;
+};
+
+export async function createRomTest(db: Db, input: NewRomTest): Promise<string> {
+  const m = getMovement(input.movement);
+  if (!m) throw new Error("Movimiento desconocido.");
+  if (m.sided !== (input.side !== null)) throw new Error(m.sided ? "Indica el lado." : "Este movimiento no tiene lado.");
+  if (input.readings.some((r) => !(r >= 0 && r <= 200))) throw new RangeError("Cada lectura debe estar entre 0 y 200°.");
+  const wall = input.wallDistanceCm ?? null;
+  if (wall !== null && !(wall >= 0 && wall <= 40)) throw new RangeError("La distancia a la pared debe estar entre 0 y 40 cm.");
+  const { mean } = summarize(input.readings);
+  const id = newId();
+  const t = now();
+  const result = (metric: string, value: number, unit: string, series: number): Statement => ({
+    sql: "insert into results (id, test_id, metric, value, unit, series_index, created_at) values (?, ?, ?, ?, ?, ?, ?)",
+    bind: [newId(), id, metric, value, unit, series, t],
+  });
+  await db.transaction([
+    {
+      sql: `insert into tests (id, patient_id, category, type, side, performed_at, details, created_at, updated_at)
+            values (?, ?, 'rom', ?, ?, ?, ?, ?, ?)`,
+      bind: [id, input.patientId, romTypeFor(m.joint), input.side, t, JSON.stringify({ movement: m.id, method: input.method }), t, t],
+    },
+    result("angle_deg", mean, "°", 0),
+    ...(input.readings.length > 1 ? input.readings.map((r, i) => result("angle_deg", r, "°", i + 1)) : []),
+    ...(wall !== null && m.id === "ankle_lunge" ? [result("wall_distance_cm", wall, "cm", 0)] : []),
+  ]);
+  return id;
+}
+
+export type RomEntry = {
+  testId: string;
+  movement: string;
+  side: Side | null;
+  method: RomMethod;
+  performedAt: string;
+  angleDeg: number;
+  wallDistanceCm: number | null;
+};
+
+/** Mediciones de movilidad de un paciente (de un movimiento o de todos), la más reciente primero. */
+export async function romEntries(db: Db, patientId: string, movement?: string): Promise<RomEntry[]> {
+  return db.query<RomEntry>(
+    `select t.id as testId, json_extract(t.details, '$.movement') as movement, t.side,
+            json_extract(t.details, '$.method') as method, t.performed_at as performedAt, a.value as angleDeg,
+            (select value from results w where w.test_id = t.id and w.metric = 'wall_distance_cm' and w.series_index = 0) as wallDistanceCm
+       from tests t join results a on a.test_id = t.id and a.metric = 'angle_deg' and a.series_index = 0
+      where t.patient_id = ? and t.category = 'rom' and (? is null or json_extract(t.details, '$.movement') = ?)
+      order by t.performed_at desc`,
+    [patientId, movement ?? null, movement ?? null],
+  );
+}
+
 // ---------- Ajustes ----------
 
 export async function getSetting<T>(db: Db, key: string): Promise<T | null> {
@@ -471,8 +546,11 @@ export async function exportCsv(db: Db): Promise<string> {
     unit: string;
     side: string | null;
     series_index: number;
+    movement: string | null;
+    method: RomMethod | null;
   }>(
     `select p.name as patient, t.performed_at, t.type, t.side, t.extra_load_kg, t.drop_height_cm, v.fps as capture_fps,
+            json_extract(t.details, '$.movement') as movement, json_extract(t.details, '$.method') as method,
             r.metric, r.value, r.unit, r.series_index
        from results r
        join tests t on t.id = r.test_id
@@ -483,13 +561,16 @@ export async function exportCsv(db: Db): Promise<string> {
   const num = (n: number | null, digits = 4) =>
     n === null ? "" : String(Number(n.toFixed(digits))).replace(".", ",");
   const cell = (s: string) => (/[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-  const header = ["paciente", "fecha", "test", "lado", "carga_kg", "altura_caida_cm", "fps_grabacion", "salto", "metrica", "valor", "unidad"];
-  const lines = rows.map((r) =>
-    [
+  const header = ["paciente", "fecha", "test", "movimiento", "lado", "metodo", "carga_kg", "altura_caida_cm", "fps_grabacion", "intento", "metrica", "valor", "unidad"];
+  const lines = rows.map((r) => {
+    const movement = r.movement ? getMovement(r.movement) : undefined;
+    return [
       cell(r.patient),
       r.performed_at,
       r.type,
+      movement ? cell(movementLabel(movement)) : "",
       r.side === "left" ? "izquierda" : r.side === "right" ? "derecha" : "",
+      r.method ? cell(methodLabels[r.method]) : "",
       num(r.extra_load_kg),
       num(r.drop_height_cm),
       num(r.capture_fps),
@@ -497,7 +578,7 @@ export async function exportCsv(db: Db): Promise<string> {
       r.metric,
       num(r.value),
       r.unit,
-    ].join(";"),
-  );
+    ].join(";");
+  });
   return "﻿" + [header.join(";"), ...lines].join("\r\n") + "\r\n";
 }

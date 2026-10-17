@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { JumpType } from "../calc/results";
-import { fmt, fmtDate, jumpLabels, metricLabels } from "../app/format";
+import { fmt, fmtDate, isJumpType, jumpLabels, metricLabels } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
@@ -29,7 +29,7 @@ export function EvolutionPage() {
   const [metric, setMetric] = useState(metricsFor[type][0]!);
   const data = useAsync(async () => {
     const db = getDb();
-    const types = [...new Set((await listTests(db, id)).map((t) => t.type))];
+    const types = [...new Set((await listTests(db, id)).map((t) => t.type))].filter(isJumpType);
     return { patient: await getPatient(db, id), points: await history(db, id, type, metric), types };
   }, [id, type, metric]);
   const title = "Evolución";

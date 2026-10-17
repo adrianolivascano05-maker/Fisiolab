@@ -21,6 +21,7 @@ S01 también a 1440 px. Capturas en `replica/clone-screens/`.
 | S10 Asimetría | 2026-10-17 | hecho | — | — |
 | S11 Saltos 10/5 | 2026-10-17 | hecho | — | el marcado pasó a admitir series (despegue/aterrizaje alternos, deshacer) |
 | S12 Salto horizontal | 2026-10-17 | hecho | medida por vídeo (se anota la distancia) | — |
+| S19 Movilidad | 2026-10-17 | hecho | ver el sensor en un Android real; nada se puede probar aquí con un sensor de verdad | `deviceorientation` y `devicemotion` no dan la gravedad con el mismo signo en todos los móviles: se usa la primera fuente que llega y el ángulo no depende del signo. Hubo que fijar a mano el color del texto en la leyenda y la ayuda emergente de la gráfica (salía en el color de cada lado, sin contraste) |
 | S22 Evolución | 2026-10-17 | hecho | — | — |
 | S24 Ajustes | 2026-10-17 | hecho | — | carrera al cargar datos de ejemplo: el botón se mostraba antes de saber si ya había datos (arreglado) |
 | S25 Ayuda | 2026-10-17 | hecho | ayuda de los tests de fases 2-4 cuando se construyan | dibujar la sentadilla para que no pareciera sentado; que la cabeza no se cortara en el vuelo |
@@ -40,3 +41,10 @@ Notas:
 - Fase 2 de saltos (2026-10-17): CMJ con brazos, unipodal con lado, 10/5, horizontal, RSI-mod, rigidez (Dalleau),
   DRI (Brooks), perfil F-V con óptimo y desequilibrio, asimetría. 52 pruebas unitarias y 51 e2e (en la raíz y bajo
   /Fisiolab/). Datos de ejemplo de fase 2 en «Ejemplo · Marcos Vidal».
+- Movilidad (2026-10-17, fase 3): 14 movimientos de tobillo (lunge), cadera, hombro y cuello, catálogo en
+  `src/calc/rom.ts`. Tres formas de medir: inclinómetro del móvil (cero en la posición de inicio, o inclinación
+  respecto a la vertical en el lunge), ángulo sobre foto (2 o 3 puntos, con ajuste fino y teclado; la foto no se
+  guarda) y goniómetro a mano. Resultado = media de las lecturas; aviso si difieren más de 5°. Migración 2: métrica
+  `wall_distance_cm` para la distancia del dedo gordo a la pared. Resumen por lados (diferencia si se midieron el
+  mismo día) y evolución con una línea por lado. CSV con columnas `movimiento` y `metodo`; `salto` pasa a `intento`.
+  67 pruebas unitarias y 57 e2e en los dos modos.

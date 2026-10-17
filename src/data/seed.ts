@@ -3,7 +3,7 @@
 import type { Db } from "./db";
 import { heightFromProfile } from "../calc/profile";
 import { marksFromFrames, type MarkInput } from "../calc/results";
-import { createHorizontalTest, createJumpTest, createPatient, saveMarksAndCompute, saveVideo } from "./repo";
+import { createHorizontalTest, createJumpTest, createPatient, createRomTest, saveMarksAndCompute, saveVideo, type NewRomTest } from "./repo";
 
 export const SEED_PREFIX = "Ejemplo · ";
 
@@ -30,7 +30,10 @@ export async function loadSeed(db: Db): Promise<void> {
       await saveVideo(db, tid, video);
       await saveMarksAndCompute(db, tid, marksFromFrames({ contact: 352, takeoff: 400, landing: 400 + p.flights.at(-1)! - 6 }));
     }
-    if (p.name.startsWith("Marcos")) await loadPhase2(db, pid, p.bodyMassKg!, p.pushOffDistanceCm! / 100);
+    if (p.name.startsWith("Marcos")) {
+      await loadPhase2(db, pid, p.bodyMassKg!, p.pushOffDistanceCm! / 100);
+      await loadRom(db, pid);
+    }
   }
 }
 
@@ -61,6 +64,23 @@ async function loadPhase2(db: Db, pid: string, bodyKg: number, hpo: number) {
   });
   await jump("rj_10_5", rj);
   await createHorizontalTest(db, pid, 238);
+}
+
+/** Movilidad: un lunge con el tobillo derecho más limitado que mejora en un mes, cadera y hombro. */
+async function loadRom(db: Db, pid: string) {
+  const day = 24 * 3600 * 1000;
+  const rom = async (input: Omit<NewRomTest, "patientId">, daysAgo: number) => {
+    const tid = await createRomTest(db, { patientId: pid, ...input });
+    const when = new Date(Date.now() - daysAgo * day).toISOString();
+    await db.transaction([{ sql: "update tests set performed_at = ? where id = ?", bind: [when, tid] }]);
+  };
+  await rom({ movement: "ankle_lunge", side: "left", method: "sensor", readings: [39, 40, 38], wallDistanceCm: 11 }, 35);
+  await rom({ movement: "ankle_lunge", side: "right", method: "sensor", readings: [29, 31, 30], wallDistanceCm: 7 }, 35);
+  await rom({ movement: "ankle_lunge", side: "left", method: "sensor", readings: [40, 41, 40], wallDistanceCm: 11.5 }, 3);
+  await rom({ movement: "ankle_lunge", side: "right", method: "sensor", readings: [35, 36, 34], wallDistanceCm: 9.5 }, 3);
+  await rom({ movement: "hip_internal_rotation", side: "left", method: "manual", readings: [34] }, 3);
+  await rom({ movement: "hip_internal_rotation", side: "right", method: "manual", readings: [27] }, 3);
+  await rom({ movement: "shoulder_flexion", side: "right", method: "photo", readings: [168] }, 3);
 }
 
 export async function removeSeed(db: Db): Promise<number> {

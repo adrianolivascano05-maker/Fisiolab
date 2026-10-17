@@ -1,4 +1,5 @@
 import type { JumpType } from "../calc/results";
+import { getMovement, isRomType, jointLabels, movementLabel, type RomJoint } from "../calc/rom";
 
 const nf = (digits: number) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
@@ -19,6 +20,11 @@ export function decimalText(n: number | null): string {
 
 export function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Madrid" });
+}
+
+/** "14/10/26": para tablas estrechas. */
+export function fmtDateShort(iso: string): string {
+  return new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "Europe/Madrid" });
 }
 
 export function fmtDateTime(iso: string): string {
@@ -43,8 +49,22 @@ export const jumpLabels: Record<JumpType, { short: string; long: string }> = {
 
 export const sideLabels = { left: "izquierda", right: "derecha" } as const;
 
+export function isJumpType(type: string): type is JumpType {
+  return type in jumpLabels;
+}
+
+/** Nombre corto de un test: "CMJ", "Movilidad · cadera"... */
 export function testLabel(type: string): string {
-  return type in jumpLabels ? jumpLabels[type as JumpType].short : type;
+  if (isJumpType(type)) return jumpLabels[type].short;
+  if (isRomType(type)) return `Movilidad · ${jointLabels[type.slice(4) as RomJoint].toLowerCase()}`;
+  return type;
+}
+
+/** Nombre de una medición concreta, con su movimiento y lado si los tiene. */
+export function testTitle(t: { type: string; side: "left" | "right" | null; movement?: string | null }): string {
+  const m = t.movement ? getMovement(t.movement) : undefined;
+  if (m) return movementLabel(m, t.side);
+  return `${testLabel(t.type)}${t.side ? ` ${sideLabels[t.side]}` : ""}`;
 }
 
 export const metricLabels: Record<string, { label: string; digits: number }> = {
@@ -61,4 +81,6 @@ export const metricLabels: Record<string, { label: string; digits: number }> = {
   stiffness_kn_m: { label: "Rigidez vertical", digits: 1 },
   dri: { label: "DRI", digits: 2 },
   jump_distance_cm: { label: "Distancia", digits: 0 },
+  angle_deg: { label: "Ángulo", digits: 0 },
+  wall_distance_cm: { label: "Distancia a la pared", digits: 1 },
 };

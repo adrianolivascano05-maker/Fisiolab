@@ -23,7 +23,7 @@ Salto horizontal,saltos,should,yes,yes,"distancia medida con cinta y anotada, si
 Velocidad media de la barra por vídeo,fuerza,should,yes,no,
 Perfil carga-velocidad y 1RM estimado,fuerza,should,yes,no,
 Pérdida de velocidad en la serie,fuerza,should,yes,no,
-Movilidad de tobillo (lunge) hombro cadera y cuello,movilidad,should,yes,no,inclinómetro del móvil o ángulo sobre foto
+Movilidad de tobillo (lunge) hombro cadera y cuello,movilidad,should,yes,yes,"S19: 14 movimientos; inclinómetro del móvil, ángulo sobre foto o goniómetro; media de lecturas; distancia a la pared en el lunge; resumen por lados y evolución"
 Nórdico: ángulo de rotura,isquios,should,yes,no,
 Nórdico: torque estimado,isquios,should,yes,no,fórmula por confirmar
 Cuestionario de bienestar (sueño fatiga estrés agujetas),bienestar,should,yes,no,
