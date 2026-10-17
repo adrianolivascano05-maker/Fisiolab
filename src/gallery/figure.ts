@@ -399,7 +399,13 @@ export function renderFigure(spec: FigureSpec, title: string, uid = "f"): string
       labels.push(`<text x="${lx.toFixed(1)}" y="${(ly + (d.y > 0.3 ? -4 : 10)).toFixed(1)}" text-anchor="middle">${esc(ar.label)}</text>`);
     }
   }
-  out.push(...labels.map((l) => l.replace("<text ", '<text font-size="8" font-weight="600" fill="var(--fig-text, #1f2933)" paint-order="stroke" stroke="var(--fig-bg, #fff)" stroke-width="3" ')));
+  // Etiquetas dentro del dibujo: se empujan desde los bordes para que no se corten.
+  const clamp = (l: string) =>
+    l.replace(/x="([-\d.]+)" y="([-\d.]+)"/, (_m, x: string, y: string) => {
+      const half = (l.replace(/<[^>]+>/g, "").length * 4.4) / 2 + 2;
+      return `x="${Math.min(W - half, Math.max(half, Number(x))).toFixed(1)}" y="${Math.min(H - 3, Math.max(9, Number(y))).toFixed(1)}"`;
+    });
+  out.push(...labels.map((l) => clamp(l).replace("<text ", '<text font-size="8" font-weight="600" fill="var(--fig-text, #1f2933)" paint-order="stroke" stroke="var(--fig-bg, #fff)" stroke-width="3" ')));
 
   const defs = `<defs><marker id="ah-${uid}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--fig-force, #0e6672)"/></marker><marker id="am-${uid}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--fig-move, #7d8a97)"/></marker></defs>`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${defs}${out.join("")}</svg>`;
