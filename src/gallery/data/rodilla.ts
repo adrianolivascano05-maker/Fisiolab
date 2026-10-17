@@ -238,9 +238,17 @@ export const rodillaTests: SpecialTest[] = [
     ],
     positive: "La tibia del lado afectado queda hundida hacia atrás respecto al fémur y al lado sano.",
     interpretation:
-      "Se usa sobre todo para confirmar y como complemento del cajón posterior, cuya interpretación mejora. No hemos podido comprobar cifras de precisión fiables.",
-    accuracy: [],
-    utility: "desconocida",
+      "Muy específico: si la tibia está hundida, la rotura del LCP es muy probable. Un negativo la hace menos probable, pero conviene completarlo con el cajón posterior, cuya interpretación mejora.",
+    accuracy: [
+      {
+        sens: 79,
+        spec: 100,
+        lrNeg: 0.21,
+        context: "Estudio ciego con exploradores expertos; único estudio sobre el signo (cifras citadas en fuentes secundarias)",
+        ...RUBINSTEIN,
+      },
+    ],
+    utility: "alta",
     figures: [
       {
         view: "side",
@@ -394,9 +402,16 @@ export const rodillaTests: SpecialTest[] = [
     ],
     positive: "Dolor en el LCL o apertura lateral aumentada. Abrir a 30° orienta a LCL; abrir también a 0° sugiere lesión añadida de cruzados o esquina posterolateral.",
     interpretation:
-      "Se considera más útil para confirmar que para descartar, pero no hemos podido comprobar cifras fiables. Si es positivo, completa con dial test y pivot shift inverso.",
-    accuracy: [],
-    utility: "desconocida",
+      "Poco sensible en lesiones agudas: un negativo no descarta lesión del LCL ni de la esquina posterolateral. No hay datos fiables de especificidad. Si es positivo o la sospecha persiste, completa con dial test y pivot shift inverso.",
+    accuracy: [
+      {
+        sens: 25,
+        context: "Lesiones ligamentosas agudas, varo a unos 20° de flexión; no se publicó especificidad (cifra citada en fuentes secundarias)",
+        source: "Harilainen et al., 1986",
+        citation: "Harilainen A, et al. Diagnosis of acute knee ligament injuries: the value of stress radiography compared with clinical examination. 1986.",
+      },
+    ],
+    utility: "baja",
     cautions: "Una apertura franca en extensión sugiere lesión multiligamentaria: deriva y revisa la función del nervio peroneo.",
     figures: [
       {
@@ -753,12 +768,22 @@ export const rodillaTests: SpecialTest[] = [
       "Flexiona la rodilla unos 30° con el cuádriceps relajado.",
       "Empuja la rótula hacia lateral con los pulgares, despacio.",
       "Observa la cara del paciente y la contracción del cuádriceps.",
+      "Variante en movimiento: flexiona de 0° a 90° empujando la rótula hacia lateral y repite empujándola hacia medial; en la inestabilidad, la primera da aprensión y la segunda no.",
     ],
     positive: "Aprensión (miedo a que se salga), contracción defensiva del cuádriceps o el paciente detiene la maniobra.",
     interpretation:
-      "Orienta a inestabilidad rotuliana más que a dolor femoropatelar en general. Se considera poco sensible y más útil para confirmar, pero no hemos podido comprobar cifras fiables.",
-    accuracy: [],
-    utility: "desconocida",
+      "Orienta a inestabilidad rotuliana lateral, no a dolor femoropatelar en general. La variante en movimiento ha dado cifras altas para confirmar y descartar, pero en un solo estudio pequeño; una revisión sistemática de 2023 la considera útil para un diagnóstico provisional que debe completarse con imagen.",
+    accuracy: [
+      {
+        sens: 100,
+        spec: 88.4,
+        context: "Variante en movimiento (moving patellar apprehension test), 51 pacientes, frente a luxación de la rótula bajo anestesia",
+        source: "Ahmad et al., 2009",
+        citation: "Ahmad CS, et al. The moving patellar apprehension test for lateral patellar instability. Am J Sports Med. 2009.",
+        doi: "10.1177/0363546508328113",
+      },
+    ],
+    utility: "alta",
     cautions: "No lo hagas tras una luxación reciente: puede reproducirla.",
     figures: [
       {
@@ -872,7 +897,45 @@ export const rodillaTests: SpecialTest[] = [
         caption: "Sentadilla lenta: se pregunta por dolor alrededor de la rótula.",
       },
     ],
-    related: ["rod-inclinacion-rotuliana", "rod-clarke"],
+    related: ["rod-inclinacion-rotuliana", "rod-clarke", "rod-cluster-cook-femoropatelar"],
+  },
+  {
+    id: "rod-cluster-cook-femoropatelar",
+    region: "rodilla",
+    group: "Dolor femoropatelar",
+    name: "Cluster de Cook para dolor femoropatelar",
+    aka: ["Cook PFPS cluster"],
+    kind: "cluster",
+    purpose: "Combina tres hallazgos de exploración para orientar el diagnóstico de dolor femoropatelar.",
+    position: "Paciente de pie para la sentadilla y en supino o sentado para la contracción resistida y la palpación.",
+    steps: [
+      "Dolor con la contracción resistida del cuádriceps.",
+      "Dolor al hacer una sentadilla.",
+      "Dolor a la palpación alrededor de la rótula.",
+      "Cuenta cuántos de los tres son positivos.",
+    ],
+    positive: "Dos o más de los tres hallazgos positivos.",
+    interpretation:
+      "Combinar hallazgos funcionales orienta mejor que cualquier test aislado: con 2 de 3 la probabilidad de dolor femoropatelar aumenta de forma moderada. Las estimaciones vienen de un solo estudio con intervalos amplios.",
+    accuracy: [
+      {
+        lrPos: 4.0,
+        context: "2 de 3 hallazgos positivos (VPP 89 %); 76 pacientes consecutivos con dolor anterior de rodilla",
+        source: "Cook et al., 2010",
+        citation: "Cook C, Hegedus E, Hawkins R, Scovell F, Wyland D. Diagnostic accuracy and association to disability of clinical test findings associated with patellofemoral pain syndrome. Physiother Can. 2010;62(1):17-24.",
+      },
+    ],
+    utility: "moderada",
+    figures: [
+      {
+        view: "side",
+        posture: "standing",
+        joints: { trunk: 30, r_hip: 80, r_knee: 90, r_ankle: 25, l_hip: 80, l_knee: 90, l_ankle: 25 },
+        pain: ["r_knee"],
+        caption: "Uno de los tres elementos: dolor al hacer la sentadilla.",
+      },
+    ],
+    related: ["rod-sentadilla-dolor", "rod-clarke"],
   },
 
   // ───────────── Derrame articular ─────────────
@@ -927,8 +990,15 @@ export const rodillaTests: SpecialTest[] = [
     ],
     positive: "La rótula se hunde y choca contra el fémur (sensación de rebote o peloteo).",
     interpretation:
-      "Detecta mejor los derrames grandes; con derrames pequeños puede ser negativo. La fiabilidad entre examinadores es muy variable y no hay evidencia suficiente para preferir un test de derrame sobre otro.",
+      "Detecta mejor los derrames grandes; con derrames pequeños puede ser negativo, así que sirve algo para confirmar pero no para descartar. La fiabilidad entre examinadores es muy variable y no hay evidencia suficiente para preferir un test de derrame sobre otro.",
     accuracy: [
+      {
+        sens: 18.2,
+        spec: 93.3,
+        context: "Un estudio en artrosis de rodilla, frente a ecografía; incluido en la revisión sistemática (otros estudios dan cifras muy distintas)",
+        source: "Maricar et al., 2016",
+        citation: "Maricar N, et al. Clinical assessment of effusion in knee osteoarthritis: a systematic review. Semin Arthritis Rheum. 2016.",
+      },
       {
         reliability: "kappa entre examinadores de −0,02 a 0,75 según el estudio",
         context: "Revisión sistemática de tests de derrame en artrosis de rodilla; sin metaanálisis por heterogeneidad",
@@ -936,7 +1006,7 @@ export const rodillaTests: SpecialTest[] = [
         citation: "Maricar N, et al. Clinical assessment of effusion in knee osteoarthritis: a systematic review. Semin Arthritis Rheum. 2016.",
       },
     ],
-    utility: "desconocida",
+    utility: "moderada",
     cautions: "Un derrame agudo tras traumatismo sugiere hemartros; con fiebre o enrojecimiento, descarta artritis séptica.",
     figures: [
       {
