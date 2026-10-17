@@ -301,7 +301,7 @@ export const hombroTests: SpecialTest[] = [
         hands: ["r_wrist", "l_wrist"],
         arrows: [
           { at: "r_wrist", dir: "caudal", label: "resiste" },
-          { at: "r_forearm@0.5", rotate: "ccw", label: "pulgar arriba" },
+          { at: "r_forearm@0.5", rotate: "ccw", label: "pulgar ↑" },
         ],
         pain: ["r_shoulder"],
         caption: "Lata llena: misma posición con los pulgares hacia arriba",
@@ -469,7 +469,7 @@ export const hombroTests: SpecialTest[] = [
         joints: { r_elbow: -90 },
         arrows: [
           { at: "r_hand", dir: "posterior", kind: "move", label: "presiona" },
-          { at: "r_elbow", dir: "anterior", kind: "move", label: "codo delante" },
+          { at: "r_elbow", dir: "anterior", kind: "move" },
         ],
         caption: "Mano en el abdomen: presiona sin que el codo se vaya atrás",
       },

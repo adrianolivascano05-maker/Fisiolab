@@ -48,3 +48,4 @@ Autoguardado de las marcas sin calcular,marcado,should,no,yes,reseñas: forzar c
 Explicación del cálculo en el resultado del salto (fotogramas · fps · fórmula),resultados,should,no,yes,reseñas: cálculos inconsistentes; replica/fixes.md #2
 Medición rápida sin rellenar ficha,pacientes,should,no,yes,reseña: montar un perfil para probar; replica/fixes.md #3
 Lupa sobre la imagen al marcar,marcado,could,no,no,evidencia escasa; replica/fixes.md #8
+Galería de tests de exploración por articulación y patología,exploracion,could,no,yes,"212 tests (145 con precisión contrastada), ilustraciones propias generadas, LR y probabilidad tras el test; src/gallery quitable"

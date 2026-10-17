@@ -1,4 +1,4 @@
-import { ChevronLeft, Settings, Users, ChartColumn } from "lucide-react";
+import { BookOpen, ChevronLeft, Settings, Users, ChartColumn } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router";
 import { cx } from "./cx";
@@ -35,6 +35,7 @@ export function TopBar({ title, backTo, action, brand }: { title: string; backTo
 const tabs = [
   { to: "/", label: "Pacientes", icon: Users },
   { to: "/comparar", label: "Comparar", icon: ChartColumn },
+  { to: "/exploracion", label: "Exploración", icon: BookOpen }, // src/gallery
   { to: "/ajustes", label: "Ajustes", icon: Settings },
 ];
 
@@ -42,12 +43,12 @@ const tabs = [
 export function TabBar() {
   return (
     <nav aria-label="Principal" className="safe-bottom fixed inset-x-0 bottom-0 z-10 border-t border-border bg-bg">
-      <ul className="mx-auto grid h-[var(--layout-tabbar)] max-w-[var(--layout-content-max)] grid-cols-3">
+      <ul className="mx-auto grid h-[var(--layout-tabbar)] max-w-[var(--layout-content-max)]" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
         {tabs.map(({ to, label, icon: Icon }) => (
           <li key={to}>
             <NavLink
               to={to}
-              end
+              end={to === "/"}
               className={({ isActive }) =>
                 cx("flex h-full flex-col items-center justify-center gap-1 text-xs", isActive ? "text-accent" : "text-text-muted")
               }
