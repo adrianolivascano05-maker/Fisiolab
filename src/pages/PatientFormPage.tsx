@@ -67,6 +67,12 @@ export function PatientFormPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [failedSubmits, setFailedSubmits] = useState(0);
+
+  // Tras un envío con errores, el foco va al primer campo marcado (ya pintado con su mensaje).
+  useEffect(() => {
+    if (failedSubmits) document.querySelector<HTMLElement>("[aria-invalid=true]")?.focus();
+  }, [failedSubmits]);
 
   useEffect(() => {
     if (!id) return;
@@ -96,7 +102,7 @@ export function PatientFormPage() {
     const { errors, input } = validate(form);
     setErrors(errors);
     if (!input) {
-      document.querySelector<HTMLElement>("[aria-invalid=true]")?.focus();
+      setFailedSubmits((n) => n + 1);
       return;
     }
     setSaving(true);
