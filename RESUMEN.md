@@ -50,6 +50,12 @@ Fecha: 2026-10-17
 - `/replica-entrepreneur`: leer reseñas reales del original para mejorar sobre él.
 - Prueba con TalkBack.
 
+**Experimental (se puede quitar):** «Medición libre» (Nueva medición → Medición libre).
+- Pose 3D por IA (MediaPipe, Apache 2.0) en el propio móvil.
+- Esqueleto superpuesto, plano anatómico con compensación de la perspectiva, filtro One Euro, anclaje a las articulaciones, Δθ e informe CSV.
+- Está toda en `src/free/` y usa su propia tabla. Cómo quitarla, en `src/free/README.md`, o con `git revert` de su commit.
+- Comprobado: abducción de 90° → 91,6° en una foto de ejemplo; temblor de unos 2° en imagen quieta.
+
 ## 3. Decisiones tomadas (y por qué)
 
 1. **Por fases, saltos primero.** El usuario pidió «toda la app»; se construye por fases. Las fases 1 a 4 están hechas.

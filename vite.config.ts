@@ -65,7 +65,9 @@ export default defineConfig({
         // Todo lo necesario para abrir sin conexión, incluido el motor SQLite (.wasm) y sus workers.
         globPatterns: ["**/*.{js,css,html,wasm,woff2,png,svg}"],
         // Inter solo en alfabeto latino: el resto de alfabetos no hace falta en la clínica.
-        globIgnores: ["**/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2"],
+        // Medición libre (src/free): su motor de pose (≈ 19 MB) no se precarga; se guarda al usarlo.
+        globIgnores: ["**/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2", "**/vision_*"],
+        runtimeCaching: [{ urlPattern: /\/assets\/(vision_|pose_landmarker)/, handler: "CacheFirst", options: { cacheName: "medicion-libre" } }],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: `${base}index.html`,
         cleanupOutdatedCaches: true,

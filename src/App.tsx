@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import { DbGate } from "./app/DbGate";
 import { UpdateBanner } from "./app/pwa";
 import { ToastProvider } from "./ui/Toast";
+import { freeRoutes } from "./free/routes"; // Módulo experimental (src/free/README.md)
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { JumpSetupPage } from "./pages/JumpSetupPage";
 import { PatientFormPage } from "./pages/PatientFormPage";
@@ -63,6 +64,7 @@ const router = createBrowserRouter([
   { path: "/pacientes/:id/movilidad/:mov", element: l(<RomHistoryPage />) }, // S19
   { path: "/pacientes/:id/bienestar", element: l(<WellnessPage />) }, // S21
   { path: "/pacientes/:id/evolucion/:tipo", element: l(<EvolutionPage />) }, // S22
+  ...freeRoutes, // Medición libre (experimental)
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07
   { path: "/tests/:id", element: <ResultPage /> }, // S08
   { path: "/comparar", element: l(<ComparePage />) }, // S23
