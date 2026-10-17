@@ -6,7 +6,7 @@ Fecha: 2026-10-17 · Tras probar con un vídeo real del Pixel 7 Pro de Fisiolab
 
 Los 13 must-haves están hechos y no hay fallos S1 ni S2 abiertos (`replica/bugs.md`). Por la regla del
 método, «publicable» pide además 80 puntos de paridad y hay 46,4: faltan las fases 2-4 (fuerza, sprint,
-carrera, movilidad, nórdico, bienestar y el resto de saltos). Por eso está publicada como **versión de
+carrera, movilidad, nórdico, bienestar y el resto de saltos). Por eso se publica como **versión de
 prueba** para saltos (CMJ, SJ, DJ), no como sustituto de My Jump Lab.
 
 | medida | valor |
