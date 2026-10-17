@@ -27,7 +27,15 @@ const utilityLabels: Record<SpecialTest["utility"], string> = {
 
 /** Contrastado: con al menos un dato de precisión (sensibilidad, especificidad o LR) publicado y comprobado. */
 export const verified = (t: SpecialTest) =>
-  t.accuracy.some((a) => a.sens !== undefined || a.spec !== undefined || a.lrPos !== undefined || a.lrNeg !== undefined);
+  t.accuracy.some(
+    (a) =>
+      a.sens !== undefined ||
+      a.spec !== undefined ||
+      a.lrPos !== undefined ||
+      a.lrNeg !== undefined ||
+      // Rangos o valores predictivos publicados, escritos en el contexto (no solo fiabilidad).
+      (!a.reliability && /\d+\s*%/.test(a.context ?? "")),
+  );
 const rank: Record<SpecialTest["utility"], number> = { alta: 0, moderada: 1, baja: 2, desconocida: 3 };
 /** Primero los contrastados (de más a menos útiles) y al final los que están sin contrastar. */
 export const byEvidence = (a: SpecialTest, b: SpecialTest) => Number(verified(b)) - Number(verified(a)) || rank[a.utility] - rank[b.utility];
