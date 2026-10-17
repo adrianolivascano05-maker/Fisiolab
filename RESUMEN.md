@@ -1,0 +1,144 @@
+# Impulso · Fisiolab: resumen ejecutivo para continuar
+
+Fecha: 2026-10-17
+
+## 1. Qué es y dónde está
+
+- **App:** Impulso · Fisiolab. Mide el salto por vídeo a cámara lenta: se marcan fotogramas y la app calcula altura, RSI, fuerza, potencia, etc. Es una versión propia, por funciones, de My Jump Lab (Carlos Balsalobre). No usa nada suyo: ni código, ni nombre, ni logo, ni textos.
+- **Uso:** interno en la clínica Fisiolab, en el móvil **Android (Pixel 7 Pro)** del usuario.
+- **Publicada (versión de prueba):** https://adrianolivascano05-maker.github.io/Fisiolab/
+- **Código:** repositorio `adrianolivascano05-maker/Fisiolab` (público). Rama principal y única: `claude/replica-skill-install-zv3ker`. Cada push a esa rama vuelve a publicar la app (GitHub Actions → GitHub Pages).
+- **Método:** las skills «replica» instaladas en `.claude/skills/` (recon → architect → design → build → test → diff → brand → deploy). Todos sus documentos están en `replica/`.
+
+## 2. Estado actual
+
+| | |
+| --- | --- |
+| Funciones imprescindibles | **13 / 13** |
+| Paridad con My Jump Lab | **65,5 / 100**: saltos completos (fases 1 y 2); faltan las fases 3-4 |
+| Pruebas | 52 unitarias (Vitest) + 51 en navegador (Playwright), en los dos modos de alojamiento |
+| Fallos | 7 encontrados, 7 arreglados (`replica/bugs.md`); ninguno abierto |
+| Prueba real | vídeo de Pixel 7 Pro (120 fps guardado a 30): 30,7 cm; el usuario confirmó que la app publicada funciona en su Android |
+| Barrido de marca | limpio (`sweep.py`) |
+
+**Hecho:**
+- Pacientes.
+- Saltos: CMJ, CMJ con brazos, SJ, Drop jump (RSI, rigidez, DRI), unipodal con lado, 10/5 y horizontal.
+- RSI modificado (marca opcional del inicio del movimiento).
+- Perfil fuerza-velocidad con óptimo y desequilibrio.
+- Asimetría.
+- Evolución con gráfica y tabla.
+- Exportación CSV para Excel, y copia de seguridad que se puede restaurar.
+- App instalable que funciona sin conexión.
+- Ayuda ilustrada.
+- Datos de ejemplo.
+- Marca propia.
+
+**Pendiente:**
+- **Validación** contra My Jump Lab o una plataforma de fuerza: 10-20 saltos medidos a la vez. Hasta entonces, no usar para decisiones clínicas.
+- Fase 3: bienestar, velocidad de barra y 1RM, movilidad, nórdico.
+- Fase 4: sprint, cambio de dirección, carrera, comparar pacientes.
+- `/replica-entrepreneur`: leer reseñas reales del original para mejorar sobre él.
+- Prueba con TalkBack.
+
+## 3. Decisiones tomadas (y por qué)
+
+1. **Por fases, saltos primero.** El usuario pidió «toda la app»; se construye por fases. Siguen las fases 3 y 4.
+2. **Web instalable (PWA), no app nativa.** Funciona en cualquier móvil, sin tiendas, sin cuentas de desarrollador y gratis.
+3. **Datos solo en el dispositivo:** SQLite WASM sobre OPFS, sin servidor ni cuentas. Son datos de salud (RGPD), con coste 0 € y funcionan sin conexión. Consecuencias:
+   - No se sincroniza entre móviles; se pasa la copia de seguridad.
+   - Hay recordatorio semanal de copia.
+   - Solo una pestaña a la vez (Web Lock); la segunda avisa y se bloquea.
+   - Borrar un paciente borra todo lo suyo.
+4. **El vídeo no se guarda:** se queda en la galería. Solo se guardan las marcas y los resultados, así que, si cambia una fórmula, se recalcula desde las marcas.
+5. **fps de grabación separados de los fps del archivo.**
+   - Las cámaras lentas suelen guardarse ralentizadas (el Pixel graba a 120 y guarda a 30).
+   - La app lee la etiqueta `com.android.capture.fps` y propone 120 sola.
+   - Avisa por debajo de 100 fps.
+6. **Fotograma exacto.** Se navega por la hora real de cada fotograma, sacada del índice MP4/MOV con mp4box y calibrada con `requestVideoFrameCallback`. Con 30 fps fijos, el vídeo real mostraba el fotograma siguiente (BUG-005).
+7. **Alojamiento: GitHub Pages**, bajo `/Fisiolab/`. Es gratis porque el repo es público y no hace falta cuenta nueva.
+   - La CSP va en `<meta>`.
+   - `404.html` es la propia app.
+   - Cloudflare Workers queda preparado como alternativa (`wrangler.jsonc`, `public/_headers`) para un dominio propio.
+8. **Marca: Impulso · Fisiolab.**
+   - Paleta propia «petróleo y pizarra».
+   - Logo: parábola del salto con un punto en el vértice, sobre el suelo.
+   - Voz: precisa, cercana y serena.
+   - Las comprobaciones de marca registrada están pendientes; solo harían falta si algún día se vende.
+9. **Claude no crea cuentas ni usa claves.** El usuario activó GitHub Pages él mismo (Settings → Pages → Source: GitHub Actions).
+
+## 4. Fórmulas acordadas (`src/calc/`)
+
+| medida | fórmula | fuente / estado |
+| --- | --- | --- |
+| Altura | h = g·t_vuelo² / 8 | Bosco 1983 |
+| RSI (DJ) | h / t_contacto | estándar |
+| RSI-mod | h / tiempo hasta el despegue | marca opcional «Inicio» |
+| Samozino (CMJ, SJ) | F = m·g·(h/hpo + 1); v = √(g·h/2); P = F·v; m = masa + carga | Samozino 2008. No se aplica al CMJ con brazos ni al unipodal |
+| Rigidez vertical (DJ) | k = m·π·(tv+tc) / (tc²·((tv+tc)/π − tc/4)) | Dalleau 2004; comprobada con su derivación Fmáx/Δy |
+| DRI (DJ) | (caída + altura) / (g·tc²) | Brooks 2026, por fuentes secundarias: **confirmar en el artículo** |
+| 10/5 | RSI de cada rebote = h/tc; resultado = media de los 5 mejores (mínimo 6 saltos) | Harper 2011 |
+| Perfil F-V | recta F̄(v̄) por mínimos cuadrados, F por kg de masa corporal; F0, V0, Pmáx = F0·V0/4 | Samozino |
+| Perfil óptimo | pendiente que maximiza h con la misma Pmáx, **buscada numéricamente** con el modelo macroscópico de Samozino; desequilibrio = \|1 − SFv/SFvopt\|; <100 % = déficit de fuerza | sin la fórmula cerrada del artículo |
+| Asimetría | (mejor − peor) / mejor × 100, con el mejor salto de cada pierna del día | estándar |
+
+Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
+
+## 5. Marca (texto final)
+
+- **Nombre:** «Impulso» (completo «Impulso · Fisiolab»).
+- **Colores (`replica/design/tokens.json`):**
+  - acción `#0e6672` (petróleo), hover `#0a4f59`
+  - texto `#0f2530`, texto secundario `#4c5e66`
+  - superficie `#f3f6f7`, bordes `#dce3e6`
+  - gráficas `#0083a3` y `#b4532a` (cobre)
+  - peligro `#b42318`, éxito `#19764a`, aviso `#8a5300`
+  - 41 pares AA, 0 fallos; el par de gráficas pasa el validador de daltonismo.
+- **Logo:** `src/ui/Logo.tsx` (SVG). Iconos generados con `tools/build-icons.py`.
+- **Voz:** precisa (no técnica de más), cercana (no coloquial), serena (no fría). Textos clave:
+  - «Todavía no hay pacientes» / «Añade a tu primer paciente y mide su salto en un par de minutos.»
+  - «Nueva medición»
+  - «Calcular resultado»
+  - «Paciente añadido»
+  - «Ten Impulso a un toque»
+  - «El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.»
+
+## 6. Código: mapa y comandos
+
+```
+src/calc/        fórmulas puras + tests (jump, results, repeated, profile, asymmetry, video)
+src/data/        SQLite: worker, motor, migraciones (001_init.sql), repo.ts (una función por operación), seed
+src/video/       meta.ts (fps, fps de grabación Android, horas de fotogramas), timeline.ts, useTimeline.ts
+src/pages/       una pantalla por archivo (S01 PatientsPage … S25 JumpHelp); rutas en src/App.tsx
+src/ui/          componentes del sistema de diseño (FrameScrubber, MetricCard, Sheet, Logo…)
+e2e/             pruebas Playwright por flujo (fixtures.ts con ayudas)
+replica/         recon, arquitectura, diseño, test-plan, bugs, paridad, marca, despliegue
+tools/           build-tokens.mjs, build-icons.py, serve-dist.mjs (sirve el build como el alojamiento)
+```
+
+Pila: Vite + React 19 + TypeScript + Tailwind 4 (tokens) + React Router + SQLite WASM (OPFS) + mp4box + Recharts + vite-plugin-pwa.
+
+```bash
+npm ci
+npm test               # unitarias
+npm run e2e            # navegador, en la raíz (cabeceras de Cloudflare)
+npm run e2e:ghpages    # navegador, bajo /Fisiolab/ como GitHub Pages
+npm run build          # tokens + typecheck + build
+python3 tools/build-icons.py
+python3 .claude/skills/replica-design/contrast.py replica/design/tokens.json
+python3 .claude/skills/replica-brand/sweep.py . --config replica/brand.json
+python3 .claude/skills/replica-diff/parity.py replica/features.csv
+```
+
+Convenciones:
+- Commits en inglés, con una línea de título y el cuerpo.
+- La app y la documentación, en español.
+- Pruebas antes de cada push: el push publica.
+- Los vídeos del usuario no se suben al repositorio.
+
+## 7. Siguientes pasos recomendados
+
+1. **Validación:** pantalla o CSV para anotar la altura de My Jump Lab junto a la de Impulso y calcular la diferencia media.
+2. **Fase 3:** bienestar (pequeño), velocidad de barra y 1RM, movilidad (inclinómetro o ángulo sobre foto), nórdico.
+3. **`/replica-entrepreneur`:** quejas reales de los usuarios del original, convertidas en mejoras.
+4. **Confirmar el DRI** en el artículo de Brooks (2026).
