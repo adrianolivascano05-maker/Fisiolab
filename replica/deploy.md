@@ -1,6 +1,6 @@
 # Publicación: Fisiolab · Medición
 
-Fecha: 2026-10-17 · Rama: `claude/replica-skill-install-zv3ker` · Visto bueno del usuario: **pendiente**
+Fecha: 2026-10-17 · Rama: `claude/replica-skill-install-zv3ker` · Visto bueno del usuario: **sí, como versión de prueba (2026-10-17)**
 
 Tipo de publicación propuesta: **versión de prueba** para el móvil Android de Fisiolab. Sirve para cerrar el
 último must-have (vídeo real) y la validación; no para decisiones clínicas hasta completar M4.
