@@ -100,3 +100,13 @@ un goniómetro.
 
 Unitarias: `src/calc/strength.test.ts` (velocidad, serie, recta, 1RM) y `src/data/strength.test.ts` (vídeo, encoder,
 validación, perfil, CSV). Pendiente a mano: comparar con un encoder lineal en la clínica.
+
+## F13 Bienestar (añadido el 2026-10-17, `e2e/wellness.spec.ts`)
+
+| caso | qué comprueba |
+| --- | --- |
+| F13-H1 | cuestionario incompleto avisa; dolor fuera de 0-10 avisa; total 17/25 y aviso de sueño (2); corregir el mismo día no duplica (19/25); se ve en la ficha |
+| F13-H2 | datos de ejemplo: 14/25 por debajo de lo habitual, aviso de fatiga y sueño, gráfica, tabla y borrado |
+
+Unitarias: `src/calc/wellness.test.ts` (total, respuestas bajas, comparación con la media) y `src/data/wellness.test.ts`
+(un registro por día, validación, CSV, borrado en cascada).

@@ -35,7 +35,7 @@ beforeEach(async () => {
 
 describe("base de datos", () => {
   it("migra a la última versión", async () => {
-    expect((await db.info()).schemaVersion).toBe(2);
+    expect((await db.info()).schemaVersion).toBe(3);
   });
 
   it("flujo completo: paciente → CMJ → vídeo → marcas → resultados", async () => {

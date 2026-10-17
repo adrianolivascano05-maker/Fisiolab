@@ -12,6 +12,7 @@ import {
   saveMarksAndCompute,
   saveVbtVelocities,
   saveVideo,
+  saveWellness,
   type NewRomTest,
 } from "./repo";
 
@@ -40,6 +41,7 @@ export async function loadSeed(db: Db): Promise<void> {
       await saveVideo(db, tid, video);
       await saveMarksAndCompute(db, tid, marksFromFrames({ contact: 352, takeoff: 400, landing: 400 + p.flights.at(-1)! - 6 }));
     }
+    await loadWellness(db, pid, p.name.startsWith("Marcos"));
     if (p.name.startsWith("Marcos")) {
       await loadPhase2(db, pid, p.bodyMassKg!, p.pushOffDistanceCm! / 100);
       await loadRom(db, pid);
@@ -114,6 +116,25 @@ async function loadStrength(db: Db, pid: string) {
     f += up + 500;
   });
   await saveMarksAndCompute(db, tid, marks);
+}
+
+/** Bienestar de las dos últimas semanas; Marcos llega hoy peor de lo habitual (ha dormido mal y está cansado). */
+async function loadWellness(db: Db, pid: string, badToday: boolean) {
+  const days: [number, number, number, number, number][] = [
+    // fatiga, sueño, dolor muscular, estrés, ánimo
+    [4, 4, 3, 4, 4],
+    [4, 5, 4, 4, 4],
+    [3, 4, 3, 4, 4],
+    [4, 4, 4, 5, 4],
+    [4, 3, 3, 4, 5],
+    [4, 4, 4, 4, 4],
+  ];
+  const day = 24 * 3600 * 1000;
+  for (const [i, [fatigue, sleep, soreness, stress, mood]] of days.entries()) {
+    const at = new Date(Date.now() - (days.length - i) * 2 * day);
+    await saveWellness(db, pid, { fatigue, sleep, soreness, stress, mood, pain: null, notes: "" }, at);
+  }
+  if (badToday) await saveWellness(db, pid, { fatigue: 2, sleep: 2, soreness: 3, stress: 4, mood: 3, pain: 4, notes: "Ha dormido 5 horas" });
 }
 
 export async function removeSeed(db: Db): Promise<number> {

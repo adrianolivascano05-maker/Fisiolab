@@ -1,10 +1,11 @@
-import { Activity, ChartLine, Dumbbell, Gauge, Pencil, Plus, Rotate3d, Scale } from "lucide-react";
+import { Activity, ChartLine, Dumbbell, Gauge, HeartPulse, Pencil, Plus, Rotate3d, Scale } from "lucide-react";
 import { Link, useParams } from "react-router";
+import { wellnessTotal } from "../calc/wellness";
 import { fmt, fmtDateTime, isJumpType, testTitle } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
-import { getPatient, listTests } from "../data/repo";
+import { getPatient, listTests, listWellness } from "../data/repo";
 import { Alert } from "../ui/Alert";
 import { Card } from "../ui/Card";
 import { EmptyState } from "../ui/EmptyState";
@@ -23,12 +24,12 @@ export function PatientPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
-    return { patient: await getPatient(db, id), tests: await listTests(db, id) };
+    return { patient: await getPatient(db, id), tests: await listTests(db, id), wellness: (await listWellness(db, id))[0] ?? null };
   }, [id]);
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Paciente" backTo="/"><Loading /></Page>;
-  const { patient, tests } = data.data;
+  const { patient, tests, wellness } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
 
   const years = age(patient.birthDate);
@@ -66,7 +67,7 @@ export function PatientPage() {
         <Plus aria-hidden="true" className="size-5" /> Nueva medición
       </Link>
 
-      {tests.length > 0 && (
+      {(tests.length > 0 || wellness) && (
         <nav aria-label="Análisis" className="grid grid-cols-2 gap-2">
           {lastJump && (
             <Link to={`/pacientes/${id}/evolucion/${lastJump.type}`} className={tile}>
@@ -86,6 +87,14 @@ export function PatientPage() {
           {hasVbt && (
             <Link to={`/pacientes/${id}/perfil/carga-velocidad`} className={tile}>
               <Dumbbell aria-hidden="true" className="size-5 shrink-0 text-accent" /> Carga-velocidad y 1RM
+            </Link>
+          )}
+          {wellness && (
+            <Link to={`/pacientes/${id}/bienestar`} className={tile}>
+              <HeartPulse aria-hidden="true" className="size-5 shrink-0 text-accent" />
+              <span>
+                Bienestar <span className="nums font-normal text-text-muted">· {wellnessTotal(wellness)}/25</span>
+              </span>
             </Link>
           )}
           {hasRom && (

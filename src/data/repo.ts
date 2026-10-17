@@ -3,6 +3,7 @@
 import { computeJump, type JumpOutput, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
 import { fvProfile, type FvProfile, type Point } from "../calc/profile";
 import { getMovement, methodLabels, movementLabel, romTypeFor, summarize, type RomMethod, type RomType } from "../calc/rom";
+import { wellnessItems, type WellnessScores } from "../calc/wellness";
 import { getExercise, loadVelocityProfile, plausibleVbt, vbtResults, velocitiesFromMarks, type ExerciseId, type LoadVelocityProfile, type RepMark } from "../calc/strength";
 import type { Db } from "./db";
 import type { Statement } from "./protocol";
@@ -667,6 +668,56 @@ export async function listLoadVelocityProfiles(db: Db, patientId: string, exerci
   }));
 }
 
+// ---------- Bienestar (S21) ----------
+
+export type WellnessInput = WellnessScores & { pain: number | null; notes: string };
+export type WellnessEntry = WellnessInput & { id: string; performedAt: string };
+
+const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+
+/** Un registro por día: si ya hay uno hoy, se actualiza. Devuelve su id. */
+export async function saveWellness(db: Db, patientId: string, input: WellnessInput, at = new Date()): Promise<string> {
+  for (const i of wellnessItems) {
+    const v = input[i.id];
+    if (!(Number.isInteger(v) && v >= 1 && v <= 5)) throw new RangeError(`Responde «${i.label}» (1-5).`);
+  }
+  if (input.pain !== null && !(Number.isInteger(input.pain) && input.pain >= 0 && input.pain <= 10)) throw new RangeError("El dolor va de 0 a 10.");
+  const iso = at.toISOString();
+  const today = (await listWellness(db, patientId)).find((e) => madridDay(e.performedAt) === madridDay(iso));
+  const values = [input.sleep, input.fatigue, input.stress, input.soreness, input.mood, input.pain, input.notes.trim()];
+  if (today) {
+    await db.transaction([
+      {
+        sql: "update wellness set sleep = ?, fatigue = ?, stress = ?, soreness = ?, mood = ?, pain = ?, notes = ?, performed_at = ? where id = ?",
+        bind: [...values, iso, today.id],
+      },
+    ]);
+    return today.id;
+  }
+  const id = newId();
+  await db.transaction([
+    {
+      sql: `insert into wellness (sleep, fatigue, stress, soreness, mood, pain, notes, id, patient_id, performed_at, created_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      bind: [...values, id, patientId, iso, now()],
+    },
+  ]);
+  return id;
+}
+
+/** Registros de bienestar completos (con ánimo), el más reciente primero. */
+export async function listWellness(db: Db, patientId: string): Promise<WellnessEntry[]> {
+  return db.query<WellnessEntry>(
+    `select id, performed_at as performedAt, sleep, fatigue, stress, soreness, mood, pain, notes
+       from wellness where patient_id = ? and mood is not null order by performed_at desc`,
+    [patientId],
+  );
+}
+
+export async function deleteWellness(db: Db, id: string): Promise<void> {
+  await db.transaction([{ sql: "delete from wellness where id = ?", bind: [id] }]);
+}
+
 // ---------- Ajustes ----------
 
 export async function getSetting<T>(db: Db, key: string): Promise<T | null> {
@@ -740,5 +791,25 @@ export async function exportCsv(db: Db): Promise<string> {
       r.unit,
     ].join(";");
   });
+  // Bienestar: una fila por respuesta, con el test «bienestar».
+  const wellness = await db.query<{ patient: string; performed_at: string } & Record<"sleep" | "fatigue" | "stress" | "soreness" | "mood" | "pain", number | null>>(
+    `select p.name as patient, w.performed_at, w.fatigue, w.sleep, w.soreness, w.stress, w.mood, w.pain
+       from wellness w join patients p on p.id = w.patient_id
+      order by p.name collate nocase, w.performed_at`,
+  );
+  const wellnessMetrics = [
+    ["fatigue", "fatiga"],
+    ["sleep", "sueno"],
+    ["soreness", "dolor_muscular"],
+    ["stress", "estres"],
+    ["mood", "animo"],
+    ["pain", "dolor_eva"],
+  ] as const;
+  for (const w of wellness) {
+    for (const [col, metric] of wellnessMetrics) {
+      if (w[col] === null) continue;
+      lines.push([cell(w.patient), w.performed_at, "bienestar", "", "", "", "", "", "", "", metric, num(w[col]), col === "pain" ? "0-10" : "1-5"].join(";"));
+    }
+  }
   return "﻿" + [header.join(";"), ...lines].join("\r\n") + "\r\n";
 }

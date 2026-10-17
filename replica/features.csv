@@ -26,7 +26,7 @@ Pérdida de velocidad en la serie,fuerza,should,yes,yes,(más rápida − últim
 Movilidad de tobillo (lunge) hombro cadera y cuello,movilidad,should,yes,yes,"S19: 14 movimientos; inclinómetro del móvil, ángulo sobre foto o goniómetro; media de lecturas; distancia a la pared en el lunge; resumen por lados y evolución"
 Nórdico: ángulo de rotura,isquios,should,yes,no,
 Nórdico: torque estimado,isquios,should,yes,no,fórmula por confirmar
-Cuestionario de bienestar (sueño fatiga estrés agujetas),bienestar,should,yes,no,
+Cuestionario de bienestar (sueño fatiga estrés agujetas),bienestar,should,yes,yes,"S21: 5 preguntas de 1 a 5 (fatiga, sueño, dolor muscular, estrés, ánimo) + dolor de la lesión 0-10; total 5-25, comparación con su media y avisos"
 Sprint lineal con tiempos de paso,sprint,should,yes,no,
 Tests de cambio de dirección (5-0-5 5+5 V-Cut Illinois),sprint,should,yes,no,
 Mecánica de carrera (contacto vuelo frecuencia de paso),carrera,should,yes,no,

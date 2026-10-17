@@ -22,6 +22,7 @@ const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ defaul
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m.MarkPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
 const LoadVelocityPage = lazy(() => import("./pages/LoadVelocityPage").then((m) => ({ default: m.LoadVelocityPage })));
 const RomHistoryPage = lazy(() => import("./pages/RomHistoryPage").then((m) => ({ default: m.RomHistoryPage })));
 const RomMeasurePage = lazy(() => import("./pages/RomMeasurePage").then((m) => ({ default: m.RomMeasurePage })));
@@ -50,7 +51,7 @@ const router = createBrowserRouter([
   { path: "/pacientes/:id/asimetria", element: <AsymmetryPage /> }, // S10
   { path: "/pacientes/:id/movilidad", element: <RomSummaryPage /> }, // S19
   { path: "/pacientes/:id/movilidad/:mov", element: l(<RomHistoryPage />) }, // S19
-  { path: "/pacientes/:id/bienestar", element: <ComingSoonPage title="Bienestar" phase={3} /> }, // S21
+  { path: "/pacientes/:id/bienestar", element: l(<WellnessPage />) }, // S21
   { path: "/pacientes/:id/evolucion/:tipo", element: l(<EvolutionPage />) }, // S22
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07
   { path: "/tests/:id", element: <ResultPage /> }, // S08

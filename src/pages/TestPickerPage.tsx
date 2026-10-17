@@ -10,7 +10,7 @@ export const categories = [
   { slug: "carrera", icon: Footprints, title: "Carrera", detail: "Contacto y frecuencia de paso", phase: 4 },
   { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello", phase: 3, ready: true },
   { slug: "isquios", icon: Zap, title: "Nórdico", detail: "Ángulo de rotura", phase: 3 },
-  { slug: "bienestar", icon: HeartPulse, title: "Bienestar", detail: "Sueño, fatiga, estrés, agujetas", phase: 3 },
+  { slug: "bienestar", icon: HeartPulse, title: "Bienestar", detail: "Sueño, fatiga, estrés, dolor, ánimo", phase: 3, ready: true, to: "bienestar" },
 ] as const;
 
 /** S04 Selector de test */
@@ -22,7 +22,7 @@ export function TestPickerPage() {
         {categories.map((c) => (
           <CategoryTile
             key={c.slug}
-            to={`/pacientes/${id}/test/${c.slug}`}
+            to={"to" in c ? `/pacientes/${id}/${c.to}` : `/pacientes/${id}/test/${c.slug}`}
             icon={c.icon}
             title={c.title}
             detail={"ready" in c ? c.detail : `${c.detail} · próximamente`}

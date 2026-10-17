@@ -11,6 +11,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     expect(text.charCodeAt(0)).toBe(0xfeff);
     expect(text).toContain("paciente;fecha;test;movimiento;lado;metodo;carga_kg;altura_caida_cm;fps_grabacion;intento;metrica;valor;unidad");
     expect(text).toMatch(/Ejemplo · Lucía Herrero;[^;]+;cmj;;;;0;;240;;jump_height_cm;\d+,\d+;cm/);
+    expect(text).toMatch(/Ejemplo · Marcos Vidal;[^;]+;bienestar;;;;;;;;fatiga;2;1-5\r\n/);
     expect(text).toMatch(/Ejemplo · Marcos Vidal;[^;]+;rom_ankle;Tobillo · flexión dorsal en carga \(lunge\);derecha;Inclinómetro del móvil;0;;;;wall_distance_cm;9,5;cm/);
   });
 

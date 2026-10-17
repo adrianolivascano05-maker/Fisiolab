@@ -78,7 +78,7 @@ describe("migración 2", () => {
 
     const e2 = new Engine(sqlite3, storage, migrations);
     const v2 = dbFromHandler((req) => e2.handle(req));
-    expect((await v2.info()).schemaVersion).toBe(2);
+    expect((await v2.info()).schemaVersion).toBe(migrations.at(-1)!.version);
     const t = await getTest(v2, tid);
     expect(t!.results.find((r) => r.metric === "jump_height_cm")?.value).toBeCloseTo(30.66, 2);
     await createRomTest(v2, { patientId: id, movement: "ankle_lunge", side: "left", method: "manual", readings: [35], wallDistanceCm: 8 });
