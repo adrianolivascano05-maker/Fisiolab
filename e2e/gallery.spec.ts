@@ -34,6 +34,7 @@ test.describe("Galería de tests", () => {
     await page.getByRole("button", { name: "Cerrar todo" }).click();
     await expect(page.getByText("Qué cambia el resultado")).toBeHidden();
     await page.getByRole("link", { name: "Volver" }).click();
+    await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
     await page.getByRole("link", { name: "Volver" }).click();
     await expect(page.getByRole("heading", { name: "Favoritos" })).toBeVisible();
   });
@@ -54,5 +55,16 @@ test.describe("Galería de tests", () => {
     await expect(page.getByText("Si es positivo")).toBeVisible();
     await page.getByLabel("Probabilidad antes del test").fill("50");
     await expect(page.getByText(/50 %/).first()).toBeVisible();
+  });
+
+  test("G4 figura en 3D: se gira y vuelve a la vista inicial", async ({ page }) => {
+    await page.goto("./exploracion/rodilla/rod-lachman");
+    await expect(page.getByRole("img", { name: "Test de Lachman" })).toBeVisible();
+    await expect(page.locator("canvas")).toHaveCount(1);
+    await page.getByRole("button", { name: "Girar la vista a la derecha" }).click();
+    await page.getByRole("button", { name: "Girar la vista a la izquierda" }).click();
+    await page.getByRole("button", { name: "Volver a la vista inicial" }).click();
+    await expect(page.getByRole("button", { name: "Volver a la vista inicial" })).toBeHidden();
+    await expectAccessible(page);
   });
 });

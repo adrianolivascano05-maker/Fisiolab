@@ -36,7 +36,8 @@ function cspMeta(): Plugin {
 export default defineConfig({
   base,
   // Las fuentes nunca se incrustan como data: (la CSP solo admite fuentes servidas por la propia app).
-  build: { assetsInlineLimit: (file) => (file.endsWith(".woff2") ? false : undefined) },
+  // El motor 3D de la galería (three.js, ~600 kB) va en su propio trozo y solo se descarga al abrir un test.
+  build: { assetsInlineLimit: (file) => (file.endsWith(".woff2") ? false : undefined), chunkSizeWarningLimit: 700 },
   plugins: [
     cspMeta(),
     react(),

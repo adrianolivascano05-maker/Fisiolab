@@ -1,8 +1,11 @@
 // Ilustración animada de un test: la maniobra en bucle, con pausa, avance manual y el texto de cada fase.
-import { Pause, Play } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+// En 3D (maniquíes que se pueden girar) si el navegador tiene WebGL; si no, el dibujo plano.
+// Respeta «reducir movimiento».
+import { Pause, Play, RotateCcw, RotateCw, Undo2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../ui/cx";
 import { phases, renderFrame, renderFigure, type FigureSpec } from "./figure";
+import type { Stage } from "./three/stage";
 
 /** Duración de una vuelta completa, en milisegundos. */
 const LOOP_MS = 7000;
@@ -22,17 +25,67 @@ const figVars = {
   "--fig-bg": "var(--color-bg)",
 } as React.CSSProperties;
 
+type Mode = "loading" | "3d" | "2d";
+
 export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; title: string; uid: string; texts: Record<(typeof phases)[number]["id"], string> }) {
-  const box = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLDivElement>(null);
+  const svgBox = useRef<HTMLDivElement>(null);
+  const glBox = useRef<HTMLDivElement>(null);
+  const stage = useRef<Stage | null>(null);
+  const [mode, setMode] = useState<Mode>("loading");
+  const [rotated, setRotated] = useState(false);
   const [playing, setPlaying] = useState(() => !reducedMotion());
   const [t, setT] = useState(0.6);
   const tRef = useRef(0.6);
   const [visible, setVisible] = useState(true);
   const still = useMemo(() => renderFigure(spec, title, uid), [spec, title, uid]);
 
+  const draw = useCallback(
+    (tt: number) => {
+      if (stage.current) stage.current.render(tt);
+      else if (svgBox.current) svgBox.current.innerHTML = renderFrame(spec, title, uid, tt, false);
+    },
+    [spec, title, uid],
+  );
+
+  // Motor 3D: se descarga solo al abrir un test (y queda guardado para usarlo sin conexión).
+  useEffect(() => {
+    let alive = true;
+    let st: Stage | null = null;
+    setMode("loading");
+    setRotated(false);
+    import("./three/stage")
+      .then((m) => {
+        const host = glBox.current;
+        if (!alive || !host) return;
+        if (!m.webglAvailable()) return setMode("2d");
+        try {
+          st = m.createStage(host, spec, title, {
+            onRotate: () => setRotated(true),
+            onLost: () => {
+              st?.dispose();
+              stage.current = null;
+              setMode("2d");
+            },
+          });
+          stage.current = st;
+          st.render(tRef.current);
+          setMode("3d");
+        } catch {
+          setMode("2d");
+        }
+      })
+      .catch(() => alive && setMode("2d"));
+    return () => {
+      alive = false;
+      st?.dispose();
+      stage.current = null;
+    };
+  }, [spec, title]);
+
   // Solo se anima mientras se ve en pantalla.
   useEffect(() => {
-    const el = box.current;
+    const el = frame.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(([e]) => setVisible(!!e?.isIntersecting));
     io.observe(el);
@@ -40,10 +93,9 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
   }, []);
 
   useEffect(() => {
-    const el = box.current;
-    if (!el) return;
+    if (mode === "loading") return;
     if (!playing || !visible) {
-      el.innerHTML = renderFrame(spec, title, uid, tRef.current, false);
+      draw(tRef.current);
       return;
     }
     let raf = 0;
@@ -55,33 +107,67 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
       last = now;
       const tt = ((now - start) % LOOP_MS) / LOOP_MS;
       tRef.current = tt;
-      el.innerHTML = renderFrame(spec, title, uid, tt, false);
+      draw(tt);
       setT((prev) => (phaseOf(prev) !== phaseOf(tt) || Math.abs(prev - tt) > 0.02 ? tt : prev));
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, visible, spec, title, uid]);
+  }, [playing, visible, mode, draw]);
 
   const ph = phases[phaseOf(t)]!;
   const jump = (v: number) => {
     setPlaying(false);
     tRef.current = v;
     setT(v);
-    if (box.current) box.current.innerHTML = renderFrame(spec, title, uid, v, false);
+    draw(v);
   };
+  const turn = (deg: number) => {
+    stage.current?.rotateBy(deg);
+    setRotated(true);
+  };
+  const ctl = "inline-flex size-11 items-center justify-center rounded-full bg-bg/90 text-text shadow-sm ring-1 ring-border backdrop-blur hover:bg-surface";
   return (
     <figure className="flex flex-col overflow-hidden rounded-2xl border border-border bg-bg">
-      <div className="relative">
-        <div ref={box} className="aspect-[4/3] w-full [&>svg]:h-full [&>svg]:w-full" style={figVars} dangerouslySetInnerHTML={{ __html: still }} />
-        <button
-          type="button"
-          onClick={() => setPlaying((p) => !p)}
-          aria-label={playing ? "Pausar la animación" : "Reproducir la animación"}
-          className="absolute bottom-2 right-2 inline-flex size-11 items-center justify-center rounded-full bg-bg/90 text-text shadow-sm ring-1 ring-border backdrop-blur hover:bg-surface"
-        >
+      <div ref={frame} className="relative aspect-[4/3] w-full" style={figVars}>
+        {mode === "2d" ? (
+          <div ref={svgBox} className="h-full w-full [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: still }} />
+        ) : (
+          <div ref={glBox} className="relative h-full w-full">
+            {mode === "loading" && (
+              <p className="absolute inset-0 flex items-center justify-center text-sm text-text-muted" role="status">
+                Preparando la figura en 3D…
+              </p>
+            )}
+          </div>
+        )}
+        {mode === "3d" && (
+          <div className="absolute left-2 top-2 flex gap-1.5">
+            <button type="button" onClick={() => turn(-30)} aria-label="Girar la vista a la izquierda" className={ctl}>
+              <RotateCcw aria-hidden="true" className="size-5" />
+            </button>
+            <button type="button" onClick={() => turn(30)} aria-label="Girar la vista a la derecha" className={ctl}>
+              <RotateCw aria-hidden="true" className="size-5" />
+            </button>
+            {rotated && (
+              <button
+                type="button"
+                onClick={() => {
+                  stage.current?.resetView();
+                  setRotated(false);
+                }}
+                aria-label="Volver a la vista inicial"
+                className={ctl}
+              >
+                <Undo2 aria-hidden="true" className="size-5" />
+              </button>
+            )}
+          </div>
+        )}
+        <button type="button" onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pausar la animación" : "Reproducir la animación"} className={cx(ctl, "absolute bottom-2 right-2")}>
           {playing ? <Pause aria-hidden="true" className="size-5" /> : <Play aria-hidden="true" className="size-5" />}
         </button>
       </div>
+      {mode === "3d" && <p className="px-4 pt-1.5 text-xs text-text-muted">Arrastra a los lados para girar la figura.</p>}
       <input
         type="range"
         min={0}

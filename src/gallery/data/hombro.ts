@@ -286,7 +286,7 @@ export const hombroTests: SpecialTest[] = [
         view: "front",
         posture: "standing",
         joints: { r_shoulder: 90, l_shoulder: 90 },
-        hands: ["r_wrist", "l_wrist"],
+        hands: ["r_forearm@0.6", "l_forearm@0.6"],
         arrows: [
           { at: "r_wrist", dir: "caudal", label: "resiste" },
           { at: "r_forearm@0.5", rotate: "cw", label: "pulgar abajo" },
@@ -298,7 +298,7 @@ export const hombroTests: SpecialTest[] = [
         view: "front",
         posture: "standing",
         joints: { r_shoulder: 90, l_shoulder: 90 },
-        hands: ["r_wrist", "l_wrist"],
+        hands: ["r_forearm@0.6", "l_forearm@0.6"],
         arrows: [
           { at: "r_wrist", dir: "caudal", label: "resiste" },
           { at: "r_forearm@0.5", rotate: "ccw", label: "pulgar ↑" },

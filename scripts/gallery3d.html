@@ -1,0 +1,70 @@
+<!doctype html>
+<!-- Hoja de contacto de las figuras 3D (solo para revisarlas con el servidor de desarrollo):
+     npx vite, y abrir /scripts/gallery3d.html?region=rodilla (o ?ids=a,b,c, &t=0.6). -->
+<meta charset="utf-8" />
+<title>Figuras 3D</title>
+<style>
+  :root { --color-bg: #fbf7f0; --color-text: #1b1b1d; --color-border: #dacbb0; }
+  body { margin: 8px; font: 12px system-ui; display: grid; grid-template-columns: repeat(var(--cols, 4), calc(var(--w, 352px) + 8px)); gap: 8px; background: #fff; }
+  figure { margin: 0; border: 1px solid #ddd; border-radius: 6px; padding: 4px; }
+  .c { position: relative; width: var(--w, 352px); height: calc(var(--w, 352px) * 0.75); }
+  figcaption { height: 30px; overflow: hidden; }
+</style>
+<body>
+<script type="module">
+  import { tests } from "/src/gallery/data/index.ts";
+  import { Stage } from "/src/gallery/three/stage.ts";
+  import { cameraKey } from "/src/gallery/three/cameras.ts";
+  const q = new URLSearchParams(location.search);
+  const region = q.get("region");
+  const ids = q.get("ids")?.split(",");
+  const t = Number(q.get("t") ?? "0.6");
+  const still = !q.has("t");
+  if (q.get("cols")) document.body.style.setProperty("--cols", q.get("cols"));
+  const W = Number(q.get("w") ?? 352);
+  document.body.style.setProperty("--w", W + "px");
+  const ts = q.get("ts")?.split(",").map(Number);
+  const base = tests
+    .filter((x) => (!region || x.region === region) && (!ids || ids.includes(x.id)))
+    .flatMap((x) => x.figures.map((f, i) => ({ name: `${x.id}${x.figures.length > 1 ? ` (${i + 1})` : ""}`, spec: f })));
+  const items = ts ? base.flatMap((it) => ts.map((tt) => ({ ...it, t: tt, name: `${it.name} t=${tt}` }))) : base;
+  const times = [];
+  const cams = {};
+  window.cameras = cams;
+  window.times = times;
+  for (const it of items) {
+    const fig = document.createElement("figure");
+    const host = document.createElement("div");
+    host.className = "c";
+    fig.append(host);
+    const cap = document.createElement("figcaption");
+    cap.textContent = it.name;
+    fig.append(cap);
+    document.body.append(fig);
+    try {
+      const t0 = performance.now();
+      const st = new Stage(host, it.spec, it.name, { fresh: q.has("cameras") || q.has("fresh") });
+      if (q.has("cameras")) {
+        cams[cameraKey(it.spec)] = st.cameraState();
+        st.dispose();
+        continue;
+      }
+      const t1 = performance.now();
+      st.render(it.t ?? t, ts ? false : still);
+      const t2 = performance.now();
+      times.push([it.name, Math.round(t1 - t0), Math.round(t2 - t1)]);
+      const img = new Image();
+      img.src = st.snapshot();
+      img.width = W;
+      img.height = W * 0.75;
+      const labels = host.querySelector("div")?.cloneNode(true);
+      st.dispose();
+      host.append(img);
+      if (labels) host.append(labels);
+    } catch (e) {
+      cap.textContent += " ERROR " + e.message;
+      console.error(e);
+    }
+  }
+  window.done = items.length;
+</script>
