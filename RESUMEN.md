@@ -176,7 +176,8 @@ Convenciones:
 
 ## 7. Siguientes pasos recomendados
 
-1. **Validación:** pantalla o CSV para anotar la altura de My Jump Lab junto a la de Impulso y calcular la diferencia media.
-2. **Extras («could»):** sprint curvo, deceleración, S-MAS y detección automática con IA (fase 5).
+1. **Validación (herramienta hecha, faltan los datos):** Ajustes → Validación. Pares Impulso–referencia (plataforma, My Jump Lab, encoder, dinamómetro, goniómetro), Bland-Altman, ICC(A,1), error típico, cambio mínimo detectable y lectura en lenguaje claro frente a la diferencia clínica que elijas; «Marcar otra vez a ciegas» en cada resultado (fiabilidad); IA frente a marcas finales (se llena sola); comprobación del sensor del móvil. Falta hacer las sesiones de medida (20-30 pares por medida).
+2. **IA (hecha):** «Proponer las marcas con IA» en saltos (despegue, aterrizaje, contacto en la caída, inicio del CMJ, series de rebotes) y en fuerza (inicio y fin de cada subida). Motor de pose compartido en `src/ai`. Cada marca se corrige con ‹ › (un fotograma) o ⌖ (al fotograma de pantalla). Probado con vídeos sintéticos: fotograma exacto. Falta probarla con vídeos reales de la clínica.
+   Extras pendientes («could»): sprint curvo, deceleración y S-MAS.
 3. **Reseñas del original (hecho, muestra pequeña):** `replica/fixes.md`. Ya hechas: autoguardado de marcas, «Cómo se ha calculado» en el salto y medición rápida sin ficha. Pendiente: lupa sobre la imagen al marcar y volver a leer las reseñas desde un navegador normal (aquí las tiendas están bloqueadas).
 4. **Confirmar el DRI** en el artículo de Brooks (2026).

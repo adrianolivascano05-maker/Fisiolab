@@ -21,7 +21,7 @@ import { useTimeline } from "../video/useTimeline";
 import { measureFrame, smoothPoses, summarizeKeyframes, type MeasureConfig } from "./geometry";
 import { allJoints, baseJoints, drawnJoints, jointLabel, jointPoint, presets, skeleton } from "./joints";
 import { angleSeries, choosePreset, movementWindow, spread, toConfig } from "./auto";
-import { detectPose, grabFrame, loadPoseDetector, type Detector } from "./pose";
+import { detectPose, grabFrame, loadPoseDetector, type Detector } from "../ai/pose";
 import { listMeasurements, reportCsv, saveMeasurement } from "./store";
 import type { AnatomicalPlane, BiomechanicalMeasurement, FramePose, KeyframeData } from "./types";
 

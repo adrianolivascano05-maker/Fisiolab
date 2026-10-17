@@ -1,4 +1,5 @@
-// Detección de pose con MediaPipe Pose Landmarker (Apache 2.0), en el propio navegador.
+// Detección de pose con MediaPipe Pose Landmarker (Apache 2.0), en el propio navegador. La usan la
+// detección automática de marcas (src/ai) y la medición libre (src/free).
 // El modelo y el motor van dentro de la app: no se envía nada a ningún servidor.
 // Se carga solo al usarlo (≈ 19 MB la primera vez).
 import type { PoseLandmarker } from "@mediapipe/tasks-vision";

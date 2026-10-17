@@ -1,6 +1,7 @@
-import { CircleQuestionMark, Upload, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleQuestionMark, Crosshair, Sparkles, Trash2, Upload, ZoomIn, ZoomOut } from "lucide-react";
+import { autoMark, seekVideo, type AutoTarget } from "../ai/autoMark";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { MIN_JUMPS } from "../calc/repeated";
 import { MIN_STEPS } from "../calc/running";
 import { getCodTest, isCodType, type CodType } from "../calc/cod";
@@ -13,6 +14,7 @@ import { markDraft } from "../app/markDraft";
 import { videoStore } from "../app/videoStore";
 import { getDb } from "../data/db";
 import { getTest, saveMarksAndCompute, saveNordicAngle } from "../data/repo";
+import { addPair, primaryValue, replaceAiPair } from "../data/validation";
 import { nordicPhoto, plausibleNordic } from "../calc/nordic";
 import { PhotoProtractor } from "../rom/PhotoProtractor";
 import { Card } from "../ui/Card";
@@ -91,6 +93,7 @@ const hints: Record<MarkEvent, string> = {
 /** S07 Marcado de fotogramas */
 export function MarkPage() {
   const { id = "" } = useParams();
+  const [params] = useSearchParams();
   const test = useAsync(() => getTest(getDb(), id), [id]);
   const [file, setFile] = useState<File | null>(() => videoStore.get(id));
   const [help, setHelp] = useState(false);
@@ -130,7 +133,11 @@ export function MarkPage() {
     );
   }
 
-  const initial: MarkInput[] = t.marks.map((m) => ({ event: m.event, frame: m.frameIndex, seriesIndex: m.seriesIndex }));
+  // Marcado a ciegas (fiabilidad): sin ver las marcas anteriores y sin cambiar el test.
+  const firstValue = t.results.find((r) => r.seriesIndex === 0 && r.metric === (type === "vbt" ? "bar_velocity_m_s" : "jump_height_cm"))?.value;
+  const blindable = type === "vbt" || ["cmj", "cmj_arms", "sj", "dj", "single_leg"].includes(type);
+  const blind = params.get("ciego") === "1" && blindable && firstValue !== undefined ? firstValue : null;
+  const initial: MarkInput[] = blind !== null ? [] : t.marks.map((m) => ({ event: m.event, frame: m.frameIndex, seriesIndex: m.seriesIndex }));
 
   return (
     <Page
@@ -175,6 +182,11 @@ export function MarkPage() {
         containerFps={t.video.containerFps}
         frameCount={t.video.frameCount ?? 1}
         initial={initial}
+        exercise={String(t.details.exercise ?? "")}
+        details={t.details}
+        dropHeightCm={t.dropHeightCm}
+        patientId={t.patientId}
+        blind={blind}
       />
     </Page>
   );
@@ -226,6 +238,12 @@ type MarkerProps = {
   containerFps: number;
   frameCount: number;
   initial: MarkInput[];
+  exercise?: string;
+  details?: Record<string, unknown>;
+  dropHeightCm?: number | null;
+  patientId?: string;
+  /** Marcado a ciegas: valor de la primera marcación, con el que se compara. */
+  blind?: number | null;
 };
 
 /** Estado del marcado: qué falta, si el orden es correcto y qué botones mostrar. */
@@ -308,7 +326,14 @@ function markingState(type: MarkType, marks: MarkInput[], steps?: SequenceStep[]
   return { series: false as const, required, missing, ordered, ready: missing.length === 0 && ordered };
 }
 
-function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameCount, initial, steps }: MarkerProps) {
+/** Qué puede marcar la IA: los saltos (menos el horizontal) y las repeticiones de fuerza. */
+function aiTarget(type: MarkType, exercise: string): AutoTarget | null {
+  if (type === "vbt") return { kind: "bar", exercise };
+  if (isJumpType(type) && type !== "horizontal") return { kind: "jump", type };
+  return null;
+}
+
+function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameCount, initial, steps, exercise = "", details = {}, dropHeightCm = null, patientId = "", blind = null }: MarkerProps) {
   const navigate = useNavigate();
   const toast = useToast();
   const video = useRef<HTMLVideoElement>(null);
@@ -317,14 +342,16 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
 
   // Marcas sin calcular de una sesión anterior (la página se cerró o recargó a mitad).
   const [draft] = useState(() => {
+    if (blind !== null) return null;
     const d = markDraft.get(testId);
     return d && JSON.stringify(d) !== JSON.stringify(initial) ? d : null;
   });
   const [marks, setMarks] = useState<MarkInput[]>(draft ?? initial);
   useEffect(() => {
+    if (blind !== null) return;
     if (JSON.stringify(marks) === JSON.stringify(initial)) markDraft.clear(testId);
     else markDraft.set(testId, marks);
-  }, [marks, initial, testId]);
+  }, [marks, initial, testId, blind]);
   const [frame, setFrame] = useState(() => (draft ?? initial).find((m) => ["takeoff", "bar_start", "start", "contact"].includes(m.event))?.frame ?? 0);
   const [playing, setPlaying] = useState(false);
   const [zoom, setZoom] = useState(false);
@@ -369,11 +396,57 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
   const rangeStart = zoom ? Math.max(0, Math.min(center - half, last - 2 * half)) : 0;
   const rangeEnd = zoom ? Math.min(last, rangeStart + 2 * half) : last;
 
+  // Propuesta de la IA: mientras analiza no se mueve el vídeo a mano.
+  const target = blind === null ? aiTarget(type, exercise) : null;
+  /** Lo que propuso la IA, para comparar con las marcas finales al calcular. */
+  const aiProposal = useRef<MarkInput[] | null>(null);
+  const [ai, setAi] = useState<{ label: string; done: number; total: number } | null>(null);
+  const [aiNote, setAiNote] = useState<{ tone: "info" | "warning"; text: string } | null>(null);
+  const cancelAi = useRef(false);
+
+  async function runAi() {
+    const v = video.current;
+    if (!v || !target) return;
+    setPlaying(false);
+    setAiNote(null);
+    cancelAi.current = false;
+    setAi({ label: "Cargando la IA…", done: 0, total: 0 });
+    const timeOf = (f: number) => seekTime(timeline, f, containerFps);
+    let show = frame;
+    try {
+      const r = await autoMark(target, {
+        video: v,
+        timeOf,
+        lastFrame: last,
+        captureFps,
+        onProgress: (label, done, total) => setAi({ label, done, total }),
+        cancelled: () => cancelAi.current,
+      });
+      setMarks(r.marks);
+      aiProposal.current = r.marks;
+      show = Math.min(...r.marks.map((m) => m.frame));
+      const n = state.series ? Math.max(...r.marks.map((m) => m.seriesIndex)) + 1 : r.marks.length;
+      setAiNote({
+        tone: r.warnings.length ? "warning" : "info",
+        text: `${state.series ? (type === "vbt" ? `${n} ${n === 1 ? "repetición propuesta" : "repeticiones propuestas"}` : `${n} ${n === 1 ? "salto propuesto" : "saltos propuestos"}`) : `${n} marcas propuestas`}. Revísalas abajo: toca una para verla y usa ‹ › para moverla un fotograma.${r.warnings.length ? ` ${r.warnings.join(" ")}` : ""}`,
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg !== "Cancelado.") setAiNote({ tone: "warning", text: msg });
+    } finally {
+      await seekVideo(v, timeOf(show)).catch(() => undefined);
+      setFrame(show);
+      setAi(null);
+    }
+  }
+
   const step = (d: number) => {
+    if (ai) return;
     setPlaying(false);
     setFrame((f) => Math.max(0, Math.min(last, f + d)));
   };
   const goTo = (f: number) => {
+    if (ai) return;
     setPlaying(false);
     setFrame(f);
   };
@@ -402,6 +475,17 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
       return lastMark ? ms.filter((m) => m !== lastMark) : ms;
     });
   };
+
+  /** Edición de una marca ya puesta: moverla un fotograma, traerla al actual o quitar su repetición. */
+  const same = (a: MarkInput, b: MarkInput) => a.event === b.event && a.seriesIndex === b.seriesIndex;
+  const moveMark = (m: MarkInput, to: number) => {
+    const f = Math.max(0, Math.min(last, to));
+    setMarks((ms) => ms.map((x) => (same(x, m) ? { ...x, frame: f } : x)));
+    goTo(f);
+  };
+  const removeRep = (index: number) =>
+    setMarks((ms) => ms.filter((x) => x.seriesIndex !== index).map((x) => (x.seriesIndex > index ? { ...x, seriesIndex: x.seriesIndex - 1 } : x)));
+  const repWord = type === "vbt" ? "repetición" : type === "running" ? "apoyo" : "salto";
 
   const markers: Marker[] = marks.map((m) => ({ frame: m.frame, kind: m.event }));
 
@@ -437,12 +521,39 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
   async function calculate() {
     if (type === "nordic") return void captureBreakFrame();
     setSaving(true);
+    if (blind !== null) return void saveBlind(blind);
     try {
       await saveMarksAndCompute(getDb(), testId, marks);
       markDraft.clear(testId);
+      await recordAi().catch(() => undefined);
       navigate(`/tests/${testId}`, { replace: true });
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo calcular", "danger");
+      setSaving(false);
+    }
+  }
+
+  /** IA frente a marcas finales: un par por test, para saber cuánto hay que corregir a la IA. */
+  async function recordAi() {
+    if (!aiProposal.current) return;
+    const ai = primaryValue(type, aiProposal.current, captureFps, details, dropHeightCm);
+    const final = primaryValue(type, marks, captureFps, details, dropHeightCm);
+    if (!ai || !final) return;
+    await replaceAiPair(getDb(), { kind: final.kind, comparison: "ai", referenceLabel: "Marcas finales", impulsoValue: ai.value, referenceValue: final.value, patientId, testId, notes: "" });
+  }
+
+  /** Marcado a ciegas: se guarda el par (segunda frente a primera marcación) y el test no cambia. */
+  async function saveBlind(first: number) {
+    try {
+      const second = primaryValue(type, marks, captureFps, details, dropHeightCm);
+      if (!second) throw new Error("No se pudo calcular con estas marcas.");
+      await addPair(getDb(), { kind: second.kind, comparison: "remark", referenceLabel: "Primera marcación", impulsoValue: second.value, referenceValue: first, patientId, testId, notes: "" });
+      const unit = second.kind === "bar_velocity" ? "m/s" : "cm";
+      const d = second.kind === "bar_velocity" ? 2 : 1;
+      toast(`Segunda marcación: ${fmt(second.value, d)} ${unit} (la primera: ${fmt(first, d)} ${unit})`, "success");
+      navigate(`/validacion?tipo=${second.kind}&comparacion=remark`, { replace: true });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo guardar", "danger");
       setSaving(false);
     }
   }
@@ -456,6 +567,12 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
 
   return (
     <div className="flex flex-col gap-4">
+      {blind !== null && (
+        <Alert tone="info" title="Marcado a ciegas">
+          Marca como si fuera la primera vez: no se ven las marcas anteriores. El resultado no cambia el test; se guarda en Validación para
+          saber cuánto se repite tu marcado.
+        </Alert>
+      )}
       {draft && (
         <Alert tone="info" title="Marcas recuperadas">
           {draft.length === 1 ? "Había 1 marca" : `Había ${draft.length} marcas`} sin calcular de la última vez. Revísalas y sigue donde lo dejaste.
@@ -496,7 +613,29 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
           {zoom ? <ZoomOut aria-hidden="true" className="size-6" /> : <ZoomIn aria-hidden="true" className="size-6" />}
         </IconButton>
       </div>
-      <FrameControls playing={playing} onTogglePlay={() => setPlaying((p) => !p)} onStep={step} />
+      <FrameControls playing={playing} onTogglePlay={() => !ai && setPlaying((p) => !p)} onStep={step} />
+
+      {target &&
+        (ai ? (
+          <div className="flex flex-col gap-2" role="status">
+            <p className="text-sm text-media-muted">
+              {ai.label} {ai.total > 0 && `${ai.done} / ${ai.total}`}
+            </p>
+            <progress className="w-full" max={ai.total || undefined} value={ai.total ? ai.done : undefined} aria-label="Progreso de la IA" />
+            <Button variant="secondary" onClick={() => (cancelAi.current = true)}>
+              Parar
+            </Button>
+          </div>
+        ) : (
+          <Button variant="secondary" icon={<Sparkles aria-hidden="true" className="size-5" />} onClick={() => void runAi()}>
+            {marks.length ? "Volver a proponer las marcas con IA" : "Proponer las marcas con IA"}
+          </Button>
+        ))}
+      {aiNote && (
+        <Alert tone={aiNote.tone} title={aiNote.tone === "info" ? "Propuesta de la IA" : "IA"}>
+          {aiNote.text}
+        </Alert>
+      )}
 
       <p aria-live="polite" className="text-sm text-media-muted">
         {hint}
@@ -527,15 +666,48 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
         </div>
       )}
 
-      <div className="flex flex-wrap gap-1 text-sm text-media-muted">
-        {[...marks]
-          .sort((a, b) => a.frame - b.frame)
-          .map((m) => (
-            <button key={`${m.event}-${m.seriesIndex}`} type="button" onClick={() => goTo(m.frame)} className="tap rounded-md px-2 underline">
-              Ir a {state.series ? state.markLabel(m) : markerStyle[m.event].name.toLowerCase()} (fotograma {m.frame + 1})
-            </button>
-          ))}
-      </div>
+      {marks.length > 0 && (
+        <section aria-labelledby="h-marcas" className="flex flex-col gap-1">
+          <h2 id="h-marcas" className="text-sm font-semibold text-media-muted">
+            Marcas · toca para corregir
+          </h2>
+          <ul className="flex flex-col divide-y divide-media-surface rounded-md border border-media-surface">
+            {[...marks]
+              .sort((a, b) => a.frame - b.frame)
+              .map((m) => {
+                const name = state.series ? state.markLabel(m) : markerStyle[m.event].name.toLowerCase();
+                const Name = name.charAt(0).toUpperCase() + name.slice(1);
+                const here = m.frame === frame;
+                return (
+                  <li key={`${m.event}-${m.seriesIndex}`} className="flex items-center gap-1 px-1">
+                    <button type="button" onClick={() => goTo(m.frame)} className="tap flex flex-1 flex-col items-start rounded-md px-2 text-left">
+                      <span className="text-sm font-semibold">{Name}</span>
+                      <span className="nums text-xs text-media-muted">
+                        fotograma {m.frame + 1}
+                        {here && " · en pantalla"}
+                      </span>
+                    </button>
+                    <IconButton tone="media" label={`${Name}: un fotograma antes`} onClick={() => moveMark(m, m.frame - 1)} disabled={!!ai}>
+                      <ChevronLeft aria-hidden="true" className="size-5" />
+                    </IconButton>
+                    <IconButton tone="media" label={`${Name}: un fotograma después`} onClick={() => moveMark(m, m.frame + 1)} disabled={!!ai}>
+                      <ChevronRight aria-hidden="true" className="size-5" />
+                    </IconButton>
+                    <IconButton tone="media" label={`${Name}: llevar al fotograma ${frame + 1} (el de pantalla)`} onClick={() => moveMark(m, frame)} disabled={!!ai || here}>
+                      <Crosshair aria-hidden="true" className="size-5" />
+                    </IconButton>
+                    {state.series && !steps && (
+                      <IconButton tone="media" label={`Quitar ${repWord} ${m.seriesIndex + 1}`} onClick={() => removeRep(m.seriesIndex)} disabled={!!ai}>
+                        <Trash2 aria-hidden="true" className="size-5" />
+                      </IconButton>
+                    )}
+                  </li>
+                );
+              })}
+          </ul>
+          <p className="text-xs text-media-muted">‹ › mueven la marca un fotograma; ⌖ la lleva al fotograma que ves ahora.</p>
+        </section>
+      )}
       {frameImage && breakFrame !== null ? (
         <NordicAngleStep
           image={frameImage}
@@ -546,8 +718,8 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
           }}
         />
       ) : (
-        <Button size="lg" block disabled={!state.ready} loading={saving} onClick={calculate}>
-          {type === "nordic" ? "Medir el ángulo en este fotograma" : "Calcular resultado"}
+        <Button size="lg" block disabled={!state.ready || !!ai} loading={saving} onClick={calculate}>
+          {type === "nordic" ? "Medir el ángulo en este fotograma" : blind !== null ? "Calcular y comparar" : "Calcular resultado"}
         </Button>
       )}
     </div>

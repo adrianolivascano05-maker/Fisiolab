@@ -1,4 +1,4 @@
-import { Database, Download, FileUp } from "lucide-react";
+import { ClipboardCheck, Database, Download, FileUp } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { fmtDateTime } from "../app/format";
@@ -107,6 +107,16 @@ export function SettingsPage() {
             Exportar resultados a Excel (CSV)
           </Button>
         </Card>
+      </section>
+
+      <section className="flex flex-col gap-3" aria-labelledby="h-validacion">
+        <h2 id="h-validacion" className="text-lg">Validación</h2>
+        <p className="text-sm text-text-muted">
+          Compara Impulso con una plataforma de fuerza, un encoder o un goniómetro, mide cuánto se repite al volver a marcar y comprueba el sensor del móvil.
+        </p>
+        <Link to="/validacion" className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border-input bg-bg px-4 font-semibold">
+          <ClipboardCheck aria-hidden="true" className="size-5" /> Abrir la validación
+        </Link>
       </section>
 
       <section className="flex flex-col gap-3" aria-labelledby="h-instalar">

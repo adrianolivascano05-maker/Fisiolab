@@ -27,6 +27,8 @@ const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ 
 const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m.MarkPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
 const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
+const ValidationPage = lazy(() => import("./pages/ValidationPage").then((m) => ({ default: m.ValidationPage })));
+const SensorCheckPage = lazy(() => import("./pages/SensorCheckPage").then((m) => ({ default: m.SensorCheckPage })));
 const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
 const LoadVelocityPage = lazy(() => import("./pages/LoadVelocityPage").then((m) => ({ default: m.LoadVelocityPage })));
 const RomHistoryPage = lazy(() => import("./pages/RomHistoryPage").then((m) => ({ default: m.RomHistoryPage })));
@@ -68,6 +70,8 @@ const router = createBrowserRouter([
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07
   { path: "/tests/:id", element: <ResultPage /> }, // S08
   { path: "/comparar", element: l(<ComparePage />) }, // S23
+  { path: "/validacion", element: l(<ValidationPage />) },
+  { path: "/validacion/sensor", element: l(<SensorCheckPage />) },
   { path: "/ajustes", element: <SettingsPage /> }, // S24
   { path: "/privacidad", element: <PrivacyPage /> },
   { path: "/design", element: l(<DesignPage />) },

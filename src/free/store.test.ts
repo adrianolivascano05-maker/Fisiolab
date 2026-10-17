@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createPatient, deletePatient } from "../data/repo";
+import { migrations } from "../data/migrations";
 import { createTestDb } from "../data/testDb";
 import { deleteMeasurement, getMeasurement, listMeasurements, reportCsv, saveMeasurement } from "./store";
 import type { BiomechanicalMeasurement } from "./types";
@@ -38,6 +39,6 @@ describe("guardado de la medición libre", () => {
     await deletePatient(db, pid);
     expect(await db.query("select * from free_measurements")).toEqual([]);
     // La versión del esquema de la app no cambia: la tabla no es una migración.
-    expect((await db.info()).schemaVersion).toBe(4);
+    expect((await db.info()).schemaVersion).toBe(migrations.at(-1)!.version);
   });
 });

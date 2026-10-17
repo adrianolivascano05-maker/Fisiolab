@@ -18,6 +18,7 @@ import { VbtResult } from "./VbtResult";
 import { NordicResult } from "./NordicResult";
 import { CodResult, RunningResult, SprintResult } from "./SpeedResults";
 import { isCodType } from "../calc/cod";
+import { ValidateLinks } from "./ValidateLinks";
 
 const linkPrimary = "inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover";
 const linkSecondary = "inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border-input px-4 font-semibold hover:bg-surface";
@@ -68,6 +69,7 @@ export function ResultPage() {
     return (
       <Page title={`${testTitle(test)} · ${patient.name}`} backTo={back}>
         <Result test={test} patient={patient} />
+        <ValidateLinks test={test} />
         {deleteUi}
       </Page>
     );
@@ -76,6 +78,7 @@ export function ResultPage() {
     return (
       <Page title={`Nórdico · ${patient.name}`} backTo={back}>
         <NordicResult test={test} patient={patient} />
+        <ValidateLinks test={test} />
         {deleteUi}
       </Page>
     );
@@ -84,6 +87,7 @@ export function ResultPage() {
     return (
       <Page title={`${testTitle({ ...test, exercise: String(test.details.exercise ?? "") })} · ${patient.name}`} backTo={back}>
         <VbtResult test={test} patient={patient} />
+        <ValidateLinks test={test} />
         {deleteUi}
       </Page>
     );
@@ -92,6 +96,7 @@ export function ResultPage() {
     return (
       <Page title={`${testTitle({ ...test, movement: String(test.details.movement ?? "") })} · ${patient.name}`} backTo={back}>
         <RomResult test={test} patient={patient} />
+        <ValidateLinks test={test} />
         {deleteUi}
       </Page>
     );
@@ -152,6 +157,7 @@ export function ResultPage() {
         <Link to={`/pacientes/${patient.id}/evolucion/${type}`} className={linkGhost}>
           <ChartLine aria-hidden="true" className="size-5" /> Ver evolución
         </Link>
+        <ValidateLinks test={test} />
         {deleteUi}
       </div>
     </Page>

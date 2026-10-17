@@ -21,22 +21,22 @@ Asimetría entre piernas (salto unipodal),saltos,should,yes,yes,cálculo exacto 
 Saltos repetidos 10-5,saltos,should,yes,yes,S07 en modo serie + S08; media del RSI de los 5 mejores rebotes (mínimo 6 saltos)
 Salto horizontal,saltos,should,yes,yes,"distancia medida con cinta y anotada, sin vídeo"
 Velocidad media de la barra por vídeo,fuerza,should,yes,yes,"S13: inicio y fin de cada subida en el vídeo, recorrido medido (se recuerda); también velocidades escritas de un encoder"
-Perfil carga-velocidad y 1RM estimado,fuerza,should,yes,yes,"S14: recta con la repetición más rápida de cada carga; 1RM a la velocidad del umbral (editable por ejercicio); tabla de cargas por % 1RM"
+Perfil carga-velocidad y 1RM estimado,fuerza,should,yes,yes,S14: recta con la repetición más rápida de cada carga; 1RM a la velocidad del umbral (editable por ejercicio); tabla de cargas por % 1RM
 Pérdida de velocidad en la serie,fuerza,should,yes,yes,(más rápida − última) / más rápida
 Movilidad de tobillo (lunge) hombro cadera y cuello,movilidad,should,yes,yes,"S19: 14 movimientos; inclinómetro del móvil, ángulo sobre foto o goniómetro; media de lecturas; distancia a la pared en el lunge; resumen por lados y evolución"
-Nórdico: ángulo de rotura,isquios,should,yes,yes,"S20: marcar la rotura en el vídeo y tocar rodilla y cadera en ese fotograma (respecto a la vertical); o escribirlo"
+Nórdico: ángulo de rotura,isquios,should,yes,yes,S20: marcar la rotura en el vídeo y tocar rodilla y cadera en ese fotograma (respecto a la vertical); o escribirlo
 Nórdico: torque estimado,isquios,should,yes,yes,"modelo propio por validar: 0,878·masa·g·0,322·estatura·sen θ / 2 por pierna (no se encontró la fórmula publicada)"
 Cuestionario de bienestar (sueño fatiga estrés agujetas),bienestar,should,yes,yes,"S21: 5 preguntas de 1 a 5 (fatiga, sueño, dolor muscular, estrés, ánimo) + dolor de la lesión 0-10; total 5-25, comparación con su media y avisos"
 Sprint lineal con tiempos de paso,sprint,should,yes,yes,"S15: salida y pasos en vídeo o fotocélulas; tramos, velocidad máxima y perfil F-V del sprint (sin aire)"
 Tests de cambio de dirección (5-0-5 5+5 V-Cut Illinois),sprint,should,yes,yes,"S16: salida y llegada en vídeo o cronómetro; pierna de giro, asimetría y déficit de cambio de dirección (5-0-5)"
 Mecánica de carrera (contacto vuelo frecuencia de paso),carrera,should,yes,yes,"S18: contactos y despegues en vídeo; contacto, vuelo, frecuencia, factor de apoyo, longitud del paso y asimetría"
 Comparar pacientes y ranking por test,historial,should,yes,yes,"S23: 21 medidas, mejor marca o última, orden invertible"
-Validación interna del clon contra una referencia,calidad,should,no,no,añadido: medir los mismos saltos con el clon y con My Jump Lab o una plataforma
+Validación interna del clon contra una referencia,calidad,should,no,yes,"pantalla Validación: Bland-Altman, ICC(A,1), error típico, CMD95, re-marcado a ciegas, IA frente a marcas, comprobación del sensor; faltan los datos reales"
 Sprint curvo,sprint,could,yes,no,
 Deceleración horizontal,sprint,could,yes,no,
 S-MAS (puntuación de mecánica de sprint),sprint,could,yes,no,
-Detección automática del salto con IA,ia,could,yes,no,solo con un modelo abierto; no se copian los del original
-Velocidad de barra automática con IA,ia,could,yes,no,
+Detección automática del salto con IA,ia,could,yes,yes,MediaPipe Pose en el móvil: punto más bajo de los pies; dos pasadas (rápida y fotograma a fotograma); src/ai; editable con ‹ › y ⌖
+Velocidad de barra automática con IA,ia,could,yes,yes,muñecas (cadera en hip thrust) como la barra; inicio y fin de cada subida; editable
 Captura de movimiento (My Mocap),ia,could,yes,no,no se ha podido confirmar qué mide
 Varios idiomas,ajustes,could,yes,no,
 Medir la estatura con LiDAR,otros,skip,yes,skip,los navegadores no acceden al LiDAR
@@ -44,7 +44,7 @@ Conectar plataformas de fuerza (ForceData),otros,skip,yes,skip,necesita hardware
 Suscripción y prueba gratis,cuenta,skip,yes,skip,uso interno en la clínica: no hace falta
 Compartir suscripción entre iPhone iPad y Mac,cuenta,skip,yes,skip,no aplica a una web
 Validación científica publicada del original,calidad,skip,yes,skip,es del original; el clon necesita la suya propia
-Autoguardado de las marcas sin calcular,marcado,should,no,yes,"reseñas: forzar cierre y empezar de nuevo; replica/fixes.md #1"
-Explicación del cálculo en el resultado del salto (fotogramas · fps · fórmula),resultados,should,no,yes,"reseñas: cálculos inconsistentes; replica/fixes.md #2"
-Medición rápida sin rellenar ficha,pacientes,should,no,yes,"reseña: montar un perfil para probar; replica/fixes.md #3"
-Lupa sobre la imagen al marcar,marcado,could,no,no,"evidencia escasa; replica/fixes.md #8"
+Autoguardado de las marcas sin calcular,marcado,should,no,yes,reseñas: forzar cierre y empezar de nuevo; replica/fixes.md #1
+Explicación del cálculo en el resultado del salto (fotogramas · fps · fórmula),resultados,should,no,yes,reseñas: cálculos inconsistentes; replica/fixes.md #2
+Medición rápida sin rellenar ficha,pacientes,should,no,yes,reseña: montar un perfil para probar; replica/fixes.md #3
+Lupa sobre la imagen al marcar,marcado,could,no,no,evidencia escasa; replica/fixes.md #8
