@@ -20,12 +20,15 @@ import { frameAt, seekTime } from "../video/timeline";
 import { useTimeline } from "../video/useTimeline";
 import { measureFrame, smoothPoses, summarizeKeyframes, type MeasureConfig } from "./geometry";
 import { allJoints, baseJoints, drawnJoints, jointLabel, jointPoint, presets, skeleton } from "./joints";
-import { detectPose, loadPoseDetector } from "./pose";
+import { angleSeries, choosePreset, movementWindow, spread, toConfig } from "./auto";
+import { detectPose, grabFrame, loadPoseDetector, type Detector } from "./pose";
 import { listMeasurements, reportCsv, saveMeasurement } from "./store";
 import type { AnatomicalPlane, BiomechanicalMeasurement, FramePose, KeyframeData } from "./types";
 
 /** Máximo de fotogramas que se analizan en un movimiento (se salta alguno si el tramo es largo). */
-const MAX_ANALYZED = 300;
+const MAX_ANALYZED = 240;
+/** Fotogramas que se miran en todo el vídeo para encontrar el movimiento. */
+const SCAN_FRAMES = 60;
 /** Radio de anclaje a una articulación, en píxeles de pantalla. */
 const SNAP_PX = 20;
 
@@ -152,13 +155,21 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
 
   const [raw, setRaw] = useState<Map<number, FramePose>>(new Map());
   const [overrides, setOverrides] = useState<Map<number, Map<number, { x: number; y: number }>>>(new Map());
-  const [busy, setBusy] = useState<{ done: number; total: number } | null>(null);
+  const [busy, setBusy] = useState<{ label: string; done: number; total: number } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [auto, setAuto] = useState<string | null>(null);
   const cancel = useRef(false);
-  const tsCounter = useRef(0);
+  const grab = useRef<HTMLCanvasElement | null>(null);
 
   const [presetId, setPresetId] = useState(presets[0]!.id);
   const [cfg, setCfg] = useState<MeasureConfig>(() => toConfig(presets[0]!));
+  /** La medición la ha elegido el usuario: el autocompletado ya no la cambia. */
+  const touched = useRef(false);
+  const editCfg: typeof setCfg = (v) => {
+    touched.current = true;
+    setAuto(null);
+    setCfg(v);
+  };
   const [tapMode, setTapMode] = useState<TapMode>(null);
   const [pendingTap, setPendingTap] = useState<string | null>(null);
   const drag = useRef<number | null>(null);
@@ -211,63 +222,135 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
   const summary = summarizeKeyframes(keyframes);
   const currentAngle = current && size ? measureFrame(current, cfg, size) : null;
 
-  /** Lleva el vídeo a un fotograma y espera a que se vea. */
+  /**
+   * Lleva el vídeo a un fotograma y espera a que se vea. Con límite de tiempo: si el móvil no avisa
+   * de que ha llegado, se sigue igualmente en vez de quedarse colgado.
+   */
   const seekTo = useCallback(
     async (f: number) => {
       const v = video.current!;
       const target = seekTime(timeline, f, fps);
-      if (Math.abs(v.currentTime - target) > 1e-4) {
-        await new Promise((resolve) => {
-          v.addEventListener("seeked", resolve, { once: true });
-          v.currentTime = target;
-        });
-      }
+      if (Math.abs(v.currentTime - target) < 1e-4 && !v.seeking) return;
+      // En Android el fotograma nuevo se pinta un poco después de «seeked»: se espera a que se presente.
+      const painted = new Promise<void>((resolve) => {
+        if ("requestVideoFrameCallback" in v) v.requestVideoFrameCallback(() => resolve());
+        else resolve();
+      });
+      await new Promise<void>((resolve) => {
+        const done = () => {
+          clearTimeout(t);
+          v.removeEventListener("seeked", done);
+          resolve();
+        };
+        const t = setTimeout(done, 3000);
+        v.addEventListener("seeked", done);
+        v.currentTime = target;
+      });
+      await Promise.race([painted, new Promise((r) => setTimeout(r, 200))]);
     },
     [timeline, fps],
   );
 
-  async function analyze(frames: number[]) {
-    setPlaying(false);
-    setStatus(null);
-    cancel.current = false;
-    setBusy({ done: 0, total: frames.length });
-    try {
-      const d = await loadPoseDetector();
-      const found = new Map(raw);
-      let missing = 0;
-      for (const [i, f] of frames.entries()) {
-        if (cancel.current) break;
-        await seekTo(f);
-        // El detector en modo vídeo exige tiempos crecientes: se usa un contador propio.
-        tsCounter.current += 1000 / 30;
-        const p = detectPose(d, video.current!, tsCounter.current);
-        if (p) found.set(f, { frame: f, timeS: f / captureFps, ...p });
-        else {
-          found.delete(f);
-          missing++;
-        }
-        setBusy({ done: i + 1, total: frames.length });
+  /** Detecta la pose en cada fotograma de la lista y la añade a `found`. Devuelve cuántos no tenían a nadie. */
+  async function detectFrames(d: Detector, frames: number[], found: Map<number, FramePose>, label: string) {
+    let missing = 0;
+    grab.current ??= document.createElement("canvas");
+    for (const [i, f] of frames.entries()) {
+      if (cancel.current) break;
+      setBusy({ label, done: i, total: frames.length });
+      await seekTo(f);
+      const img = grabFrame(video.current!, grab.current);
+      const p = img ? detectPose(d, img) : null;
+      if (p) found.set(f, { frame: f, timeS: f / captureFps, ...p });
+      else {
+        found.delete(f);
+        missing++;
       }
-      setRaw(found);
-      setFrame(frames[0]!);
-      if (missing === frames.length) setStatus("No se detecta a ninguna persona. Comprueba que se ve el cuerpo entero y con buena luz.");
-      else if (missing > 0) setStatus(`En ${missing} de ${frames.length} fotogramas no se detectó a la persona; esos no se miden.`);
-    } catch (e) {
-      setStatus(`No se pudo cargar el detector de pose: ${e instanceof Error ? e.message : String(e)}`);
-    } finally {
-      setBusy(null);
-      await seekTo(frame).catch(() => undefined);
     }
+    return missing;
   }
 
-  function analyzeRange() {
-    const start = range.start ?? 0;
-    const end = range.end ?? last;
-    const step = Math.max(1, Math.ceil((end - start + 1) / MAX_ANALYZED));
-    const frames: number[] = [];
-    for (let f = start; f <= end; f += step) frames.push(f);
-    if (frames.at(-1) !== end) frames.push(end);
-    void analyze(frames);
+  /**
+   * Analiza y autocompleta: si no hay inicio y fin, mira todo el vídeo, elige la medición que más se
+   * mueve, marca dónde empieza y acaba el movimiento y lo analiza fotograma a fotograma.
+   */
+  async function analyze(only?: number) {
+    if (!size) return;
+    setPlaying(false);
+    setStatus(null);
+    setAuto(null);
+    cancel.current = false;
+    setBusy({ label: "Cargando el detector de pose…", done: 0, total: 0 });
+    const found = new Map(raw);
+    let show = frame;
+    let d: Detector;
+    try {
+      d = await loadPoseDetector();
+    } catch (e) {
+      setStatus(`No se pudo cargar el detector de pose: ${e instanceof Error ? e.message : String(e)}`);
+      setBusy(null);
+      return;
+
+    }
+    try {
+      const manual = range.start !== null || range.end !== null;
+      const scan = only !== undefined ? [only] : manual ? spread(range.start ?? 0, range.end ?? last, MAX_ANALYZED) : spread(0, last, SCAN_FRAMES);
+      let missing = await detectFrames(d, scan, found, only !== undefined ? "Analizando el fotograma…" : manual ? "Analizando el movimiento…" : "Buscando el movimiento…");
+      // Si la tarjeta gráfica no ve a nadie, se prueba con la CPU (algunos móviles fallan sin avisar).
+      if (missing === scan.length && d.delegate === "GPU" && !cancel.current) {
+        const cpu = await loadPoseDetector("CPU");
+        const probe = scan.filter((_, i) => i % Math.ceil(scan.length / 4) === 0);
+        if ((await detectFrames(cpu, probe, found, "Probando sin la tarjeta gráfica…")) < probe.length) {
+          d = cpu;
+          missing = await detectFrames(d, scan, found, "Repitiendo con la CPU…");
+        }
+      }
+      if (missing === scan.length) {
+        setStatus("No se detecta a ninguna persona. Comprueba que se ve el cuerpo entero y con buena luz.");
+        return;
+      }
+
+      const smooth = smoothPoses([...found.values()]);
+      const done: string[] = [];
+      let use = cfg;
+      if (!touched.current && only === undefined) {
+        const pick = choosePreset(smooth.filter((p) => scan.includes(p.frame)), size);
+        if (pick) {
+          use = toConfig(pick.preset);
+          setCfg(use);
+          setPresetId(pick.preset.id);
+          done.push(`medición «${pick.preset.label}»`);
+        }
+      }
+      let peak = scan[0]!;
+      const series = angleSeries(smooth.filter((p) => scan.includes(p.frame)), use, size);
+      const win = only === undefined ? movementWindow(series) : null;
+      if (win) {
+        peak = win.peak;
+        if (!manual) {
+          setRange({ start: win.start, end: win.end });
+          done.push(`inicio y fin (fot. ${win.start + 1} a ${win.end + 1})`);
+          const dense = spread(win.start, win.end, MAX_ANALYZED).filter((f) => !found.has(f));
+          missing += await detectFrames(d, dense, found, "Analizando el movimiento…");
+        }
+      } else if (series.length) {
+        peak = series.reduce((a, b) => (b.angle > a.angle ? b : a)).frame;
+      }
+      setRaw(new Map(found));
+      show = peak;
+      if (done.length) setAuto(`Autocompletado: ${done.join(", ")}. Te dejo en el punto de máximo recorrido; puedes cambiar cualquier cosa.`);
+      else if (only === undefined && !win) setAuto("No se ve un movimiento claro: marca inicio y fin a mano si hace falta.");
+      if (missing > 0 && !manual) setStatus(`En ${missing} fotogramas no se detectó a la persona; esos no se miden.`);
+      else if (missing > 0) setStatus(`En ${missing} de ${scan.length} fotogramas no se detectó a la persona; esos no se miden.`);
+    } catch (e) {
+      setRaw(new Map(found));
+      setStatus(`Falló la detección de pose: ${e instanceof Error ? e.message : String(e)}. Prueba con un vídeo más corto o en otro navegador.`);
+    } finally {
+      // Deja el vídeo en el fotograma que se va a mostrar (el análisis lo ha movido).
+      await seekTo(show).catch(() => undefined);
+      setFrame(show);
+      setBusy(null);
+    }
   }
 
   // ---------- Dibujo: esqueleto, segmentos de la medición y arco con el ángulo ----------
@@ -276,8 +359,10 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
     if (!c) return;
     const rect = c.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
-    c.width = Math.round(rect.width * dpr);
-    c.height = Math.round(rect.height * dpr);
+    const cw = Math.round(rect.width * dpr);
+    const ch = Math.round(rect.height * dpr);
+    if (c.width !== cw) c.width = cw;
+    if (c.height !== ch) c.height = ch;
     const g = c.getContext("2d")!;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.clearRect(0, 0, rect.width, rect.height);
@@ -398,8 +483,8 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
       setPendingTap(id);
       return;
     }
-    if (tapMode === "movement") setCfg((c) => ({ ...c, movement: { start: pendingTap, end: id } }));
-    else setCfg((c) => ({ ...c, reference: { type: "axial_body", start: pendingTap, end: id } }));
+    if (tapMode === "movement") editCfg((c) => ({ ...c, movement: { start: pendingTap, end: id } }));
+    else editCfg((c) => ({ ...c, reference: { type: "axial_body", start: pendingTap, end: id } }));
     setPresetId("custom");
     setPendingTap(null);
     setTapMode(null);
@@ -473,6 +558,7 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
             setFrameCount((n) => (n > 1 ? n : Math.max(1, Math.round(v.duration * 30))));
           }}
           onPause={() => setPlaying(false)}
+          onError={() => setStatus("Este navegador no puede abrir el vídeo. Si el móvil graba en alta eficiencia (HEVC/H.265), desactívalo en los ajustes de la cámara y graba de nuevo.")}
           aria-label="Vídeo para la medición libre"
           className="block h-full w-full"
         />
@@ -487,8 +573,8 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
           onPointerCancel={() => (drag.current = null)}
         />
       </div>
-      <FrameScrubber frameCount={last + 1} frame={frame} fps={captureFps} markers={markers} onFrame={(f) => { setPlaying(false); setFrame(f); }} />
-      <FrameControls playing={playing} onTogglePlay={() => setPlaying((p) => !p)} onStep={(d) => { setPlaying(false); setFrame((f) => Math.max(0, Math.min(last, f + d))); }} />
+      <FrameScrubber frameCount={last + 1} frame={frame} fps={captureFps} markers={markers} onFrame={(f) => { if (busy) return; setPlaying(false); setFrame(f); }} />
+      <FrameControls playing={playing} onTogglePlay={() => !busy && setPlaying((p) => !p)} onStep={(d) => { if (busy) return; setPlaying(false); setFrame((f) => Math.max(0, Math.min(last, f + d))); }} />
 
       <div className="grid grid-cols-2 gap-2">
         <Button variant="secondary" onClick={() => setRange((r) => ({ ...r, start: frame }))}>
@@ -501,23 +587,24 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
       {busy ? (
         <div className="flex flex-col gap-2" role="status">
           <p className="text-sm text-media-muted">
-            Analizando la pose… {busy.done} / {busy.total}
+            {busy.label} {busy.total > 0 && `${busy.done} / ${busy.total}`}
           </p>
-          <progress className="w-full" max={busy.total} value={busy.done} aria-label="Progreso del análisis" />
+          <progress className="w-full" max={busy.total || undefined} value={busy.total ? busy.done : undefined} aria-label="Progreso del análisis" />
           <Button variant="secondary" onClick={() => (cancel.current = true)}>
             Parar
           </Button>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <Button variant="secondary" icon={<ScanLine aria-hidden="true" className="size-5" />} onClick={() => void analyze([frame])}>
+          <Button variant="secondary" icon={<ScanLine aria-hidden="true" className="size-5" />} onClick={() => void analyze(frame)}>
             Este fotograma
           </Button>
-          <Button icon={<Play aria-hidden="true" className="size-5" />} onClick={analyzeRange}>
+          <Button icon={<Play aria-hidden="true" className="size-5" />} disabled={!size} onClick={() => void analyze()}>
             Analizar movimiento
           </Button>
         </div>
       )}
+      {auto && <Alert tone="info" title="Listo">{auto}</Alert>}
       {status && <Alert tone="warning" title="Detección de pose">{status}</Alert>}
 
       <Card className="flex flex-col gap-3 text-text">
@@ -528,7 +615,8 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
           onChange={(e) => {
             setPresetId(e.target.value);
             const p = presets.find((x) => x.id === e.target.value);
-            if (p) setCfg(toConfig(p));
+            if (p) editCfg(toConfig(p));
+            else touched.current = true;
           }}
         >
           {presets.map((p) => (
@@ -538,7 +626,7 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
           ))}
           <option value="custom">Personalizada</option>
         </SelectField>
-        <SelectField label="Plano" value={cfg.plane} onChange={(e) => { setPresetId("custom"); setCfg((c) => ({ ...c, plane: e.target.value as MeasureConfig["plane"] })); }}>
+        <SelectField label="Plano" value={cfg.plane} onChange={(e) => { setPresetId("custom"); editCfg((c) => ({ ...c, plane: e.target.value as MeasureConfig["plane"] })); }}>
           {(Object.keys(planeLabels) as (keyof typeof planeLabels)[]).map((k) => (
             <option key={k} value={k}>
               {planeLabels[k]}
@@ -551,17 +639,17 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
             value={cfg.reference.type}
             onChange={(e) => {
               setPresetId("custom");
-              setCfg((c) => ({ ...c, reference: e.target.value === "plumb_line" ? { type: "plumb_line" } : { type: "axial_body", start: "mid_shoulder", end: "mid_hip" } }));
+              editCfg((c) => ({ ...c, reference: e.target.value === "plumb_line" ? { type: "plumb_line" } : { type: "axial_body", start: "mid_shoulder", end: "mid_hip" } }));
             }}
           >
             <option value="plumb_line">Plomada (vertical)</option>
             <option value="axial_body">Eje del cuerpo</option>
           </SelectField>
           {cfg.reference.type === "axial_body" && (
-            <JointPair label="Eje" pair={cfg.reference} onChange={(start, end) => { setPresetId("custom"); setCfg((c) => ({ ...c, reference: { type: "axial_body", start, end } })); }} />
+            <JointPair label="Eje" pair={cfg.reference} onChange={(start, end) => { setPresetId("custom"); editCfg((c) => ({ ...c, reference: { type: "axial_body", start, end } })); }} />
           )}
         </div>
-        <JointPair label="Segmento móvil" pair={cfg.movement} onChange={(start, end) => { setPresetId("custom"); setCfg((c) => ({ ...c, movement: { start, end } })); }} />
+        <JointPair label="Segmento móvil" pair={cfg.movement} onChange={(start, end) => { setPresetId("custom"); editCfg((c) => ({ ...c, movement: { start, end } })); }} />
         <div className="grid grid-cols-3 gap-2">
           <Button size="sm" variant={tapMode === "reference" ? "primary" : "secondary"} icon={<Crosshair aria-hidden="true" className="size-4" />} disabled={!current} onClick={() => { setTapMode(tapMode === "reference" ? null : "reference"); setPendingTap(null); }}>
             Fijar eje
@@ -626,7 +714,7 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
         current === null &&
         raw.size === 0 && (
           <p className="flex items-center gap-2 text-sm text-media-muted">
-            <FlaskConical aria-hidden="true" className="size-4" /> Marca inicio y fin del movimiento y pulsa «Analizar movimiento».
+            <FlaskConical aria-hidden="true" className="size-4" /> Pulsa «Analizar movimiento»: busca el movimiento y rellena la medición. Si quieres, antes marca tú inicio y fin.
           </p>
         )
       )}
@@ -635,14 +723,6 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
       </Button>
     </div>
   );
-}
-
-function toConfig(p: (typeof presets)[number]): MeasureConfig {
-  return {
-    plane: p.plane,
-    reference: p.reference.type === "plumb_line" ? { type: "plumb_line" } : { type: "axial_body", start: p.reference.start, end: p.reference.end },
-    movement: { ...p.movement },
-  };
 }
 
 function JointPair({ label, pair, onChange }: { label: string; pair: { start: string; end: string }; onChange: (start: string, end: string) => void }) {

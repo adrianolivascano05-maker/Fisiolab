@@ -10,6 +10,7 @@ dentro del navegador: el vídeo no sale del móvil. Autocontenido para poder qui
 | `types.ts` | interfaces de la medición (`BiomechanicalMeasurement`, `KeyframeData`, `Landmark3D`) |
 | `joints.ts` | puntos del modelo, puntos derivados (≈ C7, ≈ sacro), esqueleto y mediciones preparadas |
 | `geometry.ts` | ángulo 2D (atan2), ángulo 3D (producto escalar), ejes del cuerpo, proyección en el plano anatómico, filtro One Euro, Δθ |
+| `auto.ts` | autocompletado al analizar: elige la medición que más se mueve y marca inicio, pico y fin |
 | `pose.ts` | carga del modelo (`assets/pose_landmarker_full.task`) y del motor wasm, detección por fotograma |
 | `store.ts` | tabla propia `free_measurements` (la crea el módulo; no es una migración) e informe CSV |
 | `FreeMeasurePage.tsx`, `FreeDetailPage.tsx`, `routes.tsx` | pantallas y rutas |

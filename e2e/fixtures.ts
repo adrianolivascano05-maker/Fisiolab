@@ -27,7 +27,8 @@ export const test = base.extend<{ consoleErrors: string[] }>({
         if (ghPages && r.status() === 404 && r.request().isNavigationRequest()) pageNav404++;
       });
       await use(errors);
-      const real = errors.filter((e) => !(e.includes("status of 404") && pageNav404-- > 0));
+      // «INFO: …» es un aviso informativo del motor de pose (wasm) que sale por el canal de errores.
+      const real = errors.filter((e) => !(e.includes("status of 404") && pageNav404-- > 0) && !e.startsWith("INFO: "));
       expect(real, "errores en consola").toEqual([]);
     },
     { auto: true },

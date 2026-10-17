@@ -5,7 +5,7 @@ import { createPatient, expect, expectAccessible, test, video } from "./fixtures
 
 test.describe("Medición libre (experimental)", () => {
   test("FL-H1 carga el motor de pose y avisa si no hay nadie en el vídeo", async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(300_000);
     await createPatient(page, { name: "Libre" });
     await page.getByRole("link", { name: "Nueva medición" }).click();
     await page.getByRole("link", { name: /Medición libre/ }).click();
@@ -25,6 +25,12 @@ test.describe("Medición libre (experimental)", () => {
     await page.getByLabel("Medición", { exact: true }).selectOption("knee_r");
     await expect(page.getByLabel("Plano", { exact: true })).toHaveValue("sagittal");
     await expectAccessible(page);
+    // Sin inicio ni fin: busca el movimiento en todo el vídeo.
+    await page.getByRole("button", { name: "Cerrar este vídeo" }).click();
+    await page.getByLabel("Elegir vídeo").setInputFiles(video.at240);
+    await page.getByRole("button", { name: "Analizar movimiento" }).click();
+    await expect(page.getByText(/No se detecta a ninguna persona/)).toBeVisible({ timeout: 120_000 });
+    await expect(page.getByRole("button", { name: "Inicio: —" })).toBeVisible();
     await page.getByRole("button", { name: "Cerrar este vídeo" }).click();
     await expect(page.getByRole("button", { name: "Grabar o elegir vídeo" })).toBeVisible();
   });
