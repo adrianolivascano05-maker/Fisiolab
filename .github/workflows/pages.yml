@@ -21,10 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      # Intenta activar Pages si no lo está (si el token del flujo no tiene permiso, falla aquí y lo dice).
-      - uses: actions/configure-pages@v5
-        with:
-          enablement: true
       - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
