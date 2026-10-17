@@ -9,4 +9,10 @@ export type Request =
   | { op: "import"; bytes: Uint8Array }
   | { op: "info" };
 
-export type Info = { persistent: boolean; sqliteVersion: string; schemaVersion: number };
+export type Info = {
+  persistent: boolean;
+  sqliteVersion: string;
+  schemaVersion: number;
+  /** La base ya está abierta en otra pestaña: esta no puede usarla. */
+  locked?: boolean;
+};

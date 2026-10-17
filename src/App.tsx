@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router";
+import { DbGate } from "./app/DbGate";
 import { ToastProvider } from "./ui/Toast";
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { JumpSetupPage } from "./pages/JumpSetupPage";
@@ -46,7 +47,9 @@ export function App() {
   }, []);
   return (
     <ToastProvider>
-      <RouterProvider router={router} />
+      <DbGate>
+        <RouterProvider router={router} />
+      </DbGate>
     </ToastProvider>
   );
 }
