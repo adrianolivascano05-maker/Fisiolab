@@ -138,8 +138,9 @@ export function FrameControls({ playing, onTogglePlay, onStep }: ControlsProps) 
 }
 
 /**
- * Botón para fijar un evento en el fotograma actual. El texto visible es corto (cabe en medio ancho);
- * el nombre accesible dice la acción completa.
+ * Botón para fijar un evento en el fotograma actual. Texto visible corto (cabe en medio ancho);
+ * el lector de pantalla oye además la acción: «Despegue: marcar en este fotograma».
+ * Sin aria-label: así el nombre accesible empieza por lo que se ve (WCAG 2.5.3).
  */
 export function MarkButton({ kind, done, onClick }: { kind: MarkerKind; done: boolean; onClick: () => void }) {
   const s = markerStyle[kind];
@@ -147,13 +148,13 @@ export function MarkButton({ kind, done, onClick }: { kind: MarkerKind; done: bo
     <button
       type="button"
       onClick={onClick}
-      aria-label={done ? `Mover ${s.name.toLowerCase()} a este fotograma` : `Marcar ${s.name.toLowerCase()} en este fotograma`}
       className={cx("tap-video flex flex-1 items-center justify-center gap-2 rounded-md px-3 text-base font-semibold text-media-bg", s.bg)}
     >
       <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-sm bg-media-bg/15 text-sm">
         {s.letter}
       </span>
-      <span aria-hidden="true">{s.name}</span>
+      <span>{s.name}</span>
+      <span className="sr-only">{done ? ": mover a este fotograma" : ": marcar en este fotograma"}</span>
       {done && <Check aria-hidden="true" className="size-5" />}
     </button>
   );
