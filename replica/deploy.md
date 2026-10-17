@@ -7,7 +7,7 @@ Tipo de publicación propuesta: **versión de prueba** para el móvil Android de
 
 ## Preflight
 
-- [x] Pruebas e2e: **45 / 45** en Chromium móvil, contra un servidor que aplica la misma CSP y cabeceras que Cloudflare (`tools/serve-dist.mjs`)
+- [x] Pruebas e2e: **45 / 45** en la raíz con las cabeceras de Cloudflare y **45 / 45** bajo `/Fisiolab/` como GitHub Pages (`tools/serve-dist.mjs`)
 - [x] Pruebas unitarias: **33 / 33** (fórmulas, base de datos, lectura de vídeo)
 - [x] Sin fallos S1 ni S2 abiertos (`replica/bugs.md`: 7 encontrados, 7 arreglados)
 - [x] Paridad: must-haves **13 / 13** (el último, vídeo real del móvil, cerrado con un vídeo del Pixel 7 Pro de Fisiolab). Puntuación en `replica/parity.md`
@@ -24,25 +24,31 @@ Tipo de publicación propuesta: **versión de prueba** para el móvil Android de
 - [x] Variables de entorno: ninguna. Sin claves
 - [x] Stripe, OAuth, email: no aplican
 
-## Alojamiento: Cloudflare (plan gratuito, sin tarjeta)
+## Alojamiento: GitHub Pages (elegido)
 
-Configurado en el repositorio:
-- `wrangler.jsonc`: Worker solo de archivos estáticos desde `dist/`, rutas de la app resueltas por `index.html`
-- `public/_headers`: CSP estricta (solo el propio dominio, `wasm-unsafe-eval` para SQLite), `nosniff`,
-  `no-referrer`, permisos (cámara solo propia), `sw.js` e `index.html` sin caché, `/assets/*` inmutables
-- `.nvmrc`: Node 22
+El repositorio es público, así que GitHub Pages es gratis y no hace falta ninguna cuenta nueva.
 
-Pasos que hace Fisiolab (Claude no crea cuentas ni escribe contraseñas):
-1. Crear una cuenta gratuita en https://dash.cloudflare.com/sign-up (correo y contraseña; no pide tarjeta).
-2. En el panel: **Workers y Pages → Crear → Importar un repositorio** → conectar GitHub y elegir
-   `adrianolivascano05-maker/Fisiolab`.
-3. Rama de producción: `claude/replica-skill-install-zv3ker`. Comando de compilación: `npm run build`.
-   Comando de despliegue: `npx wrangler deploy` (suele venir puesto). Guardar y desplegar.
-4. Al terminar, Cloudflare da una dirección `https://fisiolab-medicion.<tu-subdominio>.workers.dev`.
-   Cada `git push` a esa rama vuelve a publicar.
+- Dirección: **https://adrianolivascano05-maker.github.io/Fisiolab/**
+- `.github/workflows/pages.yml`: en cada push a la rama principal, instala, pasa las pruebas unitarias,
+  compila bajo `/Fisiolab/`, copia `index.html` a `404.html` (rutas internas) y publica.
+- GitHub Pages no permite cabeceras propias: la CSP va como `<meta>` en el HTML (sin `frame-ancestors`,
+  que en `<meta>` no vale). Las rutas internas abiertas directamente llegan con estado 404 pero la app
+  funciona; una vez instalada, el service worker las sirve sin pasar por el servidor.
+- Probado antes de publicar: `npm run e2e:ghpages` (45 / 45) sirve el build como GitHub Pages bajo
+  `/Fisiolab/`, incluido el modo sin conexión.
+- Nota: todas las webs de GitHub Pages de esta cuenta comparten origen (`adrianolivascano05-maker.github.io`)
+  y por tanto almacenamiento. Si algún día se publican otras, conviene un dominio propio para la app.
 
-Dominio propio: no hace falta. Si más adelante se quiere (p. ej. `medicion.fisiolab.es`), se añade en
-el Worker → Configuración → Dominios; Cloudflare indica el registro DNS (un CNAME). HTTPS es automático.
+Único paso de Fisiolab (una vez): en GitHub, repositorio Fisiolab → **Settings → Pages → Build and
+deployment → Source: «GitHub Actions»**. Claude no puede cambiar ajustes del repositorio.
+
+## Alternativa: Cloudflare (preparado, no usado)
+
+`wrangler.jsonc` y `public/_headers` (CSP como cabecera, caché) siguen en el repositorio por si más adelante
+se quiere un dominio propio con cabeceras. Requiere una cuenta de Cloudflare. Pasos:
+1. Cuenta gratuita en https://dash.cloudflare.com/sign-up.
+2. Workers y Pages → Crear → Importar un repositorio → GitHub → `Fisiolab`.
+3. Rama `claude/replica-skill-install-zv3ker`, compilación `npm run build`, despliegue `npx wrangler deploy`.
 
 ## Vigilancia
 

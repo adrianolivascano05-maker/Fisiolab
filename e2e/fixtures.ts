@@ -16,11 +16,19 @@ export const test = base.extend<{ consoleErrors: string[] }>({
   consoleErrors: [
     async ({ page }, use) => {
       const errors: string[] = [];
+      // GitHub Pages sirve las rutas internas abiertas directamente con 404.html y estado 404; la app
+      // funciona igual. Solo esos 404 de navegación se toleran, y solo en ese modo.
+      let pageNav404 = 0;
+      const ghPages = (process.env.E2E_BASE ?? "/") !== "/";
       page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
       page.on("pageerror", (e) => errors.push(e.message));
-      page.on("response", (r) => r.status() >= 500 && errors.push(`${r.status()} ${r.url()}`));
+      page.on("response", (r) => {
+        if (r.status() >= 500) errors.push(`${r.status()} ${r.url()}`);
+        if (ghPages && r.status() === 404 && r.request().isNavigationRequest()) pageNav404++;
+      });
       await use(errors);
-      expect(errors, "errores en consola").toEqual([]);
+      const real = errors.filter((e) => !(e.includes("status of 404") && pageNav404-- > 0));
+      expect(real, "errores en consola").toEqual([]);
     },
     { auto: true },
   ],
@@ -37,7 +45,7 @@ export async function expectAccessible(page: Page) {
 export type NewPatient = { name: string; mass?: string; pushOff?: string };
 
 export async function createPatient(page: Page, p: NewPatient) {
-  await page.goto("/pacientes/nuevo");
+  await page.goto("./pacientes/nuevo");
   await page.getByLabel("Nombre").fill(p.name);
   if (p.mass) await page.getByLabel("Masa").fill(p.mass);
   if (p.pushOff) await page.getByLabel("Distancia de empuje").fill(p.pushOff);
@@ -75,7 +83,7 @@ export async function markAt(page: Page, frame: number, event: "despegue" | "ate
 }
 
 export async function loadSeed(page: Page) {
-  await page.goto("/ajustes");
+  await page.goto("./ajustes");
   await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
   await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 15_000 });
 }

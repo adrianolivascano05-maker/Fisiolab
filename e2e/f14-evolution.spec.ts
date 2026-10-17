@@ -3,7 +3,7 @@ import { createPatient, expect, expectAccessible, loadSeed, markAt, startJump, t
 test.describe("F14 Ver la evolución", () => {
   test("F14-H1 cinco CMJ de ejemplo: gráfica, mejor y tabla", async ({ page }) => {
     await loadSeed(page);
-    await page.goto("/");
+    await page.goto("./");
     await expectAccessible(page);
     await page.getByRole("link", { name: /Lucía Herrero/ }).click();
     await expectAccessible(page);
@@ -27,7 +27,7 @@ test.describe("F14 Ver la evolución", () => {
 
   test("F14-E2 potencia sin masa: explica por qué no hay datos", async ({ page }) => {
     await loadSeed(page);
-    await page.goto("/");
+    await page.goto("./");
     await page.getByRole("link", { name: /Irene Soto/ }).click();
     await page.getByRole("link", { name: "Evolución CMJ" }).click();
     await page.getByLabel("Medida").selectOption({ label: "Potencia media" });

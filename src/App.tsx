@@ -20,6 +20,9 @@ const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m
 const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default: m.VideoPage })));
 const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
+// En GitHub Pages la app vive en /Fisiolab/; en la raíz del dominio, en /.
+const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
+
 // Una ruta por pantalla del recon (replica/recon.md). Las de fases posteriores muestran cuándo llegan.
 const router = createBrowserRouter([
   { path: "/", element: <PatientsPage /> }, // S01
@@ -41,7 +44,7 @@ const router = createBrowserRouter([
   { path: "/privacidad", element: <PrivacyPage /> },
   { path: "/design", element: l(<DesignPage />) },
   { path: "*", element: <ComingSoonPage title="Página no encontrada" /> },
-]);
+], { basename: BASENAME });
 
 export function App() {
   useEffect(() => {

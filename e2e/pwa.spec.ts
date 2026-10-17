@@ -9,23 +9,24 @@ async function controlledBySw(page: Page) {
 }
 
 test.describe("PWA: instalable y sin conexión", () => {
-  test("PWA-H1 manifiesto con nombre, iconos y modo app", async ({ page, request }) => {
-    await page.goto("/");
+  test("PWA-H1 manifiesto con nombre, iconos y modo app", async ({ page, request, baseURL }) => {
+    await page.goto("./");
     const href = await page.locator('link[rel="manifest"]').getAttribute("href");
     const manifest = await (await request.get(href!)).json();
-    expect(manifest).toMatchObject({ name: "Fisiolab · Medición", short_name: "Fisiolab", display: "standalone", lang: "es", start_url: "/" });
+    const base = new URL(baseURL!).pathname;
+    expect(manifest).toMatchObject({ name: "Fisiolab · Medición", short_name: "Fisiolab", display: "standalone", lang: "es", start_url: base, scope: base });
     for (const icon of manifest.icons) expect((await request.get(icon.src)).status(), icon.src).toBe(200);
     expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === "maskable")).toBe(true);
-    expect((await request.get("/icons/apple-touch-icon.png")).status()).toBe(200);
+    expect((await request.get("icons/apple-touch-icon.png")).status()).toBe(200);
   });
 
   test("PWA-H2 sin conexión: abre, conserva los datos y mide un CMJ entero", async ({ page, context }) => {
-    await page.goto("/");
+    await page.goto("./");
     await controlledBySw(page);
     await createPatient(page, { name: "Sin internet", mass: "70", pushOff: "40" });
 
     await context.setOffline(true);
-    await page.goto("/");
+    await page.goto("./");
     await expect(page.getByRole("link", { name: /Sin internet/ })).toBeVisible();
     await page.getByRole("link", { name: /Sin internet/ }).click();
     await page.getByRole("link", { name: "Nuevo test" }).click();
@@ -43,7 +44,7 @@ test.describe("PWA: instalable y sin conexión", () => {
   });
 
   test("PWA-E1 tarjeta de instalación: pasos y ocultar durante dos semanas", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("./");
     const card = page.getByRole("heading", { name: "Instala la app en este móvil" });
     await expect(card).toBeVisible();
     await expect(page.getByText(/«Instalar app»|Instalar la app|Añadir a pantalla de inicio/).first()).toBeVisible();
@@ -64,34 +65,34 @@ test.describe("PWA: instalable y sin conexión", () => {
       locale: "es-ES",
     });
     const page = await ctx.newPage();
-    await page.goto("/");
+    await page.goto("./");
     await expect(page.getByText("«Añadir a pantalla de inicio»")).toBeVisible();
     await expect(page.getByText("Compartir", { exact: true })).toBeVisible();
     await ctx.close();
   });
 
   test("PWA-E3 recordatorio de copia con pacientes reales, no con los de ejemplo", async ({ page }) => {
-    await page.goto("/ajustes");
+    await page.goto("./ajustes");
     await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
     await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 15_000 });
-    await page.goto("/");
+    await page.goto("./");
     await expect(page.getByRole("link", { name: /Lucía/ })).toBeVisible();
     await expect(page.getByText("Haz una copia de seguridad")).toHaveCount(0);
 
     await createPatient(page, { name: "Real" });
-    await page.goto("/");
+    await page.goto("./");
     await expect(page.getByText("Haz una copia de seguridad")).toBeVisible();
     await expect(page.getByText("Todavía no has hecho ninguna.", { exact: false })).toBeVisible();
     await page.getByRole("link", { name: "Ir a Ajustes" }).click();
     await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar copia de seguridad" }).click()]);
     await expect(page.getByText(/Última copia: \d/)).toBeVisible();
-    await page.goto("/");
+    await page.goto("./");
     await expect(page.getByRole("link", { name: /Real/ })).toBeVisible();
     await expect(page.getByText("Haz una copia de seguridad")).toHaveCount(0);
   });
 
   test("PWA-E4 ajustes muestran la instalación y la protección de datos", async ({ page }) => {
-    await page.goto("/ajustes");
+    await page.goto("./ajustes");
     await expect(page.getByRole("heading", { name: "Instalación" })).toBeVisible();
     await expect(page.getByText(/El navegador (todavía no )?protege los datos/)).toBeVisible();
     await expectAccessible(page);

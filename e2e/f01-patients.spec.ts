@@ -2,7 +2,7 @@ import { createPatient, expect, expectAccessible, test } from "./fixtures";
 
 test.describe("F01 Dar de alta un paciente", () => {
   test("F01-H1 crear paciente y verlo en la lista", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("./");
     await expect(page.getByText("Aún no hay pacientes")).toBeVisible();
     await expectAccessible(page);
     await createPatient(page, { name: "Ana Martín López", mass: "62,5", pushOff: "38" });
@@ -13,7 +13,7 @@ test.describe("F01 Dar de alta un paciente", () => {
   });
 
   test("F01-E1 nombre vacío", async ({ page }) => {
-    await page.goto("/pacientes/nuevo");
+    await page.goto("./pacientes/nuevo");
     await page.getByRole("button", { name: "Crear paciente" }).click();
     await expect(page.getByText("Escribe el nombre.")).toBeVisible();
     await expect(page.getByLabel("Nombre")).toBeFocused();
@@ -21,7 +21,7 @@ test.describe("F01 Dar de alta un paciente", () => {
   });
 
   test("F01-E2 valores fuera de rango y texto en un número", async ({ page }) => {
-    await page.goto("/pacientes/nuevo");
+    await page.goto("./pacientes/nuevo");
     await page.getByLabel("Nombre").fill("X");
     await page.getByLabel("Masa").fill("900");
     await page.getByLabel("Estatura").fill("abc");
@@ -34,17 +34,17 @@ test.describe("F01 Dar de alta un paciente", () => {
   test("F01-E3 nombre largo con tildes y emoji", async ({ page }) => {
     const name = "María José Fernández-Ñúñez de la Cruz y Ortega 💪 Pérez";
     await createPatient(page, { name });
-    await page.goto("/");
+    await page.goto("./");
     await expect(page.getByRole("link", { name: new RegExp(name.slice(0, 20)) })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   });
 
   test("F01-E4 doble pulsación en crear da un solo paciente", async ({ page }) => {
-    await page.goto("/pacientes/nuevo");
+    await page.goto("./pacientes/nuevo");
     await page.getByLabel("Nombre").fill("Doble");
     await page.getByRole("button", { name: "Crear paciente" }).dblclick();
     await expect(page.getByRole("heading", { name: "Doble" })).toBeVisible();
-    await page.goto("/");
+    await page.goto("./");
     await expect(page.getByRole("link", { name: /Doble/ })).toHaveCount(1);
   });
 
@@ -55,7 +55,7 @@ test.describe("F01 Dar de alta un paciente", () => {
     await page.getByLabel("Masa").fill("58.5");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(page.getByText("58,5 kg")).toBeVisible();
-    await page.goto("/");
+    await page.goto("./");
     await page.getByLabel("Buscar paciente").fill("JOR");
     await expect(page.getByRole("link", { name: /Jorge Ruiz/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Lucía/ })).toHaveCount(0);
@@ -78,12 +78,12 @@ test.describe("F01 Dar de alta un paciente", () => {
   });
 
   test("F01-N2 abrir un paciente que no existe", async ({ page }) => {
-    await page.goto("/pacientes/no-existe");
+    await page.goto("./pacientes/no-existe");
     await expect(page.getByText("Este paciente no existe.")).toBeVisible();
   });
 
   test("F01-E6 solo con teclado", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("./");
     // Del buscador al enlace de añadir y al formulario, sin ratón.
     await page.getByRole("link", { name: "Nuevo paciente" }).focus();
     await page.keyboard.press("Enter");
