@@ -16,7 +16,10 @@ const toneClass: Record<ToastTone, string> = {
   info: "bg-text text-bg",
 };
 
-/** Mensajes breves ("Test guardado"). Región aria-live: el lector de pantalla los lee sin mover el foco. */
+/**
+ * Mensajes breves ("Test guardado"), arriba, bajo la barra de título: abajo tapaban los botones de
+ * marcar y de calcular. Región aria-live: el lector de pantalla los lee sin mover el foco.
+ */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
   const next = useRef(0);
@@ -30,7 +33,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="safe-bottom pointer-events-none fixed inset-x-0 bottom-20 z-50 flex flex-col items-center gap-2 px-4"
+        className="pointer-events-none fixed inset-x-0 top-[calc(var(--layout-header)+0.5rem)] z-50 flex flex-col items-center gap-2 px-4"
       >
         {items.map((t) => (
           <p key={t.id} className={cx("rounded-md px-4 py-3 text-sm font-semibold shadow-pop", toneClass[t.tone])}>

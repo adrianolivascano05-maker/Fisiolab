@@ -92,4 +92,12 @@ test.describe("F01 Dar de alta un paciente", () => {
     await page.keyboard.press("Enter");
     await expect(page.getByRole("heading", { name: "Teclado" })).toBeVisible();
   });
+
+  test("F01-E7 los avisos salen arriba y no tapan los botones de abajo", async ({ page }) => {
+    await createPatient(page, { name: "Aviso" });
+    const toast = page.getByText("Paciente creado");
+    await expect(toast).toBeVisible();
+    const box = (await toast.boundingBox())!;
+    expect(box.y).toBeLessThan(844 / 3);
+  });
 });
