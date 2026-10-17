@@ -45,6 +45,8 @@ export function VideoPage() {
   const type = (params.get("tipo") ?? "cmj") as JumpType;
   const extraLoadKg = Number(params.get("carga") ?? 0);
   const dropHeightCm = params.get("caida") ? Number(params.get("caida")) : null;
+  const sideParam = params.get("lado");
+  const side = sideParam === "left" || sideParam === "right" ? sideParam : null;
 
   const [picked, setPicked] = useState<Picked | null>(null);
   const [reading, setReading] = useState(false);
@@ -90,7 +92,7 @@ export function VideoPage() {
     setSaving(true);
     try {
       const db = getDb();
-      const testId = await createJumpTest(db, { patientId: id, type, extraLoadKg, dropHeightCm });
+      const testId = await createJumpTest(db, { patientId: id, type, extraLoadKg, dropHeightCm, side });
       await saveVideo(db, testId, {
         fileName: picked.file.name,
         captureFps: capture,
@@ -108,7 +110,7 @@ export function VideoPage() {
   }
 
   return (
-    <Page title={`Vídeo · ${jumpLabels[type]?.short ?? type}`} backTo={`/pacientes/${id}/test/saltos`}>
+    <Page title={`Vídeo · ${jumpLabels[type]?.short ?? type}${side ? ` ${side === "left" ? "izq." : "dcha."}` : ""}`} backTo={`/pacientes/${id}/test/saltos`}>
       <p className="text-text-muted">
         Graba el salto con la cámara lenta del móvil y elígelo aquí. El vídeo no se guarda en la app: se queda en tu galería.
       </p>

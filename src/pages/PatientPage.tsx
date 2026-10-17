@@ -1,7 +1,7 @@
-import { Activity, ChartLine, Pencil, Plus } from "lucide-react";
+import { Activity, ChartLine, Gauge, Pencil, Plus, Scale } from "lucide-react";
 import { Link, useParams } from "react-router";
 import type { JumpType } from "../calc/results";
-import { fmt, fmtDateTime, jumpLabels } from "../app/format";
+import { fmt, fmtDateTime, jumpLabels, sideLabels } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
@@ -62,6 +62,21 @@ export function PatientPage() {
         <Plus aria-hidden="true" className="size-5" /> Nuevo test
       </Link>
 
+      {(typesDone.includes("sj") || typesDone.includes("cmj") || typesDone.includes("single_leg")) && (
+        <nav aria-label="Análisis" className="grid grid-cols-2 gap-2">
+          {(typesDone.includes("sj") || typesDone.includes("cmj")) && (
+            <Link to={`/pacientes/${id}/perfil/fv`} className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-bg p-3 font-semibold shadow-card hover:border-accent">
+              <Gauge aria-hidden="true" className="size-5 shrink-0 text-accent" /> Perfil fuerza-velocidad
+            </Link>
+          )}
+          {typesDone.includes("single_leg") && (
+            <Link to={`/pacientes/${id}/asimetria`} className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-bg p-3 font-semibold shadow-card hover:border-accent">
+              <Scale aria-hidden="true" className="size-5 shrink-0 text-accent" /> Asimetría
+            </Link>
+          )}
+        </nav>
+      )}
+
       {typesDone.length > 0 && (
         <nav aria-label="Evolución" className="flex flex-wrap gap-2">
           {typesDone.map((t) => (
@@ -88,11 +103,24 @@ export function PatientPage() {
               <Link to={`/tests/${t.id}`} className="block">
                 <Card className="flex items-center justify-between gap-3 hover:border-accent">
                   <span className="flex flex-col">
-                    <span className="font-semibold">{jumpLabels[t.type]?.short ?? t.type}</span>
+                    <span className="font-semibold">
+                      {jumpLabels[t.type]?.short ?? t.type}
+                      {t.side && ` ${sideLabels[t.side]}`}
+                      {t.extraLoadKg > 0 && <span className="font-normal text-text-muted"> · {fmt(t.extraLoadKg, 0)} kg</span>}
+                    </span>
                     <span className="text-sm text-text-muted">{fmtDateTime(t.performedAt)}</span>
                   </span>
                   <span className="nums text-right">
-                    {t.heightCm === null ? (
+                    {t.distanceCm !== null ? (
+                      <>
+                        <span className="text-xl">{fmt(t.distanceCm, 0)}</span> <span className="text-text-muted">cm</span>
+                      </>
+                    ) : t.type === "rj_10_5" && t.rsi !== null ? (
+                      <>
+                        <span className="text-sm text-text-muted">RSI </span>
+                        <span className="text-xl">{fmt(t.rsi, 2)}</span>
+                      </>
+                    ) : t.heightCm === null ? (
                       <span className="text-sm text-warning">Sin marcar</span>
                     ) : (
                       <>

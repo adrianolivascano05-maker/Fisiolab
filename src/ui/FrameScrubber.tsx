@@ -3,10 +3,11 @@ import { useRef, type KeyboardEvent, type PointerEvent } from "react";
 import { IconButton } from "./Button";
 import { cx } from "./cx";
 
-export type MarkerKind = "takeoff" | "landing" | "contact" | "other";
+export type MarkerKind = "movement_start" | "takeoff" | "landing" | "contact" | "other";
 
 /** Color y letra de cada evento: nunca se distinguen solo por el color. */
 export const markerStyle: Record<MarkerKind, { bg: string; letter: string; name: string }> = {
+  movement_start: { bg: "bg-marker-other", letter: "I", name: "Inicio" },
   takeoff: { bg: "bg-marker-takeoff", letter: "D", name: "Despegue" },
   landing: { bg: "bg-marker-landing", letter: "A", name: "Aterrizaje" },
   contact: { bg: "bg-marker-contact", letter: "C", name: "Contacto" },
@@ -142,8 +143,9 @@ export function FrameControls({ playing, onTogglePlay, onStep }: ControlsProps) 
  * el lector de pantalla oye además la acción: «Despegue: marcar en este fotograma».
  * Sin aria-label: así el nombre accesible empieza por lo que se ve (WCAG 2.5.3).
  */
-export function MarkButton({ kind, done, onClick }: { kind: MarkerKind; done: boolean; onClick: () => void }) {
+export function MarkButton({ kind, done, onClick, label }: { kind: MarkerKind; done: boolean; onClick: () => void; label?: string }) {
   const s = markerStyle[kind];
+  const text = label ?? s.name;
   return (
     <button
       type="button"
@@ -153,7 +155,7 @@ export function MarkButton({ kind, done, onClick }: { kind: MarkerKind; done: bo
       <span aria-hidden="true" className="flex size-6 items-center justify-center rounded-sm bg-media-bg/15 text-sm">
         {s.letter}
       </span>
-      <span>{s.name}</span>
+      <span>{text}</span>
       <span className="sr-only">{done ? ": mover a este fotograma" : ": marcar en este fotograma"}</span>
       {done && <Check aria-hidden="true" className="size-5" />}
     </button>

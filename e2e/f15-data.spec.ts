@@ -9,8 +9,8 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     const text = readFileSync((await dl.path())!, "utf8");
     expect(dl.suggestedFilename()).toMatch(/^fisiolab-resultados-\d{4}-\d{2}-\d{2}\.csv$/);
     expect(text.charCodeAt(0)).toBe(0xfeff);
-    expect(text).toContain("paciente;fecha;test;carga_kg;altura_caida_cm;fps_grabacion;metrica;valor;unidad");
-    expect(text).toMatch(/Ejemplo · Lucía Herrero;[^;]+;cmj;0;;240;jump_height_cm;\d+,\d+;cm/);
+    expect(text).toContain("paciente;fecha;test;lado;carga_kg;altura_caida_cm;fps_grabacion;salto;metrica;valor;unidad");
+    expect(text).toMatch(/Ejemplo · Lucía Herrero;[^;]+;cmj;;0;;240;;jump_height_cm;\d+,\d+;cm/);
   });
 
   test("F15-H2 copia de seguridad y restauración", async ({ page }) => {

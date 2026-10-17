@@ -12,14 +12,14 @@ Gráfica de evolución de un test,historial,must,yes,yes,S22; con tabla de datos
 Exportar toda la base de datos a CSV,datos,must,yes,yes,S24; formato Excel en español (; y coma decimal)
 Datos guardados solo en el dispositivo con copia de seguridad,datos,must,partial,yes,decisión del clon por RGPD; el original guarda en el iPhone; SQLite en OPFS + copia descargable y restaurable; PWA instalable que abre y mide sin conexión; recordatorio semanal de copia; una pestaña a la vez
 Ayuda de colocación de cámara y marcado en cada test,ayuda,must,yes,yes,"texto e ilustraciones propios (SVG): colocación de la cámara y fotograma a marcar en CMJ/SJ/DJ, desde S05 y S07; los tests de fases 2-4 la llevarán al construirse"
-CMJ con brazos libres,saltos,should,yes,no,
-RSI-mod (altura / tiempo hasta el despegue),saltos,should,yes,no,
-Rigidez vertical en drop jump,saltos,should,yes,no,fórmula a tomar de la literatura
-Dynamic Rebound Index en drop jump,saltos,should,yes,no,añadido en 2026 (Brooks); fórmula por confirmar
-Perfil fuerza-velocidad óptimo y desequilibrio,saltos,should,yes,no,
-Asimetría entre piernas (salto unipodal),saltos,should,yes,no,cálculo exacto no publicado: usar % estándar
-Saltos repetidos 10-5,saltos,should,yes,no,
-Salto horizontal,saltos,should,yes,no,
+CMJ con brazos libres,saltos,should,yes,yes,S05/S07/S08; sin Samozino (el modelo no admite brazos)
+RSI-mod (altura / tiempo hasta el despegue),saltos,should,yes,yes,marca opcional «Inicio» en CMJ; también tiempo hasta el despegue
+Rigidez vertical en drop jump,saltos,should,yes,yes,"fórmula a tomar de la literatura; Dalleau 2004 (onda seno), comprobada contra su derivación Fmax/Δy; necesita la masa"
+Dynamic Rebound Index en drop jump,saltos,should,yes,yes,añadido en 2026 (Brooks); fórmula por confirmar; (caída + altura) / (g·tc²) según fuentes secundarias de Brooks 2026; confirmar con el artículo
+Perfil fuerza-velocidad óptimo y desequilibrio,saltos,should,yes,yes,"S09; F0, V0, Pmáx, r²; pendiente óptima buscada numéricamente con el modelo macroscópico de Samozino (no la fórmula cerrada del artículo); perfiles guardados"
+Asimetría entre piernas (salto unipodal),saltos,should,yes,yes,cálculo exacto no publicado: usar % estándar; S10; (mejor − peor)/mejor con el mejor salto de cada pierna del día; historial
+Saltos repetidos 10-5,saltos,should,yes,yes,S07 en modo serie + S08; media del RSI de los 5 mejores rebotes (mínimo 6 saltos)
+Salto horizontal,saltos,should,yes,yes,"distancia medida con cinta y anotada, sin vídeo"
 Velocidad media de la barra por vídeo,fuerza,should,yes,no,
 Perfil carga-velocidad y 1RM estimado,fuerza,should,yes,no,
 Pérdida de velocidad en la serie,fuerza,should,yes,no,

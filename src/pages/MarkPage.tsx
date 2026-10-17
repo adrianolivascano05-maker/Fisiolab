@@ -1,7 +1,8 @@
 import { CircleQuestionMark, Upload, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { requiredMarks, type MarkEvent } from "../calc/results";
+import { MIN_JUMPS } from "../calc/repeated";
+import { isSeries, optionalMarks, requiredMarks, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
 import { jumpLabels } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
@@ -18,6 +19,7 @@ import { useTimeline } from "../video/useTimeline";
 import { JumpHelp } from "./JumpHelp";
 
 const hints: Record<MarkEvent, string> = {
+  movement_start: "Opcional: primer fotograma en que empieza a bajar. Permite el RSI modificado.",
   contact: "Busca el primer fotograma en que el pie toca el suelo al caer del cajón y pulsa Contacto.",
   takeoff: "Busca el primer fotograma con los dos pies en el aire y pulsa Despegue.",
   landing: "Busca el primer fotograma en que un pie vuelve a tocar el suelo y pulsa Aterrizaje.",
@@ -51,8 +53,7 @@ export function MarkPage() {
     );
   }
 
-  const initial: Partial<Record<MarkEvent, number>> = {};
-  for (const m of t.marks) initial[m.event] = m.frameIndex;
+  const initial: MarkInput[] = t.marks.map((m) => ({ event: m.event, frame: m.frameIndex, seriesIndex: m.seriesIndex }));
 
   return (
     <Page
@@ -121,12 +122,39 @@ function RepickVideo({ expectedName, onFile }: { expectedName: string; onFile: (
 type MarkerProps = {
   testId: string;
   file: File;
-  type: "cmj" | "sj" | "dj";
+  type: JumpType;
   captureFps: number;
   containerFps: number;
   frameCount: number;
-  initial: Partial<Record<MarkEvent, number>>;
+  initial: MarkInput[];
 };
+
+/** Estado del marcado: qué falta, si el orden es correcto y qué botones mostrar. */
+function markingState(type: JumpType, marks: MarkInput[]) {
+  if (isSeries(type)) {
+    const ordered = [...marks].sort((a, b) => a.frame - b.frame);
+    const takeoffs = marks.filter((m) => m.event === "takeoff").length;
+    const landings = marks.filter((m) => m.event === "landing").length;
+    const next: MarkEvent = takeoffs === landings ? "takeoff" : "landing";
+    // En una serie las marcas alternan despegue, aterrizaje, despegue…
+    const alternate = ordered.every((m, i) => m.event === (i % 2 === 0 ? "takeoff" : "landing"));
+    const complete = Math.min(takeoffs, landings);
+    return {
+      series: true as const,
+      next,
+      nextIndex: next === "takeoff" ? takeoffs : landings,
+      complete,
+      ordered: alternate,
+      ready: alternate && complete >= MIN_JUMPS && takeoffs === landings,
+    };
+  }
+  const required = requiredMarks(type);
+  const at = (e: MarkEvent) => marks.find((m) => m.event === e)?.frame;
+  const missing = required.filter((e) => at(e) === undefined);
+  const sequence = [...optionalMarks(type), ...required].filter((e) => at(e) !== undefined);
+  const ordered = sequence.every((e, i) => i === 0 || at(e)! > at(sequence[i - 1]!)!);
+  return { series: false as const, required, missing, ordered, ready: missing.length === 0 && ordered };
+}
 
 function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameCount, initial }: MarkerProps) {
   const navigate = useNavigate();
@@ -135,9 +163,8 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
   const url = useMemo(() => URL.createObjectURL(file), [file]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
 
-  const required = requiredMarks(type);
-  const [frames, setFrames] = useState(initial);
-  const [frame, setFrame] = useState(() => initial[required[0]!] ?? 0);
+  const [marks, setMarks] = useState<MarkInput[]>(initial);
+  const [frame, setFrame] = useState(() => initial.find((m) => m.event === "takeoff")?.frame ?? 0);
   const [playing, setPlaying] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [center, setCenter] = useState(frame);
@@ -185,24 +212,60 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
     setPlaying(false);
     setFrame((f) => Math.max(0, Math.min(last, f + d)));
   };
-  const mark = (event: MarkEvent) => {
+  const goTo = (f: number) => {
     setPlaying(false);
-    setFrames((fs) => ({ ...fs, [event]: frame }));
+    setFrame(f);
   };
 
-  const missing = required.filter((e) => frames[e] === undefined);
-  const ordered = required.every((e, i) => i === 0 || (frames[e] ?? Infinity) > (frames[required[i - 1]!] ?? -Infinity));
-  const markers: Marker[] = required.filter((e) => frames[e] !== undefined).map((e) => ({ frame: frames[e]!, kind: e }));
+  const state = markingState(type, marks);
+
+  /** Salto simple: fija (o mueve) el evento en el fotograma actual. */
+  const markSingle = (event: MarkEvent) => {
+    setPlaying(false);
+    setMarks((ms) => [...ms.filter((m) => m.event !== event), { event, frame, seriesIndex: 0 }]);
+  };
+  /** Serie: añade la siguiente marca (despegue o aterrizaje) si va después de la anterior. */
+  const markNext = () => {
+    if (!state.series) return;
+    setPlaying(false);
+    const lastFrame = Math.max(-1, ...marks.map((m) => m.frame));
+    if (frame <= lastFrame) {
+      toast("Cada marca debe ir después de la anterior: avanza en el vídeo.", "danger");
+      return;
+    }
+    setMarks((ms) => [...ms, { event: state.next, frame, seriesIndex: state.nextIndex }]);
+  };
+  const undoLast = () => {
+    setMarks((ms) => {
+      const lastMark = [...ms].sort((a, b) => b.frame - a.frame)[0];
+      return lastMark ? ms.filter((m) => m !== lastMark) : ms;
+    });
+  };
+
+  const markers: Marker[] = marks.map((m) => ({ frame: m.frame, kind: m.event }));
 
   async function calculate() {
     setSaving(true);
     try {
-      await saveMarksAndCompute(getDb(), testId, frames);
+      await saveMarksAndCompute(getDb(), testId, marks);
       navigate(`/tests/${testId}`, { replace: true });
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo calcular", "danger");
       setSaving(false);
     }
+  }
+
+  let hint: string;
+  if (state.series) {
+    const n = state.nextIndex + 1;
+    hint =
+      state.next === "takeoff"
+        ? `Salto ${n}: busca el primer fotograma con los dos pies en el aire y pulsa Despegue.`
+        : `Salto ${n}: busca el primer fotograma en que un pie toca el suelo y pulsa Aterrizaje.`;
+    if (state.ready) hint = `${state.complete} saltos marcados. Puedes seguir marcando o pulsar Calcular.`;
+    else hint += ` (mínimo ${MIN_JUMPS} saltos; lo ideal, los 10)`;
+  } else {
+    hint = state.missing.length ? hints[state.missing[0]!] : state.ordered ? "Listo. Revisa las marcas si quieres y pulsa Calcular." : "";
   }
 
   return (
@@ -224,10 +287,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
             frame={frame}
             fps={captureFps}
             markers={markers}
-            onFrame={(f) => {
-              setPlaying(false);
-              setFrame(f);
-            }}
+            onFrame={goTo}
             rangeStart={rangeStart}
             rangeEnd={rangeEnd}
           />
@@ -248,36 +308,45 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
       <FrameControls playing={playing} onTogglePlay={() => setPlaying((p) => !p)} onStep={step} />
 
       <p aria-live="polite" className="text-sm text-media-muted">
-        {missing.length ? hints[missing[0]!] : ordered ? "Listo. Revisa las marcas si quieres y pulsa Calcular." : ""}
+        {hint}
       </p>
-      {!ordered && missing.length === 0 && (
+      {!state.ordered && (state.series || state.missing.length === 0) && (
         <Alert tone="warning" title="Las marcas están desordenadas">
-          {required.map((e) => markerStyle[e].name).join(" → ")}: cada una debe ir después de la anterior.
+          {state.series
+            ? "Deben alternar despegue y aterrizaje, cada una después de la anterior. Deshaz la última y vuelve a marcar."
+            : `${[...optionalMarks(type), ...state.required].map((e) => markerStyle[e].name).join(" → ")}: cada una debe ir después de la anterior.`}
         </Alert>
       )}
-      <div className="flex flex-wrap gap-2">
-        {required.map((e) => (
-          <MarkButton key={e} kind={e} done={frames[e] !== undefined} onClick={() => mark(e)} />
-        ))}
-      </div>
-      <div className="flex flex-wrap gap-2 text-sm text-media-muted">
-        {required.map((e) =>
-          frames[e] !== undefined ? (
-            <button
-              key={e}
-              type="button"
-              onClick={() => {
-                setPlaying(false);
-                setFrame(frames[e]!);
-              }}
-              className="tap rounded-md px-2 underline"
-            >
-              Ir a {markerStyle[e].name.toLowerCase()} (fotograma {frames[e]! + 1})
+
+      {state.series ? (
+        <div className="flex gap-2">
+          <MarkButton kind={state.next} done={false} label={`${markerStyle[state.next].name} ${state.nextIndex + 1}`} onClick={markNext} />
+          <Button variant="secondary" disabled={marks.length === 0} onClick={undoLast}>
+            Deshacer
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {state.required.map((e) => (
+            <MarkButton key={e} kind={e} done={marks.some((m) => m.event === e)} onClick={() => markSingle(e)} />
+          ))}
+          {optionalMarks(type).map((e) => (
+            <MarkButton key={e} kind={e} done={marks.some((m) => m.event === e)} onClick={() => markSingle(e)} label={`${markerStyle[e].name} (opcional)`} />
+          ))}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-1 text-sm text-media-muted">
+        {[...marks]
+          .sort((a, b) => a.frame - b.frame)
+          .map((m) => (
+            <button key={`${m.event}-${m.seriesIndex}`} type="button" onClick={() => goTo(m.frame)} className="tap rounded-md px-2 underline">
+              Ir a {markerStyle[m.event].name.toLowerCase()}
+              {state.series ? ` ${m.seriesIndex + 1}` : ""} (fotograma {m.frame + 1})
             </button>
-          ) : null,
-        )}
+          ))}
       </div>
-      <Button size="lg" block disabled={missing.length > 0 || !ordered} loading={saving} onClick={calculate}>
+      <Button size="lg" block disabled={!state.ready} loading={saving} onClick={calculate}>
         Calcular
       </Button>
     </div>

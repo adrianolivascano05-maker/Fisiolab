@@ -39,6 +39,26 @@ export function samozino({ massKg, heightM, pushOffDistanceM }: SamozinoInput): 
 }
 
 /**
+ * Rigidez vertical a partir de los tiempos de contacto y vuelo (Dalleau et al., 2004), en N/m.
+ * Supone que la fuerza durante el contacto sigue una onda seno:
+ * k = m·π·(tv + tc) / (tc² · ((tv + tc)/π − tc/4)).
+ */
+export function verticalStiffness(massKg: number, contactTimeS: number, flightTimeS: number): number {
+  if (!(massKg > 0) || !(contactTimeS > 0) || !(flightTimeS > 0)) throw new RangeError("Masa y tiempos deben ser mayores que cero");
+  const total = flightTimeS + contactTimeS;
+  return (massKg * Math.PI * total) / (contactTimeS * contactTimeS * (total / Math.PI - contactTimeS / 4));
+}
+
+/**
+ * Dynamic Rebound Index (Brooks, 2026): (altura de caída + altura del salto) / (g · tc²). Sin unidades.
+ * A diferencia del RSI, tiene en cuenta desde qué altura se cae.
+ */
+export function dynamicReboundIndex(dropHeightM: number, jumpHeightM: number, contactTimeS: number): number {
+  if (!(contactTimeS > 0)) throw new RangeError("El tiempo de contacto debe ser mayor que cero");
+  return (dropHeightM + jumpHeightM) / (G * contactTimeS * contactTimeS);
+}
+
+/**
  * Rangos fuera de los cuales un resultado probablemente viene de una marca mal puesta
  * o de unos fps mal indicados. No bloquean: solo avisan.
  */

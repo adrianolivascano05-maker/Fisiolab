@@ -12,9 +12,13 @@ import { EmptyState } from "../ui/EmptyState";
 import { SelectField } from "../ui/Field";
 
 const metricsFor: Record<JumpType, string[]> = {
-  cmj: ["jump_height_cm", "power_w", "relative_power_w_kg"],
+  cmj: ["jump_height_cm", "power_w", "relative_power_w_kg", "rsi_mod"],
+  cmj_arms: ["jump_height_cm", "rsi_mod"],
   sj: ["jump_height_cm", "power_w", "relative_power_w_kg"],
-  dj: ["rsi", "jump_height_cm", "contact_time_ms"],
+  dj: ["rsi", "jump_height_cm", "contact_time_ms", "stiffness_kn_m", "dri"],
+  single_leg: ["jump_height_cm"],
+  rj_10_5: ["rsi", "jump_height_cm", "contact_time_ms"],
+  horizontal: ["jump_distance_cm"],
 };
 
 /** S22 Evolución de un test */

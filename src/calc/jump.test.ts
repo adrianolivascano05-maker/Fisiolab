@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { heightFromFlightTime, reactiveStrengthIndex, samozino } from "./jump";
-import { computeJump } from "./results";
+import { computeJump, marksFromFrames } from "./results";
 import { intervalS } from "./video";
 
 describe("altura por tiempo de vuelo", () => {
@@ -38,10 +38,10 @@ describe("fotogramas a tiempo", () => {
 });
 
 describe("computeJump", () => {
-  const base = { captureFps: 240, bodyMassKg: 70, extraLoadKg: 0, pushOffDistanceCm: 40 };
+  const base = { captureFps: 240, bodyMassKg: 70, extraLoadKg: 0, pushOffDistanceCm: 40, dropHeightCm: null };
 
   it("CMJ: altura, vuelo y Samozino", () => {
-    const out = computeJump({ ...base, type: "cmj", frames: { takeoff: 100, landing: 220 } });
+    const out = computeJump({ ...base, type: "cmj", marks: marksFromFrames({ takeoff: 100, landing: 220 }) });
     const get = (m: string) => out.results.find((r) => r.metric === m)?.value;
     expect(out.missing).toEqual([]);
     expect(get("jump_height_cm")).toBeCloseTo(30.66, 2);
@@ -51,26 +51,49 @@ describe("computeJump", () => {
   });
 
   it("dice qué marcas faltan", () => {
-    expect(computeJump({ ...base, type: "dj", frames: { takeoff: 10 } }).missing).toEqual(["contact", "landing"]);
+    expect(computeJump({ ...base, type: "dj", marks: marksFromFrames({ takeoff: 10 }) }).missing).toEqual(["contact", "landing"]);
   });
 
   it("sin masa o sin hpo no calcula fuerza ni potencia", () => {
-    const out = computeJump({ ...base, pushOffDistanceCm: null, type: "sj", frames: { takeoff: 0, landing: 120 } });
+    const out = computeJump({ ...base, pushOffDistanceCm: null, type: "sj", marks: marksFromFrames({ takeoff: 0, landing: 120 }) });
     expect(out.results.map((r) => r.metric)).toEqual(["jump_height_cm", "flight_time_ms"]);
   });
 
   it("DJ: contacto y RSI, sin Samozino", () => {
     // contacto 48 fotogramas = 200 ms; vuelo 120 = 500 ms → 30,66 cm; RSI 1,533
-    const out = computeJump({ ...base, type: "dj", frames: { contact: 52, takeoff: 100, landing: 220 } });
+    const out = computeJump({ ...base, type: "dj", marks: marksFromFrames({ contact: 52, takeoff: 100, landing: 220 }) });
     const get = (m: string) => out.results.find((r) => r.metric === m)?.value;
     expect(get("contact_time_ms")).toBeCloseTo(200, 6);
     expect(get("rsi")).toBeCloseTo(1.533, 3);
     expect(get("force_n")).toBeUndefined();
+    expect(get("stiffness_kn_m")).toBeGreaterThan(0);
+    expect(get("dri")).toBeUndefined(); // sin altura de caída
+  });
+
+  it("DJ con altura de caída: DRI", () => {
+    const out = computeJump({ ...base, dropHeightCm: 30, type: "dj", marks: marksFromFrames({ contact: 52, takeoff: 100, landing: 220 }) });
+    // (0,30 + 0,3066) / (9,81 · 0,2²) = 1,546
+    expect(out.results.find((r) => r.metric === "dri")?.value).toBeCloseTo(1.546, 3);
+  });
+
+  it("CMJ con inicio del movimiento: tiempo hasta el despegue y RSI-mod", () => {
+    // inicio f4, despegue f100: 96 fotogramas = 400 ms; 0,3066 m / 0,4 s = 0,766
+    const out = computeJump({ ...base, type: "cmj", marks: marksFromFrames({ movement_start: 4, takeoff: 100, landing: 220 }) });
+    const get = (m: string) => out.results.find((r) => r.metric === m)?.value;
+    expect(get("time_to_takeoff_ms")).toBeCloseTo(400, 6);
+    expect(get("rsi_mod")).toBeCloseTo(0.766, 3);
+  });
+
+  it("CMJ con brazos y unipodal: altura sí, Samozino no (el modelo es a dos piernas y sin brazos)", () => {
+    for (const type of ["cmj_arms", "single_leg"] as const) {
+      const out = computeJump({ ...base, type, marks: marksFromFrames({ takeoff: 100, landing: 220 }) });
+      expect(out.results.map((r) => r.metric)).toEqual(["jump_height_cm", "flight_time_ms"]);
+    }
   });
 
   it("avisa de alturas imposibles (fps mal indicados)", () => {
     // Vídeo a cámara lenta exportado a 30 fps tratado como si fuera de 30 fps reales: 8 veces el vuelo.
-    const out = computeJump({ ...base, captureFps: 30, type: "cmj", frames: { takeoff: 100, landing: 220 } });
+    const out = computeJump({ ...base, captureFps: 30, type: "cmj", marks: marksFromFrames({ takeoff: 100, landing: 220 }) });
     expect(out.warnings.length).toBe(1);
   });
 });

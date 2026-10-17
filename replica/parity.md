@@ -1,23 +1,23 @@
 # Paridad con My Jump Lab
 
-Fecha: 2026-10-17 · Tras probar con un vídeo real del Pixel 7 Pro de Fisiolab
+Fecha: 2026-10-17 · Tras la fase 2 de saltos
 
-## Veredicto: **fase 1 completa; la copia completa todavía no**
+## Veredicto: **saltos completos (fases 1 y 2); la copia completa todavía no**
 
 Los 13 must-haves están hechos y no hay fallos S1 ni S2 abiertos (`replica/bugs.md`). Por la regla del
-método, «publicable» pide además 80 puntos de paridad y hay 46,4: faltan las fases 2-4 (fuerza, sprint,
-carrera, movilidad, nórdico, bienestar y el resto de saltos). Por eso se publica como **versión de
+método, «publicable» pide además 80 puntos de paridad y hay 65,5: faltan las fases 3-4 (fuerza, sprint,
+carrera, movilidad, nórdico, bienestar). Por eso se publica como **versión de
 prueba** para saltos (CMJ, SJ, DJ), no como sustituto de My Jump Lab.
 
 | medida | valor |
 | --- | --- |
-| **Paridad total de funciones** | **46,4 / 100** (39 funciones puntuables) |
+| **Paridad total de funciones** | **65,5 / 100** (39 funciones puntuables) |
 | Must-haves | **13 de 13** |
-| Fase 1 (saltos) | completa; fases 2-4 sin empezar |
+| Saltos (fases 1 y 2) | completos: CMJ, CMJ con brazos, SJ, DJ (RSI, rigidez, DRI), unipodal y asimetría, 10/5, horizontal, RSI-mod, perfil F-V |
 | Paridad de pantallas (layout) | **sin medir**: no hay capturas del original |
 
-El 46 % es honesto: la app completa de My Jump Lab tiene fuerza, sprint, carrera, movilidad,
-nórdico y bienestar, y aquí solo están los saltos básicos. Es lo previsto en el plan por fases
+El 66 % es honesto: la app completa de My Jump Lab tiene fuerza, sprint, carrera, movilidad,
+nórdico y bienestar, y aquí están todos los saltos. Es lo previsto en el plan por fases
 del recon, no un retraso.
 
 ## Paridad de pantallas
@@ -56,18 +56,17 @@ Could: S-MAS, sprint curvo, deceleración, idiomas, IA.
 
 ## Las cinco siguientes cosas a construir
 
-1. Validación: 10-20 saltos medidos a la vez con la app y con My Jump Lab (u otra referencia), y una forma de
-   registrar la diferencia (propio, should).
-2. Perfil fuerza-velocidad (fase 2).
-3. Asimetría entre piernas con salto unipodal (fase 2).
-4. RSI-mod y CMJ con brazos libres (fase 2, pequeños).
-5. Saltos repetidos 10-5 (fase 2).
+1. Validación: 10-20 saltos medidos a la vez con la app y con My Jump Lab (u otra referencia).
+2. Bienestar (cuestionario rápido; fase 3, pequeño).
+3. Velocidad de barra y 1RM (fase 3).
+4. Movilidad: tobillo, cadera, hombro (fase 3).
+5. Nórdico de isquios (fase 3).
 
 ## Salida completa de parity.py
 
-### Parity: 46.4 / 100
+### Parity: 65.5 / 100
 
-features 46.4  (39 counted, must-haves 13 of 13 done)
+features 65.5  (39 counted, must-haves 13 of 13 done)
 
 ### By area, weakest first
 - fuerza                         0.0  (3 features)
@@ -78,10 +77,10 @@ features 46.4  (39 counted, must-haves 13 of 13 done)
 - carrera                        0.0  (1 features)
 - ia                             0.0  (3 features)
 - ajustes                        0.0  (1 features)
-- saltos                        42.9  (12 features)
 - historial                     60.0  (2 features)
 - pacientes                    100.0  (3 features)
 - vídeo                        100.0  (2 features)
+- saltos                       100.0  (12 features)
 - datos                        100.0  (2 features)
 - ayuda                        100.0  (1 features)
 
@@ -95,14 +94,6 @@ features 46.4  (39 counted, must-haves 13 of 13 done)
 - [should] isquios: Nórdico: torque estimado, no  (fórmula por confirmar)
 - [should] isquios: Nórdico: ángulo de rotura, no
 - [should] movilidad: Movilidad de tobillo (lunge) hombro cadera y cuello, no  (inclinómetro del móvil o ángulo sobre foto)
-- [should] saltos: Asimetría entre piernas (salto unipodal), no  (cálculo exacto no publicado: usar % estándar)
-- [should] saltos: CMJ con brazos libres, no
-- [should] saltos: Dynamic Rebound Index en drop jump, no  (añadido en 2026 (Brooks); fórmula por confirmar)
-- [should] saltos: Perfil fuerza-velocidad óptimo y desequilibrio, no
-- [should] saltos: RSI-mod (altura / tiempo hasta el despegue), no
-- [should] saltos: Rigidez vertical en drop jump, no  (fórmula a tomar de la literatura)
-- [should] saltos: Salto horizontal, no
-- [should] saltos: Saltos repetidos 10-5, no
 - [should] sprint: Sprint lineal con tiempos de paso, no
 - [should] sprint: Tests de cambio de dirección (5-0-5 5+5 V-Cut Illinois), no
 - [could] ajustes: Varios idiomas, no

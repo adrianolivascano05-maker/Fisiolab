@@ -13,13 +13,15 @@ type MetricCardProps = {
   /** Aviso cuando el valor es poco plausible (p. ej. un CMJ de 90 cm). */
   warning?: string;
   detail?: ReactNode;
+  /** Unidad debajo del número: para tarjetas estrechas (tres en fila en el móvil). */
+  stacked?: boolean;
 };
 
-export function MetricCard({ label, value, unit, size = "sm", warning, detail }: MetricCardProps) {
+export function MetricCard({ label, value, unit, size = "sm", warning, detail, stacked }: MetricCardProps) {
   return (
-    <Card className={cx("flex flex-col gap-1", warning && "border-warning")}>
+    <Card className={cx("flex min-w-0 flex-col gap-1", stacked && "px-3", warning && "border-warning")}>
       <span className="text-sm text-text-muted">{label}</span>
-      <span className="flex items-baseline gap-1">
+      <span className={cx("flex gap-1", stacked ? "flex-col" : "items-baseline")}>
         <span className={cx("nums", size === "lg" ? "text-display" : "text-xl")}>{value}</span>
         {unit && <span className="text-base text-text-muted">{unit}</span>}
       </span>

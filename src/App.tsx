@@ -7,6 +7,7 @@ import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { JumpSetupPage } from "./pages/JumpSetupPage";
 import { PatientFormPage } from "./pages/PatientFormPage";
 import { PatientPage } from "./pages/PatientPage";
+import { AsymmetryPage } from "./pages/AsymmetryPage";
 import { PatientsPage } from "./pages/PatientsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { ResultPage } from "./pages/ResultPage";
@@ -17,6 +18,7 @@ import { TestPickerPage } from "./pages/TestPickerPage";
 const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })));
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m.MarkPage })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
 const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default: m.VideoPage })));
 const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
@@ -33,8 +35,9 @@ const router = createBrowserRouter([
   { path: "/pacientes/:id/test/saltos", element: <JumpSetupPage /> }, // S05
   { path: "/pacientes/:id/test/saltos/video", element: l(<VideoPage />) }, // S06
   { path: "/pacientes/:id/test/:categoria", element: <ComingSoonPage /> }, // S13-S21
-  { path: "/pacientes/:id/perfil/:tipo", element: <ComingSoonPage title="Perfil" phase={2} /> }, // S09, S14
-  { path: "/pacientes/:id/asimetria", element: <ComingSoonPage title="Asimetría" phase={2} /> }, // S10
+  { path: "/pacientes/:id/perfil/fv", element: l(<ProfilePage />) }, // S09
+  { path: "/pacientes/:id/perfil/:tipo", element: <ComingSoonPage title="Perfil carga-velocidad" phase={3} /> }, // S14
+  { path: "/pacientes/:id/asimetria", element: <AsymmetryPage /> }, // S10
   { path: "/pacientes/:id/bienestar", element: <ComingSoonPage title="Bienestar" phase={3} /> }, // S21
   { path: "/pacientes/:id/evolucion/:tipo", element: l(<EvolutionPage />) }, // S22
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07

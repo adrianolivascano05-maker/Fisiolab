@@ -2,8 +2,8 @@ import { createPatient, expect, expectAccessible, startJump, test } from "./fixt
 
 test.describe("S25 Ayuda con ilustraciones", () => {
   for (const [type, radio, first] of [
-    ["CMJ", /CMJ/, "Preparado"],
-    ["SJ", /SJ/, "Preparado"],
+    ["CMJ", /^CMJ \(con contramovimiento\)/, "Preparado"],
+    ["SJ", /^SJ /, "Preparado"],
     ["Drop jump", /Drop jump/, "Contacto"],
   ] as const) {
     test(`AY-${type}: cómo grabar y qué fotograma marcar`, async ({ page }) => {

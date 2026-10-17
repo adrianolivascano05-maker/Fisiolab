@@ -13,6 +13,9 @@ test.describe("F03 Drop jump con RSI", () => {
     await expect(page.getByText("1,53", { exact: true })).toBeVisible();
     await expect(page.getByText("200", { exact: true })).toBeVisible();
     await expect(page.getByText(/cajón 30 cm/)).toBeVisible();
+    // DRI = (0,30 + 0,3066) / (9,81 · 0,2²) = 1,55; rigidez (Dalleau) con 70 kg, tc 0,2 s y tv 0,5 s = 22,3 kN/m
+    await expect(page.getByText("1,55", { exact: true })).toBeVisible();
+    await expect(page.getByText("22,3", { exact: true })).toBeVisible();
   });
 
   test("F03-N1 sin altura del cajón no deja continuar", async ({ page }) => {

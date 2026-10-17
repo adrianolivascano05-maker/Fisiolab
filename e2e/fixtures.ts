@@ -55,11 +55,16 @@ export async function createPatient(page: Page, p: NewPatient) {
 }
 
 /** Desde la ficha: nuevo test de salto, hasta la pantalla de marcado. */
-export async function startJump(page: Page, opts: { type?: RegExp; box?: string; file?: string; captureFps?: string } = {}) {
+export async function startJump(
+  page: Page,
+  opts: { type?: RegExp; box?: string; load?: string; side?: "Izquierda" | "Derecha"; file?: string; captureFps?: string } = {},
+) {
   await page.getByRole("link", { name: "Nuevo test" }).click();
   await page.getByRole("link", { name: /Saltos/ }).click();
   if (opts.type) await page.getByRole("radio", { name: opts.type }).check({ force: true });
   if (opts.box) await page.getByLabel("Altura del cajón").fill(opts.box);
+  if (opts.load) await page.getByLabel("Carga extra").fill(opts.load);
+  if (opts.side) await page.getByRole("radio", { name: opts.side }).check({ force: true });
   await page.getByRole("button", { name: "Continuar" }).click();
   await page.getByLabel("Elegir vídeo").setInputFiles(opts.file ?? video.at240);
   const next = page.getByRole("button", { name: "Marcar el salto" });
@@ -80,6 +85,17 @@ export async function markAt(page: Page, frame: number, event: "despegue" | "ate
   for (let i = 0; i < frame % 10; i++) await s.press("ArrowRight");
   await expect(s).toHaveAttribute("aria-valuenow", String(frame));
   await page.getByRole("button", { name: new RegExp(`^${event}\\s*:\\s*(marcar|mover)`, "i") }).click();
+}
+
+/** En una serie (10/5): lleva la barra al fotograma y pulsa el botón de la siguiente marca. */
+export async function markNextInSeries(page: Page, frame: number) {
+  const s = scrubber(page);
+  await s.focus();
+  await s.press("Home");
+  for (let i = 0; i < Math.floor(frame / 10); i++) await s.press("PageUp");
+  for (let i = 0; i < frame % 10; i++) await s.press("ArrowRight");
+  await expect(s).toHaveAttribute("aria-valuenow", String(frame));
+  await page.getByRole("button", { name: /^(despegue|aterrizaje) \d+\s*:\s*marcar/i }).click();
 }
 
 export async function loadSeed(page: Page) {

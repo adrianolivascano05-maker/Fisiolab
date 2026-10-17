@@ -14,6 +14,7 @@ import {
   type PatientInput,
 } from "./repo";
 import { createTestDb } from "./testDb";
+import { marksFromFrames } from "../calc/results";
 
 const ana: PatientInput = {
   name: "Ana Martín",
@@ -41,7 +42,7 @@ describe("base de datos", () => {
     const pid = await createPatient(db, ana);
     const tid = await createJumpTest(db, { patientId: pid, type: "cmj" });
     await saveVideo(db, tid, video);
-    const out = await saveMarksAndCompute(db, tid, { takeoff: 100, landing: 220 });
+    const out = await saveMarksAndCompute(db, tid, marksFromFrames({ takeoff: 100, landing: 220 }));
     expect(out.warnings).toEqual([]);
 
     const test = await getTest(db, tid);
@@ -59,8 +60,8 @@ describe("base de datos", () => {
     const pid = await createPatient(db, ana);
     const tid = await createJumpTest(db, { patientId: pid, type: "cmj" });
     await saveVideo(db, tid, video);
-    await saveMarksAndCompute(db, tid, { takeoff: 100, landing: 220 });
-    await saveMarksAndCompute(db, tid, { takeoff: 100, landing: 232 });
+    await saveMarksAndCompute(db, tid, marksFromFrames({ takeoff: 100, landing: 220 }));
+    await saveMarksAndCompute(db, tid, marksFromFrames({ takeoff: 100, landing: 232 }));
     const test = await getTest(db, tid);
     expect(test!.marks).toHaveLength(2);
     expect(test!.results.filter((r) => r.metric === "jump_height_cm")).toHaveLength(1);
@@ -81,7 +82,7 @@ describe("base de datos", () => {
     const pid = await createPatient(db, ana);
     const tid = await createJumpTest(db, { patientId: pid, type: "cmj" });
     await saveVideo(db, tid, video);
-    await saveMarksAndCompute(db, tid, { takeoff: 100, landing: 220 });
+    await saveMarksAndCompute(db, tid, marksFromFrames({ takeoff: 100, landing: 220 }));
     await deletePatient(db, pid);
     for (const table of ["tests", "videos", "marks", "results"]) {
       const [row] = await db.query<{ n: number }>(`select count(*) as n from ${table}`);
@@ -94,7 +95,7 @@ describe("base de datos", () => {
     for (const landing of [220, 226]) {
       const tid = await createJumpTest(db, { patientId: pid, type: "cmj" });
       await saveVideo(db, tid, video);
-      await saveMarksAndCompute(db, tid, { takeoff: 100, landing });
+      await saveMarksAndCompute(db, tid, marksFromFrames({ takeoff: 100, landing }));
     }
     const pts = await history(db, pid, "cmj", "jump_height_cm");
     expect(pts).toHaveLength(2);
@@ -105,11 +106,11 @@ describe("base de datos", () => {
     const pid = await createPatient(db, { ...ana, name: 'Ana "la rápida"; M.' });
     const tid = await createJumpTest(db, { patientId: pid, type: "cmj" });
     await saveVideo(db, tid, video);
-    await saveMarksAndCompute(db, tid, { takeoff: 100, landing: 220 });
+    await saveMarksAndCompute(db, tid, marksFromFrames({ takeoff: 100, landing: 220 }));
     const csv = await exportCsv(db);
     expect(csv.startsWith("﻿paciente;fecha;test;")).toBe(true);
     expect(csv).toContain('"Ana ""la rápida""; M."');
-    expect(csv).toContain(";jump_height_cm;30,6563;cm");
+    expect(csv).toContain(";;jump_height_cm;30,6563;cm");
   });
 
   it("copia de seguridad: exporta, importa y rechaza archivos que no son copias", async () => {
