@@ -1,0 +1,85 @@
+import { Plus, Search, Users } from "lucide-react";
+import { useState } from "react";
+import { Link } from "react-router";
+import { fmtDate, testLabel } from "../app/format";
+import { LoadError, Loading, Page } from "../app/Page";
+import { useAsync } from "../app/useAsync";
+import { getDb } from "../data/db";
+import { listPatients } from "../data/repo";
+import { Alert } from "../ui/Alert";
+import { EmptyState } from "../ui/EmptyState";
+import { List, PatientRow } from "../ui/ListItem";
+
+/** S01 Pacientes */
+export function PatientsPage() {
+  const [search, setSearch] = useState("");
+  const patients = useAsync(() => listPatients(getDb(), search), [search]);
+  const info = useAsync(() => getDb().info(), []);
+
+  const addLink = (
+    <Link to="/pacientes/nuevo" aria-label="Nuevo paciente" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
+      <Plus aria-hidden="true" className="size-6" />
+    </Link>
+  );
+
+  return (
+    <Page title="Pacientes" tabs action={addLink}>
+      {info.data && !info.data.persistent && (
+        <Alert tone="warning" title="Este navegador no guarda los datos">
+          Todo se perderá al cerrar la pestaña. Abre la app en Safari o Chrome actualizados.
+        </Alert>
+      )}
+      <div className="relative">
+        <label htmlFor="patient-search" className="sr-only">
+          Buscar paciente
+        </label>
+        <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-muted" />
+        <input
+          id="patient-search"
+          type="search"
+          placeholder="Buscar por nombre"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-11 w-full rounded-md border border-border-input bg-bg pl-10 pr-3 text-base placeholder:text-text-muted"
+        />
+      </div>
+
+      {patients.error ? (
+        <LoadError error={patients.error} />
+      ) : !patients.data ? (
+        <Loading />
+      ) : patients.data.length === 0 ? (
+        search ? (
+          <p className="py-6 text-center text-text-muted">Ningún paciente se llama «{search}».</p>
+        ) : (
+          <EmptyState
+            icon={Users}
+            title="Aún no hay pacientes"
+            action={
+              <Link to="/pacientes/nuevo" className="inline-flex h-11 items-center gap-2 rounded-md bg-accent px-4 font-semibold text-on-accent">
+                <Plus aria-hidden="true" className="size-5" /> Añadir paciente
+              </Link>
+            }
+          >
+            Crea el primero para empezar a medir.
+          </EmptyState>
+        )
+      ) : (
+        <List label="Pacientes">
+          {patients.data.map((p) => (
+            <PatientRow
+              key={p.id}
+              to={`/pacientes/${p.id}`}
+              name={p.name}
+              meta={
+                p.lastTestAt
+                  ? `${p.testCount} ${p.testCount === 1 ? "test" : "tests"} · último ${testLabel(p.lastTestType ?? "")}, ${fmtDate(p.lastTestAt)}`
+                  : "Sin tests todavía"
+              }
+            />
+          ))}
+        </List>
+      )}
+    </Page>
+  );
+}

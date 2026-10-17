@@ -21,6 +21,9 @@ type ScrubberProps = {
   fps: number;
   markers: Marker[];
   onFrame: (frame: number) => void;
+  /** Ventana visible (zoom). Por defecto, el vídeo entero. */
+  rangeStart?: number;
+  rangeEnd?: number;
 };
 
 export function formatTime(seconds: number) {
@@ -31,15 +34,18 @@ export function formatTime(seconds: number) {
  * Barra de tiempo del visor (S07). Es un slider accesible:
  * ← → un fotograma, RePág/AvPág diez, Inicio/Fin a los extremos; también se arrastra con el dedo.
  */
-export function FrameScrubber({ frameCount, frame, fps, markers, onFrame }: ScrubberProps) {
+export function FrameScrubber({ frameCount, frame, fps, markers, onFrame, rangeStart = 0, rangeEnd }: ScrubberProps) {
   const track = useRef<HTMLDivElement>(null);
   const last = frameCount - 1;
+  const end = Math.min(rangeEnd ?? last, last);
+  const span = Math.max(1, end - rangeStart);
   const clamp = (f: number) => Math.max(0, Math.min(last, Math.round(f)));
-  const pct = (f: number) => (last > 0 ? (f / last) * 100 : 0);
+  const pct = (f: number) => Math.max(0, Math.min(100, ((f - rangeStart) / span) * 100));
+  const visible = (f: number) => f >= rangeStart && f <= end;
 
   function fromPointer(e: PointerEvent<HTMLDivElement>) {
     const r = track.current!.getBoundingClientRect();
-    onFrame(clamp(((e.clientX - r.left) / r.width) * last));
+    onFrame(clamp(rangeStart + ((e.clientX - r.left) / r.width) * span));
   }
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
@@ -72,7 +78,7 @@ export function FrameScrubber({ frameCount, frame, fps, markers, onFrame }: Scru
       >
         <div className="absolute inset-x-0 top-1/2 h-1.5 -translate-y-1/2 rounded-pill bg-media-surface" />
         <div className="absolute left-0 top-1/2 h-1.5 -translate-y-1/2 rounded-pill bg-media-muted" style={{ width: `${pct(frame)}%` }} />
-        {markers.map((m) => (
+        {markers.filter((m) => visible(m.frame)).map((m) => (
           <span
             key={`${m.kind}-${m.frame}`}
             aria-hidden="true"

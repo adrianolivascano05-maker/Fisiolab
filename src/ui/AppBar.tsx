@@ -6,7 +6,7 @@ import { cx } from "./cx";
 /** Barra superior: volver, título y una acción opcional a la derecha. */
 export function TopBar({ title, backTo, action }: { title: string; backTo?: string; action?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-10 border-b border-border bg-bg/95 backdrop-blur">
+    <header className="sticky top-0 z-10 border-b border-border bg-bg/95 text-text backdrop-blur">
       <div className="mx-auto flex h-[var(--layout-header)] max-w-[var(--layout-content-max)] items-center gap-1 px-2">
         {backTo ? (
           <Link to={backTo} aria-label="Volver" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
