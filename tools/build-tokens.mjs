@@ -18,7 +18,7 @@ const lines = [
 ];
 for (const [name, value] of Object.entries(t.color)) lines.push(`  --color-${name}: ${value};`);
 
-lines.push("", "  --font-*: initial;", `  --font-sans: ${t.font.sans};`, `  --font-mono: ${t.font.mono};`);
+lines.push("", "  --font-*: initial;", `  --font-sans: ${t.font.sans};`, `  --font-display: ${t.font.display ?? t.font.sans};`, `  --font-mono: ${t.font.mono};`);
 
 lines.push("", "  --text-*: initial;");
 for (const [name, s] of Object.entries(t.type)) {

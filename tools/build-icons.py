@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Iconos de Impulso desde los tokens: la trayectoria del salto (ver src/ui/Logo.tsx).
+"""Iconos de Cénit desde los tokens: una «C» que es también el arco de un goniómetro, con el sol de oro
+en su punto más alto (el cénit). Mismo dibujo que src/ui/Logo.tsx.
 Uso: python3 tools/build-icons.py"""
 import json
 from pathlib import Path
@@ -8,8 +9,11 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
 tokens = json.loads((ROOT / "replica/design/tokens.json").read_text())
-ACCENT = tokens["color"]["accent"]
-WHITE = tokens["color"]["on-accent"]
+import math
+
+ACCENT = tokens["color"]["brand"]
+WHITE = tokens["color"]["on-brand"]
+GOLD = tokens["color"]["highlight"]
 OUT = ROOT / "public/icons"
 SS = 4  # supermuestreo para bordes suaves
 
@@ -27,26 +31,17 @@ def glyph(d: ImageDraw.ImageDraw, size: int, scale: float):
         return (off + x / 100 * size * scale, off + y / 100 * size * scale)
 
     u = size * scale / 100
-    # Parábola: Bézier cuadrática de (18,72) a (82,72) con control (50,0); vértice en (50,36).
-    # Se dibuja estampando círculos a lo largo de la curva: trazo uniforme y sin juntas.
-    w = 7 * u
-    for i in range(0, 801):
-        t = i / 800
-        x = (1 - t) ** 2 * 18 + 2 * (1 - t) * t * 50 + t * t * 82
-        y = (1 - t) ** 2 * 72 + 2 * (1 - t) * t * 0 + t * t * 72
-        px, py = p(x, y)
+    # Arco de circunferencia (centro 50,57; radio 27) abierto a la derecha: de −40° a +40° pasando por
+    # arriba y por la izquierda. Se estampan círculos a lo largo: trazo uniforme y extremos redondos.
+    w = 9 * u
+    for i in range(0, 1201):
+        a = math.radians(-40 - 280 * i / 1200)
+        px, py = p(50 + 27 * math.cos(a), 57 + 27 * math.sin(a))
         d.ellipse([px - w / 2, py - w / 2, px + w / 2, py + w / 2], fill=WHITE)
-    cx, cy = p(50, 36)
-    r = 8.5 * u
-    d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=WHITE)
-    # Suelo, más tenue.
-    ground = tuple(round(a * 0.55 + b * 0.45) for a, b in zip(hex_rgb(WHITE), hex_rgb(ACCENT)))
-    gw = round(6 * u)
-    x1, y1 = p(14, 83)
-    x2, _ = p(86, 83)
-    d.line([(x1, y1), (x2, y1)], fill=ground, width=gw)
-    for x in (x1, x2):
-        d.ellipse([x - gw / 2, y1 - gw / 2, x + gw / 2, y1 + gw / 2], fill=ground)
+    # Sol de oro en lo más alto, con un halo del color de fondo que lo separa del arco.
+    cx, cy = p(50, 30)
+    for r, col in ((14 * u, ACCENT), (9.5 * u, GOLD)):
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=col)
 
 
 def icon(size: int, *, maskable: bool, rounded: bool) -> Image.Image:

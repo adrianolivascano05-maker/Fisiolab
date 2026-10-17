@@ -7,7 +7,14 @@
     -webkit-tap-highlight-color: transparent;
   }
   body {
-    @apply bg-bg font-sans text-base text-text antialiased;
+    @apply bg-canvas font-sans text-base text-text antialiased;
+  }
+  /* Títulos con la tipografía de la marca (Fraunces); el resto, Manrope. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
   }
   :focus-visible {
     outline: 2px solid var(--color-focus);

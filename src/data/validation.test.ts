@@ -8,7 +8,7 @@ const video = { fileName: "cmj.mov", captureFps: 240, containerFps: 240, frameCo
 const patient = { name: "Val", birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" };
 
 describe("validación", () => {
-  it("guarda pares, propone resultados de Impulso y sobrevive al borrado del paciente", async () => {
+  it("guarda pares, propone resultados de Cénit y sobrevive al borrado del paciente", async () => {
     const db = await createTestDb();
     const pid = await createPatient(db, patient);
     const tid = await createJumpTest(db, { patientId: pid, type: "cmj" });

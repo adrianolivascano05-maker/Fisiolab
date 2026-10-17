@@ -35,6 +35,8 @@ function cspMeta(): Plugin {
 
 export default defineConfig({
   base,
+  // Las fuentes nunca se incrustan como data: (la CSP solo admite fuentes servidas por la propia app).
+  build: { assetsInlineLimit: (file) => (file.endsWith(".woff2") ? false : undefined) },
   plugins: [
     cspMeta(),
     react(),
@@ -45,16 +47,16 @@ export default defineConfig({
       registerType: "prompt",
       includeAssets: ["favicon.png", "icons/apple-touch-icon.png"],
       manifest: {
-        name: "Impulso · Fisiolab",
-        short_name: "Impulso",
-        description: "Medición del salto por vídeo a cámara lenta, para la clínica Fisiolab.",
+        name: "Cénit · Fisiolab",
+        short_name: "Cénit",
+        description: "Valoración funcional en vídeo, sensores y tests de exploración, para la clínica Fisiolab.",
         lang: "es",
         start_url: base,
         scope: base,
         display: "standalone",
         orientation: "portrait",
-        background_color: tokens.color.bg,
-        theme_color: tokens.color.bg,
+        background_color: tokens.color.canvas,
+        theme_color: tokens.color.brand,
         icons: [
           { src: `${base}icons/icon-192.png`, sizes: "192x192", type: "image/png" },
           { src: `${base}icons/icon-512.png`, sizes: "512x512", type: "image/png" },
@@ -64,8 +66,8 @@ export default defineConfig({
       workbox: {
         // Todo lo necesario para abrir sin conexión, incluido el motor SQLite (.wasm) y sus workers.
         globPatterns: ["**/*.{js,css,html,wasm,woff2,png,svg}"],
-        // Inter solo en alfabeto latino (el resto no hace falta) y sin el motor de pose, que va aparte (abajo).
-        globIgnores: ["**/inter-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2", "**/vision_*"],
+        // Fuentes solo en alfabeto latino (el resto no hace falta) y sin el motor de pose, que va aparte (abajo).
+        globIgnores: ["**/{manrope,fraunces}-{cyrillic,cyrillic-ext,greek,vietnamese}-*.woff2", "**/vision_*"],
         // Motor de pose (src/ai): ≈ 19 MB, se descarga la primera vez que se usa la IA y queda guardado.
         runtimeCaching: [{ urlPattern: /\/assets\/(vision_|pose_landmarker)/, handler: "CacheFirst", options: { cacheName: "ia-pose" } }],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

@@ -1,4 +1,4 @@
-// Validación de Impulso: pares de medidas (Impulso frente a una referencia, dos marcaciones del mismo
+// Validación de Cénit: pares de medidas (Cénit frente a una referencia, dos marcaciones del mismo
 // vídeo o la propuesta de la IA frente a las marcas finales) y lo que hace falta para calcularlos.
 import { computeJump, type JumpType, type MarkInput } from "../calc/results";
 import { velocitiesFromMarks, type RepMark } from "../calc/strength";
@@ -15,7 +15,7 @@ export type KindInfo = {
   digits: number;
   /** Diferencia que importa en la clínica, por defecto (editable). */
   delta: number;
-  /** Métrica de los resultados de Impulso que se compara (null: solo a mano). */
+  /** Métrica de los resultados de Cénit que se compara (null: solo a mano). */
   metric: string | null;
   references: string[];
   protocol: string[];
@@ -31,7 +31,7 @@ export const kinds: KindInfo[] = [
     metric: "jump_height_cm",
     references: ["Plataforma de fuerza", "My Jump Lab", "Células fotoeléctricas (alfombra o barras)"],
     protocol: [
-      "Cada salto se mide a la vez con las dos herramientas: graba con Impulso mientras la persona salta sobre la plataforma (o la otra app graba el mismo salto).",
+      "Cada salto se mide a la vez con las dos herramientas: graba con Cénit mientras la persona salta sobre la plataforma (o la otra app graba el mismo salto).",
       "20-30 saltos o más, de varias personas y alturas distintas (unos flojos y otros a tope): así se ve si el error cambia con la altura.",
       "Móvil fijo en un trípode, de lado y a la altura de los pies, a 120-240 fps.",
       "Marca sin mirar el valor de la referencia, para no influirte.",
@@ -46,9 +46,9 @@ export const kinds: KindInfo[] = [
     metric: "bar_velocity_m_s",
     references: ["Encoder lineal", "Plataforma de fuerza", "Otra app"],
     protocol: [
-      "Cada repetición se mide a la vez con Impulso y con el encoder: compara la repetición más rápida de cada serie.",
+      "Cada repetición se mide a la vez con Cénit y con el encoder: compara la repetición más rápida de cada serie.",
       "Varias cargas, de ligeras (rápidas) a pesadas (lentas), y 20 series o más.",
-      "Mide bien el recorrido de la barra: Impulso divide ese recorrido entre el tiempo de subida.",
+      "Mide bien el recorrido de la barra: Cénit divide ese recorrido entre el tiempo de subida.",
     ],
   },
   {
@@ -60,8 +60,8 @@ export const kinds: KindInfo[] = [
     metric: "torque_nm",
     references: ["Dinamómetro de isquios", "Dinamómetro isocinético"],
     protocol: [
-      "Cada nórdico sobre el dinamómetro y grabado con Impulso a la vez; anota el momento por pierna del dinamómetro.",
-      "El cálculo de Impulso es un modelo propio (sin validar): este es el paso que dice si sirve.",
+      "Cada nórdico sobre el dinamómetro y grabado con Cénit a la vez; anota el momento por pierna del dinamómetro.",
+      "El cálculo de Cénit es un modelo propio (sin validar): este es el paso que dice si sirve.",
     ],
   },
   {
@@ -73,7 +73,7 @@ export const kinds: KindInfo[] = [
     metric: "angle_deg",
     references: ["Goniómetro", "Inclinómetro digital", "Otra app"],
     protocol: [
-      "Misma posición, misma persona: mide con Impulso y, sin moverla, con el goniómetro o el inclinómetro.",
+      "Misma posición, misma persona: mide con Cénit y, sin moverla, con el goniómetro o el inclinómetro.",
       "Antes, comprueba el sensor del móvil (abajo) en una mesa y en un marco de puerta.",
       "20 medidas o más, de varios movimientos y rangos.",
     ],
@@ -88,7 +88,7 @@ export const kinds: KindInfo[] = [
     references: ["Goniómetro", "Análisis 2D en vídeo", "Captura de movimiento"],
     protocol: [
       "Pide a la persona que se quede quieta en la posición; mide con el goniómetro y graba a la vez.",
-      "Compara el ángulo de Impulso en ese mismo fotograma (anótalo a mano).",
+      "Compara el ángulo de Cénit en ese mismo fotograma (anótalo a mano).",
       "Prueba de frente y en diagonal: así se ve cuánto corrige el plano anatómico.",
     ],
   },
@@ -100,14 +100,14 @@ export const kinds: KindInfo[] = [
     delta: 0.05,
     metric: "time_s",
     references: ["Células fotoeléctricas", "Cronómetro manual", "Otra app"],
-    protocol: ["Cada sprint con las células y grabado a la vez con Impulso, con el móvil de lado y quieto.", "20 sprints o más."],
+    protocol: ["Cada sprint con las células y grabado a la vez con Cénit, con el móvil de lado y quieto.", "20 sprints o más."],
   },
 ];
 
 export const getKind = (id: string) => kinds.find((k) => k.id === id);
 
 export const comparisonLabels: Record<Comparison, string> = {
-  reference: "Impulso frente a una referencia",
+  reference: "Cénit frente a una referencia",
   remark: "Fiabilidad: dos marcaciones del mismo vídeo",
   ai: "IA frente a tus marcas finales",
 };
@@ -168,7 +168,7 @@ export async function deletePair(db: Db, id: string): Promise<void> {
   await db.transaction([{ sql: "delete from validation_pairs where id = ?", bind: [id] }]);
 }
 
-/** Resultados de Impulso que se pueden comparar (los últimos 100), para no copiarlos a mano. */
+/** Resultados de Cénit que se pueden comparar (los últimos 100), para no copiarlos a mano. */
 export async function candidates(db: Db, kind: ValidationKind) {
   const k = getKind(kind);
   if (!k?.metric) return [];

@@ -58,7 +58,7 @@ function Utility({ t }: { t: SpecialTest }) {
         className={cx(
           "size-2 rounded-full",
           u === "alta" && "bg-success",
-          u === "moderada" && "bg-accent",
+          u === "moderada" && "bg-highlight",
           u === "baja" && "bg-warning",
           u === "desconocida" && "border border-text-muted",
         )}

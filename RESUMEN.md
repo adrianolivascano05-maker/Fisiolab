@@ -1,10 +1,10 @@
-# Impulso · Fisiolab: resumen ejecutivo para continuar
+# Cénit · Fisiolab: resumen ejecutivo para continuar
 
 Fecha: 2026-10-17
 
 ## 1. Qué es y dónde está
 
-- **App:** Impulso · Fisiolab. Mide el salto por vídeo a cámara lenta: se marcan fotogramas y la app calcula altura, RSI, fuerza, potencia, etc. Es una versión propia, por funciones, de My Jump Lab (Carlos Balsalobre). No usa nada suyo: ni código, ni nombre, ni logo, ni textos.
+- **App:** Cénit · Fisiolab (antes «Impulso»; marca en `replica/brand.md`: paleta bosque y oro, Fraunces + Manrope, logo de la «C» con el sol en el cénit). Mide el salto por vídeo a cámara lenta: se marcan fotogramas y la app calcula altura, RSI, fuerza, potencia, etc. Es una versión propia, por funciones, de My Jump Lab (Carlos Balsalobre). No usa nada suyo: ni código, ni nombre, ni logo, ni textos.
 - **Uso:** interno en la clínica Fisiolab, en el móvil **Android (Pixel 7 Pro)** del usuario.
 - **Publicada (versión de prueba):** https://adrianolivascano05-maker.github.io/Fisiolab/
 - **Código:** repositorio `adrianolivascano05-maker/Fisiolab` (público). Rama principal y única: `claude/replica-skill-install-zv3ker`. Cada push a esa rama vuelve a publicar la app (GitHub Actions → GitHub Pages).
@@ -75,7 +75,7 @@ Fecha: 2026-10-17
    - La CSP va en `<meta>`.
    - `404.html` es la propia app.
    - Cloudflare Workers queda preparado como alternativa (`wrangler.jsonc`, `public/_headers`) para un dominio propio.
-8. **Marca: Impulso · Fisiolab.**
+8. **Marca: Cénit · Fisiolab** (antes Impulso).
    - Paleta propia «petróleo y pizarra».
    - Logo: parábola del salto con un punto en el vértice, sobre el suelo.
    - Voz: precisa, cercana y serena.
@@ -122,22 +122,21 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
 
 ## 5. Marca (texto final)
 
-- **Nombre:** «Impulso» (completo «Impulso · Fisiolab»).
-- **Colores (`replica/design/tokens.json`):**
-  - acción `#0e6672` (petróleo), hover `#0a4f59`
-  - texto `#0f2530`, texto secundario `#4c5e66`
-  - superficie `#f3f6f7`, bordes `#dce3e6`
-  - gráficas `#0083a3` y `#b4532a` (cobre)
-  - peligro `#b42318`, éxito `#19764a`, aviso `#8a5300`
-  - 41 pares AA, 0 fallos; el par de gráficas pasa el validador de daltonismo.
-- **Logo:** `src/ui/Logo.tsx` (SVG). Iconos generados con `tools/build-icons.py`.
+- **Nombre:** «Cénit» (completo «Cénit · Fisiolab»). Antes «Impulso».
+- **Colores (`replica/design/tokens.json`), paleta «bosque y oro»:**
+  - marca `#0E3B2E` (verde bosque), acción `#1F6F54` (esmeralda), oro `#C9A227` (detalles, nunca texto)
+  - fondo `#F2E8D8` (crema), tarjetas `#FBF7F0`, texto `#1B1B1D`, secundario `#57514A`
+  - gráficas `#00805A` y `#97700E`; peligro `#A3261C`, aviso `#7A5600`
+  - 57 pares AA, 0 fallos; el par de gráficas pasa el validador de daltonismo.
+- **Tipografía:** Fraunces (títulos y nombre) + Manrope (texto y cifras tabulares), dentro de la app.
+- **Logo:** «C» de goniómetro con el sol de oro en el cénit. `src/ui/Logo.tsx` (SVG); iconos con `tools/build-icons.py`.
 - **Voz:** precisa (no técnica de más), cercana (no coloquial), serena (no fría). Textos clave:
   - «Todavía no hay pacientes» / «Añade a tu primer paciente y mide su salto en un par de minutos.»
   - «Nueva medición»
   - «Calcular resultado»
   - «Paciente añadido»
-  - «Ten Impulso a un toque»
-  - «El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.»
+  - «Ten Cénit a un toque»
+  - «El vídeo no sale de tu galería: Cénit solo guarda las marcas y el resultado.»
 
 ## 6. Código: mapa y comandos
 

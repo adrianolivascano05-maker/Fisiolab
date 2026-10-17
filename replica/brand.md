@@ -1,4 +1,48 @@
-# Marca: Impulso · Fisiolab
+# Marca: Cénit · Fisiolab
+
+Fecha: 2026-10-17 (segunda versión de la marca; la primera se llamaba «Impulso», ver más abajo).
+
+## Cénit: nombre, paleta, tipografía y logo
+
+**Nombre: Cénit.** El punto más alto de una trayectoria: el pico del salto, la velocidad máxima de la barra, el
+máximo recorrido articular. Corto, en castellano, fácil de recordar y sin parecido con «My Jump» ni con otras
+apps de salto o fisioterapia. Siempre con «Fisiolab» debajo (la clínica). RAE admite «cénit» y «cenit»; se usa
+«Cénit». Candidatos cribados en esta segunda ronda: Cénit, Medra («medir» y «medrar»), Fulcro.
+
+| nombre | búsqueda web «nombre + app fisioterapia» | marca OEPM / EUIPO | dominio | tiendas |
+| --- | --- | --- | --- | --- |
+| **Cénit** | hecho 2026-10-17: ninguna app de fisioterapia ni de medición del salto con ese nombre | por hacer | por hacer | por hacer |
+| Medra | hecho 2026-10-17: ninguna app con ese nombre | por hacer | por hacer | por hacer |
+| Fulcro | hecho 2026-10-17: ninguna app con ese nombre | por hacer | por hacer | por hacer |
+
+Es una palabra común: como marca registrada sería débil. Para uso interno no es problema; si algún día se
+vende, hay que hacer las comprobaciones de marca y consultar a un abogado.
+
+**Paleta «bosque y oro»** (elegida por el usuario):
+
+| rol | color | uso |
+| --- | --- | --- |
+| brand | `#0E3B2E` | verde bosque: logo, títulos de marca, pestaña activa |
+| accent | `#1F6F54` | verde esmeralda: botones y enlaces (blanco encima, 5,8:1) |
+| highlight | `#C9A227` | oro: sol del logo, línea de la pestaña activa, utilidad moderada. Nunca para texto sobre crema (2:1) |
+| canvas | `#F2E8D8` | crema: fondo de las pantallas |
+| text | `#1B1B1D` | casi negro: texto (14:1 sobre crema) |
+
+Derivados: `bg` `#FBF7F0` (tarjetas, campos, cabecera), `surface` `#E9DDC8`, bordes cálidos, gráficas
+`#00805A` y `#97700E` (pasan el validador de daltonismo). 57 pares de contraste comprobados, 0 fallos AA
+(`python3 .claude/skills/replica-design/contrast.py replica/design/tokens.json`).
+
+**Tipografía:** Fraunces (serif suave, OFL) para títulos y el nombre; Manrope (sans, OFL, con cifras tabulares)
+para el resto. Las dos van dentro de la app (sin conexión), solo con el alfabeto latino.
+
+**Logo:** una «C» que es también el arco de un goniómetro, con el sol de oro en su punto más alto (el cénit),
+sobre un cuadrado redondeado verde bosque. Se lee desde 16 px. Fuente: `src/ui/Logo.tsx` y
+`tools/build-icons.py` (iconos de la app, del favicon y adaptables de Android).
+
+---
+
+## Primera versión (Impulso), conservada como historial
+
 
 Fecha: 2026-10-17. App interna de la clínica Fisiolab para medir el salto por vídeo.
 

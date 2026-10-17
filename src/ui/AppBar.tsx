@@ -50,11 +50,17 @@ export function TabBar() {
               to={to}
               end={to === "/"}
               className={({ isActive }) =>
-                cx("flex h-full flex-col items-center justify-center gap-1 text-xs", isActive ? "text-accent" : "text-text-muted")
+                cx("relative flex h-full flex-col items-center justify-center gap-1 text-xs", isActive ? "font-semibold text-brand" : "text-text-muted")
               }
             >
-              <Icon aria-hidden="true" className="size-6" />
-              {label}
+              {({ isActive }) => (
+                <>
+                  {/* Pestaña activa: una línea de oro arriba. */}
+                  <span aria-hidden="true" className={cx("absolute top-0 h-[3px] w-8 rounded-b-full bg-highlight transition-opacity", isActive ? "opacity-100" : "opacity-0")} />
+                  <Icon aria-hidden="true" className="size-6" />
+                  {label}
+                </>
+              )}
             </NavLink>
           </li>
         ))}
