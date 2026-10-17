@@ -1,8 +1,9 @@
 // Ilustraciones propias de los tests, generadas a partir de una descripción: postura y ángulos del
 // paciente, dónde pone las manos el examinador, flechas de fuerza o movimiento y zona del síntoma.
-// Dibuja a los dos personajes con cuerpo (cabeza, tronco, extremidades con volumen, manos, pies y
-// ropa), el examinador colocado solo junto a la camilla o al paciente, y anima la maniobra en bucle
-// (colocación → maniobra → qué buscar → vuelta). Puro (sin React ni imports de valores): devuelve SVG
+// Estilo de silueta minimalista con proporciones humanas reales (cabeza con perfil, tronco con pecho,
+// lordosis y glúteo, músculos con su forma, manos y pies de su tamaño), el examinador colocado solo
+// junto a la camilla o al paciente, encuadre cercano cuando basta una parte del cuerpo, y la maniobra
+// animada en bucle (colocación → maniobra → qué buscar → vuelta). Puro (sin React ni imports de valores): devuelve SVG
 // como texto, así funciona también en Node para revisar las figuras.
 
 /** Ángulos en grados. En vista lateral: hombro = flexión, cadera = flexión, rodilla = flexión,
@@ -74,7 +75,8 @@ const lerp = (a: V, b: V, t: number): V => ({ x: a.x + (b.x - a.x) * t, y: a.y +
 const ease = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const f1 = (n: number) => +n.toFixed(1);
 
-const L = { trunk: 52, neck: 7, head: 10.5, upperarm: 28, forearm: 25, hand: 9, thigh: 40, shank: 38, foot: 14, shoulderHalf: 15, hipHalf: 8 };
+/** Proporciones de un adulto de ~175 unidades de altura (tablas antropométricas de Drillis y Contini). */
+const L = { trunk: 50, neck: 6, head: 11.5, upperarm: 31, forearm: 26, hand: 17, thigh: 43, shank: 42, foot: 24, shoulderHalf: 17, hipHalf: 9 };
 
 /** Ángulos de partida de cada postura y cómo se coloca el cuerpo en el dibujo. */
 const postures: Record<Posture, { joints: Partial<Record<JointKey, number>>; rot: number; mirror?: boolean; lying?: boolean }> = {
@@ -85,11 +87,12 @@ const postures: Record<Posture, { joints: Partial<Record<JointKey, number>>; rot
   hooklying: { joints: { r_hip: 45, l_hip: 45, r_knee: 90, l_knee: 90 }, rot: -90, lying: true },
   prone: { joints: {}, rot: 90, mirror: true, lying: true },
   sidelying: { joints: {}, rot: -90, lying: true },
-  quadruped: { joints: { trunk: 90, r_shoulder: 90, l_shoulder: 90, r_hip: 90, l_hip: 90, r_knee: 90, l_knee: 90 }, rot: 0 },
+  // Manos bajo los hombros y rodillas bajo las caderas: tronco algo más alto por delante.
+  quadruped: { joints: { trunk: 75, r_shoulder: 75, l_shoulder: 75, r_wrist: 90, l_wrist: 90, r_hip: 75, l_hip: 75, r_knee: 90, l_knee: 90, r_ankle: -90, l_ankle: -90 }, rot: 0 },
 };
 
 type Seg = { name: string; a: V; b: V; side: "near" | "far" | "mid" };
-type Pose = { points: Record<string, V>; segs: Seg[]; head: V; up: V; fwd: V };
+type Pose = { points: Record<string, V>; segs: Seg[]; head: V; up: V; fwd: V; across: V };
 
 /** Ángulos mezclando la posición inicial y la final (m = 0 inicio, 1 final). */
 function anglesAt(spec: FigureSpec, m: number) {
@@ -146,7 +149,7 @@ function sidePose(spec: FigureSpec, m: number): Pose {
       { name: `${s}_hand`, a: wr, b: hd, side },
     );
   }
-  return { points, segs, head, up: dir(phiNeck), fwd: dir(phiNeck - 90) };
+  return { points, segs, head, up: dir(phiNeck), fwd: dir(phiNeck - 90), across: { x: 0, y: 0 } };
 }
 
 function frontPose(spec: FigureSpec, m: number): Pose {
@@ -177,7 +180,7 @@ function frontPose(spec: FigureSpec, m: number): Pose {
     const kn = add(hip, dir(phiTh), L.thigh * thighScale);
     const phiSh = phiTh + sign * a(`${s}_knee`);
     const an = add(kn, dir(phiSh), L.shank);
-    const ft = add(an, dir(phiSh + sign * 75), L.foot * 0.55);
+    const ft = add(an, dir(phiSh), 5);
     Object.assign(points, {
       [`${s}_shoulder`]: sh,
       [`${s}_elbow`]: el,
@@ -197,7 +200,7 @@ function frontPose(spec: FigureSpec, m: number): Pose {
       { name: `${s}_hand`, a: wr, b: hd, side: "near" },
     );
   }
-  return { points, segs, head, up: dir(phiNeck), fwd: { x: 0, y: 0 } };
+  return { points, segs, head, up: dir(phiNeck), fwd: { x: 0, y: 0 }, across };
 }
 
 const segEnds: Record<string, [string, string]> = {
@@ -330,7 +333,7 @@ function makeScene(spec: FigureSpec, m: number, nudge: number): Scene {
     const r = { x: v.x * Math.cos(rot) - v.y * Math.sin(rot), y: v.x * Math.sin(rot) + v.y * Math.cos(rot) };
     return pst.mirror ? { x: -r.x, y: r.y } : r;
   };
-  return { pose, tf: tfv, tfv, lying: !!pst.lying, top: !!pst.lying && spec.view === "front" };
+  return { pose, tf: tfv, tfv, lying: !!pst.lying, top: !!pst.lying && spec.view === "front" && spec.posture !== "sidelying" };
 }
 
 type Furniture = { floor: number; table?: { x0: number; x1: number; y: number }; tableTop?: { x0: number; x1: number; y0: number; y1: number }; chair?: { x: number; seat: number; back: number } };
@@ -365,13 +368,45 @@ function furniture(spec: FigureSpec, a: Scene, b: Scene): Furniture {
 type Examiner =
   | { mode: "behind"; shoulders: [V, V]; head: V; hip: V; arms: { s: V; e: V; h: V }[] }
   | { mode: "profile"; facing: 1 | -1; hip: V; shoulder: V; head: V; legs: { k: V; a: V; toe: V }[]; arms: { s: V; e: V; h: V }[] }
-  | { mode: "top"; shoulders: [V, V]; head: V; arms: { s: V; e: V; h: V }[] };
+  | { mode: "top"; shoulders: [V, V]; head: V; arms: { s: V; e: V; h: V }[] }
+  | { mode: "arms"; arms: { s: V; e: V; h: V }[] };
 
-const UA = 30;
-const FA = 27;
+const UA = L.upperarm;
+const FA = L.forearm;
+
+/**
+ * Plano cercano: solo los antebrazos y las manos del examinador, que entran desde fuera del encuadre
+ * (desde arriba si está detrás de la camilla, desde un lado si está de pie, desde abajo si se ve desde
+ * arriba). El brazo se alarga fuera de cuadro; el antebrazo visible mantiene su medida.
+ */
+function closeArms(spec: FigureSpec, sc: Scene, targets: V[], view: { x0: number; x1: number; y0: number; y1: number }, reach: number): Examiner | null {
+  if (!targets.length || spec.examiner === "none") return null;
+  const body = ["pelvis", "shoulder", "head"].map((k) => sc.tf(k === "head" ? sc.pose.head : sc.pose.points[k]!));
+  const bodyX = body.reduce((s, p) => s + p.x, 0) / body.length;
+  const mean = targets.reduce((s, p) => s + p.x, 0) / targets.length;
+  const sorted = [...targets].sort((a, b) => a.x - b.x);
+  const both = targets.length > 1 && Math.min(...targets.map((p) => p.x)) < bodyX - 8 && Math.max(...targets.map((p) => p.x)) > bodyX + 8;
+  const fromTop = (sc.lying && !sc.top) || (spec.view === "front" && both);
+  const fromBottom = sc.top;
+  const arms = sorted.map((t, i) => {
+    const spread = sorted.length > 1 ? (i === 0 ? -1 : 1) : mean < (view.x0 + view.x1) / 2 ? -1 : 1;
+    let s: V;
+    if (fromTop) s = { x: t.x + spread * 22, y: view.y0 - 40 };
+    else if (fromBottom) s = { x: t.x + spread * 22, y: view.y1 + 40 };
+    else {
+      const side = mean >= bodyX ? 1 : -1;
+      s = { x: side > 0 ? view.x1 + 40 : view.x0 - 40, y: t.y - 30 + i * 18 };
+    }
+    const dist = len(sub(t, s));
+    const ua = Math.max(L.upperarm, dist * 1.04 - L.forearm);
+    const goal = lerp(lerp(s, t, 0.55), t, reach);
+    return ik(s, goal, (e) => (fromTop ? -e.y : fromBottom ? e.y : -e.y) + spread * e.x * 0.6 * (fromTop || fromBottom ? 1 : 0), ua, L.forearm);
+  });
+  return { mode: "arms", arms };
+}
 
 /** Codo de un brazo de dos segmentos que llega de s a t; el codo hacia el lado que diga `prefer`. */
-function ik(s: V, t: V, prefer: (e: V) => number): { s: V; e: V; h: V } {
+function ik(s: V, t: V, prefer: (e: V) => number, UA = L.upperarm, FA = L.forearm): { s: V; e: V; h: V } {
   const d = sub(t, s);
   const dist = len(d);
   const reach = UA + FA - 0.5;
@@ -443,8 +478,8 @@ function placeExaminer(spec: FigureSpec, sc: Scene, fur: Furniture, targets: V[]
   const side: 1 | -1 = mean.x >= bodyX ? 1 : -1;
   const trunkEdge = side > 0 ? Math.max(...body.map((p) => p.x)) : Math.min(...body.map((p) => p.x));
   const floor = fur.floor;
-  const kneel = Math.max(...targets.map((p) => p.y)) > floor - 45;
-  const hipY = kneel ? floor - 40 : floor - 78;
+  const kneel = Math.max(...targets.map((p) => p.y)) > floor - 28;
+  const hipY = kneel ? floor - 46 : floor - 88;
   let hx = side > 0 ? Math.max(mean.x + 36, trunkEdge + 40) : Math.min(mean.x - 36, trunkEdge - 40);
   if (fur.chair) hx = side > 0 ? Math.max(hx, fur.chair.x + 30) : Math.min(hx, fur.chair.x - 30);
   // Inclina el tronco hacia el paciente hasta que llega a todos los puntos.
@@ -456,15 +491,17 @@ function placeExaminer(spec: FigureSpec, sc: Scene, fur: Furniture, targets: V[]
   }
   const hip = { x: hx, y: hipY };
   const headDir = unit(sub(shoulder, hip));
-  const head = add(shoulder, headDir, 7 + L.head);
+  const head = add(shoulder, headDir, L.neck + L.head);
+  // Piernas: de pie, una un poco adelantada; de rodillas, la de delante con el pie apoyado.
+  const fw = -side; // hacia el paciente
   const legs = kneel
     ? [
-        { k: { x: hx - side * 2, y: floor - 2 }, a: { x: hx + side * 32, y: floor - 4 }, toe: { x: hx + side * 40, y: floor - 1 } },
-        { k: { x: hx - side * 30, y: hipY + 6 }, a: { x: hx - side * 30, y: floor - 4 }, toe: { x: hx - side * 42, y: floor - 3 } },
+        { k: { x: hx + side * 4, y: floor - 5 }, a: { x: hx + side * 46, y: floor - 5 }, toe: { x: hx + side * 58, y: floor - 2 } },
+        { k: { x: hx + fw * 40, y: hipY - 4 }, a: { x: hx + fw * 40, y: floor - 3 }, toe: { x: hx + fw * 58, y: floor - 2 } },
       ]
     : [
-        { k: { x: hx + side * 3, y: hipY + 40 }, a: { x: hx + side * 4, y: floor - 4 }, toe: { x: hx - side * 10, y: floor - 3 } },
-        { k: { x: hx - side * 2, y: hipY + 40 }, a: { x: hx - side * 4, y: floor - 4 }, toe: { x: hx - side * 18, y: floor - 3 } },
+        { k: { x: hx - fw * 4, y: hipY + 43 }, a: { x: hx - fw * 6, y: floor - 3 }, toe: { x: hx + fw * 14, y: floor - 2 } },
+        { k: { x: hx + fw * 5, y: hipY + 43 }, a: { x: hx + fw * 5, y: floor - 3 }, toe: { x: hx + fw * 25, y: floor - 2 } },
       ];
   const rest = [add(hip, { x: -side * 6, y: -4 }), add(hip, { x: -side * 2, y: -2 })];
   const goal = [targets[0]!, targets[1] ?? null];
@@ -478,243 +515,374 @@ function placeExaminer(spec: FigureSpec, sc: Scene, fur: Furniture, targets: V[]
 // ---------- Dibujo ----------
 
 const C = {
-  skin: "var(--fig-skin, #f0c6a2)",
-  skinFar: "var(--fig-skin-far, #d9a982)",
-  skinLine: "var(--fig-skin-line, #a26f4b)",
-  shirt: "var(--fig-shirt, #6f8fb3)",
-  shirtFar: "var(--fig-shirt-far, #56769a)",
-  shorts: "var(--fig-shorts, #3d4a5c)",
-  shortsFar: "var(--fig-shorts-far, #2e3947)",
-  clothLine: "var(--fig-cloth-line, #26303d)",
-  hair: "var(--fig-hair, #4a3426)",
-  scrubs: "var(--fig-scrubs, #2c8a83)",
-  scrubsFar: "var(--fig-scrubs-far, #1f6964)",
-  scrubsLine: "var(--fig-scrubs-line, #174d49)",
-  shoe: "var(--fig-shoe, #2b2b2b)",
-  table: "var(--fig-table, #cfd6de)",
-  tableLine: "var(--fig-table-line, #8d99a6)",
-  pad: "var(--fig-pad, #e3e8ee)",
-  floor: "var(--fig-floor, #c3cad2)",
+  skin: "var(--fig-skin, #ecd2bd)",
+  skinFar: "var(--fig-skin-far, #d6b59c)",
+  shirt: "var(--fig-shirt, #8fa9c4)",
+  shirtFar: "var(--fig-shirt-far, #7590ad)",
+  shorts: "var(--fig-shorts, #4b5a6d)",
+  shortsFar: "var(--fig-shorts-far, #3c4858)",
+  line: "var(--fig-line, #5c4a3f)",
+  hair: "var(--fig-hair, #4d3b31)",
+  scrubs: "var(--fig-scrubs, #3d9a90)",
+  scrubsFar: "var(--fig-scrubs-far, #2f7c74)",
+  exLine: "var(--fig-ex-line, #1d5650)",
+  shoe: "var(--fig-shoe, #39424e)",
+  table: "var(--fig-table, #e6eaef)",
+  tableEdge: "var(--fig-table-edge, #b7c0ca)",
+  floor: "var(--fig-floor, #eef1f4)",
   force: "var(--fig-force, #0e6672)",
-  move: "var(--fig-move, #7d8a97)",
+  move: "var(--fig-move, #8a96a3)",
   pain: "var(--fig-pain, #d64545)",
   text: "var(--fig-text, #1f2933)",
   bg: "var(--fig-bg, #ffffff)",
 };
 
-/** Extremidad con volumen: cápsula de grosor ra en a y rb en b. */
-function capsule(a: V, b: V, ra: number, rb: number, fill: string, line: string, extra = "") {
-  const d = unit(sub(b, a));
-  const n = { x: -d.y, y: d.x };
-  const p1 = add(a, n, ra);
-  const p2 = add(b, n, rb);
-  const p3 = add(b, n, -rb);
-  const p4 = add(a, n, -ra);
-  return `<path d="M${f1(p1.x)} ${f1(p1.y)}L${f1(p2.x)} ${f1(p2.y)}A${f1(rb)} ${f1(rb)} 0 0 0 ${f1(p3.x)} ${f1(p3.y)}L${f1(p4.x)} ${f1(p4.y)}A${f1(ra)} ${f1(ra)} 0 0 0 ${f1(p1.x)} ${f1(p1.y)}Z" fill="${fill}" stroke="${line}" stroke-width="1.1" stroke-linejoin="round" ${extra}/>`;
-}
+/** Perfil de un segmento: [t a lo largo (0-1), semiancho anterior, semiancho posterior]. */
+type Profile = [number, number, number][];
 
-function ellipse(c: V, rx: number, ry: number, angleDeg: number, fill: string, line: string, extra = "") {
-  return `<ellipse cx="${f1(c.x)}" cy="${f1(c.y)}" rx="${f1(rx)}" ry="${f1(ry)}" transform="rotate(${f1(angleDeg)} ${f1(c.x)} ${f1(c.y)})" fill="${fill}" stroke="${line}" stroke-width="1.1" ${extra}/>`;
-}
+const prof: Record<string, { side: Profile; front: Profile }> = {
+  thigh: {
+    side: [[0, 8.5, 9.5], [0.25, 8.3, 8], [0.6, 7.2, 6.4], [0.9, 5.6, 5.4], [1, 5.2, 5.2]],
+    front: [[0, 9, 7.5], [0.3, 8.2, 7.2], [0.7, 6.6, 5.8], [1, 5.2, 5]],
+  },
+  shank: {
+    side: [[0, 5.1, 5.1], [0.2, 4.4, 6.7], [0.5, 3.8, 4.9], [0.85, 2.9, 3.2], [1, 2.9, 3]],
+    front: [[0, 5.2, 5], [0.25, 5.4, 5.8], [0.6, 4.1, 4.1], [1, 3, 3]],
+  },
+  upperarm: {
+    side: [[0, 6.4, 6], [0.25, 5.1, 4.9], [0.6, 4.7, 4.5], [1, 3.7, 3.8]],
+    front: [[0, 6.8, 4.6], [0.3, 5.4, 4.4], [0.7, 4.5, 4], [1, 3.7, 3.6]],
+  },
+  forearm: {
+    side: [[0, 3.8, 3.9], [0.25, 4.1, 4.1], [0.7, 3.1, 3], [1, 2.4, 2.4]],
+    front: [[0, 3.9, 3.9], [0.25, 4.2, 4], [0.7, 3.1, 3], [1, 2.4, 2.4]],
+  },
+  hand: {
+    side: [[0, 2.5, 2.5], [0.35, 3.4, 3], [0.75, 3.1, 2.6], [1, 2, 1.8]],
+    front: [[0, 2.6, 2.6], [0.35, 3.5, 3.2], [0.75, 3.2, 2.8], [1, 2, 1.8]],
+  },
+  neck: {
+    side: [[-0.2, 4.6, 4.4], [1.1, 4, 4]],
+    front: [[-0.2, 5.4, 5.4], [1.1, 4.5, 4.5]],
+  },
+  torso: {
+    side: [[-0.13, 7, 7], [-0.03, 8, 11], [0.12, 8.5, 11.6], [0.3, 8, 8.6], [0.5, 7.8, 8.2], [0.72, 10, 9.4], [0.9, 9.4, 8.6], [1.04, 7, 6.2]],
+    front: [[-0.12, 9, 9], [0, 12.5, 12.5], [0.25, 11.2, 11.2], [0.42, 10.4, 10.4], [0.65, 11.6, 11.6], [0.85, 13.6, 13.6], [1, 15.5, 15.5], [1.07, 8, 8]],
+  },
+};
 
-const deg = (v: V) => (Math.atan2(v.y, v.x) * 180) / Math.PI;
-
-type Draw = { back: string[]; mid: string[]; front: string[]; over: string[] };
-
-/** Paciente con volumen y ropa. Escala k: unidades del cuerpo → píxeles. */
-function drawPatient(spec: FigureSpec, sc: Scene, P: (v: V) => V, k: number, out: string[]) {
-  const segW: Record<string, [number, number]> = {
-    upperarm: [5, 4],
-    forearm: [4, 3.1],
-    thigh: [7.5, 5.2],
-    shank: [5, 3.4],
+/** Contorno cerrado de un segmento con su perfil (puntos en orden), con extremos redondeados. */
+function shapeOf(a: V, b: V, profile: Profile, antVec: V, from = -Infinity, to = Infinity): V[] {
+  const v = sub(b, a);
+  const Ls = len(v) || 1;
+  const d = { x: v.x / Ls, y: v.y / Ls };
+  const proj = antVec.x * d.x + antVec.y * d.y;
+  let ant = { x: antVec.x - d.x * proj, y: antVec.y - d.y * proj };
+  ant = len(ant) > 1e-6 ? unit(ant) : { x: -d.y, y: d.x };
+  const rows = profile.filter(([t]) => t >= from && t <= to);
+  // Cortes rectos (ropa) al principio o al final.
+  const at = (t: number) => {
+    const i = profile.findIndex(([u]) => u >= t);
+    if (i <= 0) return profile[0]!;
+    const p0 = profile[i - 1]!;
+    const p1 = profile[i]!;
+    const r = (t - p0[0]) / (p1[0] - p0[0] || 1);
+    return [t, p0[1] + (p1[1] - p0[1]) * r, p0[2] + (p1[2] - p0[2]) * r] as [number, number, number];
   };
+  if (from > -Infinity && rows[0]?.[0] !== from) rows.unshift(at(from));
+  if (to < Infinity && rows.at(-1)?.[0] !== to) rows.push(at(to));
+  const pt = (t: number, w: number) => add(add(a, d, t * Ls), ant, w);
+  const left = rows.map(([t, wa]) => pt(t, wa));
+  const right = rows.map(([t, , wp]) => pt(t, -wp));
+  const cap = (t: number, wa: number, wp: number, outward: number): V[] => {
+    const c = add(pt(t, (wa - wp) / 2), d, 0);
+    const r = (wa + wp) / 2;
+    const out: V[] = [];
+    for (let i = 1; i < 4; i++) {
+      const ang = (Math.PI * i) / 4;
+      const cos = Math.cos(ang);
+      const sin = Math.sin(ang);
+      // De la cara anterior a la posterior pasando por la punta.
+      out.push(add(add(c, ant, r * cos * (outward > 0 ? 1 : -1) * (outward > 0 ? 1 : -1)), d, outward * r * sin));
+    }
+    return outward > 0 ? out : out.reverse();
+  };
+  const first = rows[0]!;
+  const last = rows.at(-1)!;
+  const capB = to < Infinity ? [] : cap(last[0], last[1], last[2], 1);
+  const capA = from > -Infinity ? [] : cap(first[0], first[1], first[2], -1);
+  return [...left, ...capB, ...right.reverse(), ...capA];
+}
+
+/** Camino suave y cerrado por los puntos (Catmull-Rom → Bézier). */
+function smooth(pts: V[]): string {
+  const n = pts.length;
+  if (n < 3) return "";
+  const P = (i: number) => pts[(i + n) % n]!;
+  let dd = `M${f1(P(0).x)} ${f1(P(0).y)}`;
+  for (let i = 0; i < n; i++) {
+    const p0 = P(i - 1);
+    const p1 = P(i);
+    const p2 = P(i + 1);
+    const p3 = P(i + 2);
+    const c1 = { x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6 };
+    const c2 = { x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6 };
+    dd += `C${f1(c1.x)} ${f1(c1.y)} ${f1(c2.x)} ${f1(c2.y)} ${f1(p2.x)} ${f1(p2.y)}`;
+  }
+  return dd + "Z";
+}
+
+/** Contorno sin suavizar (cortes rectos de la ropa). */
+function poly(pts: V[]): string {
+  return pts.length ? `M${pts.map((p) => `${f1(p.x)} ${f1(p.y)}`).join("L")}Z` : "";
+}
+
+type Shape = { d: string; fill: string; line?: string };
+/** Un grupo de formas: primero todos los contornos gruesos, luego los rellenos (silueta continua). */
+function group(shapes: Shape[], lw: number, extra: Shape[] = []): string {
+  const outline = shapes.filter((s) => s.line).map((s) => `<path d="${s.d}" fill="${s.line}" stroke="${s.line}" stroke-width="${f1(lw)}" stroke-linejoin="round"/>`);
+  const fills = shapes.map((s) => `<path d="${s.d}" fill="${s.fill}"/>`);
+  const over = extra.map((s) => `<path d="${s.d}" fill="${s.fill}"/>`);
+  return outline.join("") + fills.join("") + over.join("");
+}
+
+const circlePts = (c: V, rx: number, ry: number, rotV: V = { x: 1, y: 0 }, n = 14): V[] => {
+  const u = unit(rotV);
+  const w = { x: -u.y, y: u.x };
+  return Array.from({ length: n }, (_, i) => {
+    const a = (2 * Math.PI * i) / n;
+    return add(add(c, u, rx * Math.cos(a)), w, ry * Math.sin(a));
+  });
+};
+
+/** Cabeza de perfil: cráneo, frente, nariz, labios y mentón; pelo aparte. */
+function headSide(c: V, up: V, fwd: V, r: number): { head: V[]; hair: V[]; eye: V; ear: V } {
+  const P = (fx: number, uy: number) => add(add(c, fwd, fx * r), up, uy * r);
+  const skull: V[] = [];
+  for (const a of [-115, -150, 180, 150, 120, 90, 60, 32]) skull.push(P(0.98 * Math.cos(rad(a)), 0.98 * Math.sin(rad(a))));
+  const face = [P(0.97, 0.12), P(1.13, -0.16), P(0.98, -0.3), P(1.02, -0.46), P(0.93, -0.66), P(0.62, -0.94), P(0.2, -0.98)];
+  const hair: V[] = [];
+  for (const a of [215, 180, 150, 120, 90, 60, 38]) hair.push(P(1.04 * Math.cos(rad(a)), 1.04 * Math.sin(rad(a))));
+  for (const a of [45, 80, 120, 160, 200]) hair.push(P(0.78 * Math.cos(rad(a)) - 0.05, 0.62 * Math.sin(rad(a)) + 0.22));
+  return { head: [...skull, ...face], hair, eye: P(0.62, 0.12), ear: P(-0.08, -0.05) };
+}
+
+type Layer = { shapes: Shape[]; over: Shape[] };
+const layer = (): Layer => ({ shapes: [], over: [] });
+type Built = { farLegs: Layer; farArms: Layer; body: Layer; nearLegs: Layer; nearArms: Layer; marks: string[] };
+
+/** Formas del paciente en coordenadas del cuerpo; `T` las lleva a píxeles. */
+function buildPatient(spec: FigureSpec, sc: Scene, T: (v: V) => V, k: number): Built {
+  const b: Built = { farLegs: layer(), farArms: layer(), body: layer(), nearLegs: layer(), nearArms: layer(), marks: [] };
   const front = spec.view === "front";
-  const order = (s: Seg) => (s.side === "far" ? 0 : s.side === "mid" ? 1 : 2);
-  const segs = [...sc.pose.segs].sort((x, y) => order(x) - order(y));
-  const drawSeg = (s: Seg) => {
-    const m = s.name.match(/^(r|l)_(\w+)$/);
-    const far = s.side === "far";
-    const skin = far ? C.skinFar : C.skin;
-    const a = P(s.a);
-    const b = P(s.b);
-    if (!m) return;
-    const part = m[2]!;
-    if (part === "hand") {
-      const c = lerp(a, b, 0.45);
-      out.push(ellipse(c, (L.hand / 2 + 0.5) * k, 2.8 * k, deg(sub(b, a)), skin, C.skinLine));
-      return;
-    }
-    if (part === "foot") {
-      // Zapatilla: del talón (algo por detrás del tobillo) a la punta.
-      const d = unit(sub(b, a));
-      const heel = add(a, d, -3 * k);
-      out.push(capsule(heel, b, 3.2 * k, 2.4 * k, C.shoe, C.shoe));
-      return;
-    }
-    const [wa, wb] = segW[part] ?? [4, 3];
-    out.push(capsule(a, b, wa * k, wb * k, skin, C.skinLine));
-    // Ropa: manga corta y pantalón corto.
-    if (part === "upperarm") out.push(capsule(a, lerp(a, b, 0.45), (wa + 0.6) * k, (wa + 0.2) * k, far ? C.shirtFar : C.shirt, C.clothLine));
-    if (part === "thigh") out.push(capsule(a, lerp(a, b, 0.5), (wa + 0.6) * k, (wa * 0.8 + 0.6) * k, far ? C.shortsFar : C.shorts, C.clothLine));
+  const pose = sc.pose;
+  const seg = (name: string) => pose.segs.find((s) => s.name === name)!;
+  const D = (pts: V[]) => smooth(pts.map(T));
+  const Dp = (pts: V[]) => poly(pts.map(T));
+  const limbAnt = (s: Seg, side: "r" | "l") => {
+    if (!front) return { x: unit(sub(s.b, s.a)).y, y: -unit(sub(s.b, s.a)).x };
+    // De frente: la cara "anterior" del perfil es la lateral.
+    const lat = side === "r" ? { x: -pose.across.x, y: -pose.across.y } : pose.across;
+    return lat;
   };
-  // Lado lejano detrás del tronco.
-  for (const s of segs.filter((s) => s.side === "far")) drawSeg(s);
-  const pel = P(sc.pose.points.pelvis!);
-  const sho = P(sc.pose.points.shoulder!);
-  if (front) {
-    const across = unit({ x: -(sho.y - pel.y), y: sho.x - pel.x });
-    const hw = L.hipHalf + 3.5;
-    const sw = L.shoulderHalf + 2;
-    const pts = [add(pel, across, -hw * k), add(pel, across, hw * k), add(sho, across, sw * k), add(sho, across, -sw * k)];
-    // Piernas antes que el tronco (las caderas quedan bajo el pantalón).
-    for (const s of segs.filter((s) => s.side !== "far" && /thigh|shank|foot/.test(s.name))) drawSeg(s);
-    const neck = P(sc.pose.points.neck!);
-    out.push(capsule(sho, neck, 3.4 * k, 3 * k, C.skin, C.skinLine));
-    out.push(`<path d="M${pts.map((p) => `${f1(p.x)} ${f1(p.y)}`).join("L")}Z" fill="${C.shirt}" stroke="${C.clothLine}" stroke-width="1.1" stroke-linejoin="round"/>`);
-    const shortsTop = lerp(pel, sho, 0.18);
-    const sp = [add(pel, across, -(hw + 0.5) * k), add(pel, across, (hw + 0.5) * k), add(shortsTop, across, (hw + 1) * k), add(shortsTop, across, -(hw + 1) * k)];
-    out.push(`<path d="M${sp.map((p) => `${f1(p.x)} ${f1(p.y)}`).join("L")}Z" fill="${C.shorts}" stroke="${C.clothLine}" stroke-width="1.1" stroke-linejoin="round"/>`);
-    for (const s of segs.filter((s) => s.side !== "far" && !/thigh|shank|foot/.test(s.name) && s.name !== "trunk" && s.name !== "neck")) drawSeg(s);
-  } else {
-    // Tronco de perfil: algo más ancho en la pelvis (glúteo) y el pecho.
-    out.push(capsule(pel, sho, 10.5 * k, 9.5 * k, C.shirt, C.clothLine));
-    out.push(capsule(pel, lerp(pel, sho, 0.22), 11 * k, 10.5 * k, C.shorts, C.clothLine));
-    const neck = P(sc.pose.points.neck!);
-    out.push(capsule(sho, neck, 3.6 * k, 3.2 * k, C.skin, C.skinLine));
-    for (const s of segs.filter((s) => s.side === "near")) drawSeg(s);
-  }
-  // Cabeza: con pelo, oreja y nariz de perfil; con cara de frente o desde arriba.
-  const h = P(sc.pose.head);
-  const up = unit(sc.tfv(sc.pose.up));
-  const r = L.head * k;
-  out.push(`<circle cx="${f1(h.x)}" cy="${f1(h.y)}" r="${f1(r)}" fill="${C.skin}" stroke="${C.skinLine}" stroke-width="1.1"/>`);
-  if (front) {
-    const across = { x: -up.y, y: up.x };
-    const hairC = add(h, up, r * 0.35);
-    out.push(ellipse(hairC, r * 1.02, r * 0.72, deg(across), C.hair, C.hair));
-    for (const s of [-1, 1]) {
-      const e = add(add(h, across, s * r * 0.38), up, -r * 0.1);
-      out.push(`<circle cx="${f1(e.x)}" cy="${f1(e.y)}" r="${f1(r * 0.09)}" fill="${C.text}"/>`);
+  const view = front ? "front" : "side";
+  const addLimb = (side: "r" | "l", where: "far" | "near") => {
+    const far = where === "far";
+    const skin = far ? C.skinFar : C.skin;
+    const legs = far ? b.farLegs : b.nearLegs;
+    const arms = far ? b.farArms : b.nearArms;
+    for (const part of ["thigh", "shank", "upperarm", "forearm", "hand"] as const) {
+      const s = seg(`${side}_${part}`);
+      const ant = limbAnt(s, side);
+      const dst = part === "thigh" || part === "shank" ? legs : arms;
+      dst.shapes.push({ d: D(shapeOf(s.a, s.b, prof[part]![view], ant)), fill: skin, line: C.line });
+      if (part === "upperarm") arms.over.push({ d: Dp(shapeOf(s.a, s.b, prof.upperarm![view], ant, -Infinity, 0.42)), fill: far ? C.shirtFar : C.shirt });
+      if (part === "thigh") legs.over.push({ d: Dp(shapeOf(s.a, s.b, prof.thigh![view], ant, -Infinity, 0.45)), fill: far ? C.shortsFar : C.shorts });
     }
-    const mo = add(h, up, -r * 0.5);
-    const ma = add(mo, across, -r * 0.22);
-    const mb = add(mo, across, r * 0.22);
-    out.push(`<path d="M${f1(ma.x)} ${f1(ma.y)}Q${f1(mo.x - up.x * r * 0.12)} ${f1(mo.y - up.y * r * 0.12)} ${f1(mb.x)} ${f1(mb.y)}" stroke="${C.skinLine}" stroke-width="1" fill="none"/>`);
+    // Rodilla y codo: rellenan la unión.
+    legs.shapes.push({ d: D(circlePts(seg(`${side}_shank`).a, 5.1, 5.1)), fill: skin, line: C.line });
+    arms.shapes.push({ d: D(circlePts(seg(`${side}_forearm`).a, 3.8, 3.8)), fill: skin, line: C.line });
+    // Pie: de lado con talón, planta y dedos; de frente, visto por delante.
+    const f = seg(`${side}_foot`);
+    const sh = seg(`${side}_shank`);
+    const shd = unit(sub(sh.b, sh.a));
+    if (front) {
+      legs.shapes.push({ d: D(circlePts(add(sh.b, shd, 3.5), 5.5, 3.6, shd)), fill: C.shoe, line: C.line });
+    } else {
+      const fd = unit(sub(f.b, f.a));
+      // La planta mira hacia donde apunta la pierna.
+      const sole = shd;
+      const A = f.a;
+      const pts = [add(add(A, fd, -3.5), sole, -2), add(add(A, fd, -5.5), sole, 3), add(add(A, fd, -3), sole, 6.3), add(add(A, fd, 8), sole, 6.4), add(add(A, fd, 17), sole, 5.6), add(add(A, fd, 20), sole, 3.6), add(add(A, fd, 16), sole, 1.2), add(add(A, fd, 7), sole, -1.2), add(add(A, fd, 2), sole, -3.2)];
+      legs.shapes.push({ d: D(pts), fill: C.shoe, line: C.line });
+    }
+  };
+  if (front) {
+    addLimb("r", "near");
+    addLimb("l", "near");
   } else {
-    const fwd = unit(sc.tfv(sc.pose.fwd));
-    const back = { x: -fwd.x, y: -fwd.y };
-    const hc = add(add(h, back, r * 0.3), up, r * 0.3);
-    out.push(ellipse(hc, r * 0.95, r * 0.72, deg(fwd), C.hair, C.hair));
-    const nose = add(add(h, fwd, r * 1.12), up, -r * 0.08);
-    const n1 = add(add(h, fwd, r * 0.9), up, r * 0.15);
-    const n2 = add(add(h, fwd, r * 0.85), up, -r * 0.3);
-    out.push(`<path d="M${f1(n1.x)} ${f1(n1.y)}L${f1(nose.x)} ${f1(nose.y)}L${f1(n2.x)} ${f1(n2.y)}" fill="${C.skin}" stroke="${C.skinLine}" stroke-width="1"/>`);
-    const eye = add(add(h, fwd, r * 0.55), up, r * 0.18);
-    out.push(`<circle cx="${f1(eye.x)}" cy="${f1(eye.y)}" r="${f1(r * 0.09)}" fill="${C.text}"/>`);
-    out.push(ellipse(add(h, back, r * 0.05), r * 0.2, r * 0.28, deg(fwd), C.skinFar, C.skinLine));
+    addLimb(spec.near === "l" ? "r" : "l", "far");
+    addLimb(spec.near === "l" ? "l" : "r", "near");
   }
+  // Tronco con camiseta y pantalón corto; cuello y cabeza.
+  const tr = seg("trunk");
+  // De lado, el tronco apunta hacia arriba: su cara anterior queda a −90° de "arriba".
+  const up = unit(sub(tr.b, tr.a));
+  const antTrunk = front ? pose.across : { x: -up.y, y: up.x };
+  b.body.shapes.push({ d: D(shapeOf(tr.a, tr.b, prof.torso![view], antTrunk)), fill: C.shirt, line: C.line });
+  b.body.over.push({ d: Dp(shapeOf(tr.a, tr.b, prof.torso![view], antTrunk, -Infinity, 0.2)), fill: C.shorts });
+  const nk = seg("neck");
+  b.body.shapes.push({ d: D(shapeOf(nk.a, nk.b, prof.neck![view], antTrunk)), fill: C.skin, line: C.line });
+  const r = L.head;
+  const hu = unit(pose.up);
+  if (front) {
+    const across = { x: -hu.y, y: hu.x };
+    b.body.shapes.push({ d: D(circlePts(pose.head, r * 0.86, r, hu)), fill: C.skin, line: C.line });
+    const hairPts = [...Array.from({ length: 9 }, (_, i) => {
+      const a = Math.PI * (i / 8);
+      return add(add(pose.head, across, Math.cos(a) * r * 0.92), hu, Math.sin(a) * r * 1.04);
+    }), add(add(pose.head, across, -r * 0.7), hu, r * 0.25), add(pose.head, hu, r * 0.55), add(add(pose.head, across, r * 0.7), hu, r * 0.25)];
+    b.body.over.push({ d: D(hairPts), fill: C.hair });
+    for (const sgn of [-1, 1]) {
+      const e = T(add(add(pose.head, across, sgn * r * 0.34), hu, -r * 0.08));
+      b.marks.push(`<circle cx="${f1(e.x)}" cy="${f1(e.y)}" r="${f1(0.95 * k)}" fill="${C.line}"/>`);
+    }
+  } else {
+    const fw = unit(pose.fwd);
+    const h = headSide(pose.head, hu, fw, r);
+    b.body.shapes.push({ d: D(h.head), fill: C.skin, line: C.line });
+    b.body.over.push({ d: D(h.hair), fill: C.hair });
+    const e = T(h.eye);
+    const ear = T(h.ear);
+    b.marks.push(`<circle cx="${f1(e.x)}" cy="${f1(e.y)}" r="${f1(0.95 * k)}" fill="${C.line}"/>`, `<circle cx="${f1(ear.x)}" cy="${f1(ear.y)}" r="${f1(1.8 * k)}" fill="${C.skinFar}"/>`);
+  }
+  return b;
 }
 
-function drawExaminerBody(ex: Examiner, k: number, d: Draw) {
-  const hand = (arm: { e: V; h: V }) => ellipse(arm.h, 5 * k, 3.4 * k, deg(sub(arm.h, arm.e)), C.skin, C.skinLine);
+/** Examinador: misma silueta, con pijama, en coordenadas del dibujo (ya giradas). */
+function buildExaminer(ex: Examiner, T: (v: V) => V, k: number): { back: Shape[]; backOver: Shape[]; arms: Shape[]; armsOver: Shape[]; marks: string[] } {
+  const back: Shape[] = [];
+  const backOver: Shape[] = [];
+  const arms: Shape[] = [];
+  const armsOver: Shape[] = [];
+  const marks: string[] = [];
+  const D = (pts: V[]) => smooth(pts.map(T));
+  const Dp = (pts: V[]) => poly(pts.map(T));
+  const arm = (a: { s: V; e: V; h: V }, far = false) => {
+    const ant = { x: 0, y: -1 };
+    const ua = shapeOf(a.s, a.e, prof.upperarm!.front, ant);
+    arms.push({ d: D(ua), fill: far ? C.scrubsFar : C.scrubs, line: C.exLine });
+    const fa = shapeOf(a.e, a.h, prof.forearm!.front, ant);
+    arms.push({ d: D(fa), fill: far ? C.skinFar : C.skin, line: C.line });
+    armsOver.push({ d: Dp(shapeOf(a.s, a.e, prof.upperarm!.front, ant, -Infinity, 0.55)), fill: far ? C.scrubsFar : C.scrubs });
+    arms.push({ d: D(circlePts(a.e, 3.8, 3.8)), fill: far ? C.skinFar : C.skin, line: C.line });
+    // Mano: un poco más allá del punto de contacto, en la dirección del antebrazo.
+    const hd = unit(sub(a.h, a.e));
+    arms.push({ d: D(shapeOf(add(a.h, hd, -6), add(a.h, hd, 9), prof.hand!.front, { x: -hd.y, y: hd.x })), fill: far ? C.skinFar : C.skin, line: C.line });
+  };
+  const r = L.head;
+  if (ex.mode === "arms") {
+    for (const a of ex.arms) arm(a);
+    return { back, backOver, arms, armsOver, marks };
+  }
   if (ex.mode === "top") {
-    for (const a of ex.arms) {
-      d.mid.push(capsule(a.s, a.e, 4.6 * k, 4 * k, C.scrubs, C.scrubsLine));
-      d.over.push(capsule(a.e, a.h, 3.8 * k, 3 * k, C.skin, C.skinLine), hand(a));
-    }
+    for (const a of ex.arms) arm(a);
     const c = lerp(ex.shoulders[0], ex.shoulders[1], 0.5);
-    d.mid.push(ellipse(c, 21 * k, 8 * k, 0, C.scrubs, C.scrubsLine));
-    d.mid.push(`<circle cx="${f1(ex.head.x)}" cy="${f1(ex.head.y)}" r="${f1(9.5 * k)}" fill="${C.hair}" stroke="${C.hair}"/>`);
-    return;
+    back.push({ d: D(circlePts(c, 22, 9)), fill: C.scrubs, line: C.exLine });
+    back.push({ d: D(circlePts(ex.head, r * 0.85, r * 0.95, { x: 0, y: 1 })), fill: C.hair, line: C.line });
+    return { back, backOver, arms, armsOver, marks };
   }
   if (ex.mode === "behind") {
     const [sl, sr] = ex.shoulders;
-    const neckBase = lerp(sl, sr, 0.5);
-    const hl = { x: ex.hip.x - 12 * k, y: ex.hip.y };
-    const hr = { x: ex.hip.x + 12 * k, y: ex.hip.y };
-    d.back.push(`<path d="M${f1(sl.x - 3 * k)} ${f1(sl.y)}L${f1(sr.x + 3 * k)} ${f1(sr.y)}L${f1(hr.x)} ${f1(hr.y)}L${f1(hl.x)} ${f1(hl.y)}Z" fill="${C.scrubs}" stroke="${C.scrubsLine}" stroke-width="1.1" stroke-linejoin="round"/>`);
+    const top = lerp(sl, sr, 0.5);
+    const up = unit(sub(top, ex.hip));
+    const across = { x: -up.y, y: up.x };
+    back.push({ d: D(shapeOf(ex.hip, top, prof.torso!.front, across)), fill: C.scrubs, line: C.exLine });
+    const neckTop = add(top, up, L.neck);
+    back.push({ d: D(shapeOf(top, neckTop, prof.neck!.front, across)), fill: C.skin, line: C.line });
     // Cuello en V del pijama.
-    d.back.push(`<path d="M${f1(neckBase.x - 5 * k)} ${f1(neckBase.y)}L${f1(neckBase.x)} ${f1(neckBase.y + 8 * k)}L${f1(neckBase.x + 5 * k)} ${f1(neckBase.y)}" fill="${C.skin}" stroke="${C.scrubsLine}" stroke-width="1"/>`);
-    const h = ex.head;
-    d.back.push(capsule(neckBase, add(h, { x: 0, y: 6 * k }), 3.6 * k, 3.4 * k, C.skin, C.skinLine));
-    d.back.push(`<circle cx="${f1(h.x)}" cy="${f1(h.y)}" r="${f1(10.5 * k)}" fill="${C.skin}" stroke="${C.skinLine}" stroke-width="1.1"/>`);
-    d.back.push(ellipse({ x: h.x, y: h.y - 5 * k }, 10.8 * k, 6.5 * k, 0, C.hair, C.hair));
-    for (const s of [-1, 1]) d.back.push(`<circle cx="${f1(h.x + s * 3.6 * k)}" cy="${f1(h.y + 1 * k)}" r="${f1(0.9 * k)}" fill="${C.text}"/>`);
-    for (const a of ex.arms) {
-      d.back.push(capsule(a.s, a.e, 5 * k, 4.2 * k, C.scrubs, C.scrubsLine));
-      d.over.push(capsule(a.e, a.h, 4 * k, 3.1 * k, C.skin, C.skinLine), hand(a));
+    backOver.push({ d: Dp([add(add(top, across, -5), up, 1.5), add(top, up, -6), add(add(top, across, 5), up, 1.5)]), fill: C.skin });
+    back.push({ d: D(circlePts(ex.head, r * 0.86, r, up)), fill: C.skin, line: C.line });
+    const hairPts = Array.from({ length: 9 }, (_, i) => {
+      const a = Math.PI * (i / 8);
+      return add(add(ex.head, across, Math.cos(a) * r * 0.92), up, Math.sin(a) * r * 1.04);
+    });
+    backOver.push({ d: D([...hairPts, add(ex.head, up, r * 0.4)]), fill: C.hair });
+    for (const sgn of [-1, 1]) {
+      const e = T(add(add(ex.head, across, sgn * r * 0.34), up, -r * 0.08));
+      marks.push(`<circle cx="${f1(e.x)}" cy="${f1(e.y)}" r="${f1(0.95 * k)}" fill="${C.line}"/>`);
     }
-    return;
+    for (const a of ex.arms) arm(a);
+    return { back, backOver, arms, armsOver, marks };
   }
-  // De perfil: piernas, tronco, cabeza y los dos brazos (el lejano detrás).
-  const f = ex.facing;
+  // De perfil.
+  const fwd = { x: ex.facing, y: 0 };
   for (const [i, leg] of ex.legs.entries()) {
     const fill = i === 0 ? C.scrubsFar : C.scrubs;
-    d.mid.push(capsule(ex.hip, leg.k, 7 * k, 5.4 * k, fill, C.scrubsLine), capsule(leg.k, leg.a, 5.4 * k, 4 * k, fill, C.scrubsLine), capsule(leg.a, leg.toe, 3.2 * k, 2.4 * k, C.shoe, C.shoe));
+    const lfwd = unit(sub(leg.toe, leg.a));
+    back.push({ d: D(shapeOf(ex.hip, leg.k, prof.thigh!.side, fwd)), fill, line: C.exLine });
+    back.push({ d: D(shapeOf(leg.k, leg.a, prof.shank!.side, fwd)), fill, line: C.exLine });
+    back.push({ d: D(circlePts(leg.k, 5.4, 5.4)), fill, line: C.exLine });
+    const sole = { x: lfwd.y * ex.facing * -1 || 0, y: 1 };
+    const A = leg.a;
+    back.push({ d: D([add(add(A, lfwd, -3.5), sole, -2), add(add(A, lfwd, -5), sole, 3), add(A, sole, 4), add(add(A, lfwd, 17), sole, 3.6), add(add(A, lfwd, 19), sole, 1.5), add(add(A, lfwd, 8), sole, -1.5)]), fill: C.shoe, line: C.line });
   }
-  const far = ex.arms[1]!;
-  d.mid.push(capsule(far.s, far.e, 4.6 * k, 4 * k, C.scrubsFar, C.scrubsLine));
-  d.over.push(capsule(far.e, far.h, 3.8 * k, 3 * k, C.skinFar, C.skinLine), ellipse(far.h, 5 * k, 3.4 * k, deg(sub(far.h, far.e)), C.skinFar, C.skinLine));
-  d.mid.push(capsule(ex.hip, ex.shoulder, 10.5 * k, 9.5 * k, C.scrubs, C.scrubsLine));
   const up = unit(sub(ex.shoulder, ex.hip));
-  const perp = { x: -up.y, y: up.x };
-  const fwd = Math.sign(perp.x || f) === f ? perp : { x: -perp.x, y: -perp.y };
-  const neckTop = add(ex.shoulder, up, 7 * k);
-  d.mid.push(capsule(ex.shoulder, neckTop, 3.6 * k, 3.2 * k, C.skin, C.skinLine));
-  const h = ex.head;
-  const r = 10.5 * k;
-  d.mid.push(`<circle cx="${f1(h.x)}" cy="${f1(h.y)}" r="${f1(r)}" fill="${C.skin}" stroke="${C.skinLine}" stroke-width="1.1"/>`);
-  d.mid.push(ellipse(add(add(h, fwd, -r * 0.3), up, r * 0.3), r * 0.95, r * 0.72, deg(fwd), C.hair, C.hair));
-  const nose = add(h, fwd, r * 1.1);
-  const n1 = add(add(h, fwd, r * 0.9), up, r * 0.15);
-  const n2 = add(add(h, fwd, r * 0.85), up, -r * 0.3);
-  d.mid.push(`<path d="M${f1(n1.x)} ${f1(n1.y)}L${f1(nose.x)} ${f1(nose.y)}L${f1(n2.x)} ${f1(n2.y)}" fill="${C.skin}" stroke="${C.skinLine}" stroke-width="1"/>`);
-  const eye = add(add(h, fwd, r * 0.55), up, r * 0.18);
-  d.mid.push(`<circle cx="${f1(eye.x)}" cy="${f1(eye.y)}" r="${f1(r * 0.09)}" fill="${C.text}"/>`);
-  const near = ex.arms[0]!;
-  d.over.push(capsule(near.s, near.e, 4.8 * k, 4.2 * k, C.scrubs, C.scrubsLine), capsule(near.e, near.h, 3.9 * k, 3.1 * k, C.skin, C.skinLine), hand(near));
+  const antT = len(sub(fwd, { x: 0, y: 0 })) ? fwd : { x: -up.y, y: up.x };
+  back.push({ d: D(shapeOf(ex.hip, ex.shoulder, prof.torso!.side, antT)), fill: C.scrubs, line: C.exLine });
+  const neckTop = add(ex.shoulder, up, L.neck);
+  back.push({ d: D(shapeOf(ex.shoulder, neckTop, prof.neck!.side, antT)), fill: C.skin, line: C.line });
+  const fwdHead = unit({ x: -up.y * -ex.facing, y: up.x * -ex.facing });
+  const hf = Math.sign(fwdHead.x) === ex.facing ? fwdHead : { x: -fwdHead.x, y: -fwdHead.y };
+  const h = headSide(ex.head, up, hf, r);
+  back.push({ d: D(h.head), fill: C.skin, line: C.line });
+  backOver.push({ d: D(h.hair), fill: C.hair });
+  const e = T(h.eye);
+  marks.push(`<circle cx="${f1(e.x)}" cy="${f1(e.y)}" r="${f1(0.95 * k)}" fill="${C.line}"/>`);
+  arm(ex.arms[1]!, true);
+  arm(ex.arms[0]!);
+  return { back, backOver, arms, armsOver, marks };
 }
 
-function drawFurniture(fur: Furniture, P: (v: V) => V, k: number, W: number, H: number, out: string[]) {
-  const fy = P({ x: 0, y: fur.floor }).y;
+function drawFurniture(fur: Furniture, P: (v: V) => V, k: number, out: string[]) {
   if (fur.tableTop) {
     const a = P({ x: fur.tableTop.x0, y: fur.tableTop.y0 });
     const b = P({ x: fur.tableTop.x1, y: fur.tableTop.y1 });
-    out.push(`<rect x="${f1(a.x)}" y="${f1(a.y)}" width="${f1(b.x - a.x)}" height="${f1(b.y - a.y)}" rx="${f1(4 * k)}" fill="${C.pad}" stroke="${C.tableLine}" stroke-width="1.4"/>`);
+    out.push(`<rect x="${f1(a.x)}" y="${f1(a.y)}" width="${f1(b.x - a.x)}" height="${f1(b.y - a.y)}" rx="${f1(6 * k)}" fill="${C.table}" stroke="${C.tableEdge}" stroke-width="1.2"/>`);
     return;
   }
-  out.push(`<rect x="0" y="${f1(fy)}" width="${W}" height="${f1(Math.max(0, H - fy))}" fill="${C.floor}" opacity="0.35"/>`, `<line x1="0" y1="${f1(fy)}" x2="${W}" y2="${f1(fy)}" stroke="${C.floor}" stroke-width="1.5"/>`);
+  const fy = P({ x: 0, y: fur.floor }).y;
+  out.push(`<rect x="-10" y="${f1(fy)}" width="${W + 20}" height="${f1(Math.max(0, H - fy + 10))}" fill="${C.floor}"/>`);
   if (fur.table) {
     const a = P({ x: fur.table.x0, y: fur.table.y });
     const b = P({ x: fur.table.x1, y: fur.table.y });
     const th = 6 * k;
-    out.push(`<rect x="${f1(a.x)}" y="${f1(a.y)}" width="${f1(b.x - a.x)}" height="${f1(th)}" rx="${f1(2 * k)}" fill="${C.pad}" stroke="${C.tableLine}" stroke-width="1.2"/>`);
-    // Camilla de consulta: colchoneta y base maciza hasta el suelo.
-    const bx0 = a.x + 10 * k;
-    const bx1 = b.x - 10 * k;
-    out.push(`<rect x="${f1(bx0)}" y="${f1(a.y + th)}" width="${f1(Math.max(0, bx1 - bx0))}" height="${f1(Math.max(0, fy - a.y - th))}" fill="${C.table}" stroke="${C.tableLine}" stroke-width="1"/>`);
-    out.push(`<line x1="${f1(bx0 + 4 * k)}" y1="${f1(a.y + th + 10 * k)}" x2="${f1(bx1 - 4 * k)}" y2="${f1(a.y + th + 10 * k)}" stroke="${C.tableLine}" stroke-width="0.8" opacity="0.6"/>`);
-    out.push(`<rect x="${f1(a.x)}" y="${f1(a.y)}" width="${f1(b.x - a.x)}" height="${f1(th)}" rx="${f1(2 * k)}" fill="${C.pad}" stroke="${C.tableLine}" stroke-width="1.2"/>`);
+    const bx0 = a.x + 12 * k;
+    const bx1 = b.x - 12 * k;
+    out.push(`<rect x="${f1(bx0)}" y="${f1(a.y + th)}" width="${f1(Math.max(0, bx1 - bx0))}" height="${f1(Math.max(0, fy - a.y - th))}" fill="${C.table}" stroke="${C.tableEdge}" stroke-width="1"/>`);
+    out.push(`<rect x="${f1(a.x)}" y="${f1(a.y)}" width="${f1(b.x - a.x)}" height="${f1(th)}" rx="${f1(3 * k)}" fill="${C.table}" stroke="${C.tableEdge}" stroke-width="1.2"/>`);
   }
   if (fur.chair) {
     const s = P({ x: fur.chair.x, y: fur.chair.seat });
     const dx = fur.chair.back;
     const x0 = s.x + dx * 12 * k;
-    const x1 = s.x - dx * 22 * k;
-    out.push(`<rect x="${f1(Math.min(x0, x1))}" y="${f1(s.y)}" width="${f1(Math.abs(x1 - x0))}" height="${f1(4 * k)}" rx="${f1(1.5 * k)}" fill="${C.table}" stroke="${C.tableLine}" stroke-width="1.2"/>`);
-    out.push(`<rect x="${f1(x0 - 2 * k)}" y="${f1(s.y - 44 * k)}" width="${f1(4 * k)}" height="${f1(44 * k)}" rx="${f1(1.5 * k)}" fill="${C.table}" stroke="${C.tableLine}" stroke-width="1.2"/>`);
-    for (const x of [x0, x1]) out.push(`<rect x="${f1(x - 1.5 * k)}" y="${f1(s.y + 4 * k)}" width="${f1(3 * k)}" height="${f1(Math.max(0, fy - s.y - 4 * k))}" fill="${C.table}" stroke="${C.tableLine}" stroke-width="1"/>`);
+    const x1 = s.x - dx * 24 * k;
+    out.push(`<rect x="${f1(x0 - 2 * k)}" y="${f1(s.y - 46 * k)}" width="${f1(4 * k)}" height="${f1(46 * k)}" rx="${f1(2 * k)}" fill="${C.table}" stroke="${C.tableEdge}" stroke-width="1"/>`);
+    out.push(`<rect x="${f1(Math.min(x0, x1))}" y="${f1(s.y)}" width="${f1(Math.abs(x1 - x0))}" height="${f1(4 * k)}" rx="${f1(2 * k)}" fill="${C.table}" stroke="${C.tableEdge}" stroke-width="1"/>`);
+    for (const x of [x0, x1]) out.push(`<rect x="${f1(x - 1.5 * k)}" y="${f1(s.y + 4 * k)}" width="${f1(3 * k)}" height="${f1(Math.max(0, fy - s.y - 4 * k))}" fill="${C.table}" stroke="${C.tableEdge}" stroke-width="1"/>`);
   }
 }
 
 export const W = 240;
 export const H = 180;
 
-type Camera = { k: number; ox: number; oy: number };
+type Camera = { k: number; ox: number; oy: number; close: boolean; view: { x0: number; x1: number; y0: number; y1: number } };
 const cameras = new Map<string, Camera>();
 
-/** Encuadre fijo para toda la animación: abarca paciente, examinador y mobiliario. */
+/**
+ * Encuadre fijo para toda la animación. Si el examinador trabaja sobre una zona, plano cercano de esa
+ * zona (con sus manos y lo que se mueve); si no, el cuerpo entero.
+ */
 function camera(spec: FigureSpec): Camera {
   const key = JSON.stringify(spec);
   const hit = cameras.get(key);
@@ -722,28 +890,55 @@ function camera(spec: FigureSpec): Camera {
   const a = makeScene(spec, 0, 0);
   const b = makeScene(spec, 1, 1);
   const fur = furniture(spec, a, b);
-  const pts: V[] = [];
+  const all: V[] = [];
+  const roi: V[] = [];
   for (const s of [a, b]) {
-    pts.push(...Object.values(s.pose.points).map(s.tf), s.tf(s.pose.head));
+    all.push(...Object.values(s.pose.points).map(s.tf), s.tf(s.pose.head));
+    const anchors = [...(spec.hands ?? []), ...(spec.pain ?? []), ...(spec.arrows ?? []).map((x) => x.at)];
+    roi.push(...anchors.map((h) => anchorPoint(s.pose, h)).filter((p): p is V => !!p).map(s.tf));
     const targets = (spec.hands ?? []).map((h) => anchorPoint(s.pose, h)).filter((p): p is V => !!p).map(s.tf);
     const ex = placeExaminer(spec, s, fur, targets, 1);
     if (ex) {
-      pts.push(ex.head, ...ex.arms.flatMap((x) => [x.s, x.e, x.h]));
-      if (ex.mode === "profile") pts.push(ex.hip, ...ex.legs.flatMap((l) => [l.k, l.a, l.toe]));
+      if (ex.mode !== "arms") all.push(ex.head);
+      all.push(...ex.arms.flatMap((x) => [x.s, x.e, x.h]));
+      if (ex.mode === "profile") all.push(ex.hip, ...ex.legs.flatMap((l) => [l.k, l.a, l.toe]));
     }
   }
-  if (fur.table) pts.push({ x: fur.table.x0, y: fur.table.y }, { x: fur.table.x1, y: fur.table.y });
-  if (fur.tableTop) pts.push({ x: fur.tableTop.x0, y: fur.tableTop.y0 }, { x: fur.tableTop.x1, y: fur.tableTop.y1 });
-  if (!fur.tableTop) pts.push({ x: pts[0]!.x, y: fur.floor + 4 });
-  const xs = pts.map((p) => p.x);
-  const ys = pts.map((p) => p.y);
-  const pad = 14;
-  const minX = Math.min(...xs) - pad;
-  const maxX = Math.max(...xs) + pad;
-  const minY = Math.min(...ys) - pad;
-  const maxY = Math.max(...ys) + pad;
-  const k = Math.min(W / (maxX - minX), H / (maxY - minY), 1.6);
-  const cam = { k, ox: (W - (maxX - minX) * k) / 2 - minX * k, oy: (H - (maxY - minY) * k) / 2 - minY * k };
+  // Lo que se mueve entre el inicio y el final también entra en el plano.
+  for (const sg of a.pose.segs) {
+    const o = b.pose.segs.find((x) => x.name === sg.name)!;
+    if (len(sub(o.b, sg.b)) > 2) roi.push(a.tf(sg.a), a.tf(sg.b), b.tf(o.b));
+  }
+  if (fur.table) all.push({ x: fur.table.x0, y: fur.table.y }, { x: fur.table.x1, y: fur.table.y });
+  if (fur.tableTop) all.push({ x: fur.tableTop.x0, y: fur.tableTop.y0 }, { x: fur.tableTop.x1, y: fur.tableTop.y1 });
+  if (!fur.tableTop) all.push({ x: all[0]!.x, y: fur.floor + 4 });
+  const box = (pts: V[], pad: number) => {
+    const xs = pts.map((p) => p.x);
+    const ys = pts.map((p) => p.y);
+    return { x0: Math.min(...xs) - pad, x1: Math.max(...xs) + pad, y0: Math.min(...ys) - pad, y1: Math.max(...ys) + pad };
+  };
+  const full = box(all, 12);
+  let use = full;
+  let close = false;
+  if (spec.hands?.length && spec.examiner !== "none" && roi.length) {
+    const r = box(roi, 34);
+    // Tamaño mínimo del plano: lo bastante para ver la articulación y el segmento vecino.
+    const minW = 150;
+    const wNeed = Math.max(r.x1 - r.x0, minW, ((r.y1 - r.y0) * W) / H);
+    const hNeed = (wNeed * H) / W;
+    const cx = (r.x0 + r.x1) / 2;
+    const cy = (r.y0 + r.y1) / 2;
+    const cand = { x0: cx - wNeed / 2, x1: cx + wNeed / 2, y0: cy - hNeed / 2, y1: cy + hNeed / 2 };
+    const fullW = Math.max(full.x1 - full.x0, ((full.y1 - full.y0) * W) / H);
+    if (wNeed < fullW * 0.78) {
+      use = cand;
+      close = true;
+    }
+  }
+  const k = Math.min(W / (use.x1 - use.x0), H / (use.y1 - use.y0), 2.4);
+  const ox = (W - (use.x1 - use.x0) * k) / 2 - use.x0 * k;
+  const oy = (H - (use.y1 - use.y0) * k) / 2 - use.y0 * k;
+  const cam = { k, ox, oy, close, view: { x0: -ox / k, x1: (W - ox) / k, y0: -oy / k, y1: (H - oy) / k } };
   if (cameras.size > 400) cameras.clear();
   cameras.set(key, cam);
   return cam;
@@ -761,54 +956,38 @@ export function renderFrame(spec: FigureSpec, title: string, uid: string, t: num
   const fur = furniture(spec, makeScene(spec, 0, 0), makeScene(spec, 1, 1));
   const toPx = (v: V): V => ({ x: v.x * k + cam.ox, y: v.y * k + cam.oy });
   const P = (v: V) => toPx(sc.tf(v));
-  const d: Draw = { back: [], mid: [], front: [], over: [] };
+  const lw = Math.max(1.6, 2.2 * Math.min(k, 1.4));
 
-  // Mobiliario y examinador (en píxeles).
   const furOut: string[] = [];
-  drawFurniture(fur, (v) => toPx(v), 1 * k, W, H, furOut);
-  const targets = (spec.hands ?? []).map((h) => anchorPoint(sc.pose, h)).filter((p): p is V => !!p).map(sc.tf);
-  const ex = placeExaminer(spec, sc, fur, targets, tl.reach);
-  if (ex) {
-    const px = (v: V) => toPx(v);
-    const exPx: Examiner =
-      ex.mode === "profile"
-        ? { ...ex, hip: px(ex.hip), shoulder: px(ex.shoulder), head: px(ex.head), legs: ex.legs.map((l) => ({ k: px(l.k), a: px(l.a), toe: px(l.toe) })), arms: ex.arms.map((a) => ({ s: px(a.s), e: px(a.e), h: px(a.h) })) }
-        : ex.mode === "behind"
-          ? { ...ex, shoulders: [px(ex.shoulders[0]), px(ex.shoulders[1])], head: px(ex.head), hip: px(ex.hip), arms: ex.arms.map((a) => ({ s: px(a.s), e: px(a.e), h: px(a.h) })) }
-          : { ...ex, shoulders: [px(ex.shoulders[0]), px(ex.shoulders[1])], head: px(ex.head), arms: ex.arms.map((a) => ({ s: px(a.s), e: px(a.e), h: px(a.h) })) };
-    drawExaminerBody(exPx, k, d);
-  }
+  drawFurniture(fur, toPx, k, furOut);
 
-  const patient: string[] = [];
-  drawPatient(spec, sc, P, k, patient);
+  const targets = (spec.hands ?? []).map((h) => anchorPoint(sc.pose, h)).filter((p): p is V => !!p).map(sc.tf);
+  const ex = cam.close ? closeArms(spec, sc, targets, cam.view, tl.reach) : placeExaminer(spec, sc, fur, targets, tl.reach);
+  const exB = ex ? buildExaminer(ex, toPx, k) : null;
+  const pat = buildPatient(spec, sc, P, k);
 
   // Posición inicial en discontinua en la imagen fija.
   const ghost: string[] = [];
   if (still && spec.to) {
     const g = makeScene(spec, 0, 0);
-    const moved = g.pose.segs.filter((s) => {
+    for (const s of g.pose.segs) {
       const o = sc.pose.segs.find((x) => x.name === s.name)!;
-      return len(sub(o.a, s.a)) + len(sub(o.b, s.b)) > 0.5;
-    });
-    for (const s of moved) {
+      if (len(sub(o.a, s.a)) + len(sub(o.b, s.b)) <= 0.5) continue;
       const a = toPx(g.tf(s.a));
-      const b = toPx(g.tf(s.b));
-      ghost.push(`<line x1="${f1(a.x)}" y1="${f1(a.y)}" x2="${f1(b.x)}" y2="${f1(b.y)}" stroke="${C.move}" stroke-width="${f1(5 * k)}" stroke-linecap="round" stroke-dasharray="3 3" opacity="0.55"/>`);
+      const b2 = toPx(g.tf(s.b));
+      ghost.push(`<line x1="${f1(a.x)}" y1="${f1(a.y)}" x2="${f1(b2.x)}" y2="${f1(b2.y)}" stroke="${C.move}" stroke-width="${f1(7 * k)}" stroke-linecap="round" opacity="0.18"/>`);
     }
   }
 
-  // Síntoma: brillo rojo que late en "qué buscar".
+  // Síntoma: brillo que late en "qué buscar".
   const painOut: string[] = [];
   if (tl.pain > 0) {
     for (const a of spec.pain ?? []) {
       const p = anchorPoint(sc.pose, a);
       if (!p) continue;
       const q = P(p);
-      const r = (8 + 2 * (still ? 0 : tl.pulse)) * k;
-      painOut.push(
-        `<circle cx="${f1(q.x)}" cy="${f1(q.y)}" r="${f1(r * 1.6)}" fill="url(#pg-${uid})" opacity="${f1(tl.pain)}"/>`,
-        `<circle cx="${f1(q.x)}" cy="${f1(q.y)}" r="${f1(r)}" fill="none" stroke="${C.pain}" stroke-width="1.6" opacity="${f1(tl.pain)}"/>`,
-      );
+      const r = (7 + 2 * (still ? 0 : tl.pulse)) * k;
+      painOut.push(`<circle cx="${f1(q.x)}" cy="${f1(q.y)}" r="${f1(r * 1.7)}" fill="url(#pg-${uid})" opacity="${f1(tl.pain)}"/>`);
     }
   }
 
@@ -822,64 +1001,72 @@ export function renderFrame(spec: FigureSpec, title: string, uid: string, t: num
       if (!p) continue;
       const q = P(p);
       if ("rotate" in ar) {
-        const r = 14 * k;
+        const r = 13 * Math.min(k, 1.6);
         const sweep = ar.rotate === "cw" ? 1 : 0;
         const a0 = rad(-155);
         const a1 = rad(-25);
         const s0 = { x: q.x + r * Math.cos(sweep ? a0 : a1), y: q.y + r * Math.sin(sweep ? a0 : a1) };
         const e0 = { x: q.x + r * Math.cos(sweep ? a1 : a0), y: q.y + r * Math.sin(sweep ? a1 : a0) };
-        arrowsOut.push(`<path d="M${f1(s0.x)} ${f1(s0.y)}A${f1(r)} ${f1(r)} 0 0 ${sweep} ${f1(e0.x)} ${f1(e0.y)}" fill="none" stroke="${C.force}" stroke-width="3" marker-end="url(#ah-${uid})" opacity="${op}"/>`);
+        arrowsOut.push(`<path d="M${f1(s0.x)} ${f1(s0.y)}A${f1(r)} ${f1(r)} 0 0 ${sweep} ${f1(e0.x)} ${f1(e0.y)}" fill="none" stroke="${C.force}" stroke-width="2.8" stroke-linecap="round" marker-end="url(#ah-${uid})" opacity="${op}"/>`);
         if (ar.label) labels.push(`<text x="${f1(q.x)}" y="${f1(q.y - r - 5)}" text-anchor="middle" opacity="${op}">${esc(ar.label)}</text>`);
         continue;
       }
       const oop = outOfPlane(spec, ar.dir, ar.at);
       if (oop !== 0) {
-        const r = 6.5 * k;
-        const c = { x: q.x + 12 * k, y: q.y - 12 * k };
-        arrowsOut.push(`<circle cx="${f1(c.x)}" cy="${f1(c.y)}" r="${f1(r)}" fill="${C.bg}" stroke="${C.force}" stroke-width="2.2" opacity="${op}"/>`);
+        const r = 6.5;
+        const c = { x: q.x + 11, y: q.y - 11 };
+        arrowsOut.push(`<circle cx="${f1(c.x)}" cy="${f1(c.y)}" r="${f1(r)}" fill="${C.bg}" stroke="${C.force}" stroke-width="2" opacity="${op}"/>`);
         if (oop > 0) arrowsOut.push(`<circle cx="${f1(c.x)}" cy="${f1(c.y)}" r="${f1(r * 0.32)}" fill="${C.force}" opacity="${op}"/>`);
         else {
-          const e = r * 0.6;
-          arrowsOut.push(`<path d="M${f1(c.x - e)} ${f1(c.y - e)}L${f1(c.x + e)} ${f1(c.y + e)}M${f1(c.x - e)} ${f1(c.y + e)}L${f1(c.x + e)} ${f1(c.y - e)}" stroke="${C.force}" stroke-width="2.2" opacity="${op}"/>`);
+          const e = r * 0.55;
+          arrowsOut.push(`<path d="M${f1(c.x - e)} ${f1(c.y - e)}L${f1(c.x + e)} ${f1(c.y + e)}M${f1(c.x - e)} ${f1(c.y + e)}L${f1(c.x + e)} ${f1(c.y - e)}" stroke="${C.force}" stroke-width="2" opacity="${op}"/>`);
         }
         if (ar.label) labels.push(`<text x="${f1(c.x)}" y="${f1(c.y - r - 4)}" text-anchor="middle" opacity="${op}">${esc(ar.label)}</text>`);
         continue;
       }
       const dv = unit(sc.tfv(localDir(spec, ar.dir, ar.at, sc.pose, tl.m)));
-      const L0 = (ar.len ?? 22) * k;
+      const L0 = (ar.len ?? 22) * Math.min(k, 1.5);
       const kind = ar.kind ?? "force";
-      const push = still ? 0 : (tl.pulse - 0.5) * 3 * k;
-      const from = kind === "force" ? add(q, dv, -(L0 + 7 * k) + push) : add(q, dv, 7 * k);
-      const to = kind === "force" ? add(q, dv, -7 * k + push) : add(q, dv, L0 + 7 * k);
+      const push = still ? 0 : (tl.pulse - 0.5) * 3;
+      const gap = 8;
+      const from = kind === "force" ? add(q, dv, -(L0 + gap) + push) : add(q, dv, gap);
+      const to = kind === "force" ? add(q, dv, -gap + push) : add(q, dv, L0 + gap);
       arrowsOut.push(
         kind === "force"
-          ? `<line x1="${f1(from.x)}" y1="${f1(from.y)}" x2="${f1(to.x)}" y2="${f1(to.y)}" stroke="${C.force}" stroke-width="3.4" stroke-linecap="round" marker-end="url(#ah-${uid})" opacity="${op}"/>`
-          : `<line x1="${f1(from.x)}" y1="${f1(from.y)}" x2="${f1(to.x)}" y2="${f1(to.y)}" stroke="${C.move}" stroke-width="2.4" stroke-dasharray="5 3" marker-end="url(#am-${uid})" opacity="${op}"/>`,
+          ? `<line x1="${f1(from.x)}" y1="${f1(from.y)}" x2="${f1(to.x)}" y2="${f1(to.y)}" stroke="${C.force}" stroke-width="3.2" stroke-linecap="round" marker-end="url(#ah-${uid})" opacity="${op}"/>`
+          : `<line x1="${f1(from.x)}" y1="${f1(from.y)}" x2="${f1(to.x)}" y2="${f1(to.y)}" stroke="${C.move}" stroke-width="2.2" stroke-linecap="round" stroke-dasharray="4 4" marker-end="url(#am-${uid})" opacity="${op}"/>`,
       );
       if (ar.label) {
         const at = kind === "force" ? from : to;
-        labels.push(`<text x="${f1(at.x - dv.x * 4)}" y="${f1(at.y - dv.y * 4 + (dv.y > 0.3 ? -3 : 9))}" text-anchor="middle" opacity="${op}">${esc(ar.label)}</text>`);
+        labels.push(`<text x="${f1(at.x - dv.x * 5)}" y="${f1(at.y - dv.y * 5 + (dv.y > 0.3 ? -3 : 9))}" text-anchor="middle" opacity="${op}">${esc(ar.label)}</text>`);
       }
     }
   }
   const clamp = (l: string) =>
     l.replace(/x="([-\d.]+)" y="([-\d.]+)"/, (_m, x: string, y: string) => {
-      const half = (l.replace(/<[^>]+>/g, "").length * 4.6) / 2 + 2;
-      return `x="${Math.min(W - half, Math.max(half, Number(x))).toFixed(1)}" y="${Math.min(H - 3, Math.max(10, Number(y))).toFixed(1)}"`;
+      const half = (l.replace(/<[^>]+>/g, "").length * 4.4) / 2 + 3;
+      return `x="${Math.min(W - half, Math.max(half, Number(x))).toFixed(1)}" y="${Math.min(H - 4, Math.max(11, Number(y))).toFixed(1)}"`;
     });
-  const labelOut = labels.map((l) => clamp(l).replace("<text ", `<text font-size="9" font-weight="700" fill="${C.text}" paint-order="stroke" stroke="${C.bg}" stroke-width="3.2" `));
+  const labelOut = labels.map((l) => clamp(l).replace("<text ", `<text font-size="9" font-weight="600" letter-spacing="0.2" fill="${C.text}" paint-order="stroke" stroke="${C.bg}" stroke-width="3.5" stroke-linejoin="round" `));
 
   const defs =
     `<defs>` +
-    `<marker id="ah-${uid}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${C.force}"/></marker>` +
-    `<marker id="am-${uid}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="${C.move}"/></marker>` +
-    `<radialGradient id="pg-${uid}"><stop offset="0" stop-color="#ff5a4a" stop-opacity="0.55"/><stop offset="1" stop-color="#ff5a4a" stop-opacity="0"/></radialGradient>` +
+    `<marker id="ah-${uid}" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="3.6" markerHeight="3.6" orient="auto-start-reverse"><path d="M1 1L9 5L1 9Q2.5 5 1 1z" fill="${C.force}"/></marker>` +
+    `<marker id="am-${uid}" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M1 1L9 5L1 9Q2.5 5 1 1z" fill="${C.move}"/></marker>` +
+    `<radialGradient id="pg-${uid}"><stop offset="0" stop-color="#ff4d3d" stop-opacity="0.6"/><stop offset="0.6" stop-color="#ff4d3d" stop-opacity="0.25"/><stop offset="1" stop-color="#ff4d3d" stop-opacity="0"/></radialGradient>` +
     `</defs>`;
-  // Orden: fondo y suelo, examinador por detrás, mobiliario, paciente, manos del examinador, señales.
-  const lyingBehind = ex?.mode === "behind";
-  const body = lyingBehind
-    ? [...d.back, ...furOut, ...ghost, ...patient, ...d.mid, ...d.over]
-    : [...furOut, ...d.back, ...ghost, ...patient, ...d.mid, ...d.over];
+
+  const g = (l: Layer) => group(l.shapes, lw, l.over);
+  // De frente: piernas, tronco y brazos; de lado: miembros lejanos, tronco y miembros cercanos.
+  const patient =
+    spec.view === "front"
+      ? g(pat.nearLegs) + g(pat.body) + pat.marks.join("") + g(pat.nearArms)
+      : g(pat.farArms) + g(pat.farLegs) + g(pat.body) + pat.marks.join("") + g(pat.nearLegs) + g(pat.nearArms);
+  const exBack = exB ? group(exB.back, lw, exB.backOver) + exB.marks.join("") : "";
+  const exArms = exB ? group(exB.arms, lw, exB.armsOver) : "";
+  const behind = ex?.mode === "behind" || ex?.mode === "top";
+  // En plano cercano los brazos van por encima de todo; las manos tocan al paciente.
+  const body = behind ? [exBack, ...furOut, ...ghost, patient, exArms] : [...furOut, ...ghost, patient, exBack, exArms];
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(title)}">${defs}${body.join("")}${painOut.join("")}${arrowsOut.join("")}${labelOut.join("")}</svg>`;
 }
 

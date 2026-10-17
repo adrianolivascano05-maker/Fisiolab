@@ -1,19 +1,18 @@
-// Galería de tests diferenciales: inicio por articulación, lista por patología y ficha de cada test.
-import { BookOpen, ChevronRight, Search, Star } from "lucide-react";
+// Galería de tests diferenciales: inicio por articulación, patologías desplegables y ficha de cada test.
+import { AlertTriangle, BookOpen, ChevronRight, ChevronsDownUp, ChevronsUpDown, Search, Star } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { fmt } from "../app/format";
 import { Page } from "../app/Page";
-import { Alert } from "../ui/Alert";
-import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
 import { EmptyState } from "../ui/EmptyState";
+import { AnimatedFigure } from "./AnimatedFigure";
 import { tests } from "./data";
+import { Disclosure, useOpenState } from "./Disclosure";
 import { likelihoodRatios, lrMeaning, postTest } from "./evidence";
 import { regionBySlug, regionOf, regions } from "./regions";
 import type { SpecialTest } from "./types";
 import { useFavorites } from "./useFavorites";
-import { AnimatedFigure } from "./AnimatedFigure";
 
 export const GALLERY = "/exploracion";
 const testUrl = (t: SpecialTest) => `${GALLERY}/${regionOf(t.region).slug}/${t.id}`;
@@ -40,37 +39,47 @@ const rank: Record<SpecialTest["utility"], number> = { alta: 0, moderada: 1, baj
 /** Primero los contrastados (de más a menos útiles) y al final los que están sin contrastar. */
 export const byEvidence = (a: SpecialTest, b: SpecialTest) => Number(verified(b)) - Number(verified(a)) || rank[a.utility] - rank[b.utility];
 
-function UtilityBadge({ u, t }: { u: SpecialTest["utility"]; t?: SpecialTest }) {
-  if (t && !verified(t)) u = "desconocida";
+const utilityOf = (t: SpecialTest): SpecialTest["utility"] => (verified(t) ? t.utility : "desconocida");
+
+/** La fila de evidencia más completa (sensibilidad, especificidad y razones de verosimilitud). */
+function bestRow(t: SpecialTest) {
+  const rows = t.accuracy.map((a) => ({ a, lr: likelihoodRatios(a) }));
+  const score = (r: (typeof rows)[number]) => [r.a.sens, r.a.spec, r.lr.pos ?? undefined, r.lr.neg ?? undefined].filter((v) => v !== undefined).length;
+  return rows.filter((r) => score(r) > 0).sort((x, y) => score(y) - score(x))[0];
+}
+
+/** Punto de color + texto: la utilidad sin ocupar media fila. */
+function Utility({ t }: { t: SpecialTest }) {
+  const u = utilityOf(t);
   return (
-    <span
-      className={cx(
-        "inline-flex shrink-0 items-center rounded-pill px-2 py-0.5 text-xs font-semibold",
-        u === "alta" && "bg-success-soft text-success",
-        u === "moderada" && "bg-accent-soft text-accent",
-        u === "baja" && "bg-warning-soft text-warning",
-        u === "desconocida" && "border border-border text-text-muted",
-      )}
-    >
+    <span className="inline-flex items-center gap-1.5 text-xs text-text-muted">
+      <span
+        aria-hidden="true"
+        className={cx(
+          "size-2 rounded-full",
+          u === "alta" && "bg-success",
+          u === "moderada" && "bg-accent",
+          u === "baja" && "bg-warning",
+          u === "desconocida" && "border border-text-muted",
+        )}
+      />
       {utilityLabels[u]}
     </span>
   );
 }
 
-const kindLabels = { test: "", cluster: "Agrupación de tests", rule: "Regla de decisión" } as const;
+const kindLabels = { test: "", cluster: "Agrupación", rule: "Regla de decisión" } as const;
 
 function TestRow({ t, showRegion }: { t: SpecialTest; showRegion?: boolean }) {
   return (
     <li>
-      <Link to={testUrl(t)} className="flex min-h-16 items-center gap-3 px-4 py-2 hover:bg-surface">
-        <span className="flex min-w-0 flex-1 flex-col gap-1">
-          <span className="font-semibold">{t.name}</span>
-          <span className="text-sm text-text-muted">
-            {showRegion ? `${regionOf(t.region).label} · ${t.group}` : t.purpose}
-          </span>
-          <span className="flex flex-wrap gap-1">
-            <UtilityBadge u={t.utility} t={t} />
-            {t.kind !== "test" && <span className="rounded-pill bg-surface px-2 py-0.5 text-xs font-semibold">{kindLabels[t.kind]}</span>}
+      <Link to={testUrl(t)} className="flex min-h-14 items-center gap-3 px-4 py-2.5 hover:bg-surface">
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="font-medium">{t.name}</span>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <Utility t={t} />
+            {t.kind !== "test" && <span className="text-xs text-text-muted">· {kindLabels[t.kind]}</span>}
+            {showRegion && <span className="text-xs text-text-muted">· {regionOf(t.region).label}</span>}
           </span>
         </span>
         <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
@@ -80,6 +89,7 @@ function TestRow({ t, showRegion }: { t: SpecialTest; showRegion?: boolean }) {
 }
 
 const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+const listBox = "divide-y divide-border overflow-hidden rounded-xl border border-border bg-bg";
 
 /** Inicio: buscador, favoritos y articulaciones. */
 export function GalleryHome() {
@@ -88,36 +98,35 @@ export function GalleryHome() {
   const found = useMemo(() => {
     const words = norm(q).split(/\s+/).filter(Boolean);
     if (!words.length) return null;
-    return tests.filter((t) => {
-      const text = norm([t.name, ...(t.aka ?? []), t.group, t.purpose, regionOf(t.region).label].join(" "));
-      return words.every((w) => text.includes(w));
-    }).sort(byEvidence);
+    return tests
+      .filter((t) => {
+        const text = norm([t.name, ...(t.aka ?? []), t.group, t.purpose, regionOf(t.region).label].join(" "));
+        return words.every((w) => text.includes(w));
+      })
+      .sort(byEvidence);
   }, [q]);
   const favs = tests.filter((t) => favorites.includes(t.id));
 
   return (
     <Page title="Exploración" tabs>
-      <p className="text-text-muted">
-        {tests.length} tests de exploración, agrupados por articulación y por patología, con cómo hacerlos, qué significa un positivo y cuánto aportan.
-      </p>
       <div className="relative">
         <label htmlFor="galeria-buscar" className="sr-only">
           Buscar un test
         </label>
-        <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-muted" />
+        <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-text-muted" />
         <input
           id="galeria-buscar"
           type="search"
-          placeholder="Test, patología o articulación"
+          placeholder={`Buscar entre ${tests.length} tests`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="h-11 w-full rounded-md border border-border-input bg-bg pl-10 pr-3 text-base placeholder:text-text-muted"
+          className="h-12 w-full rounded-xl border border-border-input bg-surface pl-11 pr-3 text-base placeholder:text-text-muted"
         />
       </div>
 
       {found ? (
         found.length ? (
-          <ul aria-label="Resultados" className="divide-y divide-border rounded-lg border border-border bg-bg">
+          <ul aria-label="Resultados" className={listBox}>
             {found.map((t) => (
               <TestRow key={t.id} t={t} showRegion />
             ))}
@@ -129,10 +138,10 @@ export function GalleryHome() {
         <>
           {favs.length > 0 && (
             <section aria-labelledby="h-favs" className="flex flex-col gap-2">
-              <h2 id="h-favs" className="text-lg">
+              <h2 id="h-favs" className="text-sm font-semibold uppercase tracking-wide text-text-muted">
                 Favoritos
               </h2>
-              <ul className="divide-y divide-border rounded-lg border border-border bg-bg">
+              <ul className={listBox}>
                 {favs.map((t) => (
                   <TestRow key={t.id} t={t} showRegion />
                 ))}
@@ -140,24 +149,21 @@ export function GalleryHome() {
             </section>
           )}
           <section aria-labelledby="h-regiones" className="flex flex-col gap-2">
-            <h2 id="h-regiones" className="text-lg">
+            <h2 id="h-regiones" className="text-sm font-semibold uppercase tracking-wide text-text-muted">
               Por articulación
             </h2>
-            <ul className="divide-y divide-border rounded-lg border border-border bg-bg">
+            <ul className="grid grid-cols-2 gap-2">
               {regions.map((r) => {
                 const list = tests.filter((t) => t.region === r.id);
                 if (!list.length) return null;
                 const groups = new Set(list.map((t) => t.group)).size;
                 return (
                   <li key={r.id}>
-                    <Link to={`${GALLERY}/${r.slug}`} className="flex min-h-14 items-center gap-3 px-4 py-2 hover:bg-surface">
-                      <span className="flex flex-1 flex-col">
-                        <span className="font-semibold">{r.label}</span>
-                        <span className="text-sm text-text-muted">
-                          {list.length} tests · {groups} {groups === 1 ? "patología" : "patologías"}
-                        </span>
+                    <Link to={`${GALLERY}/${r.slug}`} className="flex h-full min-h-20 flex-col justify-between rounded-xl border border-border bg-bg p-3 hover:border-accent hover:bg-surface">
+                      <span className="font-semibold leading-tight">{r.label}</span>
+                      <span className="text-xs text-text-muted">
+                        {list.length} tests · {groups} {groups === 1 ? "patología" : "patologías"}
                       </span>
-                      <ChevronRight aria-hidden="true" className="size-5 text-text-muted" />
                     </Link>
                   </li>
                 );
@@ -165,8 +171,8 @@ export function GalleryHome() {
             </ul>
           </section>
           <p className="text-xs text-text-muted">
-            Las ilustraciones son esquemas propios. Los datos de sensibilidad y especificidad se tomaron de revisiones publicadas y
-            se indica la fuente de cada uno; consúltala antes de citarlos. Ningún test por sí solo hace un diagnóstico.
+            Ilustraciones propias. Cifras de revisiones publicadas con su fuente; consúltala antes de citarlas. Ningún test por sí solo hace un
+            diagnóstico.
           </p>
         </>
       )}
@@ -174,11 +180,13 @@ export function GalleryHome() {
   );
 }
 
-/** Una articulación: sus patologías y los tests de cada una. */
+/** Una articulación: sus patologías desplegables. */
 export function GalleryRegion() {
   const { region = "" } = useParams();
   const r = regionBySlug(region);
   const [onlyUseful, setOnlyUseful] = useState(false);
+  const groups = r ? [...new Set(tests.filter((t) => t.region === r.id).map((t) => t.group))] : [];
+  const open = useOpenState(`impulso.exploracion.grupos.${region}`, Object.fromEntries(groups.map((g, i) => [g, i === 0])));
   if (!r) {
     return (
       <Page title="Exploración" backTo={GALLERY}>
@@ -187,62 +195,63 @@ export function GalleryRegion() {
     );
   }
   const list = tests.filter((t) => t.region === r.id && (!onlyUseful || (t.utility === "alta" && verified(t)))).sort(byEvidence);
-  const groups = [...new Set(tests.filter((t) => t.region === r.id).map((t) => t.group))];
+  const allOpen = groups.every((g) => open.isOpen(g));
   return (
     <Page title={r.label} backTo={GALLERY}>
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={onlyUseful} onChange={(e) => setOnlyUseful(e.target.checked)} className="size-5 accent-[var(--color-accent)]" />
-        Solo los de utilidad alta
-      </label>
-      {groups.length > 1 && (
-        <nav aria-label="Patologías" className="flex flex-wrap gap-2">
-          {groups.map((g, i) => (
-            <a key={g} href={`#g-${i}`} className="rounded-pill border border-border px-3 py-1 text-sm hover:bg-surface">
-              {g}
-            </a>
-          ))}
-        </nav>
-      )}
-      {groups.map((g, i) => {
-        const items = list.filter((t) => t.group === g);
-        if (!items.length) return null;
-        const solid = items.filter(verified);
-        const loose = items.filter((t) => !verified(t));
-        return (
-          <section key={g} aria-labelledby={`g-${i}`} className="flex scroll-mt-20 flex-col gap-2">
-            <h2 id={`g-${i}`} className="scroll-mt-20 text-lg">
-              {g}
-            </h2>
-            {solid.length > 0 && (
-              <ul className="divide-y divide-border rounded-lg border border-border bg-bg">
-                {solid.map((t) => (
-                  <TestRow key={t.id} t={t} />
-                ))}
-              </ul>
-            )}
-            {loose.length > 0 && (
-              <>
-                <h3 className="text-sm font-semibold text-text-muted">Sin contrastar: sin datos de precisión comprobados</h3>
-                <ul aria-label={`${g}: sin contrastar`} className="divide-y divide-border rounded-lg border border-dashed border-border-input bg-bg">
-                  {loose.map((t) => (
-                    <TestRow key={t.id} t={t} />
-                  ))}
-                </ul>
-              </>
-            )}
-          </section>
-        );
-      })}
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={onlyUseful} onChange={(e) => setOnlyUseful(e.target.checked)} className="size-5 accent-[var(--color-accent)]" />
+          Solo utilidad alta
+        </label>
+        <button type="button" onClick={() => open.setAll(groups, !allOpen)} className="tap inline-flex items-center gap-1 rounded-md px-2 text-sm text-accent hover:bg-surface">
+          {allOpen ? <ChevronsDownUp aria-hidden="true" className="size-4" /> : <ChevronsUpDown aria-hidden="true" className="size-4" />}
+          {allOpen ? "Cerrar todo" : "Abrir todo"}
+        </button>
+      </div>
+      <div className={listBox}>
+        {groups.map((g) => {
+          const items = list.filter((t) => t.group === g);
+          if (!items.length) return null;
+          const solid = items.filter(verified);
+          const loose = items.filter((t) => !verified(t));
+          return (
+            <Disclosure key={g} title={g} meta={items.length} open={open.isOpen(g)} onToggle={(o) => open.set(g, o)}>
+              <div className="-mx-4 -mb-4 border-t border-border">
+                {solid.length > 0 && (
+                  <ul aria-label={g} className="divide-y divide-border">
+                    {solid.map((t) => (
+                      <TestRow key={t.id} t={t} />
+                    ))}
+                  </ul>
+                )}
+                {loose.length > 0 && (
+                  <>
+                    <p className="border-t border-border bg-surface px-4 py-1.5 text-xs font-semibold text-text-muted">Sin contrastar</p>
+                    <ul aria-label={`${g}: sin contrastar`} className="divide-y divide-border">
+                      {loose.map((t) => (
+                        <TestRow key={t.id} t={t} />
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            </Disclosure>
+          );
+        })}
+      </div>
       {!list.length && <p className="py-6 text-center text-text-muted">Ningún test de esta articulación tiene utilidad alta comprobada.</p>}
     </Page>
   );
 }
 
-/** Ficha de un test. */
+const SECTIONS = ["posicion", "como", "positivo", "interpretar", "precauciones", "evidencia", "relacionados"] as const;
+
+/** Ficha de un test: animación, lo esencial a la vista y el resto en desplegables. */
 export function GalleryTest() {
   const { region = "", test = "" } = useParams();
   const t = tests.find((x) => x.id === test);
   const { favorites, toggle } = useFavorites();
+  const open = useOpenState("impulso.exploracion.secciones", { como: true, positivo: true });
   const back = `${GALLERY}/${region}`;
   if (!t) {
     return (
@@ -253,6 +262,11 @@ export function GalleryTest() {
   }
   const fav = favorites.includes(t.id);
   const related = (t.related ?? []).map((id) => tests.find((x) => x.id === id)).filter((x): x is SpecialTest => !!x);
+  const present = SECTIONS.filter((s) => (s === "precauciones" ? !!t.cautions : s === "relacionados" ? related.length > 0 : true));
+  const allOpen = present.every((s) => open.isOpen(s));
+  const best = bestRow(t);
+  const sec = (id: (typeof SECTIONS)[number]) => ({ open: open.isOpen(id), onToggle: (o: boolean) => open.set(id, o) });
+
   return (
     <Page
       title={t.name}
@@ -269,17 +283,18 @@ export function GalleryTest() {
         </button>
       }
     >
-      <div className="flex flex-col gap-1">
-        <p className="text-sm text-text-muted">
+      <div className="flex flex-col gap-1.5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
           {regionOf(t.region).label} · {t.group}
         </p>
-        {t.aka?.length ? <p className="text-sm text-text-muted">También: {t.aka.join(", ")}</p> : null}
-        <div className="flex flex-wrap gap-1">
-          <UtilityBadge u={t.utility} t={t} />
-          {t.kind !== "test" && <span className="rounded-pill bg-surface px-2 py-0.5 text-xs font-semibold">{kindLabels[t.kind]}</span>}
+        <p className="text-base">{t.purpose}</p>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Utility t={t} />
+          {t.kind !== "test" && <span className="text-xs text-text-muted">{kindLabels[t.kind]}</span>}
+          {t.aka?.length ? <span className="text-xs text-text-muted">También: {t.aka.join(", ")}</span> : null}
         </div>
       </div>
-      <p>{t.purpose}</p>
+
       {t.figures.map((f, i) => (
         <AnimatedFigure
           key={i}
@@ -294,135 +309,149 @@ export function GalleryTest() {
           }}
         />
       ))}
-      <p className="text-xs text-text-muted">Paciente con camiseta azul; examinador con pijama verde. Flechas: fuerza del examinador (continua) o movimiento (discontinua); brillo rojo: dónde aparece el síntoma.</p>
 
-      <Section title="Posición">
-        <p>{t.position}</p>
-      </Section>
-      <Section title={t.kind === "test" ? "Cómo se hace" : "Cómo se aplica"}>
-        <ol className="list-decimal space-y-1 pl-5">
-          {t.steps.map((s) => (
-            <li key={s}>{s}</li>
+      {best && (
+        <dl className="nums grid grid-cols-4 gap-px overflow-hidden rounded-xl border border-border bg-border text-center" aria-label={`Datos de ${best.a.source}`}>
+          {[
+            ["Sens.", best.a.sens === undefined ? "—" : `${fmt(best.a.sens, 0)}%`],
+            ["Espec.", best.a.spec === undefined ? "—" : `${fmt(best.a.spec, 0)}%`],
+            ["LR+", fmt(best.lr.pos, 1)],
+            ["LR−", fmt(best.lr.neg, 2)],
+          ].map(([k, v]) => (
+            <div key={k} className="flex flex-col bg-bg px-1 py-2">
+              <dt className="text-xs text-text-muted">{k}</dt>
+              <dd className="text-lg font-semibold">{v}</dd>
+            </div>
           ))}
-        </ol>
-      </Section>
-      <Section title="Positivo si">
-        <p>{t.positive}</p>
-      </Section>
-      <Section title="Cómo interpretarlo">
-        <p>{t.interpretation}</p>
-      </Section>
-      {t.cautions && (
-        <Alert tone="warning" title="Precauciones">
-          {t.cautions}
-        </Alert>
+        </dl>
       )}
-      <Evidence t={t} />
-      {related.length > 0 && (
-        <Section title="Relacionados">
-          <ul className="divide-y divide-border rounded-lg border border-border bg-bg">
-            {related.map((r) => (
-              <TestRow key={r.id} t={r} />
-            ))}
-          </ul>
-        </Section>
-      )}
-    </Page>
-  );
-}
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-1">
-      <h2 className="text-lg">{title}</h2>
-      {children}
-    </section>
+      <div className="flex justify-end">
+        <button type="button" onClick={() => open.setAll([...present], !allOpen)} className="tap inline-flex items-center gap-1 rounded-md px-2 text-sm text-accent hover:bg-surface">
+          {allOpen ? <ChevronsDownUp aria-hidden="true" className="size-4" /> : <ChevronsUpDown aria-hidden="true" className="size-4" />}
+          {allOpen ? "Cerrar todo" : "Abrir todo"}
+        </button>
+      </div>
+      <div className={listBox}>
+        <Disclosure title="Posición" {...sec("posicion")}>
+          <p>{t.position}</p>
+        </Disclosure>
+        <Disclosure title={t.kind === "test" ? "Cómo se hace" : "Cómo se aplica"} meta={`${t.steps.length} pasos`} {...sec("como")}>
+          <ol className="flex flex-col gap-2">
+            {t.steps.map((s, i) => (
+              <li key={s} className="flex gap-3">
+                <span aria-hidden="true" className="flex size-6 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
+                  {i + 1}
+                </span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ol>
+        </Disclosure>
+        <Disclosure title="Positivo si" {...sec("positivo")}>
+          <p>{t.positive}</p>
+        </Disclosure>
+        <Disclosure title="Cómo interpretarlo" {...sec("interpretar")}>
+          <p>{t.interpretation}</p>
+        </Disclosure>
+        {t.cautions && (
+          <Disclosure title="Precauciones" tone="warning" icon={<AlertTriangle aria-hidden="true" className="size-5" />} {...sec("precauciones")}>
+            <p className="text-text">{t.cautions}</p>
+          </Disclosure>
+        )}
+        <Disclosure title="Evidencia y fuentes" meta={verified(t) ? `${t.accuracy.length} ${t.accuracy.length === 1 ? "fuente" : "fuentes"}` : "sin contrastar"} {...sec("evidencia")}>
+          <Evidence t={t} />
+        </Disclosure>
+        {related.length > 0 && (
+          <Disclosure title="Relacionados" meta={related.length} {...sec("relacionados")}>
+            <ul className="-mx-4 -mb-4 divide-y divide-border border-t border-border">
+              {related.map((r) => (
+                <TestRow key={r.id} t={r} />
+              ))}
+            </ul>
+          </Disclosure>
+        )}
+      </div>
+    </Page>
   );
 }
 
 function Evidence({ t }: { t: SpecialTest }) {
   const [pre, setPre] = useState(30);
   const rows = t.accuracy.map((a) => ({ a, lr: likelihoodRatios(a) }));
-  const best = rows.find((r) => r.lr.pos !== null || r.lr.neg !== null);
-  if (!rows.length) {
+  const best = bestRow(t);
+  if (!verified(t)) {
     return (
-      <Section title="Evidencia">
-        <Alert tone="info" title="Sin contrastar">
-          No se han podido comprobar datos publicados de sensibilidad y especificidad de este test. Úsalo como parte de la exploración, no
-          para confirmar ni descartar por sí solo.
-        </Alert>
-      </Section>
+      <p className="text-sm text-text-muted">
+        No se han podido comprobar datos publicados de sensibilidad y especificidad. Úsalo como parte de la exploración, no para confirmar ni
+        descartar por sí solo.
+      </p>
     );
   }
   return (
-    <Section title="Evidencia">
-      <div className="overflow-x-auto rounded-lg border border-border">
+    <div className="flex flex-col gap-3">
+      <div className="-mx-4 overflow-x-auto">
         <table className="nums w-full text-left text-sm">
           <caption className="sr-only">Precisión diagnóstica publicada</caption>
-          <thead className="bg-surface text-text-muted">
+          <thead className="text-xs text-text-muted">
             <tr>
-              <th scope="col" className="px-2 py-2">Fuente</th>
-              <th scope="col" className="px-2 py-2 text-right">Sens.</th>
-              <th scope="col" className="px-2 py-2 text-right">Espec.</th>
-              <th scope="col" className="px-2 py-2 text-right">LR+</th>
-              <th scope="col" className="px-2 py-2 text-right">LR−</th>
+              <th scope="col" className="px-4 py-1 font-normal">Fuente</th>
+              <th scope="col" className="px-1 py-1 text-right font-normal">Sens.</th>
+              <th scope="col" className="px-1 py-1 text-right font-normal">Espec.</th>
+              <th scope="col" className="px-1 py-1 text-right font-normal">LR+</th>
+              <th scope="col" className="py-1 pl-1 pr-4 text-right font-normal">LR−</th>
             </tr>
           </thead>
           <tbody>
             {rows.map(({ a, lr }, i) => (
               <tr key={i} className="border-t border-border align-top">
-                <th scope="row" className="px-2 py-2 font-normal">
+                <th scope="row" className="px-4 py-2 font-medium">
                   {a.source}
-                  {a.context && <span className="block text-xs text-text-muted">{a.context}</span>}
-                  {a.reliability && <span className="block text-xs text-text-muted">Fiabilidad: {a.reliability}</span>}
+                  {a.context && <span className="block text-xs font-normal text-text-muted">{a.context}</span>}
+                  {a.reliability && <span className="block text-xs font-normal text-text-muted">Fiabilidad: {a.reliability}</span>}
                 </th>
-                <td className="px-2 py-2 text-right">{a.sens === undefined ? "—" : `${fmt(a.sens, 0)} %`}</td>
-                <td className="px-2 py-2 text-right">{a.spec === undefined ? "—" : `${fmt(a.spec, 0)} %`}</td>
-                <td className="px-2 py-2 text-right">{fmt(lr.pos, 2)}</td>
-                <td className="px-2 py-2 text-right">{fmt(lr.neg, 2)}</td>
+                <td className="px-1 py-2 text-right">{a.sens === undefined ? "—" : `${fmt(a.sens, 0)}%`}</td>
+                <td className="px-1 py-2 text-right">{a.spec === undefined ? "—" : `${fmt(a.spec, 0)}%`}</td>
+                <td className="px-1 py-2 text-right">{fmt(lr.pos, 1)}</td>
+                <td className="py-2 pl-1 pr-4 text-right">{fmt(lr.neg, 2)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <details className="text-sm">
-        <summary className="cursor-pointer font-semibold">Referencias</summary>
-        <ul className="mt-1 list-disc space-y-1 pl-5 text-text-muted">
-          {[...new Set(t.accuracy.map((a) => `${a.citation}${a.doi ? ` doi:${a.doi}` : ""}`))].map((c) => (
-            <li key={c}>{c}</li>
-          ))}
-        </ul>
-      </details>
-      {best && (
-        <Card className="flex flex-col gap-2">
-          <h3 className="font-semibold">Qué cambia el resultado</h3>
+      {best && (best.lr.pos !== null || best.lr.neg !== null) && (
+        <div className="flex flex-col gap-2 rounded-xl bg-surface p-3">
+          <p className="text-sm font-semibold">Qué cambia el resultado</p>
           <label className="flex flex-col gap-1 text-sm">
             <span>
-              Probabilidad antes del test (tu sospecha): <span className="nums font-semibold">{pre} %</span>
+              Tu sospecha antes del test: <span className="nums font-semibold">{pre} %</span>
             </span>
-            <input type="range" min={5} max={95} step={5} value={pre} onChange={(e) => setPre(Number(e.target.value))} className="accent-[var(--color-accent)]" />
+            <input type="range" min={5} max={95} step={5} value={pre} onChange={(e) => setPre(Number(e.target.value))} aria-label="Probabilidad antes del test" className="accent-[var(--color-accent)]" />
           </label>
-          <dl className="nums grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+          <dl className="nums grid grid-cols-2 gap-2 text-sm">
             {best.lr.pos !== null && (
-              <>
-                <dt className="font-semibold">Si es positivo</dt>
-                <dd>
-                  {fmt(postTest(pre, best.lr.pos), 0)} % · {lrMeaning(best.lr.pos, true)}
-                </dd>
-              </>
+              <div className="rounded-lg bg-bg p-2">
+                <dt className="text-xs text-text-muted">Si es positivo</dt>
+                <dd className="text-xl font-semibold">{fmt(postTest(pre, best.lr.pos), 0)} %</dd>
+                <dd className="text-xs text-text-muted">{lrMeaning(best.lr.pos, true)}</dd>
+              </div>
             )}
             {best.lr.neg !== null && (
-              <>
-                <dt className="font-semibold">Si es negativo</dt>
-                <dd>
-                  {fmt(postTest(pre, best.lr.neg), 0)} % · {lrMeaning(best.lr.neg, false)}
-                </dd>
-              </>
+              <div className="rounded-lg bg-bg p-2">
+                <dt className="text-xs text-text-muted">Si es negativo</dt>
+                <dd className="text-xl font-semibold">{fmt(postTest(pre, best.lr.neg), 0)} %</dd>
+                <dd className="text-xs text-text-muted">{lrMeaning(best.lr.neg, false)}</dd>
+              </div>
             )}
           </dl>
-          <p className="text-xs text-text-muted">Con los datos de {best.a.source}. La sospecha previa la pones tú según la historia y el resto de la exploración.</p>
-        </Card>
+          <p className="text-xs text-text-muted">Con los datos de {best.a.source}.</p>
+        </div>
       )}
-    </Section>
+      <ul className="flex flex-col gap-1 text-xs text-text-muted">
+        {[...new Set(t.accuracy.map((a) => `${a.citation}${a.doi ? ` doi:${a.doi}` : ""}`))].map((c) => (
+          <li key={c}>{c}</li>
+        ))}
+      </ul>
+    </div>
   );
 }

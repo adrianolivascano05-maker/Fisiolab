@@ -2,7 +2,7 @@
 import { expect, expectAccessible, test } from "./fixtures";
 
 test.describe("Galería de tests", () => {
-  test("G1 articulación → patología → test, con figura, evidencia y favoritos", async ({ page }) => {
+  test("G1 articulación → patología → test, con animación, desplegables y favoritos", async ({ page }) => {
     await page.goto("./");
     await page.getByRole("link", { name: "Exploración" }).click();
     await expect(page.getByRole("heading", { name: "Exploración" })).toBeVisible();
@@ -10,6 +10,9 @@ test.describe("Galería de tests", () => {
     await page.getByRole("link", { name: /^Rodilla/ }).click();
     await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
     await expectAccessible(page);
+    // La primera patología está abierta; las demás se despliegan.
+    await page.getByText("Menisco", { exact: true }).click();
+    await expect(page.getByRole("link", { name: /McMurray/ })).toBeVisible();
     await page.getByRole("link", { name: /Lachman/ }).first().click();
     await expect(page.getByRole("img", { name: /Lachman/ }).first()).toBeVisible();
     // Animación: fases con su texto, pausa y avance manual.
@@ -18,10 +21,18 @@ test.describe("Galería de tests", () => {
     await expect(page.locator("figcaption").first()).toContainText("Positivo si");
     await page.getByRole("button", { name: "1. Colocación" }).first().click();
     await expect(page.locator("figcaption").first()).toContainText(/supino/i);
-    await expect(page.getByRole("heading", { name: "Cómo se hace" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Evidencia" })).toBeVisible();
+    // Desplegables: «Cómo se hace» abierto; la evidencia se abre y se recuerda.
+    await expect(page.getByText("Estabiliza el fémur", { exact: false })).toBeVisible();
+    await page.getByText("Evidencia y fuentes").click();
+    await expect(page.getByText("Qué cambia el resultado")).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Añadir a favoritos" }).click();
+    await page.reload();
+    await expect(page.getByText("Qué cambia el resultado")).toBeVisible();
+    await page.getByRole("button", { name: "Abrir todo" }).click();
+    await expect(page.getByText("Precauciones")).toBeVisible();
+    await page.getByRole("button", { name: "Cerrar todo" }).click();
+    await expect(page.getByText("Qué cambia el resultado")).toBeHidden();
     await page.getByRole("link", { name: "Volver" }).click();
     await page.getByRole("link", { name: "Volver" }).click();
     await expect(page.getByRole("heading", { name: "Favoritos" })).toBeVisible();
@@ -39,11 +50,9 @@ test.describe("Galería de tests", () => {
     await page.goto("./exploracion");
     await page.getByLabel("Buscar un test").fill("Lachman");
     await page.getByRole("list", { name: "Resultados" }).getByRole("link").first().click();
-    const calc = page.getByText("Qué cambia el resultado");
-    if (await calc.count()) {
-      await expect(page.getByText("Si es positivo")).toBeVisible();
-      await page.getByLabel(/Probabilidad antes del test/).fill("50");
-      await expect(page.getByText(/50 %/).first()).toBeVisible();
-    }
+    await page.getByText("Evidencia y fuentes").click();
+    await expect(page.getByText("Si es positivo")).toBeVisible();
+    await page.getByLabel("Probabilidad antes del test").fill("50");
+    await expect(page.getByText(/50 %/).first()).toBeVisible();
   });
 });

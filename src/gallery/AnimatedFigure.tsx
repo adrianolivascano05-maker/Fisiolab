@@ -63,64 +63,50 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
   }, [playing, visible, spec, title, uid]);
 
   const ph = phases[phaseOf(t)]!;
+  const jump = (v: number) => {
+    setPlaying(false);
+    tRef.current = v;
+    setT(v);
+    if (box.current) box.current.innerHTML = renderFrame(spec, title, uid, v, false);
+  };
   return (
-    <figure className="flex flex-col gap-2">
-      <div
-        ref={box}
-        className="aspect-[4/3] w-full overflow-hidden rounded-lg border border-border bg-bg [&>svg]:h-full [&>svg]:w-full"
-        style={figVars}
-        dangerouslySetInnerHTML={{ __html: still }}
-      />
-      <div className="flex items-center gap-2">
+    <figure className="flex flex-col overflow-hidden rounded-2xl border border-border bg-bg">
+      <div className="relative">
+        <div ref={box} className="aspect-[4/3] w-full [&>svg]:h-full [&>svg]:w-full" style={figVars} dangerouslySetInnerHTML={{ __html: still }} />
         <button
           type="button"
           onClick={() => setPlaying((p) => !p)}
           aria-label={playing ? "Pausar la animación" : "Reproducir la animación"}
-          className="tap inline-flex shrink-0 items-center justify-center rounded-md border border-border-input hover:bg-surface"
+          className="absolute bottom-2 right-2 inline-flex size-11 items-center justify-center rounded-full bg-bg/90 text-text shadow-sm ring-1 ring-border backdrop-blur hover:bg-surface"
         >
           {playing ? <Pause aria-hidden="true" className="size-5" /> : <Play aria-hidden="true" className="size-5" />}
         </button>
-        <input
-          type="range"
-          min={0}
-          max={1000}
-          value={Math.round(t * 1000)}
-          aria-label="Momento de la maniobra"
-          aria-valuetext={ph.label}
-          onChange={(e) => {
-            const v = Number(e.target.value) / 1000;
-            setPlaying(false);
-            tRef.current = v;
-            setT(v);
-            if (box.current) box.current.innerHTML = renderFrame(spec, title, uid, v, false);
-          }}
-          className="flex-1 accent-[var(--color-accent)]"
-        />
       </div>
-      <ol className="flex gap-1" aria-label="Fases">
+      <input
+        type="range"
+        min={0}
+        max={1000}
+        value={Math.round(t * 1000)}
+        aria-label="Momento de la maniobra"
+        aria-valuetext={ph.label}
+        onChange={(e) => jump(Number(e.target.value) / 1000)}
+        className="mx-3 mt-2 h-6 accent-[var(--color-accent)]"
+      />
+      <ol className="mx-3 flex gap-1 rounded-lg bg-surface p-1" aria-label="Fases">
         {phases.slice(0, 3).map((p, i) => (
           <li key={p.id} className="flex-1">
             <button
               type="button"
               aria-current={ph.id === p.id ? "step" : undefined}
-              onClick={() => {
-                const v = (p.from + p.to) / 2 + (p.id === "move" ? 0.1 : 0);
-                setPlaying(false);
-                tRef.current = v;
-                setT(v);
-                if (box.current) box.current.innerHTML = renderFrame(spec, title, uid, v, false);
-              }}
-              className={cx(
-                "w-full rounded-md px-2 py-1 text-xs font-semibold",
-                ph.id === p.id ? "bg-accent text-on-accent" : "bg-surface text-text-muted hover:text-text",
-              )}
+              onClick={() => jump((p.from + p.to) / 2 + (p.id === "move" ? 0.1 : 0))}
+              className={cx("h-9 w-full rounded-md text-xs font-semibold transition-colors", ph.id === p.id ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text")}
             >
               {i + 1}. {p.label}
             </button>
           </li>
         ))}
       </ol>
-      <figcaption className="min-h-[4.5rem] text-sm" aria-live="off">
+      <figcaption className="min-h-[4.5rem] px-4 pb-3 pt-2 text-sm leading-relaxed" aria-live="off">
         {ph.id === "back" ? texts.setup : texts[ph.id]}
       </figcaption>
     </figure>
