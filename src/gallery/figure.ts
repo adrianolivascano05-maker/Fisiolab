@@ -10,10 +10,12 @@
  *  codo = flexión, tobillo = flexión dorsal (+) o plantar (−), tronco = inclinación hacia delante,
  *  cuello = flexión. En vista frontal: hombro = abducción, cadera = abducción, rodilla = valgo (+),
  *  codo = flexión hacia la cabeza (posición 90/90), tronco = inclinación lateral a la derecha (+),
- *  cuello = inclinación lateral a la derecha (+). */
+ *  cuello = inclinación lateral a la derecha (+). En las dos vistas: mandíbula = apertura de la boca, en
+ *  grados de giro de la mandíbula (0 cerrada, unos 30 en la apertura máxima; solo se ve en 3D). */
 export type JointKey =
   | "trunk"
   | "neck"
+  | "jaw"
   | "r_shoulder"
   | "r_elbow"
   | "r_wrist"
@@ -31,7 +33,9 @@ export type Posture = "standing" | "sitting" | "supine" | "prone" | "sidelying" 
 
 /** Punto de anclaje: una articulación ("r_knee", "pelvis", "head", "neck", "lumbar", "thoracic") o un
  *  punto a lo largo de un segmento ("r_shank@0.8": al 80 % de la pierna desde la rodilla). Segmentos:
- *  trunk, neck, r_upperarm, r_forearm, r_hand, r_thigh, r_shank, r_foot (y los l_). */
+ *  trunk, neck, r_upperarm, r_forearm, r_hand, r_thigh, r_shank, r_foot (y los l_). En la cara: "jaw"
+ *  (mentón), "mouth", "r_tmj" y "l_tmj" (articulación temporomandibular) y "depressor" (extremo del
+ *  depresor lingual, si la figura lo lleva). */
 export type Anchor = string;
 
 /** Dirección anatómica (respecto al cuerpo, sea cual sea la postura). En vista lateral: anterior,
@@ -57,6 +61,8 @@ export type FigureSpec = {
   arrows?: Arrow[];
   /** Zona de dolor o síntoma que busca el test. */
   pain?: Anchor[];
+  /** Objeto en la escena: un depresor lingual entre los molares del lado derecho (solo en 3D). */
+  prop?: "depressor";
   caption?: string;
 };
 
@@ -234,6 +240,12 @@ export function anchorPoint(p: Pose, anchor: Anchor): V | null {
     return seg ? lerp(seg.a, seg.b, k) : null;
   }
   if (name === "head") return p.head;
+  // Cara: respecto al centro de la cabeza (en la vista frontal, `across` va hacia la izquierda del paciente).
+  const face = (down: number, fwd: number, left = 0): V => add(add(add(p.head, p.up, -down), p.fwd, fwd), p.across, left);
+  if (name === "jaw") return face(9, 4.5);
+  if (name === "mouth") return face(5.5, 7);
+  if (name === "r_tmj" || name === "l_tmj") return face(1.5, 0.5, name === "r_tmj" ? -6.5 : 6.5);
+  if (name === "depressor") return face(5.5, 15, -2.5);
   if (name === "lumbar") return lerp(p.points.pelvis!, p.points.shoulder!, 0.15);
   if (name === "thoracic") return lerp(p.points.pelvis!, p.points.shoulder!, 0.65);
   const m = name.match(/^(r|l)_(\w+)$/);

@@ -20,7 +20,7 @@ const limbZero = () => ({ flex: 0, abd: 0 });
 type Stance = "stand" | "squat" | "deep" | "kneel" | "heels";
 function stanceAngles(kind: Stance, lean: number, neck: number): BodyAngles {
   const L = () => ({ shoulder: { flex: 4, abd: 8 }, elbow: { flex: 14, abd: 0 }, wrist: limbZero(), hip: { flex: lean, abd: 5 }, knee: { flex: 4, abd: 0 }, ankle: limbZero() });
-  const A: BodyAngles = { trunkFlex: lean, trunkLat: 0, neckFlex: neck, neckLat: 0, neckYaw: 0, r: L(), l: L() };
+  const A: BodyAngles = { trunkFlex: lean, trunkLat: 0, neckFlex: neck, neckLat: 0, neckYaw: 0, jaw: 0, r: L(), l: L() };
   if (kind === "squat" || kind === "deep") {
     const kf = kind === "squat" ? 50 : 95;
     for (const s of ["r", "l"] as const) {
@@ -85,17 +85,21 @@ export function planExaminer(spec: FigureSpec, poses: Pose3[], table: Table | nu
   const lying = LYING.includes(spec.posture);
   const sides = hands.map(anchorSide);
   const side: Side = sides.filter((s) => s === "l").length > sides.filter((s) => s === "r").length ? "l" : "r";
-  const headish = hands.every((h) => /^(head|neck)/.test(h));
+  const FACE = /^(head|neck|jaw|mouth|depressor|[rl]_tmj)/;
+  const headish = hands.every((h) => FACE.test(h));
   const midline = sides.every((s) => s === null);
 
   // Desde dónde se acerca (vector horizontal del centro de las manos hacia el examinador).
   let d: Vector3 | null = null;
-  const armish = hands.every((h) => /_(shoulder|upperarm|elbow|forearm|wrist|hand|handtip)/.test(h) || /^(head|neck|thoracic|trunk)/.test(h));
+  const armish = hands.every((h) => /_(shoulder|upperarm|elbow|forearm|wrist|hand|handtip)/.test(h) || FACE.test(h) || /^(thoracic|trunk)/.test(h));
   if (lying) {
     if (headish && spec.posture !== "sidelying") d = dirOf(new Vector3(0, 1, 0));
     else if (spec.posture === "sidelying") d = dirOf(new Vector3(0, 0, -1));
     else d = dirOf(new Vector3(sgn(side), 0, 0));
-  } else if (midline || (sides.includes("r") && sides.includes("l"))) d = dirOf(new Vector3(0, 0, -1));
+  }
+  // Depresor lingual (sale por el lado derecho de la boca): el examinador delante y a ese lado.
+  else if (hands.includes("depressor")) d = dirOf(new Vector3(-0.8, 0, 1));
+  else if (midline || (sides.includes("r") && sides.includes("l"))) d = dirOf(new Vector3(0, 0, -1));
   else if (armish) d = dirOf(new Vector3(sgn(side), 0, -0.45));
   else {
     const v = flat(c.clone().sub(p0.root.p));

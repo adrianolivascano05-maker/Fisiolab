@@ -117,11 +117,30 @@ export const HEAD: [number, number, number, number][] = [
 ];
 export const HEAD_EXT = { x: 7.7, up: 13, down: 12.2, front: 9.4, back: 9.9 };
 
+/** Eje de la mandíbula (las dos ATM, delante de las orejas), en coordenadas de la cabeza. */
+export const JAW_PIVOT = { y: -1.6, z: 0.6 };
+/** Altura de los labios (comisura) en la cara. */
+export const LIPS_Y = -6.2;
+
+/** Un punto de la cara que va con la mandíbula, girado `deg` grados (abrir la boca es positivo). */
+export function jawPoint(v: Vector3, deg: number): Vector3 {
+  const a = rad(deg);
+  const y = v.y - JAW_PIVOT.y;
+  const z = v.z - JAW_PIVOT.z;
+  return new Vector3(v.x, JAW_PIVOT.y + y * Math.cos(a) - z * Math.sin(a), JAW_PIVOT.z + y * Math.sin(a) + z * Math.cos(a));
+}
+
+/** Superficie de la cara (z) en la línea media a una altura de la cabeza. */
+export const faceZ = (y: number) => profileAt(HEAD, y)[1]!;
+
+/** Depresor lingual entre los molares derechos: extremo de dentro y de fuera, en coordenadas de la cabeza. */
+export const DEPRESSOR = { inner: new Vector3(-2, LIPS_Y - 0.05, 4), outer: new Vector3(-3.2, LIPS_Y - 0.05, 17) };
+
 export type Xf = { p: Vector3; q: Quaternion };
 /** Ángulos de una articulación; `twist` (solo muñeca) gira el antebrazo sobre su eje antes de doblarla. */
 export type JA = { flex: number; abd: number; twist?: number };
 type Limb = Record<"shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle", JA>;
-export type BodyAngles = { trunkFlex: number; trunkLat: number; neckFlex: number; neckLat: number; neckYaw: number; r: Limb; l: Limb };
+export type BodyAngles = { trunkFlex: number; trunkLat: number; neckFlex: number; neckLat: number; neckYaw: number; jaw: number; r: Limb; l: Limb };
 
 export type Pose3 = {
   root: Xf;
@@ -134,6 +153,8 @@ export type Pose3 = {
   head: Xf;
   seg: Record<SegKey, Xf>;
   pt: Record<string, Vector3>;
+  /** Apertura de la boca (grados de giro de la mandíbula). */
+  jaw: number;
 };
 
 export const SPINE_Y0 = -16;
@@ -214,7 +235,7 @@ export function patientAngles(spec: FigureSpec, m: number): BodyAngles {
     const a1 = spec.to?.[k] ?? a0;
     return a0 + (a1 - a0) * m;
   };
-  const A: BodyAngles = { trunkFlex: 0, trunkLat: 0, neckFlex: 0, neckLat: 0, neckYaw: 0, r: limbZero(), l: limbZero() };
+  const A: BodyAngles = { trunkFlex: 0, trunkLat: 0, neckFlex: 0, neckLat: 0, neckYaw: 0, jaw: Math.max(0, val("jaw", false)), r: limbZero(), l: limbZero() };
   if (side) {
     A.trunkFlex = val("trunk", true);
     A.neckFlex = val("neck", true);
@@ -378,7 +399,7 @@ export function fk(rootP: Vector3, rootQ: Quaternion, A: BodyAngles, nudges: Nud
       for (const t of TIPS[d] ?? []) pt[`${s}_${t}`]!.add(v);
     }
   }
-  return { root: { p: rootP.clone(), q: rootQ.clone() }, trunkQ: chestQ, pelvisQ, spine, neck: { p: neckBase, q: neckQ }, head: { p: headC, q: headQ }, seg, pt };
+  return { root: { p: rootP.clone(), q: rootQ.clone() }, trunkQ: chestQ, pelvisQ, spine, neck: { p: neckBase, q: neckQ }, head: { p: headC, q: headQ }, seg, pt, jaw: A.jaw };
 }
 
 /** Marco de la columna a una altura (interpolado). */
@@ -460,6 +481,22 @@ export function anchorInfo(pose: Pose3, anchor: Anchor): AnchorInfo | null {
   if (name === "shoulder") return trunk(DIM.shoulderY);
   if (name === "trunk") return trunk(50 * Number(tStr ?? 0.5));
   if (name === "head") return { p: pose.head.p.clone(), part: "head", axis: up(pose.head.q), frame: pose.head.q, sec: circle(8), ellipsoid: true, limb: false };
+  // Cara: puntos de la cabeza; el mentón y la boca bajan con la mandíbula.
+  const face = (local: Vector3, r: number, axis = new Vector3(0, -1, 0)): AnchorInfo => ({
+    p: pose.head.p.clone().add(local.applyQuaternion(pose.head.q)),
+    part: "head",
+    axis: axis.applyQuaternion(pose.head.q),
+    frame: pose.head.q,
+    sec: circle(r),
+    limb: false,
+  });
+  if (name === "jaw") return face(jawPoint(new Vector3(0, -10.4, 6), pose.jaw), 2.4);
+  if (name === "mouth") {
+    const lower = jawPoint(new Vector3(0, LIPS_Y - 0.3, faceZ(LIPS_Y - 0.3) - 1.2), pose.jaw);
+    return face(new Vector3(0, LIPS_Y + 0.2, faceZ(LIPS_Y) - 1.2).lerp(lower, 0.5), 1.2);
+  }
+  if (name === "r_tmj" || name === "l_tmj") return face(new Vector3(name === "r_tmj" ? -6.2 : 6.2, JAW_PIVOT.y - 0.4, JAW_PIVOT.z + 0.6), 1.5);
+  if (name === "depressor") return face(DEPRESSOR.outer.clone().lerp(DEPRESSOR.inner, 0.08), 1, DEPRESSOR.outer.clone().sub(DEPRESSOR.inner).normalize());
   if (name === "neck") {
     const k = tStr === undefined ? 1 : Number(tStr);
     const p = pose.pt.neckBase!.clone().lerp(pose.pt.neck!, k);

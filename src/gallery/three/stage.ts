@@ -101,6 +101,8 @@ export class Stage {
   private drag: { x: number; y: number; az: number; el: number } | null = null;
   private custom = false;
   private tableGroup: Group | null = null;
+  /** Test de la cara (ATM): plano cercano de la cabeza. */
+  private readonly faceOnly: boolean;
 
   constructor(
     private readonly host: HTMLElement,
@@ -145,6 +147,9 @@ export class Stage {
     fill.position.set(-200, 120, -150);
     this.scene.add(fill);
 
+    const anchors = [...(spec.hands ?? []), ...(spec.pain ?? []), ...(spec.arrows ?? []).map((a) => a.at)];
+    this.faceOnly = anchors.length > 0 && anchors.every((a) => /^(jaw|mouth|depressor|[rl]_tmj)$/.test(a));
+
     // Paciente colocado en el suelo, la camilla o sentado en el borde de la camilla.
     this.layout = layoutPatient(spec);
     this.rootQ = this.layout.rootQ;
@@ -154,6 +159,7 @@ export class Stage {
     const poses = [0, 1].map((m) => this.patientPose(m, 0));
     this.plan = planExaminer(spec, poses, this.table);
     this.examiner = this.plan ? new Person("examiner") : null;
+    if (spec.prop === "depressor") this.patient.addDepressor();
     this.scene.add(this.patient.group);
     if (this.examiner) this.scene.add(this.examiner.group);
 
@@ -388,7 +394,7 @@ export class Stage {
       s.visible = pain > 0.01 && !!info;
       if (!info) return;
       s.position.copy(info.p);
-      s.scale.setScalar(17 + 5 * pulse);
+      s.scale.setScalar((17 + 5 * pulse) * (this.faceOnly ? 0.45 : 1));
       (s.material as SpriteMaterial).opacity = 0.85 * pain;
     });
   }
@@ -477,7 +483,9 @@ export class Stage {
       h = turn(h, spec.view === "side" ? 18 : -18);
     } else {
       el = 12;
-      h = turn(h, spec.view === "side" ? (spec.near === "l" ? -28 : 28) : 24);
+      // La cara se ve mejor de tres cuartos por delante.
+      const t = this.faceOnly ? 58 : 28;
+      h = turn(h, spec.view === "side" ? (spec.near === "l" ? -t : t) : 24);
     }
     return { az: Math.atan2(h.x, h.z), el: rad(el) };
   }
@@ -614,13 +622,15 @@ export class Stage {
       }
       // Contexto: el miembro entero (o cabeza y hombros) donde está la zona del test.
       for (const a of [...(spec.hands ?? []), ...(spec.pain ?? [])]) {
-        const side = a.match(/^(r|l)_(\w+)/);
+        const side = /^[rl]_tmj/.test(a) ? null : a.match(/^(r|l)_(\w+)/);
         const keys = side
           ? /shoulder|upperarm|elbow|forearm|wrist|hand/.test(side[2]!)
             ? ["shoulder", "elbow", "wrist", "handtip"].map((k) => `${side[1]}_${k}`)
             : ["hip", "knee", "ankle", "foottip"].map((k) => `${side[1]}_${k}`)
-          : /^(head|neck)/.test(a)
-            ? ["head", "neck", "chest"]
+          : /^(head|neck|jaw|mouth|depressor|[rl]_tmj)/.test(a)
+            ? this.faceOnly
+              ? ["head"]
+              : ["head", "neck", "chest"]
             : ["pelvis", "chest"];
         for (const k of keys) if (pat.pt[k]) roi.push(pat.pt[k]!);
       }
@@ -655,7 +665,7 @@ export class Stage {
     let use = all;
     if (roi.length) {
       const r = extent(roi);
-      const need = Math.max(size(r) + 60, 110);
+      const need = this.faceOnly ? Math.max(size(r) + 26, 52) : Math.max(size(r) + 60, 110);
       if (need < size(full) * 0.92) {
         const cx = (r.x0 + r.x1) / 2;
         const cy = (r.y0 + r.y1) / 2;

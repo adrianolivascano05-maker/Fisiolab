@@ -1,8 +1,9 @@
 // Maniquí 3D: paciente o examinador, con formas de persona (tronco con pecho, cintura y glúteos, músculos
-// de brazos y piernas, manos y pies de su tamaño, cabeza con nariz y orejas) y ropa sencilla. Cada pieza
+// de brazos y piernas, manos y pies de su tamaño, cabeza con ojos, nariz, orejas y boca que se abre) y ropa
+// sencilla. Cada pieza
 // es una malla propia que se coloca con la pose del esqueleto (rig.ts); el tronco se curva con la columna.
-import { BufferGeometry, CapsuleGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, SphereGeometry, Vector3 } from "three";
-import { HEAD, LIMB, LIMBS, profileAt, sgn, spineAt, TORSO, type LimbSeg, type Pose3, type Section, type SegKey, type Side } from "./rig";
+import { BoxGeometry, BufferGeometry, CapsuleGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, SphereGeometry, Vector3 } from "three";
+import { DEPRESSOR, faceZ, HEAD, jawPoint, LIMB, LIMBS, LIPS_Y, profileAt, sgn, spineAt, TORSO, type LimbSeg, type Pose3, type Section, type SegKey, type Side } from "./rig";
 
 export type Look = "patient" | "examiner";
 
@@ -171,14 +172,21 @@ function footGeometry(paint: Color): BufferGeometry {
 }
 
 function headGeometry(skin: Color, hair: Color, look: Look): BufferGeometry {
-  const ys = steps(HEAD[0]![0], HEAD[HEAD.length - 1]![0], 0.7);
+  // Malla fina: el borde del pelo y la mandíbula se ven de cerca.
+  const ys = steps(HEAD[0]![0], HEAD[HEAD.length - 1]![0], 0.4);
   const rings: Ring[] = ys.map((y) => {
     const [a, zf, zb] = profileAt(HEAD, y) as [number, number, number];
     return { y, sec: { xp: a, xn: a, zp: (zf - zb) / 2, zn: (zf - zb) / 2 }, zc: (zf + zb) / 2, e: 2.15 };
   });
   const line = look === "patient" ? 4.2 : 3.6;
-  return loft(rings, 30, (p) => (p.y - p.z * 0.58 > line || (p.y > 10.8 && p.z < 3) ? hair : skin)).geo;
+  return loft(rings, 64, (p) => (p.y - p.z * 0.58 > line || (p.y > 10.8 && p.z < 3) ? hair : skin)).geo;
 }
+
+/** 0 en a, 1 en b, con transición suave (a puede ser mayor que b). */
+const ramp = (a: number, b: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
 
 const colorAttr = (geo: BufferGeometry, c: Color) => {
   geo.setAttribute("color", new Float32BufferAttribute(new Array(geo.attributes.position!.count).fill(0).flatMap(() => [c.r, c.g, c.b]), 3));
@@ -196,6 +204,12 @@ export class Person {
   private readonly seg = {} as Record<SegKey, Object3D>;
   private readonly neck: Object3D;
   private readonly head: Object3D;
+  private readonly headMesh: Mesh;
+  private readonly headRest: Float32Array;
+  private readonly jawW: Float32Array;
+  private readonly mouth: Mesh;
+  private readonly teeth: Mesh[];
+  private jaw = NaN;
 
   constructor(readonly look: Look) {
     const P = PALETTE[look];
@@ -224,17 +238,16 @@ export class Person {
     };
 
     // Tronco: se rehace en cada pose siguiendo la columna.
-    const ys = steps(TORSO[0]![0], TORSO[TORSO.length - 1]![0], 1.1, [14, look === "patient" ? 52.5 : 0]);
+    const ys = steps(TORSO[0]![0], TORSO[TORSO.length - 1]![0], 1.1, look === "patient" ? [14, 52.5] : [8, 53.5]);
     const waist = 14;
     const rings: Ring[] = ys.map((y) => {
       const [a, ant, post] = profileAt(TORSO, y) as [number, number, number];
-      const clothed = look === "patient" ? y < 52.5 : y < 55;
+      const clothed = y < (look === "patient" ? 52.5 : 53.5);
       return { y, sec: { xp: a, xn: a, zp: ant, zn: post }, e: 2.5, inflate: clothed ? 1.012 : 1 };
     });
     const torsoPaint: Paint = (p) => {
       if (look === "patient") return p.y > 52.5 ? cl.skin : p.y < waist ? cl.bottom : cl.top;
-      if (p.y > 55 || (p.z > 0 && p.y > 46.5 + Math.abs(p.x) * 1.1)) return cl.skin;
-      return p.y < 8 ? cl.bottom : cl.top;
+      return p.y > 53.5 ? cl.skin : p.y < 8 ? cl.bottom : cl.top;
     };
     const t = loft(rings, 36, torsoPaint);
     this.torsoRings = rings.map((r, i) => ({ y: r.y, pts: t.rest[i]! }));
@@ -246,7 +259,18 @@ export class Person {
     const neckRings: Ring[] = steps(-1.5, 10, 1).map((y) => ({ y, sec: { xp: 5.1, xn: 5.1, zp: 5.2, zn: 5.6 }, zc: 0.3 }));
     this.neck = add(new Mesh(loft(neckRings, 20, () => cl.skin).geo, mat), "neck");
     const head = new Group();
-    head.add(new Mesh(headGeometry(cl.skin, cl.hair, look), mat));
+    this.headMesh = new Mesh(headGeometry(cl.skin, cl.hair, look), mat);
+    head.add(this.headMesh);
+    // La parte baja de la cara gira con la mandíbula: peso 0 por encima de los labios, 1 por debajo.
+    const hp = this.headMesh.geometry.attributes.position as Float32BufferAttribute;
+    this.headRest = Float32Array.from(hp.array as Float32Array);
+    this.jawW = new Float32Array(hp.count);
+    for (let i = 0; i < hp.count; i++) this.jawW[i] = ramp(LIPS_Y + 0.25, LIPS_Y - 0.55, hp.getY(i)) * ramp(-2, 3, hp.getZ(i));
+    // Boca: interior oscuro (una línea con la boca cerrada) y dientes que asoman al abrirla.
+    const sphere = (c: string) => new Mesh(colorAttr(new SphereGeometry(1, 18, 12), new Color(c)), mat);
+    this.mouth = sphere("#4a2224");
+    this.teeth = [sphere("#f2ede4"), sphere("#f2ede4")];
+    head.add(this.mouth, ...this.teeth);
     const nose = new Mesh(colorAttr(new SphereGeometry(1, 12, 10), cl.skin), mat);
     nose.scale.set(1.15, 2.1, 1.5);
     nose.position.set(0, -1.6, 9.2);
@@ -266,6 +290,7 @@ export class Person {
       head.add(ear);
     }
     this.head = add(head, "head");
+    this.setJaw(0);
 
     // Brazos y piernas, con esferas en codos y rodillas para que la flexión no deje huecos.
     for (const s of ["r", "l"] as const) {
@@ -309,6 +334,7 @@ export class Person {
     this.neck.quaternion.copy(pose.neck.q);
     this.head.position.copy(pose.head.p);
     this.head.quaternion.copy(pose.head.q);
+    this.setJaw(pose.jaw);
 
     const pos = this.torso.geometry.attributes.position as Float32BufferAttribute;
     const arr = pos.array as Float32Array;
@@ -334,6 +360,67 @@ export class Person {
     this.torso.geometry.computeBoundingSphere();
     this.torso.geometry.computeBoundingBox();
     this.group.updateMatrixWorld(true);
+  }
+
+  /** Abre la boca: gira la mandíbula y coloca labios y dientes. */
+  private setJaw(deg: number) {
+    if (deg === this.jaw) return;
+    this.jaw = deg;
+    const pos = this.headMesh.geometry.attributes.position as Float32BufferAttribute;
+    const arr = pos.array as Float32Array;
+    const rest = this.headRest;
+    const v = new Vector3();
+    for (let i = 0; i < pos.count; i++) {
+      const k = i * 3;
+      const w = this.jawW[i]!;
+      if (w === 0 || deg === 0) {
+        arr[k + 1] = rest[k + 1]!;
+        arr[k + 2] = rest[k + 2]!;
+        continue;
+      }
+      const p = jawPoint(v.set(rest[k]!, rest[k + 1]!, rest[k + 2]!), deg * w);
+      arr[k + 1] = p.y;
+      arr[k + 2] = p.z;
+    }
+    pos.needsUpdate = true;
+    this.headMesh.geometry.computeVertexNormals();
+    this.headMesh.geometry.computeBoundingSphere();
+    // La abertura va de un labio al otro; la boca (y los dientes) se apoyan delante de esa línea.
+    const lip = (y: number) => new Vector3(0, y, faceZ(y));
+    const up = lip(LIPS_Y + 0.15);
+    const low = jawPoint(lip(LIPS_Y - 0.35), deg);
+    const span = low.clone().sub(up);
+    const gap = span.length();
+    const open = Math.max(0, gap - 0.5);
+    const dir = span.clone().normalize();
+    const phi = Math.atan2(-dir.z, -dir.y);
+    const out = new Vector3(0, -Math.sin(phi), Math.cos(phi));
+    this.mouth.position.copy(up).lerp(low, 0.5).addScaledVector(out, 0.12);
+    this.mouth.rotation.x = phi;
+    this.mouth.scale.set(2.3 - open * 0.08, 0.17 + gap / 2 - 0.25, 0.3);
+    const t = Math.min(1, Math.max(0, (open - 0.4) / 1.2));
+    const [top, bottom] = this.teeth as [Mesh, Mesh];
+    top.visible = bottom.visible = t > 0.02;
+    for (const [m, at, sign] of [
+      [top, up, 1],
+      [bottom, low, -1],
+    ] as const) {
+      m.position.copy(at).addScaledVector(dir, sign * 0.55).addScaledVector(out, 0.28);
+      m.rotation.x = phi;
+      m.scale.set(sign > 0 ? 1.5 : 1.35, 0.42 * t, 0.2);
+    }
+  }
+
+  /** Depresor lingual entre los molares derechos (va con la cabeza). */
+  addDepressor() {
+    const { inner, outer } = DEPRESSOR;
+    const dir = outer.clone().sub(inner);
+    const stick = new Mesh(colorAttr(new BoxGeometry(1.8, 0.22, dir.length()), new Color("#e2c48f")), this.mat);
+    stick.position.copy(inner.clone().lerp(outer, 0.5));
+    stick.rotation.y = Math.atan2(dir.x, dir.z);
+    stick.castShadow = true;
+    this.head.add(stick);
+    this.parts.set(stick, "head");
   }
 
   /** Para que el examinador no se pegue: piezas para elegir cámara y comprobar si algo tapa. */

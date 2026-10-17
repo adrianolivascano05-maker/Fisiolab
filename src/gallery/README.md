@@ -14,7 +14,7 @@ en la base de datos: solo los favoritos, en el navegador.
 | `three/` | figuras en 3D (three.js): maniquíes de paciente y examinador movidos por un esqueleto (los segmentos nunca cambian de longitud), camilla, flechas, síntoma y etiquetas; la cámara se elige sola para que se vean las manos y la zona del test, y se puede girar |
 | `three/rig.ts` | esqueleto: medidas, ángulos a partir de la `FigureSpec`, cinemática directa y puntos del cuerpo |
 | `three/layout.ts`, `three/examiner.ts` | dónde va el paciente (suelo, camilla, borde) y dónde se pone el examinador, cuánto se agacha y sus brazos (cinemática inversa) |
-| `three/person.ts`, `three/stage.ts` | mallas de los maniquíes y la escena (luces, sombras, cámara, giro con el dedo) |
+| `three/person.ts`, `three/stage.ts` | mallas de los maniquíes (con boca que se abre: articulación `jaw`) y la escena (luces, sombras, cámara, giro con el dedo) |
 | `three/cameras.json` | cámaras precalculadas; si se cambia una figura, se rehace con `scripts/gallery3d-cameras.mjs` (la prueba `three/rig.test.ts` avisa) |
 | `AnimatedFigure.tsx` | reproductor: 3D (o dibujo plano), pausa, avance manual, giro y texto de cada fase; respeta «reducir movimiento» |
 | `Disclosure.tsx` | desplegables que recuerdan si se dejaron abiertos |
