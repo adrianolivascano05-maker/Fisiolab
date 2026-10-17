@@ -26,8 +26,9 @@ export function MarkPage() {
   const [file, setFile] = useState<File | null>(() => videoStore.get(id));
 
   if (test.error) return <Page title="Marcar" backTo="/"><LoadError error={test.error} /></Page>;
-  if (!test.data) return <Page title="Marcar" backTo="/"><Loading /></Page>;
+  if (test.data === undefined) return <Page title="Marcar" backTo="/"><Loading /></Page>;
   const t = test.data;
+  if (!t) return <Page title="Marcar" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
   const back = `/pacientes/${t.patientId}`;
   if (!t.video) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
 
