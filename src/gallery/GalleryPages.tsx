@@ -22,10 +22,18 @@ const utilityLabels: Record<SpecialTest["utility"], string> = {
   alta: "Utilidad alta",
   moderada: "Utilidad moderada",
   baja: "Utilidad baja",
-  desconocida: "Sin datos comprobados",
+  desconocida: "Sin contrastar",
 };
 
-function UtilityBadge({ u }: { u: SpecialTest["utility"] }) {
+/** Contrastado: con al menos un dato de precisión (sensibilidad, especificidad o LR) publicado y comprobado. */
+export const verified = (t: SpecialTest) =>
+  t.accuracy.some((a) => a.sens !== undefined || a.spec !== undefined || a.lrPos !== undefined || a.lrNeg !== undefined);
+const rank: Record<SpecialTest["utility"], number> = { alta: 0, moderada: 1, baja: 2, desconocida: 3 };
+/** Primero los contrastados (de más a menos útiles) y al final los que están sin contrastar. */
+export const byEvidence = (a: SpecialTest, b: SpecialTest) => Number(verified(b)) - Number(verified(a)) || rank[a.utility] - rank[b.utility];
+
+function UtilityBadge({ u, t }: { u: SpecialTest["utility"]; t?: SpecialTest }) {
+  if (t && !verified(t)) u = "desconocida";
   return (
     <span
       className={cx(
@@ -53,7 +61,7 @@ function TestRow({ t, showRegion }: { t: SpecialTest; showRegion?: boolean }) {
             {showRegion ? `${regionOf(t.region).label} · ${t.group}` : t.purpose}
           </span>
           <span className="flex flex-wrap gap-1">
-            <UtilityBadge u={t.utility} />
+            <UtilityBadge u={t.utility} t={t} />
             {t.kind !== "test" && <span className="rounded-pill bg-surface px-2 py-0.5 text-xs font-semibold">{kindLabels[t.kind]}</span>}
           </span>
         </span>
@@ -75,7 +83,7 @@ export function GalleryHome() {
     return tests.filter((t) => {
       const text = norm([t.name, ...(t.aka ?? []), t.group, t.purpose, regionOf(t.region).label].join(" "));
       return words.every((w) => text.includes(w));
-    });
+    }).sort(byEvidence);
   }, [q]);
   const favs = tests.filter((t) => favorites.includes(t.id));
 
@@ -170,7 +178,7 @@ export function GalleryRegion() {
       </Page>
     );
   }
-  const list = tests.filter((t) => t.region === r.id && (!onlyUseful || t.utility === "alta"));
+  const list = tests.filter((t) => t.region === r.id && (!onlyUseful || (t.utility === "alta" && verified(t)))).sort(byEvidence);
   const groups = [...new Set(tests.filter((t) => t.region === r.id).map((t) => t.group))];
   return (
     <Page title={r.label} backTo={GALLERY}>
@@ -190,16 +198,30 @@ export function GalleryRegion() {
       {groups.map((g, i) => {
         const items = list.filter((t) => t.group === g);
         if (!items.length) return null;
+        const solid = items.filter(verified);
+        const loose = items.filter((t) => !verified(t));
         return (
           <section key={g} aria-labelledby={`g-${i}`} className="flex scroll-mt-20 flex-col gap-2">
             <h2 id={`g-${i}`} className="scroll-mt-20 text-lg">
               {g}
             </h2>
-            <ul className="divide-y divide-border rounded-lg border border-border bg-bg">
-              {items.map((t) => (
-                <TestRow key={t.id} t={t} />
-              ))}
-            </ul>
+            {solid.length > 0 && (
+              <ul className="divide-y divide-border rounded-lg border border-border bg-bg">
+                {solid.map((t) => (
+                  <TestRow key={t.id} t={t} />
+                ))}
+              </ul>
+            )}
+            {loose.length > 0 && (
+              <>
+                <h3 className="text-sm font-semibold text-text-muted">Sin contrastar: sin datos de precisión comprobados</h3>
+                <ul aria-label={`${g}: sin contrastar`} className="divide-y divide-border rounded-lg border border-dashed border-border-input bg-bg">
+                  {loose.map((t) => (
+                    <TestRow key={t.id} t={t} />
+                  ))}
+                </ul>
+              </>
+            )}
           </section>
         );
       })}
@@ -266,7 +288,7 @@ export function GalleryTest() {
         </p>
         {t.aka?.length ? <p className="text-sm text-text-muted">También: {t.aka.join(", ")}</p> : null}
         <div className="flex flex-wrap gap-1">
-          <UtilityBadge u={t.utility} />
+          <UtilityBadge u={t.utility} t={t} />
           {t.kind !== "test" && <span className="rounded-pill bg-surface px-2 py-0.5 text-xs font-semibold">{kindLabels[t.kind]}</span>}
         </div>
       </div>
@@ -327,7 +349,10 @@ function Evidence({ t }: { t: SpecialTest }) {
   if (!rows.length) {
     return (
       <Section title="Evidencia">
-        <p className="text-sm text-text-muted">No se han podido comprobar datos de sensibilidad y especificidad para este test. Úsalo junto con el resto de la exploración.</p>
+        <Alert tone="info" title="Sin contrastar">
+          No se han podido comprobar datos publicados de sensibilidad y especificidad de este test. Úsalo como parte de la exploración, no
+          para confirmar ni descartar por sí solo.
+        </Alert>
       </Section>
     );
   }
