@@ -1,17 +1,17 @@
 feature,area,priority,original,clone,notes
-Lista y búsqueda de pacientes,pacientes,must,yes,no,usuarios ilimitados según Google Play
-Alta y edición de paciente con masa y estatura,pacientes,must,yes,no,la masa es necesaria para fuerza y potencia
-Subir vídeo a cámara lenta y detectar sus fps,vídeo,must,yes,no,grabar desde la web no es fiable: se graba con la cámara del móvil y se sube
-Marcar fotogramas uno a uno en el vídeo,vídeo,must,yes,no,núcleo de todos los tests por vídeo
-CMJ: altura por tiempo de vuelo,saltos,must,yes,no,h = g·t²/8 (fórmula pública)
-SJ: altura por tiempo de vuelo,saltos,must,yes,no,
-Drop jump: tiempo de contacto y RSI,saltos,must,yes,no,
-Fuerza velocidad y potencia de cada salto (Samozino),saltos,must,yes,no,necesita distancia de empuje del paciente
-Guardar cada test en la ficha del paciente,pacientes,must,yes,no,
-Gráfica de evolución de un test,historial,must,yes,no,
-Exportar toda la base de datos a CSV,datos,must,yes,no,
-Datos guardados solo en el dispositivo con copia de seguridad,datos,must,partial,no,decisión del clon por RGPD; el original guarda en el iPhone
-Ayuda de colocación de cámara y marcado en cada test,ayuda,must,yes,no,texto e ilustraciones propios
+Lista y búsqueda de pacientes,pacientes,must,yes,yes,usuarios ilimitados según Google Play; S01
+Alta y edición de paciente con masa y estatura,pacientes,must,yes,yes,la masa es necesaria para fuerza y potencia; S03; también borrar paciente con todo lo suyo
+Subir vídeo a cámara lenta y detectar sus fps,vídeo,must,yes,partial,"grabar desde la web no es fiable: se graba con la cámara del móvil y se sube; S06; lee fps del MP4/MOV y permite indicar los de grabación; probado con vídeos sintéticos, falta un vídeo real de iPhone"
+Marcar fotogramas uno a uno en el vídeo,vídeo,must,yes,yes,"núcleo de todos los tests por vídeo; S07; teclado, arrastre, ±1/±10 fotogramas, lupa en la barra"
+CMJ: altura por tiempo de vuelo,saltos,must,yes,yes,h = g·t²/8 (fórmula pública); S08
+SJ: altura por tiempo de vuelo,saltos,must,yes,yes,S08
+Drop jump: tiempo de contacto y RSI,saltos,must,yes,yes,S08
+Fuerza velocidad y potencia de cada salto (Samozino),saltos,must,yes,yes,necesita distancia de empuje del paciente; S08; solo si el paciente tiene masa y distancia de empuje
+Guardar cada test en la ficha del paciente,pacientes,must,yes,yes,S02
+Gráfica de evolución de un test,historial,must,yes,yes,S22; con tabla de datos accesible
+Exportar toda la base de datos a CSV,datos,must,yes,yes,S24; formato Excel en español (; y coma decimal)
+Datos guardados solo en el dispositivo con copia de seguridad,datos,must,partial,partial,decisión del clon por RGPD; el original guarda en el iPhone; SQLite en OPFS + copia descargable y restaurable; falta hacerla instalable (PWA) para que Safari no borre los datos
+Ayuda de colocación de cámara y marcado en cada test,ayuda,must,yes,partial,texto e ilustraciones propios; texto para CMJ/SJ/DJ en S05; sin ilustraciones
 CMJ con brazos libres,saltos,should,yes,no,
 RSI-mod (altura / tiempo hasta el despegue),saltos,should,yes,no,
 Rigidez vertical en drop jump,saltos,should,yes,no,fórmula a tomar de la literatura
