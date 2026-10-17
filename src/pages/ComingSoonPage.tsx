@@ -13,7 +13,7 @@ export function ComingSoonPage({ title, phase }: { title?: string; phase?: numbe
   return (
     <Page title={name} backTo={back}>
       <EmptyState icon={Hourglass} title="Todavía no está disponible">
-        {name} llega en la fase {phase ?? cat?.phase ?? 2} de la construcción. De momento puedes medir saltos y movilidad.
+        {name} llega en la fase {phase ?? cat?.phase ?? 2} de la construcción. De momento puedes medir saltos, fuerza y movilidad.
       </EmptyState>
       <Link to={back} className="text-center text-accent underline">
         Volver

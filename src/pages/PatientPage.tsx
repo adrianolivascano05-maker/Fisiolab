@@ -1,4 +1,4 @@
-import { Activity, ChartLine, Gauge, Pencil, Plus, Rotate3d, Scale } from "lucide-react";
+import { Activity, ChartLine, Dumbbell, Gauge, Pencil, Plus, Rotate3d, Scale } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { fmt, fmtDateTime, isJumpType, testTitle } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
@@ -41,6 +41,7 @@ export function PatientPage() {
   const typesDone = [...new Set(tests.map((t) => t.type))];
   const lastJump = tests.find((t) => isJumpType(t.type));
   const hasRom = tests.some((t) => t.movement !== null);
+  const hasVbt = tests.some((t) => t.type === "vbt");
 
   return (
     <Page
@@ -82,6 +83,11 @@ export function PatientPage() {
               <Scale aria-hidden="true" className="size-5 shrink-0 text-accent" /> Asimetría
             </Link>
           )}
+          {hasVbt && (
+            <Link to={`/pacientes/${id}/perfil/carga-velocidad`} className={tile}>
+              <Dumbbell aria-hidden="true" className="size-5 shrink-0 text-accent" /> Carga-velocidad y 1RM
+            </Link>
+          )}
           {hasRom && (
             <Link to={`/pacientes/${id}/movilidad`} className={tile}>
               <Rotate3d aria-hidden="true" className="size-5 shrink-0 text-accent" /> Movilidad
@@ -104,12 +110,20 @@ export function PatientPage() {
                   <span className="flex flex-col">
                     <span className="font-semibold">
                       {testTitle(t)}
-                      {t.extraLoadKg > 0 && <span className="font-normal text-text-muted"> · {fmt(t.extraLoadKg, 0)} kg</span>}
+                      {t.extraLoadKg > 0 && t.type !== "vbt" && <span className="font-normal text-text-muted"> · {fmt(t.extraLoadKg, 0)} kg</span>}
                     </span>
                     <span className="text-sm text-text-muted">{fmtDateTime(t.performedAt)}</span>
                   </span>
                   <span className="nums text-right">
-                    {t.movement !== null ? (
+                    {t.type === "vbt" ? (
+                      t.barVelocity === null ? (
+                        <span className="text-sm text-warning">Sin marcar</span>
+                      ) : (
+                        <>
+                          <span className="text-xl">{fmt(t.barVelocity, 2)}</span> <span className="text-text-muted">m/s</span>
+                        </>
+                      )
+                    ) : t.movement !== null ? (
                       t.angleDeg === null ? (
                         <span className="text-sm text-text-muted">—</span>
                       ) : (

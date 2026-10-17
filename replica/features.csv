@@ -20,9 +20,9 @@ Perfil fuerza-velocidad óptimo y desequilibrio,saltos,should,yes,yes,"S09; F0, 
 Asimetría entre piernas (salto unipodal),saltos,should,yes,yes,cálculo exacto no publicado: usar % estándar; S10; (mejor − peor)/mejor con el mejor salto de cada pierna del día; historial
 Saltos repetidos 10-5,saltos,should,yes,yes,S07 en modo serie + S08; media del RSI de los 5 mejores rebotes (mínimo 6 saltos)
 Salto horizontal,saltos,should,yes,yes,"distancia medida con cinta y anotada, sin vídeo"
-Velocidad media de la barra por vídeo,fuerza,should,yes,no,
-Perfil carga-velocidad y 1RM estimado,fuerza,should,yes,no,
-Pérdida de velocidad en la serie,fuerza,should,yes,no,
+Velocidad media de la barra por vídeo,fuerza,should,yes,yes,"S13: inicio y fin de cada subida en el vídeo, recorrido medido (se recuerda); también velocidades escritas de un encoder"
+Perfil carga-velocidad y 1RM estimado,fuerza,should,yes,yes,"S14: recta con la repetición más rápida de cada carga; 1RM a la velocidad del umbral (editable por ejercicio); tabla de cargas por % 1RM"
+Pérdida de velocidad en la serie,fuerza,should,yes,yes,(más rápida − última) / más rápida
 Movilidad de tobillo (lunge) hombro cadera y cuello,movilidad,should,yes,yes,"S19: 14 movimientos; inclinómetro del móvil, ángulo sobre foto o goniómetro; media de lecturas; distancia a la pared en el lunge; resumen por lados y evolución"
 Nórdico: ángulo de rotura,isquios,should,yes,no,
 Nórdico: torque estimado,isquios,should,yes,no,fórmula por confirmar

@@ -21,6 +21,8 @@ S01 también a 1440 px. Capturas en `replica/clone-screens/`.
 | S10 Asimetría | 2026-10-17 | hecho | — | — |
 | S11 Saltos 10/5 | 2026-10-17 | hecho | — | el marcado pasó a admitir series (despegue/aterrizaje alternos, deshacer) |
 | S12 Salto horizontal | 2026-10-17 | hecho | medida por vídeo (se anota la distancia) | — |
+| S13 Velocidad de barra | 2026-10-17 | hecho | detección automática de la barra (fase 5, IA) | el marcado de series se generalizó: alterna dos marcas cualesquiera (despegue/aterrizaje o inicio/fin de la subida) |
+| S14 Perfil carga-velocidad | 2026-10-17 | hecho | — | el umbral del 1RM solo está bien establecido en sentadilla, press de banca y peso muerto: en el resto es editable y se marca «por confirmar»; un 1RM por debajo de la carga más alta movida se rechaza |
 | S19 Movilidad | 2026-10-17 | hecho | ver el sensor en un Android real; nada se puede probar aquí con un sensor de verdad | `deviceorientation` y `devicemotion` no dan la gravedad con el mismo signo en todos los móviles: se usa la primera fuente que llega y el ángulo no depende del signo. Hubo que fijar a mano el color del texto en la leyenda y la ayuda emergente de la gráfica (salía en el color de cada lado, sin contraste) |
 | S22 Evolución | 2026-10-17 | hecho | — | — |
 | S24 Ajustes | 2026-10-17 | hecho | — | carrera al cargar datos de ejemplo: el botón se mostraba antes de saber si ya había datos (arreglado) |
@@ -48,3 +50,8 @@ Notas:
   `wall_distance_cm` para la distancia del dedo gordo a la pared. Resumen por lados (diferencia si se midieron el
   mismo día) y evolución con una línea por lado. CSV con columnas `movimiento` y `metodo`; `salto` pasa a `intento`.
   67 pruebas unitarias y 57 e2e en los dos modos.
+- Fuerza (2026-10-17, fase 3): 6 ejercicios (sentadilla, press de banca, peso muerto, press militar, remo tumbado,
+  hip thrust). Por vídeo se marcan inicio y fin de cada subida y la velocidad media es recorrido / tiempo; sin vídeo
+  se escriben las velocidades de un encoder. Resultado: repetición más rápida, media y pérdida de velocidad. Perfil
+  carga-velocidad con la más rápida de cada carga, 1RM a la velocidad del umbral (0,30 sentadilla, 0,17 banca, 0,15
+  peso muerto; el resto editable), r², tabla por % 1RM y perfiles guardados. 77 pruebas unitarias y 60 e2e.

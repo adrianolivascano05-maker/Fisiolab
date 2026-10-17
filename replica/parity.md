@@ -5,13 +5,13 @@ Fecha: 2026-10-17 · Tras la fase 2 de saltos
 ## Veredicto: **saltos completos (fases 1 y 2); la copia completa todavía no**
 
 Los 13 must-haves están hechos y no hay fallos S1 ni S2 abiertos (`replica/bugs.md`). Por la regla del
-método, «publicable» pide además 80 puntos de paridad y hay 67,9: faltan las fases 3-4 (fuerza, sprint,
+método, «publicable» pide además 80 puntos de paridad y hay 75,0: faltan las fases 3-4 (fuerza, sprint,
 carrera, movilidad, nórdico, bienestar). Por eso se publica como **versión de
 prueba** para saltos (CMJ, SJ, DJ), no como sustituto de My Jump Lab.
 
 | medida | valor |
 | --- | --- |
-| **Paridad total de funciones** | **67,9 / 100** (39 funciones puntuables) |
+| **Paridad total de funciones** | **75,0 / 100** (39 funciones puntuables) |
 | Must-haves | **13 de 13** |
 | Saltos (fases 1 y 2) | completos: CMJ, CMJ con brazos, SJ, DJ (RSI, rigidez, DRI), unipodal y asimetría, 10/5, horizontal, RSI-mod, perfil F-V |
 | Paridad de pantallas (layout) | **sin medir**: no hay capturas del original |
@@ -58,7 +58,7 @@ Could: S-MAS, sprint curvo, deceleración, idiomas, IA.
 
 1. Validación: 10-20 saltos medidos a la vez con la app y con My Jump Lab (u otra referencia).
 2. Bienestar (cuestionario rápido; fase 3, pequeño).
-3. Velocidad de barra y 1RM (fase 3).
+3. ~~Velocidad de barra y 1RM (fase 3).~~ Hecho el 2026-10-17 (S13-S14).
 4. ~~Movilidad: tobillo, cadera, hombro (fase 3).~~ Hecho el 2026-10-17 (S19).
 5. Nórdico de isquios (fase 3).
 
@@ -87,9 +87,6 @@ features 65.5  (39 counted, must-haves 13 of 13 done)
 ### Missing, in build order
 - [should] bienestar: Cuestionario de bienestar (sueño fatiga estrés agujetas), no
 - [should] carrera: Mecánica de carrera (contacto vuelo frecuencia de paso), no
-- [should] fuerza: Perfil carga-velocidad y 1RM estimado, no
-- [should] fuerza: Pérdida de velocidad en la serie, no
-- [should] fuerza: Velocidad media de la barra por vídeo, no
 - [should] historial: Comparar pacientes y ranking por test, no
 - [should] isquios: Nórdico: torque estimado, no  (fórmula por confirmar)
 - [should] isquios: Nórdico: ángulo de rotura, no

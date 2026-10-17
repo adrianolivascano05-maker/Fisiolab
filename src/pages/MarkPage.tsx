@@ -2,7 +2,8 @@ import { CircleQuestionMark, Upload, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { MIN_JUMPS } from "../calc/repeated";
-import { isSeries, optionalMarks, requiredMarks, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
+import { optionalMarks, requiredMarks, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
+import { getExercise } from "../calc/strength";
 import { isJumpType, jumpLabels } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
@@ -17,12 +18,46 @@ import { useToast } from "../ui/Toast";
 import { frameAt, seekTime } from "../video/timeline";
 import { useTimeline } from "../video/useTimeline";
 import { JumpHelp } from "./JumpHelp";
+import { StrengthHelp } from "./StrengthHelp";
+
+/** Tipos de test que se marcan en vídeo: los saltos y la velocidad de barra. */
+type MarkType = JumpType | "vbt";
+
+/** Una serie alterna dos marcas (despegue/aterrizaje, inicio/fin de la subida) repetición tras repetición. */
+type SeriesSpec = { first: MarkEvent; second: MarkEvent; min: number; unit: string; hint: (next: MarkEvent, n: number) => string; ideal: string };
+
+const seriesSpecs: Partial<Record<MarkType, SeriesSpec>> = {
+  rj_10_5: {
+    first: "takeoff",
+    second: "landing",
+    min: MIN_JUMPS,
+    unit: "saltos",
+    ideal: "lo ideal, los 10",
+    hint: (next, n) =>
+      next === "takeoff"
+        ? `Salto ${n}: busca el primer fotograma con los dos pies en el aire y pulsa Despegue.`
+        : `Salto ${n}: busca el primer fotograma en que un pie toca el suelo y pulsa Aterrizaje.`,
+  },
+  vbt: {
+    first: "bar_start",
+    second: "bar_end",
+    min: 1,
+    unit: "repeticiones",
+    ideal: "marca todas las de la serie para ver la pérdida de velocidad",
+    hint: (next, n) =>
+      next === "bar_start"
+        ? `Repetición ${n}: busca el primer fotograma en que la barra empieza a subir y pulsa Inicio.`
+        : `Repetición ${n}: busca el fotograma en que la barra se para arriba y pulsa Fin.`,
+  },
+};
 
 const hints: Record<MarkEvent, string> = {
   movement_start: "Opcional: primer fotograma en que empieza a bajar. Permite el RSI modificado.",
   contact: "Busca el primer fotograma en que el pie toca el suelo al caer del cajón y pulsa Contacto.",
   takeoff: "Busca el primer fotograma con los dos pies en el aire y pulsa Despegue.",
   landing: "Busca el primer fotograma en que un pie vuelve a tocar el suelo y pulsa Aterrizaje.",
+  bar_start: "",
+  bar_end: "",
 };
 
 /** S07 Marcado de fotogramas */
@@ -37,8 +72,9 @@ export function MarkPage() {
   const t = test.data;
   if (!t) return <Page title="Marcar" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
   const back = `/pacientes/${t.patientId}`;
-  if (!t.video || !isJumpType(t.type)) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
-  const type = t.type;
+  if (!t.video || !(isJumpType(t.type) || t.type === "vbt")) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
+  const type: MarkType = t.type;
+  const label = type === "vbt" ? (getExercise(String(t.details.exercise))?.label ?? "Fuerza") : jumpLabels[type].short;
 
   if (!file) {
     return (
@@ -58,7 +94,7 @@ export function MarkPage() {
 
   return (
     <Page
-      title={`Marcar · ${jumpLabels[type].short}`}
+      title={`Marcar · ${label}`}
       backTo={back}
       tone="media"
       action={
@@ -67,8 +103,8 @@ export function MarkPage() {
         </IconButton>
       }
     >
-      <Sheet open={help} onClose={() => setHelp(false)} title={`Cómo marcar un ${jumpLabels[type].short}`}>
-        <JumpHelp type={type} />
+      <Sheet open={help} onClose={() => setHelp(false)} title={type === "vbt" ? "Cómo grabar y marcar la barra" : `Cómo marcar un ${label}`}>
+        {type === "vbt" ? <StrengthHelp exercise={String(t.details.exercise)} /> : <JumpHelp type={type} />}
       </Sheet>
       <MarkingWorkspace
         testId={id}
@@ -123,7 +159,7 @@ function RepickVideo({ expectedName, onFile }: { expectedName: string; onFile: (
 type MarkerProps = {
   testId: string;
   file: File;
-  type: JumpType;
+  type: MarkType;
   captureFps: number;
   containerFps: number;
   frameCount: number;
@@ -131,28 +167,31 @@ type MarkerProps = {
 };
 
 /** Estado del marcado: qué falta, si el orden es correcto y qué botones mostrar. */
-function markingState(type: JumpType, marks: MarkInput[]) {
-  if (isSeries(type)) {
+function markingState(type: MarkType, marks: MarkInput[]) {
+  const spec = seriesSpecs[type];
+  if (spec) {
     const ordered = [...marks].sort((a, b) => a.frame - b.frame);
-    const takeoffs = marks.filter((m) => m.event === "takeoff").length;
-    const landings = marks.filter((m) => m.event === "landing").length;
-    const next: MarkEvent = takeoffs === landings ? "takeoff" : "landing";
-    // En una serie las marcas alternan despegue, aterrizaje, despegue…
-    const alternate = ordered.every((m, i) => m.event === (i % 2 === 0 ? "takeoff" : "landing"));
-    const complete = Math.min(takeoffs, landings);
+    const firsts = marks.filter((m) => m.event === spec.first).length;
+    const seconds = marks.filter((m) => m.event === spec.second).length;
+    const next: MarkEvent = firsts === seconds ? spec.first : spec.second;
+    // En una serie las marcas alternan: primera, segunda, primera…
+    const alternate = ordered.every((m, i) => m.event === (i % 2 === 0 ? spec.first : spec.second));
+    const complete = Math.min(firsts, seconds);
     return {
       series: true as const,
+      spec,
       next,
-      nextIndex: next === "takeoff" ? takeoffs : landings,
+      nextIndex: next === spec.first ? firsts : seconds,
       complete,
       ordered: alternate,
-      ready: alternate && complete >= MIN_JUMPS && takeoffs === landings,
+      ready: alternate && complete >= spec.min && firsts === seconds,
     };
   }
-  const required = requiredMarks(type);
+  const jump = type as JumpType;
+  const required = requiredMarks(jump);
   const at = (e: MarkEvent) => marks.find((m) => m.event === e)?.frame;
   const missing = required.filter((e) => at(e) === undefined);
-  const sequence = [...optionalMarks(type), ...required].filter((e) => at(e) !== undefined);
+  const sequence = [...optionalMarks(jump), ...required].filter((e) => at(e) !== undefined);
   const ordered = sequence.every((e, i) => i === 0 || at(e)! > at(sequence[i - 1]!)!);
   return { series: false as const, required, missing, ordered, ready: missing.length === 0 && ordered };
 }
@@ -165,7 +204,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
 
   const [marks, setMarks] = useState<MarkInput[]>(initial);
-  const [frame, setFrame] = useState(() => initial.find((m) => m.event === "takeoff")?.frame ?? 0);
+  const [frame, setFrame] = useState(() => initial.find((m) => m.event === "takeoff" || m.event === "bar_start")?.frame ?? 0);
   const [playing, setPlaying] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [center, setCenter] = useState(frame);
@@ -258,13 +297,10 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
 
   let hint: string;
   if (state.series) {
-    const n = state.nextIndex + 1;
-    hint =
-      state.next === "takeoff"
-        ? `Salto ${n}: busca el primer fotograma con los dos pies en el aire y pulsa Despegue.`
-        : `Salto ${n}: busca el primer fotograma en que un pie toca el suelo y pulsa Aterrizaje.`;
-    if (state.ready) hint = `${state.complete} saltos marcados. Puedes seguir marcando o pulsar Calcular.`;
-    else hint += ` (mínimo ${MIN_JUMPS} saltos; lo ideal, los 10)`;
+    const { spec } = state;
+    hint = spec.hint(state.next, state.nextIndex + 1);
+    if (state.ready) hint = `${state.complete} ${spec.unit} marcados. Puedes seguir marcando o pulsar Calcular.`;
+    else hint += spec.min > 1 ? ` (mínimo ${spec.min} ${spec.unit}; ${spec.ideal})` : ` (${spec.ideal})`;
   } else {
     hint = state.missing.length ? hints[state.missing[0]!] : state.ordered ? "Listo. Revisa las marcas si quieres y pulsa «Calcular resultado»." : "";
   }
@@ -278,7 +314,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
         playsInline
         preload="auto"
         onPause={() => setPlaying(false)}
-        aria-label="Vídeo del salto"
+        aria-label={type === "vbt" ? "Vídeo de la serie" : "Vídeo del salto"}
         className="max-h-[50dvh] w-full rounded-md bg-media-surface object-contain"
       />
       <div className="flex items-end gap-2">
@@ -314,8 +350,8 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
       {!state.ordered && (state.series || state.missing.length === 0) && (
         <Alert tone="warning" title="Las marcas están desordenadas">
           {state.series
-            ? "Deben alternar despegue y aterrizaje, cada una después de la anterior. Deshaz la última y vuelve a marcar."
-            : `${[...optionalMarks(type), ...state.required].map((e) => markerStyle[e].name).join(" → ")}: cada una debe ir después de la anterior.`}
+            ? `Deben alternar ${markerStyle[state.spec.first].name.toLowerCase()} y ${markerStyle[state.spec.second].name.toLowerCase()}, cada una después de la anterior. Deshaz la última y vuelve a marcar.`
+            : `${[...optionalMarks(type as JumpType), ...state.required].map((e) => markerStyle[e].name).join(" → ")}: cada una debe ir después de la anterior.`}
         </Alert>
       )}
 
@@ -331,7 +367,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
           {state.required.map((e) => (
             <MarkButton key={e} kind={e} done={marks.some((m) => m.event === e)} onClick={() => markSingle(e)} />
           ))}
-          {optionalMarks(type).map((e) => (
+          {optionalMarks(type as JumpType).map((e) => (
             <MarkButton key={e} kind={e} done={marks.some((m) => m.event === e)} onClick={() => markSingle(e)} label={`${markerStyle[e].name} (opcional)`} />
           ))}
         </div>

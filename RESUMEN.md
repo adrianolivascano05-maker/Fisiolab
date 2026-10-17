@@ -15,8 +15,8 @@ Fecha: 2026-10-17
 | | |
 | --- | --- |
 | Funciones imprescindibles | **13 / 13** |
-| Paridad con My Jump Lab | **67,9 / 100**: saltos completos (fases 1 y 2) y movilidad; falta el resto de las fases 3-4 |
-| Pruebas | 67 unitarias (Vitest) + 57 en navegador (Playwright), en los dos modos de alojamiento |
+| Paridad con My Jump Lab | **75,0 / 100**: saltos, fuerza y movilidad; faltan nórdico y bienestar (fase 3) y la fase 4 |
+| Pruebas | 77 unitarias (Vitest) + 60 en navegador (Playwright), en los dos modos de alojamiento |
 | Fallos | 7 encontrados, 7 arreglados (`replica/bugs.md`); ninguno abierto |
 | Prueba real | vídeo de Pixel 7 Pro (120 fps guardado a 30): 30,7 cm; el usuario confirmó que la app publicada funciona en su Android |
 | Barrido de marca | limpio (`sweep.py`) |
@@ -27,6 +27,7 @@ Fecha: 2026-10-17
 - RSI modificado (marca opcional del inicio del movimiento).
 - Perfil fuerza-velocidad con óptimo y desequilibrio.
 - Asimetría.
+- Fuerza: velocidad media de la barra por vídeo o encoder en 6 ejercicios, pérdida de velocidad, perfil carga-velocidad con 1RM estimado y cargas por % 1RM.
 - Movilidad: 14 movimientos de tobillo (lunge), cadera, hombro y cuello, medidos con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.
 - Evolución con gráfica y tabla.
 - Exportación CSV para Excel, y copia de seguridad que se puede restaurar.
@@ -37,7 +38,8 @@ Fecha: 2026-10-17
 
 **Pendiente:**
 - **Validación** contra My Jump Lab o una plataforma de fuerza: 10-20 saltos medidos a la vez. Hasta entonces, no usar para decisiones clínicas.
-- Fase 3: bienestar, velocidad de barra y 1RM, nórdico (la movilidad ya está).
+- Fase 3: bienestar y nórdico (fuerza y movilidad ya están).
+- Comparar la velocidad de barra con un encoder lineal.
 - Probar la movilidad con el sensor de un Android real.
 - Fase 4: sprint, cambio de dirección, carrera, comparar pacientes.
 - `/replica-entrepreneur`: leer reseñas reales del original para mejorar sobre él.
@@ -73,6 +75,10 @@ Fecha: 2026-10-17
     - La foto no se guarda, como el vídeo.
     - El cuello en flexión, extensión y rotación no se mide con foto: en una sola imagen no sale fiable.
     - No hay valores normales: solo se compara un lado con el otro y la evolución.
+11. **Fuerza por vídeo o encoder.** El vídeo sirve sin aparatos; si en la clínica hay un encoder, se escriben sus velocidades.
+    - El perfil usa la repetición más rápida de cada carga y se proponen las series del último día.
+    - El umbral del 1RM es editable por ejercicio y se puede guardar para siempre.
+    - La pérdida de velocidad va de la repetición más rápida a la última.
 
 ## 4. Fórmulas acordadas (`src/calc/`)
 
@@ -88,6 +94,8 @@ Fecha: 2026-10-17
 | Perfil F-V | recta F̄(v̄) por mínimos cuadrados, F por kg de masa corporal; F0, V0, Pmáx = F0·V0/4 | Samozino |
 | Perfil óptimo | pendiente que maximiza h con la misma Pmáx, **buscada numéricamente** con el modelo macroscópico de Samozino; desequilibrio = \|1 − SFv/SFvopt\|; <100 % = déficit de fuerza | sin la fórmula cerrada del artículo |
 | Asimetría | (mejor − peor) / mejor × 100, con el mejor salto de cada pierna del día | estándar |
+| Velocidad de barra | recorrido / tiempo de la subida; serie: la más rápida, la media y pérdida = (más rápida − última) / más rápida | estándar |
+| Perfil carga-velocidad | recta velocidad = a + b·carga con la repetición más rápida de cada carga; 1RM = carga a la velocidad del umbral | umbral 0,30 sentadilla, 0,17 banca, 0,15 peso muerto; **press militar, remo y hip thrust por confirmar** (editables) |
 | Movilidad (móvil) | ángulo entre la dirección «arriba» al poner a cero y la actual; lunge: inclinación del borde largo respecto a la vertical | geometría; vale si el segmento se mueve en un plano vertical |
 | Movilidad (foto) | ángulo en el eje entre 3 puntos, pasado al valor clínico (directo, 180° − ángulo o ángulo − 90°); o inclinación de 2 puntos respecto a la vertical | goniometría estándar |
 | Movilidad (resultado) | media de las lecturas; aviso si difieren más de 5° | criterio propio |
@@ -118,6 +126,7 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
 ```
 src/calc/        fórmulas puras + tests (jump, results, repeated, profile, asymmetry, video, rom)
 src/data/        SQLite: worker, motor, migraciones (001_init, 002_rom), repo.ts (una función por operación), seed
+src/calc/strength.ts y src/pages/Strength*, VbtResult, LoadVelocityPage: fuerza
 src/rom/         useInclinometer.ts (sensor), PhotoProtractor.tsx (ángulo sobre foto)
 src/video/       meta.ts (fps, fps de grabación Android, horas de fotogramas), timeline.ts, useTimeline.ts
 src/pages/       una pantalla por archivo (S01 PatientsPage … S25 JumpHelp); rutas en src/App.tsx
@@ -150,6 +159,6 @@ Convenciones:
 ## 7. Siguientes pasos recomendados
 
 1. **Validación:** pantalla o CSV para anotar la altura de My Jump Lab junto a la de Impulso y calcular la diferencia media.
-2. **Fase 3:** bienestar (pequeño), velocidad de barra y 1RM, nórdico.
+2. **Fase 3:** bienestar (pequeño) y nórdico.
 3. **`/replica-entrepreneur`:** quejas reales de los usuarios del original, convertidas en mejoras.
 4. **Confirmar el DRI** en el artículo de Brooks (2026).

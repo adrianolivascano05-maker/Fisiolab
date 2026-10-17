@@ -3,7 +3,17 @@
 import type { Db } from "./db";
 import { heightFromProfile } from "../calc/profile";
 import { marksFromFrames, type MarkInput } from "../calc/results";
-import { createHorizontalTest, createJumpTest, createPatient, createRomTest, saveMarksAndCompute, saveVideo, type NewRomTest } from "./repo";
+import {
+  createHorizontalTest,
+  createJumpTest,
+  createPatient,
+  createRomTest,
+  createVbtTest,
+  saveMarksAndCompute,
+  saveVbtVelocities,
+  saveVideo,
+  type NewRomTest,
+} from "./repo";
 
 export const SEED_PREFIX = "Ejemplo · ";
 
@@ -33,6 +43,7 @@ export async function loadSeed(db: Db): Promise<void> {
     if (p.name.startsWith("Marcos")) {
       await loadPhase2(db, pid, p.bodyMassKg!, p.pushOffDistanceCm! / 100);
       await loadRom(db, pid);
+      await loadStrength(db, pid);
     }
   }
 }
@@ -81,6 +92,28 @@ async function loadRom(db: Db, pid: string) {
   await rom({ movement: "hip_internal_rotation", side: "left", method: "manual", readings: [34] }, 3);
   await rom({ movement: "hip_internal_rotation", side: "right", method: "manual", readings: [27] }, 3);
   await rom({ movement: "shoulder_flexion", side: "right", method: "photo", readings: [168] }, 3);
+}
+
+/** Fuerza: sentadilla con 4 cargas en la recta v = 1,45 − 0,011 · carga (1RM ≈ 104,5 kg a 0,30 m/s). */
+async function loadStrength(db: Db, pid: string) {
+  for (const [loadKg, reps] of [
+    [40, [0.99, 1.01, 0.98, 0.95, 0.92]],
+    [80, [0.57, 0.56, 0.52]],
+    [100, [0.35, 0.33]],
+  ] as const) {
+    const tid = await createVbtTest(db, { patientId: pid, exercise: "squat", loadKg, romCm: null, method: "manual" });
+    await saveVbtVelocities(db, tid, [...reps]);
+  }
+  // 60 kg marcada en vídeo: recorrido 55 cm a 240 fps; subidas de 167, 171, 178 y 189 fotogramas.
+  const tid = await createVbtTest(db, { patientId: pid, exercise: "squat", loadKg: 60, romCm: 55, method: "video" });
+  await saveVideo(db, tid, { fileName: "sentadilla-60.mp4", captureFps: 240, containerFps: 240, frameCount: 4000, durationS: 16.7, fpsSource: "container" });
+  const marks: MarkInput[] = [];
+  let f = 200;
+  [167, 171, 178, 189].forEach((up, i) => {
+    marks.push({ event: "bar_start", frame: f, seriesIndex: i }, { event: "bar_end", frame: f + up, seriesIndex: i });
+    f += up + 500;
+  });
+  await saveMarksAndCompute(db, tid, marks);
 }
 
 export async function removeSeed(db: Db): Promise<number> {

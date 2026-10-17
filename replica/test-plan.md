@@ -89,3 +89,14 @@ En el móvil Android de Fisiolab con Chrome, cuando la app esté publicada:
 Unitarias: geometría del inclinómetro y de la foto (`src/calc/rom.test.ts`) y datos, CSV y migración 1 → 2
 (`src/data/rom.test.ts`). Pendiente a mano: medir en un Android real con el móvil apoyado en la tibia y comparar con
 un goniómetro.
+
+## F07 Fuerza (añadido el 2026-10-17, `e2e/strength.spec.ts`)
+
+| caso | qué comprueba |
+| --- | --- |
+| F07-H1 | press de banca por vídeo: recorrido obligatorio, 2 repeticiones (1,20 y 0,80 m/s), pérdida 33 %, el recorrido y la carga se recuerdan |
+| F07-H2 | peso muerto con encoder: añadir, borrar y Enter; mejor 0,62 m/s, pérdida 11 %; aparece en la ficha |
+| F07-H3 | perfil con los datos de ejemplo: 4 series preelegidas, 1RM ≈ 104,5 kg; umbral 0,32 → ≈ 102,7 kg; umbral imposible rechazado; umbral guardado; % del 1RM en el resultado de una serie |
+
+Unitarias: `src/calc/strength.test.ts` (velocidad, serie, recta, 1RM) y `src/data/strength.test.ts` (vídeo, encoder,
+validación, perfil, CSV). Pendiente a mano: comparar con un encoder lineal en la clínica.

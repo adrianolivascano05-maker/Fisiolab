@@ -12,6 +12,7 @@ import { PatientsPage } from "./pages/PatientsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { ResultPage } from "./pages/ResultPage";
 import { RomSetupPage } from "./pages/RomSetupPage";
+import { StrengthSetupPage } from "./pages/StrengthSetupPage";
 import { RomSummaryPage } from "./pages/RomSummaryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TestPickerPage } from "./pages/TestPickerPage";
@@ -21,6 +22,7 @@ const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ defaul
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m.MarkPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const LoadVelocityPage = lazy(() => import("./pages/LoadVelocityPage").then((m) => ({ default: m.LoadVelocityPage })));
 const RomHistoryPage = lazy(() => import("./pages/RomHistoryPage").then((m) => ({ default: m.RomHistoryPage })));
 const RomMeasurePage = lazy(() => import("./pages/RomMeasurePage").then((m) => ({ default: m.RomMeasurePage })));
 const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default: m.VideoPage })));
@@ -38,11 +40,13 @@ const router = createBrowserRouter([
   { path: "/pacientes/:id/test", element: <TestPickerPage /> }, // S04
   { path: "/pacientes/:id/test/saltos", element: <JumpSetupPage /> }, // S05
   { path: "/pacientes/:id/test/saltos/video", element: l(<VideoPage />) }, // S06
+  { path: "/pacientes/:id/test/fuerza", element: <StrengthSetupPage /> }, // S13
+  { path: "/pacientes/:id/test/fuerza/video", element: l(<VideoPage />) }, // S06 para fuerza
   { path: "/pacientes/:id/test/movilidad", element: <RomSetupPage /> }, // S19
   { path: "/pacientes/:id/test/movilidad/medir", element: l(<RomMeasurePage />) }, // S19
   { path: "/pacientes/:id/test/:categoria", element: <ComingSoonPage /> }, // S13-S21
   { path: "/pacientes/:id/perfil/fv", element: l(<ProfilePage />) }, // S09
-  { path: "/pacientes/:id/perfil/:tipo", element: <ComingSoonPage title="Perfil carga-velocidad" phase={3} /> }, // S14
+  { path: "/pacientes/:id/perfil/carga-velocidad", element: l(<LoadVelocityPage />) }, // S14
   { path: "/pacientes/:id/asimetria", element: <AsymmetryPage /> }, // S10
   { path: "/pacientes/:id/movilidad", element: <RomSummaryPage /> }, // S19
   { path: "/pacientes/:id/movilidad/:mov", element: l(<RomHistoryPage />) }, // S19

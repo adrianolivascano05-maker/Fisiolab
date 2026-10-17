@@ -5,7 +5,7 @@ import { CategoryTile } from "../ui/CategoryTile";
 
 export const categories = [
   { slug: "saltos", icon: Activity, title: "Saltos", detail: "CMJ, SJ, drop jump", phase: 1, ready: true },
-  { slug: "fuerza", icon: Dumbbell, title: "Fuerza", detail: "Velocidad de barra, 1RM", phase: 3 },
+  { slug: "fuerza", icon: Dumbbell, title: "Fuerza", detail: "Velocidad de barra, 1RM", phase: 3, ready: true },
   { slug: "sprint", icon: Timer, title: "Sprint", detail: "Tiempos y cambios de dirección", phase: 4 },
   { slug: "carrera", icon: Footprints, title: "Carrera", detail: "Contacto y frecuencia de paso", phase: 4 },
   { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello", phase: 3, ready: true },

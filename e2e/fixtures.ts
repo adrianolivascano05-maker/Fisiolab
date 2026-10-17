@@ -87,7 +87,7 @@ export async function markAt(page: Page, frame: number, event: "despegue" | "ate
   await page.getByRole("button", { name: new RegExp(`^${event}\\s*:\\s*(marcar|mover)`, "i") }).click();
 }
 
-/** En una serie (10/5): lleva la barra al fotograma y pulsa el botón de la siguiente marca. */
+/** En una serie (10/5, repeticiones de fuerza): lleva la barra al fotograma y pulsa el botón de la siguiente marca. */
 export async function markNextInSeries(page: Page, frame: number) {
   const s = scrubber(page);
   await s.focus();
@@ -95,7 +95,7 @@ export async function markNextInSeries(page: Page, frame: number) {
   for (let i = 0; i < Math.floor(frame / 10); i++) await s.press("PageUp");
   for (let i = 0; i < frame % 10; i++) await s.press("ArrowRight");
   await expect(s).toHaveAttribute("aria-valuenow", String(frame));
-  await page.getByRole("button", { name: /^(despegue|aterrizaje) \d+\s*:\s*marcar/i }).click();
+  await page.getByRole("button", { name: /^(despegue|aterrizaje|inicio|fin) \d+\s*:\s*marcar/i }).click();
 }
 
 export async function loadSeed(page: Page) {

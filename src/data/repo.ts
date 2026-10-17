@@ -3,6 +3,7 @@
 import { computeJump, type JumpOutput, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
 import { fvProfile, type FvProfile, type Point } from "../calc/profile";
 import { getMovement, methodLabels, movementLabel, romTypeFor, summarize, type RomMethod, type RomType } from "../calc/rom";
+import { getExercise, loadVelocityProfile, plausibleVbt, vbtResults, velocitiesFromMarks, type ExerciseId, type LoadVelocityProfile, type RepMark } from "../calc/strength";
 import type { Db } from "./db";
 import type { Statement } from "./protocol";
 
@@ -132,7 +133,7 @@ export type Mark = { event: MarkEvent; frameIndex: number; timeS: number; series
 /** `seriesIndex` 0 es el resultado del test; 1, 2… los de cada salto de una serie. */
 export type Result = { metric: string; value: number; unit: string; seriesIndex: number };
 export type Side = "left" | "right";
-export type TestType = JumpType | RomType;
+export type TestType = JumpType | RomType | "vbt";
 
 export type Test = {
   id: string;
@@ -240,6 +241,7 @@ export async function saveMarksAndCompute(db: Db, testId: string, marks: MarkInp
   const test = await getTest(db, testId);
   if (!test) throw new Error("El test no existe.");
   if (!test.video) throw new Error("El test no tiene vídeo.");
+  if (test.type === "vbt") return saveRepMarks(db, test, marks);
   if (test.type.startsWith("rom_")) throw new Error("Este test no es de salto.");
   const patient = await getPatient(db, test.patientId);
   const out = computeJump({
@@ -289,6 +291,9 @@ export type TestSummary = {
   /** Movilidad: movimiento del catálogo y ángulo medido. */
   movement: string | null;
   angleDeg: number | null;
+  /** Fuerza: ejercicio y velocidad de la repetición más rápida. */
+  exercise: ExerciseId | null;
+  barVelocity: number | null;
 };
 
 /** Tests de un paciente, el más reciente primero, con su resultado principal. */
@@ -299,7 +304,9 @@ export async function listTests(db: Db, patientId: string): Promise<TestSummary[
             (select value from results r where r.test_id = t.id and r.metric = 'rsi' and r.series_index = 0) as rsi,
             (select value from results r where r.test_id = t.id and r.metric = 'jump_distance_cm' and r.series_index = 0) as distanceCm,
             json_extract(t.details, '$.movement') as movement,
-            (select value from results r where r.test_id = t.id and r.metric = 'angle_deg' and r.series_index = 0) as angleDeg
+            (select value from results r where r.test_id = t.id and r.metric = 'angle_deg' and r.series_index = 0) as angleDeg,
+            json_extract(t.details, '$.exercise') as exercise,
+            (select value from results r where r.test_id = t.id and r.metric = 'bar_velocity_m_s' and r.series_index = 0) as barVelocity
        from tests t
       where t.patient_id = ?
       order by t.performed_at desc`,
@@ -511,6 +518,155 @@ export async function romEntries(db: Db, patientId: string, movement?: string): 
   );
 }
 
+// ---------- Fuerza: velocidad de barra (S13) y perfil carga-velocidad (S14) ----------
+
+export type VbtMethod = "video" | "manual";
+export type NewVbtTest = { patientId: string; exercise: ExerciseId; loadKg: number; romCm: number | null; method: VbtMethod };
+
+export async function createVbtTest(db: Db, input: NewVbtTest): Promise<string> {
+  if (!getExercise(input.exercise)) throw new Error("Ejercicio desconocido.");
+  if (!(input.loadKg >= plausibleVbt.loadKg.min && input.loadKg <= plausibleVbt.loadKg.max)) throw new RangeError("La carga debe estar entre 0 y 500 kg.");
+  if (input.method === "video" && !(input.romCm !== null && input.romCm >= plausibleVbt.romCm.min && input.romCm <= plausibleVbt.romCm.max)) {
+    throw new RangeError("El recorrido de la barra debe estar entre 5 y 150 cm.");
+  }
+  const id = newId();
+  const t = now();
+  await db.transaction([
+    {
+      sql: `insert into tests (id, patient_id, category, type, performed_at, extra_load_kg, details, created_at, updated_at)
+            values (?, ?, 'strength', 'vbt', ?, ?, ?, ?, ?)`,
+      bind: [id, input.patientId, t, input.loadKg, JSON.stringify({ exercise: input.exercise, romCm: input.romCm, method: input.method }), t, t],
+    },
+  ]);
+  return id;
+}
+
+function resultStatements(testId: string, rows: { metric: string; value: number; unit: string; seriesIndex: number }[]): Statement[] {
+  const t = now();
+  return [
+    { sql: "delete from results where test_id = ?", bind: [testId] },
+    ...rows.map((r) => ({
+      sql: "insert into results (id, test_id, metric, value, unit, series_index, created_at) values (?, ?, ?, ?, ?, ?, ?)",
+      bind: [newId(), testId, r.metric, r.value, r.unit, r.seriesIndex, t],
+    })),
+    { sql: "update tests set updated_at = ? where id = ?", bind: [t, testId] },
+  ];
+}
+
+/** Repeticiones marcadas en el vídeo: inicio y fin de cada subida. */
+async function saveRepMarks(db: Db, test: Test, marks: MarkInput[]): Promise<JumpOutput> {
+  const romCm = Number(test.details.romCm);
+  if (!(romCm > 0)) throw new Error("Falta el recorrido de la barra.");
+  const reps = velocitiesFromMarks(marks as RepMark[], romCm / 100, test.video!.captureFps);
+  if (reps.length === 0) return { results: [], warnings: [], missing: ["bar_start", "bar_end"] };
+  const rows = vbtResults(reps);
+  const t = now();
+  await db.transaction([
+    { sql: "delete from marks where test_id = ?", bind: [test.id] },
+    ...marks.map((m) => ({
+      sql: "insert into marks (id, test_id, event, series_index, time_s, frame_index, created_at) values (?, ?, ?, ?, ?, ?, ?)",
+      bind: [newId(), test.id, m.event, m.seriesIndex, m.frame / test.video!.captureFps, m.frame, t],
+    })),
+    ...resultStatements(test.id, rows),
+  ]);
+  const warnings = reps.some((v) => v < plausibleVbt.velocityMS.min || v > plausibleVbt.velocityMS.max)
+    ? ["Velocidad poco habitual: revisa el recorrido, las marcas y los fps de grabación."]
+    : [];
+  return { results: [], warnings, missing: [] };
+}
+
+/** Sin vídeo: velocidades de cada repetición leídas de un encoder u otra app. */
+export async function saveVbtVelocities(db: Db, testId: string, reps: number[]): Promise<void> {
+  if (reps.length === 0) throw new RangeError("Escribe al menos una repetición.");
+  if (reps.some((v) => !(v > 0 && v <= 3))) throw new RangeError("Cada velocidad debe estar entre 0,01 y 3 m/s.");
+  await db.transaction(resultStatements(testId, vbtResults(reps)));
+}
+
+/** Último recorrido usado por el paciente en ese ejercicio, para no volver a medirlo. */
+export async function lastRomCm(db: Db, patientId: string, exercise: ExerciseId): Promise<number | null> {
+  const [row] = await db.query<{ rom: number | null }>(
+    `select json_extract(details, '$.romCm') as rom from tests
+      where patient_id = ? and type = 'vbt' and json_extract(details, '$.exercise') = ? and json_extract(details, '$.romCm') is not null
+      order by performed_at desc limit 1`,
+    [patientId, exercise],
+  );
+  return row?.rom ?? null;
+}
+
+export type VbtSet = { testId: string; exercise: ExerciseId; performedAt: string; loadKg: number; best: number };
+
+/** Series con velocidad calculada, la más reciente primero. */
+export async function vbtSets(db: Db, patientId: string, exercise?: ExerciseId): Promise<VbtSet[]> {
+  return db.query<VbtSet>(
+    `select t.id as testId, json_extract(t.details, '$.exercise') as exercise, t.performed_at as performedAt,
+            t.extra_load_kg as loadKg, r.value as best
+       from tests t join results r on r.test_id = t.id and r.metric = 'bar_velocity_m_s' and r.series_index = 0
+      where t.patient_id = ? and t.type = 'vbt' and (? is null or json_extract(t.details, '$.exercise') = ?)
+      order by substr(t.performed_at, 1, 10) desc, t.extra_load_kg, t.performed_at desc`,
+    [patientId, exercise ?? null, exercise ?? null],
+  );
+}
+
+/** Umbral de velocidad del 1RM: el ajustado por el usuario o el de referencia del ejercicio. */
+export async function getMvt(db: Db, exercise: ExerciseId): Promise<number> {
+  return (await getSetting<number>(db, `mvt.${exercise}`)) ?? getExercise(exercise)!.mvt;
+}
+
+export async function setMvt(db: Db, exercise: ExerciseId, mvt: number): Promise<void> {
+  if (!(mvt >= 0.05 && mvt <= 1)) throw new RangeError("El umbral debe estar entre 0,05 y 1 m/s.");
+  await setSetting(db, `mvt.${exercise}`, mvt);
+}
+
+export type SavedLoadVelocity = LoadVelocityProfile & { id: string; exercise: ExerciseId; performedAt: string; testIds: string[] };
+
+export async function saveLoadVelocityProfile(db: Db, patientId: string, exercise: ExerciseId, sets: VbtSet[], mvt: number): Promise<string> {
+  const p = loadVelocityProfile(sets.map((s) => ({ loadKg: s.loadKg, velocity: s.best })), mvt);
+  const id = newId();
+  const t = now();
+  const performedAt = sets.map((s) => s.performedAt).sort().at(-1)!;
+  await db.transaction([
+    {
+      sql: `insert into profiles (id, patient_id, kind, performed_at, exercise, v0_m_s, slope, min_velocity_threshold_m_s, one_rm_kg,
+                                  r_squared, created_at, updated_at)
+            values (?, ?, 'load_velocity', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      bind: [id, patientId, performedAt, exercise, p.intercept, p.slope, mvt, p.oneRmKg, Math.min(1, Math.max(0, p.r2)), t, t],
+    },
+    ...sets.map((s) => ({ sql: "insert into profile_tests (profile_id, test_id) values (?, ?)", bind: [id, s.testId] })),
+  ]);
+  return id;
+}
+
+export async function listLoadVelocityProfiles(db: Db, patientId: string, exercise?: ExerciseId): Promise<SavedLoadVelocity[]> {
+  const rows = await db.query<{
+    id: string;
+    exercise: ExerciseId;
+    performed_at: string;
+    v0_m_s: number;
+    slope: number;
+    min_velocity_threshold_m_s: number;
+    one_rm_kg: number;
+    r_squared: number;
+    test_ids: string | null;
+  }>(
+    `select p.*, (select group_concat(test_id) from profile_tests pt where pt.profile_id = p.id) as test_ids
+       from profiles p where p.patient_id = ? and p.kind = 'load_velocity' and (? is null or p.exercise = ?)
+      order by p.performed_at desc, p.created_at desc`,
+    [patientId, exercise ?? null, exercise ?? null],
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    exercise: r.exercise,
+    performedAt: r.performed_at,
+    testIds: (r.test_ids ?? "").split(",").filter(Boolean),
+    intercept: r.v0_m_s,
+    slope: r.slope,
+    r2: r.r_squared,
+    mvt: r.min_velocity_threshold_m_s,
+    oneRmKg: r.one_rm_kg,
+    l0Kg: -r.v0_m_s / r.slope,
+  }));
+}
+
 // ---------- Ajustes ----------
 
 export async function getSetting<T>(db: Db, key: string): Promise<T | null> {
@@ -547,10 +703,12 @@ export async function exportCsv(db: Db): Promise<string> {
     side: string | null;
     series_index: number;
     movement: string | null;
-    method: RomMethod | null;
+    method: string | null;
+    exercise: string | null;
   }>(
     `select p.name as patient, t.performed_at, t.type, t.side, t.extra_load_kg, t.drop_height_cm, v.fps as capture_fps,
             json_extract(t.details, '$.movement') as movement, json_extract(t.details, '$.method') as method,
+            json_extract(t.details, '$.exercise') as exercise,
             r.metric, r.value, r.unit, r.series_index
        from results r
        join tests t on t.id = r.test_id
@@ -564,13 +722,15 @@ export async function exportCsv(db: Db): Promise<string> {
   const header = ["paciente", "fecha", "test", "movimiento", "lado", "metodo", "carga_kg", "altura_caida_cm", "fps_grabacion", "intento", "metrica", "valor", "unidad"];
   const lines = rows.map((r) => {
     const movement = r.movement ? getMovement(r.movement) : undefined;
+    const exercise = r.exercise ? getExercise(r.exercise) : undefined;
+    const method = r.type === "vbt" ? (r.method === "manual" ? "Encoder (a mano)" : "Vídeo") : r.method ? methodLabels[r.method as RomMethod] : "";
     return [
       cell(r.patient),
       r.performed_at,
       r.type,
-      movement ? cell(movementLabel(movement)) : "",
+      movement ? cell(movementLabel(movement)) : exercise ? cell(exercise.label) : "",
       r.side === "left" ? "izquierda" : r.side === "right" ? "derecha" : "",
-      r.method ? cell(methodLabels[r.method]) : "",
+      method ? cell(method) : "",
       num(r.extra_load_kg),
       num(r.drop_height_cm),
       num(r.capture_fps),

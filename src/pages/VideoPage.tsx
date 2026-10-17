@@ -2,12 +2,13 @@ import { Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import type { JumpType } from "../calc/results";
+import { getExercise, type ExerciseId } from "../calc/strength";
 import { MIN_RECOMMENDED_FPS } from "../calc/video";
 import { fmt, jumpLabels, parseDecimal } from "../app/format";
 import { Page } from "../app/Page";
 import { videoStore } from "../app/videoStore";
 import { getDb } from "../data/db";
-import { createJumpTest, saveVideo } from "../data/repo";
+import { createJumpTest, createVbtTest, saveVideo } from "../data/repo";
 import { COMMON_CAPTURE_FPS, nominalFps, readContainerMeta, type ContainerMeta } from "../video/meta";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -42,7 +43,11 @@ export function VideoPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const input = useRef<HTMLInputElement>(null);
-  const type = (params.get("tipo") ?? "cmj") as JumpType;
+  const tipo = params.get("tipo") ?? "cmj";
+  const strength = tipo === "vbt";
+  const type = (strength ? "cmj" : tipo) as JumpType;
+  const exercise = getExercise(params.get("ejercicio") ?? "");
+  const romCm = params.get("recorrido") ? Number(params.get("recorrido")) : null;
   const extraLoadKg = Number(params.get("carga") ?? 0);
   const dropHeightCm = params.get("caida") ? Number(params.get("caida")) : null;
   const sideParam = params.get("lado");
@@ -92,7 +97,9 @@ export function VideoPage() {
     setSaving(true);
     try {
       const db = getDb();
-      const testId = await createJumpTest(db, { patientId: id, type, extraLoadKg, dropHeightCm, side });
+      const testId = strength
+        ? await createVbtTest(db, { patientId: id, exercise: (exercise?.id ?? "squat") as ExerciseId, loadKg: extraLoadKg, romCm, method: "video" })
+        : await createJumpTest(db, { patientId: id, type, extraLoadKg, dropHeightCm, side });
       await saveVideo(db, testId, {
         fileName: picked.file.name,
         captureFps: capture,
@@ -110,9 +117,16 @@ export function VideoPage() {
   }
 
   return (
-    <Page title={`Vídeo · ${jumpLabels[type]?.short ?? type}${side ? ` ${side === "left" ? "izq." : "dcha."}` : ""}`} backTo={`/pacientes/${id}/test/saltos`}>
+    <Page
+      title={
+        strength
+          ? `Vídeo · ${exercise?.label ?? "Fuerza"} ${fmt(extraLoadKg, 0)} kg`
+          : `Vídeo · ${jumpLabels[type]?.short ?? type}${side ? ` ${side === "left" ? "izq." : "dcha."}` : ""}`
+      }
+      backTo={strength ? `/pacientes/${id}/test/fuerza?${new URLSearchParams({ ejercicio: exercise?.id ?? "squat", carga: String(extraLoadKg) })}` : `/pacientes/${id}/test/saltos`}
+    >
       <p className="text-text-muted">
-        Graba el salto a cámara lenta y elígelo aquí. El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.
+        Graba {strength ? "la serie" : "el salto"} a cámara lenta y elígelo aquí. El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.
       </p>
       <input
         ref={input}
@@ -160,7 +174,9 @@ export function VideoPage() {
               </SelectField>
               {capture !== null && capture < MIN_RECOMMENDED_FPS && (
                 <Alert tone="warning" title={`Grabación a ${fmt(capture, 0)} fps`}>
-                  Para saltos hace falta cámara lenta (120 o 240 fps). A {fmt(capture, 0)} fps, un fotograma de error mueve la altura varios centímetros.
+                  {strength
+                    ? `Mejor a cámara lenta (120 fps o más). A ${fmt(capture, 0)} fps, un fotograma de error cambia la velocidad varios puntos.`
+                    : `Para saltos hace falta cámara lenta (120 o 240 fps). A ${fmt(capture, 0)} fps, un fotograma de error mueve la altura varios centímetros.`}
                 </Alert>
               )}
             </>
@@ -174,7 +190,7 @@ export function VideoPage() {
           )}
 
           <Button size="lg" block disabled={!valid} loading={saving} onClick={next}>
-            Marcar el salto
+            {strength ? "Marcar las repeticiones" : "Marcar el salto"}
           </Button>
         </section>
       )}
