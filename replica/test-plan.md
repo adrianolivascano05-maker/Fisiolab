@@ -61,6 +61,9 @@ probado con el navegador en Madrid.
 
 ## Pasada manual (no se puede automatizar aquí): la tiene que hacer Fisiolab
 
+2026-10-17: Fisiolab confirma que la app publicada funciona en su Android (Pixel 7 Pro). Siguen abiertas
+la validación (M4) y la prueba con TalkBack (M5).
+
 En el móvil Android de Fisiolab con Chrome, cuando la app esté publicada:
 
 - [x] M1 (archivo) Vídeo real del Pixel 7 Pro: la app lee 120 fps de grabación y 412 fotogramas. Falta verlo reproducir en el Chrome del móvil (HEVC)

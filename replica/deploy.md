@@ -30,7 +30,8 @@ El repositorio es público, así que GitHub Pages es gratis y no hace falta ning
 
 - Dirección: **https://adrianolivascano05-maker.github.io/Fisiolab/** — **publicada el 2026-10-17**
   (ejecución 39023205164: build y pruebas correctos, despliegue «Reported success!»). Desde el entorno de
-  Claude no se puede abrir github.io (lo bloquea su red): la comprobación en vivo la hace Fisiolab en su móvil.
+  Claude no se puede abrir github.io (lo bloquea su red). Comprobación en vivo: Fisiolab confirma que funciona en
+  su Android (2026-10-17).
 - `.github/workflows/pages.yml`: en cada push a la rama principal, instala, pasa las pruebas unitarias,
   compila bajo `/Fisiolab/`, copia `index.html` a `404.html` (rutas internas) y publica.
 - GitHub Pages no permite cabeceras propias: la CSP va como `<meta>` en el HTML (sin `frame-ancestors`,
@@ -57,7 +58,7 @@ se quiere un dominio propio con cabeceras. Requiere una cuenta de Cloudflare. Pa
 - Errores y analítica: **ninguno a propósito**. Enviar errores a un servicio externo podría sacar datos de
   pacientes del dispositivo. Los fallos se reportan a mano.
 - Disponibilidad: es una web estática y, una vez instalada, funciona sin conexión.
-- Recorrido completo en el sitio publicado: pendiente, en el Android de Fisiolab (lista M1-M8 en `replica/test-plan.md`).
+- Recorrido completo en el sitio publicado: Fisiolab confirma que funciona en su Android (2026-10-17).
 
 ## Primera semana
 
