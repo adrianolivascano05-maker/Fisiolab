@@ -10,8 +10,8 @@ Fuerza velocidad y potencia de cada salto (Samozino),saltos,must,yes,yes,necesit
 Guardar cada test en la ficha del paciente,pacientes,must,yes,yes,S02
 Gráfica de evolución de un test,historial,must,yes,yes,S22; con tabla de datos accesible
 Exportar toda la base de datos a CSV,datos,must,yes,yes,S24; formato Excel en español (; y coma decimal)
-Datos guardados solo en el dispositivo con copia de seguridad,datos,must,partial,partial,decisión del clon por RGPD; el original guarda en el iPhone; SQLite en OPFS + copia descargable y restaurable; falta hacerla instalable (PWA) para que Safari no borre los datos
-Ayuda de colocación de cámara y marcado en cada test,ayuda,must,yes,partial,texto e ilustraciones propios; texto para CMJ/SJ/DJ en S05; sin ilustraciones
+Datos guardados solo en el dispositivo con copia de seguridad,datos,must,partial,yes,decisión del clon por RGPD; el original guarda en el iPhone; SQLite en OPFS + copia descargable y restaurable; PWA instalable que abre y mide sin conexión; recordatorio semanal de copia; una pestaña a la vez
+Ayuda de colocación de cámara y marcado en cada test,ayuda,must,yes,yes,"texto e ilustraciones propios (SVG): colocación de la cámara y fotograma a marcar en CMJ/SJ/DJ, desde S05 y S07; los tests de fases 2-4 la llevarán al construirse"
 CMJ con brazos libres,saltos,should,yes,no,
 RSI-mod (altura / tiempo hasta el despegue),saltos,should,yes,no,
 Rigidez vertical en drop jump,saltos,should,yes,no,fórmula a tomar de la literatura

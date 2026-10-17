@@ -3,7 +3,7 @@
 Build: 0497972  Fecha: 2026-10-17  Entorno: local (`vite preview`), Chromium 1194 a 390×844 táctil
 (y 1440 en el caso de maquetación), es-ES, Europe/Madrid. Cada test empieza con una base vacía.
 
-Ejecutar: `npm run e2e` (32 tests) y `npm test` (26 tests unitarios de fórmulas, base de datos y vídeo).
+Ejecutar: `npm run e2e` (42 tests) y `npm test` (26 tests unitarios de fórmulas, base de datos y vídeo).
 Todos los tests fallan si hay un error en consola, una excepción o una respuesta 5xx, y las
 pantallas principales pasan un escaneo axe (WCAG 2.1 A/AA).
 
@@ -41,6 +41,14 @@ Solo se prueban los flujos construidos (F01, F02, F03, F14, F15). F04-F13 todav�
 | F15-N1 | | negativo: copia inválida | restaurar un archivo cualquiera | error claro; datos intactos | e2e | ✅ |
 | F15-E1 | | pulsar rápido en ejemplo | cargar y borrar ejemplo | 3 pacientes, sin duplicar | e2e | ✅ |
 | F15-E2 | | dos pestañas | abrir la app en otra pestaña | la 2.ª avisa y bloquea; al cerrar la 1.ª y reintentar, ve los datos | e2e | ✅ (tras BUG-001) |
+| PWA-H1 | instalar | manifiesto | leer el manifiesto | nombre, modo app, iconos (también maskable y de iPhone) que cargan | e2e | ✅ |
+| PWA-H2 | sin conexión | feliz | instalar caché → sin red → abrir, medir un CMJ y ver evolución | todo funciona y los datos siguen | e2e | ✅ |
+| PWA-E1 | instalar | tarjeta | ver pasos, ocultar, recargar | oculta 14 días | e2e | ✅ |
+| PWA-E2 | | iPhone | navegador de iPhone | pasos Compartir → Añadir a pantalla de inicio | e2e | ✅ |
+| PWA-E3 | copia | recordatorio | ejemplo sin aviso; paciente real con aviso; tras copiar, desaparece | aviso solo cuando hace falta | e2e | ✅ |
+| PWA-E4 | ajustes | estado | ver Instalación | instalada o pasos; si el navegador protege los datos | e2e | ✅ |
+| AY-CMJ/SJ/DJ | ayuda | ilustraciones | abrir ayuda de cada salto | dibujo de colocación con descripción accesible; 4 fases con la fase correcta para cada salto | e2e | ✅ |
+| AY-S07 | | desde el marcado | botón «Cómo marcar» | hoja de ayuda; Escape cierra | e2e | ✅ |
 | L-390 / L-1440 | todas | maquetación y accesibilidad | pantallas principales a 390 y 1440 px | sin scroll horizontal, axe sin fallos | e2e | ✅ |
 
 Casos de la lista que no aplican: sesión caducada, datos de otro usuario, contraseñas, pagos (no hay
@@ -56,4 +64,6 @@ En un iPhone con Safari, cuando la app esté publicada:
 - [ ] M3 Avanzar fotograma a fotograma: ¿cada pulsación cambia la imagen?
 - [ ] M4 Medir el mismo salto con My Jump Lab y con la app: anotar las dos alturas (validación)
 - [ ] M5 Con VoiceOver: ¿se puede crear un paciente y marcar un salto?
+- [ ] M7 Instalar desde Safari (Compartir → Añadir a pantalla de inicio), abrir desde el icono, cerrar y volver: ¿siguen los datos?
+- [ ] M8 Modo avión con la app instalada: ¿abre y deja medir?
 - [ ] M6 Vídeo HEVC del iPhone en un Android con Chrome: ¿se reproduce o da el aviso?

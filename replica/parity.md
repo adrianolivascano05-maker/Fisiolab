@@ -1,20 +1,20 @@
 # Paridad con My Jump Lab
 
-Fecha: 2026-10-17 · Build: 938afd9
+Fecha: 2026-10-17 · Actualizado tras construir PWA y ayuda ilustrada
 
 ## Veredicto: **no publicable todavía**
 
-Faltan 3 must-haves por completar (están a medias). No hay fallos S1 ni S2 abiertos
+Falta 1 must-have: probar con un vídeo real del iPhone (depende de Fisiolab). No hay fallos S1 ni S2 abiertos
 (ver `replica/bugs.md`).
 
 | medida | valor |
 | --- | --- |
-| **Paridad total de funciones** | **41,1 / 100** (39 funciones puntuables) |
-| Must-haves | 10 de 13 completos, 3 a medias → 88,5 % |
+| **Paridad total de funciones** | **44,6 / 100** (39 funciones puntuables) |
+| Must-haves | 12 de 13 completos, 1 a medias → 96,2 % |
 | Fase 1 (saltos) | casi completa; fases 2-4 sin empezar |
 | Paridad de pantallas (layout) | **sin medir**: no hay capturas del original |
 
-El 41 % es honesto: la app completa de My Jump Lab tiene fuerza, sprint, carrera, movilidad,
+El 45 % es honesto: la app completa de My Jump Lab tiene fuerza, sprint, carrera, movilidad,
 nórdico y bienestar, y aquí solo están los saltos básicos. Es lo previsto en el plan por fases
 del recon, no un retraso.
 
@@ -35,7 +35,7 @@ marcado del vídeo y resultado. Las del clon ya están en `replica/clone-screens
 | F02 fps | la app sabe a qué fps graba | lee los fps del archivo y deja indicar los de grabación, con aviso por debajo de 100 | mantener; mejora para vídeos que llegan "ralentizados" |
 | F02 resultado | altura, fuerza, velocidad, potencia | lo mismo, con aviso si el valor no es plausible | mantener (mejora) |
 | F03 drop jump | RSI, contacto, rigidez, DRI | RSI y contacto; sin rigidez ni DRI | construir en fase 2 |
-| Datos | en el iPhone, CSV, suscripción | en el navegador del móvil, CSV para Excel en español, copia de seguridad restaurable, sin cuentas ni suscripción | mantener; falta hacerla instalable |
+| Datos | en el iPhone, CSV, suscripción | app instalable que funciona sin conexión, CSV para Excel en español, copia de seguridad restaurable con recordatorio semanal, sin cuentas ni suscripción | mantener |
 | Varias pestañas/dispositivos | una app nativa | una pestaña cada vez (avisa); sin sincronización entre móviles | mantener; la copia de seguridad sirve para pasar datos |
 | Validación | más de 20 estudios publicados | ninguna todavía | **hacer antes de uso clínico** (caso manual M4) |
 | Clics para un CMJ | no se ha podido contar | ~8 desde la ficha | contar en el original si hay acceso |
@@ -43,9 +43,8 @@ marcado del vídeo y resultado. Las del clon ya están en `replica/clone-screens
 ## Qué falta, en orden de construcción
 
 Must-haves (bloquean la publicación):
-1. **Instalable y sin conexión (PWA)**: que Safari no borre los datos y que abra sin internet.
-2. **Vídeo real del iPhone**: comprobar los fps reales y la reproducción (lo tiene que grabar Fisiolab).
-3. **Ayuda con ilustraciones** de colocación de la cámara (hoy solo texto).
+1. **Vídeo real del iPhone**: comprobar los fps reales y la reproducción (lo tiene que grabar Fisiolab).
+   Hechos el 2026-10-17: PWA instalable y sin conexión; ayuda con ilustraciones propias.
 
 Fase 2, saltos (should): perfil fuerza-velocidad, asimetría unipodal, RSI-mod, CMJ con brazos,
 10-5, salto horizontal, rigidez y DRI (estas dos tras confirmar la fórmula en el artículo).
@@ -56,20 +55,20 @@ Could: S-MAS, sprint curvo, deceleración, idiomas, IA.
 
 ## Las cinco siguientes cosas a construir
 
-1. PWA instalable con funcionamiento sin conexión (must).
-2. Prueba con un vídeo real del iPhone de Fisiolab y ajustes que salgan de ella (must).
-3. Ilustraciones propias en la ayuda de CMJ, SJ y DJ (must).
-4. Protocolo de validación: medir 10-20 saltos a la vez con el clon y con My Jump Lab (o plataforma)
+1. Prueba con un vídeo real del iPhone de Fisiolab y ajustes que salgan de ella (must).
+2. Protocolo de validación: medir 10-20 saltos a la vez con el clon y con My Jump Lab (o plataforma)
    y anotar la diferencia media; pantalla o CSV para registrarlo (propio, should).
-5. Fase 2 de saltos empezando por perfil fuerza-velocidad y asimetría, lo más útil en fisioterapia.
+3. Perfil fuerza-velocidad (fase 2).
+4. Asimetría entre piernas con salto unipodal (fase 2).
+5. RSI-mod y CMJ con brazos libres (fase 2, pequeños).
 
 ## Salida completa de parity.py
 
-### Parity: 41.1 / 100
+### Parity: 44.6 / 100
 
-features 41.1  (39 counted, must-haves 10 of 13 done)
+features 44.6  (39 counted, must-haves 12 of 13 done)
 
-Not shippable yet: 3 must-have features are not done.
+Not shippable yet: 1 must-have features are not done.
 
 ### By area, weakest first
 - fuerza                         0.0  (3 features)
@@ -81,15 +80,13 @@ Not shippable yet: 3 must-have features are not done.
 - ia                             0.0  (3 features)
 - ajustes                        0.0  (1 features)
 - saltos                        42.9  (12 features)
-- ayuda                         50.0  (1 features)
 - historial                     60.0  (2 features)
 - vídeo                         75.0  (2 features)
-- datos                         75.0  (2 features)
 - pacientes                    100.0  (3 features)
+- datos                        100.0  (2 features)
+- ayuda                        100.0  (1 features)
 
 ### Missing, in build order
-- [must] ayuda: Ayuda de colocación de cámara y marcado en cada test, partial  (texto e ilustraciones propios; texto para CMJ/SJ/DJ en S05; sin ilustraciones)
-- [must] datos: Datos guardados solo en el dispositivo con copia de seguridad, partial  (decisión del clon por RGPD; el original guarda en el iPhone; SQLite en OPFS + copia descargable y restaurable; falta hacerla instalable (PWA) para que Safari no borre los datos)
 - [must] vídeo: Subir vídeo a cámara lenta y detectar sus fps, partial  (grabar desde la web no es fiable: se graba con la cámara del móvil y se sube; S06; lee fps del MP4/MOV y permite indicar los de grabación; probado con vídeos sintéticos, falta un vídeo real de iPhone)
 - [should] bienestar: Cuestionario de bienestar (sueño fatiga estrés agujetas), no
 - [should] carrera: Mecánica de carrera (contacto vuelo frecuencia de paso), no
