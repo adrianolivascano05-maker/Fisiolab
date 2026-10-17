@@ -12,6 +12,12 @@ test.describe("Galería de tests", () => {
     await expectAccessible(page);
     await page.getByRole("link", { name: /Lachman/ }).first().click();
     await expect(page.getByRole("img", { name: /Lachman/ }).first()).toBeVisible();
+    // Animación: fases con su texto, pausa y avance manual.
+    await page.getByRole("button", { name: "3. Qué buscar" }).first().click();
+    await expect(page.getByRole("button", { name: "Reproducir la animación" }).first()).toBeVisible();
+    await expect(page.locator("figcaption").first()).toContainText("Positivo si");
+    await page.getByRole("button", { name: "1. Colocación" }).first().click();
+    await expect(page.locator("figcaption").first()).toContainText(/supino/i);
     await expect(page.getByRole("heading", { name: "Cómo se hace" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Evidencia" })).toBeVisible();
     await expectAccessible(page);

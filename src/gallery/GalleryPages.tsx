@@ -10,10 +10,10 @@ import { cx } from "../ui/cx";
 import { EmptyState } from "../ui/EmptyState";
 import { tests } from "./data";
 import { likelihoodRatios, lrMeaning, postTest } from "./evidence";
-import { renderFigure, type FigureSpec } from "./figure";
 import { regionBySlug, regionOf, regions } from "./regions";
 import type { SpecialTest } from "./types";
 import { useFavorites } from "./useFavorites";
+import { AnimatedFigure } from "./AnimatedFigure";
 
 export const GALLERY = "/exploracion";
 const testUrl = (t: SpecialTest) => `${GALLERY}/${regionOf(t.region).slug}/${t.id}`;
@@ -238,27 +238,6 @@ export function GalleryRegion() {
   );
 }
 
-export function Figure({ spec, title, uid }: { spec: FigureSpec; title: string; uid: string }) {
-  const svg = useMemo(() => renderFigure(spec, title, uid), [spec, title, uid]);
-  return (
-    <figure className="flex flex-col gap-1">
-      <div
-        className="aspect-[4/3] w-full overflow-hidden rounded-lg border border-border bg-bg [&>svg]:h-full [&>svg]:w-full"
-        style={
-          {
-            "--fig-force": "var(--color-accent)",
-            "--fig-pain": "var(--color-danger)",
-            "--fig-text": "var(--color-text)",
-            "--fig-bg": "var(--color-bg)",
-          } as React.CSSProperties
-        }
-        dangerouslySetInnerHTML={{ __html: svg }}
-      />
-      {spec.caption && <figcaption className="text-sm text-text-muted">{spec.caption}</figcaption>}
-    </figure>
-  );
-}
-
 /** Ficha de un test. */
 export function GalleryTest() {
   const { region = "", test = "" } = useParams();
@@ -302,9 +281,20 @@ export function GalleryTest() {
       </div>
       <p>{t.purpose}</p>
       {t.figures.map((f, i) => (
-        <Figure key={i} spec={f} title={`${t.name}${t.figures.length > 1 ? `, imagen ${i + 1}` : ""}`} uid={`${t.id}-${i}`} />
+        <AnimatedFigure
+          key={i}
+          spec={f}
+          title={`${t.name}${t.figures.length > 1 ? `, imagen ${i + 1}` : ""}`}
+          uid={`${t.id}-${i}`}
+          texts={{
+            setup: f.caption ? `${t.position} ${f.caption}` : t.position,
+            move: t.steps.slice(t.steps.length > 2 ? 1 : 0).join(" "),
+            look: `Positivo si: ${t.positive}`,
+            back: t.position,
+          }}
+        />
       ))}
-      <p className="text-xs text-text-muted">Manos del examinador en naranja; flechas: fuerza (continua) o movimiento (discontinua); círculo rojo: dónde aparece el síntoma.</p>
+      <p className="text-xs text-text-muted">Paciente con camiseta azul; examinador con pijama verde. Flechas: fuerza del examinador (continua) o movimiento (discontinua); brillo rojo: dónde aparece el síntoma.</p>
 
       <Section title="Posición">
         <p>{t.position}</p>

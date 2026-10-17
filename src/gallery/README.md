@@ -10,7 +10,8 @@ en la base de datos: solo los favoritos, en el navegador.
 | archivo | qué hace |
 | --- | --- |
 | `types.ts` | tipo `SpecialTest` (texto, evidencia, figuras) |
-| `figure.ts` | generador de ilustraciones: figura esquemática a partir de postura, ángulos, manos, flechas y zona de dolor |
+| `figure.ts` | generador de ilustraciones: paciente y examinador con cuerpo y ropa, camilla o silla, flechas y zona de síntoma; anima la maniobra en bucle (colocación → maniobra → qué buscar) |
+| `AnimatedFigure.tsx` | reproductor: pausa, avance manual y texto de cada fase; respeta «reducir movimiento» |
 | `data/*.ts` | contenido, un archivo por región; `data/index.ts` los junta |
 | `evidence.ts` | razones de verosimilitud y probabilidad tras el test |
 | `regions.ts` | articulaciones y su orden |
