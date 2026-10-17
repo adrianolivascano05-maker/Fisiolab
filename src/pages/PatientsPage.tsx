@@ -2,10 +2,12 @@ import { Plus, Search, Users } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { fmtDate, testLabel } from "../app/format";
+import { InstallCard } from "../app/pwa";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
-import { listPatients } from "../data/repo";
+import { getSetting, listPatients } from "../data/repo";
+import { SEED_PREFIX } from "../data/seed";
 import { Alert } from "../ui/Alert";
 import { EmptyState } from "../ui/EmptyState";
 import { List, PatientRow } from "../ui/ListItem";
@@ -15,6 +17,7 @@ export function PatientsPage() {
   const [search, setSearch] = useState("");
   const patients = useAsync(() => listPatients(getDb(), search), [search]);
   const info = useAsync(() => getDb().info(), []);
+  const lastBackup = useAsync(() => getSetting<string>(getDb(), "last_backup_at"), []);
 
   const addLink = (
     <Link to="/pacientes/nuevo" aria-label="Nuevo paciente" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
@@ -29,6 +32,11 @@ export function PatientsPage() {
           Todo se perderá al cerrar la pestaña. Abre la app en Safari o Chrome actualizados.
         </Alert>
       )}
+      <InstallCard />
+      <BackupReminder
+        hasRealPatients={!!patients.data?.some((p) => !p.name.startsWith(SEED_PREFIX))}
+        lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)}
+      />
       <div className="relative">
         <label htmlFor="patient-search" className="sr-only">
           Buscar paciente
@@ -81,5 +89,23 @@ export function PatientsPage() {
         </List>
       )}
     </Page>
+  );
+}
+
+const BACKUP_EVERY_DAYS = 7;
+
+/** Recordatorio semanal: los datos solo están en este dispositivo. */
+function BackupReminder({ hasRealPatients, lastBackup }: { hasRealPatients: boolean; lastBackup: string | null | undefined }) {
+  if (!hasRealPatients || lastBackup === undefined) return null;
+  const days = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86_400_000) : null;
+  if (days !== null && days < BACKUP_EVERY_DAYS) return null;
+  return (
+    <Alert tone="info" title="Haz una copia de seguridad">
+      {days === null ? "Todavía no has hecho ninguna." : `La última fue hace ${days} días.`} Los datos solo están en este
+      dispositivo.{" "}
+      <Link className="font-semibold text-accent underline" to="/ajustes">
+        Ir a Ajustes
+      </Link>
+    </Alert>
   );
 }

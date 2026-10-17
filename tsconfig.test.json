@@ -3,6 +3,8 @@
   "compilerOptions": {
     "types": [
       "vite/client",
+      "vite-plugin-pwa/react",
+      "vite-plugin-pwa/info",
       "node"
     ]
   },

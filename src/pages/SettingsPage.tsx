@@ -2,6 +2,7 @@ import { Database, Download, FileUp } from "lucide-react";
 import { useRef, useState } from "react";
 import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
+import { InstallSteps, useInstall } from "../app/pwa";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
@@ -26,12 +27,19 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 /** S24 Ajustes */
 export function SettingsPage() {
   const toast = useToast();
+  const install = useInstall();
   const input = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<File | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const state = useAsync(async () => {
     const db = getDb();
-    return { info: await db.info(), lastBackup: await getSetting<string>(db, "last_backup_at"), seed: await hasSeed(db) };
+    return {
+      info: await db.info(),
+      lastBackup: await getSetting<string>(db, "last_backup_at"),
+      seed: await hasSeed(db),
+      // Si el navegador garantiza no borrar los datos por falta de espacio o por inactividad.
+      protectedStorage: (await navigator.storage?.persisted?.()) ?? false,
+    };
   }, []);
 
   async function run(label: string, fn: () => Promise<void>) {
@@ -97,6 +105,20 @@ export function SettingsPage() {
           >
             Exportar resultados a Excel (CSV)
           </Button>
+        </Card>
+      </section>
+
+      <section className="flex flex-col gap-3" aria-labelledby="h-instalar">
+        <h2 id="h-instalar" className="text-lg">Instalación</h2>
+        <Card className="flex flex-col gap-3">
+          <InstallSteps {...install} />
+          {state.data && (
+            <p className="text-sm text-text-muted">
+              {state.data.protectedStorage
+                ? "El navegador protege los datos de esta app: no los borrará para liberar espacio."
+                : "El navegador todavía no protege los datos de esta app. Instalarla lo soluciona en la mayoría de móviles."}
+            </p>
+          )}
         </Card>
       </section>
 
