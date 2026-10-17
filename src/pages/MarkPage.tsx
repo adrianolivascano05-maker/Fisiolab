@@ -1,4 +1,4 @@
-import { Upload, ZoomIn, ZoomOut } from "lucide-react";
+import { CircleQuestionMark, Upload, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { requiredMarks, type MarkEvent } from "../calc/results";
@@ -11,7 +11,9 @@ import { getTest, saveMarksAndCompute } from "../data/repo";
 import { Alert } from "../ui/Alert";
 import { Button, IconButton } from "../ui/Button";
 import { FrameControls, FrameScrubber, MarkButton, markerStyle, type Marker } from "../ui/FrameScrubber";
+import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { JumpHelp } from "./JumpHelp";
 
 const hints: Record<MarkEvent, string> = {
   contact: "Busca el primer fotograma en que el pie toca el suelo al caer del cajón y pulsa Contacto.",
@@ -24,6 +26,7 @@ export function MarkPage() {
   const { id = "" } = useParams();
   const test = useAsync(() => getTest(getDb(), id), [id]);
   const [file, setFile] = useState<File | null>(() => videoStore.get(id));
+  const [help, setHelp] = useState(false);
 
   if (test.error) return <Page title="Marcar" backTo="/"><LoadError error={test.error} /></Page>;
   if (test.data === undefined) return <Page title="Marcar" backTo="/"><Loading /></Page>;
@@ -50,7 +53,19 @@ export function MarkPage() {
   for (const m of t.marks) initial[m.event] = m.frameIndex;
 
   return (
-    <Page title={`Marcar · ${jumpLabels[t.type].short}`} backTo={back} tone="media">
+    <Page
+      title={`Marcar · ${jumpLabels[t.type].short}`}
+      backTo={back}
+      tone="media"
+      action={
+        <IconButton label="Cómo marcar" onClick={() => setHelp(true)}>
+          <CircleQuestionMark aria-hidden="true" className="size-6" />
+        </IconButton>
+      }
+    >
+      <Sheet open={help} onClose={() => setHelp(false)} title={`Cómo marcar un ${jumpLabels[t.type].short}`}>
+        <JumpHelp type={t.type} />
+      </Sheet>
       <MarkingWorkspace
         testId={id}
         file={file}
