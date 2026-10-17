@@ -1,0 +1,32 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg font-sans text-base text-text antialiased;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+}
+
+@utility tap {
+  min-height: var(--layout-tap-min);
+  min-width: var(--layout-tap-min);
+}
+@utility tap-video {
+  min-height: var(--layout-tap-video);
+  min-width: var(--layout-tap-video);
+}
+/* Cifras de las métricas: anchos iguales para que no bailen al cambiar. */
+@utility nums {
+  font-variant-numeric: tabular-nums;
+}
+@utility safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
