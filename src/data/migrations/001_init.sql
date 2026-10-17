@@ -6,8 +6,7 @@
 --   unidades  en el nombre de la columna (_kg, _cm, _s) y SI en los cálculos
 -- Versión del esquema: PRAGMA user_version (las migraciones la suben de una en una).
 
-pragma foreign_keys = on;
-pragma user_version = 1;
+-- La app aplica las migraciones en orden y fija PRAGMA user_version; foreign_keys se activa al abrir.
 
 create table patients (
   id                  text primary key,
@@ -58,7 +57,10 @@ create table videos (
   id           text primary key,
   test_id      text not null unique references tests (id) on delete cascade,
   file_name    text not null,
+  -- fps de GRABACIÓN (los que usan los cálculos) y fps del ARCHIVO (los que usa el reproductor).
+  -- Coinciden salvo en un vídeo a cámara lenta exportado "ralentizado" (p. ej. 240 grabados, 30 en el archivo).
   fps          real not null check (fps > 0),
+  container_fps real not null check (container_fps > 0),
   frame_count  integer check (frame_count is null or frame_count > 0),
   duration_s   real check (duration_s is null or duration_s > 0),
   fps_source   text not null check (fps_source in ('container', 'user')),  -- leído del archivo o escrito a mano

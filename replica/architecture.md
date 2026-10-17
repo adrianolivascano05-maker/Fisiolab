@@ -1,6 +1,6 @@
 # Arquitectura: app de medición de Fisiolab (reconstrucción de las funciones de My Jump Lab)
 
-Lee: `replica/recon.md`, `replica/features.csv`. Esquema: `replica/schema.sql`.
+Lee: `replica/recon.md`, `replica/features.csv`. Esquema: `src/data/migrations/001_init.sql` (antes `replica/schema.sql`).
 Fecha: 2026-10-17
 
 ## Decisión principal: todo en el móvil, sin servidor
@@ -43,7 +43,7 @@ Coste mensual previsto: 0 €.
 ## Esquema
 
 Tablas: 9 (`patients`, `tests`, `videos`, `marks`, `results`, `profiles`,
-`profile_tests`, `wellness`, `settings`). Ver `replica/schema.sql`.
+`profile_tests`, `wellness`, `settings`). Ver `src/data/migrations/001_init.sql`.
 
 Reglas de acceso: **no hay RLS ni comprobaciones por usuario**, porque no hay
 usuarios ni servidor: quien tiene el móvil desbloqueado tiene los datos. La
