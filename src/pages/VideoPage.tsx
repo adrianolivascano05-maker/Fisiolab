@@ -68,7 +68,8 @@ export function VideoPage() {
         metaError = e instanceof Error ? e.message : String(e);
       }
       setPicked({ file, meta, durationS, metaError });
-      setCaptureFps(meta ? String(nominalFps(meta.fps)) : "");
+      // Si el móvil dejó escrito a cuántos fps grabó (Android), eso manda; si no, los del archivo.
+      setCaptureFps(meta ? String(nominalFps(meta.captureFps ?? meta.fps)) : "");
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -79,7 +80,10 @@ export function VideoPage() {
   const containerFps = picked?.meta ? nominalFps(picked.meta.fps) : parseDecimal(manualFps);
   const capture = picked?.meta ? Number(captureFps) : containerFps;
   const valid = !!picked && !!containerFps && !Number.isNaN(containerFps) && !!capture && capture > 0;
-  const fpsOptions = [...new Set([...(containerFps && picked?.meta ? [containerFps] : []), ...COMMON_CAPTURE_FPS])].sort((a, b) => a - b);
+  const declaredFps = picked?.meta?.captureFps ? nominalFps(picked.meta.captureFps) : null;
+  const fpsOptions = [
+    ...new Set([...(containerFps && picked?.meta ? [containerFps] : []), ...(declaredFps ? [declaredFps] : []), ...COMMON_CAPTURE_FPS]),
+  ].sort((a, b) => a - b);
 
   async function next() {
     if (!picked || !valid || !containerFps || !capture) return;
@@ -93,7 +97,7 @@ export function VideoPage() {
         containerFps,
         frameCount: picked.meta?.frameCount ?? Math.round(picked.durationS * containerFps),
         durationS: picked.meta?.durationS ?? picked.durationS,
-        fpsSource: picked.meta && capture === containerFps ? "container" : "user",
+        fpsSource: picked.meta && (capture === containerFps || capture === declaredFps) ? "container" : "user",
       });
       videoStore.set(testId, picked.file);
       navigate(`/tests/${testId}/marcar`, { replace: true });
@@ -140,11 +144,15 @@ export function VideoPage() {
                 label="Fotogramas por segundo de la grabación"
                 value={captureFps}
                 onChange={(e) => setCaptureFps(e.target.value)}
-                hint={`El archivo va a ${fmt(containerFps, 0)} fps. Si grabaste a cámara lenta y el vídeo se guardó ralentizado, elige los fps con los que grabaste (por ejemplo 240).`}
+                hint={
+                  declaredFps && declaredFps !== containerFps
+                    ? `${picked.meta.device ?? "El móvil"} indica que grabó a ${fmt(declaredFps, 0)} fps; el archivo va a ${fmt(containerFps, 0)} fps porque la cámara lenta se guardó ralentizada. No hace falta cambiar nada.`
+                    : `El archivo va a ${fmt(containerFps, 0)} fps. Si grabaste a cámara lenta y el vídeo se guardó ralentizado, elige los fps con los que grabaste (por ejemplo 240).`
+                }
               >
                 {fpsOptions.map((f) => (
                   <option key={f} value={f}>
-                    {f} fps{f === containerFps ? " (los del archivo)" : ""}
+                    {f} fps{f === declaredFps && f !== containerFps ? " (según el móvil)" : f === containerFps ? " (los del archivo)" : ""}
                   </option>
                 ))}
               </SelectField>

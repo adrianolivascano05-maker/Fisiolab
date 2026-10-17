@@ -10,6 +10,9 @@ describe("lectura del contenedor", () => {
     expect(nominalFps(m.fps)).toBe(240);
     expect(m.frameCount).toBe(240);
     expect(m.durationS).toBeCloseTo(1, 3);
+    expect(m.frameTimes).toHaveLength(240);
+    // H.264 con fotogramas B: el primero no empieza en 0; lo que cuenta es la distancia entre fotogramas.
+    expect(m.frameTimes[120]! - m.frameTimes[0]!).toBeCloseTo(0.5, 3);
   });
 
   it("cámara lenta exportada ralentizada: el archivo dice 30 fps y dura 8 s", async () => {
@@ -35,5 +38,19 @@ describe("vídeos VP9 de las pruebas en navegador", () => {
     expect(nominalFps((await readContainerMeta(fixture("e2e-240.mp4"))).fps)).toBe(240);
     const slow = await readContainerMeta(fixture("e2e-slowmo-30.mp4"));
     expect([nominalFps(slow.fps), slow.frameCount]).toEqual([30, 240]);
+  });
+});
+
+describe("fps de grabación que escribe Android", () => {
+  it("cámara lenta a 240 guardada a 30 con la etiqueta com.android.capture.fps", async () => {
+    const m = await readContainerMeta(fixture("e2e-android-240-in-30.mp4"));
+    expect(nominalFps(m.fps)).toBe(30);
+    expect(m.captureFps).toBe(240);
+    expect(m.device).toBe("Prueba");
+  });
+
+  it("sin etiqueta no inventa nada", async () => {
+    const m = await readContainerMeta(fixture("cmj240.mov"));
+    expect([m.captureFps, m.device]).toEqual([null, null]);
   });
 });
