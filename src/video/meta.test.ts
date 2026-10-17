@@ -29,3 +29,11 @@ describe("lectura del contenedor", () => {
     expect(nominalFps(77.3)).toBe(77.3);
   });
 });
+
+describe("vídeos VP9 de las pruebas en navegador", () => {
+  it("240 fps y cámara lenta exportada a 30", async () => {
+    expect(nominalFps((await readContainerMeta(fixture("e2e-240.mp4"))).fps)).toBe(240);
+    const slow = await readContainerMeta(fixture("e2e-slowmo-30.mp4"));
+    expect([nominalFps(slow.fps), slow.frameCount]).toEqual([30, 240]);
+  });
+});
