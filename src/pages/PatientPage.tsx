@@ -17,6 +17,8 @@ function age(birthDate: string | null) {
   return n.getFullYear() - b.getFullYear() - (n < new Date(n.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0);
 }
 
+const tile = "flex min-h-14 items-center gap-2 rounded-lg border border-border bg-bg p-3 font-semibold shadow-card hover:border-accent";
+
 /** S02 Ficha del paciente */
 export function PatientPage() {
   const { id = "" } = useParams();
@@ -59,42 +61,31 @@ export function PatientPage() {
         to={`/pacientes/${id}/test`}
         className="inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover"
       >
-        <Plus aria-hidden="true" className="size-5" /> Nuevo test
+        <Plus aria-hidden="true" className="size-5" /> Nueva medición
       </Link>
 
-      {(typesDone.includes("sj") || typesDone.includes("cmj") || typesDone.includes("single_leg")) && (
+      {tests.length > 0 && (
         <nav aria-label="Análisis" className="grid grid-cols-2 gap-2">
+          <Link to={`/pacientes/${id}/evolucion/${tests[0]!.type}`} className={tile}>
+            <ChartLine aria-hidden="true" className="size-5 shrink-0 text-accent" /> Evolución
+          </Link>
           {(typesDone.includes("sj") || typesDone.includes("cmj")) && (
-            <Link to={`/pacientes/${id}/perfil/fv`} className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-bg p-3 font-semibold shadow-card hover:border-accent">
+            <Link to={`/pacientes/${id}/perfil/fv`} className={tile}>
               <Gauge aria-hidden="true" className="size-5 shrink-0 text-accent" /> Perfil fuerza-velocidad
             </Link>
           )}
           {typesDone.includes("single_leg") && (
-            <Link to={`/pacientes/${id}/asimetria`} className="flex min-h-14 items-center gap-2 rounded-lg border border-border bg-bg p-3 font-semibold shadow-card hover:border-accent">
+            <Link to={`/pacientes/${id}/asimetria`} className={tile}>
               <Scale aria-hidden="true" className="size-5 shrink-0 text-accent" /> Asimetría
             </Link>
           )}
         </nav>
       )}
 
-      {typesDone.length > 0 && (
-        <nav aria-label="Evolución" className="flex flex-wrap gap-2">
-          {typesDone.map((t) => (
-            <Link
-              key={t}
-              to={`/pacientes/${id}/evolucion/${t}`}
-              className="inline-flex h-11 items-center gap-2 rounded-pill border border-border-input px-4 text-sm font-semibold hover:bg-surface"
-            >
-              <ChartLine aria-hidden="true" className="size-4 text-accent" /> Evolución {jumpLabels[t].short}
-            </Link>
-          ))}
-        </nav>
-      )}
-
       <h2 className="text-lg">Tests</h2>
       {tests.length === 0 ? (
         <EmptyState icon={Activity} title="Sin tests todavía">
-          Pulsa «Nuevo test» para medir el primer salto.
+          Pulsa «Nueva medición» para registrar su primer salto.
         </EmptyState>
       ) : (
         <ul aria-label="Tests" className="flex flex-col gap-2">

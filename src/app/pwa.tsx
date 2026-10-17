@@ -123,8 +123,8 @@ export function InstallCard() {
     <Card className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 className="font-semibold">Instala la app en este móvil</h2>
-          <p className="text-sm text-text-muted">Se abre sin internet y el navegador no borra tus datos.</p>
+          <h2 className="font-semibold">Ten Impulso a un toque</h2>
+          <p className="text-sm text-text-muted">Instálala: abre sin internet y el navegador cuida tus datos.</p>
         </div>
         <IconButton
           label="Ocultar durante dos semanas"

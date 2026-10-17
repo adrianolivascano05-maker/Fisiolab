@@ -59,7 +59,7 @@ export async function startJump(
   page: Page,
   opts: { type?: RegExp; box?: string; load?: string; side?: "Izquierda" | "Derecha"; file?: string; captureFps?: string } = {},
 ) {
-  await page.getByRole("link", { name: "Nuevo test" }).click();
+  await page.getByRole("link", { name: "Nueva medición" }).click();
   await page.getByRole("link", { name: /Saltos/ }).click();
   if (opts.type) await page.getByRole("radio", { name: opts.type }).check({ force: true });
   if (opts.box) await page.getByLabel("Altura del cajón").fill(opts.box);

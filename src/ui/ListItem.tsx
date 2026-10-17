@@ -3,10 +3,13 @@ import { Link } from "react-router";
 
 type PatientRowProps = { to: string; name: string; meta: string };
 
+/** Iniciales del nombre (sin prefijos como «Ejemplo ·» ni signos). */
 function initials(name: string) {
   return name
+    .split(" · ")
+    .at(-1)!
     .split(/\s+/)
-    .filter(Boolean)
+    .filter((w) => /^\p{L}/u.test(w))
     .slice(0, 2)
     .map((w) => w[0]!.toUpperCase())
     .join("");

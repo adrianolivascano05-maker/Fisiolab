@@ -253,8 +253,8 @@ function ProfileView({ profile: p, points }: { profile: FvProfile; points: FvCan
             {optimal.length > 0 && (
               <Line data={optimal} dataKey="f" name="Perfil óptimo" stroke="var(--color-text-muted)" strokeWidth={2} strokeDasharray="6 4" dot={false} isAnimationActive={false} />
             )}
-            <Line data={actual} dataKey="f" name="Perfil real" stroke="var(--color-accent)" strokeWidth={2} dot={false} isAnimationActive={false} />
-            <Scatter data={scatter} dataKey="f" name="Saltos" fill="var(--color-accent)" stroke="var(--color-bg)" strokeWidth={2} shape="circle" isAnimationActive={false} />
+            <Line data={actual} dataKey="f" name="Perfil real" stroke="var(--color-chart-primary)" strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Scatter data={scatter} dataKey="f" name="Saltos" fill="var(--color-chart-primary)" stroke="var(--color-bg)" strokeWidth={2} shape="circle" isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </figure>

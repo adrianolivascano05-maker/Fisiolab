@@ -14,7 +14,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     const href = await page.locator('link[rel="manifest"]').getAttribute("href");
     const manifest = await (await request.get(href!)).json();
     const base = new URL(baseURL!).pathname;
-    expect(manifest).toMatchObject({ name: "Fisiolab · Medición", short_name: "Fisiolab", display: "standalone", lang: "es", start_url: base, scope: base });
+    expect(manifest).toMatchObject({ name: "Impulso · Fisiolab", short_name: "Impulso", display: "standalone", lang: "es", start_url: base, scope: base });
     for (const icon of manifest.icons) expect((await request.get(icon.src)).status(), icon.src).toBe(200);
     expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === "maskable")).toBe(true);
     expect((await request.get("icons/apple-touch-icon.png")).status()).toBe(200);
@@ -29,7 +29,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Sin internet/ })).toBeVisible();
     await page.getByRole("link", { name: /Sin internet/ }).click();
-    await page.getByRole("link", { name: "Nuevo test" }).click();
+    await page.getByRole("link", { name: "Nueva medición" }).click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("Elegir vídeo").setInputFiles((await import("./fixtures")).video.at240);
@@ -45,14 +45,14 @@ test.describe("PWA: instalable y sin conexión", () => {
 
   test("PWA-E1 tarjeta de instalación: pasos y ocultar durante dos semanas", async ({ page }) => {
     await page.goto("./");
-    const card = page.getByRole("heading", { name: "Instala la app en este móvil" });
+    const card = page.getByRole("heading", { name: "Ten Impulso a un toque" });
     await expect(card).toBeVisible();
     await expect(page.getByText(/«Instalar app»|Instalar la app|Añadir a pantalla de inicio/).first()).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Ocultar durante dos semanas" }).click();
     await expect(card).toHaveCount(0);
     await page.reload();
-    await expect(page.getByText("Aún no hay pacientes")).toBeVisible();
+    await expect(page.getByText("Todavía no hay pacientes")).toBeVisible();
     await expect(card).toHaveCount(0);
   });
 

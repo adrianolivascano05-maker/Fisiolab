@@ -17,7 +17,7 @@ export const categories = [
 export function TestPickerPage() {
   const { id = "" } = useParams();
   return (
-    <Page title="Nuevo test" backTo={`/pacientes/${id}`}>
+    <Page title="Nueva medición" backTo={`/pacientes/${id}`}>
       <div className="grid grid-cols-2 gap-3">
         {categories.map((c) => (
           <CategoryTile

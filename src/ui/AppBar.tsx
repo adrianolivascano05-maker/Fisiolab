@@ -2,9 +2,13 @@ import { ChevronLeft, Settings, Users, ChartColumn } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router";
 import { cx } from "./cx";
+import { Logo } from "./Logo";
 
-/** Barra superior: volver, título y una acción opcional a la derecha. */
-export function TopBar({ title, backTo, action }: { title: string; backTo?: string; action?: ReactNode }) {
+/**
+ * Barra superior: volver, título y una acción opcional a la derecha. Con `brand`, en lugar del título
+ * muestra la marca (la página pone entonces su propio h1).
+ */
+export function TopBar({ title, backTo, action, brand }: { title: string; backTo?: string; action?: ReactNode; brand?: boolean }) {
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-bg/95 text-text backdrop-blur">
       <div className="mx-auto flex h-[var(--layout-header)] max-w-[var(--layout-content-max)] items-center gap-1 px-2">
@@ -15,7 +19,13 @@ export function TopBar({ title, backTo, action }: { title: string; backTo?: stri
         ) : (
           <span className="w-2" />
         )}
-        <h1 className="flex-1 truncate text-lg">{title}</h1>
+        {brand ? (
+          <span className="flex-1 pl-2">
+            <Logo />
+          </span>
+        ) : (
+          <h1 className="flex-1 truncate text-lg">{title}</h1>
+        )}
         {action}
       </div>
     </header>

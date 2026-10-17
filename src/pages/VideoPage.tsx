@@ -112,7 +112,7 @@ export function VideoPage() {
   return (
     <Page title={`Vídeo · ${jumpLabels[type]?.short ?? type}${side ? ` ${side === "left" ? "izq." : "dcha."}` : ""}`} backTo={`/pacientes/${id}/test/saltos`}>
       <p className="text-text-muted">
-        Graba el salto con la cámara lenta del móvil y elígelo aquí. El vídeo no se guarda en la app: se queda en tu galería.
+        Graba el salto a cámara lenta y elígelo aquí. El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.
       </p>
       <input
         ref={input}

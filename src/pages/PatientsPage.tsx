@@ -26,7 +26,7 @@ export function PatientsPage() {
   );
 
   return (
-    <Page title="Pacientes" tabs action={addLink}>
+    <Page title="Pacientes" tabs brand action={addLink}>
       {info.data && !info.data.persistent && (
         <Alert tone="warning" title="Este navegador no guarda los datos">
           Todo se perderá al cerrar la pestaña. Abre la app en Safari o Chrome actualizados.
@@ -62,14 +62,14 @@ export function PatientsPage() {
         ) : (
           <EmptyState
             icon={Users}
-            title="Aún no hay pacientes"
+            title="Todavía no hay pacientes"
             action={
               <Link to="/pacientes/nuevo" className="inline-flex h-11 items-center gap-2 rounded-md bg-accent px-4 font-semibold text-on-accent">
                 <Plus aria-hidden="true" className="size-5" /> Añadir paciente
               </Link>
             }
           >
-            Crea el primero para empezar a medir.
+            Añade a tu primer paciente y mide su salto en un par de minutos.
           </EmptyState>
         )
       ) : (

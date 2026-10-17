@@ -20,7 +20,7 @@ test.describe("F03 Drop jump con RSI", () => {
 
   test("F03-N1 sin altura del cajón no deja continuar", async ({ page }) => {
     await createPatient(page, { name: "DJ sin cajón" });
-    await page.getByRole("link", { name: "Nuevo test" }).click();
+    await page.getByRole("link", { name: "Nueva medición" }).click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("radio", { name: /Drop jump/ }).check({ force: true });
     await page.getByRole("button", { name: "Continuar" }).click();

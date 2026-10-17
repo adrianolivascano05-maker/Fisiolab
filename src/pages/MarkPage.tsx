@@ -265,7 +265,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
     if (state.ready) hint = `${state.complete} saltos marcados. Puedes seguir marcando o pulsar Calcular.`;
     else hint += ` (mínimo ${MIN_JUMPS} saltos; lo ideal, los 10)`;
   } else {
-    hint = state.missing.length ? hints[state.missing[0]!] : state.ordered ? "Listo. Revisa las marcas si quieres y pulsa Calcular." : "";
+    hint = state.missing.length ? hints[state.missing[0]!] : state.ordered ? "Listo. Revisa las marcas si quieres y pulsa «Calcular resultado»." : "";
   }
 
   return (
@@ -347,7 +347,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
           ))}
       </div>
       <Button size="lg" block disabled={!state.ready} loading={saving} onClick={calculate}>
-        Calcular
+        Calcular resultado
       </Button>
     </div>
   );

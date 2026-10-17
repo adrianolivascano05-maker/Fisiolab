@@ -21,7 +21,7 @@ export function DbGate({ children }: { children: ReactNode }) {
       <main className="mx-auto flex min-h-dvh max-w-[var(--layout-content-max)] flex-col justify-center gap-4 p-4">
         <EmptyState
           icon={CopyX}
-          title="La app ya está abierta en otra pestaña"
+          title="Impulso ya está abierta en otra pestaña"
           action={<Button onClick={() => location.reload()}>Reintentar</Button>}
         >
           Usa esa pestaña, o ciérrala y pulsa Reintentar. Solo una pestaña puede guardar datos a la vez.

@@ -45,9 +45,9 @@ export default defineConfig({
       registerType: "prompt",
       includeAssets: ["favicon.png", "icons/apple-touch-icon.png"],
       manifest: {
-        name: "Fisiolab · Medición",
-        short_name: "Fisiolab",
-        description: "Medición de saltos por vídeo a cámara lenta para la clínica.",
+        name: "Impulso · Fisiolab",
+        short_name: "Impulso",
+        description: "Medición del salto por vídeo a cámara lenta, para la clínica Fisiolab.",
         lang: "es",
         start_url: base,
         scope: base,

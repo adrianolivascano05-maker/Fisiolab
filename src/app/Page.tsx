@@ -10,14 +10,17 @@ type PageProps = {
   /** Las tres pantallas principales llevan la barra inferior. */
   tabs?: boolean;
   tone?: "default" | "media";
+  /** Cabecera con la marca; el título pasa a ser el encabezado de la página. */
+  brand?: boolean;
   children: ReactNode;
 };
 
-export function Page({ title, backTo, action, tabs, tone = "default", children }: PageProps) {
+export function Page({ title, backTo, action, tabs, tone = "default", brand, children }: PageProps) {
   return (
     <div className={cx("min-h-dvh", tone === "media" && "bg-media-bg text-media-text")}>
-      <TopBar title={title} backTo={backTo} action={action} />
+      <TopBar title={title} backTo={backTo} action={action} brand={brand} />
       <main className={cx("mx-auto flex max-w-[var(--layout-content-max)] flex-col gap-4 px-4 pt-4", tabs ? "pb-28" : "pb-12")}>
+        {brand && <h1 className="text-xl">{title}</h1>}
         {children}
       </main>
       {tabs && <TabBar />}

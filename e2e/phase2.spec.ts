@@ -74,7 +74,7 @@ test.describe("Fase 2 de saltos", () => {
 
   test("F07 salto horizontal sin vídeo", async ({ page }) => {
     await createPatient(page, { name: "Horizontal" });
-    await page.getByRole("link", { name: "Nuevo test" }).click();
+    await page.getByRole("link", { name: "Nueva medición" }).click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("radio", { name: /Salto horizontal/ }).check({ force: true });
     await page.getByRole("button", { name: "Guardar salto" }).click();

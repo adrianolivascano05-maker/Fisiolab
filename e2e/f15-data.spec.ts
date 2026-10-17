@@ -56,7 +56,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await createPatient(page, { name: "Pestaña uno" });
     const second = await context.newPage();
     await second.goto("./");
-    await expect(second.getByText("La app ya está abierta en otra pestaña")).toBeVisible();
+    await expect(second.getByText("Impulso ya está abierta en otra pestaña")).toBeVisible();
     await expect(second.getByRole("link", { name: "Nuevo paciente" })).toHaveCount(0);
     await page.close();
     await second.getByRole("button", { name: "Reintentar" }).click();

@@ -3,7 +3,7 @@ import { createPatient, expect, expectAccessible, test } from "./fixtures";
 test.describe("F01 Dar de alta un paciente", () => {
   test("F01-H1 crear paciente y verlo en la lista", async ({ page }) => {
     await page.goto("./");
-    await expect(page.getByText("Aún no hay pacientes")).toBeVisible();
+    await expect(page.getByText("Todavía no hay pacientes")).toBeVisible();
     await expectAccessible(page);
     await createPatient(page, { name: "Ana Martín López", mass: "62,5", pushOff: "38" });
     await expect(page.getByText("62,5 kg · empuje 38,0 cm")).toBeVisible();
@@ -74,7 +74,7 @@ test.describe("F01 Dar de alta un paciente", () => {
     await expect(dialog).toBeHidden();
     await page.getByRole("button", { name: "Borrar paciente" }).click();
     await dialog.getByRole("button", { name: "Borrar para siempre" }).click();
-    await expect(page.getByText("Aún no hay pacientes")).toBeVisible();
+    await expect(page.getByText("Todavía no hay pacientes")).toBeVisible();
   });
 
   test("F01-N2 abrir un paciente que no existe", async ({ page }) => {
@@ -95,7 +95,7 @@ test.describe("F01 Dar de alta un paciente", () => {
 
   test("F01-E7 los avisos salen arriba y no tapan los botones de abajo", async ({ page }) => {
     await createPatient(page, { name: "Aviso" });
-    const toast = page.getByText("Paciente creado");
+    const toast = page.getByText("Paciente añadido");
     await expect(toast).toBeVisible();
     const box = (await toast.boundingBox())!;
     expect(box.y).toBeLessThan(844 / 3);

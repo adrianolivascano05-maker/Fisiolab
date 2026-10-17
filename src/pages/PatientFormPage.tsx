@@ -109,7 +109,7 @@ export function PatientFormPage() {
     try {
       const pid = id ?? (await createPatient(getDb(), input));
       if (id) await updatePatient(getDb(), id, input);
-      toast(id ? "Cambios guardados" : "Paciente creado", "success");
+      toast(id ? "Cambios guardados" : "Paciente añadido", "success");
       navigate(`/pacientes/${pid}`, { replace: true });
     } catch (err) {
       toast(err instanceof Error ? err.message : "No se pudo guardar", "danger");

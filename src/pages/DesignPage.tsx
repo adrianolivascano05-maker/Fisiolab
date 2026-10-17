@@ -93,8 +93,8 @@ export function DesignPage() {
             <PatientRow to="#" name="Ana Martín López" meta="Último test: CMJ · 12 oct" />
             <PatientRow to="#" name="Jorge Ruiz" meta="Sin tests todavía" />
           </List>
-          <EmptyState icon={Users} title="Aún no hay pacientes" action={<Button icon={<Plus aria-hidden="true" className="size-5" />}>Añadir paciente</Button>}>
-            Crea el primero para empezar a medir.
+          <EmptyState icon={Users} title="Todavía no hay pacientes" action={<Button icon={<Plus aria-hidden="true" className="size-5" />}>Añadir paciente</Button>}>
+            Añade a tu primer paciente y mide su salto en un par de minutos.
           </EmptyState>
         </Section>
 

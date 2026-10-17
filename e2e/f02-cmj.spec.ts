@@ -5,7 +5,7 @@ const big = (page: import("@playwright/test").Page) => page.locator("p,div,span"
 test.describe("F02 Medir un CMJ", () => {
   test("F02-H1 vídeo a 240 fps: 120 fotogramas de vuelo son 30,7 cm, con potencia", async ({ page }) => {
     await createPatient(page, { name: "Ana", mass: "62,5", pushOff: "38" });
-    await page.getByRole("link", { name: "Nuevo test" }).click();
+    await page.getByRole("link", { name: "Nueva medición" }).click();
     await expectAccessible(page);
     await page.getByRole("link", { name: /Saltos/ }).click();
     await expectAccessible(page);
@@ -46,7 +46,7 @@ test.describe("F02 Medir un CMJ", () => {
 
   test("F02-E2 cámara lenta exportada a 30 fps: avisa y, con 240 de grabación, mide bien", async ({ page }) => {
     await createPatient(page, { name: "Slowmo" });
-    await page.getByRole("link", { name: "Nuevo test" }).click();
+    await page.getByRole("link", { name: "Nueva medición" }).click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("Elegir vídeo").setInputFiles(video.slowmo30);
@@ -116,7 +116,7 @@ test.describe("F02 Medir un CMJ", () => {
 
   test("F02-N1 un archivo que no es vídeo", async ({ page }) => {
     await createPatient(page, { name: "No vídeo" });
-    await page.getByRole("link", { name: "Nuevo test" }).click();
+    await page.getByRole("link", { name: "Nueva medición" }).click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("Elegir vídeo").setInputFiles(video.notVideo);
@@ -158,7 +158,7 @@ test.describe("F02 Medir un CMJ", () => {
 test.describe("F02 vídeos de Android", () => {
   test("F02-E9 cámara lenta de Android guardada a 30: la app usa los fps que escribió el móvil", async ({ page }) => {
     await createPatient(page, { name: "Android" });
-    await page.getByRole("link", { name: "Nuevo test" }).click();
+    await page.getByRole("link", { name: "Nueva medición" }).click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("Elegir vídeo").setInputFiles(video.android240in30);

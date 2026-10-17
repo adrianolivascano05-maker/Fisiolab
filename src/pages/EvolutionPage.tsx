@@ -1,13 +1,13 @@
 import { ChartLine } from "lucide-react";
 import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { JumpType } from "../calc/results";
 import { fmt, fmtDate, jumpLabels, metricLabels } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
-import { getPatient, history } from "../data/repo";
+import { getPatient, history, listTests } from "../data/repo";
 import { EmptyState } from "../ui/EmptyState";
 import { SelectField } from "../ui/Field";
 
@@ -25,17 +25,19 @@ const metricsFor: Record<JumpType, string[]> = {
 export function EvolutionPage() {
   const { id = "", tipo = "cmj" } = useParams();
   const type = (tipo in jumpLabels ? tipo : "cmj") as JumpType;
+  const navigate = useNavigate();
   const [metric, setMetric] = useState(metricsFor[type][0]!);
   const data = useAsync(async () => {
     const db = getDb();
-    return { patient: await getPatient(db, id), points: await history(db, id, type, metric) };
+    const types = [...new Set((await listTests(db, id)).map((t) => t.type))];
+    return { patient: await getPatient(db, id), points: await history(db, id, type, metric), types };
   }, [id, type, metric]);
-  const title = `Evolución · ${jumpLabels[type].short}`;
+  const title = "Evolución";
   const back = `/pacientes/${id}`;
 
   if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title={title} backTo={back}><Loading /></Page>;
-  const { patient, points } = data.data;
+  const { patient, points, types } = data.data;
   const m = metricLabels[metric] ?? { label: metric, digits: 1 };
   const best = points.length ? points.reduce((a, b) => ((metric === "contact_time_ms" ? b.value < a.value : b.value > a.value) ? b : a)) : null;
   const chart = points.map((p) => ({ date: fmtDate(p.performedAt), value: Number(p.value.toFixed(m.digits)) }));
@@ -43,6 +45,23 @@ export function EvolutionPage() {
   return (
     <Page title={title} backTo={back}>
       <p className="text-text-muted">{patient?.name}</p>
+      {types.length > 1 && (
+        <SelectField
+          label="Test"
+          value={type}
+          onChange={(e) => {
+            const next = e.target.value as JumpType;
+            setMetric(metricsFor[next][0]!);
+            navigate(`/pacientes/${id}/evolucion/${next}`, { replace: true });
+          }}
+        >
+          {types.map((t) => (
+            <option key={t} value={t}>
+              {jumpLabels[t].long}
+            </option>
+          ))}
+        </SelectField>
+      )}
       <SelectField label="Medida" value={metric} onChange={(e) => setMetric(e.target.value)}>
         {metricsFor[type].map((k) => (
           <option key={k} value={k}>
@@ -71,7 +90,7 @@ export function EvolutionPage() {
                 <XAxis dataKey="date" tick={{ fill: "var(--color-text-muted)", fontSize: 12 }} stroke="var(--color-border)" />
                 <YAxis domain={["auto", "auto"]} tick={{ fill: "var(--color-text-muted)", fontSize: 12 }} stroke="var(--color-border)" />
                 <Tooltip formatter={(v) => fmt(Number(v), m.digits)} />
-                <Line type="monotone" dataKey="value" name={m.label} stroke="var(--color-accent)" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
+                <Line type="monotone" dataKey="value" name={m.label} stroke="var(--color-chart-primary)" strokeWidth={2} dot={{ r: 4, fill: "var(--color-chart-primary)" }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </figure>
