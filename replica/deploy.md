@@ -28,7 +28,9 @@ Tipo de publicación propuesta: **versión de prueba** para el móvil Android de
 
 El repositorio es público, así que GitHub Pages es gratis y no hace falta ninguna cuenta nueva.
 
-- Dirección: **https://adrianolivascano05-maker.github.io/Fisiolab/**
+- Dirección: **https://adrianolivascano05-maker.github.io/Fisiolab/** — **publicada el 2026-10-17**
+  (ejecución 39023205164: build y pruebas correctos, despliegue «Reported success!»). Desde el entorno de
+  Claude no se puede abrir github.io (lo bloquea su red): la comprobación en vivo la hace Fisiolab en su móvil.
 - `.github/workflows/pages.yml`: en cada push a la rama principal, instala, pasa las pruebas unitarias,
   compila bajo `/Fisiolab/`, copia `index.html` a `404.html` (rutas internas) y publica.
 - GitHub Pages no permite cabeceras propias: la CSP va como `<meta>` en el HTML (sin `frame-ancestors`,
@@ -39,8 +41,8 @@ El repositorio es público, así que GitHub Pages es gratis y no hace falta ning
 - Nota: todas las webs de GitHub Pages de esta cuenta comparten origen (`adrianolivascano05-maker.github.io`)
   y por tanto almacenamiento. Si algún día se publican otras, conviene un dominio propio para la app.
 
-Único paso de Fisiolab (una vez): en GitHub, repositorio Fisiolab → **Settings → Pages → Build and
-deployment → Source: «GitHub Actions»**. Claude no puede cambiar ajustes del repositorio.
+Paso de Fisiolab (hecho el 2026-10-17): Settings → Pages → Source: «GitHub Actions». El flujo no puede
+activarlo solo: lo intentó con `configure-pages` y GitHub respondió «Resource not accessible by integration».
 
 ## Alternativa: Cloudflare (preparado, no usado)
 
