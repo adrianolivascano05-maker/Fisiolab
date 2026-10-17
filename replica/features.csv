@@ -44,3 +44,7 @@ Conectar plataformas de fuerza (ForceData),otros,skip,yes,skip,necesita hardware
 Suscripción y prueba gratis,cuenta,skip,yes,skip,uso interno en la clínica: no hace falta
 Compartir suscripción entre iPhone iPad y Mac,cuenta,skip,yes,skip,no aplica a una web
 Validación científica publicada del original,calidad,skip,yes,skip,es del original; el clon necesita la suya propia
+Autoguardado de las marcas sin calcular,marcado,should,no,yes,"reseñas: forzar cierre y empezar de nuevo; replica/fixes.md #1"
+Explicación del cálculo en el resultado del salto (fotogramas · fps · fórmula),resultados,should,no,yes,"reseñas: cálculos inconsistentes; replica/fixes.md #2"
+Medición rápida sin rellenar ficha,pacientes,should,no,yes,"reseña: montar un perfil para probar; replica/fixes.md #3"
+Lupa sobre la imagen al marcar,marcado,could,no,no,"evidencia escasa; replica/fixes.md #8"

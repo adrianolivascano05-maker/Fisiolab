@@ -1,16 +1,21 @@
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Users, Zap } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { fmtDate, testLabel } from "../app/format";
 import { InstallCard } from "../app/pwa";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
-import { getSetting, listPatients } from "../data/repo";
+import { createPatient, getSetting, listPatients } from "../data/repo";
 import { SEED_PREFIX } from "../data/seed";
 import { Alert } from "../ui/Alert";
+import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { List, PatientRow } from "../ui/ListItem";
+import { useToast } from "../ui/Toast";
+
+/** Ficha donde van las mediciones hechas sin elegir paciente. */
+export const QUICK_PATIENT = "Medición rápida";
 
 /** S01 Pacientes */
 export function PatientsPage() {
@@ -18,6 +23,34 @@ export function PatientsPage() {
   const patients = useAsync(() => listPatients(getDb(), search), [search]);
   const info = useAsync(() => getDb().info(), []);
   const lastBackup = useAsync(() => getSetting<string>(getDb(), "last_backup_at"), []);
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [quick, setQuick] = useState(false);
+
+  /** Medir ya, sin rellenar una ficha: usa (o crea) la ficha «Medición rápida». */
+  async function quickMeasure() {
+    setQuick(true);
+    try {
+      const db = getDb();
+      const found = (await listPatients(db, QUICK_PATIENT)).find((p) => p.name === QUICK_PATIENT);
+      const id =
+        found?.id ??
+        (await createPatient(db, {
+          name: QUICK_PATIENT,
+          birthDate: null,
+          sex: null,
+          bodyMassKg: null,
+          heightCm: null,
+          legLengthCm: null,
+          pushOffDistanceCm: null,
+          notes: "Mediciones hechas sin elegir paciente. Puedes cambiarle el nombre y los datos cuando quieras.",
+        }));
+      navigate(`/pacientes/${id}/test`);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "No se pudo empezar", "danger");
+      setQuick(false);
+    }
+  }
 
   const addLink = (
     <Link to="/pacientes/nuevo" aria-label="Nuevo paciente" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
@@ -37,6 +70,9 @@ export function PatientsPage() {
         hasRealPatients={!!patients.data?.some((p) => !p.name.startsWith(SEED_PREFIX))}
         lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)}
       />
+      <Button variant="secondary" block loading={quick} icon={<Zap aria-hidden="true" className="size-5" />} onClick={quickMeasure}>
+        Medición rápida, sin ficha
+      </Button>
       <div className="relative">
         <label htmlFor="patient-search" className="sr-only">
           Buscar paciente

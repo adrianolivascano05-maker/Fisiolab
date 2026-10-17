@@ -191,6 +191,7 @@ function SingleResult({ test, get, hasPowerData, patientId }: { test: Test; get:
           ))}
         </div>
       )}
+      <HowCalculated test={test} heightCm={height.value} />
       {(test.type === "cmj" || test.type === "sj") && !get("power_w") && !hasPowerData && (
         <p className="text-sm text-text-muted">
           Para fuerza y potencia, añade la masa y la distancia de empuje en la{" "}
@@ -207,6 +208,47 @@ function SingleResult({ test, get, hasPowerData, patientId }: { test: Test; get:
         </p>
       )}
     </>
+  );
+}
+
+/** Cálculo a la vista: fotogramas marcados, fps y fórmula. Los mismos fotogramas dan siempre el mismo resultado. */
+function HowCalculated({ test, heightCm }: { test: Test; heightCm: number }) {
+  const at = (e: string) => test.marks.find((m) => m.event === e && m.seriesIndex === 0)?.frameIndex;
+  const takeoff = at("takeoff");
+  const landing = at("landing");
+  const contact = at("contact");
+  const fps = test.video?.captureFps;
+  if (takeoff === undefined || landing === undefined || !fps) return null;
+  const frames = landing - takeoff;
+  const flightS = frames / fps;
+  return (
+    <details className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">
+      <summary className="cursor-pointer font-semibold">Cómo se ha calculado</summary>
+      <dl className="nums mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        {contact !== undefined && (
+          <>
+            <dt className="text-text-muted">Contacto</dt>
+            <dd>fotograma {contact + 1}</dd>
+          </>
+        )}
+        <dt className="text-text-muted">Despegue</dt>
+        <dd>fotograma {takeoff + 1}</dd>
+        <dt className="text-text-muted">Aterrizaje</dt>
+        <dd>fotograma {landing + 1}</dd>
+        <dt className="text-text-muted">Vuelo</dt>
+        <dd>
+          {frames} fotogramas ÷ {fmt(fps, 0)} fps = {fmt(flightS * 1000, 0)} ms
+        </dd>
+        <dt className="text-text-muted">Altura</dt>
+        <dd>
+          9,81 × {fmt(flightS, 3)}² ÷ 8 = {fmt(heightCm)} cm
+        </dd>
+      </dl>
+      <p className="mt-2 text-text-muted">
+        Todo en el sistema métrico. Con los mismos fotogramas y los mismos fps sale siempre el mismo resultado; un fotograma más o menos
+        cambia el vuelo en {fmt(1000 / fps, 1)} ms.
+      </p>
+    </details>
   );
 }
 

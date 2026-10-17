@@ -9,6 +9,7 @@ import { getExercise } from "../calc/strength";
 import { isJumpType, jumpLabels } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
+import { markDraft } from "../app/markDraft";
 import { videoStore } from "../app/videoStore";
 import { getDb } from "../data/db";
 import { getTest, saveMarksAndCompute, saveNordicAngle } from "../data/repo";
@@ -314,8 +315,17 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
   const url = useMemo(() => URL.createObjectURL(file), [file]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
 
-  const [marks, setMarks] = useState<MarkInput[]>(initial);
-  const [frame, setFrame] = useState(() => initial.find((m) => ["takeoff", "bar_start", "start", "contact"].includes(m.event))?.frame ?? 0);
+  // Marcas sin calcular de una sesión anterior (la página se cerró o recargó a mitad).
+  const [draft] = useState(() => {
+    const d = markDraft.get(testId);
+    return d && JSON.stringify(d) !== JSON.stringify(initial) ? d : null;
+  });
+  const [marks, setMarks] = useState<MarkInput[]>(draft ?? initial);
+  useEffect(() => {
+    if (JSON.stringify(marks) === JSON.stringify(initial)) markDraft.clear(testId);
+    else markDraft.set(testId, marks);
+  }, [marks, initial, testId]);
+  const [frame, setFrame] = useState(() => (draft ?? initial).find((m) => ["takeoff", "bar_start", "start", "contact"].includes(m.event))?.frame ?? 0);
   const [playing, setPlaying] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [center, setCenter] = useState(frame);
@@ -429,6 +439,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
     setSaving(true);
     try {
       await saveMarksAndCompute(getDb(), testId, marks);
+      markDraft.clear(testId);
       navigate(`/tests/${testId}`, { replace: true });
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo calcular", "danger");
@@ -445,6 +456,11 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
 
   return (
     <div className="flex flex-col gap-4">
+      {draft && (
+        <Alert tone="info" title="Marcas recuperadas">
+          {draft.length === 1 ? "Había 1 marca" : `Había ${draft.length} marcas`} sin calcular de la última vez. Revísalas y sigue donde lo dejaste.
+        </Alert>
+      )}
       <video
         ref={video}
         src={url}

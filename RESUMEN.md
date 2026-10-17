@@ -178,5 +178,5 @@ Convenciones:
 
 1. **Validación:** pantalla o CSV para anotar la altura de My Jump Lab junto a la de Impulso y calcular la diferencia media.
 2. **Extras («could»):** sprint curvo, deceleración, S-MAS y detección automática con IA (fase 5).
-3. **`/replica-entrepreneur`:** quejas reales de los usuarios del original, convertidas en mejoras.
+3. **Reseñas del original (hecho, muestra pequeña):** `replica/fixes.md`. Ya hechas: autoguardado de marcas, «Cómo se ha calculado» en el salto y medición rápida sin ficha. Pendiente: lupa sobre la imagen al marcar y volver a leer las reseñas desde un navegador normal (aquí las tiendas están bloqueadas).
 4. **Confirmar el DRI** en el artículo de Brooks (2026).
