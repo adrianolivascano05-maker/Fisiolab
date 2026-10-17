@@ -124,7 +124,24 @@ export function PatientPage() {
                     <span className="text-sm text-text-muted">{fmtDateTime(t.performedAt)}</span>
                   </span>
                   <span className="nums text-right">
-                    {t.type === "nordic" ? (
+                    {t.type === "sprint_linear" || t.type.startsWith("cod_") ? (
+                      t.timeS === null ? (
+                        <span className="text-sm text-warning">Sin marcar</span>
+                      ) : (
+                        <>
+                          <span className="text-xl">{fmt(t.timeS, 2)}</span> <span className="text-text-muted">s</span>
+                        </>
+                      )
+                    ) : t.type === "running" ? (
+                      t.contactMs === null ? (
+                        <span className="text-sm text-warning">Sin marcar</span>
+                      ) : (
+                        <>
+                          <span className="text-sm text-text-muted">contacto </span>
+                          <span className="text-xl">{fmt(t.contactMs, 0)}</span> <span className="text-text-muted">ms</span>
+                        </>
+                      )
+                    ) : t.type === "nordic" ? (
                       t.angleDeg === null ? (
                         <span className="text-sm text-warning">Sin marcar</span>
                       ) : (

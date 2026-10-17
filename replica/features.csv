@@ -27,10 +27,10 @@ Movilidad de tobillo (lunge) hombro cadera y cuello,movilidad,should,yes,yes,"S1
 Nórdico: ángulo de rotura,isquios,should,yes,yes,"S20: marcar la rotura en el vídeo y tocar rodilla y cadera en ese fotograma (respecto a la vertical); o escribirlo"
 Nórdico: torque estimado,isquios,should,yes,yes,"modelo propio por validar: 0,878·masa·g·0,322·estatura·sen θ / 2 por pierna (no se encontró la fórmula publicada)"
 Cuestionario de bienestar (sueño fatiga estrés agujetas),bienestar,should,yes,yes,"S21: 5 preguntas de 1 a 5 (fatiga, sueño, dolor muscular, estrés, ánimo) + dolor de la lesión 0-10; total 5-25, comparación con su media y avisos"
-Sprint lineal con tiempos de paso,sprint,should,yes,no,
-Tests de cambio de dirección (5-0-5 5+5 V-Cut Illinois),sprint,should,yes,no,
-Mecánica de carrera (contacto vuelo frecuencia de paso),carrera,should,yes,no,
-Comparar pacientes y ranking por test,historial,should,yes,no,
+Sprint lineal con tiempos de paso,sprint,should,yes,yes,"S15: salida y pasos en vídeo o fotocélulas; tramos, velocidad máxima y perfil F-V del sprint (sin aire)"
+Tests de cambio de dirección (5-0-5 5+5 V-Cut Illinois),sprint,should,yes,yes,"S16: salida y llegada en vídeo o cronómetro; pierna de giro, asimetría y déficit de cambio de dirección (5-0-5)"
+Mecánica de carrera (contacto vuelo frecuencia de paso),carrera,should,yes,yes,"S18: contactos y despegues en vídeo; contacto, vuelo, frecuencia, factor de apoyo, longitud del paso y asimetría"
+Comparar pacientes y ranking por test,historial,should,yes,yes,"S23: 21 medidas, mejor marca o última, orden invertible"
 Validación interna del clon contra una referencia,calidad,should,no,no,añadido: medir los mismos saltos con el clon y con My Jump Lab o una plataforma
 Sprint curvo,sprint,could,yes,no,
 Deceleración horizontal,sprint,could,yes,no,

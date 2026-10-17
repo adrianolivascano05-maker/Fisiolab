@@ -14,6 +14,8 @@ import { ResultPage } from "./pages/ResultPage";
 import { RomSetupPage } from "./pages/RomSetupPage";
 import { StrengthSetupPage } from "./pages/StrengthSetupPage";
 import { NordicSetupPage } from "./pages/NordicSetupPage";
+import { RunningSetupPage } from "./pages/RunningSetupPage";
+import { SprintSetupPage } from "./pages/SprintSetupPage";
 import { RomSummaryPage } from "./pages/RomSummaryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TestPickerPage } from "./pages/TestPickerPage";
@@ -23,6 +25,7 @@ const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ defaul
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m.MarkPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
+const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
 const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
 const LoadVelocityPage = lazy(() => import("./pages/LoadVelocityPage").then((m) => ({ default: m.LoadVelocityPage })));
 const RomHistoryPage = lazy(() => import("./pages/RomHistoryPage").then((m) => ({ default: m.RomHistoryPage })));
@@ -44,6 +47,10 @@ const router = createBrowserRouter([
   { path: "/pacientes/:id/test/saltos/video", element: l(<VideoPage />) }, // S06
   { path: "/pacientes/:id/test/fuerza", element: <StrengthSetupPage /> }, // S13
   { path: "/pacientes/:id/test/fuerza/video", element: l(<VideoPage />) }, // S06 para fuerza
+  { path: "/pacientes/:id/test/sprint", element: <SprintSetupPage /> }, // S15-S16
+  { path: "/pacientes/:id/test/sprint/video", element: l(<VideoPage />) }, // S06 para sprint y cambio de dirección
+  { path: "/pacientes/:id/test/carrera", element: <RunningSetupPage /> }, // S18
+  { path: "/pacientes/:id/test/carrera/video", element: l(<VideoPage />) }, // S06 para carrera
   { path: "/pacientes/:id/test/isquios", element: <NordicSetupPage /> }, // S20
   { path: "/pacientes/:id/test/isquios/video", element: l(<VideoPage />) }, // S06 para el nórdico
   { path: "/pacientes/:id/test/movilidad", element: <RomSetupPage /> }, // S19
@@ -58,7 +65,7 @@ const router = createBrowserRouter([
   { path: "/pacientes/:id/evolucion/:tipo", element: l(<EvolutionPage />) }, // S22
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07
   { path: "/tests/:id", element: <ResultPage /> }, // S08
-  { path: "/comparar", element: <ComingSoonPage title="Comparar pacientes" phase={4} /> }, // S23
+  { path: "/comparar", element: l(<ComparePage />) }, // S23
   { path: "/ajustes", element: <SettingsPage /> }, // S24
   { path: "/privacidad", element: <PrivacyPage /> },
   { path: "/design", element: l(<DesignPage />) },

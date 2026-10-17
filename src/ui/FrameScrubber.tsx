@@ -3,7 +3,7 @@ import { useRef, type KeyboardEvent, type PointerEvent } from "react";
 import { IconButton } from "./Button";
 import { cx } from "./cx";
 
-export type MarkerKind = "movement_start" | "takeoff" | "landing" | "contact" | "bar_start" | "bar_end" | "break_point" | "other";
+export type MarkerKind = "movement_start" | "takeoff" | "landing" | "contact" | "bar_start" | "bar_end" | "break_point" | "start" | "split" | "finish" | "other";
 
 /** Color y letra de cada evento: nunca se distinguen solo por el color. */
 export const markerStyle: Record<MarkerKind, { bg: string; letter: string; name: string }> = {
@@ -14,6 +14,9 @@ export const markerStyle: Record<MarkerKind, { bg: string; letter: string; name:
   bar_start: { bg: "bg-marker-takeoff", letter: "S", name: "Inicio" },
   bar_end: { bg: "bg-marker-landing", letter: "F", name: "Fin" },
   break_point: { bg: "bg-marker-contact", letter: "R", name: "Rotura" },
+  start: { bg: "bg-marker-takeoff", letter: "S", name: "Salida" },
+  split: { bg: "bg-marker-contact", letter: "P", name: "Paso" },
+  finish: { bg: "bg-marker-landing", letter: "L", name: "Llegada" },
   other: { bg: "bg-marker-other", letter: "M", name: "Marca" },
 };
 

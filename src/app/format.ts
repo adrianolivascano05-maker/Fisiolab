@@ -1,6 +1,7 @@
 import type { JumpType } from "../calc/results";
 import { getMovement, isRomType, jointLabels, movementLabel, type RomJoint } from "../calc/rom";
 import { getExercise } from "../calc/strength";
+import { getCodTest, isCodType } from "../calc/cod";
 
 const nf = (digits: number) => new Intl.NumberFormat("es-ES", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
@@ -60,6 +61,9 @@ export function testLabel(type: string): string {
   if (isRomType(type)) return `Movilidad · ${jointLabels[type.slice(4) as RomJoint].toLowerCase()}`;
   if (type === "vbt") return "Fuerza";
   if (type === "nordic") return "Nórdico";
+  if (type === "sprint_linear") return "Sprint";
+  if (type === "running") return "Carrera";
+  if (isCodType(type)) return getCodTest(type)?.label ?? type;
   return type;
 }
 
@@ -69,6 +73,7 @@ export function testTitle(t: { type: string; side: "left" | "right" | null; move
   if (m) return movementLabel(m, t.side);
   const e = t.exercise ? getExercise(t.exercise) : undefined;
   if (e) return `${e.label} · ${fmt(t.extraLoadKg ?? 0, (t.extraLoadKg ?? 0) % 1 ? 1 : 0)} kg`;
+  if (isCodType(t.type) && t.side) return `${testLabel(t.type)} · gira con la ${t.side === "left" ? "izq." : "dcha."}`;
   return `${testLabel(t.type)}${t.side ? ` ${sideLabels[t.side]}` : ""}`;
 }
 
@@ -90,5 +95,6 @@ export const metricLabels: Record<string, { label: string; digits: number }> = {
   bar_velocity_m_s: { label: "Velocidad de la barra", digits: 2 },
   velocity_loss_pct: { label: "Pérdida de velocidad", digits: 0 },
   torque_nm: { label: "Momento por pierna", digits: 0 },
+  time_s: { label: "Tiempo", digits: 2 },
   wall_distance_cm: { label: "Distancia a la pared", digits: 1 },
 };

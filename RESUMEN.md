@@ -15,8 +15,8 @@ Fecha: 2026-10-17
 | | |
 | --- | --- |
 | Funciones imprescindibles | **13 / 13** |
-| Paridad con My Jump Lab | **82,1 / 100**: fases 1, 2 y 3 completas (saltos, fuerza, movilidad, nórdico y bienestar); falta la fase 4 |
-| Pruebas | 87 unitarias (Vitest) + 65 en navegador (Playwright), en los dos modos de alojamiento |
+| Paridad con My Jump Lab | **91,7 / 100**: fases 1 a 4 completas; quedan los «could» (sprint curvo, deceleración, S-MAS, IA) |
+| Pruebas | 100 unitarias (Vitest) + 70 en navegador (Playwright), en los dos modos de alojamiento |
 | Fallos | 7 encontrados, 7 arreglados (`replica/bugs.md`); ninguno abierto |
 | Prueba real | vídeo de Pixel 7 Pro (120 fps guardado a 30): 30,7 cm; el usuario confirmó que la app publicada funciona en su Android |
 | Barrido de marca | limpio (`sweep.py`) |
@@ -28,6 +28,10 @@ Fecha: 2026-10-17
 - Perfil fuerza-velocidad con óptimo y desequilibrio.
 - Asimetría.
 - Fuerza: velocidad media de la barra por vídeo o encoder en 6 ejercicios, pérdida de velocidad, perfil carga-velocidad con 1RM estimado y cargas por % 1RM.
+- Sprint lineal: tiempos de paso (vídeo o fotocélulas), tramos y perfil fuerza-velocidad del sprint.
+- Cambio de dirección: 5-0-5, 5+5, V-Cut e Illinois; asimetría entre giros y déficit de cambio de dirección.
+- Carrera en cinta: contacto, vuelo, frecuencia, factor de apoyo, longitud del paso y asimetría por pie.
+- Comparar pacientes: ranking por 21 medidas.
 - Nórdico de isquios: ángulo de rotura en el vídeo (o a mano) y momento estimado por pierna.
 - Bienestar: cuestionario diario (fatiga, sueño, dolor muscular, estrés y ánimo, de 1 a 5) más dolor de la lesión; total sobre 25, comparación con su media y avisos.
 - Movilidad: 14 movimientos de tobillo (lunge), cadera, hombro y cuello, medidos con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.
@@ -43,13 +47,12 @@ Fecha: 2026-10-17
 - Validar el momento del nórdico con un dinamómetro.
 - Comparar la velocidad de barra con un encoder lineal.
 - Probar la movilidad con el sensor de un Android real.
-- Fase 4: sprint, cambio de dirección, carrera, comparar pacientes.
 - `/replica-entrepreneur`: leer reseñas reales del original para mejorar sobre él.
 - Prueba con TalkBack.
 
 ## 3. Decisiones tomadas (y por qué)
 
-1. **Por fases, saltos primero.** El usuario pidió «toda la app»; se construye por fases. Siguen las fases 3 y 4.
+1. **Por fases, saltos primero.** El usuario pidió «toda la app»; se construye por fases. Las fases 1 a 4 están hechas.
 2. **Web instalable (PWA), no app nativa.** Funciona en cualquier móvil, sin tiendas, sin cuentas de desarrollador y gratis.
 3. **Datos solo en el dispositivo:** SQLite WASM sobre OPFS, sin servidor ni cuentas. Son datos de salud (RGPD), con coste 0 € y funcionan sin conexión. Consecuencias:
    - No se sincroniza entre móviles; se pasa la copia de seguridad.
@@ -102,6 +105,9 @@ Fecha: 2026-10-17
 | Perfil carga-velocidad | recta velocidad = a + b·carga con la repetición más rápida de cada carga; 1RM = carga a la velocidad del umbral | umbral 0,30 sentadilla, 0,17 banca, 0,15 peso muerto; **press militar, remo y hip thrust por confirmar** (editables) |
 | Bienestar | suma de 5 respuestas de 1 a 5 (5 = mejor): 5-25; «por debajo de lo habitual» si está más de 1 desviación típica bajo su media de 30 días (mín. 3 registros) | ítems de McLean 2010; **la suma y el umbral son uso habitual, no confirmados en el artículo** |
 | Nórdico | ángulo de rotura = inclinación rodilla-cadera respecto a la vertical; momento por pierna = 0,878·masa·g·0,322·estatura·sen θ / 2 | **modelo propio, por validar**: no se encontró la fórmula publicada |
+| Sprint | v(t) = V0·(1 − e^(−t/τ)) ajustado a los pasos; F0 = V0/τ, Pmáx = F0·V0/4 | Samozino 2016 **sin resistencia del aire** (F0 y V0 algo menores que el método completo) |
+| Cambio de dirección | déficit = 5-0-5 − mejor paso a 10 m; asimetría = (lento − rápido) / rápido | Nimphius 2013 |
+| Carrera | contacto, vuelo, frecuencia = 60 / paso, factor de apoyo = contacto / (2·paso), longitud = velocidad·paso | estándar |
 | Movilidad (móvil) | ángulo entre la dirección «arriba» al poner a cero y la actual; lunge: inclinación del borde largo respecto a la vertical | geometría; vale si el segmento se mueve en un plano vertical |
 | Movilidad (foto) | ángulo en el eje entre 3 puntos, pasado al valor clínico (directo, 180° − ángulo o ángulo − 90°); o inclinación de 2 puntos respecto a la vertical | goniometría estándar |
 | Movilidad (resultado) | media de las lecturas; aviso si difieren más de 5° | criterio propio |
@@ -165,6 +171,6 @@ Convenciones:
 ## 7. Siguientes pasos recomendados
 
 1. **Validación:** pantalla o CSV para anotar la altura de My Jump Lab junto a la de Impulso y calcular la diferencia media.
-2. **Fase 4:** sprint, cambio de dirección, carrera y comparar pacientes.
+2. **Extras («could»):** sprint curvo, deceleración, S-MAS y detección automática con IA (fase 5).
 3. **`/replica-entrepreneur`:** quejas reales de los usuarios del original, convertidas en mejoras.
 4. **Confirmar el DRI** en el artículo de Brooks (2026).

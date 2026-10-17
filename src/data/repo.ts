@@ -5,6 +5,9 @@ import { fvProfile, type FvProfile, type Point } from "../calc/profile";
 import { getMovement, methodLabels, movementLabel, romTypeFor, summarize, type RomMethod, type RomType } from "../calc/rom";
 import { wellnessItems, type WellnessScores } from "../calc/wellness";
 import { nordicTorque } from "../calc/nordic";
+import { segments, sprintProfile, validSplits } from "../calc/sprint";
+import { isCodType, type CodType } from "../calc/cod";
+import { summarizeRunning } from "../calc/running";
 import { getExercise, loadVelocityProfile, plausibleVbt, vbtResults, velocitiesFromMarks, type ExerciseId, type LoadVelocityProfile, type RepMark } from "../calc/strength";
 import type { Db } from "./db";
 import type { Statement } from "./protocol";
@@ -135,7 +138,7 @@ export type Mark = { event: MarkEvent; frameIndex: number; timeS: number; series
 /** `seriesIndex` 0 es el resultado del test; 1, 2… los de cada salto de una serie. */
 export type Result = { metric: string; value: number; unit: string; seriesIndex: number };
 export type Side = "left" | "right";
-export type TestType = JumpType | RomType | "vbt" | "nordic";
+export type TestType = JumpType | RomType | "vbt" | "nordic" | "sprint_linear" | CodType | "running";
 
 export type Test = {
   id: string;
@@ -244,6 +247,7 @@ export async function saveMarksAndCompute(db: Db, testId: string, marks: MarkInp
   if (!test) throw new Error("El test no existe.");
   if (!test.video) throw new Error("El test no tiene vídeo.");
   if (test.type === "vbt") return saveRepMarks(db, test, marks);
+  if (test.type === "sprint_linear" || isCodType(test.type) || test.type === "running") return saveTimedMarks(db, test, marks);
   if (test.type.startsWith("rom_")) throw new Error("Este test no es de salto.");
   const patient = await getPatient(db, test.patientId);
   const out = computeJump({
@@ -296,6 +300,9 @@ export type TestSummary = {
   /** Fuerza: ejercicio y velocidad de la repetición más rápida. */
   exercise: ExerciseId | null;
   barVelocity: number | null;
+  /** Sprint y cambio de dirección: tiempo total. Carrera: contacto medio. */
+  timeS: number | null;
+  contactMs: number | null;
 };
 
 /** Tests de un paciente, el más reciente primero, con su resultado principal. */
@@ -308,7 +315,9 @@ export async function listTests(db: Db, patientId: string): Promise<TestSummary[
             json_extract(t.details, '$.movement') as movement,
             (select value from results r where r.test_id = t.id and r.metric = 'angle_deg' and r.series_index = 0) as angleDeg,
             json_extract(t.details, '$.exercise') as exercise,
-            (select value from results r where r.test_id = t.id and r.metric = 'bar_velocity_m_s' and r.series_index = 0) as barVelocity
+            (select value from results r where r.test_id = t.id and r.metric = 'bar_velocity_m_s' and r.series_index = 0) as barVelocity,
+            (select value from results r where r.test_id = t.id and r.metric = 'time_s' and r.series_index = 0) as timeS,
+            (select value from results r where r.test_id = t.id and r.metric = 'contact_time_ms' and r.series_index = 0) as contactMs
        from tests t
       where t.patient_id = ?
       order by t.performed_at desc`,
@@ -776,6 +785,158 @@ export async function nordicEntries(db: Db, patientId: string): Promise<NordicEn
   );
 }
 
+// ---------- Sprint, cambio de dirección (S15-S16) y carrera (S18) ----------
+
+export type TimedMethod = "video" | "manual";
+export type NewTimedTest = { patientId: string; type: "sprint_linear" | CodType; side?: Side | null; gates?: number[]; method: TimedMethod };
+
+export async function createTimedTest(db: Db, input: NewTimedTest): Promise<string> {
+  if (input.type === "sprint_linear" && !input.gates?.length) throw new Error("Indica las distancias de los pasos.");
+  const id = newId();
+  const t = now();
+  const details = input.type === "sprint_linear" ? { gates: input.gates, method: input.method } : { method: input.method };
+  await db.transaction([
+    {
+      sql: `insert into tests (id, patient_id, category, type, side, performed_at, details, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      bind: [id, input.patientId, input.type === "sprint_linear" ? "sprint" : "cod", input.type, input.side ?? null, t, JSON.stringify(details), t, t],
+    },
+  ]);
+  return id;
+}
+
+export async function createRunningTest(db: Db, patientId: string, firstSide: Side, speedKmh: number | null): Promise<string> {
+  if (speedKmh !== null && !(speedKmh > 0 && speedKmh <= 40)) throw new RangeError("La velocidad debe estar entre 1 y 40 km/h.");
+  const id = newId();
+  const t = now();
+  await db.transaction([
+    {
+      sql: `insert into tests (id, patient_id, category, type, performed_at, details, created_at, updated_at)
+            values (?, ?, 'running', 'running', ?, ?, ?, ?)`,
+      bind: [id, patientId, t, JSON.stringify({ firstSide, speedKmh, method: "video" }), t, t],
+    },
+  ]);
+  return id;
+}
+
+type Row = { metric: string; value: number; unit: string; seriesIndex: number };
+
+function sprintRows(gates: number[], times: number[]): Row[] {
+  const splits = gates.map((d, i) => ({ distanceM: d, timeS: times[i]! }));
+  if (!validSplits(splits)) throw new RangeError("Cada paso debe llegar después del anterior.");
+  const rows: Row[] = times.map((t, i) => ({ metric: "split_time_s", value: t, unit: "s", seriesIndex: i + 1 }));
+  rows.push({ metric: "time_s", value: times.at(-1)!, unit: "s", seriesIndex: 0 });
+  rows.push({ metric: "max_velocity_m_s", value: Math.max(...segments(splits).map((s) => s.velocity)), unit: "m/s", seriesIndex: 0 });
+  if (splits.length >= 3) {
+    try {
+      const p = sprintProfile(splits);
+      rows.push(
+        { metric: "f0_n_kg", value: p.f0, unit: "N/kg", seriesIndex: 0 },
+        { metric: "v0_m_s", value: p.v0, unit: "m/s", seriesIndex: 0 },
+        { metric: "pmax_w_kg", value: p.pmax, unit: "W/kg", seriesIndex: 0 },
+        { metric: "tau_s", value: p.tau, unit: "s", seriesIndex: 0 },
+      );
+    } catch {
+      // Tiempos que no encajan con el modelo: se guardan los pasos sin perfil.
+    }
+  }
+  return rows;
+}
+
+function runningRows(contacts: number[], takeoffs: number[], details: Record<string, unknown>): Row[] {
+  const speed = typeof details.speedKmh === "number" ? details.speedKmh : null;
+  const r = summarizeRunning(contacts, takeoffs, details.firstSide === "right" ? "right" : "left", speed);
+  const rows: Row[] = [];
+  r.steps.forEach((s, i) => {
+    rows.push({ metric: "contact_time_ms", value: s.contactS * 1000, unit: "ms", seriesIndex: i + 1 });
+    if (s.flightS !== null) rows.push({ metric: "flight_time_ms", value: s.flightS * 1000, unit: "ms", seriesIndex: i + 1 });
+  });
+  rows.push({ metric: "contact_time_ms", value: r.contactS * 1000, unit: "ms", seriesIndex: 0 });
+  if (r.flightS !== null) rows.push({ metric: "flight_time_ms", value: r.flightS * 1000, unit: "ms", seriesIndex: 0 });
+  if (r.frequencySpm !== null) rows.push({ metric: "step_frequency_spm", value: r.frequencySpm, unit: "pasos/min", seriesIndex: 0 });
+  if (r.dutyFactor !== null) rows.push({ metric: "duty_factor", value: r.dutyFactor, unit: "", seriesIndex: 0 });
+  if (r.stepLengthM !== null) rows.push({ metric: "step_length_m", value: r.stepLengthM, unit: "m", seriesIndex: 0 });
+  if (r.asymmetryPct !== null) rows.push({ metric: "asymmetry_pct", value: r.asymmetryPct, unit: "%", seriesIndex: 0 });
+  return rows;
+}
+
+/** Marcas de sprint (salida y pasos), cambio de dirección (salida y llegada) o carrera (contactos y despegues). */
+async function saveTimedMarks(db: Db, test: Test, marks: MarkInput[]): Promise<JumpOutput> {
+  const fps = test.video!.captureFps;
+  const sec = (f: number) => f / fps;
+  const frames = (e: MarkEvent) => marks.filter((m) => m.event === e).sort((a, b) => a.seriesIndex - b.seriesIndex).map((m) => m.frame);
+  let rows: Row[];
+  if (test.type === "running") {
+    rows = runningRows(frames("contact").map(sec), frames("takeoff").map(sec), test.details);
+  } else {
+    const start = frames("start")[0];
+    if (start === undefined) return { results: [], warnings: [], missing: ["start"] };
+    if (test.type === "sprint_linear") {
+      const gates = (test.details.gates as number[]) ?? [];
+      const splits = frames("split");
+      if (splits.length < gates.length) return { results: [], warnings: [], missing: ["split"] };
+      rows = sprintRows(gates, splits.map((f) => sec(f - start)));
+    } else {
+      const finish = frames("finish")[0];
+      if (finish === undefined || finish <= start) return { results: [], warnings: [], missing: ["finish"] };
+      rows = [{ metric: "time_s", value: sec(finish - start), unit: "s", seriesIndex: 0 }];
+    }
+  }
+  const t = now();
+  await db.transaction([
+    { sql: "delete from marks where test_id = ?", bind: [test.id] },
+    ...marks.map((m) => ({
+      sql: "insert into marks (id, test_id, event, series_index, time_s, frame_index, created_at) values (?, ?, ?, ?, ?, ?, ?)",
+      bind: [newId(), test.id, m.event, m.seriesIndex, sec(m.frame), m.frame, t],
+    })),
+    ...resultStatements(test.id, rows),
+  ]);
+  return { results: [], warnings: [], missing: [] };
+}
+
+/** Sin vídeo: tiempos de fotocélulas o cronómetro. Sprint: uno por paso, acumulados desde la salida. */
+export async function saveTimes(db: Db, testId: string, times: number[]): Promise<void> {
+  const test = await getTest(db, testId);
+  if (!test) throw new Error("El test no existe.");
+  if (times.some((t) => !(t > 0 && t < 120))) throw new RangeError("Cada tiempo debe estar entre 0 y 120 s.");
+  let rows: Row[];
+  if (test.type === "sprint_linear") {
+    const gates = (test.details.gates as number[]) ?? [];
+    if (times.length !== gates.length) throw new RangeError("Falta algún tiempo de paso.");
+    rows = sprintRows(gates, times);
+  } else if (isCodType(test.type)) {
+    if (times.length !== 1) throw new RangeError("Escribe un tiempo.");
+    rows = [{ metric: "time_s", value: times[0]!, unit: "s", seriesIndex: 0 }];
+  } else throw new Error("Este test no se mide con tiempos.");
+  await db.transaction(resultStatements(testId, rows));
+}
+
+export type TimedEntry = { testId: string; type: string; side: Side | null; performedAt: string; timeS: number };
+
+/** Tiempos totales de un tipo de test (sprint o cambio de dirección), el más reciente primero. */
+export async function timedEntries(db: Db, patientId: string, type: string): Promise<TimedEntry[]> {
+  return db.query<TimedEntry>(
+    `select t.id as testId, t.type, t.side, t.performed_at as performedAt, r.value as timeS
+       from tests t join results r on r.test_id = t.id and r.metric = 'time_s' and r.series_index = 0
+      where t.patient_id = ? and t.type = ?
+      order by t.performed_at desc`,
+    [patientId, type],
+  );
+}
+
+/** Mejor tiempo en un paso de una distancia (p. ej. 10 m) en los sprints del paciente, con su fecha. */
+export async function bestSprintSplit(db: Db, patientId: string, distanceM: number): Promise<{ timeS: number; performedAt: string } | null> {
+  const [row] = await db.query<{ timeS: number; performedAt: string }>(
+    `select r.value as timeS, t.performed_at as performedAt
+       from tests t join results r on r.test_id = t.id and r.metric = 'split_time_s' and r.series_index > 0
+      where t.patient_id = ? and t.type = 'sprint_linear'
+        and json_extract(t.details, '$.gates[' || (r.series_index - 1) || ']') = ?
+      order by r.value limit 1`,
+    [patientId, distanceM],
+  );
+  return row ?? null;
+}
+
 // ---------- Ajustes ----------
 
 export async function getSetting<T>(db: Db, key: string): Promise<T | null> {
@@ -814,10 +975,11 @@ export async function exportCsv(db: Db): Promise<string> {
     movement: string | null;
     method: string | null;
     exercise: string | null;
+    gates: string | null;
   }>(
     `select p.name as patient, t.performed_at, t.type, t.side, t.extra_load_kg, t.drop_height_cm, v.fps as capture_fps,
             json_extract(t.details, '$.movement') as movement, json_extract(t.details, '$.method') as method,
-            json_extract(t.details, '$.exercise') as exercise,
+            json_extract(t.details, '$.exercise') as exercise, json_extract(t.details, '$.gates') as gates,
             r.metric, r.value, r.unit, r.series_index
        from results r
        join tests t on t.id = r.test_id
@@ -832,17 +994,28 @@ export async function exportCsv(db: Db): Promise<string> {
   const lines = rows.map((r) => {
     const movement = r.movement ? getMovement(r.movement) : undefined;
     const exercise = r.exercise ? getExercise(r.exercise) : undefined;
-    const method =
-      r.type === "vbt"
-        ? r.method === "manual" ? "Encoder (a mano)" : "Vídeo"
-        : r.type === "nordic"
-          ? r.method === "manual" ? "A mano" : "Vídeo"
-          : r.method ? methodLabels[r.method as RomMethod] : "";
+    const method = !r.method
+      ? ""
+      : r.type.startsWith("rom_")
+        ? methodLabels[r.method as RomMethod]
+        : r.method === "video"
+          ? "Vídeo"
+          : r.type === "vbt"
+            ? "Encoder (a mano)"
+            : r.type === "sprint_linear" || isCodType(r.type)
+              ? "Fotocélulas o cronómetro"
+              : "A mano";
     return [
       cell(r.patient),
       r.performed_at,
       r.type,
-      movement ? cell(movementLabel(movement)) : exercise ? cell(exercise.label) : "",
+      movement
+        ? cell(movementLabel(movement))
+        : exercise
+          ? cell(exercise.label)
+          : r.gates
+            ? `pasos ${(JSON.parse(r.gates) as number[]).join("-")} m`
+            : "",
       r.side === "left" ? "izquierda" : r.side === "right" ? "derecha" : "",
       method ? cell(method) : "",
       num(r.extra_load_kg),

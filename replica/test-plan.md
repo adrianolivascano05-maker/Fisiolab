@@ -121,3 +121,15 @@ Unitarias: `src/calc/wellness.test.ts` (total, respuestas bajas, comparación co
 
 Unitarias: `src/calc/nordic.test.ts` (momento, ángulo sobre el fotograma) y `src/data/nordic.test.ts` (vídeo con marca
 de rotura, a mano, sin estatura, CSV). Pendiente a mano: comparar el momento con un dinamómetro.
+
+## Fase 4 (añadido el 2026-10-17, `e2e/phase4.spec.ts`)
+
+| caso | qué comprueba |
+| --- | --- |
+| F08-H1 | sprint con fotocélulas: distancias mal escritas avisan; tramos (8,85 m/s), perfil F0/V0/Pmáx, en N y W con la masa, gráfica |
+| F08-H2 | sprint por vídeo: salida y pasos en orden; con 2 pasos, sin perfil |
+| F09-H1 | 5-0-5 con cada pierna: asimetría 5,0 % y aviso de déficit sin sprint; con los datos de ejemplo, déficit |
+| F10-H1 | carrera: 4 apoyos alternos desde el pie derecho; frecuencia 288, contacto 113 ms, asimetría 20 %, longitud del paso |
+| F16-H1 | comparar: ranking del CMJ, sprint 10 m (menos es mejor), orden invertido, última medición, medida sin datos |
+
+Unitarias: `src/calc/sprint.test.ts`, `src/calc/phase4.test.ts`, `src/data/phase4.test.ts`, `src/data/compare.test.ts`.

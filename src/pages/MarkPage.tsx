@@ -2,6 +2,8 @@ import { CircleQuestionMark, Upload, ZoomIn, ZoomOut } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { MIN_JUMPS } from "../calc/repeated";
+import { MIN_STEPS } from "../calc/running";
+import { getCodTest, isCodType, type CodType } from "../calc/cod";
 import { optionalMarks, requiredMarks, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
 import { getExercise } from "../calc/strength";
 import { isJumpType, jumpLabels } from "../app/format";
@@ -24,18 +26,30 @@ import { useTimeline } from "../video/useTimeline";
 import { JumpHelp } from "./JumpHelp";
 import { StrengthHelp } from "./StrengthHelp";
 import { NordicHelp } from "./NordicHelp";
+import { SpeedHelp } from "./SpeedHelp";
 
 /** Tipos de test que se marcan en vídeo: los saltos y la velocidad de barra. */
-type MarkType = JumpType | "vbt" | "nordic";
+type MarkType = JumpType | "vbt" | "nordic" | "sprint_linear" | CodType | "running";
 
 /** Marcas de un test simple (sin serie) y las opcionales. */
 const requiredFor = (type: MarkType): MarkEvent[] => (type === "nordic" ? ["break_point"] : requiredMarks(type as JumpType));
-const optionalFor = (type: MarkType): MarkEvent[] => (type === "nordic" || type === "vbt" ? [] : optionalMarks(type));
+const optionalFor = (type: MarkType): MarkEvent[] => (isJumpType(type) ? optionalMarks(type) : []);
 
 /** Una serie alterna dos marcas (despegue/aterrizaje, inicio/fin de la subida) repetición tras repetición. */
 type SeriesSpec = { first: MarkEvent; second: MarkEvent; min: number; unit: string; hint: (next: MarkEvent, n: number) => string; ideal: string };
 
 const seriesSpecs: Partial<Record<MarkType, SeriesSpec>> = {
+  running: {
+    first: "contact",
+    second: "takeoff",
+    min: MIN_STEPS,
+    unit: "apoyos",
+    ideal: "lo ideal, 10 o más seguidos",
+    hint: (next, n) =>
+      next === "contact"
+        ? `Apoyo ${n}: busca el primer fotograma en que el pie toca la cinta y pulsa Contacto.`
+        : `Apoyo ${n}: busca el primer fotograma en que el pie ya no toca la cinta y pulsa Despegue.`,
+  },
   rj_10_5: {
     first: "takeoff",
     second: "landing",
@@ -67,6 +81,9 @@ const hints: Record<MarkEvent, string> = {
   landing: "Busca el primer fotograma en que un pie vuelve a tocar el suelo y pulsa Aterrizaje.",
   bar_start: "",
   bar_end: "",
+  start: "",
+  split: "",
+  finish: "",
   break_point: "Busca el último fotograma en que aún frena la caída, justo antes de que se desplome, y pulsa Rotura.",
 };
 
@@ -82,9 +99,21 @@ export function MarkPage() {
   const t = test.data;
   if (!t) return <Page title="Marcar" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
   const back = `/pacientes/${t.patientId}`;
-  if (!t.video || !(isJumpType(t.type) || t.type === "vbt" || t.type === "nordic")) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
-  const type: MarkType = t.type;
-  const label = type === "vbt" ? (getExercise(String(t.details.exercise))?.label ?? "Fuerza") : type === "nordic" ? "Nórdico" : jumpLabels[type].short;
+  if (!t.video || !(isJumpType(t.type) || ["vbt", "nordic", "sprint_linear", "running"].includes(t.type) || isCodType(t.type))) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
+  const type = t.type as MarkType;
+  const label =
+    type === "vbt"
+      ? (getExercise(String(t.details.exercise))?.label ?? "Fuerza")
+      : type === "nordic"
+        ? "Nórdico"
+        : type === "sprint_linear"
+          ? "Sprint"
+          : type === "running"
+            ? "Carrera"
+            : isCodType(type)
+              ? (getCodTest(type)?.label ?? "Cambio de dirección")
+              : jumpLabels[type].short;
+  const steps = sequenceSteps(type, t.details);
 
   if (!file) {
     return (
@@ -116,14 +145,31 @@ export function MarkPage() {
       <Sheet
         open={help}
         onClose={() => setHelp(false)}
-        title={type === "vbt" ? "Cómo grabar y marcar la barra" : type === "nordic" ? "Cómo grabar y marcar el nórdico" : `Cómo marcar un ${label}`}
+        title={
+          type === "vbt"
+            ? "Cómo grabar y marcar la barra"
+            : type === "nordic"
+              ? "Cómo grabar y marcar el nórdico"
+              : isJumpType(type)
+                ? `Cómo marcar un ${label}`
+                : `Cómo grabar y marcar: ${label.toLowerCase()}`
+        }
       >
-        {type === "vbt" ? <StrengthHelp exercise={String(t.details.exercise)} /> : type === "nordic" ? <NordicHelp /> : <JumpHelp type={type} />}
+        {type === "vbt" ? (
+          <StrengthHelp exercise={String(t.details.exercise)} />
+        ) : type === "nordic" ? (
+          <NordicHelp />
+        ) : isJumpType(type) ? (
+          <JumpHelp type={type} />
+        ) : (
+          <SpeedHelp type={type} />
+        )}
       </Sheet>
       <MarkingWorkspace
         testId={id}
         file={file}
         type={type}
+        steps={steps}
         captureFps={t.video.captureFps}
         containerFps={t.video.containerFps}
         frameCount={t.video.frameCount ?? 1}
@@ -174,6 +220,7 @@ type MarkerProps = {
   testId: string;
   file: File;
   type: MarkType;
+  steps?: SequenceStep[];
   captureFps: number;
   containerFps: number;
   frameCount: number;
@@ -181,7 +228,51 @@ type MarkerProps = {
 };
 
 /** Estado del marcado: qué falta, si el orden es correcto y qué botones mostrar. */
-function markingState(type: MarkType, marks: MarkInput[]) {
+/** Sprint: salida y un paso por distancia. Cambio de dirección: salida y llegada. */
+function sequenceSteps(type: MarkType, details: Record<string, unknown>): SequenceStep[] | undefined {
+  const start: SequenceStep = { event: "start", seriesIndex: 0, label: "Salida", hint: "Busca el primer fotograma en que empieza a moverse y pulsa Salida." };
+  if (type === "sprint_linear") {
+    const gates = (details.gates as number[]) ?? [];
+    return [
+      start,
+      ...gates.map((d, i) => ({
+        event: "split" as const,
+        seriesIndex: i,
+        label: `Paso ${fmt(d, d % 1 ? 1 : 0)} m`,
+        hint: `Busca el fotograma en que el tronco cruza la línea de ${fmt(d, d % 1 ? 1 : 0)} m y pulsa «Paso ${fmt(d, d % 1 ? 1 : 0)} m».`,
+      })),
+    ];
+  }
+  if (isCodType(type)) {
+    return [start, { event: "finish", seriesIndex: 0, label: "Llegada", hint: "Busca el fotograma en que el tronco cruza la línea de llegada y pulsa Llegada." }];
+  }
+  return undefined;
+}
+
+/** Pasos fijos en orden (sprint: salida y un paso por distancia; cambio de dirección: salida y llegada). */
+export type SequenceStep = { event: MarkEvent; seriesIndex: number; label: string; hint: string };
+
+function markingState(type: MarkType, marks: MarkInput[], steps?: SequenceStep[]) {
+  if (steps) {
+    const ordered = steps.every((st, i) => {
+      if (i === 0) return true;
+      const a = marks.find((m) => m.event === steps[i - 1]!.event && m.seriesIndex === steps[i - 1]!.seriesIndex);
+      const b = marks.find((m) => m.event === st.event && m.seriesIndex === st.seriesIndex);
+      return !a || !b || b.frame > a.frame;
+    });
+    const nextStep = steps[marks.length];
+    return {
+      series: true as const,
+      next: nextStep?.event ?? null,
+      nextIndex: nextStep?.seriesIndex ?? 0,
+      ordered,
+      ready: !nextStep && ordered,
+      buttonLabel: nextStep?.label ?? "",
+      hintText: nextStep ? nextStep.hint : "Listo. Revisa las marcas si quieres y pulsa «Calcular resultado».",
+      disorderText: "Cada marca debe ir después de la anterior. Deshaz la última y vuelve a marcar.",
+      markLabel: (m: MarkInput) => steps.find((st) => st.event === m.event && st.seriesIndex === m.seriesIndex)?.label.toLowerCase() ?? markerStyle[m.event].name.toLowerCase(),
+    };
+  }
   const spec = seriesSpecs[type];
   if (spec) {
     const ordered = [...marks].sort((a, b) => a.frame - b.frame);
@@ -191,14 +282,21 @@ function markingState(type: MarkType, marks: MarkInput[]) {
     // En una serie las marcas alternan: primera, segunda, primera…
     const alternate = ordered.every((m, i) => m.event === (i % 2 === 0 ? spec.first : spec.second));
     const complete = Math.min(firsts, seconds);
+    const nextIndex = next === spec.first ? firsts : seconds;
+    const ready = alternate && complete >= spec.min && firsts === seconds;
+    let hintText = spec.hint(next, nextIndex + 1);
+    if (ready) hintText = `${complete} ${spec.unit} marcados. Puedes seguir marcando o pulsar Calcular.`;
+    else hintText += spec.min > 1 ? ` (mínimo ${spec.min} ${spec.unit}; ${spec.ideal})` : ` (${spec.ideal})`;
     return {
       series: true as const,
-      spec,
-      next,
-      nextIndex: next === spec.first ? firsts : seconds,
-      complete,
+      next: next as MarkEvent | null,
+      nextIndex,
       ordered: alternate,
-      ready: alternate && complete >= spec.min && firsts === seconds,
+      ready,
+      buttonLabel: `${markerStyle[next].name} ${nextIndex + 1}`,
+      hintText,
+      disorderText: `Deben alternar ${markerStyle[spec.first].name.toLowerCase()} y ${markerStyle[spec.second].name.toLowerCase()}, cada una después de la anterior. Deshaz la última y vuelve a marcar.`,
+      markLabel: (m: MarkInput) => `${markerStyle[m.event].name.toLowerCase()} ${m.seriesIndex + 1}`,
     };
   }
   const required = requiredFor(type);
@@ -209,7 +307,7 @@ function markingState(type: MarkType, marks: MarkInput[]) {
   return { series: false as const, required, missing, ordered, ready: missing.length === 0 && ordered };
 }
 
-function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameCount, initial }: MarkerProps) {
+function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameCount, initial, steps }: MarkerProps) {
   const navigate = useNavigate();
   const toast = useToast();
   const video = useRef<HTMLVideoElement>(null);
@@ -217,7 +315,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
 
   const [marks, setMarks] = useState<MarkInput[]>(initial);
-  const [frame, setFrame] = useState(() => initial.find((m) => m.event === "takeoff" || m.event === "bar_start")?.frame ?? 0);
+  const [frame, setFrame] = useState(() => initial.find((m) => ["takeoff", "bar_start", "start", "contact"].includes(m.event))?.frame ?? 0);
   const [playing, setPlaying] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [center, setCenter] = useState(frame);
@@ -270,7 +368,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
     setFrame(f);
   };
 
-  const state = markingState(type, marks);
+  const state = markingState(type, marks, steps);
 
   /** Salto simple: fija (o mueve) el evento en el fotograma actual. */
   const markSingle = (event: MarkEvent) => {
@@ -279,14 +377,14 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
   };
   /** Serie: añade la siguiente marca (despegue o aterrizaje) si va después de la anterior. */
   const markNext = () => {
-    if (!state.series) return;
+    if (!state.series || !state.next) return;
     setPlaying(false);
     const lastFrame = Math.max(-1, ...marks.map((m) => m.frame));
     if (frame <= lastFrame) {
       toast("Cada marca debe ir después de la anterior: avanza en el vídeo.", "danger");
       return;
     }
-    setMarks((ms) => [...ms, { event: state.next, frame, seriesIndex: state.nextIndex }]);
+    setMarks((ms) => [...ms, { event: state.next!, frame, seriesIndex: state.nextIndex }]);
   };
   const undoLast = () => {
     setMarks((ms) => {
@@ -340,10 +438,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
 
   let hint: string;
   if (state.series) {
-    const { spec } = state;
-    hint = spec.hint(state.next, state.nextIndex + 1);
-    if (state.ready) hint = `${state.complete} ${spec.unit} marcados. Puedes seguir marcando o pulsar Calcular.`;
-    else hint += spec.min > 1 ? ` (mínimo ${spec.min} ${spec.unit}; ${spec.ideal})` : ` (${spec.ideal})`;
+    hint = state.hintText;
   } else {
     hint = state.missing.length ? hints[state.missing[0]!] : state.ordered ? "Listo. Revisa las marcas si quieres y pulsa «Calcular resultado»." : "";
   }
@@ -393,14 +488,14 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
       {!state.ordered && (state.series || state.missing.length === 0) && (
         <Alert tone="warning" title="Las marcas están desordenadas">
           {state.series
-            ? `Deben alternar ${markerStyle[state.spec.first].name.toLowerCase()} y ${markerStyle[state.spec.second].name.toLowerCase()}, cada una después de la anterior. Deshaz la última y vuelve a marcar.`
+            ? state.disorderText
             : `${[...optionalFor(type), ...state.required].map((e) => markerStyle[e].name).join(" → ")}: cada una debe ir después de la anterior.`}
         </Alert>
       )}
 
       {state.series ? (
         <div className="flex gap-2">
-          <MarkButton kind={state.next} done={false} label={`${markerStyle[state.next].name} ${state.nextIndex + 1}`} onClick={markNext} />
+          {state.next && <MarkButton kind={state.next} done={false} label={state.buttonLabel} onClick={markNext} />}
           <Button variant="secondary" disabled={marks.length === 0} onClick={undoLast}>
             Deshacer
           </Button>
@@ -421,8 +516,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
           .sort((a, b) => a.frame - b.frame)
           .map((m) => (
             <button key={`${m.event}-${m.seriesIndex}`} type="button" onClick={() => goTo(m.frame)} className="tap rounded-md px-2 underline">
-              Ir a {markerStyle[m.event].name.toLowerCase()}
-              {state.series ? ` ${m.seriesIndex + 1}` : ""} (fotograma {m.frame + 1})
+              Ir a {state.series ? state.markLabel(m) : markerStyle[m.event].name.toLowerCase()} (fotograma {m.frame + 1})
             </button>
           ))}
       </div>

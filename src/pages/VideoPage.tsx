@@ -8,7 +8,8 @@ import { fmt, jumpLabels, parseDecimal } from "../app/format";
 import { Page } from "../app/Page";
 import { videoStore } from "../app/videoStore";
 import { getDb } from "../data/db";
-import { createJumpTest, createNordicTest, createVbtTest, saveVideo } from "../data/repo";
+import { createJumpTest, createNordicTest, createRunningTest, createTimedTest, createVbtTest, saveVideo } from "../data/repo";
+import { getCodTest, isCodType, type CodType } from "../calc/cod";
 import { COMMON_CAPTURE_FPS, nominalFps, readContainerMeta, type ContainerMeta } from "../video/meta";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -46,6 +47,10 @@ export function VideoPage() {
   const tipo = params.get("tipo") ?? "cmj";
   const strength = tipo === "vbt";
   const nordic = tipo === "nordic";
+  const running = tipo === "running";
+  const timed = tipo === "sprint_linear" || isCodType(tipo);
+  const speedLabel = tipo === "sprint_linear" ? "Sprint" : isCodType(tipo) ? (getCodTest(tipo)?.label ?? "Cambio de dirección") : "Carrera";
+  const gates = (params.get("pasos") ?? "").split("-").map(Number).filter((n) => n > 0);
   const type = (strength ? "cmj" : tipo) as JumpType;
   const exercise = getExercise(params.get("ejercicio") ?? "");
   const romCm = params.get("recorrido") ? Number(params.get("recorrido")) : null;
@@ -98,7 +103,11 @@ export function VideoPage() {
     setSaving(true);
     try {
       const db = getDb();
-      const testId = nordic
+      const testId = running
+        ? await createRunningTest(db, id, params.get("pie") === "right" ? "right" : "left", params.get("velocidad") ? Number(params.get("velocidad")) : null)
+        : timed
+        ? await createTimedTest(db, { patientId: id, type: tipo as "sprint_linear" | CodType, side, gates, method: "video" })
+        : nordic
         ? await createNordicTest(db, id, "video")
         : strength
         ? await createVbtTest(db, { patientId: id, exercise: (exercise?.id ?? "squat") as ExerciseId, loadKg: extraLoadKg, romCm, method: "video" })
@@ -122,16 +131,18 @@ export function VideoPage() {
   return (
     <Page
       title={
-        nordic
+        running || timed
+          ? `Vídeo · ${speedLabel}${side ? ` ${side === "left" ? "izq." : "dcha."}` : ""}`
+          : nordic
           ? "Vídeo · Nórdico"
           : strength
           ? `Vídeo · ${exercise?.label ?? "Fuerza"} ${fmt(extraLoadKg, 0)} kg`
           : `Vídeo · ${jumpLabels[type]?.short ?? type}${side ? ` ${side === "left" ? "izq." : "dcha."}` : ""}`
       }
-      backTo={nordic ? `/pacientes/${id}/test/isquios` : strength ? `/pacientes/${id}/test/fuerza?${new URLSearchParams({ ejercicio: exercise?.id ?? "squat", carga: String(extraLoadKg) })}` : `/pacientes/${id}/test/saltos`}
+      backTo={running ? `/pacientes/${id}/test/carrera` : timed ? `/pacientes/${id}/test/sprint?tipo=${tipo}` : nordic ? `/pacientes/${id}/test/isquios` : strength ? `/pacientes/${id}/test/fuerza?${new URLSearchParams({ ejercicio: exercise?.id ?? "squat", carga: String(extraLoadKg) })}` : `/pacientes/${id}/test/saltos`}
     >
       <p className="text-text-muted">
-        {nordic ? "Graba el nórdico de lado y elígelo aquí." : `Graba ${strength ? "la serie" : "el salto"} a cámara lenta y elígelo aquí.`} El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.
+        {running ? "Graba la carrera en cinta a cámara lenta y elígela aquí." : timed ? "Graba el recorrido de lado y elígelo aquí." : nordic ? "Graba el nórdico de lado y elígelo aquí." : `Graba ${strength ? "la serie" : "el salto"} a cámara lenta y elígelo aquí.`} El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.
       </p>
       <input
         ref={input}
@@ -177,7 +188,7 @@ export function VideoPage() {
                   </option>
                 ))}
               </SelectField>
-              {capture !== null && capture < MIN_RECOMMENDED_FPS && !nordic && (
+              {capture !== null && capture < MIN_RECOMMENDED_FPS && !nordic && !timed && (
                 <Alert tone="warning" title={`Grabación a ${fmt(capture, 0)} fps`}>
                   {strength
                     ? `Mejor a cámara lenta (120 fps o más). A ${fmt(capture, 0)} fps, un fotograma de error cambia la velocidad varios puntos.`
@@ -195,7 +206,7 @@ export function VideoPage() {
           )}
 
           <Button size="lg" block disabled={!valid} loading={saving} onClick={next}>
-            {nordic ? "Marcar la rotura" : strength ? "Marcar las repeticiones" : "Marcar el salto"}
+            {running ? "Marcar los apoyos" : timed ? "Marcar los tiempos" : nordic ? "Marcar la rotura" : strength ? "Marcar las repeticiones" : "Marcar el salto"}
           </Button>
         </section>
       )}

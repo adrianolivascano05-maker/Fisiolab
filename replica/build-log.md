@@ -25,6 +25,10 @@ S01 también a 1440 px. Capturas en `replica/clone-screens/`.
 | S14 Perfil carga-velocidad | 2026-10-17 | hecho | — | el umbral del 1RM solo está bien establecido en sentadilla, press de banca y peso muerto: en el resto es editable y se marca «por confirmar»; un 1RM por debajo de la carga más alta movida se rechaza |
 | S21 Bienestar | 2026-10-17 | hecho | — | se añadió el ánimo (ítem de McLean 2010 que faltaba en el esquema) y el dolor de la lesión (0-10) con la migración 3; un registro por día |
 | S20 Nórdico | 2026-10-17 | hecho | validar el momento estimado contra un dinamómetro o un dispositivo de nórdico | no se encontró publicada la fórmula del momento: se usa un modelo propio (masa por encima de la rodilla, distancia a su centro de masas por proporciones medias); el ángulo se mide sobre una captura del fotograma de la rotura |
+| S15 Sprint lineal | 2026-10-17 | hecho | sprint curvo y deceleración (could) | el marcado admite secuencias fijas (salida, un paso por distancia, llegada); el perfil se ajusta sin resistencia del aire |
+| S16 Cambio de dirección | 2026-10-17 | hecho | — | déficit del 5-0-5 con el mejor paso a 10 m de sus sprints |
+| S18 Carrera | 2026-10-17 | hecho | — | los apoyos alternan desde el pie que se indica al empezar |
+| S23 Comparar | 2026-10-17 | hecho | comparar dos pacientes en todas las medidas a la vez | — |
 | S19 Movilidad | 2026-10-17 | hecho | ver el sensor en un Android real; nada se puede probar aquí con un sensor de verdad | `deviceorientation` y `devicemotion` no dan la gravedad con el mismo signo en todos los móviles: se usa la primera fuente que llega y el ángulo no depende del signo. Hubo que fijar a mano el color del texto en la leyenda y la ayuda emergente de la gráfica (salía en el color de cada lado, sin contraste) |
 | S22 Evolución | 2026-10-17 | hecho | — | — |
 | S24 Ajustes | 2026-10-17 | hecho | — | carrera al cargar datos de ejemplo: el botón se mostraba antes de saber si ya había datos (arreglado) |
@@ -65,3 +69,7 @@ Notas:
   (inclinación respecto a la vertical), o se escribe el ángulo. Momento por pierna estimado con masa y estatura:
   0,878 · masa · g · 0,322 · estatura · sen θ / 2 (modelo propio, por validar). Evolución en el resultado. Fase 3
   completa. 87 pruebas unitarias y 65 e2e.
+- Fase 4 (2026-10-17): sprint lineal (vídeo o fotocélulas; tramos, velocidad máxima y perfil F-V del sprint con
+  v(t) = V0·(1 − e^(−t/τ)) sin aire), 5-0-5, 5+5, V-Cut e Illinois (pierna de giro, asimetría, déficit), carrera en
+  cinta (contacto, vuelo, frecuencia, factor de apoyo, longitud del paso, asimetría por pie) y comparar pacientes
+  (21 medidas). Migración 4 con las métricas nuevas. 100 pruebas unitarias y 70 e2e.

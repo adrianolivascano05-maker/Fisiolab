@@ -96,7 +96,7 @@ export async function markNextInSeries(page: Page, frame: number) {
   for (let i = 0; i < Math.floor(frame / 10); i++) await s.press("PageUp");
   for (let i = 0; i < frame % 10; i++) await s.press("ArrowRight");
   await expect(s).toHaveAttribute("aria-valuenow", String(frame));
-  await page.getByRole("button", { name: /^(despegue|aterrizaje|inicio|fin) \d+\s*:\s*marcar/i }).click();
+  await page.getByRole("button", { name: /^(despegue|aterrizaje|inicio|fin|contacto) \d+\s*:\s*marcar/i }).click();
 }
 
 export async function loadSeed(page: Page) {

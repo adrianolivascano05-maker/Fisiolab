@@ -5,13 +5,13 @@ Fecha: 2026-10-17 · Tras la fase 2 de saltos
 ## Veredicto: **saltos completos (fases 1 y 2); la copia completa todavía no**
 
 Los 13 must-haves están hechos y no hay fallos S1 ni S2 abiertos (`replica/bugs.md`). Por la regla del
-método, «publicable» pide además 80 puntos de paridad y hay 82,1: faltan las fases 3-4 (fuerza, sprint,
+método, «publicable» pide además 80 puntos de paridad y hay 91,7: faltan las fases 3-4 (fuerza, sprint,
 carrera, movilidad, nórdico, bienestar). Por eso se publica como **versión de
 prueba** para saltos (CMJ, SJ, DJ), no como sustituto de My Jump Lab.
 
 | medida | valor |
 | --- | --- |
-| **Paridad total de funciones** | **82,1 / 100** (39 funciones puntuables) |
+| **Paridad total de funciones** | **91,7 / 100** (39 funciones puntuables) |
 | Must-haves | **13 de 13** |
 | Saltos (fases 1 y 2) | completos: CMJ, CMJ con brazos, SJ, DJ (RSI, rigidez, DRI), unipodal y asimetría, 10/5, horizontal, RSI-mod, perfil F-V |
 | Paridad de pantallas (layout) | **sin medir**: no hay capturas del original |
@@ -85,10 +85,6 @@ features 65.5  (39 counted, must-haves 13 of 13 done)
 - ayuda                        100.0  (1 features)
 
 ### Missing, in build order
-- [should] carrera: Mecánica de carrera (contacto vuelo frecuencia de paso), no
-- [should] historial: Comparar pacientes y ranking por test, no
-- [should] sprint: Sprint lineal con tiempos de paso, no
-- [should] sprint: Tests de cambio de dirección (5-0-5 5+5 V-Cut Illinois), no
 - [could] ajustes: Varios idiomas, no
 - [could] ia: Captura de movimiento (My Mocap), no  (no se ha podido confirmar qué mide)
 - [could] ia: Detección automática del salto con IA, no  (solo con un modelo abierto; no se copian los del original)

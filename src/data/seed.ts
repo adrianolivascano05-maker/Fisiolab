@@ -2,16 +2,20 @@
 // y se pueden borrar de una vez desde Ajustes.
 import type { Db } from "./db";
 import { heightFromProfile } from "../calc/profile";
+import { modelDistance } from "../calc/sprint";
 import { marksFromFrames, type MarkInput } from "../calc/results";
 import {
   createHorizontalTest,
   createJumpTest,
   createNordicTest,
+  createRunningTest,
+  createTimedTest,
   createPatient,
   createRomTest,
   createVbtTest,
   saveMarksAndCompute,
   saveNordicAngle,
+  saveTimes,
   saveVbtVelocities,
   saveVideo,
   saveWellness,
@@ -44,11 +48,14 @@ export async function loadSeed(db: Db): Promise<void> {
       await saveMarksAndCompute(db, tid, marksFromFrames({ contact: 352, takeoff: 400, landing: 400 + p.flights.at(-1)! - 6 }));
     }
     await loadWellness(db, pid, p.name.startsWith("Marcos"));
+    if (p.name.startsWith("Lucía")) await loadSprint(db, pid, 7.6, 1.05);
     if (p.name.startsWith("Marcos")) {
       await loadPhase2(db, pid, p.bodyMassKg!, p.pushOffDistanceCm! / 100);
       await loadRom(db, pid);
       await loadStrength(db, pid);
       await loadNordic(db, pid);
+      await loadSprint(db, pid, 9, 1.15);
+      await loadCodAndRunning(db, pid);
     }
   }
 }
@@ -147,6 +154,40 @@ async function loadNordic(db: Db, pid: string) {
     await saveNordicAngle(db, tid, angle);
     await db.transaction([{ sql: "update tests set performed_at = ? where id = ?", bind: [new Date(Date.now() - daysAgo * 24 * 3600 * 1000).toISOString(), tid] }]);
   }
+}
+
+/** Sprint con fotocélulas a 5, 10, 20 y 30 m, con los tiempos del modelo (vmax, τ). */
+async function loadSprint(db: Db, pid: string, vmax: number, tau: number) {
+  const timeAt = (x: number) => {
+    let lo = 0;
+    let hi = 30;
+    for (let i = 0; i < 100; i++) {
+      const mid = (lo + hi) / 2;
+      if (modelDistance(vmax, tau, mid) < x) lo = mid;
+      else hi = mid;
+    }
+    return Math.round(((lo + hi) / 2) * 100) / 100;
+  };
+  const gates = [5, 10, 20, 30];
+  const tid = await createTimedTest(db, { patientId: pid, type: "sprint_linear", gates, method: "manual" });
+  await saveTimes(db, tid, gates.map(timeAt));
+}
+
+/** 5-0-5 con cada pierna (gira peor con la izquierda) y una carrera en cinta marcada en vídeo. */
+async function loadCodAndRunning(db: Db, pid: string) {
+  for (const [side, time] of [["left", 2.48], ["right", 2.36]] as const) {
+    const tid = await createTimedTest(db, { patientId: pid, type: "cod_505", side, method: "manual" });
+    await saveTimes(db, tid, [time]);
+  }
+  // 12 km/h a 240 fps: pasos de 82 fotogramas; contacto de 48 (izquierdo) y 52 (derecho).
+  const tid = await createRunningTest(db, pid, "left", 12);
+  await saveVideo(db, tid, { fileName: "cinta-12.mp4", captureFps: 240, containerFps: 240, frameCount: 2400, durationS: 10, fpsSource: "container" });
+  const marks: MarkInput[] = [];
+  for (let i = 0; i < 10; i++) {
+    const c = 100 + i * 82;
+    marks.push({ event: "contact", frame: c, seriesIndex: i }, { event: "takeoff", frame: c + (i % 2 === 0 ? 48 : 52), seriesIndex: i });
+  }
+  await saveMarksAndCompute(db, tid, marks);
 }
 
 export async function removeSeed(db: Db): Promise<number> {
