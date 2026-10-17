@@ -57,13 +57,13 @@ probado con el navegador en Madrid.
 
 ## Pasada manual (no se puede automatizar aquí): la tiene que hacer Fisiolab
 
-En un iPhone con Safari, cuando la app esté publicada:
+En el móvil Android de Fisiolab con Chrome, cuando la app esté publicada:
 
-- [ ] M1 Grabar un CMJ real a cámara lenta (240 fps) y elegirlo en la app: ¿muestra «240 fps (los del archivo)»?
-- [ ] M2 El mismo vídeo compartido por AirDrop o WhatsApp: ¿qué fps muestra? (puede llegar convertido)
+- [ ] M1 Grabar un CMJ con la cámara lenta (120 o 240 fps; no la «súper cámara lenta» de 960) y elegirlo: ¿qué fps muestra la app?
+- [ ] M2 Si muestra 30 fps, elegir los fps con los que se grabó y comprobar que la altura sale razonable
 - [ ] M3 Avanzar fotograma a fotograma: ¿cada pulsación cambia la imagen?
-- [ ] M4 Medir el mismo salto con My Jump Lab y con la app: anotar las dos alturas (validación)
-- [ ] M5 Con VoiceOver: ¿se puede crear un paciente y marcar un salto?
-- [ ] M7 Instalar desde Safari (Compartir → Añadir a pantalla de inicio), abrir desde el icono, cerrar y volver: ¿siguen los datos?
+- [ ] M4 Medir el mismo salto con My Jump Lab (u otra referencia) y con la app: anotar las dos alturas (validación)
+- [ ] M5 Con TalkBack: ¿se puede crear un paciente y marcar un salto?
+- [ ] M6 Si el vídeo no abre: ¿el móvil graba en HEVC? (en Samsung, «Vídeos de alta eficiencia»)
+- [ ] M7 Instalar con el botón «Instalar la app» (o menú ⋮ → «Instalar app»), abrir desde el icono, cerrar y volver: ¿siguen los datos?
 - [ ] M8 Modo avión con la app instalada: ¿abre y deja medir?
-- [ ] M6 Vídeo HEVC del iPhone en un Android con Chrome: ¿se reproduce o da el aviso?

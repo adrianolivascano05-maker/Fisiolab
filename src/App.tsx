@@ -8,6 +8,7 @@ import { JumpSetupPage } from "./pages/JumpSetupPage";
 import { PatientFormPage } from "./pages/PatientFormPage";
 import { PatientPage } from "./pages/PatientPage";
 import { PatientsPage } from "./pages/PatientsPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
 import { ResultPage } from "./pages/ResultPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TestPickerPage } from "./pages/TestPickerPage";
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
   { path: "/tests/:id", element: <ResultPage /> }, // S08
   { path: "/comparar", element: <ComingSoonPage title="Comparar pacientes" phase={4} /> }, // S23
   { path: "/ajustes", element: <SettingsPage /> }, // S24
+  { path: "/privacidad", element: <PrivacyPage /> },
   { path: "/design", element: l(<DesignPage />) },
   { path: "*", element: <ComingSoonPage title="Página no encontrada" /> },
 ]);

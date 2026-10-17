@@ -122,7 +122,8 @@ export function VideoPage() {
 
       {error && (
         <Alert tone="danger" title="No se pudo abrir el vídeo">
-          {error} Si es un vídeo del iPhone y usas Chrome en Android, prueba con Safari en el iPhone o exporta el vídeo como «Más compatible».
+          {error} Si el móvil graba en formato de alta eficiencia (HEVC/H.265), desactívalo en los ajustes de la cámara
+          (en Samsung: Ajustes de cámara → Opciones de vídeo avanzadas → «Vídeos de alta eficiencia») y graba de nuevo.
         </Alert>
       )}
 

@@ -16,7 +16,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run build && npx vite preview --port 4173 --strictPort",
+    // Sirve el build como el alojamiento real: misma CSP y mismas rutas.
+    command: "npm run build && node tools/serve-dist.mjs",
     url: "http://localhost:4173",
     reuseExistingServer: true,
     timeout: 120_000,

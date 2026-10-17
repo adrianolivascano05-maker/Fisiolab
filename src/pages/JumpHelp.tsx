@@ -10,6 +10,10 @@ export function JumpHelp({ type }: { type: JumpType }) {
       <CameraSetup />
       <ol className="list-decimal space-y-2 pl-5">
         <li>Usa la cámara lenta del móvil, a 240 fps si la tiene (como mínimo 120).</li>
+        <li>
+          No uses la «súper cámara lenta» (960 fps) de algunos Android: solo graba una fracción de segundo y parte de
+          los fotogramas son inventados.
+        </li>
         <li>Apoya el móvil o pide a alguien que lo sujete quieto, a la altura de los pies y a 2-3 metros.</li>
         <li>Encuadra los pies con margen: deben verse antes, durante y después del salto.</li>
         {type === "dj" && <li>Que se vea también el cajón: hay que marcar el primer contacto al caer de él.</li>}

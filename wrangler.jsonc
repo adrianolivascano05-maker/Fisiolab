@@ -1,0 +1,12 @@
+// Publicación en Cloudflare Workers (solo archivos estáticos, sin código de servidor).
+// Las cabeceras (CSP incluida) están en public/_headers, que Cloudflare aplica sin servirlo.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fisiolab-medicion",
+  "compatibility_date": "2026-10-17",
+  "assets": {
+    "directory": "./dist",
+    // Cualquier ruta de la app (/pacientes/..., /ajustes) devuelve index.html y la resuelve React.
+    "not_found_handling": "single-page-application"
+  }
+}

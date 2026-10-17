@@ -1,5 +1,6 @@
 import { Database, Download, FileUp } from "lucide-react";
 import { useRef, useState } from "react";
+import { Link } from "react-router";
 import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
 import { InstallSteps, useInstall } from "../app/pwa";
@@ -151,6 +152,9 @@ export function SettingsPage() {
         )}
       </section>
 
+      <Link to="/privacidad" className="font-semibold text-accent underline">
+        Privacidad: qué datos guarda la app y dónde
+      </Link>
       {state.data && (
         <p className="text-xs text-text-muted">
           Base de datos SQLite {state.data.info.sqliteVersion} · esquema v{state.data.info.schemaVersion} ·{" "}
