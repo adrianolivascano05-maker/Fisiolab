@@ -24,8 +24,8 @@ Velocidad media de la barra por vídeo,fuerza,should,yes,yes,"S13: inicio y fin 
 Perfil carga-velocidad y 1RM estimado,fuerza,should,yes,yes,"S14: recta con la repetición más rápida de cada carga; 1RM a la velocidad del umbral (editable por ejercicio); tabla de cargas por % 1RM"
 Pérdida de velocidad en la serie,fuerza,should,yes,yes,(más rápida − última) / más rápida
 Movilidad de tobillo (lunge) hombro cadera y cuello,movilidad,should,yes,yes,"S19: 14 movimientos; inclinómetro del móvil, ángulo sobre foto o goniómetro; media de lecturas; distancia a la pared en el lunge; resumen por lados y evolución"
-Nórdico: ángulo de rotura,isquios,should,yes,no,
-Nórdico: torque estimado,isquios,should,yes,no,fórmula por confirmar
+Nórdico: ángulo de rotura,isquios,should,yes,yes,"S20: marcar la rotura en el vídeo y tocar rodilla y cadera en ese fotograma (respecto a la vertical); o escribirlo"
+Nórdico: torque estimado,isquios,should,yes,yes,"modelo propio por validar: 0,878·masa·g·0,322·estatura·sen θ / 2 por pierna (no se encontró la fórmula publicada)"
 Cuestionario de bienestar (sueño fatiga estrés agujetas),bienestar,should,yes,yes,"S21: 5 preguntas de 1 a 5 (fatiga, sueño, dolor muscular, estrés, ánimo) + dolor de la lesión 0-10; total 5-25, comparación con su media y avisos"
 Sprint lineal con tiempos de paso,sprint,should,yes,no,
 Tests de cambio de dirección (5-0-5 5+5 V-Cut Illinois),sprint,should,yes,no,

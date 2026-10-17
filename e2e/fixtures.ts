@@ -42,13 +42,14 @@ export async function expectAccessible(page: Page) {
   expect(summary).toEqual([]);
 }
 
-export type NewPatient = { name: string; mass?: string; pushOff?: string };
+export type NewPatient = { name: string; mass?: string; pushOff?: string; height?: string };
 
 export async function createPatient(page: Page, p: NewPatient) {
   await page.goto("./pacientes/nuevo");
   await page.getByLabel("Nombre").fill(p.name);
   if (p.mass) await page.getByLabel("Masa").fill(p.mass);
   if (p.pushOff) await page.getByLabel("Distancia de empuje").fill(p.pushOff);
+  if (p.height) await page.getByLabel("Estatura").fill(p.height);
   await page.getByRole("button", { name: "Crear paciente" }).click();
   await expect(page.getByRole("heading", { name: p.name })).toBeVisible();
   return page.url();
@@ -77,7 +78,7 @@ export async function startJump(
 export const scrubber = (page: Page) => page.getByRole("slider", { name: "Posición en el vídeo" });
 
 /** Lleva la barra al fotograma (índice desde 0) con el teclado y marca el evento. */
-export async function markAt(page: Page, frame: number, event: "despegue" | "aterrizaje" | "contacto") {
+export async function markAt(page: Page, frame: number, event: "despegue" | "aterrizaje" | "contacto" | "rotura") {
   const s = scrubber(page);
   await s.focus();
   await s.press("Home");

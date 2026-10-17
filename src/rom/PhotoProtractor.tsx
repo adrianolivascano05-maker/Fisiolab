@@ -7,6 +7,8 @@ type Props = {
   spec: PhotoSpec;
   /** Ángulo clínico con los puntos actuales; null mientras falten puntos. */
   onAngle: (angle: number | null) => void;
+  /** Imagen ya elegida (p. ej. un fotograma del vídeo): sin botón para elegir foto. */
+  image?: string;
 };
 
 /**
@@ -14,8 +16,9 @@ type Props = {
  * las flechas. Las coordenadas van en píxeles de la imagen, así el ángulo no depende del zoom.
  * La foto no se guarda: solo el ángulo.
  */
-export function PhotoProtractor({ spec, onAngle }: Props) {
-  const [url, setUrl] = useState<string | null>(null);
+export function PhotoProtractor({ spec, onAngle, image }: Props) {
+  const [own, setUrl] = useState<string | null>(null);
+  const url = image ?? own;
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const [pts, setPts] = useState<Pt[]>([]);
   const [selected, setSelected] = useState(0);
@@ -26,7 +29,7 @@ export function PhotoProtractor({ spec, onAngle }: Props) {
   const done = pts.length === need;
   const angle = done ? photoAngle(spec, pts) : null;
 
-  useEffect(() => () => void (url && URL.revokeObjectURL(url)), [url]);
+  useEffect(() => () => void (own && URL.revokeObjectURL(own)), [own]);
   useEffect(() => onAngle(angle === null || Number.isNaN(angle) ? null : angle), [angle, onAngle]);
 
   function choose(file: File | undefined) {
@@ -73,11 +76,15 @@ export function PhotoProtractor({ spec, onAngle }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <input ref={input} type="file" accept="image/*" className="sr-only" aria-label="Elegir foto" tabIndex={-1} onChange={(e) => choose(e.target.files?.[0])} />
-      <Button variant={url ? "secondary" : "primary"} block icon={<ImagePlus aria-hidden="true" className="size-5" />} onClick={() => input.current?.click()}>
-        {url ? "Cambiar de foto" : "Elegir o hacer una foto"}
-      </Button>
-      <p className="text-sm text-text-muted">{spec.note} La foto no se guarda: solo el ángulo.</p>
+      {!image && (
+        <>
+          <input ref={input} type="file" accept="image/*" className="sr-only" aria-label="Elegir foto" tabIndex={-1} onChange={(e) => choose(e.target.files?.[0])} />
+          <Button variant={url ? "secondary" : "primary"} block icon={<ImagePlus aria-hidden="true" className="size-5" />} onClick={() => input.current?.click()}>
+            {url ? "Cambiar de foto" : "Elegir o hacer una foto"}
+          </Button>
+          <p className="text-sm text-text-muted">{spec.note} La foto no se guarda: solo el ángulo.</p>
+        </>
+      )}
 
       {url && (
         <>

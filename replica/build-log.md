@@ -24,6 +24,7 @@ S01 también a 1440 px. Capturas en `replica/clone-screens/`.
 | S13 Velocidad de barra | 2026-10-17 | hecho | detección automática de la barra (fase 5, IA) | el marcado de series se generalizó: alterna dos marcas cualesquiera (despegue/aterrizaje o inicio/fin de la subida) |
 | S14 Perfil carga-velocidad | 2026-10-17 | hecho | — | el umbral del 1RM solo está bien establecido en sentadilla, press de banca y peso muerto: en el resto es editable y se marca «por confirmar»; un 1RM por debajo de la carga más alta movida se rechaza |
 | S21 Bienestar | 2026-10-17 | hecho | — | se añadió el ánimo (ítem de McLean 2010 que faltaba en el esquema) y el dolor de la lesión (0-10) con la migración 3; un registro por día |
+| S20 Nórdico | 2026-10-17 | hecho | validar el momento estimado contra un dinamómetro o un dispositivo de nórdico | no se encontró publicada la fórmula del momento: se usa un modelo propio (masa por encima de la rodilla, distancia a su centro de masas por proporciones medias); el ángulo se mide sobre una captura del fotograma de la rotura |
 | S19 Movilidad | 2026-10-17 | hecho | ver el sensor en un Android real; nada se puede probar aquí con un sensor de verdad | `deviceorientation` y `devicemotion` no dan la gravedad con el mismo signo en todos los móviles: se usa la primera fuente que llega y el ángulo no depende del signo. Hubo que fijar a mano el color del texto en la leyenda y la ayuda emergente de la gráfica (salía en el color de cada lado, sin contraste) |
 | S22 Evolución | 2026-10-17 | hecho | — | — |
 | S24 Ajustes | 2026-10-17 | hecho | — | carrera al cargar datos de ejemplo: el botón se mostraba antes de saber si ya había datos (arreglado) |
@@ -60,3 +61,7 @@ Notas:
   la lesión aparte. Compara con la media de sus 30 días anteriores (aviso si baja más de una desviación típica, con 3
   registros o más) y avisa de respuestas de 1-2. Gráfica y tabla; un registro por día que se puede corregir. En el CSV
   como test «bienestar». 82 pruebas unitarias y 62 e2e.
+- Nórdico (2026-10-17, fase 3): se marca la rotura en el vídeo y sobre ese fotograma se tocan rodilla y cadera
+  (inclinación respecto a la vertical), o se escribe el ángulo. Momento por pierna estimado con masa y estatura:
+  0,878 · masa · g · 0,322 · estatura · sen θ / 2 (modelo propio, por validar). Evolución en el resultado. Fase 3
+  completa. 87 pruebas unitarias y 65 e2e.

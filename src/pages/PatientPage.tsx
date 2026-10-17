@@ -124,7 +124,13 @@ export function PatientPage() {
                     <span className="text-sm text-text-muted">{fmtDateTime(t.performedAt)}</span>
                   </span>
                   <span className="nums text-right">
-                    {t.type === "vbt" ? (
+                    {t.type === "nordic" ? (
+                      t.angleDeg === null ? (
+                        <span className="text-sm text-warning">Sin marcar</span>
+                      ) : (
+                        <span className="text-xl">{fmt(t.angleDeg, 0)}°</span>
+                      )
+                    ) : t.type === "vbt" ? (
                       t.barVelocity === null ? (
                         <span className="text-sm text-warning">Sin marcar</span>
                       ) : (

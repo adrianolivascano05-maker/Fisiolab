@@ -9,7 +9,11 @@ import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { videoStore } from "../app/videoStore";
 import { getDb } from "../data/db";
-import { getTest, saveMarksAndCompute } from "../data/repo";
+import { getTest, saveMarksAndCompute, saveNordicAngle } from "../data/repo";
+import { nordicPhoto, plausibleNordic } from "../calc/nordic";
+import { PhotoProtractor } from "../rom/PhotoProtractor";
+import { Card } from "../ui/Card";
+import { fmt } from "../app/format";
 import { Alert } from "../ui/Alert";
 import { Button, IconButton } from "../ui/Button";
 import { FrameControls, FrameScrubber, MarkButton, markerStyle, type Marker } from "../ui/FrameScrubber";
@@ -19,9 +23,14 @@ import { frameAt, seekTime } from "../video/timeline";
 import { useTimeline } from "../video/useTimeline";
 import { JumpHelp } from "./JumpHelp";
 import { StrengthHelp } from "./StrengthHelp";
+import { NordicHelp } from "./NordicHelp";
 
 /** Tipos de test que se marcan en vídeo: los saltos y la velocidad de barra. */
-type MarkType = JumpType | "vbt";
+type MarkType = JumpType | "vbt" | "nordic";
+
+/** Marcas de un test simple (sin serie) y las opcionales. */
+const requiredFor = (type: MarkType): MarkEvent[] => (type === "nordic" ? ["break_point"] : requiredMarks(type as JumpType));
+const optionalFor = (type: MarkType): MarkEvent[] => (type === "nordic" || type === "vbt" ? [] : optionalMarks(type));
 
 /** Una serie alterna dos marcas (despegue/aterrizaje, inicio/fin de la subida) repetición tras repetición. */
 type SeriesSpec = { first: MarkEvent; second: MarkEvent; min: number; unit: string; hint: (next: MarkEvent, n: number) => string; ideal: string };
@@ -58,6 +67,7 @@ const hints: Record<MarkEvent, string> = {
   landing: "Busca el primer fotograma en que un pie vuelve a tocar el suelo y pulsa Aterrizaje.",
   bar_start: "",
   bar_end: "",
+  break_point: "Busca el último fotograma en que aún frena la caída, justo antes de que se desplome, y pulsa Rotura.",
 };
 
 /** S07 Marcado de fotogramas */
@@ -72,9 +82,9 @@ export function MarkPage() {
   const t = test.data;
   if (!t) return <Page title="Marcar" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
   const back = `/pacientes/${t.patientId}`;
-  if (!t.video || !(isJumpType(t.type) || t.type === "vbt")) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
+  if (!t.video || !(isJumpType(t.type) || t.type === "vbt" || t.type === "nordic")) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
   const type: MarkType = t.type;
-  const label = type === "vbt" ? (getExercise(String(t.details.exercise))?.label ?? "Fuerza") : jumpLabels[type].short;
+  const label = type === "vbt" ? (getExercise(String(t.details.exercise))?.label ?? "Fuerza") : type === "nordic" ? "Nórdico" : jumpLabels[type].short;
 
   if (!file) {
     return (
@@ -103,8 +113,12 @@ export function MarkPage() {
         </IconButton>
       }
     >
-      <Sheet open={help} onClose={() => setHelp(false)} title={type === "vbt" ? "Cómo grabar y marcar la barra" : `Cómo marcar un ${label}`}>
-        {type === "vbt" ? <StrengthHelp exercise={String(t.details.exercise)} /> : <JumpHelp type={type} />}
+      <Sheet
+        open={help}
+        onClose={() => setHelp(false)}
+        title={type === "vbt" ? "Cómo grabar y marcar la barra" : type === "nordic" ? "Cómo grabar y marcar el nórdico" : `Cómo marcar un ${label}`}
+      >
+        {type === "vbt" ? <StrengthHelp exercise={String(t.details.exercise)} /> : type === "nordic" ? <NordicHelp /> : <JumpHelp type={type} />}
       </Sheet>
       <MarkingWorkspace
         testId={id}
@@ -187,11 +201,10 @@ function markingState(type: MarkType, marks: MarkInput[]) {
       ready: alternate && complete >= spec.min && firsts === seconds,
     };
   }
-  const jump = type as JumpType;
-  const required = requiredMarks(jump);
+  const required = requiredFor(type);
   const at = (e: MarkEvent) => marks.find((m) => m.event === e)?.frame;
   const missing = required.filter((e) => at(e) === undefined);
-  const sequence = [...optionalMarks(jump), ...required].filter((e) => at(e) !== undefined);
+  const sequence = [...optionalFor(type), ...required].filter((e) => at(e) !== undefined);
   const ordered = sequence.every((e, i) => i === 0 || at(e)! > at(sequence[i - 1]!)!);
   return { series: false as const, required, missing, ordered, ready: missing.length === 0 && ordered };
 }
@@ -284,7 +297,37 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
 
   const markers: Marker[] = marks.map((m) => ({ frame: m.frame, kind: m.event }));
 
+  // Nórdico: tras marcar la rotura, se mide el ángulo sobre ese fotograma.
+  const [frameImage, setFrameImage] = useState<string | null>(null);
+  useEffect(() => () => void (frameImage && URL.revokeObjectURL(frameImage)), [frameImage]);
+  const breakFrame = marks.find((m) => m.event === "break_point")?.frame ?? null;
+
+  async function captureBreakFrame() {
+    const v = video.current;
+    if (!v || breakFrame === null) return;
+    setPlaying(false);
+    setFrame(breakFrame);
+    const target = seekTime(timeline, breakFrame, containerFps);
+    if (Math.abs(v.currentTime - target) > 1e-4) {
+      await new Promise((resolve) => {
+        v.addEventListener("seeked", resolve, { once: true });
+        v.currentTime = target;
+      });
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    canvas.getContext("2d")!.drawImage(v, 0, 0);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+    if (!blob) {
+      toast("No se pudo capturar el fotograma", "danger");
+      return;
+    }
+    setFrameImage(URL.createObjectURL(blob));
+  }
+
   async function calculate() {
+    if (type === "nordic") return void captureBreakFrame();
     setSaving(true);
     try {
       await saveMarksAndCompute(getDb(), testId, marks);
@@ -351,7 +394,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
         <Alert tone="warning" title="Las marcas están desordenadas">
           {state.series
             ? `Deben alternar ${markerStyle[state.spec.first].name.toLowerCase()} y ${markerStyle[state.spec.second].name.toLowerCase()}, cada una después de la anterior. Deshaz la última y vuelve a marcar.`
-            : `${[...optionalMarks(type as JumpType), ...state.required].map((e) => markerStyle[e].name).join(" → ")}: cada una debe ir después de la anterior.`}
+            : `${[...optionalFor(type), ...state.required].map((e) => markerStyle[e].name).join(" → ")}: cada una debe ir después de la anterior.`}
         </Alert>
       )}
 
@@ -367,7 +410,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
           {state.required.map((e) => (
             <MarkButton key={e} kind={e} done={marks.some((m) => m.event === e)} onClick={() => markSingle(e)} />
           ))}
-          {optionalMarks(type as JumpType).map((e) => (
+          {optionalFor(type).map((e) => (
             <MarkButton key={e} kind={e} done={marks.some((m) => m.event === e)} onClick={() => markSingle(e)} label={`${markerStyle[e].name} (opcional)`} />
           ))}
         </div>
@@ -383,9 +426,68 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
             </button>
           ))}
       </div>
-      <Button size="lg" block disabled={!state.ready} loading={saving} onClick={calculate}>
-        Calcular resultado
-      </Button>
+      {frameImage && breakFrame !== null ? (
+        <NordicAngleStep
+          image={frameImage}
+          onBack={() => setFrameImage(null)}
+          onSave={async (angle) => {
+            await saveNordicAngle(getDb(), testId, angle, breakFrame);
+            navigate(`/tests/${testId}`, { replace: true });
+          }}
+        />
+      ) : (
+        <Button size="lg" block disabled={!state.ready} loading={saving} onClick={calculate}>
+          {type === "nordic" ? "Medir el ángulo en este fotograma" : "Calcular resultado"}
+        </Button>
+      )}
     </div>
+  );
+}
+
+/** Nórdico: rodilla y cadera sobre el fotograma de la rotura → inclinación respecto a la vertical. */
+function NordicAngleStep({ image, onBack, onSave }: { image: string; onBack: () => void; onSave: (angle: number) => Promise<void> }) {
+  const [angle, setAngle] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
+  const odd = angle !== null && (angle < plausibleNordic.angleDeg.min || angle > plausibleNordic.angleDeg.max);
+  // Aparece debajo del vídeo: se lleva a la vista y el foco va a su título.
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.scrollIntoView({ block: "start" });
+    heading.current?.focus();
+  }, []);
+  return (
+    <Card className="flex scroll-mt-20 flex-col gap-3 text-text">
+      <h2 ref={heading} tabIndex={-1} className="scroll-mt-20 text-lg outline-none">
+        Ángulo de rotura
+      </h2>
+      <p className="text-sm text-text-muted">Toca la rodilla y después la cadera. {nordicPhoto.note}</p>
+      <PhotoProtractor spec={nordicPhoto} image={image} onAngle={setAngle} />
+      <p className="flex flex-col items-center" data-testid="angulo-actual">
+        <span className="text-sm text-text-muted">Inclinación respecto a la vertical</span>
+        <span className="nums text-display">{angle === null ? "—" : `${fmt(angle, 0)}°`}</span>
+      </p>
+      {odd && <p className="text-sm text-warning">Ángulo poco habitual: revisa el fotograma y los puntos.</p>}
+      <Button
+        size="lg"
+        block
+        disabled={angle === null}
+        loading={saving}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            await onSave(angle!);
+          } catch (e) {
+            toast(e instanceof Error ? e.message : "No se pudo guardar", "danger");
+            setSaving(false);
+          }
+        }}
+      >
+        Guardar resultado
+      </Button>
+      <Button variant="secondary" block onClick={onBack}>
+        Volver al vídeo
+      </Button>
+    </Card>
   );
 }

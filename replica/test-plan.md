@@ -110,3 +110,14 @@ validación, perfil, CSV). Pendiente a mano: comparar con un encoder lineal en l
 
 Unitarias: `src/calc/wellness.test.ts` (total, respuestas bajas, comparación con la media) y `src/data/wellness.test.ts`
 (un registro por día, validación, CSV, borrado en cascada).
+
+## F12 Nórdico (añadido el 2026-10-17, `e2e/nordic.spec.ts`)
+
+| caso | qué comprueba |
+| --- | --- |
+| F12-H1 | ayuda ilustrada; vídeo → marcar la rotura → captura del fotograma → rodilla y cadera a 55° → 35° con el suelo, 164 N·m por pierna, 2,04 N·m/kg (80 kg, 180 cm) |
+| F12-H2 | sin estatura: aviso; ángulo a mano validado (0-90); solo el ángulo; se ve en la ficha |
+| F12-H3 | datos de ejemplo: evolución 50° → 57° en el resultado |
+
+Unitarias: `src/calc/nordic.test.ts` (momento, ángulo sobre el fotograma) y `src/data/nordic.test.ts` (vídeo con marca
+de rotura, a mano, sin estatura, CSV). Pendiente a mano: comparar el momento con un dinamómetro.

@@ -9,7 +9,7 @@ export const categories = [
   { slug: "sprint", icon: Timer, title: "Sprint", detail: "Tiempos y cambios de dirección", phase: 4 },
   { slug: "carrera", icon: Footprints, title: "Carrera", detail: "Contacto y frecuencia de paso", phase: 4 },
   { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello", phase: 3, ready: true },
-  { slug: "isquios", icon: Zap, title: "Nórdico", detail: "Ángulo de rotura", phase: 3 },
+  { slug: "isquios", icon: Zap, title: "Nórdico", detail: "Ángulo de rotura y fuerza", phase: 3, ready: true },
   { slug: "bienestar", icon: HeartPulse, title: "Bienestar", detail: "Sueño, fatiga, estrés, dolor, ánimo", phase: 3, ready: true, to: "bienestar" },
 ] as const;
 

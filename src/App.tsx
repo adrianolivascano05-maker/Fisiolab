@@ -13,6 +13,7 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { ResultPage } from "./pages/ResultPage";
 import { RomSetupPage } from "./pages/RomSetupPage";
 import { StrengthSetupPage } from "./pages/StrengthSetupPage";
+import { NordicSetupPage } from "./pages/NordicSetupPage";
 import { RomSummaryPage } from "./pages/RomSummaryPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TestPickerPage } from "./pages/TestPickerPage";
@@ -43,6 +44,8 @@ const router = createBrowserRouter([
   { path: "/pacientes/:id/test/saltos/video", element: l(<VideoPage />) }, // S06
   { path: "/pacientes/:id/test/fuerza", element: <StrengthSetupPage /> }, // S13
   { path: "/pacientes/:id/test/fuerza/video", element: l(<VideoPage />) }, // S06 para fuerza
+  { path: "/pacientes/:id/test/isquios", element: <NordicSetupPage /> }, // S20
+  { path: "/pacientes/:id/test/isquios/video", element: l(<VideoPage />) }, // S06 para el nórdico
   { path: "/pacientes/:id/test/movilidad", element: <RomSetupPage /> }, // S19
   { path: "/pacientes/:id/test/movilidad/medir", element: l(<RomMeasurePage />) }, // S19
   { path: "/pacientes/:id/test/:categoria", element: <ComingSoonPage /> }, // S13-S21

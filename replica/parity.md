@@ -5,13 +5,13 @@ Fecha: 2026-10-17 · Tras la fase 2 de saltos
 ## Veredicto: **saltos completos (fases 1 y 2); la copia completa todavía no**
 
 Los 13 must-haves están hechos y no hay fallos S1 ni S2 abiertos (`replica/bugs.md`). Por la regla del
-método, «publicable» pide además 80 puntos de paridad y hay 77,4: faltan las fases 3-4 (fuerza, sprint,
+método, «publicable» pide además 80 puntos de paridad y hay 82,1: faltan las fases 3-4 (fuerza, sprint,
 carrera, movilidad, nórdico, bienestar). Por eso se publica como **versión de
 prueba** para saltos (CMJ, SJ, DJ), no como sustituto de My Jump Lab.
 
 | medida | valor |
 | --- | --- |
-| **Paridad total de funciones** | **77,4 / 100** (39 funciones puntuables) |
+| **Paridad total de funciones** | **82,1 / 100** (39 funciones puntuables) |
 | Must-haves | **13 de 13** |
 | Saltos (fases 1 y 2) | completos: CMJ, CMJ con brazos, SJ, DJ (RSI, rigidez, DRI), unipodal y asimetría, 10/5, horizontal, RSI-mod, perfil F-V |
 | Paridad de pantallas (layout) | **sin medir**: no hay capturas del original |
@@ -60,7 +60,7 @@ Could: S-MAS, sprint curvo, deceleración, idiomas, IA.
 2. ~~Bienestar (cuestionario rápido; fase 3, pequeño).~~ Hecho el 2026-10-17 (S21).
 3. ~~Velocidad de barra y 1RM (fase 3).~~ Hecho el 2026-10-17 (S13-S14).
 4. ~~Movilidad: tobillo, cadera, hombro (fase 3).~~ Hecho el 2026-10-17 (S19).
-5. Nórdico de isquios (fase 3).
+5. ~~Nórdico de isquios (fase 3).~~ Hecho el 2026-10-17 (S20).
 
 ## Salida completa de parity.py
 
@@ -87,8 +87,6 @@ features 65.5  (39 counted, must-haves 13 of 13 done)
 ### Missing, in build order
 - [should] carrera: Mecánica de carrera (contacto vuelo frecuencia de paso), no
 - [should] historial: Comparar pacientes y ranking por test, no
-- [should] isquios: Nórdico: torque estimado, no  (fórmula por confirmar)
-- [should] isquios: Nórdico: ángulo de rotura, no
 - [should] sprint: Sprint lineal con tiempos de paso, no
 - [should] sprint: Tests de cambio de dirección (5-0-5 5+5 V-Cut Illinois), no
 - [could] ajustes: Varios idiomas, no

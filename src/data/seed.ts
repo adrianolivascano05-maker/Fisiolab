@@ -6,10 +6,12 @@ import { marksFromFrames, type MarkInput } from "../calc/results";
 import {
   createHorizontalTest,
   createJumpTest,
+  createNordicTest,
   createPatient,
   createRomTest,
   createVbtTest,
   saveMarksAndCompute,
+  saveNordicAngle,
   saveVbtVelocities,
   saveVideo,
   saveWellness,
@@ -46,6 +48,7 @@ export async function loadSeed(db: Db): Promise<void> {
       await loadPhase2(db, pid, p.bodyMassKg!, p.pushOffDistanceCm! / 100);
       await loadRom(db, pid);
       await loadStrength(db, pid);
+      await loadNordic(db, pid);
     }
   }
 }
@@ -135,6 +138,15 @@ async function loadWellness(db: Db, pid: string, badToday: boolean) {
     await saveWellness(db, pid, { fatigue, sleep, soreness, stress, mood, pain: null, notes: "" }, at);
   }
   if (badToday) await saveWellness(db, pid, { fatigue: 2, sleep: 2, soreness: 3, stress: 4, mood: 3, pain: 4, notes: "Ha dormido 5 horas" });
+}
+
+/** Nórdico: de 50° a 57° en cinco semanas (escrito a mano, sin vídeo). */
+async function loadNordic(db: Db, pid: string) {
+  for (const [angle, daysAgo] of [[50, 35], [57, 1]] as const) {
+    const tid = await createNordicTest(db, pid, "manual");
+    await saveNordicAngle(db, tid, angle);
+    await db.transaction([{ sql: "update tests set performed_at = ? where id = ?", bind: [new Date(Date.now() - daysAgo * 24 * 3600 * 1000).toISOString(), tid] }]);
+  }
 }
 
 export async function removeSeed(db: Db): Promise<number> {

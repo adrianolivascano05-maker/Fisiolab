@@ -8,7 +8,7 @@ import { fmt, jumpLabels, parseDecimal } from "../app/format";
 import { Page } from "../app/Page";
 import { videoStore } from "../app/videoStore";
 import { getDb } from "../data/db";
-import { createJumpTest, createVbtTest, saveVideo } from "../data/repo";
+import { createJumpTest, createNordicTest, createVbtTest, saveVideo } from "../data/repo";
 import { COMMON_CAPTURE_FPS, nominalFps, readContainerMeta, type ContainerMeta } from "../video/meta";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -45,6 +45,7 @@ export function VideoPage() {
   const input = useRef<HTMLInputElement>(null);
   const tipo = params.get("tipo") ?? "cmj";
   const strength = tipo === "vbt";
+  const nordic = tipo === "nordic";
   const type = (strength ? "cmj" : tipo) as JumpType;
   const exercise = getExercise(params.get("ejercicio") ?? "");
   const romCm = params.get("recorrido") ? Number(params.get("recorrido")) : null;
@@ -97,7 +98,9 @@ export function VideoPage() {
     setSaving(true);
     try {
       const db = getDb();
-      const testId = strength
+      const testId = nordic
+        ? await createNordicTest(db, id, "video")
+        : strength
         ? await createVbtTest(db, { patientId: id, exercise: (exercise?.id ?? "squat") as ExerciseId, loadKg: extraLoadKg, romCm, method: "video" })
         : await createJumpTest(db, { patientId: id, type, extraLoadKg, dropHeightCm, side });
       await saveVideo(db, testId, {
@@ -119,14 +122,16 @@ export function VideoPage() {
   return (
     <Page
       title={
-        strength
+        nordic
+          ? "Vídeo · Nórdico"
+          : strength
           ? `Vídeo · ${exercise?.label ?? "Fuerza"} ${fmt(extraLoadKg, 0)} kg`
           : `Vídeo · ${jumpLabels[type]?.short ?? type}${side ? ` ${side === "left" ? "izq." : "dcha."}` : ""}`
       }
-      backTo={strength ? `/pacientes/${id}/test/fuerza?${new URLSearchParams({ ejercicio: exercise?.id ?? "squat", carga: String(extraLoadKg) })}` : `/pacientes/${id}/test/saltos`}
+      backTo={nordic ? `/pacientes/${id}/test/isquios` : strength ? `/pacientes/${id}/test/fuerza?${new URLSearchParams({ ejercicio: exercise?.id ?? "squat", carga: String(extraLoadKg) })}` : `/pacientes/${id}/test/saltos`}
     >
       <p className="text-text-muted">
-        Graba {strength ? "la serie" : "el salto"} a cámara lenta y elígelo aquí. El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.
+        {nordic ? "Graba el nórdico de lado y elígelo aquí." : `Graba ${strength ? "la serie" : "el salto"} a cámara lenta y elígelo aquí.`} El vídeo no sale de tu galería: Impulso solo guarda las marcas y el resultado.
       </p>
       <input
         ref={input}
@@ -172,7 +177,7 @@ export function VideoPage() {
                   </option>
                 ))}
               </SelectField>
-              {capture !== null && capture < MIN_RECOMMENDED_FPS && (
+              {capture !== null && capture < MIN_RECOMMENDED_FPS && !nordic && (
                 <Alert tone="warning" title={`Grabación a ${fmt(capture, 0)} fps`}>
                   {strength
                     ? `Mejor a cámara lenta (120 fps o más). A ${fmt(capture, 0)} fps, un fotograma de error cambia la velocidad varios puntos.`
@@ -190,7 +195,7 @@ export function VideoPage() {
           )}
 
           <Button size="lg" block disabled={!valid} loading={saving} onClick={next}>
-            {strength ? "Marcar las repeticiones" : "Marcar el salto"}
+            {nordic ? "Marcar la rotura" : strength ? "Marcar las repeticiones" : "Marcar el salto"}
           </Button>
         </section>
       )}

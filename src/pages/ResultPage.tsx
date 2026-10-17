@@ -15,6 +15,7 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { RomResult } from "./RomResult";
 import { VbtResult } from "./VbtResult";
+import { NordicResult } from "./NordicResult";
 
 const linkPrimary = "inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover";
 const linkSecondary = "inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border-input px-4 font-semibold hover:bg-surface";
@@ -60,6 +61,14 @@ export function ResultPage() {
     navigate(back, { replace: true });
   }
 
+  if (test.type === "nordic") {
+    return (
+      <Page title={`Nórdico · ${patient.name}`} backTo={back}>
+        <NordicResult test={test} patient={patient} />
+        {deleteUi}
+      </Page>
+    );
+  }
   if (test.type === "vbt") {
     return (
       <Page title={`${testTitle({ ...test, exercise: String(test.details.exercise ?? "") })} · ${patient.name}`} backTo={back}>

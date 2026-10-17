@@ -3,7 +3,7 @@ import { computeRepeated } from "./repeated";
 import { intervalS } from "./video";
 
 export type JumpType = "cmj" | "cmj_arms" | "sj" | "dj" | "single_leg" | "rj_10_5" | "horizontal";
-export type MarkEvent = "movement_start" | "contact" | "takeoff" | "landing" | "bar_start" | "bar_end";
+export type MarkEvent = "movement_start" | "contact" | "takeoff" | "landing" | "bar_start" | "bar_end" | "break_point";
 
 export type Metric =
   | "jump_height_cm"

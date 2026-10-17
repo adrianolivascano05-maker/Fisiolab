@@ -4,6 +4,7 @@ import { computeJump, type JumpOutput, type JumpType, type MarkEvent, type MarkI
 import { fvProfile, type FvProfile, type Point } from "../calc/profile";
 import { getMovement, methodLabels, movementLabel, romTypeFor, summarize, type RomMethod, type RomType } from "../calc/rom";
 import { wellnessItems, type WellnessScores } from "../calc/wellness";
+import { nordicTorque } from "../calc/nordic";
 import { getExercise, loadVelocityProfile, plausibleVbt, vbtResults, velocitiesFromMarks, type ExerciseId, type LoadVelocityProfile, type RepMark } from "../calc/strength";
 import type { Db } from "./db";
 import type { Statement } from "./protocol";
@@ -134,7 +135,7 @@ export type Mark = { event: MarkEvent; frameIndex: number; timeS: number; series
 /** `seriesIndex` 0 es el resultado del test; 1, 2… los de cada salto de una serie. */
 export type Result = { metric: string; value: number; unit: string; seriesIndex: number };
 export type Side = "left" | "right";
-export type TestType = JumpType | RomType | "vbt";
+export type TestType = JumpType | RomType | "vbt" | "nordic";
 
 export type Test = {
   id: string;
@@ -718,6 +719,63 @@ export async function deleteWellness(db: Db, id: string): Promise<void> {
   await db.transaction([{ sql: "delete from wellness where id = ?", bind: [id] }]);
 }
 
+// ---------- Nórdico de isquios (S20) ----------
+
+export type NordicMethod = "video" | "manual";
+
+export async function createNordicTest(db: Db, patientId: string, method: NordicMethod): Promise<string> {
+  const id = newId();
+  const t = now();
+  await db.transaction([
+    {
+      sql: `insert into tests (id, patient_id, category, type, performed_at, details, created_at, updated_at)
+            values (?, ?, 'nordic', 'nordic', ?, ?, ?, ?)`,
+      bind: [id, patientId, t, JSON.stringify({ method }), t, t],
+    },
+  ]);
+  return id;
+}
+
+/**
+ * Guarda el ángulo de rotura (respecto a la vertical) y, si el paciente tiene masa y estatura,
+ * el momento estimado por pierna. Con vídeo, también el fotograma de la rotura.
+ */
+export async function saveNordicAngle(db: Db, testId: string, angleDeg: number, breakFrame: number | null = null): Promise<void> {
+  if (!(angleDeg >= 0 && angleDeg <= 90)) throw new RangeError("El ángulo debe estar entre 0 y 90°.");
+  const test = await getTest(db, testId);
+  if (!test) throw new Error("El test no existe.");
+  const patient = await getPatient(db, test.patientId);
+  const rows = [{ metric: "angle_deg", value: angleDeg, unit: "°", seriesIndex: 0 }];
+  if (patient?.bodyMassKg && patient.heightCm) {
+    rows.push({ metric: "torque_nm", value: nordicTorque(patient.bodyMassKg, patient.heightCm, angleDeg).perLegNm, unit: "N·m", seriesIndex: 0 });
+  }
+  const t = now();
+  const marks: Statement[] =
+    breakFrame !== null && test.video
+      ? [
+          { sql: "delete from marks where test_id = ?", bind: [testId] },
+          {
+            sql: "insert into marks (id, test_id, event, series_index, time_s, frame_index, created_at) values (?, ?, 'break_point', 0, ?, ?, ?)",
+            bind: [newId(), testId, breakFrame / test.video.captureFps, breakFrame, t],
+          },
+        ]
+      : [];
+  await db.transaction([...marks, ...resultStatements(testId, rows)]);
+}
+
+export type NordicEntry = { testId: string; performedAt: string; angleDeg: number; torqueNm: number | null };
+
+export async function nordicEntries(db: Db, patientId: string): Promise<NordicEntry[]> {
+  return db.query<NordicEntry>(
+    `select t.id as testId, t.performed_at as performedAt, a.value as angleDeg,
+            (select value from results r where r.test_id = t.id and r.metric = 'torque_nm' and r.series_index = 0) as torqueNm
+       from tests t join results a on a.test_id = t.id and a.metric = 'angle_deg' and a.series_index = 0
+      where t.patient_id = ? and t.type = 'nordic'
+      order by t.performed_at desc`,
+    [patientId],
+  );
+}
+
 // ---------- Ajustes ----------
 
 export async function getSetting<T>(db: Db, key: string): Promise<T | null> {
@@ -774,7 +832,12 @@ export async function exportCsv(db: Db): Promise<string> {
   const lines = rows.map((r) => {
     const movement = r.movement ? getMovement(r.movement) : undefined;
     const exercise = r.exercise ? getExercise(r.exercise) : undefined;
-    const method = r.type === "vbt" ? (r.method === "manual" ? "Encoder (a mano)" : "Vídeo") : r.method ? methodLabels[r.method as RomMethod] : "";
+    const method =
+      r.type === "vbt"
+        ? r.method === "manual" ? "Encoder (a mano)" : "Vídeo"
+        : r.type === "nordic"
+          ? r.method === "manual" ? "A mano" : "Vídeo"
+          : r.method ? methodLabels[r.method as RomMethod] : "";
     return [
       cell(r.patient),
       r.performed_at,

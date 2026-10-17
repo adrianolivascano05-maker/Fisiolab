@@ -15,8 +15,8 @@ Fecha: 2026-10-17
 | | |
 | --- | --- |
 | Funciones imprescindibles | **13 / 13** |
-| Paridad con My Jump Lab | **77,4 / 100**: saltos, fuerza, movilidad y bienestar; faltan el nórdico (fase 3) y la fase 4 |
-| Pruebas | 82 unitarias (Vitest) + 62 en navegador (Playwright), en los dos modos de alojamiento |
+| Paridad con My Jump Lab | **82,1 / 100**: fases 1, 2 y 3 completas (saltos, fuerza, movilidad, nórdico y bienestar); falta la fase 4 |
+| Pruebas | 87 unitarias (Vitest) + 65 en navegador (Playwright), en los dos modos de alojamiento |
 | Fallos | 7 encontrados, 7 arreglados (`replica/bugs.md`); ninguno abierto |
 | Prueba real | vídeo de Pixel 7 Pro (120 fps guardado a 30): 30,7 cm; el usuario confirmó que la app publicada funciona en su Android |
 | Barrido de marca | limpio (`sweep.py`) |
@@ -28,6 +28,7 @@ Fecha: 2026-10-17
 - Perfil fuerza-velocidad con óptimo y desequilibrio.
 - Asimetría.
 - Fuerza: velocidad media de la barra por vídeo o encoder en 6 ejercicios, pérdida de velocidad, perfil carga-velocidad con 1RM estimado y cargas por % 1RM.
+- Nórdico de isquios: ángulo de rotura en el vídeo (o a mano) y momento estimado por pierna.
 - Bienestar: cuestionario diario (fatiga, sueño, dolor muscular, estrés y ánimo, de 1 a 5) más dolor de la lesión; total sobre 25, comparación con su media y avisos.
 - Movilidad: 14 movimientos de tobillo (lunge), cadera, hombro y cuello, medidos con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.
 - Evolución con gráfica y tabla.
@@ -39,7 +40,7 @@ Fecha: 2026-10-17
 
 **Pendiente:**
 - **Validación** contra My Jump Lab o una plataforma de fuerza: 10-20 saltos medidos a la vez. Hasta entonces, no usar para decisiones clínicas.
-- Fase 3: solo falta el nórdico de isquios.
+- Validar el momento del nórdico con un dinamómetro.
 - Comparar la velocidad de barra con un encoder lineal.
 - Probar la movilidad con el sensor de un Android real.
 - Fase 4: sprint, cambio de dirección, carrera, comparar pacientes.
@@ -81,6 +82,7 @@ Fecha: 2026-10-17
     - El umbral del 1RM es editable por ejercicio y se puede guardar para siempre.
     - La pérdida de velocidad va de la repetición más rápida a la última.
 12. **Bienestar, un registro por día.** Si se rellena dos veces el mismo día, se corrige el primero. El dolor de la lesión se apunta aparte y no suma en el total.
+13. **Nórdico: ángulo respecto a la vertical** (0° erguido); se muestra también el ángulo con el suelo. El momento se calcula con los datos actuales del paciente y se presenta como estimación para comparar al mismo paciente.
 
 ## 4. Fórmulas acordadas (`src/calc/`)
 
@@ -99,6 +101,7 @@ Fecha: 2026-10-17
 | Velocidad de barra | recorrido / tiempo de la subida; serie: la más rápida, la media y pérdida = (más rápida − última) / más rápida | estándar |
 | Perfil carga-velocidad | recta velocidad = a + b·carga con la repetición más rápida de cada carga; 1RM = carga a la velocidad del umbral | umbral 0,30 sentadilla, 0,17 banca, 0,15 peso muerto; **press militar, remo y hip thrust por confirmar** (editables) |
 | Bienestar | suma de 5 respuestas de 1 a 5 (5 = mejor): 5-25; «por debajo de lo habitual» si está más de 1 desviación típica bajo su media de 30 días (mín. 3 registros) | ítems de McLean 2010; **la suma y el umbral son uso habitual, no confirmados en el artículo** |
+| Nórdico | ángulo de rotura = inclinación rodilla-cadera respecto a la vertical; momento por pierna = 0,878·masa·g·0,322·estatura·sen θ / 2 | **modelo propio, por validar**: no se encontró la fórmula publicada |
 | Movilidad (móvil) | ángulo entre la dirección «arriba» al poner a cero y la actual; lunge: inclinación del borde largo respecto a la vertical | geometría; vale si el segmento se mueve en un plano vertical |
 | Movilidad (foto) | ángulo en el eje entre 3 puntos, pasado al valor clínico (directo, 180° − ángulo o ángulo − 90°); o inclinación de 2 puntos respecto a la vertical | goniometría estándar |
 | Movilidad (resultado) | media de las lecturas; aviso si difieren más de 5° | criterio propio |
@@ -162,6 +165,6 @@ Convenciones:
 ## 7. Siguientes pasos recomendados
 
 1. **Validación:** pantalla o CSV para anotar la altura de My Jump Lab junto a la de Impulso y calcular la diferencia media.
-2. **Fase 3:** nórdico de isquios.
+2. **Fase 4:** sprint, cambio de dirección, carrera y comparar pacientes.
 3. **`/replica-entrepreneur`:** quejas reales de los usuarios del original, convertidas en mejoras.
 4. **Confirmar el DRI** en el artículo de Brooks (2026).

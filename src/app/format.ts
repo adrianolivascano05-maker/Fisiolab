@@ -59,6 +59,7 @@ export function testLabel(type: string): string {
   if (isJumpType(type)) return jumpLabels[type].short;
   if (isRomType(type)) return `Movilidad · ${jointLabels[type.slice(4) as RomJoint].toLowerCase()}`;
   if (type === "vbt") return "Fuerza";
+  if (type === "nordic") return "Nórdico";
   return type;
 }
 
@@ -88,5 +89,6 @@ export const metricLabels: Record<string, { label: string; digits: number }> = {
   angle_deg: { label: "Ángulo", digits: 0 },
   bar_velocity_m_s: { label: "Velocidad de la barra", digits: 2 },
   velocity_loss_pct: { label: "Pérdida de velocidad", digits: 0 },
+  torque_nm: { label: "Momento por pierna", digits: 0 },
   wall_distance_cm: { label: "Distancia a la pared", digits: 1 },
 };
