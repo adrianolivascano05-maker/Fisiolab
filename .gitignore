@@ -3,3 +3,4 @@ dist/
 src/styles/tokens.css
 test-results/
 *.tsbuildinfo
+playwright-report/
