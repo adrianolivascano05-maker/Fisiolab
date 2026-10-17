@@ -5,13 +5,23 @@
 import { Matrix4, Quaternion, Vector3 } from "three";
 import type { Anchor, FigureSpec } from "../figure";
 import type { Table } from "./layout";
-import { anatDir, anchorInfo, anchorSide, DIM, fk, LYING, sgn, surfaceRadius, surfaceSamples, type BodyAngles, type Pose3, type Side } from "./rig";
+import { anatDir, anchorInfo, anchorSide, bendPoint, DIM, fk, HAND_REST_CURL, KNUCKLE_Y, LYING, sgn, surfaceRadius, surfaceSamples, type BodyAngles, type Pose3, type Side } from "./rig";
 
 
-/** Punto de apoyo de una mano: dónde toca, hacia dónde mira la palma (−n) y hacia dónde van los dedos. */
-export type Contact = { anchor: Anchor; p: Vector3; n: Vector3; part: string };
+/** Punto de apoyo de una mano: dónde toca (p, en la superficie), hacia dónde mira la palma (−n), el eje y
+ *  el radio del segmento en ese punto (a, axis, r) y la toma. */
+export type Contact = { anchor: Anchor; p: Vector3; n: Vector3; part: string; a: Vector3; axis: Vector3; r: number; grip: GripKind };
+type GripKind = "press" | "grasp" | "tips";
 
-export type ExaminerPlan = { rootXZ: Vector3; yaw: number; angles: BodyAngles; lift: number; arms: { side: Side; hand: number }[] };
+export type ExaminerPlan = {
+  rootXZ: Vector3;
+  yaw: number;
+  angles: BodyAngles;
+  lift: number;
+  arms: { side: Side; hand: number }[];
+  /** Si desde un solo sitio no llega al principio y al final, dónde está al final: se desplaza durante la maniobra. */
+  alt?: ExaminerPlan;
+};
 
 const Yv = new Vector3(0, 1, 0);
 const flat = (v: Vector3) => new Vector3(v.x, 0, v.z);
@@ -62,8 +72,27 @@ const STANCES: { kind: Stance; cost: number }[] = [
 const yawQ = (yaw: number) => new Quaternion().setFromAxisAngle(Yv, yaw);
 
 /** Pose del examinador con los brazos en reposo, apoyado en el suelo. */
-export function baseExaminerPose(plan: ExaminerPlan): Pose3 {
-  return fk(new Vector3(plan.rootXZ.x, plan.lift, plan.rootXZ.z), yawQ(plan.yaw), plan.angles);
+export function baseExaminerPose(plan: ExaminerPlan, m = 1): Pose3 {
+  const p = plan.alt ? blendPlan(plan, plan.alt, m) : plan;
+  return fk(new Vector3(p.rootXZ.x, p.lift, p.rootXZ.z), yawQ(p.yaw), p.angles);
+}
+
+/** Posición intermedia entre dos colocaciones del examinador (k = 0 la primera, 1 la segunda). */
+function blendPlan(a: ExaminerPlan, b: ExaminerPlan, k: number): ExaminerPlan {
+  const t = k <= 0 ? 0 : k >= 1 ? 1 : k * k * (3 - 2 * k);
+  const mix = (x: number, y: number) => x + (y - x) * t;
+  let dy = b.yaw - a.yaw;
+  while (dy > Math.PI) dy -= 2 * Math.PI;
+  while (dy < -Math.PI) dy += 2 * Math.PI;
+  const A = a.angles;
+  const B = b.angles;
+  const limb = (s: Side) => {
+    const out = { ...A[s] };
+    for (const j of Object.keys(out) as (keyof BodyAngles["r"])[]) out[j] = { flex: mix(A[s][j].flex, B[s][j].flex), abd: mix(A[s][j].abd, B[s][j].abd) };
+    return out;
+  };
+  const angles: BodyAngles = { ...A, trunkFlex: mix(A.trunkFlex, B.trunkFlex), neckFlex: mix(A.neckFlex, B.neckFlex), r: limb("r"), l: limb("l") };
+  return { rootXZ: a.rootXZ.clone().lerp(b.rootXZ, t), yaw: a.yaw + dy * t, angles, lift: mix(a.lift, b.lift), arms: b.arms };
 }
 
 /**
@@ -73,8 +102,17 @@ export function baseExaminerPose(plan: ExaminerPlan): Pose3 {
 export function planExaminer(spec: FigureSpec, poses: Pose3[], table: Table | null): ExaminerPlan | null {
   const hands = (spec.hands ?? []).slice(0, 2);
   if (!hands.length || spec.examiner === "none") return null;
+  const both = search(spec, poses, table);
+  if (both.found) return both.plan;
+  // Desde un solo sitio no llega a todo: un sitio para el final de la maniobra y otro para el principio.
+  const end = search(spec, [poses[poses.length - 1]!], table);
+  const start = end.found ? search(spec, [poses[0]!], table, end.plan.arms) : null;
+  return start?.found ? { ...start.plan, alt: end.plan } : both.plan;
+}
+
+function search(spec: FigureSpec, poses: Pose3[], table: Table | null, fixedArms?: ExaminerPlan["arms"]): { plan: ExaminerPlan; found: boolean } {
+  const hands = (spec.hands ?? []).slice(0, 2);
   const pts = poses.flatMap((p) => hands.map((h) => anchorInfo(p, h)?.p).filter((v): v is Vector3 => !!v));
-  if (!pts.length) return null;
   const c = pts.reduce((a, b) => a.add(b), new Vector3()).multiplyScalar(1 / pts.length);
   const p0 = poses[0]!;
   const q = p0.trunkQ;
@@ -99,6 +137,8 @@ export function planExaminer(spec: FigureSpec, poses: Pose3[], table: Table | nu
   }
   // Depresor lingual (sale por el lado derecho de la boca): el examinador delante y a ese lado.
   else if (hands.includes("depressor")) d = dirOf(new Vector3(-0.8, 0, 1));
+  // Los dos brazos a la vez: delante del paciente (se ven sus manos); cabeza y tronco: detrás.
+  else if (sides.includes("r") && sides.includes("l") && hands.every((h) => /_(upperarm|elbow|forearm|wrist|hand)/.test(h))) d = dirOf(new Vector3(0, 0, 1));
   else if (midline || (sides.includes("r") && sides.includes("l"))) d = dirOf(new Vector3(0, 0, -1));
   else if (armish) d = dirOf(new Vector3(sgn(side), 0, -0.45));
   else {
@@ -112,6 +152,8 @@ export function planExaminer(spec: FigureSpec, poses: Pose3[], table: Table | nu
   // El examinador puede ponerse junto a un brazo que sale de la camilla.
   const samples = poses.flatMap((p) => surfaceSamples(p, (part) => !(lying && /upperarm|forearm|hand/.test(part))));
   const trunks = poses.map((p) => surfaceSamples(p, (part) => part === "torso" || part === "head"));
+  // La cabeza del examinador puede acercarse a lo que sujeta, pero no meterse en el resto del cuerpo.
+  const held = new Set(poses.flatMap((p) => hands.map((h) => anchorInfo(p, h)?.part ?? "")));
   const bodies = poses.map((p) => surfaceSamples(p, (part) => !/hand|forearm/.test(part)));
   const best: { cost: number; plan: ExaminerPlan | null } = { cost: Infinity, plan: null };
   // Primero la dirección natural; si no llega, girando alrededor del paciente.
@@ -142,14 +184,15 @@ export function planExaminer(spec: FigureSpec, poses: Pose3[], table: Table | nu
           plan.lift = groundLift(plan);
           const base = baseExaminerPose(plan);
           // Brazos: cada mano al punto de su lado.
-          const order = hands.map((_, i) => i).sort((x, y) => avgAlong(poses, hands[y]!, right) - avgAlong(poses, hands[x]!, right));
+          const order = hands.map((_, i) => i).sort((x, y) => avgAlong(spec, poses, y, right) - avgAlong(spec, poses, x, right));
           const arms =
-            order.length === 2
+            fixedArms ??
+            (order.length === 2
               ? [
                   { side: "r" as Side, hand: order[0]! },
                   { side: "l" as Side, hand: order[1]! },
                 ]
-              : [{ side: (avgAlong(poses, hands[0]!, right) - flat(base.root.p).dot(right) >= -4 ? "r" : "l") as Side, hand: 0 }];
+              : [{ side: (avgAlong(spec, poses, 0, right) - flat(base.root.p).dot(right) >= -4 ? "r" : "l") as Side, hand: 0 }]);
           // Cada mano tiene que llegar de verdad a su punto (muñeca a la distancia del brazo).
           const tmp: ExaminerPlan = { ...plan, arms };
           const ok = poses.every((p) => {
@@ -158,12 +201,12 @@ export function planExaminer(spec: FigureSpec, poses: Pose3[], table: Table | nu
               const ct = cts[arm.hand];
               if (!ct) return true;
               const S = base.pt[`${arm.side}_shoulder`]!;
-              return wristTarget(ct, S).distanceTo(S) <= DIM.upperarm + DIM.forearm - 0.6;
+              return handTarget(ct, S).W.distanceTo(S) <= DIM.upperarm + DIM.forearm - 0.6;
             });
           });
           if (!ok) continue;
           // La cabeza y el tronco del examinador no pueden meterse en el paciente.
-          const clear = trunks.every((tr) => [base.head.p, base.pt.chest!].every((v) => tr.every((sm) => sm.p.distanceTo(v) > 15))) && bodies.every((b) => b.every((sm) => sm.p.distanceTo(base.head.p) > 10));
+          const clear = trunks.every((tr) => [base.head.p, base.pt.chest!].every((v) => tr.every((sm) => sm.p.distanceTo(v) > 15))) && bodies.every((b) => b.every((sm) => sm.p.distanceTo(base.head.p) > (held.has(sm.part) ? 5 : 10)));
           if (!clear) continue;
           // Mirada hacia las manos.
           const to = c.clone().sub(base.head.p);
@@ -177,15 +220,16 @@ export function planExaminer(spec: FigureSpec, poses: Pose3[], table: Table | nu
       }
     }
   }
-  if (best.plan) return best.plan;
+  if (best.plan) return { plan: best.plan, found: true };
   const yaw = Math.atan2(-d.x, -d.z);
-  const plan: ExaminerPlan = { rootXZ: c.clone().setY(0).addScaledVector(d, 40), yaw, angles: stanceAngles("stand", 40, 30), lift: 0, arms: [{ side: "r", hand: 0 }, ...(hands.length > 1 ? [{ side: "l" as Side, hand: 1 }] : [])] };
+  const plan: ExaminerPlan = { rootXZ: c.clone().setY(0).addScaledVector(d, 40), yaw, angles: stanceAngles("stand", 40, 30), lift: 0, arms: fixedArms ?? [{ side: "r", hand: 0 }, ...(hands.length > 1 ? [{ side: "l" as Side, hand: 1 }] : [])] };
   plan.lift = groundLift(plan);
-  return plan;
+  return { plan, found: false };
 }
 
-function avgAlong(poses: Pose3[], h: Anchor, dir: Vector3) {
-  const v = poses.map((p) => anchorInfo(p, h)?.p.dot(dir) ?? 0);
+/** Dónde cae una mano (su contacto, con la cara de la toma) a lo largo de una dirección, de media. */
+function avgAlong(spec: FigureSpec, poses: Pose3[], i: number, dir: Vector3) {
+  const v = poses.map((p) => contacts(spec, p, null, null)[i]?.p.dot(dir) ?? 0);
   return v.reduce((a, b) => a + b, 0) / v.length;
 }
 
@@ -200,12 +244,14 @@ function groundLift(plan: ExaminerPlan): number {
 export function contacts(spec: FigureSpec, pose: Pose3, examiner: Pose3 | null, plan: ExaminerPlan | null): Contact[] {
   const hands = (spec.hands ?? []).slice(0, 2);
   return hands.map((h, i) => {
+    const grip = spec.grips?.[i] ?? null;
+    const kind: GripKind = grip?.kind ?? "press";
     const info = anchorInfo(pose, h);
-    if (!info) return { anchor: h, p: new Vector3(), n: new Vector3(0, 1, 0), part: "" };
-    let n: Vector3 | null = null;
+    if (!info) return { anchor: h, p: new Vector3(), n: new Vector3(0, 1, 0), part: "", a: new Vector3(), axis: new Vector3(0, 1, 0), r: 1, grip: kind };
+    let n: Vector3 | null = grip?.face ? anatDir(pose, grip.face, h, info) : null;
     // Si hay una flecha en ese punto, la mano empuja desde el lado contrario.
     const [hn, ht] = h.split("@");
-    for (const ar of spec.arrows ?? []) {
+    for (const ar of n ? [] : (spec.arrows ?? [])) {
       if ("rotate" in ar) continue;
       const [an, at] = ar.at.split("@");
       const same = ar.at === h || (an === hn && Math.abs(Number(at ?? 0.5) - Number(ht ?? 0.5)) < 0.3);
@@ -221,7 +267,7 @@ export function contacts(spec: FigureSpec, pose: Pose3, examiner: Pose3 | null, 
       n.normalize();
     }
     const r = surfaceRadius(info, n);
-    return { anchor: h, p: info.p.clone().addScaledVector(n, r), n, part: info.part };
+    return { anchor: h, p: info.p.clone().addScaledVector(n, r), n, part: info.part, a: info.p.clone(), axis: info.axis.clone(), r, grip: kind };
   });
 }
 
@@ -235,9 +281,38 @@ function fingers(ct: Contact, S: Vector3) {
   return fd.normalize();
 }
 
-/** Muñeca para que el centro de la palma quede sobre el contacto (8 cm antes, a 1,7 cm de la superficie). */
-function wristTarget(ct: Contact, S: Vector3) {
-  return ct.p.clone().addScaledVector(fingers(ct, S), -8).addScaledVector(ct.n, 1.7);
+const basis = (bx: Vector3, by: Vector3, bz: Vector3) => new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(bx, by, bz));
+
+/**
+ * Dónde va la muñeca y cómo se orienta la mano para cada toma (mano: dedos hacia −y, palma hacia +z):
+ * - press: el centro de la palma sobre el contacto, dedos siguiendo el antebrazo, mano casi plana.
+ * - grasp: la palma en la cara elegida y los dedos rodeando el segmento (el eje del segmento en el centro
+ *   de la curva de los dedos).
+ * - tips: los dedos doblados y las yemas sobre el punto.
+ */
+export function handTarget(ct: Contact, S: Vector3): { W: Vector3; q: Quaternion; curl: number } {
+  const z = ct.n.clone().negate();
+  if (ct.grip === "grasp") {
+    let t = new Vector3().crossVectors(ct.axis, ct.n);
+    if (t.lengthSq() < 1e-4) t = fingers(ct, S);
+    t.normalize();
+    // Los dedos rodean el segmento por el lado de fuera (lejos del examinador).
+    if (t.dot(ct.a.clone().sub(S)) < 0) t.negate();
+    const R = Math.min(10, Math.max(3.5, ct.r + 1.3));
+    const y = t.clone().negate();
+    const q = basis(new Vector3().crossVectors(y, z), y, z);
+    return { W: ct.a.clone().addScaledVector(t, KNUCKLE_Y).addScaledVector(ct.n, R), q, curl: R };
+  }
+  const fd = fingers(ct, S);
+  const y = fd.clone().negate();
+  const q = basis(new Vector3().crossVectors(y, z), y, z);
+  if (ct.grip === "tips") {
+    const curl = 8;
+    const [ty, tz] = bendPoint(-18.4, 0.8, curl);
+    const tip = new Vector3(0, ty, tz).applyQuaternion(q);
+    return { W: ct.p.clone().addScaledVector(ct.n, 0.5).sub(tip), q, curl };
+  }
+  return { W: ct.p.clone().addScaledVector(fd, -5.5).addScaledVector(ct.n, 1.7), q, curl: 60 };
 }
 
 /** Codo de un brazo de dos segmentos que llega del hombro S a la muñeca W, hacia el lado de `pole`. */
@@ -263,7 +338,6 @@ function armIK(S: Vector3, W: Vector3, pole: Vector3) {
   const x1 = new Vector3().crossVectors(y1, z1);
   const y2 = f2.clone().negate();
   const z2 = new Vector3().crossVectors(x1, y2).normalize();
-  const basis = (bx: Vector3, by: Vector3, bz: Vector3) => new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(bx, by, bz));
   return { E, W: Wc, uaQ: basis(x1, y1, z1), faQ: basis(x1.clone(), y2, z2) };
 }
 
@@ -271,27 +345,23 @@ function armIK(S: Vector3, W: Vector3, pole: Vector3) {
  * Pose del examinador en este momento: brazos de la posición de reposo (reach = 0) a las manos sobre
  * el paciente (reach = 1).
  */
-export function examinerPose(plan: ExaminerPlan, cts: Contact[], reach: number): Pose3 {
-  const pose = baseExaminerPose(plan);
+export function examinerPose(plan: ExaminerPlan, cts: Contact[], reach: number, m = 1): Pose3 {
+  const pose = baseExaminerPose(plan, m);
   for (const arm of plan.arms) {
     const ct = cts[arm.hand];
     if (!ct) continue;
     const s = arm.side;
     const S = pose.pt[`${s}_shoulder`]!;
-    const fd = fingers(ct, S);
-    const Wt = wristTarget(ct, S);
+    const target = handTarget(ct, S);
     const restW = pose.pt[`${s}_wrist`]!.clone();
-    const W = restW.clone().lerp(Wt, reach);
+    const W = restW.clone().lerp(target.W, reach);
     const pole = new Vector3(sgn(s) * 0.8, -1, -0.45).applyQuaternion(pose.trunkQ);
     const ik = armIK(S, W, pole);
-    const yh = fd.clone().negate();
-    const zh = ct.n.clone().negate();
-    const xh = new Vector3().crossVectors(yh, zh);
-    const handQ = new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(xh, yh, zh));
     const restQ = pose.seg[`${s}_hand`].q.clone();
+    pose.hands = { ...pose.hands, [s]: { curl: HAND_REST_CURL + (target.curl - HAND_REST_CURL) * reach, grip: reach > 0.5 ? ct.grip : "rest" } };
     pose.seg[`${s}_upperarm`] = { p: S.clone(), q: ik.uaQ };
     pose.seg[`${s}_forearm`] = { p: ik.E, q: ik.faQ };
-    pose.seg[`${s}_hand`] = { p: ik.W, q: restQ.slerp(handQ, reach) };
+    pose.seg[`${s}_hand`] = { p: ik.W, q: restQ.slerp(target.q, reach) };
     pose.pt[`${s}_elbow`] = ik.E.clone();
     pose.pt[`${s}_wrist`] = ik.W.clone();
     pose.pt[`${s}_handtip`] = ik.W.clone().add(new Vector3(0, -DIM.hand, 0).applyQuaternion(pose.seg[`${s}_hand`].q));

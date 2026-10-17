@@ -299,8 +299,8 @@ export class Stage {
     this.patient.apply(pat);
     let exPose: Pose3 | null = null;
     if (this.plan && this.examiner) {
-      const base = examinerPose(this.plan, contacts(spec, pat, null, this.plan), 0);
-      exPose = examinerPose(this.plan, contacts(spec, pat, base, this.plan), reach);
+      const base = examinerPose(this.plan, contacts(spec, pat, null, this.plan), 0, m);
+      exPose = examinerPose(this.plan, contacts(spec, pat, base, this.plan), reach, m);
       this.examiner.apply(exPose);
     }
     const cts = contacts(spec, pat, exPose, this.plan);
@@ -613,7 +613,7 @@ export class Stage {
     for (const m of [0, 0.5, 1]) {
       const pat = this.patientPose(m, m);
       all.push(...surfaceSamples(pat).map((x) => x.p));
-      const ex = this.plan ? examinerPose(this.plan, contacts(spec, pat, null, this.plan), 1) : null;
+      const ex = this.plan ? examinerPose(this.plan, contacts(spec, pat, null, this.plan), 1, m) : null;
       if (ex) all.push(...surfaceSamples(ex).map((x) => x.p));
       for (const c of contacts(spec, pat, ex, this.plan)) roi.push(c.p);
       for (const a of [...(spec.pain ?? []), ...(spec.arrows ?? []).map((x) => x.at)]) {

@@ -46,6 +46,12 @@ export type Arrow =
   | { at: Anchor; dir: Direction; kind?: "force" | "move"; label?: string; len?: number }
   | { at: Anchor; rotate: "cw" | "ccw"; label?: string };
 
+/** Toma de una mano del examinador. press: palma apoyada (estabilizar, empujar); grasp: la mano abarca el
+ *  segmento con los dedos alrededor; tips: yemas de los dedos (palpar, percutir, presión localizada).
+ *  `face`: cara del cuerpo donde apoya la palma o las yemas (si no, la contraria a la flecha de ese punto,
+ *  o la que mira al examinador). Solo cambia la figura 3D. */
+export type Grip = { kind: "press" | "grasp" | "tips"; face?: Direction };
+
 export type FigureSpec = {
   view: "side" | "front";
   posture: Posture;
@@ -56,6 +62,8 @@ export type FigureSpec = {
   to?: Partial<Record<JointKey, number>>;
   /** Dónde pone las manos el examinador (se dibuja entero y sus brazos llegan a estos puntos). */
   hands?: Anchor[];
+  /** Toma de cada mano, en el mismo orden que `hands` (null: la de por defecto, palma apoyada). */
+  grips?: (Grip | null)[];
   /** "none": sin examinador aunque haya manos (p. ej. el paciente se explora a sí mismo). */
   examiner?: "auto" | "none";
   arrows?: Arrow[];

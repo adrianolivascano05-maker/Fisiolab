@@ -137,6 +137,17 @@ export const faceZ = (y: number) => profileAt(HEAD, y)[1]!;
 export const DEPRESSOR = { inner: new Vector3(-2, LIPS_Y - 0.05, 4), outer: new Vector3(-3.2, LIPS_Y - 0.05, 17) };
 
 export type Xf = { p: Vector3; q: Quaternion };
+
+/** Mano: muñeca en el origen, dedos hacia −y y palma hacia +z. Los dedos se doblan hacia la palma desde
+ *  los nudillos con radio de curvatura R (grande: mano plana; pequeño: mano que abarca). */
+export const KNUCKLE_Y = -9.2;
+export const HAND_REST_CURL = 13;
+export function bendPoint(y: number, z: number, R: number): [number, number] {
+  if (y >= KNUCKLE_Y) return [y, z];
+  const phi = (KNUCKLE_Y - y) / R;
+  return [KNUCKLE_Y - (R - z) * Math.sin(phi), R - (R - z) * Math.cos(phi)];
+}
+export type HandState = { curl: number; grip: "press" | "grasp" | "tips" | "rest" };
 /** Ángulos de una articulación; `twist` (solo muñeca) gira el antebrazo sobre su eje antes de doblarla. */
 export type JA = { flex: number; abd: number; twist?: number };
 type Limb = Record<"shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle", JA>;
@@ -155,6 +166,8 @@ export type Pose3 = {
   pt: Record<string, Vector3>;
   /** Apertura de la boca (grados de giro de la mandíbula). */
   jaw: number;
+  /** Cómo están las manos (solo el examinador; si falta, relajadas). */
+  hands?: Partial<Record<Side, HandState>>;
 };
 
 export const SPINE_Y0 = -16;

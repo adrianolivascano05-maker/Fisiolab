@@ -2,7 +2,7 @@ import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import { tests } from "../data";
 import { CAMERAS, cameraKey } from "./cameras";
-import { contacts, examinerPose, planExaminer } from "./examiner";
+import { contacts, examinerPose, handTarget, planExaminer } from "./examiner";
 import { layoutPatient, patientPose } from "./layout";
 import { anchorInfo, DIM, fk, patientAngles, postureQ, upSide } from "./rig";
 
@@ -40,13 +40,14 @@ describe("maniquí 3D", () => {
       const poses = [0, 1].map((m) => patientPose(L, m, 0));
       const plan = planExaminer(f, poses, L.table);
       expect(plan, id).not.toBeNull();
-      for (const p of poses) {
-        const base = examinerPose(plan!, contacts(f, p, null, plan), 0);
+      for (const [m, p] of poses.entries()) {
+        const base = examinerPose(plan!, contacts(f, p, null, plan), 0, m);
         const cts = contacts(f, p, base, plan);
-        const ex = examinerPose(plan!, cts, 1);
+        const ex = examinerPose(plan!, cts, 1, m);
         for (const arm of plan!.arms) {
-          const palm = ex.seg[`${arm.side}_hand`].p.clone().add(new Vector3(0, -8, 1.7).applyQuaternion(ex.seg[`${arm.side}_hand`].q));
-          const gap = palm.distanceTo(cts[arm.hand]!.p);
+          // La muñeca llega a donde la toma la necesita.
+          const S = base.pt[`${arm.side}_shoulder`]!;
+          const gap = ex.seg[`${arm.side}_hand`].p.distanceTo(handTarget(cts[arm.hand]!, S).W);
           if (gap > 4) far.push(`${id} ${f.hands[arm.hand]} ${gap.toFixed(1)} cm`);
         }
       }

@@ -3,7 +3,7 @@
 // sencilla. Cada pieza
 // es una malla propia que se coloca con la pose del esqueleto (rig.ts); el tronco se curva con la columna.
 import { BoxGeometry, BufferGeometry, CapsuleGeometry, Color, Float32BufferAttribute, Group, Mesh, MeshStandardMaterial, Object3D, SphereGeometry, Vector3 } from "three";
-import { DEPRESSOR, faceZ, HEAD, jawPoint, LIMB, LIMBS, LIPS_Y, profileAt, sgn, spineAt, TORSO, type LimbSeg, type Pose3, type Section, type SegKey, type Side } from "./rig";
+import { bendPoint, DEPRESSOR, faceZ, HAND_REST_CURL, HEAD, jawPoint, LIMB, LIMBS, LIPS_Y, profileAt, sgn, spineAt, TORSO, type HandState, type LimbSeg, type Pose3, type Section, type SegKey, type Side } from "./rig";
 
 export type Look = "patient" | "examiner";
 
@@ -109,8 +109,18 @@ function limbGeometry(seg: Exclude<LimbSeg, "hand" | "foot">, s: Side, cl: Cloth
   return loft(rings, 22, (_p, i) => (covered(ts[i]!) ? color : cl.skin)).geo;
 }
 
-function handGroup(s: Side, skin: Color, mat: MeshStandardMaterial): Object3D {
-  // Mano relajada: palma hacia +z, dedos hacia −y algo flexionados, pulgar en el lado radial.
+type HandParts = { group: Group; palm: Mesh; thumb: Mesh; rest: Float32Array; state: string };
+
+/** Pulgar según la toma: junto a la palma, oponiéndose al abarcar, o recogido al palpar con las yemas. */
+const THUMB: Record<HandState["grip"], { p: [number, number, number]; r: [number, number, number] }> = {
+  rest: { p: [3.7, -5.6, 1.5], r: [0.45, 0, 0.4] },
+  press: { p: [3.9, -5.2, 1.2], r: [0.2, 0, 0.75] },
+  grasp: { p: [3.4, -6.4, 2.6], r: [1.0, 0, 1.15] },
+  tips: { p: [2.8, -6.4, 2.6], r: [1.25, 0, 0.2] },
+};
+
+function handParts(s: Side, skin: Color, mat: MeshStandardMaterial): HandParts {
+  // Mano: palma hacia +z, dedos hacia −y (se doblan con setHand), pulgar en el lado radial.
   const rows: [number, number, number, number][] = [
     [0.6, 2.7, 1.8, -1.8],
     [-1.5, 3.3, 1.9, -1.9],
@@ -121,33 +131,41 @@ function handGroup(s: Side, skin: Color, mat: MeshStandardMaterial): Object3D {
     [-17.6, 2.8, 0.95, -0.9],
     [-18.6, 1.4, 0.7, -0.6],
   ];
-  const ys = steps(-18.6, 0.6, 0.7).reverse();
+  const ys = steps(-18.6, 0.6, 0.6).reverse();
   const rings: Ring[] = ys.map((y) => {
     const [a, zf, zb] = profileAt([...rows].reverse(), y) as [number, number, number];
     return { y, sec: { xp: a, xn: a, zp: (zf - zb) / 2, zn: (zf - zb) / 2 }, zc: (zf + zb) / 2, e: 2.6 };
   });
   const geo = loft(rings, 20, () => skin).geo;
-  // Dedos doblados hacia la palma a partir de los nudillos.
-  const pos = geo.attributes.position as Float32BufferAttribute;
-  const y0 = -9.2;
-  const R = 13;
-  for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i);
-    if (y >= y0) continue;
-    const z = pos.getZ(i);
-    const phi = (y0 - y) / R;
-    pos.setY(i, y0 - (R - z) * Math.sin(phi));
-    pos.setZ(i, R - (R - z) * Math.cos(phi));
-  }
-  geo.computeVertexNormals();
-  const g = new Group();
+  const rest = Float32Array.from((geo.attributes.position as Float32BufferAttribute).array as Float32Array);
+  const group = new Group();
   const palm = new Mesh(geo, mat);
   const thumb = new Mesh(colorAttr(new CapsuleGeometry(1.2, 3.8, 4, 10), skin), mat);
+  group.add(palm, thumb);
+  const parts: HandParts = { group, palm, thumb, rest, state: "" };
+  setHand(parts, s, { curl: HAND_REST_CURL, grip: "rest" });
+  return parts;
+}
+
+/** Dobla los dedos (radio `curl`) y coloca el pulgar según la toma. */
+function setHand(h: HandParts, s: Side, st: HandState) {
+  const key = `${st.curl.toFixed(1)}|${st.grip}`;
+  if (key === h.state) return;
+  h.state = key;
+  const pos = h.palm.geometry.attributes.position as Float32BufferAttribute;
+  const arr = pos.array as Float32Array;
+  for (let i = 0; i < pos.count; i++) {
+    const [y, z] = bendPoint(h.rest[i * 3 + 1]!, h.rest[i * 3 + 2]!, st.curl);
+    arr[i * 3 + 1] = y;
+    arr[i * 3 + 2] = z;
+  }
+  pos.needsUpdate = true;
+  h.palm.geometry.computeVertexNormals();
+  h.palm.geometry.computeBoundingSphere();
   const r = sgn(s); // lado radial: lateral en posición anatómica
-  thumb.position.set(r * 3.7, -5.6, 1.5);
-  thumb.rotation.set(0.45, 0, r * 0.4);
-  g.add(palm, thumb);
-  return g;
+  const t = THUMB[st.grip];
+  h.thumb.position.set(r * t.p[0], t.p[1], t.p[2]);
+  h.thumb.rotation.set(t.r[0], t.r[1], r * t.r[2]);
 }
 
 function footGeometry(paint: Color): BufferGeometry {
@@ -210,6 +228,7 @@ export class Person {
   private readonly mouth: Mesh;
   private readonly teeth: Mesh[];
   private jaw = NaN;
+  private readonly handsParts = {} as Record<Side, HandParts>;
 
   constructor(readonly look: Look) {
     const P = PALETTE[look];
@@ -296,7 +315,11 @@ export class Person {
     for (const s of ["r", "l"] as const) {
       for (const n of LIMBS) {
         const g = new Group();
-        if (n === "hand") g.add(handGroup(s, cl.skin, mat));
+        if (n === "hand") {
+          const hp = handParts(s, cl.skin, mat);
+          this.handsParts[s] = hp;
+          g.add(hp.group);
+        }
         else if (n === "foot") g.add(new Mesh(footGeometry(cl.shoe ?? cl.skin), mat));
         else g.add(new Mesh(limbGeometry(n, s, cl), mat));
         if (n === "thigh" || n === "upperarm") {
@@ -335,6 +358,7 @@ export class Person {
     this.head.position.copy(pose.head.p);
     this.head.quaternion.copy(pose.head.q);
     this.setJaw(pose.jaw);
+    for (const s of ["r", "l"] as const) setHand(this.handsParts[s], s, pose.hands?.[s] ?? { curl: HAND_REST_CURL, grip: "rest" });
 
     const pos = this.torso.geometry.attributes.position as Float32BufferAttribute;
     const arr = pos.array as Float32Array;
