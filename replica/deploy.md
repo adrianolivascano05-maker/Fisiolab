@@ -7,10 +7,10 @@ Tipo de publicación propuesta: **versión de prueba** para el móvil Android de
 
 ## Preflight
 
-- [x] Pruebas e2e: **42 / 42** en Chromium móvil, contra un servidor que aplica la misma CSP y cabeceras que Cloudflare (`tools/serve-dist.mjs`)
-- [x] Pruebas unitarias: **26 / 26** (fórmulas, base de datos, lectura de vídeo)
-- [x] Sin fallos S1 ni S2 abiertos (`replica/bugs.md`: 5 encontrados, 5 arreglados)
-- [ ] Paridad: must-haves **12 / 13**, puntuación 44,6. Falta «vídeo real del móvil», que **solo se puede cerrar con la app publicada**: por eso se propone como versión de prueba
+- [x] Pruebas e2e: **45 / 45** en Chromium móvil, contra un servidor que aplica la misma CSP y cabeceras que Cloudflare (`tools/serve-dist.mjs`)
+- [x] Pruebas unitarias: **33 / 33** (fórmulas, base de datos, lectura de vídeo)
+- [x] Sin fallos S1 ni S2 abiertos (`replica/bugs.md`: 7 encontrados, 7 arreglados)
+- [x] Paridad: must-haves **13 / 13** (el último, vídeo real del móvil, cerrado con un vídeo del Pixel 7 Pro de Fisiolab). Puntuación en `replica/parity.md`
 - [x] Barrido de marca limpio: `sweep.py . --config replica/brand.json` → exit 0 (ni nombre, ni dominios del original)
 - [x] Ficha de tienda: no aplica (no va a tiendas: es una web instalable)
 - [x] Build de producción: pasa (`npm run build`) y `wrangler deploy --dry-run` lee 33 archivos

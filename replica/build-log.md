@@ -14,7 +14,7 @@ S01 también a 1440 px. Capturas en `replica/clone-screens/`.
 | S03 Paciente nuevo/editar | 2026-10-17 | hecho | — | validar con coma decimal y los mismos rangos que la base |
 | S04 Selector de test | 2026-10-17 | hecho | las categorías de fases 2-4 llevan a "próximamente" | — |
 | S05 Configurar salto | 2026-10-17 | hecho | — | — |
-| S06 Vídeo | 2026-10-17 | parcial | probar con un vídeo real de iPhone (Safari) | los vídeos a cámara lenta pueden venir "ralentizados" a 30 fps: hay que separar los fps del archivo (para moverse por el vídeo) de los de grabación (para calcular) |
+| S06 Vídeo | 2026-10-17 | hecho | ver el vídeo HEVC reproducirse en el Chrome del móvil | los vídeos a cámara lenta pueden venir "ralentizados" a 30 fps: hay que separar los fps del archivo (para moverse por el vídeo) de los de grabación (para calcular) |
 | S07 Marcado | 2026-10-17 | hecho | — | las marcas de un salto quedan muy juntas en la barra: hizo falta una lupa |
 | S08 Resultado | 2026-10-17 | hecho | — | — |
 | S22 Evolución | 2026-10-17 | hecho | — | — |
@@ -30,3 +30,6 @@ Notas:
   de datos en Ajustes. Iconos provisionales hasta /replica-brand (`tools/build-icons.py`).
 - Pendiente de comprobar en un iPhone real: instalación desde Safari y que los datos persisten instalada.
 - El paquete inicial pesa ~370 KB; las gráficas y el lector de vídeo se cargan solo al usarlos.
+- Vídeo real (2026-10-17, Pixel 7 Pro): cámara lenta a 120 fps guardada a 30 fps en HEVC, 412 fotogramas a un ritmo
+  irregular (media 30,08 fps) y con la etiqueta com.android.capture.fps. Llevó a leer esa etiqueta (S06 propone 120
+  solo) y a moverse por la hora real de cada fotograma (BUG-005). Medido en la app: 30,7 cm.

@@ -1,20 +1,22 @@
 # Paridad con My Jump Lab
 
-Fecha: 2026-10-17 · Actualizado tras construir PWA y ayuda ilustrada
+Fecha: 2026-10-17 · Tras probar con un vídeo real del Pixel 7 Pro de Fisiolab
 
-## Veredicto: **no publicable todavía**
+## Veredicto: **fase 1 completa; la copia completa todavía no**
 
-Falta 1 must-have: probar con un vídeo real del iPhone (depende de Fisiolab). No hay fallos S1 ni S2 abiertos
-(ver `replica/bugs.md`).
+Los 13 must-haves están hechos y no hay fallos S1 ni S2 abiertos (`replica/bugs.md`). Por la regla del
+método, «publicable» pide además 80 puntos de paridad y hay 46,4: faltan las fases 2-4 (fuerza, sprint,
+carrera, movilidad, nórdico, bienestar y el resto de saltos). Por eso está publicada como **versión de
+prueba** para saltos (CMJ, SJ, DJ), no como sustituto de My Jump Lab.
 
 | medida | valor |
 | --- | --- |
-| **Paridad total de funciones** | **44,6 / 100** (39 funciones puntuables) |
-| Must-haves | 12 de 13 completos, 1 a medias → 96,2 % |
-| Fase 1 (saltos) | casi completa; fases 2-4 sin empezar |
+| **Paridad total de funciones** | **46,4 / 100** (39 funciones puntuables) |
+| Must-haves | **13 de 13** |
+| Fase 1 (saltos) | completa; fases 2-4 sin empezar |
 | Paridad de pantallas (layout) | **sin medir**: no hay capturas del original |
 
-El 45 % es honesto: la app completa de My Jump Lab tiene fuerza, sprint, carrera, movilidad,
+El 46 % es honesto: la app completa de My Jump Lab tiene fuerza, sprint, carrera, movilidad,
 nórdico y bienestar, y aquí solo están los saltos básicos. Es lo previsto en el plan por fases
 del recon, no un retraso.
 
@@ -42,9 +44,8 @@ marcado del vídeo y resultado. Las del clon ya están en `replica/clone-screens
 
 ## Qué falta, en orden de construcción
 
-Must-haves (bloquean la publicación):
-1. **Vídeo real del iPhone**: comprobar los fps reales y la reproducción (lo tiene que grabar Fisiolab).
-   Hechos el 2026-10-17: PWA instalable y sin conexión; ayuda con ilustraciones propias.
+Must-haves: ninguno pendiente. Hechos el 2026-10-17: PWA instalable y sin conexión; ayuda con
+ilustraciones; vídeo real del móvil (Pixel 7 Pro, 120 fps guardado a 30: 30,7 cm).
 
 Fase 2, saltos (should): perfil fuerza-velocidad, asimetría unipodal, RSI-mod, CMJ con brazos,
 10-5, salto horizontal, rigidez y DRI (estas dos tras confirmar la fórmula en el artículo).
@@ -55,20 +56,18 @@ Could: S-MAS, sprint curvo, deceleración, idiomas, IA.
 
 ## Las cinco siguientes cosas a construir
 
-1. Prueba con un vídeo real del iPhone de Fisiolab y ajustes que salgan de ella (must).
-2. Protocolo de validación: medir 10-20 saltos a la vez con el clon y con My Jump Lab (o plataforma)
-   y anotar la diferencia media; pantalla o CSV para registrarlo (propio, should).
-3. Perfil fuerza-velocidad (fase 2).
-4. Asimetría entre piernas con salto unipodal (fase 2).
-5. RSI-mod y CMJ con brazos libres (fase 2, pequeños).
+1. Validación: 10-20 saltos medidos a la vez con la app y con My Jump Lab (u otra referencia), y una forma de
+   registrar la diferencia (propio, should).
+2. Perfil fuerza-velocidad (fase 2).
+3. Asimetría entre piernas con salto unipodal (fase 2).
+4. RSI-mod y CMJ con brazos libres (fase 2, pequeños).
+5. Saltos repetidos 10-5 (fase 2).
 
 ## Salida completa de parity.py
 
-### Parity: 44.6 / 100
+### Parity: 46.4 / 100
 
-features 44.6  (39 counted, must-haves 12 of 13 done)
-
-Not shippable yet: 1 must-have features are not done.
+features 46.4  (39 counted, must-haves 13 of 13 done)
 
 ### By area, weakest first
 - fuerza                         0.0  (3 features)
@@ -81,13 +80,12 @@ Not shippable yet: 1 must-have features are not done.
 - ajustes                        0.0  (1 features)
 - saltos                        42.9  (12 features)
 - historial                     60.0  (2 features)
-- vídeo                         75.0  (2 features)
 - pacientes                    100.0  (3 features)
+- vídeo                        100.0  (2 features)
 - datos                        100.0  (2 features)
 - ayuda                        100.0  (1 features)
 
 ### Missing, in build order
-- [must] vídeo: Subir vídeo a cámara lenta y detectar sus fps, partial  (grabar desde la web no es fiable: se graba con la cámara del móvil y se sube; S06; lee fps del MP4/MOV y permite indicar los de grabación; probado con vídeos sintéticos, falta un vídeo real de iPhone)
 - [should] bienestar: Cuestionario de bienestar (sueño fatiga estrés agujetas), no
 - [should] carrera: Mecánica de carrera (contacto vuelo frecuencia de paso), no
 - [should] fuerza: Perfil carga-velocidad y 1RM estimado, no

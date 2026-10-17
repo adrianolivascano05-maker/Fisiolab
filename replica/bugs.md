@@ -1,6 +1,6 @@
 # Fallos
 
-Abiertos: ninguno. S1: 0 · S2: 1 (arreglado) · S3: 3 (arreglados) · S4: 1 (arreglado).
+Abiertos: ninguno. S1: 0 · S2: 2 (arreglados) · S3: 3 (arreglados) · S4: 2 (arreglados).
 
 ### BUG-000: «Cargar datos de ejemplo» podía dejar la carga a medias
 
@@ -83,8 +83,40 @@ Actual: el foco se queda en el botón (se buscaba el campo antes de pintar los e
 Evidence: F01-E1 «toBeFocused» falló.
 Status: fixed in 0497972
 
+### BUG-005: en vídeos reales se veía el fotograma siguiente al marcado
+
+- Severity: S2
+- Flow / case: F02 / F02-E10
+- Screen: S07
+- Build: e3f013f  Browser / device: Chromium 1194, 412 px; vídeo real de Pixel 7 Pro (120 fps guardado a 30)
+
+Steps
+1. Subir el vídeo del Pixel y llevar la barra al fotograma 211 (también 271 y 400).
+2. Comparar la imagen con el fotograma 211 extraído con ffmpeg.
+
+Expected: se ve el fotograma 211.
+Actual: se veía el 212 (y el 272, el 401). El salto entre fotogramas se calculaba con 30 fps exactos y el
+archivo va a 30,08 fps con irregularidades de 31-36 ms: a partir de ~190 fotogramas el error es de uno. En
+este salto no cambió la altura (las dos marcas se movían igual), pero en otros podía mover una marca
+8 ms (~1 cm).
+Evidence: comparación de imágenes app/ffmpeg; F02-E10 falla en la versión anterior (pide 300, ve 301).
+Status: fixed in ed5d1d0 (hora real de cada fotograma desde el índice del archivo y calibración con requestVideoFrameCallback)
+
+### BUG-006: los avisos tapaban los botones de marcar
+
+- Severity: S4
+- Flow / case: F02 / F01-E7
+- Screen: S07 y todas
+- Build: e3f013f  Browser / device: Chromium 1194, 412 px
+
+Steps
+1. Crear un paciente y empezar enseguida un salto.
+
+Expected: el aviso «Paciente creado» no tapa nada importante.
+Actual: durante 4 s quedaba encima del botón «Despegue».
+Evidence: captura del marcado con el vídeo real.
+Status: fixed in 3f13bec (avisos arriba, bajo la barra de título)
+
 ## Por comprobar (no reproducido)
 
-- Cómo llega un vídeo a cámara lenta del iPhone al elegirlo desde Safari (fps reales o convertido): pasada manual M1-M2.
-- Sin conexión la app no abre: es esperado hasta hacerla instalable (PWA); no es un fallo, es trabajo pendiente.
-- Safari puede borrar los datos de una web no instalada tras 7 días sin uso: mismo trabajo pendiente.
+- Reproducción de vídeos HEVC (H.265) en el Chrome del móvil: el Pixel 7 Pro graba en HEVC y el Chromium de las pruebas no lo reproduce; la prueba se hizo con el mismo vídeo convertido a VP9 (mismos 412 fotogramas y horas). Pasada manual M1.

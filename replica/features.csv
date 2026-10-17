@@ -1,7 +1,7 @@
 feature,area,priority,original,clone,notes
 Lista y búsqueda de pacientes,pacientes,must,yes,yes,usuarios ilimitados según Google Play; S01
 Alta y edición de paciente con masa y estatura,pacientes,must,yes,yes,la masa es necesaria para fuerza y potencia; S03; también borrar paciente con todo lo suyo
-Subir vídeo a cámara lenta y detectar sus fps,vídeo,must,yes,partial,"grabar desde la web no es fiable: se graba con la cámara del móvil y se sube; S06; lee fps del MP4/MOV y permite indicar los de grabación; probado con vídeos sintéticos, falta un vídeo real del móvil Android de Fisiolab"
+Subir vídeo a cámara lenta y detectar sus fps,vídeo,must,yes,yes,"grabar desde la web no es fiable: se graba con la cámara del móvil y se sube; S06; lee fps del archivo, los fps de grabación que escribe Android (com.android.capture.fps) y la hora real de cada fotograma; probado con un vídeo real de Pixel 7 Pro (120 fps guardado a 30): 30,7 cm"
 Marcar fotogramas uno a uno en el vídeo,vídeo,must,yes,yes,"núcleo de todos los tests por vídeo; S07; teclado, arrastre, ±1/±10 fotogramas, lupa en la barra"
 CMJ: altura por tiempo de vuelo,saltos,must,yes,yes,h = g·t²/8 (fórmula pública); S08
 SJ: altura por tiempo de vuelo,saltos,must,yes,yes,S08

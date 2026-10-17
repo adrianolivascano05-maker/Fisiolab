@@ -3,7 +3,7 @@
 Build: 0497972  Fecha: 2026-10-17  Entorno: local (`vite preview`), Chromium 1194 a 390×844 táctil
 (y 1440 en el caso de maquetación), es-ES, Europe/Madrid. Cada test empieza con una base vacía.
 
-Ejecutar: `npm run e2e` (42 tests) y `npm test` (26 tests unitarios de fórmulas, base de datos y vídeo).
+Ejecutar: `npm run e2e` (45 tests) y `npm test` (33 tests unitarios de fórmulas, base de datos y vídeo).
 Todos los tests fallan si hay un error en consola, una excepción o una respuesta 5xx, y las
 pantallas principales pasan un escaneo axe (WCAG 2.1 A/AA).
 
@@ -18,6 +18,7 @@ Solo se prueban los flujos construidos (F01, F02, F03, F14, F15). F04-F13 todav�
 | F01-E4 | | límite: doble pulsación | doble clic en crear | un solo paciente | e2e | ✅ |
 | F01-E5 | | editar y buscar | editar masa con punto «58.5»; buscar «JOR», «zzz» | 58,5 kg; filtro sin mayúsculas; mensaje sin resultados | e2e | ✅ |
 | F01-E6 | | solo teclado | Tab/Enter hasta crear | paciente creado | e2e | ✅ |
+| F01-E7 | | avisos | crear paciente | el aviso sale arriba, sin tapar botones | e2e | ✅ (tras BUG-006) |
 | F01-N1 | | negativo: borrar | borrar → cancelar → borrar | confirmación accesible; borra todo | e2e | ✅ |
 | F01-N2 | | negativo: no existe | abrir /pacientes/no-existe | «Este paciente no existe.» | e2e | ✅ |
 | F02-H1 | medir un CMJ | feliz | vídeo 240 fps, despegue f100, aterrizaje f220 | 30,7 cm, vuelo 500 ms, potencia; vídeo en el centro del f220; sigue tras recargar | e2e | ✅ |
@@ -29,6 +30,9 @@ Solo se prueban los flujos construidos (F01, F02, F03, F14, F15). F04-F13 todav�
 | F02-E6 | | atrás a mitad | volver desde el marcado | test «Sin marcar», se puede completar | e2e | ✅ |
 | F02-E7 | | revisar marcas | mover aterrizaje a f232 | 37,1 cm; un solo test | e2e | ✅ |
 | F02-E8 | | con el dedo | arrastrar la barra | se mueve al fotograma tocado | e2e | ✅ |
+| F02-E9 | | cámara lenta de Android guardada a 30 | vídeo con com.android.capture.fps=240 | propone 240 y explica por qué; 30,7 cm | e2e | ✅ |
+| F02-E10 | | ritmo irregular (30,08 fps con saltos) | ir a los fotogramas 5, 211, 300, 400, 419 | se ve exactamente ese fotograma (número codificado en el color) | e2e | ✅ (tras BUG-005) |
+| F02-R1 | | vídeo real Pixel 7 Pro (120 fps en 30) | despegue 211, aterrizaje 271 | propone 120; 30,7 cm (29,6-31,7 con ±1 fotograma); fotogramas mostrados = ffmpeg | manual con script | ✅ |
 | F02-N1 | | negativo: no es vídeo | subir package.json | «No se pudo abrir el vídeo», sin seguir | e2e | ✅ |
 | F02-N2 | | negativo: test borrado | borrar y abrir su enlace y el de marcado | «Este test no existe.» en los dos | e2e | ✅ (tras BUG-002) |
 | F03-H1 | drop jump | feliz | cajón 30; contacto f52, despegue f100, aterrizaje f220 | 30,7 cm, contacto 200 ms, RSI 1,53 | e2e | ✅ |
@@ -59,8 +63,8 @@ probado con el navegador en Madrid.
 
 En el móvil Android de Fisiolab con Chrome, cuando la app esté publicada:
 
-- [ ] M1 Grabar un CMJ con la cámara lenta (120 o 240 fps; no la «súper cámara lenta» de 960) y elegirlo: ¿qué fps muestra la app?
-- [ ] M2 Si muestra 30 fps, elegir los fps con los que se grabó y comprobar que la altura sale razonable
+- [x] M1 (archivo) Vídeo real del Pixel 7 Pro: la app lee 120 fps de grabación y 412 fotogramas. Falta verlo reproducir en el Chrome del móvil (HEVC)
+- [x] M2 Altura razonable con el vídeo real: 30,7 cm
 - [ ] M3 Avanzar fotograma a fotograma: ¿cada pulsación cambia la imagen?
 - [ ] M4 Medir el mismo salto con My Jump Lab (u otra referencia) y con la app: anotar las dos alturas (validación)
 - [ ] M5 Con TalkBack: ¿se puede crear un paciente y marcar un salto?
