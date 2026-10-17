@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 export const video = {
   at240: fileURLToPath(new URL("../src/video/fixtures/e2e-240.mp4", import.meta.url)),
   slowmo30: fileURLToPath(new URL("../src/video/fixtures/e2e-slowmo-30.mp4", import.meta.url)),
+  android240in30: fileURLToPath(new URL("../src/video/fixtures/e2e-android-240-in-30.mp4", import.meta.url)),
+  irregular: fileURLToPath(new URL("../src/video/fixtures/e2e-irregular-120-in-30.mp4", import.meta.url)),
   notVideo: fileURLToPath(new URL("../package.json", import.meta.url)),
 };
 

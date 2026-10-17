@@ -154,3 +154,49 @@ test.describe("F02 Medir un CMJ", () => {
     expect(now).toBeLessThan(140);
   });
 });
+
+test.describe("F02 vídeos de Android", () => {
+  test("F02-E9 cámara lenta de Android guardada a 30: la app usa los fps que escribió el móvil", async ({ page }) => {
+    await createPatient(page, { name: "Android" });
+    await page.getByRole("link", { name: "Nuevo test" }).click();
+    await page.getByRole("link", { name: /Saltos/ }).click();
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await page.getByLabel("Elegir vídeo").setInputFiles(video.android240in30);
+    const fps = page.getByLabel("Fotogramas por segundo de la grabación");
+    await expect(fps).toHaveValue("240");
+    await expect(page.getByText(/Prueba indica que grabó a 240 fps; el archivo va a 30 fps/)).toBeVisible();
+    await expect(page.getByText("Grabación a 30 fps")).toHaveCount(0);
+    await page.getByRole("button", { name: "Marcar el salto" }).click();
+    await markAt(page, 100, "despegue");
+    await markAt(page, 220, "aterrizaje");
+    await page.getByRole("button", { name: "Calcular" }).click();
+    await expect(page.getByText("30,7", { exact: true })).toBeVisible();
+  });
+});
+
+test.describe("F02 fotograma exacto", () => {
+  test("F02-E10 ritmo irregular (30,08 fps con saltos): se ve exactamente el fotograma pedido", async ({ page }) => {
+    await createPatient(page, { name: "Fotograma exacto" });
+    await startJump(page, { file: video.irregular });
+    const s = scrubber(page);
+    await expect(s).toHaveAttribute("aria-valuemax", "419");
+    // Cada fotograma lleva su número en el color: rojo = n mod 32 (×8), verde = n div 32 (×16).
+    const shown = () =>
+      page.locator("video").evaluate((v: HTMLVideoElement) => {
+        const c = document.createElement("canvas");
+        c.width = v.videoWidth;
+        c.height = v.videoHeight;
+        const ctx = c.getContext("2d")!;
+        ctx.drawImage(v, 0, 0);
+        const [r, g] = ctx.getImageData(c.width / 2, c.height / 2, 1, 1).data;
+        return Math.round(r! / 8) + 32 * Math.round(g! / 16);
+      });
+    for (const frame of [5, 211, 300, 400, 419]) {
+      await s.focus();
+      await s.press("Home");
+      for (let i = 0; i < Math.floor(frame / 10); i++) await s.press("PageUp");
+      for (let i = 0; i < frame % 10; i++) await s.press("ArrowRight");
+      await expect.poll(shown, { message: `fotograma ${frame}` }).toBe(frame);
+    }
+  });
+});

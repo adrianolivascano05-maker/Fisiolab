@@ -13,6 +13,8 @@ import { Button, IconButton } from "../ui/Button";
 import { FrameControls, FrameScrubber, MarkButton, markerStyle, type Marker } from "../ui/FrameScrubber";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { frameAt, seekTime } from "../video/timeline";
+import { useTimeline } from "../video/useTimeline";
 import { JumpHelp } from "./JumpHelp";
 
 const hints: Record<MarkEvent, string> = {
@@ -140,14 +142,16 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
   const [zoom, setZoom] = useState(false);
   const [center, setCenter] = useState(frame);
   const [saving, setSaving] = useState(false);
-  const last = frameCount - 1;
+  // Hora real de cada fotograma; mientras se calibra no se mueve el reproductor.
+  const { timeline, ready } = useTimeline(file, video);
+  const last = (timeline?.times.length ?? frameCount) - 1;
 
-  // Fotograma → tiempo del archivo. Se apunta al centro del fotograma para no caer en el anterior.
+  // Fotograma → tiempo del reproductor: el centro de su intervalo real, para no caer en el de al lado.
   useEffect(() => {
     const v = video.current;
-    if (!v || playing) return;
-    v.currentTime = (frame + 0.5) / containerFps;
-  }, [frame, playing, containerFps]);
+    if (!v || playing || !ready) return;
+    v.currentTime = seekTime(timeline, frame, containerFps);
+  }, [frame, playing, containerFps, timeline, ready]);
 
   useEffect(() => {
     const v = video.current;
@@ -161,13 +165,13 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
     void v.play();
     let raf = 0;
     const tick = () => {
-      setFrame(Math.min(last, Math.floor(v.currentTime * containerFps)));
+      setFrame(frameAt(timeline, v.currentTime, containerFps, last));
       if (v.ended) setPlaying(false);
       else raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, containerFps, last]);
+  }, [playing, containerFps, last, timeline]);
 
   // Con la lupa, la barra muestra ~1 s del archivo alrededor del fotograma actual.
   const half = Math.max(10, Math.round(containerFps / 2));
@@ -216,7 +220,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
       <div className="flex items-end gap-2">
         <div className="flex-1">
           <FrameScrubber
-            frameCount={frameCount}
+            frameCount={last + 1}
             frame={frame}
             fps={captureFps}
             markers={markers}
