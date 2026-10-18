@@ -289,6 +289,7 @@ export const dorsalTests: SpecialTest[] = [
           look: "Positivo si aparece un dolor agudo, intenso y localizado («como un pinchazo») en una apófisis espinosa.",
         },
         supuestos: ["El espejo no se dibuja."],
+        camera: { from: [0.6, 0.15, -0.8] },
       },
     ],
     related: ["dor-signo-supino"],

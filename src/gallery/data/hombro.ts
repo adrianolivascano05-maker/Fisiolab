@@ -611,7 +611,7 @@ export const hombroTests: SpecialTest[] = [
         arrows: [{ at: "r_hand", dir: "posterior", kind: "move", label: "separa" }],
         caption: "Mano en la zona lumbar: el paciente intenta separarla hacia atrás",
         side: "r",
-        camera: { from: [-0.6, 0.1, -0.8] },
+        camera: { from: [-0.45, 0.2, -0.9], zoom: 0.72 },
         script: {
           start: { r_shoulder: { flex: -25, abd: 20, rot: 70 }, r_elbow: { flex: 70 } },
           steps: [{ to: { r_shoulder: { rot: 85 } }, by: "patient", dur: 1.6, hold: 1.2, label: "Separa la mano (RI)", text: "Pide que separe la mano de la espalda hacia atrás, sin extender el codo ni el hombro." }],
