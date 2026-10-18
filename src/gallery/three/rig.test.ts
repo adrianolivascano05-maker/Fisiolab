@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { timeline } from "../figure";
+import { clockOf } from "../script";
 import { tests } from "../data";
 import { CAMERAS, cameraKey } from "./cameras";
 import PLANS from "./plans.json";
@@ -8,11 +8,12 @@ import { figureFaults } from "./audit";
 import { bodySDF } from "./collide";
 import { baseExaminerPose, fitHand, handAt, handTarget, planExaminer } from "./examiner";
 import { scenePoses } from "./scene";
-import { layoutPatient } from "./layout";
-import { anchorInfo, DIM, fk, patientAngles, postureQ, upSide } from "./rig";
+import { anglesOf, layoutPatient } from "./layout";
+import { keysOf } from "./anatomy";
+import { anchorInfo, DIM, fk, postureQ, upSide } from "./rig";
 
 const figures = tests.flatMap((t) => t.figures.map((f, i) => ({ id: `${t.id}#${i}`, f })));
-const poseOf = (f: (typeof figures)[number]["f"], m: number) => fk(new Vector3(0, 100, 0), postureQ(f.posture, upSide(f)), patientAngles(f, m));
+const poseOf = (f: (typeof figures)[number]["f"], m: number) => fk(new Vector3(0, 100, 0), postureQ(f.posture, upSide(f)), anglesOf(f, m));
 
 describe("maniquí 3D", () => {
   it("los segmentos no cambian de longitud en ninguna figura", () => {
@@ -82,9 +83,11 @@ describe("maniquí 3D", () => {
       // A 20 imágenes por segundo (la vuelta dura 7 s): el codo no puede ir mucho más deprisa que la mano.
       let prev: ReturnType<typeof scenePoses>["ex"] = null;
       let worst = { k: 0, t: 0, s: "" };
-      for (let i = 0; i <= 140; i++) {
-        const t = i / 140;
-        const ex = scenePoses(f, L, plan, timeline(t)).ex!;
+      const clock = clockOf(f, f.script ? keysOf(f) : undefined);
+      const n = Math.round(clock.duration * 20);
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const ex = scenePoses(f, L, plan, clock.at(t)).ex!;
         if (prev) {
           for (const arm of plan.arms) {
             const s = arm.side;

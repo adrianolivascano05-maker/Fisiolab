@@ -426,10 +426,29 @@ export function thumbPoint(s: Side, grip: HandState["grip"], curl: number, bend:
 }
 
 /** Ángulos de una articulación; `twist` (solo muñeca) gira el antebrazo sobre su eje antes de doblarla;
- *  `rot` (hombro y cadera) gira el segmento sobre su eje (rotación interna +). */
-export type JA = { flex: number; abd: number; twist?: number; rot?: number };
-type Limb = Record<"shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle", JA>;
-export type BodyAngles = { trunkFlex: number; trunkLat: number; neckFlex: number; neckLat: number; neckYaw: number; jaw: number; r: Limb; l: Limb };
+ *  `rot` (hombro, cadera y rodilla) gira el segmento sobre su eje (rotación interna +); `inv` (tobillo):
+ *  inversión + / eversión −, alrededor del eje largo del pie. */
+export type JA = { flex: number; abd: number; twist?: number; rot?: number; inv?: number };
+export type Limb = Record<"shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle", JA>;
+/**
+ * Ángulos de todo el cuerpo. Con `anat` (figuras con guion, convenio de CONVENIO.md): la pelvis se coloca con
+ * `pelvis` respecto a la postura, el tronco (`trunkFlex`, `trunkLat`, `trunkRot`) se mide respecto a la
+ * pelvis y las caderas también. Sin `anat` (figuras de antes): la pelvis se lleva la mitad de la inclinación
+ * del tronco y los muslos cuelgan del tórax.
+ */
+export type BodyAngles = {
+  trunkFlex: number;
+  trunkLat: number;
+  trunkRot?: number;
+  neckFlex: number;
+  neckLat: number;
+  neckYaw: number;
+  jaw: number;
+  r: Limb;
+  l: Limb;
+  anat?: boolean;
+  pelvis?: { flex: number; lat: number; rot: number };
+};
 
 export type Pose3 = {
   root: Xf;
@@ -507,6 +526,7 @@ const BASE: Record<Posture, Partial<Record<JointKey, number>>> = {
 
 /** En decúbito lateral, el lado que queda arriba: el de las manos, flechas y articulaciones que se mueven. */
 export function upSide(spec: FigureSpec): Side {
+  if (spec.side === "r" || spec.side === "l") return spec.side;
   const keys = [...(spec.hands ?? []), ...(spec.arrows ?? []).map((a) => a.at), ...(spec.pain ?? []), ...Object.keys(spec.joints ?? {}), ...Object.keys(spec.to ?? {})];
   const r = keys.filter((k) => k.startsWith("r_")).length;
   const l = keys.filter((k) => k.startsWith("l_")).length;
@@ -666,8 +686,9 @@ export function girdleOffset(d: Vector3, trunkQ: Quaternion, s: Side): Vector3 {
 
 /** Cinemática directa: dónde queda cada parte con estos ángulos. */
 export function fk(rootP: Vector3, rootQ: Quaternion, A: BodyAngles, nudges: Nudges = {}): Pose3 {
-  const pelvisQ = qmul(rootQ.clone(), trunkRot(A.trunkFlex * 0.5, A.trunkLat * 0.5));
-  const chestQ = qmul(rootQ.clone(), trunkRot(A.trunkFlex, A.trunkLat));
+  const P = A.pelvis;
+  const pelvisQ = A.anat ? qmul(rootQ.clone(), trunkRot(P?.flex ?? 0, P?.lat ?? 0), qAxis(Y, -(P?.rot ?? 0))) : qmul(rootQ.clone(), trunkRot(A.trunkFlex * 0.5, A.trunkLat * 0.5));
+  const chestQ = A.anat ? qmul(pelvisQ.clone(), trunkRot(A.trunkFlex, A.trunkLat), qAxis(Y, -(A.trunkRot ?? 0))) : qmul(rootQ.clone(), trunkRot(A.trunkFlex, A.trunkLat));
   const w = (y: number) => smooth(4, 34, y);
   const qAt = (y: number) => pelvisQ.clone().slerp(chestQ, w(y));
   const spine: Xf[] = [];
@@ -701,11 +722,11 @@ export function fk(rootP: Vector3, rootQ: Quaternion, A: BodyAngles, nudges: Nud
     const hdQ = qmul(faQ.clone(), qAxis(Y, L.wrist.twist ?? 0), jr(L.wrist.flex, L.wrist.abd, s));
     const tip = at(wr, hdQ, new Vector3(0, -DIM.hand, 0));
     const hip = at(rootP, pelvisQ, new Vector3(sgn(s) * DIM.hipHalf, 0, 0));
-    const thQ = qmul(chestQ.clone(), jr(L.hip.flex, L.hip.abd, s), qAxis(Y, -sgn(s) * (L.hip.rot ?? 0)));
+    const thQ = qmul((A.anat ? pelvisQ : chestQ).clone(), jr(L.hip.flex, L.hip.abd, s), qAxis(Y, -sgn(s) * (L.hip.rot ?? 0)));
     const kn = at(hip, thQ, new Vector3(0, -DIM.thigh, 0));
-    const shQ = qmul(thQ.clone(), jr(L.knee.flex, L.knee.abd, s, 1));
+    const shQ = qmul(thQ.clone(), jr(L.knee.flex, L.knee.abd, s, 1), qAxis(Y, -sgn(s) * (L.knee.rot ?? 0)));
     const an = at(kn, shQ, new Vector3(0, -DIM.shank, 0));
-    const ftQ = qmul(shQ.clone(), qAxis(X, -L.ankle.flex));
+    const ftQ = qmul(shQ.clone(), qAxis(X, -L.ankle.flex), qAxis(Z, -sgn(s) * (L.ankle.inv ?? 0)));
     seg[`${s}_upperarm`] = { p: sh, q: uaQ };
     seg[`${s}_forearm`] = { p: el, q: faQ };
     seg[`${s}_hand`] = { p: wr, q: hdQ };

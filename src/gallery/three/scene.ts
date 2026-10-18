@@ -1,19 +1,21 @@
-// Las dos personas en un instante de la animación: el paciente en su momento de la maniobra y el
-// examinador con las manos en su sitio. Puro (sin WebGL): lo usan la escena 3D, las pruebas y la auditoría
-// de choques, así que lo que se comprueba es exactamente lo que se ve.
+// Las dos personas en un instante de la animación: el paciente en su pose y el examinador con las manos en
+// sus tomas. Lo usan la escena, las pruebas y la búsqueda de la colocación (que todos vean lo mismo).
 import type { FigureSpec } from "../figure";
+import type { Moment as ClockMoment } from "../script";
 import { baseExaminerPose, contacts, examinerPose, type Contact, type ExaminerPlan } from "./examiner";
 import { patientPose, type Layout } from "./layout";
 import type { Pose3, Side } from "./rig";
 
-/** Instante de la animación: momento de la maniobra (m), manos llegando (reach) y empuje de las fuerzas. */
-export type Moment = { m: number; reach: number; arrows: number };
+/** Instante de la animación: progreso de la maniobra (m), cuánto se ha alejado de la partida (mix), manos
+ *  llegando (reach) y empuje de las fuerzas (arrows, solo en las figuras sin guion). */
+export type Moment = Pick<ClockMoment, "m" | "reach" | "arrows"> & { mix?: number };
 
 export function scenePoses(spec: FigureSpec, L: Layout, plan: ExaminerPlan | null, tl: Moment): { pat: Pose3; ex: Pose3 | null; cts: Contact[]; gaps: Partial<Record<Side, number>> } {
   const pat = patientPose(L, tl.m, tl.arrows);
   const gaps: Partial<Record<Side, number>> = {};
   if (!plan) return { pat, ex: null, cts: contacts(spec, pat, null, null), gaps };
-  const cts = contacts(spec, pat, baseExaminerPose(plan, tl.m), plan);
-  const ex = examinerPose(plan, cts, tl.reach, tl.m, pat, gaps);
+  const mix = tl.mix ?? tl.m;
+  const cts = contacts(spec, pat, baseExaminerPose(plan, mix), plan);
+  const ex = examinerPose(plan, cts, tl.reach, tl.m, pat, gaps, mix);
   return { pat, ex, cts, gaps };
 }

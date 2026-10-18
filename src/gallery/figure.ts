@@ -52,7 +52,62 @@ export type Arrow =
  *  o la que mira al examinador). Solo cambia la figura 3D. */
 export type Grip = { kind: "press" | "grasp" | "tips"; face?: Direction };
 
-export type Joint3D = { flex?: number; abd?: number; rot?: number };
+/**
+ * Ángulos 3D de una articulación con el convenio anatómico (src/gallery/three/CONVENIO.md), en grados desde la
+ * posición anatómica de referencia y con los mismos números para los dos lados:
+ * - flex: flexión + / extensión − (tobillo: flexión dorsal + / plantar −; muñeca: flexión palmar +;
+ *   pelvis: anteversión +).
+ * - abd: abducción + / aducción − (muñeca: desviación radial + / cubital −; rodilla: valgo + / varo −).
+ * - rot: miembros, rotación interna + / externa −; columna, cuello y pelvis, rotación hacia la derecha +.
+ * - lat: columna, cuello y pelvis: inclinación hacia la derecha + (pelvis: baja el lado derecho +).
+ * - pron: antebrazo (en el codo): pronación + / supinación −, desde la posición neutra (pulgar arriba con el codo a 90°).
+ * - inv: tobillo y pie: inversión + / eversión −.
+ */
+export type Joint3D = { flex?: number; abd?: number; rot?: number; lat?: number; pron?: number; inv?: number };
+
+/** Articulaciones de la descripción anatómica (`script`). `jaw`: apertura de la boca en `flex`. */
+export type BodyKey = "pelvis" | "trunk" | "neck" | "jaw" | `${"r" | "l"}_${"shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle"}`;
+export type BodyPose = Partial<Record<BodyKey, Joint3D>>;
+export type Side = "r" | "l";
+export type SegName = `${Side}_${"upperarm" | "forearm" | "hand" | "thigh" | "shank" | "foot"}`;
+
+/**
+ * Marca de un paso. push: fuerza del examinador (flecha azul hacia el cuerpo). resist: el paciente empuja
+ * hacia `dir` (o intenta mover `joint` en el sentido de `dof`) y el examinador no le deja (flecha naranja con
+ * tope): isométrico, no se mueve nada.
+ */
+export type Mark =
+  | { kind: "push"; at: Anchor; dir: Direction; label?: string }
+  | { kind: "resist"; at: Anchor; dir: Direction; label?: string }
+  | { kind: "resist"; joint: BodyKey; dof: keyof Joint3D; sign: 1 | -1; label?: string };
+
+/** Un paso del guion de una figura. */
+export type Step = {
+  /** Cómo quedan al final del paso las articulaciones que cambian (lo demás sigue como estaba). */
+  to?: BodyPose;
+  /** Desplazamiento de un segmento (cm) en una dirección anatómica: cajones, Lachman, compresión. */
+  shift?: { seg: SegName; dir: Direction; cm: number };
+  /** Quién mueve: el examinador (pasivo) o el paciente (activo). Sin `to` ni `shift`, nadie (isométrico o palpación). */
+  by?: "examiner" | "patient";
+  /** Segundos del movimiento (por defecto 1,6) y de la pausa al final (por defecto 0,6). */
+  dur?: number;
+  hold?: number;
+  marks?: Mark[];
+  /** Flechas de recorrido: de qué articulaciones (por defecto, las que cambian en el paso); false, ninguna. */
+  path?: BodyKey[] | false;
+  /** Dolor visible desde este paso (por defecto, solo al final). */
+  pain?: boolean;
+  /** Qué se hace en este paso (texto bajo la figura). */
+  text: string;
+};
+
+/** Guion de la maniobra: posición de partida y pasos. La vuelta a la partida se añade sola. */
+export type Script = {
+  start?: BodyPose;
+  steps: Step[];
+  /** Segundos de la pausa final para ver qué buscar (por defecto 1,8). */
+  look?: number;
+};
 
 export type FigureSpec = {
   view: "side" | "front";
@@ -80,6 +135,21 @@ export type FigureSpec = {
   pose3d?: Partial<Record<JointKey, Joint3D>>;
   to3d?: Partial<Record<JointKey, Joint3D>>;
   caption?: string;
+  /**
+   * Descripción anatómica de la maniobra (convenio de `Joint3D`), con sus pasos. Si está, la figura 3D usa
+   * solo esto (y no `joints`, `to`, `pose3d`, `to3d` ni `arrows`); el dibujo plano sigue usando los campos de antes.
+   */
+  script?: Script;
+  /** Lado explorado (por defecto, el derecho). "both": bilateral. */
+  side?: Side | "both";
+  /** Marcas que se ven durante toda la maniobra (p. ej. la mano que estabiliza). */
+  marks?: Mark[];
+  /** Cámara fijada a mano: acimut desde delante del paciente (+ hacia su derecha), elevación y acercamiento (1 = el automático). */
+  camera?: { az: number; el: number; zoom?: number };
+  /** Textos propios de la figura (si no, los del test). */
+  text?: { setup?: string; look?: string };
+  /** Decisiones clínicas tomadas sin dato en la fuente, pendientes de revisión por un fisioterapeuta. */
+  supuestos?: string[];
 };
 
 type V = { x: number; y: number };

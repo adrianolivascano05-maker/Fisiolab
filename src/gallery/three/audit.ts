@@ -2,7 +2,9 @@
 // el examinador contra el paciente, la camilla, su propio cuerpo y su otro brazo, y el paciente contra sí
 // mismo y la camilla. La usan las pruebas (ningún instante con algo metido en otra cosa) y la búsqueda de
 // la colocación del examinador.
-import { timeline, type FigureSpec } from "../figure";
+import type { FigureSpec } from "../figure";
+import { clockOf, sampleTimes, type Moment as ClockMoment } from "../script";
+import { keysOf } from "./anatomy";
 import { bodySDF, skinPoints, tableD } from "./collide";
 import { shoulderAngles, wristAngles, wristExcess, type ExaminerPlan } from "./examiner";
 import type { Layout } from "./layout";
@@ -28,11 +30,10 @@ export const TOLERANCE = {
   reach: 1.0,
 };
 
-/** Instantes que se revisan: toda la vuelta, más los momentos clave. */
-export function auditMoments(step = 0.025): { t: number; tl: Moment }[] {
-  const ts: number[] = [];
-  for (let t = 0; t < 1 - 1e-9; t += step) ts.push(+t.toFixed(4));
-  return ts.map((t) => ({ t, tl: timeline(t) }));
+/** Instantes que se revisan de una figura: toda la vuelta (y, con guion, el final y la mitad de cada paso). */
+export function auditMoments(spec: FigureSpec, step = 0.025): { t: number; tl: Moment & ClockMoment }[] {
+  const clock = clockOf(spec, spec.script ? keysOf(spec) : undefined);
+  return sampleTimes(clock, step).map((t) => ({ t, tl: clock.at(t) }));
 }
 
 const isArm = (p: string) => /upperarm|forearm/.test(p);
@@ -116,7 +117,7 @@ export function figureFaults(spec: FigureSpec, L: Layout, plan: ExaminerPlan | n
   const worst = new Map<string, Issue>();
   const joints = new Map<string, number>();
   const sides = plan?.arms.map((a) => a.side) ?? [];
-  for (const { t, tl } of auditMoments(step)) {
+  for (const { t, tl } of auditMoments(spec, step)) {
     const { pat, ex, cts, gaps } = scenePoses(spec, L, plan, tl);
     const found = auditPoses(spec, L, pat, ex, cts.map((c) => c.part), t);
     // Con la mano apoyada, la muñeca tiene que llegar a su sitio.

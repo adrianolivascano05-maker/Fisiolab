@@ -2,13 +2,27 @@
 // ella) y su pose en cada momento de la maniobra. Puro: sirve igual para la escena y para las pruebas.
 import { Quaternion, Vector3 } from "three";
 import type { FigureSpec } from "../figure";
+import { anatAngles, anatPose } from "./anatomy";
 import { bodySDF, skinPoints, tableD } from "./collide";
-import { anatDir, anchorInfo, fk, LYING, patientAngles, postureQ, surfaceSamples, upSide, type Nudges, type Pose3, type SegKey, type Side } from "./rig";
+import { anatDir, anchorInfo, fk, LYING, patientAngles, postureQ, surfaceSamples, upSide, type BodyAngles, type Nudges, type Pose3, type SegKey, type Side } from "./rig";
 
 export type Table = { x0: number; x1: number; z0: number; z1: number; top: number };
 /** Ajuste (grados) del hombro de cada brazo del paciente para que no se meta en su cuerpo ni en la camilla. */
 type ArmFix = { flex: number; abd: number };
-export type Layout = { spec: FigureSpec; rootQ: Quaternion; rootP: Vector3; fixedRoot: boolean; table: Table | null; arms: Record<Side, ArmFix> };
+export type Layout = {
+  spec: FigureSpec;
+  rootQ: Quaternion;
+  rootP: Vector3;
+  fixedRoot: boolean;
+  table: Table | null;
+  arms: Record<Side, ArmFix>;
+  /** De pie con guion: el pie que apoya y dónde está su tobillo al principio (no se desliza si el cuerpo gira). */
+  planted?: { side: Side; at: Vector3 } | null;
+};
+
+/** Ángulos del paciente en el momento m: los del guion, si lo tiene, o los de la descripción de siempre. */
+export const anglesOf = (spec: FigureSpec, m: number): BodyAngles => (spec.script ? anatAngles(spec, m) : patientAngles(spec, m));
+const leanOf = (A: BodyAngles) => A.trunkFlex + (A.pelvis?.flex ?? 0);
 
 const TABLE_TOP = { lying: 66, sitting: 56 };
 const JOINT_SEG: Record<string, string> = { elbow: "forearm", wrist: "hand", knee: "shank", ankle: "foot", handtip: "hand", foottip: "foot", hand: "hand", foot: "foot" };
@@ -27,7 +41,7 @@ export function layoutPatient(spec: FigureSpec): Layout {
   const rootQ = postureQ(posture, posture === "sidelying" ? upSide(spec) : "l");
   const L: Layout = { spec, rootQ, rootP: new Vector3(), fixedRoot: false, table: null, arms: { r: { flex: 0, abd: 0 }, l: { flex: 0, abd: 0 } } };
   const lying = LYING.includes(posture);
-  const bent = posture === "standing" && !!spec.hands?.length && patientAngles(spec, 0).trunkFlex >= 60 && patientAngles(spec, 1).trunkFlex >= 60;
+  const bent = posture === "standing" && !!spec.hands?.length && leanOf(anglesOf(spec, 0)) >= 60 && leanOf(anglesOf(spec, 1)) >= 60;
   if (bent) {
     // Tumbado boca abajo sobre la camilla con los pies en el suelo.
     const pose = patientPose(L, 0, 0);
@@ -39,7 +53,7 @@ export function layoutPatient(spec: FigureSpec): Layout {
     L.table = { x0: -34, x1: 34, z0, z1: z0 + 150, top };
   }
   if (lying || posture === "sitting") {
-    const p0 = fk(new Vector3(), rootQ, patientAngles(spec, 0));
+    const p0 = fk(new Vector3(), rootQ, anglesOf(spec, 0));
     const top = lying ? TABLE_TOP.lying : TABLE_TOP.sitting;
     // De lado, también apoyan el hombro y la cadera de abajo.
     const down = posture === "sidelying" ? (upSide(spec) === "l" ? "r" : "l") : null;
@@ -50,7 +64,7 @@ export function layoutPatient(spec: FigureSpec): Layout {
     const low = Math.min(...support.map((s) => s.p.y)) + (lying ? 0 : 0.3);
     L.rootP.set(0, top - low, 0);
     L.fixedRoot = true;
-    const pose = fk(L.rootP, rootQ, patientAngles(spec, 0));
+    const pose = fk(L.rootP, rootQ, anglesOf(spec, 0));
     const all = surfaceSamples(pose);
     if (lying) {
       // La camilla llega hasta donde apoya el cuerpo (una pierna que cuelga queda fuera); boca abajo, los
@@ -128,7 +142,7 @@ function settleArms(L: Layout) {
 /** Pose del paciente en el momento m (0-1), con el pequeño desplazamiento de las fuerzas (`nudge`, 0-1). */
 export function patientPose(L: Layout, m: number, nudge: number): Pose3 {
   const spec = L.spec;
-  const A = patientAngles(spec, m);
+  const A = anglesOf(spec, m);
   for (const sd of ["r", "l"] as const) {
     A[sd].shoulder.flex += L.arms[sd].flex;
     A[sd].shoulder.abd += L.arms[sd].abd;
@@ -139,8 +153,30 @@ export function patientPose(L: Layout, m: number, nudge: number): Pose3 {
     const p = fk(new Vector3(), L.rootQ, A);
     const low = Math.min(...surfaceSamples(p, (part) => /foot/.test(part) || (spec.posture === "quadruped" && /hand|shank/.test(part))).map((s) => s.p.y));
     root = new Vector3(0, -low, 0);
+    // Con guion, el pie que apoya no se desliza aunque el cuerpo gire sobre él (Thessaly).
+    if (spec.script) {
+      if (L.planted === undefined) {
+        L.planted = null;
+        const p0 = patientPose(L, 0, 0);
+        const foot = (sd: Side) => Math.min(...surfaceSamples(p0, (part) => part === `${sd}_foot`).map((x) => x.p.y));
+        const side: Side = foot("r") <= foot("l") ? "r" : "l";
+        L.planted = Math.abs(foot("r") - foot("l")) > 3 ? { side, at: p0.pt[`${side}_ankle`]!.clone() } : null;
+      }
+      if (L.planted) {
+        const ank = p.pt[`${L.planted.side}_ankle`]!.clone().add(root);
+        root.x += L.planted.at.x - ank.x;
+        root.z += L.planted.at.z - ank.z;
+      }
+    }
   }
   let pose = fk(root, L.rootQ, A);
+  if (spec.script) {
+    // Desplazamiento de un segmento (cajones, Lachman): lo dice el guion, no las flechas.
+    const sh = anatPose(spec, m).shift;
+    const info = sh ? anchorInfo(pose, `${sh.seg}@0.5`) : null;
+    if (sh && info) pose = fk(root, L.rootQ, A, { [sh.seg]: anatDir(pose, sh.dir, `${sh.seg}@0.5`, info).multiplyScalar(sh.cm) });
+    return pose;
+  }
   if (nudge > 0 && !spec.to) {
     const nudges: Nudges = {};
     for (const ar of spec.arrows ?? []) {

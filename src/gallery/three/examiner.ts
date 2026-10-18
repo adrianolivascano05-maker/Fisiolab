@@ -9,6 +9,8 @@
 // (node scripts/gallery3d-plans.mjs) y solo se buscan si la figura cambia.
 import { Matrix4, Quaternion, Vector3 } from "three";
 import type { Anchor, FigureSpec } from "../figure";
+import { extremeU, mixAt, planKeys } from "../script";
+import { keysOf } from "./anatomy";
 import { cameraKey } from "./cameras";
 import { bodySDF, handPoints, skinPoints, tableD, type BodySDF } from "./collide";
 import { patientPose, type Layout, type Table } from "./layout";
@@ -278,8 +280,13 @@ function unpack(s: StoredPlan): ExaminerPlan {
 
 // ---------- Dónde se coloca ----------
 
-/** Momentos de la maniobra en los que se eligen los codos (y se comprueba que todo está libre). */
-const KEYS = [0, 0.25, 0.5, 0.75, 1];
+/**
+ * Momentos de la maniobra en los que se eligen los codos (y se comprueba que todo está libre): cinco repartidos
+ * por igual o, con guion, las poses clave y el punto medio entre cada dos.
+ */
+const keysFor = (spec: FigureSpec) => planKeys(spec.script);
+/** Cuánto se ha alejado el paciente de la partida en el progreso m (lo que reparte la colocación y la mano del examinador entre su principio y su final). */
+export const mixFor = (spec: FigureSpec, m: number) => (spec.script ? mixAt(keysOf(spec), m) : m);
 
 /**
  * Decide dónde se coloca y cómo mueve los brazos. Devuelve null si el test no lleva manos del examinador.
@@ -322,18 +329,20 @@ function place(ctx: Ctx): ExaminerPlan {
 }
 
 /** El paciente en los momentos clave (con el empuje de las fuerzas, salvo al principio, cuando llegan las manos). */
-type Key = { m: number; pose: Pose3; sdf: BodySDF };
+type Key = { m: number; mix: number; pose: Pose3; sdf: BodySDF };
 type Ctx = { spec: FigureSpec; table: Table | null; hands: Anchor[]; key: Key[]; poses: Pose3[]; sdf: BodySDF[]; midPose: Pose3; mid: BodySDF; /** Cada octavo de la maniobra (lo que se mueve deprisa, como un pie, barre mucho espacio). */ dense: BodySDF[] };
 function context(spec: FigureSpec, L: Layout): Ctx {
-  const key = KEYS.map((m) => {
+  const key = keysFor(spec).map((m) => {
     const pose = patientPose(L, m, m > 0 ? 1 : 0);
-    return { m, pose, sdf: bodySDF(pose) };
+    return { m, mix: mixFor(spec, m), pose, sdf: bodySDF(pose) };
   });
   const k0 = key[0]!;
-  const k1 = key[key.length - 1]!;
-  const km = key[2]!;
-  const dense = [0.125, 0.375, 0.625, 0.875].map((m) => bodySDF(patientPose(L, m, 1)));
-  return { spec, table: L.table, hands: (spec.hands ?? []).slice(0, 2), key, poses: [k0.pose, k1.pose], sdf: [k0.sdf, k1.sdf], midPose: km.pose, mid: km.sdf, dense: [...key.map((k) => k.sdf), ...dense] };
+  // El final de la maniobra: la pose más alejada de la partida (con guion, antes de la vuelta).
+  const end = spec.script ? extremeU(keysOf(spec)) : 1;
+  const p1 = patientPose(L, end, 1);
+  const pm = patientPose(L, end / 2, 1);
+  const dense = spec.script ? [] : [0.125, 0.375, 0.625, 0.875].map((m) => bodySDF(patientPose(L, m, 1)));
+  return { spec, table: L.table, hands: (spec.hands ?? []).slice(0, 2), key, poses: [k0.pose, p1], sdf: [k0.sdf, bodySDF(p1)], midPose: pm, mid: bodySDF(pm), dense: [...key.map((k) => k.sdf), ...dense] };
 }
 
 type Cand = { cost: number; turn: number; yawOff: number; st: (typeof STANCES)[number]; extra: number; lean: number };
@@ -927,8 +936,8 @@ const GRID = Array.from({ length: 24 }, (_, i) => -180 + i * 15);
 function refineArms(ctx: Ctx, plan: ExaminerPlan): ArmPlan[] {
   const moving = plan.arms.map((a) => a.side);
   const frames = ctx.key.map((k) => {
-    const base = baseExaminerPose(plan, k.m);
-    return { m: k.m, base, own: bodySDF(base), patient: k.sdf, cts: contacts(ctx.spec, k.pose, base, plan) };
+    const base = baseExaminerPose(plan, k.mix);
+    return { m: k.m, mix: k.mix, base, own: bodySDF(base), patient: k.sdf, cts: contacts(ctx.spec, k.pose, base, plan) };
   });
   let arms = plan.arms.map((a) => ({ ...a }));
   const caps = new Map<Side, Caps[]>();
@@ -947,7 +956,7 @@ function refineArms(ctx: Ctx, plan: ExaminerPlan): ArmPlan[] {
       let opts: Opt[] = [{ spin: arm.spin, ...(arm.wrap !== undefined ? { wrap: arm.wrap } : {}), ...(arm.spin1 !== undefined ? { spin1: arm.spin1 } : {}), ...(arm.wrap1 !== undefined ? { wrap1: arm.wrap1 } : {}), extra: 0 }];
       if (!plan.alt) {
         const S = shoulder0(frames[0]!.base, arm.side);
-        const coarse = (o: HandOpt) => o.extra + [0, KEYS.length - 1].reduce((sum, k) => sum + Math.min(...GRID.filter((_, i) => i % 2 === 0).map((th) => armCost(env(k), frames[k]!.cts[arm.hand]!, o, th).c)), 0);
+        const coarse = (o: HandOpt) => o.extra + [0, frames.length - 1].reduce((sum, k) => sum + Math.min(...GRID.filter((_, i) => i % 2 === 0).map((th) => armCost(env(k), frames[k]!.cts[arm.hand]!, o, th).c)), 0);
         const others = handOptions(ct0, S)
           .filter((o) => o.spin !== arm.spin || o.wrap !== arm.wrap)
           .map((o) => ({ o, c: coarse(o) }))
@@ -961,7 +970,7 @@ function refineArms(ctx: Ctx, plan: ExaminerPlan): ArmPlan[] {
         // Coste de cada codo en cada momento.
         const C = frames.map((fr, k) => {
           const ct = fr.cts[arm.hand]!;
-          return GRID.map((th) => armCost(env(k), ct, handAt(o, fr.m), th, k === 0));
+          return GRID.map((th) => armCost(env(k), ct, handAt(o, fr.mix), th, k === 0));
         });
         // Programación dinámica: de un momento al siguiente, el codo gira poco.
         const K = frames.length;
@@ -1303,8 +1312,8 @@ function fingersOn(ct: Contact, W: Vector3, q: Quaternion, sdf: BodySDF, side: S
  * punto de tomar; 1: apoyada) y los dedos se cierran sobre la piel. `pat`: el paciente en este momento (para
  * apoyar bien las manos); `gaps`, si se pasa, recibe lo que le falta a cada muñeca para llegar.
  */
-export function examinerPose(plan: ExaminerPlan, cts: Contact[], reach: number, m = 1, pat?: Pose3 | null, gaps?: Partial<Record<Side, number>>): Pose3 {
-  const pose = baseExaminerPose(plan, m);
+export function examinerPose(plan: ExaminerPlan, cts: Contact[], reach: number, m = 1, pat?: Pose3 | null, gaps?: Partial<Record<Side, number>>, mix = m): Pose3 {
+  const pose = baseExaminerPose(plan, mix);
   const sdf = pat ? bodySDF(pat) : null;
   const land = ease(Math.min(1, Math.max(0, reach) / 0.6));
   const hands: Partial<Record<Side, HandState>> = { ...pose.hands };
@@ -1313,7 +1322,7 @@ export function examinerPose(plan: ExaminerPlan, cts: Contact[], reach: number, 
     if (!ct) continue;
     const s = arm.side;
     const S0 = shoulder0(pose, s);
-    const tg = handTarget(ct, S0, handAt(arm, m));
+    const tg = handTarget(ct, S0, handAt(arm, mix));
     const open = OPEN[ct.grip];
     const fit: ReturnType<typeof fitHand> = sdf ? fitHand(ct, tg, sdf, s) : { W: tg.W, q: tg.q, fingers: open.fingers.map((f) => f + 20), thumb: open.thumb + 15 };
     let W = fit.W;
