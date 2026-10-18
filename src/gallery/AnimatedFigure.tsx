@@ -153,7 +153,9 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
   const steps = spec.script?.steps ?? [];
   const stepNow = now.phase === "move" && now.step >= 0 ? steps[now.step] : undefined;
   const caption = stepNow ? stepNow.text : now.phase === "back" ? texts.setup : texts[now.phase];
-  const technical = stepNow && keys && view === "clinical" ? stepTechnical(keys, now.step) : "";
+  // Quién mueve (pasivo o activo) y qué cambia, con sus grados.
+  const who = stepNow?.by === "patient" ? "Activo (lo mueve el paciente)" : stepNow?.by === "examiner" ? "Pasivo (lo mueve el examinador)" : "";
+  const technical = stepNow && keys && view === "clinical" ? [who, stepTechnical(keys, now.step)].filter(Boolean).join(" · ") : "";
   const ctl = "inline-flex size-11 items-center justify-center rounded-full bg-bg/90 text-text shadow-sm ring-1 ring-border backdrop-blur hover:bg-surface";
   const seg = (on: boolean) => cx("h-8 rounded-md px-2.5 text-xs font-semibold transition-colors", on ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text");
   return (

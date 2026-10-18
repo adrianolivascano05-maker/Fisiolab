@@ -16,8 +16,8 @@ export type Layout = {
   fixedRoot: boolean;
   table: Table | null;
   arms: Record<Side, ArmFix>;
-  /** De pie con guion: el pie que apoya y dónde está su tobillo al principio (no se desliza si el cuerpo gira). */
-  planted?: { side: Side; at: Vector3 } | null;
+  /** De pie con guion: el pie que apoya (o los dos) y dónde está su tobillo al principio (no se desliza si el cuerpo gira o se agacha). */
+  planted?: { side: Side | "both"; at: Vector3; ball?: Vector3; heel?: number } | null;
 };
 
 /** Ángulos del paciente en el momento m: los del guion, si lo tiene, o los de la descripción de siempre. */
@@ -155,19 +155,41 @@ export function patientPose(L: Layout, m: number, nudge: number, edit?: (A: Body
     const p = fk(new Vector3(), L.rootQ, A);
     const low = Math.min(...surfaceSamples(p, (part) => /foot/.test(part) || (spec.posture === "quadruped" && /hand|shank/.test(part))).map((s) => s.p.y));
     root = new Vector3(0, -low, 0);
-    // Con guion, el pie que apoya no se desliza aunque el cuerpo gire sobre él (Thessaly).
-    if (spec.script) {
+    // Con guion, el pie que apoya no se desliza aunque el cuerpo gire sobre él (Thessaly); con los dos pies en
+    // el suelo, el punto medio de los tobillos (sentadillas). De puntillas, el pie pivota sobre la bola (las
+    // cabezas de los metatarsianos), no sobre el tobillo.
+    if (spec.script && spec.posture === "standing") {
+      const ankle = (q: Pose3, sd: Side | "both") => (sd === "both" ? q.pt.r_ankle!.clone().lerp(q.pt.l_ankle!, 0.5) : q.pt[`${sd}_ankle`]!.clone());
+      const ball = (q: Pose3, sd: Side) => new Vector3(0, -5.6, 13).applyQuaternion(q.seg[`${sd}_foot`].q).add(q.pt[`${sd}_ankle`]!);
       if (L.planted === undefined) {
         L.planted = null;
+        // El pie que apoya es el que queda abajo cuando más se separan (la pierna levantada de Thessaly, un paso);
+        // si nunca se separan, los dos.
+        const foot = (q: Pose3, sd: Side) => Math.min(...surfaceSamples(q, (part) => part === `${sd}_foot`).map((x) => x.p.y));
+        let side: Side | "both" = "both";
+        let most = 3;
+        for (let i = 0; i <= 8; i++) {
+          const q = patientPose(L, i / 8, 0);
+          const d = foot(q, "r") - foot(q, "l");
+          if (Math.abs(d) > most) {
+            most = Math.abs(d);
+            side = d < 0 ? "r" : "l";
+          }
+        }
         const p0 = patientPose(L, 0, 0);
-        const foot = (sd: Side) => Math.min(...surfaceSamples(p0, (part) => part === `${sd}_foot`).map((x) => x.p.y));
-        const side: Side = foot("r") <= foot("l") ? "r" : "l";
-        L.planted = Math.abs(foot("r") - foot("l")) > 3 ? { side, at: p0.pt[`${side}_ankle`]!.clone() } : null;
+        L.planted = side === "both" ? { side, at: ankle(p0, side) } : { side, at: ankle(p0, side), ball: ball(p0, side), heel: p0.pt[`${side}_heel`]!.y - foot(p0, side) };
       }
-      if (L.planted) {
-        const ank = p.pt[`${L.planted.side}_ankle`]!.clone().add(root);
-        root.x += L.planted.at.x - ank.x;
-        root.z += L.planted.at.z - ank.z;
+      const pl = L.planted;
+      if (pl) {
+        let d = pl.at.clone().sub(ankle(p, pl.side).add(root));
+        if (pl.side !== "both" && pl.ball) {
+          // Cuánto se ha levantado el talón respecto al principio (0: pie plano; desde 3 cm, apoyo en la bola).
+          const heelUp = p.pt[`${pl.side}_heel`]!.y - low - pl.heel!;
+          const w = Math.max(0, Math.min(1, (heelUp - 0.5) / 2.5));
+          if (w > 0) d.lerp(pl.ball.clone().sub(ball(p, pl.side).add(root)), w);
+        }
+        root.x += d.x;
+        root.z += d.z;
       }
     }
   }

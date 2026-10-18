@@ -723,7 +723,8 @@ export function fk(rootP: Vector3, rootQ: Quaternion, A: BodyAngles, nudges: Nud
     const kn = at(hip, thQ, new Vector3(0, -DIM.thigh, 0));
     const shQ = qmul(thQ.clone(), jr(L.knee.flex, L.knee.abd, s, 1), qAxis(Y, -sgn(s) * (L.knee.rot ?? 0)));
     const an = at(kn, shQ, new Vector3(0, -DIM.shank, 0));
-    const ftQ = qmul(shQ.clone(), qAxis(X, -L.ankle.flex), qAxis(Z, -sgn(s) * (L.ankle.inv ?? 0)));
+    // El pie gira primero sobre el eje de la tibia (rotación), luego se flexiona y luego se invierte.
+    const ftQ = qmul(shQ.clone(), qAxis(Y, -sgn(s) * (L.ankle.rot ?? 0)), qAxis(X, -L.ankle.flex), qAxis(Z, -sgn(s) * (L.ankle.inv ?? 0)));
     seg[`${s}_upperarm`] = { p: sh, q: uaQ };
     seg[`${s}_forearm`] = { p: el, q: faQ };
     seg[`${s}_hand`] = { p: wr, q: hdQ };

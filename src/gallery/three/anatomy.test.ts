@@ -56,6 +56,11 @@ describe("convenio anatómico: cada signo hace lo que dice", () => {
       const sole = local(b, new Vector3(0, -1, 0).applyQuaternion(b.seg[`${s}_foot`].q), true);
       expect(sole.x * medial).toBeGreaterThan(0.45);
     });
+    it(`${s}: rotación externa del pie: la punta va hacia fuera sin mover la tibia`, () => {
+      const [a, b] = ends(spec("sitting", { [`${s}_ankle`]: { rot: 0 } }, { [`${s}_ankle`]: { rot: -25 } }));
+      expect((pt(b, `${s}_foottip`).x - pt(a, `${s}_foottip`).x) * medial).toBeLessThan(-4);
+      expect(pt(b, `${s}_ankle`).distanceTo(pt(a, `${s}_ankle`))).toBeLessThan(1e-6);
+    });
     it(`${s}: desviación radial lleva la mano hacia el pulgar`, () => {
       // Posición anatómica (palma hacia delante): el pulgar queda por fuera.
       const [a, b] = ends(spec("standing", { [`${s}_elbow`]: { flex: 0, pron: -90 }, [`${s}_shoulder`]: { abd: 0 } }, { [`${s}_wrist`]: { abd: 20 } }));
@@ -116,8 +121,8 @@ describe("medida de los ángulos sobre el modelo", () => {
       l_hip: { flex: 20, abd: 25, rot: -35 },
       r_knee: { flex: 90, rot: 20 },
       l_knee: { flex: 40, rot: -25 },
-      r_ankle: { flex: 15, inv: 25 },
-      l_ankle: { flex: -30, inv: -15 },
+      r_ankle: { flex: 15, inv: 25, rot: -20 },
+      l_ankle: { flex: -30, inv: -15, rot: 15 },
     };
     const f: FigureSpec = { view: "side", posture: "supine", script: { start: pose, steps: [{ text: "" }] } };
     const A = anatAngles(f, 0);

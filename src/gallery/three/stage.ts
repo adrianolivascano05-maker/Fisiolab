@@ -339,8 +339,8 @@ export class Stage {
     s.textContent = text;
     s.dataset.text = text;
     s.style.cssText =
-      "position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding:1px 7px;border-radius:999px;font:600 11.5px/1.5 var(--font-sans,system-ui);letter-spacing:.01em;white-space:nowrap;background:color-mix(in srgb,var(--color-bg,#fbf7f0) 90%,transparent);color:var(--color-text,#1b1b1d);box-shadow:0 0 0 1px var(--color-border,#dacbb0)" +
-      (color ? `;border-left:5px solid ${color};border-radius:6px 999px 999px 6px` : "");
+      "position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding:1px 7px;border-radius:10px;font:600 11.5px/1.4 var(--font-sans,system-ui);letter-spacing:.01em;width:max-content;max-width:min(230px,58%);background:color-mix(in srgb,var(--color-bg,#fbf7f0) 90%,transparent);color:var(--color-text,#1b1b1d);box-shadow:0 0 0 1px var(--color-border,#dacbb0)" +
+      (color ? `;border-left:5px solid ${color};border-radius:6px 10px 10px 6px` : "");
     this.overlay.appendChild(s);
     return s;
   }
@@ -354,7 +354,7 @@ export class Stage {
       mk.group.visible = false;
       for (const c of mk.group.children) c.renderOrder = 5;
       this.scene.add(mk.group);
-      const color = mk.kind === "push" ? MARK_COLORS.push : mk.kind === "resist" ? MARK_COLORS.resist : MARK_COLORS.path;
+      const color = mk.kind === "push" || mk.kind === "pull" ? MARK_COLORS.push : mk.kind === "resist" ? MARK_COLORS.resist : MARK_COLORS.path;
       const l = this.label(mk.label, color);
       if (l) this.markLabels.set(mk, l);
     }

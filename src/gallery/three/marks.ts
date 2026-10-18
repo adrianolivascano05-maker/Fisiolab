@@ -3,7 +3,7 @@
 // cambiar al girar la cámara), «el examinador empuja» (azul) y «el paciente empuja y el examinador no le deja»
 // (naranja, con tope; isométrico). Todas con un contorno claro para verse sobre cualquier fondo.
 import { BackSide, BoxGeometry, CatmullRomCurve3, ConeGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial, Quaternion, TubeGeometry, Vector3, type BufferGeometry } from "three";
-import type { BodyKey, FigureSpec, Joint3D, Mark } from "../figure";
+import type { BodyKey, Direction, FigureSpec, Joint3D, Mark } from "../figure";
 import { changes, stepLabel } from "../describe";
 import type { Key } from "../script";
 import { keysOf } from "./anatomy";
@@ -14,7 +14,7 @@ export const MARK_COLORS = { push: "#1f5fe0", resist: "#e07400", path: "#262d38"
 
 type Dof = keyof Joint3D;
 export type BuiltMark = {
-  kind: "path" | "push" | "resist";
+  kind: "path" | "push" | "pull" | "resist" | "slide";
   group: Group;
   mats: MeshStandardMaterial[];
   label: string;
@@ -265,6 +265,18 @@ export function buildMarks(spec: FigureSpec, L: Layout): { steps: BuiltMark[][];
         out.push({ kind: "path", group: c.group, mats: c.mats, label: n === 0 ? label : "", labelAt: beside(pts, center(poses[12]!, k)), keep: [pts[pts.length - 1]!, pts[Math.floor(pts.length / 2)]!, pts[Math.floor((3 * pts.length) / 4)]!], ...(mc ? { path: { pts, joint: k, dof: mc.dof, sign: mc.sign, virtual: false } } : {}) });
       });
     }
+    // Desplazamiento de un segmento (cajones, hundimiento): flecha recta en su sentido (o al revés, al soltarlo).
+    const sa = keys[i]!.shift;
+    const sb = keys[i + 1]!.shift;
+    if ((sa?.cm ?? 0) !== (sb?.cm ?? 0)) {
+      const ref = (sb ?? sa)!;
+      const grow = (sb?.cm ?? 0) > (sa?.cm ?? 0);
+      const dir = grow ? ref.dir : OPPOSITE[ref.dir];
+      // (Por la cara que mire a la cámara: la de fuera o la de dentro, la de delante o la de detrás.)
+      const mk = markOf(L, { kind: "slide", at: `${ref.seg}@0.12`, face: ref.dir === "anterior" || ref.dir === "posterior" ? "lateral" : "anterior", dir, label: shiftLabel(ref.seg, dir) }, (i + 1) / S, geos, true);
+      mk.kind = "path";
+      out.push(mk);
+    }
     for (const mk of st.marks ?? []) out.push(markOf(L, mk, (i + 1) / S, geos));
     steps.push(out);
   });
@@ -272,10 +284,15 @@ export function buildMarks(spec: FigureSpec, L: Layout): { steps: BuiltMark[][];
   return { steps, always, geos };
 }
 
-/** Una marca de empuje o de resistencia. `u`: momento de la maniobra en el que se dibuja (para las curvas). */
-function markOf(L: Layout, mk: Mark, u: number, geos: BufferGeometry[]): BuiltMark {
-  const color = mk.kind === "push" ? MARK_COLORS.push : MARK_COLORS.resist;
-  const label = mk.label ?? (mk.kind === "push" ? "El examinador empuja" : "El paciente empuja; el examinador resiste");
+const OPPOSITE: Record<Direction, Direction> = { anterior: "posterior", posterior: "anterior", cranial: "caudal", caudal: "cranial", medial: "lateral", lateral: "medial" };
+const SEG_NAME: Record<string, string> = { upperarm: "Brazo", forearm: "Antebrazo", hand: "Mano", thigh: "Muslo", shank: "Tibia", foot: "Pie" };
+const DIR_NAME: Record<Direction, string> = { anterior: "hacia delante", posterior: "hacia atrás", cranial: "hacia arriba", caudal: "hacia abajo", medial: "hacia dentro", lateral: "hacia fuera" };
+const shiftLabel = (seg: string, dir: Direction) => `${SEG_NAME[seg.slice(2)] ?? seg} ${DIR_NAME[dir]}`;
+
+/** Una marca de empuje, tirón, barrido o resistencia. `u`: momento de la maniobra en el que se dibuja (para las curvas). */
+function markOf(L: Layout, mk: Mark, u: number, geos: BufferGeometry[], faceToCam = false): BuiltMark {
+  const color = mk.kind === "push" || mk.kind === "pull" ? MARK_COLORS.push : mk.kind === "slide" ? MARK_COLORS.path : MARK_COLORS.resist;
+  const label = mk.label ?? (mk.kind === "push" ? "El examinador empuja" : mk.kind === "pull" ? "El examinador tira" : mk.kind === "slide" ? "Desliza la mano" : "El paciente empuja; el examinador resiste");
   if ("joint" in mk) {
     // Isométrico de una articulación: el recorrido que haría si se le dejara (25°), con tope.
     const poses = Array.from({ length: 13 }, (_, j) => patientPose(L, u, 0, (A) => bump(A, mk.joint, mk.dof, (mk.sign * 25 * j) / 12)));
@@ -285,6 +302,7 @@ function markOf(L: Layout, mk: Mark, u: number, geos: BufferGeometry[]): BuiltMa
     return { kind: "resist", group: c.group, mats: c.mats, label, labelAt: beside(pts, center(poses[0]!, mk.joint)), keep: [pts[pts.length - 1]!, pts[Math.floor(pts.length / 2)]!], path: { pts, joint: mk.joint, dof: mk.dof, sign: mk.sign, virtual: true } };
   }
   const a = straight(color, mk.kind === "resist");
+  const face = mk.kind === "slide" ? mk.face : null;
   geos.push(...a.geos);
   const built: BuiltMark = { kind: mk.kind, group: a.group, mats: a.mats, label, labelAt: new Vector3() };
   built.dir = (pat) => {
@@ -298,11 +316,33 @@ function markOf(L: Layout, mk: Mark, u: number, geos: BufferGeometry[]): BuiltMa
     const Lr = 15;
     let tip: Vector3;
     let tail: Vector3;
-    if (mk.kind === "push") {
+    // A lo largo del miembro (vaciar el receso, la rótula hacia abajo): por encima de la piel de la cara que
+    // mira a la cámara, porque desde dentro del miembro no se vería.
+    let n = face ? anatDir(pat, face, mk.at, info) : null;
+    if (n && faceToCam && n.dot(toCam) < 0) n = anatDir(pat, OPPOSITE[face!], mk.at, info);
+    if (!n && info.limb && Math.abs(d.dot(info.axis)) > 0.82) {
+      n = toCam.clone().addScaledVector(d, -toCam.dot(d));
+      if (n.lengthSq() < 1e-4) n = anatDir(pat, "anterior", mk.at, info).addScaledVector(d, -1);
+      n.normalize();
+    }
+    if (n && !face) {
+      const at = info.p.clone().addScaledVector(n, surfaceRadius(info, n) + 2.5);
+      if (mk.kind === "push") {
+        tip = at.addScaledVector(d, (pulse - 0.5) * 1.6);
+        tail = tip.clone().addScaledVector(d, -Lr);
+      } else {
+        tail = at;
+        tip = tail.clone().addScaledVector(d, Lr - 3);
+      }
+    } else if (mk.kind === "push") {
       // Llega desde fuera hasta la piel, en el sentido de la fuerza.
       const out = d.clone().negate();
       tip = info.p.clone().addScaledVector(out, surfaceRadius(info, out) + 1.5 - (pulse - 0.5) * 1.6);
       tail = tip.clone().addScaledVector(d, -Lr);
+    } else if (n) {
+      // Por encima de la piel de esa cara, a lo largo de ella.
+      tail = info.p.clone().addScaledVector(n, surfaceRadius(info, n) + 2.5).addScaledVector(d, -Lr / 2);
+      tip = tail.clone().addScaledVector(d, Lr);
     } else {
       // Sale de la piel hacia donde empuja el paciente y choca con un tope.
       tail = info.p.clone().addScaledVector(d, surfaceRadius(info, d) + 1.5);
@@ -318,6 +358,7 @@ function markOf(L: Layout, mk: Mark, u: number, geos: BufferGeometry[]): BuiltMa
     }
     a.set(tail, tip);
     built.labelAt.copy(mk.kind === "push" ? tail.clone().addScaledVector(d, -4) : tip.clone().addScaledVector(d, 5));
+    built.keep = [tip.clone(), tail.clone().lerp(tip, 0.5)];
   };
   return built;
 }

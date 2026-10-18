@@ -26,12 +26,13 @@ Este documento es la única definición de nombres y signos de los ángulos que 
 | `r_/l_wrist` | flexión palmar + / extensión (dorsal) − | desviación radial + / cubital − | — | — |
 | `r_/l_hip` (respecto a la pelvis) | flexión + / extensión − | abducción + / aducción − | interna + / externa − | — |
 | `r_/l_knee` | flexión + | valgo + / varo − (solo para pruebas de estrés) | rotación interna de la tibia + / externa − | — |
-| `r_/l_ankle` | flexión dorsal + / plantar − | — | — | `inv`: inversión + / eversión − |
+| `r_/l_ankle` | flexión dorsal + / plantar − | — | del pie sobre el eje de la tibia: interna + (la punta hacia dentro) / externa − | `inv`: inversión + / eversión − |
 
 **Cómo se componen.** En cada articulación primero la flexión, luego la abducción y por último la rotación
 sobre el eje largo del segmento (secuencia flexión–abducción–rotación). Con el hombro a 90° de abducción, la
 flexión gira el brazo sobre sí mismo (bloqueo de cardán): en esa posición se describe la rotación con `rot` y
-la aducción horizontal con `flex` 90 y `abd` negativo.
+la aducción horizontal con `flex` 90 y `abd` negativo. En el tobillo, el pie gira primero sobre el eje de la
+tibia (`rot`, la del astrágalo en la mortaja), luego se flexiona y luego se invierte.
 
 **Qué significa cada rotación (comprobado en las pruebas con la geometría, no con los propios ángulos):**
 
@@ -41,6 +42,7 @@ la aducción horizontal con `flex` 90 y `abd` negativo.
 - Rotación interna de la tibia: la punta del pie va hacia dentro.
 - Pronación con el codo a 90°: la palma mira hacia abajo; supinación, hacia arriba.
 - Inversión: la planta mira hacia dentro.
+- Rotación externa del pie (tobillo): la punta del pie va hacia fuera sin que se mueva la tibia.
 - Desviación radial: la mano va hacia el pulgar.
 - Cuello o tronco rotados a la derecha: la nariz o el pecho miran a la derecha del paciente.
 
@@ -61,7 +63,13 @@ incline. Nada que el guion no mencione se mueve durante la maniobra (lo comprueb
 - **Marcas.** Azul, «el examinador empuja»; naranja con tope, «el paciente empuja y el examinador no le
   deja» (isométrico: no se mueve nada); flecha de recorrido gris oscuro, el camino real que sigue un punto
   del segmento que se mueve, con su etiqueta (p. ej. «RI 35°»). El sentido de una flecha de recorrido sale
-  del propio movimiento, así que no puede contradecir a la etiqueta ni cambiar al girar la cámara.
+  del propio movimiento, así que no puede contradecir a la etiqueta ni cambiar al girar la cámara. Azul que
+  sale de la piel, «el examinador tira» (`pull`); gris oscuro recta sobre la piel, «la mano se desliza»
+  (`slide`, barridos). Un desplazamiento (`shift`) lleva siempre su flecha recta gris («Tibia hacia
+  delante»). Una flecha que va a lo largo del miembro se dibuja por encima de la piel de la cara que mira a
+  la cámara.
+- **Quién mueve.** En modo Clínico, la línea técnica de cada paso empieza por «Pasivo (lo mueve el
+  examinador)» o «Activo (lo mueve el paciente)» según `by`.
 - **Lado.** `side` dice qué lado se explora (por defecto el derecho; `both`, bilateral). Se ve siempre en
   pantalla (D/I). El lado izquierdo de cualquier test se obtiene con el espejo exacto de la escena, sin
   duplicar los datos.

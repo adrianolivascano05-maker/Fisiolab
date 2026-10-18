@@ -94,10 +94,8 @@ export function stepLabel(spec: FigureSpec, keys: Key[], i: number): string {
   const st = spec.script?.steps[i];
   if (st?.label) return st.label;
   const ch = changes(keys[i]!.pose, keys[i + 1]!.pose);
-  return ch
-    .slice(0, 2)
-    .map((c) => changeText(c))
-    .join(" + ");
+  // (Sin repetir: cadera y rodilla que se extienden hasta 0° son una sola «Extensión hasta 0°».)
+  return [...new Set(ch.map((c) => changeText(c)))].slice(0, 2).join(" + ");
 }
 
 /** Línea técnica de un paso con todas las articulaciones que cambian: «Cadera derecha: aducción 15°». */

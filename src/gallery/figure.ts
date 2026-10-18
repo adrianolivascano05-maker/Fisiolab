@@ -78,8 +78,12 @@ export type SegName = `${Side}_${"upperarm" | "forearm" | "hand" | "thigh" | "sh
  */
 export type Mark =
   | { kind: "push"; at: Anchor; dir: Direction; label?: string }
+  /** pull: el examinador tira desde esa cara (flecha azul que sale de la piel hacia `dir`). */
+  | { kind: "pull"; at: Anchor; dir: Direction; label?: string }
   | { kind: "resist"; at: Anchor; dir: Direction; label?: string }
-  | { kind: "resist"; joint: BodyKey; dof: keyof Joint3D; sign: 1 | -1; label?: string };
+  | { kind: "resist"; joint: BodyKey; dof: keyof Joint3D; sign: 1 | -1; label?: string }
+  /** slide: la mano se desliza sobre la piel de la cara `face` hacia `dir` (barrido, masaje). */
+  | { kind: "slide"; at: Anchor; face: Direction; dir: Direction; label?: string };
 
 /** Un paso del guion de una figura. */
 export type Step = {
@@ -97,6 +101,8 @@ export type Step = {
   path?: BodyKey[] | false;
   /** Dolor visible desde este paso (por defecto, solo al final). */
   pain?: boolean;
+  /** El dolor desaparece al empezar este paso (arco doloroso: deja de doler por encima de 120°). */
+  painEnd?: boolean;
   /** Manos del examinador (su número en `hands`) que se separan al empezar este paso (vuelven para la vuelta). */
   release?: number[];
   /** Etiqueta de la flecha de recorrido del paso (si no, se escribe sola con los grados). */

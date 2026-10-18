@@ -80,6 +80,21 @@ describe("reloj", () => {
     expect(c.at(c.steps[0]!.from).reach).toBe(1);
     expect(c.at(0.999).reach).toBe(0);
   });
+  it("no hay huecos entre pasos al sumar duraciones con decimales", () => {
+    // 1,6 + (0,8 + 0,4) + (2,6 + 0,8) no da lo mismo sumado en un orden que en otro.
+    const g: FigureSpec = { ...f, script: { steps: [{ text: "a", dur: 0.8, hold: 0.4 }, { to: { r_knee: { flex: 10 } }, text: "b", dur: 2.6, hold: 0.8 }] } };
+    const cg = clockOf(g);
+    const end = cg.phases[1]!.to;
+    for (let k = 1; k < 400; k++) expect(cg.at(end - k * Number.EPSILON).step).toBe(1);
+  });
+  it("el dolor puede desaparecer en un paso (arco doloroso)", () => {
+    const g: FigureSpec = { ...f, script: { steps: [{ text: "a", to: { r_hip: { abd: 20 } } }, { text: "b", to: { r_hip: { abd: 40 } }, pain: true }, { text: "c", to: { r_hip: { abd: 60 } }, painEnd: true }] } };
+    const cg = clockOf(g);
+    const [s0, s1, s2] = cg.steps;
+    expect(cg.at((s0!.from + s0!.moveTo) / 2).pain).toBe(0);
+    expect(cg.at(s1!.moveTo).pain).toBe(1);
+    expect(cg.at(s2!.moveTo).pain).toBe(0);
+  });
   it("sin guion, el reloj de siempre (7 s)", () => {
     const old = clockOf({ view: "side", posture: "supine" });
     expect(old.duration).toBe(7);

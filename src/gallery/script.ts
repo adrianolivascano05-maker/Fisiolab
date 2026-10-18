@@ -195,8 +195,10 @@ export function clockOf(spec: FigureSpec, keys?: Key[]): Clock {
   for (const st of script.steps) {
     const dur = st.dur ?? STEP_DUR;
     const hold = st.hold ?? STEP_HOLD;
-    spans.push({ s: t, m: t + dur, e: t + dur + hold, step: st });
-    t += dur + hold;
+    // (El final de un paso es exactamente el principio del siguiente: sumar en otro orden deja huecos de redondeo.)
+    const e = t + dur + hold;
+    spans.push({ s: t, m: t + dur, e, step: st });
+    t = e;
   }
   const moveEnd = t;
   const lookEnd = moveEnd + (script.look ?? LOOK);
@@ -204,6 +206,7 @@ export function clockOf(spec: FigureSpec, keys?: Key[]): Clock {
   const leaveEnd = backEnd + LEAVE;
   const total = leaveEnd + END;
   const painFrom = Math.min(...spans.filter((x) => x.step.pain).map((x) => x.s), moveEnd - 0.3);
+  const painTo = spans.find((x) => x.step.painEnd && x.s > painFrom)?.s ?? lookEnd - 0.1;
   const released = spans.flatMap((sp) => (sp.step.release ?? []).map((hand) => ({ hand, at: sp.s })));
   const fade = (x: number, a: number, b: number, w = 0.25) => Math.max(0, Math.min(1, (x - a + w) / w, (b + w - x) / w));
   const at = (tt: number): Moment => {
@@ -227,7 +230,7 @@ export function clockOf(spec: FigureSpec, keys?: Key[]): Clock {
       u = (S - 1 + minJerk((x - lookEnd) / BACK)) / S;
     } else if (x >= backEnd) u = 1;
     const reach = x < SETUP ? smooth((x - 0.25) / (SETUP - 0.45)) : x < backEnd ? 1 : 1 - smooth((x - backEnd) / LEAVE);
-    const pain = fade(x, painFrom, lookEnd - 0.1, 0.3);
+    const pain = fade(x, painFrom, painTo, 0.3);
     const phase: PhaseId = x < SETUP ? "setup" : x < moveEnd ? "move" : x < lookEnd ? "look" : "back";
     // Una mano que suelta se separa al empezar su paso y vuelve a la toma al empezar la vuelta.
     const hands = released.length

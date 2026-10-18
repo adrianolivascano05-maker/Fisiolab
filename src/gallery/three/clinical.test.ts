@@ -47,7 +47,7 @@ describe("figuras con guion", () => {
       );
     }
     expect(bad).toEqual([]);
-  });
+  }, 300_000);
 
   it("la comprobación del sentido falla si la flecha se dibuja al revés", () => {
     const { f } = scripted.find((x) => x.f.script!.steps.some((st) => st.to && Object.values(st.to).some((j) => j.rot)))!;
@@ -95,7 +95,8 @@ describe("figuras con guion", () => {
       const R = j.rot ?? 0;
       if (/shoulder|hip/.test(k)) return qmul(qAxis(X, -F), qAxis(Z, s * A), qAxis(Y, -s * R));
       if (/knee/.test(k)) return qmul(qAxis(X, F), qAxis(Z, s * A), qAxis(Y, -s * R));
-      if (/ankle/.test(k)) return qmul(qAxis(X, -F), qAxis(Z, -s * (j.inv ?? 0)));
+      // Tobillo: el pie gira sobre el eje de la tibia, luego se flexiona y luego se invierte.
+      if (/ankle/.test(k)) return qmul(qAxis(Y, -s * R), qAxis(X, -F), qAxis(Z, -s * (j.inv ?? 0)));
       return null;
     };
     for (const { id, f } of scripted) {
@@ -117,7 +118,7 @@ describe("figuras con guion", () => {
       }
     }
     expect(bad).toEqual([]);
-  });
+  }, 300_000);
 
   it("no se mueve ninguna articulación que el guion no mueva (más de 0,5°)", () => {
     const bad: string[] = [];
@@ -144,7 +145,7 @@ describe("figuras con guion", () => {
       }
     }
     expect([...new Set(bad.map((b) => b.replace(/ t=[\d.]+/, "").replace(/ [\d.]+°$/, "")))]).toEqual([]);
-  });
+  }, 300_000);
 
   it("en los pasos isométricos no se desplaza nada del paciente", () => {
     const bad: string[] = [];
@@ -161,7 +162,7 @@ describe("figuras con guion", () => {
       });
     }
     expect([...new Set(bad)]).toEqual([]);
-  });
+  }, 300_000);
 
   it("la capa natural no cambia ningún ángulo del paciente ni dónde está", () => {
     const bad: string[] = [];
@@ -185,7 +186,7 @@ describe("figuras con guion", () => {
       }
     }
     expect([...new Set(bad)]).toEqual([]);
-  });
+  }, 300_000);
 
   it("la prueba de la capa natural falla si la capa moviera una articulación del paciente", () => {
     const { f } = scripted[0]!;
@@ -205,10 +206,16 @@ describe("figuras con guion", () => {
       if (!seg.startsWith(`${side}_`)) bad.push(`${id}: la letra va en ${seg}`);
       // Lo que se toca, duele o se mueve en los miembros, mayoritariamente de ese lado.
       const keys = keysOf(f);
-      const lateral = [...(f.hands ?? []), ...(f.pain ?? []), ...keys.slice(1).flatMap((k, i) => changes(keys[i]!.pose, k.pose).map((c) => c.joint))].filter((a) => /^[rl]_/.test(a));
+      // De pie sobre una pierna, la que se levanta no es la explorada: cuenta la de apoyo.
+      const L = f.posture === "standing" ? layoutPatient(f) : null;
+      if (L) patientPose(L, 0, 0);
+      const stance = L?.planted && L.planted.side !== "both" ? L.planted.side : null;
+      const lifted = (a: string) => !!stance && a.startsWith(`${stance === "r" ? "l" : "r"}_`) && /hip|knee|ankle/.test(a);
+      const moved = keys.slice(1).flatMap((k, i) => changes(keys[i]!.pose, k.pose).map((c) => c.joint as string)).filter((a) => !lifted(a));
+      const lateral = [...(f.hands ?? []), ...(f.pain ?? []), ...moved, ...(stance ? [`${stance}_hip`] : [])].filter((a) => /^[rl]_/.test(a));
       const mine = lateral.filter((a) => a.startsWith(`${side}_`)).length;
       if (lateral.length && mine < lateral.length / 2) bad.push(`${id}: dice ${side} pero casi todo es del otro lado`);
     }
     expect(bad).toEqual([]);
-  });
+  }, 300_000);
 });

@@ -68,7 +68,7 @@ export function anatAngles(spec: FigureSpec, u: number): BodyAngles {
     for (const j of LIMB_JOINTS) {
       const v = pose[`${s}_${j}`];
       const ja: JA = { flex: v.flex!, abd: v.abd! };
-      if (j === "shoulder" || j === "hip" || j === "knee") ja.rot = v.rot!;
+      if (j === "shoulder" || j === "hip" || j === "knee" || j === "ankle") ja.rot = v.rot!;
       if (j === "ankle") ja.inv = v.inv!;
       L[j] = ja;
     }
@@ -103,7 +103,7 @@ export const LIMITS: Record<string, Partial<Record<keyof Joint3D, [number, numbe
   wrist: { flex: [-80, 90], abd: [-40, 25] },
   hip: { flex: [-30, 130], abd: [-35, 50], rot: [-50, 45] },
   knee: { flex: [-8, 155], abd: [-12, 12], rot: [-40, 40] },
-  ankle: { flex: [-55, 35], inv: [-25, 40] },
+  ankle: { flex: [-55, 35], inv: [-25, 40], rot: [-30, 30] },
 };
 
 /** Lo que se sale de los límites en las poses clave del guion. */
@@ -179,8 +179,8 @@ export function measureAngles(p: Pose3): BodyPose {
     out[`${s}_hip`] = { flex: -hp.x, abd: g * hp.z, rot: -g * hp.y };
     const kn = ax(`${s}_knee`);
     out[`${s}_knee`] = { flex: kn.x, abd: g * kn.z, rot: -g * kn.y };
-    const an = ax(`${s}_ankle`);
-    out[`${s}_ankle`] = { flex: -an.x, inv: -g * an.z };
+    const an = e(R[`${s}_ankle`]!, "YXZ");
+    out[`${s}_ankle`] = { flex: -an.x, inv: -g * an.z, rot: -g * an.y };
   }
   return out;
 }
