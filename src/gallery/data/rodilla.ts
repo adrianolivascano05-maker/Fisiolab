@@ -1008,7 +1008,7 @@ export const rodillaTests: SpecialTest[] = [
           start: { r_hip: { abd: 6, rot: -30 }, l_hip: { abd: 6, rot: -30 } },
           steps: [
             {
-              to: { pelvis: { flex: 20 }, trunk: { flex: 20 }, r_hip: { flex: 100, abd: 30, rot: -10 }, l_hip: { flex: 100, abd: 30, rot: -10 }, r_knee: { flex: 110 }, l_knee: { flex: 110 }, r_ankle: { flex: 30, inv: -10 }, l_ankle: { flex: 30, inv: -10 }, r_shoulder: { flex: 50 }, l_shoulder: { flex: 50 } },
+              to: { pelvis: { flex: 20 }, trunk: { flex: 20 }, r_hip: { flex: 100, abd: 30, rot: -10 }, l_hip: { flex: 100, abd: 30, rot: -10 }, r_knee: { flex: 110 }, l_knee: { flex: 110 }, r_ankle: { flex: 30, inv: -10 }, l_ankle: { flex: 30, inv: -10 }, r_shoulder: { flex: 65 }, l_shoulder: { flex: 65 } },
               by: "patient",
               dur: 2.4,
               hold: 1.2,

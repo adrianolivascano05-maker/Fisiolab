@@ -205,8 +205,18 @@ export function clockOf(spec: FigureSpec, keys?: Key[]): Clock {
   const backEnd = lookEnd + BACK;
   const leaveEnd = backEnd + LEAVE;
   const total = leaveEnd + END;
-  const painFrom = Math.min(...spans.filter((x) => x.step.pain).map((x) => x.s), moveEnd - 0.3);
-  const painTo = spans.find((x) => x.step.painEnd && x.s > painFrom)?.s ?? lookEnd - 0.1;
+  // Tramos con dolor: desde cada paso con `pain` hasta el siguiente con `painEnd` (sin ninguno, solo al final).
+  const painSpans: [number, number][] = [];
+  let painOn: number | null = null;
+  for (const sp of spans) {
+    if (sp.step.painEnd && painOn !== null) {
+      painSpans.push([painOn, sp.s]);
+      painOn = null;
+    }
+    if (sp.step.pain && painOn === null) painOn = sp.s;
+  }
+  if (painOn !== null) painSpans.push([painOn, lookEnd - 0.1]);
+  if (!painSpans.length) painSpans.push([moveEnd - 0.3, lookEnd - 0.1]);
   const released = spans.flatMap((sp) => (sp.step.release ?? []).map((hand) => ({ hand, at: sp.s })));
   const fade = (x: number, a: number, b: number, w = 0.25) => Math.max(0, Math.min(1, (x - a + w) / w, (b + w - x) / w));
   const at = (tt: number): Moment => {
@@ -230,7 +240,7 @@ export function clockOf(spec: FigureSpec, keys?: Key[]): Clock {
       u = (S - 1 + minJerk((x - lookEnd) / BACK)) / S;
     } else if (x >= backEnd) u = 1;
     const reach = x < SETUP ? smooth((x - 0.25) / (SETUP - 0.45)) : x < backEnd ? 1 : 1 - smooth((x - backEnd) / LEAVE);
-    const pain = fade(x, painFrom, painTo, 0.3);
+    const pain = Math.max(...painSpans.map(([a, b]) => fade(x, a, b, 0.3)));
     const phase: PhaseId = x < SETUP ? "setup" : x < moveEnd ? "move" : x < lookEnd ? "look" : "back";
     // Una mano que suelta se separa al empezar su paso y vuelve a la toma al empezar la vuelta.
     const hands = released.length

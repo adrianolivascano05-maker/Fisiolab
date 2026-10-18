@@ -84,6 +84,9 @@ describe("figuras con guion", () => {
   it("las etiquetas automáticas dicen el sentido del movimiento", () => {
     const f: FigureSpec = { view: "side", posture: "supine", script: { start: { r_hip: { flex: 90 }, r_knee: { flex: 90 } }, steps: [{ to: { r_hip: { rot: -40 } }, text: "" }] } };
     expect(stepLabel(f, keysOf(f), 0)).toBe("RE 40°");
+    // Con dos articulaciones, dice cuál es cada una.
+    const g: FigureSpec = { view: "side", posture: "supine", script: { start: { r_hip: { flex: 90 }, r_knee: { flex: 90 } }, steps: [{ to: { r_hip: { flex: 115 }, r_knee: { flex: 120 } }, text: "" }] } };
+    expect(stepLabel(g, keysOf(g), 0)).toBe("Rodilla: flexión 120° · cadera: flexión 115°");
   });
 
   it("en cada pose clave, el giro de cada articulación del modelo es el que dice el convenio", () => {

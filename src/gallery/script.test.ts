@@ -94,6 +94,11 @@ describe("reloj", () => {
     expect(cg.at((s0!.from + s0!.moveTo) / 2).pain).toBe(0);
     expect(cg.at(s1!.moveTo).pain).toBe(1);
     expect(cg.at(s2!.moveTo).pain).toBe(0);
+    // Y volver (Bragard: cede al bajar la pierna y reaparece con la flexión dorsal).
+    const h: FigureSpec = { ...f, script: { steps: [...g.script!.steps, { text: "d", to: { r_ankle: { flex: 20 } }, pain: true }] } };
+    const ch = clockOf(h);
+    expect(ch.at(ch.steps[2]!.moveTo).pain).toBe(0);
+    expect(ch.at(ch.steps[3]!.moveTo).pain).toBe(1);
   });
   it("sin guion, el reloj de siempre (7 s)", () => {
     const old = clockOf({ view: "side", posture: "supine" });

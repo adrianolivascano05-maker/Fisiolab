@@ -3,6 +3,7 @@
 import { Quaternion, Vector3 } from "three";
 import type { FigureSpec } from "../figure";
 import { anatAngles, anatPose } from "./anatomy";
+import { mentioned as scriptMentions } from "../script";
 import { bodySDF, skinPoints, tableD } from "./collide";
 import { anatDir, anchorInfo, fk, LYING, patientAngles, postureQ, surfaceSamples, upSide, type BodyAngles, type Nudges, type Pose3, type SegKey, type Side } from "./rig";
 
@@ -109,6 +110,8 @@ function settleArms(L: Layout) {
   for (const s of ["r", "l"] as const) {
     const key = `${s}_shoulder` as const;
     if (spec.pose3d?.[key] || spec.to3d?.[key]) continue;
+    // Lo que fija el guion no se toca (los ángulos del guion son la verdad).
+    if (spec.script && scriptMentions(spec.script).has(key)) continue;
     const mentioned = spec.joints?.[key] !== undefined || spec.to?.[key] !== undefined;
     const canAbd = spec.view === "side" || !mentioned;
     const canFlex = spec.view === "front" || !mentioned;

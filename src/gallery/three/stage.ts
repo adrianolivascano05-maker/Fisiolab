@@ -682,7 +682,10 @@ export class Stage {
         placed.push({ x: ((this.mirrored ? 1 - v.x : v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, hw: 9, hh: 9 });
       }
     }
-    for (const el of this.overlay.children as HTMLCollectionOf<HTMLSpanElement>) {
+    const els = [...(this.overlay.children as HTMLCollectionOf<HTMLSpanElement>)];
+    // La letra del lado, primero: las etiquetas se apartan de ella.
+    if (this.sideTag) els.sort((a, b) => Number(b === this.sideTag) - Number(a === this.sideTag));
+    for (const el of els) {
       if (el === this.badge) continue;
       if (el.dataset.x === undefined || el.style.opacity === "0") {
         el.style.visibility = "hidden";
@@ -691,17 +694,23 @@ export class Stage {
       v.set(Number(el.dataset.x), Number(el.dataset.y), Number(el.dataset.z)).project(this.camera);
       const hw = el.offsetWidth / 2 + 3;
       const hh = el.offsetHeight / 2 + 1;
-      let x = Math.min(w - hw, Math.max(hw, ((this.mirrored ? 1 - v.x : v.x + 1) / 2) * w));
-      let y = Math.min(h - hh - 2, Math.max(hh + 2, ((1 - v.y) / 2) * h));
-      // Si se pisa con otra etiqueta, se aparta en vertical.
-      for (let k = 0; k < 6; k++) {
-        const o = placed.find((q) => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < q.hh + hh);
-        if (!o) break;
-        const down = y >= o.y ? 1 : -1;
-        y = o.y + down * (o.hh + hh + 1);
-        if (y > h - hh - 2 || y < hh + 2) {
-          y = o.y - down * (o.hh + hh + 1);
-          x = Math.min(w - hw, Math.max(hw, x));
+      const x0 = Math.min(w - hw, Math.max(hw, ((this.mirrored ? 1 - v.x : v.x + 1) / 2) * w));
+      const y0 = Math.min(h - hh - 2, Math.max(hh + 2, ((1 - v.y) / 2) * h));
+      // Si se pisa con otra etiqueta (o con el rótulo, la letra del lado o la punta de una flecha), se busca el
+      // sitio libre más cercano: arriba o abajo, y si no, también a un lado.
+      const free = (x: number, y: number) => !placed.some((q) => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < q.hh + hh);
+      let x = x0;
+      let y = y0;
+      search: for (const dx of [0, -1, 1]) {
+        for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {
+          const cx = Math.min(w - hw, Math.max(hw, x0 + dx * (hw + 6)));
+          const cy = y0 + k * (2 * hh + 2);
+          if (cy > h - hh - 2 || cy < hh + 2) continue;
+          if (free(cx, cy)) {
+            x = cx;
+            y = cy;
+            break search;
+          }
         }
       }
       placed.push({ x, y, hw, hh });

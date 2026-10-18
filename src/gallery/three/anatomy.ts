@@ -5,7 +5,7 @@ import { Euler, Quaternion } from "three";
 import type { BodyKey, BodyPose, FigureSpec, Joint3D } from "../figure";
 import { restValue } from "../posture";
 import { mentioned, poseAt, scriptKeys, type Key, type Shift } from "../script";
-import { sgn, type BodyAngles, type JA, type Limb, type Pose3 } from "./rig";
+import { sgn, type BodyAngles, type JA, type Limb, type Pose3, type Side } from "./rig";
 
 export { restValue };
 const LIMB_JOINTS = ["shoulder", "elbow", "wrist", "hip", "knee", "ankle"] as const;
@@ -44,6 +44,17 @@ export function anatPose(spec: FigureSpec, u: number): { pose: Required<Record<B
   return { pose: full, shift };
 }
 
+const START_KNEE = new WeakMap<FigureSpec, Record<Side, number>>();
+const startKnee = (spec: FigureSpec, s: Side) => {
+  let k = START_KNEE.get(spec);
+  if (!k) {
+    const p = anatPose(spec, 0).pose;
+    k = { r: p.r_knee.flex!, l: p.l_knee.flex! };
+    START_KNEE.set(spec, k);
+  }
+  return k[s];
+};
+
 /** Ángulos del esqueleto en el progreso u de una figura con guion. */
 export function anatAngles(spec: FigureSpec, u: number): BodyAngles {
   const { pose } = anatPose(spec, u);
@@ -81,7 +92,9 @@ export function anatAngles(spec: FigureSpec, u: number): BodyAngles {
       L.hip.flex += pose.pelvis.flex!;
       L.hip.abd -= sgn(s) * pose.pelvis.lat!;
     }
-    if (spec.posture === "prone" && free(`${s}_ankle`) && L.knee.flex < 30) L.ankle.flex = -55;
+    // Boca abajo, el pie que no se menciona descansa en flexión plantar si la rodilla empieza estirada (y no
+    // cambia durante la maniobra aunque la rodilla se flexione).
+    if (spec.posture === "prone" && free(`${s}_ankle`) && startKnee(spec, s) < 30) L.ankle.flex = -55;
   }
   return A;
 }

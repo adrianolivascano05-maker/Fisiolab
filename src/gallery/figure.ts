@@ -99,9 +99,9 @@ export type Step = {
   marks?: Mark[];
   /** Flechas de recorrido: de qué articulaciones (por defecto, las que cambian en el paso); false, ninguna. */
   path?: BodyKey[] | false;
-  /** Dolor visible desde este paso (por defecto, solo al final). */
+  /** Dolor visible desde este paso (por defecto, solo al final) hasta el siguiente con `painEnd`. */
   pain?: boolean;
-  /** El dolor desaparece al empezar este paso (arco doloroso: deja de doler por encima de 120°). */
+  /** El dolor desaparece al empezar este paso (arco doloroso: deja de doler por encima de 120°). Puede volver con otro `pain`. */
   painEnd?: boolean;
   /** Manos del examinador (su número en `hands`) que se separan al empezar este paso (vuelven para la vuelta). */
   release?: number[];

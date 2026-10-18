@@ -21,7 +21,7 @@ export type BuiltMark = {
   /** Dónde va la etiqueta (fija para las de recorrido; se recoloca en cada instante para las demás). */
   labelAt: Vector3;
   /** Para comprobar el sentido: puntos del recorrido dibujado y la articulación, el grado de libertad y el signo que representa. */
-  path?: { pts: Vector3[]; joint: BodyKey; dof: Dof; sign: number; virtual: boolean };
+  path?: { pts: Vector3[]; joint: BodyKey; dof: Dof; sign: number; virtual: boolean; also?: { joint: BodyKey; dof: Dof; d: number }[] };
   /** Puntos de la flecha que las etiquetas no deben tapar (la punta y la mitad). */
   keep?: Vector3[];
   /** Marcas sujetas al cuerpo: se recolocan en cada instante. */
@@ -38,6 +38,8 @@ function landmarks(joint: BodyKey): ((p: Pose3) => Vector3)[] {
   if (!m) {
     if (joint === "neck") return [(p) => new Vector3(0, -0.5, 11).applyQuaternion(p.head.q).add(p.head.p)];
     if (joint === "jaw") return [(p) => anchorInfo(p, "jaw")!.p];
+    // Pelvis: las crestas ilíacas y la parte de delante.
+    if (joint === "pelvis") return [(p) => new Vector3(-14, 10, 0).applyQuaternion(p.pelvisQ).add(p.root.p), (p) => new Vector3(14, 10, 0).applyQuaternion(p.pelvisQ).add(p.root.p), (p) => new Vector3(0, 4, 13).applyQuaternion(p.pelvisQ).add(p.root.p)];
     // Tronco y pelvis: los hombros, el esternón y la parte de delante de la pelvis.
     return [(p) => p.pt.r_shoulder!.clone(), (p) => p.pt.l_shoulder!.clone(), (p) => new Vector3(0, 0, 11).applyQuaternion(p.trunkQ).add(spineAt(p, 40).p), (p) => new Vector3(0, 4, 13).applyQuaternion(p.pelvisQ).add(p.root.p)];
   }
@@ -85,13 +87,13 @@ function beside(pts: Vector3[], c: Vector3): Vector3 {
 }
 
 /** Recorrido de un punto entre dos progresos de la maniobra (o con la articulación girada a mano). */
-function track(joint: BodyKey, lm: (p: Pose3) => Vector3, poses: Pose3[]): Vector3[] {
+function track(joint: BodyKey, lm: (p: Pose3) => Vector3, poses: Pose3[], floor = false): Vector3[] {
   return poses.map((p) => {
     const q = lm(p);
     // La cabeza: el recorrido de la nariz, llevado por encima de la cabeza (ahí no lo tapa nada).
     if (joint === "neck") return q.addScaledVector(new Vector3(0, 1, 0).applyQuaternion(p.trunkQ), 15);
     // El cuerpo entero que gira de pie sobre un pie: el recorrido de la pelvis, en el suelo (gira sobre ese pie).
-    if (joint === "pelvis" && p.root.q.equals(new Quaternion())) return new Vector3(0, 0, 38).applyQuaternion(p.pelvisQ).add(p.root.p).setY(1.5);
+    if (floor && joint === "pelvis" && p.root.q.equals(new Quaternion())) return new Vector3(0, 0, 38).applyQuaternion(p.pelvisQ).add(p.root.p).setY(1.5);
     const c = center(p, joint);
     const out = q.clone().sub(c);
     // Algo separada del cuerpo para que no se meta en él.
@@ -215,10 +217,10 @@ function bump(A: BodyAngles, joint: BodyKey, dof: Dof, d: number) {
 }
 
 /** Recorrido que hace (o haría, si se le dejara) un punto al mover una articulación: el más largo de sus puntos de referencia. */
-function bestTrack(joint: BodyKey, poses: Pose3[]): Vector3[] {
+function bestTrack(joint: BodyKey, poses: Pose3[], dof?: Dof): Vector3[] {
   let best: Vector3[] = [];
   for (const lm of landmarks(joint)) {
-    const t = track(joint, lm, poses);
+    const t = track(joint, lm, poses, dof === "rot");
     if (len(t) > len(best)) best = t;
   }
   return best;
@@ -254,7 +256,7 @@ export function buildMarks(spec: FigureSpec, L: Layout): { steps: BuiltMark[][];
       // Con varias cadenas, primero la del tronco y como mucho dos flechas.
       const poses = Array.from({ length: 25 }, (_, j) => patientPose(L, (i + j / 24) / S, 0));
       // (El punto de referencia de la articulación más alejada recoge también lo que mueven las de más arriba.)
-      const tracks = [...pick.values()].map((k) => ({ k, pts: bestTrack(k, poses) }));
+      const tracks = [...pick.values()].map((k) => ({ k, pts: bestTrack(k, poses, mainChange(keys, i, k)?.dof) }));
       tracks.sort((a, b) => len(b.pts) - len(a.pts));
       const label = stepLabel(spec, keys, i);
       tracks.slice(0, 2).forEach(({ k, pts }, n) => {
@@ -262,7 +264,9 @@ export function buildMarks(spec: FigureSpec, L: Layout): { steps: BuiltMark[][];
         const c = curved(pts, MARK_COLORS.path, 1.1);
         geos.push(...c.geos);
         const mc = mainChange(keys, i, k);
-        out.push({ kind: "path", group: c.group, mats: c.mats, label: n === 0 ? label : "", labelAt: beside(pts, center(poses[12]!, k)), keep: [pts[pts.length - 1]!, pts[Math.floor(pts.length / 2)]!, pts[Math.floor((3 * pts.length) / 4)]!], ...(mc ? { path: { pts, joint: k, dof: mc.dof, sign: mc.sign, virtual: false } } : {}) });
+        // (Si el paso mueve varias cosas a la vez, el punto se mueve por todas: se comprueba con todas.)
+        const also = ch.length > 1 ? ch.map((c) => ({ joint: c.joint, dof: c.dof, d: c.to - c.from })) : undefined;
+        out.push({ kind: "path", group: c.group, mats: c.mats, label: n === 0 ? label : "", labelAt: beside(pts, center(poses[12]!, k)), keep: [pts[pts.length - 1]!, pts[Math.floor(pts.length / 2)]!, pts[Math.floor((3 * pts.length) / 4)]!], ...(mc ? { path: { pts, joint: k, dof: mc.dof, sign: mc.sign, virtual: false, ...(also ? { also } : {}) } } : {}) });
       });
     }
     // Desplazamiento de un segmento (cajones, hundimiento): flecha recta en su sentido (o al revés, al soltarlo).
@@ -296,7 +300,7 @@ function markOf(L: Layout, mk: Mark, u: number, geos: BufferGeometry[], faceToCa
   if ("joint" in mk) {
     // Isométrico de una articulación: el recorrido que haría si se le dejara (25°), con tope.
     const poses = Array.from({ length: 13 }, (_, j) => patientPose(L, u, 0, (A) => bump(A, mk.joint, mk.dof, (mk.sign * 25 * j) / 12)));
-    const pts = bestTrack(mk.joint, poses);
+    const pts = bestTrack(mk.joint, poses, mk.dof);
     const c = curved(pts, color, 1.1, true);
     geos.push(...c.geos);
     return { kind: "resist", group: c.group, mats: c.mats, label, labelAt: beside(pts, center(poses[0]!, mk.joint)), keep: [pts[pts.length - 1]!, pts[Math.floor(pts.length / 2)]!], path: { pts, joint: mk.joint, dof: mk.dof, sign: mk.sign, virtual: true } };
@@ -366,7 +370,8 @@ function markOf(L: Layout, mk: Mark, u: number, geos: BufferGeometry[], faceToCa
 /**
  * Sentido de una flecha de recorrido tal como está dibujada: +1 si va en el sentido positivo del grado de
  * libertad que representa (convenio), −1 si en el contrario, 0 si no se puede decir. Se calcula comparando el
- * desplazamiento de la punta con el que produce, en el esqueleto, un pequeño giro positivo de esa articulación.
+ * desplazamiento de la punta con el que produce, en el esqueleto, un pequeño giro positivo de esa articulación
+ * (si el paso mueve varias cosas a la vez, todas en la proporción del paso, con la principal en positivo).
  */
 export function drawnSense(L: Layout, u: number, mark: NonNullable<BuiltMark["path"]>): number {
   const { pts, joint, dof } = mark;
@@ -374,10 +379,15 @@ export function drawnSense(L: Layout, u: number, mark: NonNullable<BuiltMark["pa
   const drawn = pts[n - 1]!.clone().sub(pts[Math.max(0, n - 4)]!);
   // Dónde está el punto al final del recorrido y hacia dónde iría con +3° de esa articulación.
   const lmBest = landmarks(joint)
-    .map((lm) => ({ lm, d: track(joint, lm, [patientPose(L, u, 0)])[0]!.distanceTo(pts[n - 1]!) }))
+    .map((lm) => ({ lm, d: track(joint, lm, [patientPose(L, u, 0)], dof === "rot")[0]!.distanceTo(pts[n - 1]!) }))
     .sort((a, b) => a.d - b.d)[0]!.lm;
-  const a = track(joint, lmBest, [patientPose(L, u, 0)])[0]!;
-  const b = track(joint, lmBest, [patientPose(L, u, 0, (A) => bump(A, joint, dof, 3))])[0]!;
+  const a = track(joint, lmBest, [patientPose(L, u, 0)], dof === "rot")[0]!;
+  const push = (A: BodyAngles) => {
+    if (!mark.also) return bump(A, joint, dof, 3);
+    const m = Math.max(...mark.also.map((c) => Math.abs(c.d)));
+    for (const c of mark.also) bump(A, c.joint, c.dof, (mark.sign * c.d * 3) / m);
+  };
+  const b = track(joint, lmBest, [patientPose(L, u, 0, push)], dof === "rot")[0]!;
   const pos = b.sub(a);
   if (pos.length() < 1e-4 || drawn.length() < 1e-4) return 0;
   const c = pos.normalize().dot(drawn.normalize());
