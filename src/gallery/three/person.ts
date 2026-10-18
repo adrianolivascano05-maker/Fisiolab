@@ -8,10 +8,20 @@ import { bentFinger, DEPRESSOR, DIM, fingerBends, FINGERS, FOOT, HAND_REST_CURL,
 
 export type Look = "patient" | "examiner";
 
-const PALETTE = {
-  patient: { skin: "#e6c2a3", palm: "#efd3bd", lip: "#c98676", hair: "#4a3426", top: "#d9b95a", bottom: "#0e3b2e", shoe: null as string | null, sole: "#e9e4da" },
-  examiner: { skin: "#c4957a", palm: "#d9b29b", lip: "#a6665a", hair: "#221a16", top: "#1f6f54", bottom: "#185a44", shoe: "#2b2b2e", sole: "#e9e4da" },
+/** Colores de cada persona. «clean» (por defecto): maniquí con la ropa de la clínica (examinador en el verde
+ *  de la marca, paciente en gris), sin pelo ni rasgos pintados; «classic»: como antes. Ningún color coincide
+ *  con los de las marcas (azul, naranja, gris oscuro, rojo). */
+const PALETTES = {
+  clean: {
+    patient: { skin: "#e8c3a2", palm: "#efd1b8", lip: "#c9927f", hair: "#5a4a3e", top: "#a8b2bd", bottom: "#3f4650", shoe: null as string | null, sole: "#e9e4da" },
+    examiner: { skin: "#c49274", palm: "#d6ad94", lip: "#a8705f", hair: "#2b2420", top: "#1f6f54", bottom: "#164c3b", shoe: "#2b2b2e", sole: "#e9e4da" },
+  },
+  classic: {
+    patient: { skin: "#e6c2a3", palm: "#efd3bd", lip: "#c98676", hair: "#4a3426", top: "#d9b95a", bottom: "#0e3b2e", shoe: null as string | null, sole: "#e9e4da" },
+    examiner: { skin: "#c4957a", palm: "#d9b29b", lip: "#a6665a", hair: "#221a16", top: "#1f6f54", bottom: "#185a44", shoe: "#2b2b2e", sole: "#e9e4da" },
+  },
 };
+export type Style = keyof typeof PALETTES;
 
 /** Anillo de una malla: sección (superelipse de exponente e), centro, engorde (ropa) y relieve (cm hacia fuera en cada punto). */
 type Ring = { y: number; sec: Section; xc?: number; zc?: number; e?: number; inflate?: number; bump?: (x: number, z: number) => number };
@@ -315,7 +325,7 @@ function painted(key: string, w: number, h: number, fn: (u: number, v: number) =
   return tex;
 }
 
-type Cloth = { top: Color; bottom: Color; skin: Color; palm: Color; lip: Color; hair: Color; shoe: Color | null; sole: Color; sleeve: number; legCut: number; look: Look };
+type Cloth = { top: Color; bottom: Color; skin: Color; palm: Color; lip: Color; hair: Color; shoe: Color | null; sole: Color; sleeve: number; legCut: number; look: Look; /** Maniquí: sin pelo, cejas, ojos ni color en los labios. */ clean: boolean };
 /**
  * Brazo (hombro a muñeca) o pierna (cadera a tobillo) como una sola piel, sin costura en el codo ni en la
  * rodilla: los perfiles de los dos segmentos se funden alrededor de la articulación. `y` de cada anillo: −cm
@@ -749,6 +759,7 @@ function headColor(p: Vector3, cl: Cloth): Color {
     out.lerp(cl.hair, 0.85 * ramp(0.06, -0.06, d));
   }
   const hair = cl.hair.clone().lerp(new Color("#ffffff"), 0.05 * ramp(8, 13, p.y));
+  if (cl.clean) return cl.skin.clone();
   return out.lerp(hair, hairAt(p, cl.look).c);
 }
 
@@ -762,11 +773,11 @@ function headGeometry(cl: Cloth): { geo: BufferGeometry; map: CanvasTexture | nu
   const last = HEAD[HEAD.length - 1]!;
   const capT = new Vector3(0, y1 + 0.12, (last[2] + last[3]) / 2);
   // Colores en una textura (bordes limpios en el pelo, las cejas y los labios).
-  const map = painted(`head-${cl.look}`, 384, 192, (u, v) => headColor(headPoint(y0 + v * (y1 - y0), u * Math.PI * 2), cl));
+  const map = painted(`head-${cl.look}-${cl.clean ? "c" : "x"}`, 384, 192, (u, v) => headColor(headPoint(y0 + v * (y1 - y0), u * Math.PI * 2), cl));
   // El pelo abulta sobre la piel (la misma malla, sin costura en la línea del pelo).
   const rest = new Map<Vector3, Vector3>();
   const grow = (p: Vector3) => {
-    const q = p.clone().addScaledVector(skullNormal(p), hairAt(p, cl.look).h);
+    const q = cl.clean ? p.clone() : p.clone().addScaledVector(skullNormal(p), hairAt(p, cl.look).h);
     rest.set(q, p);
     return q;
   };
@@ -870,9 +881,14 @@ export class Person {
   private armTop = new Uint32Array();
   private readonly normalFix: { skin: Skin; i: number; x: number; y: number; z: number; w: number }[] = [];
   private readonly torsoTop = {} as Record<Side, Uint32Array>;
+  /** Respiración: vértices de la parte de delante del pecho y del abdomen, con su peso. */
+  private breathW = { idx: new Uint32Array(), w: new Float32Array() };
 
-  constructor(readonly look: Look) {
-    const P = PALETTE[look];
+  constructor(
+    readonly look: Look,
+    readonly style: Style = "clean",
+  ) {
+    const P = PALETTES[style][look];
     const cl: Cloth = {
       skin: new Color(P.skin),
       palm: new Color(P.palm),
@@ -885,6 +901,7 @@ export class Person {
       sleeve: look === "patient" ? 0.36 : 0.42,
       legCut: look === "patient" ? 0.4 : 2,
       look,
+      clean: style === "clean",
     };
     this.mat = new MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0 });
     const mat = this.mat;
@@ -932,7 +949,7 @@ export class Person {
     const ty0 = ys[0]!;
     const ty1 = ys[ys.length - 1]!;
     let row = { y: NaN, v: [0, 0, 0] };
-    const tmap = painted(`torso-${look}`, 384, 256, (u, v) => {
+    const tmap = painted(`torso-${look}-${style}`, 384, 256, (u, v) => {
       const y = ty0 + v * (ty1 - ty0);
       if (y !== row.y) row = { y, v: profileAt(TORSO, y) };
       const [a, ant, post] = row.v as [number, number, number];
@@ -963,6 +980,24 @@ export class Person {
       const top: number[] = [];
       for (let i = 0; i < r.length / 3; i++) if (r[i * 3]! * sgn(sd) > 7 && r[i * 3 + 1]! > 33) top.push(i);
       this.torsoTop[sd] = Uint32Array.from(top);
+    }
+
+    // Lo que se mueve al respirar: el pecho y el abdomen por delante (más el abdomen).
+    {
+      const idx: number[] = [];
+      const w: number[] = [];
+      const r = this.torso.rest;
+      for (let i = 0; i < r.length / 3; i++) {
+        const x = r[i * 3]!;
+        const y = r[i * 3 + 1]!;
+        const z = r[i * 3 + 2]!;
+        const front = ramp(-1, 4, z) * ramp(14, 6, Math.abs(x));
+        const k = front * (ramp(6, 12, y) * ramp(26, 20, y) + 0.7 * ramp(22, 28, y) * ramp(46, 40, y));
+        if (k <= 0.01) continue;
+        idx.push(i);
+        w.push(k);
+      }
+      this.breathW = { idx: Uint32Array.from(idx), w: Float32Array.from(w) };
     }
 
     // Cuello: ancho abajo (trapecios y esternocleidomastoideos), se mete bajo la mandíbula.
@@ -1001,13 +1036,15 @@ export class Person {
     const feat: BufferGeometry[] = [noseGeometry(cl.skin)];
     const lidC = cl.skin.clone().multiplyScalar(0.96);
     for (const x of [-1, 1]) {
-      // Ojo: globo blanco, iris oscuro y párpados de piel.
+      // Ojo: globo blanco, iris oscuro y párpados de piel (el maniquí no lleva ojos).
       const c = faceAt(x * 3.1, 1.25);
       const eye = new Vector3(x * 3.1, 1.25, c.z - 0.72);
-      feat.push(sphereAt(new Color("#f1ece4"), 1.05, eye, new Vector3(1.38, 0.86, 1)));
-      feat.push(sphereAt(new Color("#3a2a21"), 0.55, eye.clone().add(new Vector3(-x * 0.05, -0.03, 1.02)), new Vector3(1, 1, 0.3), 14, 10));
-      feat.push(sphereAt(lidC, 1.08, eye.clone().add(new Vector3(0, 0.44, 0.06)), new Vector3(1.42, 0.6, 1)));
-      feat.push(sphereAt(lidC, 1.06, eye.clone().add(new Vector3(0, -0.56, 0.02)), new Vector3(1.36, 0.42, 1)));
+      if (!cl.clean) {
+        feat.push(sphereAt(new Color("#f1ece4"), 1.05, eye, new Vector3(1.38, 0.86, 1)));
+        feat.push(sphereAt(new Color("#3a2a21"), 0.55, eye.clone().add(new Vector3(-x * 0.05, -0.03, 1.02)), new Vector3(1, 1, 0.3), 14, 10));
+        feat.push(sphereAt(lidC, 1.08, eye.clone().add(new Vector3(0, 0.44, 0.06)), new Vector3(1.42, 0.6, 1)));
+        feat.push(sphereAt(lidC, 1.06, eye.clone().add(new Vector3(0, -0.56, 0.02)), new Vector3(1.36, 0.42, 1)));
+      }
       // Oreja con su concha.
       feat.push(sphereAt(cl.skin, 1, new Vector3(x * 7.25, -0.5, -0.8), new Vector3(0.62, 2.6, 1.5)));
       feat.push(sphereAt(cl.skin.clone().multiplyScalar(0.88), 1, new Vector3(x * 7.6, -0.7, -0.55), new Vector3(0.3, 1.45, 0.85), 10, 8));
@@ -1038,8 +1075,13 @@ export class Person {
     }
   }
 
-  /** Coloca todas las piezas en la pose. */
-  apply(pose: Pose3) {
+  /** Materiales de la piel y la ropa (para el sombreado de contacto con la camilla y el suelo). */
+  materials(): MeshStandardMaterial[] {
+    return [...new Set([this.mat, this.torsoMat, this.headMat])];
+  }
+
+  /** Coloca todas las piezas en la pose. `breath` (0-1): respiración, solo en la piel (capa natural). */
+  apply(pose: Pose3, breath = 0) {
     for (const k of Object.keys(this.ends) as (keyof typeof this.ends)[]) {
       const o = this.ends[k];
       o.position.copy(pose.seg[k].p);
@@ -1055,6 +1097,7 @@ export class Person {
       f.q.copy(x.q);
     }, true);
     for (const s of ["r", "l"] as const) this.torso.shift(this.girdleW[s].idx, this.girdleW[s].w, pose.girdle[s]);
+    if (breath > 0) this.torso.shift(this.breathW.idx, this.breathW.w, new Vector3(0, 0, 0.45 * breath).applyQuaternion(pose.trunkQ));
     this.torso.finish();
     // Cuello: abajo con el tórax, en medio con el cuello y arriba con la cabeza.
     this.neck.place((y, f) => {
@@ -1203,6 +1246,8 @@ export class Person {
     this.mouth.position.copy(up).lerp(low, 0.5).addScaledVector(out, 0.1);
     this.mouth.rotation.x = phi;
     this.mouth.scale.set(2.2 - open * 0.08, 0.13 + gap / 2 - 0.25, 0.3);
+    // El maniquí no lleva boca pintada: solo se ve cuando se abre.
+    this.mouth.visible = this.style !== "clean" || deg > 1;
     const t = Math.min(1, Math.max(0, (open - 0.4) / 1.2));
     const [top, bottom] = this.teeth as [Mesh, Mesh];
     top.visible = bottom.visible = t > 0.02;

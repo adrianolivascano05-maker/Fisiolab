@@ -269,7 +269,7 @@ export const cervicalTests: SpecialTest[] = [
           setup: "Paciente sentado con la espalda recta y mirando al frente. El examinador mide con un goniómetro o un inclinómetro.",
           look: "Positivo si la rotación activa hacia el lado sintomático no llega a 60° (aquí, 55°).",
         },
-        camera: { az: 15, el: 38 },
+        camera: { from: [-0.2, 0.62, 0.76] },
         supuestos: ["Lado sintomático: derecho.", "Se dibuja una rotación de 55° hacia el lado sintomático (un positivo) y de 75° hacia el otro."],
       },
     ],

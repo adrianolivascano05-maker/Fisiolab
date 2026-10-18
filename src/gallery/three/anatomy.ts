@@ -146,7 +146,7 @@ export function jointRotations(p: Pose3): Record<string, Quaternion> {
 }
 
 /** Ángulo (grados) entre dos giros. */
-export const quatAngle = (a: Quaternion, b: Quaternion) => (2 * Math.acos(Math.min(1, Math.abs(a.dot(b)))) * 180) / Math.PI;
+export const quatAngle = (a: Quaternion, b: Quaternion) => (2 * Math.acos(Math.min(1, Math.abs(a.dot(b)) / (a.length() * b.length() || 1))) * 180) / Math.PI;
 
 /**
  * Ángulos anatómicos medidos sobre el modelo (convenio de CONVENIO.md), deshaciendo el orden en que el

@@ -150,8 +150,9 @@ export type FigureSpec = {
   marks?: Mark[];
   /** Colocación del examinador cuando la automática no es la clínica: postura y desde dónde llega. */
   place?: { stance?: "stand" | "sit" | "squat" | "kneel"; from?: "front" | "behind" | "side" };
-  /** Cámara fijada a mano: acimut desde delante del paciente (+ hacia su derecha), elevación y acercamiento (1 = el automático). */
-  camera?: { az: number; el: number; zoom?: number };
+  /** Cámara fijada a mano: dirección desde el paciente hacia la cámara en su marco (x a su izquierda, y hacia
+   *  su cabeza, z hacia delante) y acercamiento (1 = el automático). */
+  camera?: { from: [number, number, number]; zoom?: number };
   /** Textos propios de la figura (si no, los del test). */
   text?: { setup?: string; look?: string };
   /** Decisiones clínicas tomadas sin dato en la fuente, pendientes de revisión por un fisioterapeuta. */

@@ -11,7 +11,7 @@ import { Matrix4, Quaternion, Vector3 } from "three";
 import type { Anchor, FigureSpec } from "../figure";
 import { extremeU, mixAt, planKeys } from "../script";
 import { keysOf } from "./anatomy";
-import { cameraKey } from "./cameras";
+import { planKey } from "./cameras";
 import { bodySDF, handPoints, skinPoints, tableD, type BodySDF } from "./collide";
 import { patientPose, type Layout, type Table } from "./layout";
 import stored from "./plans.json";
@@ -295,7 +295,7 @@ export const mixFor = (spec: FigureSpec, m: number) => (spec.script ? mixAt(keys
 export function planExaminer(spec: FigureSpec, L: Layout, fresh = false): ExaminerPlan | null {
   const hands = (spec.hands ?? []).slice(0, 2);
   if (!hands.length || spec.examiner === "none") return null;
-  const saved = fresh ? undefined : PLANS[cameraKey(spec)];
+  const saved = fresh ? undefined : PLANS[planKey(spec)];
   if (saved) return unpack(saved);
   const ctx = context(spec, L);
   const plan = place(ctx);
@@ -304,7 +304,7 @@ export function planExaminer(spec: FigureSpec, L: Layout, fresh = false): Examin
 }
 
 function place(ctx: Ctx): ExaminerPlan {
-  const both = search(ctx, [0, 1]);
+  const both = search(ctx, ctx.poses.map((_, i) => i));
   // Desde un solo sitio no llega a todo, o solo con los brazos en mala postura: un sitio para el final de la
   // maniobra y otro para el principio (con cada mano en el mismo brazo, y sin atravesar nada por el camino).
   if (both.found && both.arms < 2.5) return both.plan;
@@ -342,7 +342,10 @@ function context(spec: FigureSpec, L: Layout): Ctx {
   const p1 = patientPose(L, end, 1);
   const pm = patientPose(L, end / 2, 1);
   const dense = spec.script ? [] : [0.125, 0.375, 0.625, 0.875].map((m) => bodySDF(patientPose(L, m, 1)));
-  return { spec, table: L.table, hands: (spec.hands ?? []).slice(0, 2), key, poses: [k0.pose, p1], sdf: [k0.sdf, bodySDF(p1)], midPose: pm, mid: bodySDF(pm), dense: [...key.map((k) => k.sdf), ...dense] };
+  // Con guion, además, el resto de las poses clave (p. ej. el giro hacia el otro lado): desde el sitio elegido
+  // tiene que llegar a todas.
+  const more = spec.script ? key.filter((k, i) => i % 2 === 0 && k.m > 0 && k.m < 1 && Math.abs(k.m - end) > 1e-6) : [];
+  return { spec, table: L.table, hands: (spec.hands ?? []).slice(0, 2), key, poses: [k0.pose, p1, ...more.map((k) => k.pose)], sdf: [k0.sdf, bodySDF(p1), ...more.map((k) => k.sdf)], midPose: pm, mid: bodySDF(pm), dense: [...key.map((k) => k.sdf), ...dense] };
 }
 
 type Cand = { cost: number; turn: number; yawOff: number; st: (typeof STANCES)[number]; extra: number; lean: number };
@@ -978,39 +981,50 @@ function refineArms(ctx: Ctx, plan: ExaminerPlan): ArmPlan[] {
           const ct = fr.cts[arm.hand]!;
           return GRID.map((th) => armCost(env(k), ct, handAt(o, fr.mix), th, k === 0));
         });
-        // Programación dinámica: de un momento al siguiente, el codo gira poco.
+        // Programación dinámica: de un momento al siguiente, el codo gira poco. Con guion, el último momento es
+        // la vuelta a la partida: el codo tiene que acabar donde empezó (si no, saltaría al repetirse el bucle).
         const K = frames.length;
-        const V: number[][] = [C[0]!.map((x) => x.c)];
-        const from: number[][] = [GRID.map(() => -1)];
-        for (let k = 1; k < K; k++) {
-          const row: number[] = [];
-          const fr: number[] = [];
-          for (let j = 0; j < GRID.length; j++) {
-            let bv = Infinity;
-            let bi = 0;
-            for (let i = 0; i < GRID.length; i++) {
-              const d = Math.abs(angleDiff(GRID[i]!, GRID[j]!));
-              const v = V[k - 1]![i]! + 0.0015 * d * d + (d > 45 ? 4 : 0);
-              if (v < bv) {
-                bv = v;
-                bi = i;
+        const run = (j0: number) => {
+          const V: number[][] = [C[0]!.map((x, j) => (j0 < 0 || j === j0 ? x.c : Infinity))];
+          const from: number[][] = [GRID.map(() => -1)];
+          for (let k = 1; k < K; k++) {
+            const row: number[] = [];
+            const fr: number[] = [];
+            for (let j = 0; j < GRID.length; j++) {
+              let bv = Infinity;
+              let bi = 0;
+              for (let i = 0; i < GRID.length; i++) {
+                const d = Math.abs(angleDiff(GRID[i]!, GRID[j]!));
+                const v = V[k - 1]![i]! + 0.0015 * d * d + (d > 45 ? 4 : 0);
+                if (v < bv) {
+                  bv = v;
+                  bi = i;
+                }
               }
+              row.push(bv + C[k]![j]!.c);
+              fr.push(bi);
             }
-            row.push(bv + C[k]![j]!.c);
-            fr.push(bi);
+            V.push(row);
+            from.push(fr);
           }
-          V.push(row);
-          from.push(fr);
-        }
-        let j = V[K - 1]!.reduce((bi, v, i, a) => (v < a[bi]! ? i : bi), 0);
-        const total = V[K - 1]![j]! + o.extra;
+          const end = j0 < 0 ? V[K - 1]!.reduce((bi, v, i, a) => (v < a[bi]! ? i : bi), 0) : j0;
+          return { total: V[K - 1]![end]!, end, from };
+        };
+        let dp = run(-1);
+        if (ctx.spec.script)
+          for (let j0 = 0; j0 < GRID.length; j0++) {
+            const r = run(j0);
+            if (j0 === 0 || r.total < dp.total) dp = r;
+          }
+        let j = dp.end;
+        const total = dp.total + o.extra;
         if (best && total >= best.total) continue;
         const idx: number[] = [];
         for (let k = K - 1; k >= 0; k--) {
           idx.unshift(j);
-          j = from[k]![j]!;
+          j = dp.from[k]![j]!;
         }
-        // Ángulos sin saltos de 360°.
+        // Ángulos sin saltos de 360° (con guion, el último apunta igual que el primero: el bucle se cierra).
         const pole: number[] = [GRID[idx[0]!]!];
         for (let k = 1; k < K; k++) pole.push(pole[k - 1]! + angleDiff(GRID[idx[k - 1]!]!, GRID[idx[k]!]!));
         const { extra: _extra, ...hand } = o;

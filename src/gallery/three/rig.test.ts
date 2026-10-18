@@ -1,12 +1,12 @@
 import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { clockOf } from "../script";
+import { clockOf, extremeU } from "../script";
 import { tests } from "../data";
-import { CAMERAS, cameraKey } from "./cameras";
+import { CAMERAS, cameraKey, planKey } from "./cameras";
 import PLANS from "./plans.json";
 import { figureFaults } from "./audit";
 import { bodySDF } from "./collide";
-import { baseExaminerPose, fitHand, handAt, handTarget, planExaminer } from "./examiner";
+import { baseExaminerPose, fitHand, handAt, handTarget, mixFor, planExaminer } from "./examiner";
 import { scenePoses } from "./scene";
 import { anglesOf, layoutPatient } from "./layout";
 import { keysOf } from "./anatomy";
@@ -45,15 +45,17 @@ describe("maniquí 3D", () => {
       const L = layoutPatient(f);
       const plan = planExaminer(f, L);
       expect(plan, id).not.toBeNull();
-      for (const m of [0, 1]) {
-        const { pat, ex, cts } = scenePoses(f, L, plan, { m, reach: 1, arrows: m });
-        const base = baseExaminerPose(plan!, m);
+      // Al principio y en la pose más alejada de la maniobra (con guion, antes de la vuelta).
+      for (const m of [0, f.script ? extremeU(keysOf(f)) : 1]) {
+        const mix = mixFor(f, m);
+        const { pat, ex, cts } = scenePoses(f, L, plan, { m, reach: 1, arrows: m, mix });
+        const base = baseExaminerPose(plan!, mix);
         const sdf = bodySDF(pat);
         for (const arm of plan!.arms) {
           // La muñeca llega a donde la toma la necesita (con la mano asentada en la piel).
           const S = base.pt[`${arm.side}_shoulder`]!.clone().sub(base.girdle[arm.side]);
           const ct = cts[arm.hand]!;
-          const fit = fitHand(ct, handTarget(ct, S, handAt(arm, m)), sdf, arm.side);
+          const fit = fitHand(ct, handTarget(ct, S, handAt(arm, mix)), sdf, arm.side);
           const gap = ex!.seg[`${arm.side}_hand`].p.distanceTo(fit.W);
           if (gap > 1.5) far.push(`${id} ${f.hands[arm.hand]} ${gap.toFixed(1)} cm`);
         }
@@ -108,7 +110,7 @@ describe("maniquí 3D", () => {
   }, 300_000);
 
   it("cada figura con examinador tiene su colocación precalculada (si falla: node scripts/gallery3d-plans.mjs)", () => {
-    const missing = figures.filter(({ f }) => f.hands?.length && f.examiner !== "none" && !(PLANS as Record<string, unknown>)[cameraKey(f)]).map((x) => x.id);
+    const missing = figures.filter(({ f }) => f.hands?.length && f.examiner !== "none" && !(PLANS as Record<string, unknown>)[planKey(f)]).map((x) => x.id);
     expect(missing).toEqual([]);
   });
 

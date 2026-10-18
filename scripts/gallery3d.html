@@ -31,6 +31,7 @@
   const times = [];
   const cams = {};
   window.cameras = cams;
+  window.allKeys = tests.flatMap((x) => x.figures.map((f) => cameraKey(f)));
   window.times = times;
   for (const it of items) {
     const fig = document.createElement("figure");

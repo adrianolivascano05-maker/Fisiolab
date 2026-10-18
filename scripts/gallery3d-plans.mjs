@@ -14,7 +14,7 @@ const dir = mkdtempSync(join(tmpdir(), "plans-"));
 const entry = `
 import { parentPort, workerData } from "node:worker_threads";
 import { tests } from "./src/gallery/data";
-import { cameraKey } from "./src/gallery/three/cameras";
+import { planKey } from "./src/gallery/three/cameras";
 import { packPlan, planExaminer } from "./src/gallery/three/examiner";
 import { polishPlan } from "./src/gallery/three/polish";
 import { layoutPatient } from "./src/gallery/three/layout";
@@ -25,10 +25,10 @@ figs.forEach((f, i) => {
   const L = layoutPatient(f);
   const plan = planExaminer(f, L, true);
   // Repaso con la animación de verdad: si algo choca en algún instante, se prueban variantes de los brazos.
-  if (plan) out[cameraKey(f)] = packPlan(polishPlan(f, L, plan));
+  if (plan) out[planKey(f)] = packPlan(polishPlan(f, L, plan));
 });
 // Las claves de todas las figuras (para quitar de la tabla las de figuras que ya no existen o han cambiado).
-const keys = workerData.k === 0 ? tests.flatMap((t) => t.figures).filter((f) => f.hands?.length && f.examiner !== "none").map(cameraKey) : [];
+const keys = workerData.k === 0 ? tests.flatMap((t) => t.figures).filter((f) => f.hands?.length && f.examiner !== "none").map(planKey) : [];
 parentPort.postMessage({ out, keys });
 `;
 await build({ stdin: { contents: entry, resolveDir: process.cwd(), loader: "ts" }, bundle: true, platform: "node", format: "esm", outfile: join(dir, "w.mjs"), logLevel: "error" });

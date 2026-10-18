@@ -38,11 +38,38 @@ import { CAMERAS, cameraKey, type CamState } from "./cameras";
 import { buildMarks, MARK_COLORS, type BuiltMark } from "./marks";
 import { mixFor, planExaminer, stoolOf, type ExaminerPlan } from "./examiner";
 import { layoutPatient, patientPose, type Layout, type Table } from "./layout";
-import { Person } from "./person";
+import { Person, type Style } from "./person";
+import { applyNatural, naturalAt } from "./natural";
 import { scenePoses } from "./scene";
 import { anatDir, anchorInfo, LYING, sgn, surfaceRadius, surfaceSamples, type Pose3 } from "./rig";
 
 const COLORS = { force: "#1f6f54", move: "#6f675b", pain: "#d43a2a", table: "#c2b08f", tableSide: "#a8987a", tableLeg: "#7c7262", floor: "#efe6d6" };
+/** Escena «clean» (por defecto): fondo neutro que contrasta con la piel y la ropa, camilla tapizada en gris pizarra. */
+const CLEAN = { bg: "#e9ecef", floor: "#dde1e5", table: "#5b6673", tableSide: "#47505b", tableLeg: "#383e46" };
+
+/**
+ * Sombreado de contacto: la piel y la ropa se oscurecen un poco junto a la camilla y el suelo (como la luz
+ * que no llega a los apoyos), para que los cuerpos no parezcan flotar. Solo cambia el color.
+ */
+function contactShade(m: MeshStandardMaterial, table: Table | null) {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uTable = { value: table ? [table.x0, table.x1, table.z0, table.z1] : [0, 0, 0, 0] };
+    sh.uniforms.uTop = { value: table?.top ?? -1000 };
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vCW;").replace("#include <project_vertex>", "#include <project_vertex>\nvCW = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vCW;\nuniform vec4 uTable;\nuniform float uTop;")
+      .replace(
+        "#include <opaque_fragment>",
+        `float occ = 1.0 - 0.32 * exp(-max(vCW.y, 0.0) / 2.5);
+        float inT = step(uTable.x - 2.0, vCW.x) * step(vCW.x, uTable.y + 2.0) * step(uTable.z - 2.0, vCW.z) * step(vCW.z, uTable.w + 2.0);
+        occ *= 1.0 - inT * 0.36 * exp(-max(vCW.y - uTop, 0.0) / 2.2);
+        outgoingLight *= occ;
+        #include <opaque_fragment>`,
+      );
+  };
+  m.customProgramCacheKey = () => "contact";
+  m.needsUpdate = true;
+}
 const FOV = 30;
 /** Cuánto se puede girar la vista a cada lado (grados). */
 const MAX_TURN = 40;
@@ -70,7 +97,21 @@ export function sideOf(spec: FigureSpec): "r" | "l" | "both" {
   return l > r ? "l" : "r";
 }
 
+/** Segmento junto al que va la letra del lado (el miembro explorado; en cabeza, cuello o tronco, el hombro de ese lado). */
+export function sideSegment(spec: FigureSpec, side: "r" | "l" | "both"): string | null {
+  if (side === "both") return null;
+  const s = side;
+  const all = [...(spec.pain ?? []), ...(spec.hands ?? []), ...Object.keys(spec.script?.steps.reduce((a, st) => ({ ...a, ...st.to }), {}) ?? {})];
+  const arm = all.some((a) => a.startsWith(`${s}_`) && /shoulder|upperarm|elbow|forearm|wrist|hand/.test(a));
+  const leg = all.some((a) => a.startsWith(`${s}_`) && /hip|thigh|knee|shank|ankle|foot/.test(a));
+  return leg && !arm ? `${s}_thigh@0.45` : arm ? `${s}_upperarm@0.5` : `${s}_upperarm@0.05`;
+}
+
 export type StageOptions = {
+  /** Aspecto: «clean» (maniquí con la ropa de la clínica, luz de tres puntos, sombreado de contacto) o «classic». */
+  style?: Style;
+  /** Capa natural (respiración, mirada del examinador): por defecto, sí. Nunca cambia los ángulos del paciente. */
+  natural?: boolean;
   /** Quien mira ha girado la figura. */
   onRotate?: () => void;
   /** El navegador ha retirado el contexto WebGL (poca memoria): hay que volver al dibujo plano. */
@@ -101,7 +142,9 @@ export class Stage {
   private readonly renderer: WebGLRenderer;
   private readonly scene = new Scene();
   private readonly camera = new PerspectiveCamera(FOV, 4 / 3, 5, 5000);
-  private readonly patient = new Person("patient");
+  private readonly patient: Person;
+  private readonly rim = new DirectionalLight("#ffffff", 0.9);
+  private natural: boolean;
   private readonly examiner: Person | null;
   private readonly plan: ExaminerPlan | null;
   private readonly rootQ: Quaternion;
@@ -139,7 +182,11 @@ export class Stage {
     title: string,
     private readonly opts: StageOptions = {},
   ) {
-    const bg = getComputedStyle(host).getPropertyValue("--color-bg").trim() || "#fbf7f0";
+    const style = opts.style ?? "clean";
+    this.natural = opts.natural ?? true;
+    this.patient = new Person("patient", style);
+    const clean = style === "clean";
+    const bg = clean ? CLEAN.bg : getComputedStyle(host).getPropertyValue("--color-bg").trim() || "#fbf7f0";
     this.renderer = new WebGLRenderer({ antialias: true, alpha: false, preserveDrawingBuffer: false });
     const r = this.renderer;
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -165,16 +212,20 @@ export class Stage {
 
     this.scene.background = new Color(bg);
     this.scene.fog = new Fog(new Color(bg), 400, 900);
-    this.scene.add(new HemisphereLight("#ffffff", "#d8c9ae", 1.25), new AmbientLight("#ffffff", 0.25));
+    // Luz de tres puntos: principal (con sombra suave), relleno frío del otro lado y contraluz que separa la
+    // silueta del fondo; más cielo y suelo.
+    this.scene.add(clean ? new HemisphereLight("#ffffff", "#b8b3aa", 1.0) : new HemisphereLight("#ffffff", "#d8c9ae", 1.25), new AmbientLight("#ffffff", clean ? 0.16 : 0.25));
+    if (clean) this.key.intensity = 2.5;
     this.key.castShadow = true;
     this.key.shadow.mapSize.set(1024, 1024);
     this.key.shadow.bias = -0.0006;
     this.key.shadow.normalBias = 0.6;
-    this.key.shadow.radius = 4;
+    this.key.shadow.radius = clean ? 7 : 4;
     this.scene.add(this.key, this.key.target);
-    const fill = new DirectionalLight("#fff3e2", 0.55);
+    const fill = new DirectionalLight(clean ? "#eaf0ff" : "#fff3e2", clean ? 0.6 : 0.55);
     fill.position.set(-200, 120, -150);
     this.scene.add(fill);
+    if (clean) this.scene.add(this.rim, this.rim.target);
 
     const anchors = [...(spec.hands ?? []), ...(spec.pain ?? []), ...(spec.arrows ?? []).map((a) => a.at)];
     this.faceOnly = anchors.length > 0 && anchors.every((a) => /^(jaw|mouth|depressor|[rl]_tmj)$/.test(a));
@@ -186,17 +237,18 @@ export class Stage {
     this.side = sideOf(spec);
     this.rootQ = this.layout.rootQ;
     this.table = this.layout.table;
-    if (this.table) this.addTable(this.table);
+    if (this.table) this.addTable(this.table, clean);
 
     this.plan = planExaminer(spec, this.layout);
-    this.examiner = this.plan ? new Person("examiner") : null;
+    this.examiner = this.plan ? new Person("examiner", style) : null;
+    if (clean) for (const p of [this.patient, this.examiner]) for (const m of p?.materials() ?? []) contactShade(m, this.table);
     const stool = this.plan ? stoolOf(this.plan) : null;
     if (stool) this.addStool(stool);
     if (spec.prop === "depressor") this.patient.addDepressor();
     this.scene.add(this.patient.group);
     if (this.examiner) this.scene.add(this.examiner.group);
 
-    const floor = new Mesh(new PlaneGeometry(4000, 4000), new MeshStandardMaterial({ color: COLORS.floor, roughness: 1 }));
+    const floor = new Mesh(new PlaneGeometry(4000, 4000), new MeshStandardMaterial({ color: clean ? CLEAN.floor : COLORS.floor, roughness: 1 }));
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.scene.add(floor);
@@ -224,14 +276,15 @@ export class Stage {
     return patientPose(this.layout, m, nudge);
   }
 
-  private addTable(t: Table) {
+  private addTable(t: Table, clean: boolean) {
     const g = new Group();
-    const top = new Mesh(new BoxGeometry(t.x1 - t.x0, 9, t.z1 - t.z0), new MeshStandardMaterial({ color: COLORS.table, roughness: 0.9 }));
+    const C = clean ? CLEAN : COLORS;
+    const top = new Mesh(new BoxGeometry(t.x1 - t.x0, 9, t.z1 - t.z0), new MeshStandardMaterial({ color: C.table, roughness: 0.9 }));
     top.position.set((t.x0 + t.x1) / 2, t.top - 4.5, (t.z0 + t.z1) / 2);
-    const base = new Mesh(new BoxGeometry(t.x1 - t.x0 - 4, 4, t.z1 - t.z0 - 4), new MeshStandardMaterial({ color: COLORS.tableSide, roughness: 0.8 }));
+    const base = new Mesh(new BoxGeometry(t.x1 - t.x0 - 4, 4, t.z1 - t.z0 - 4), new MeshStandardMaterial({ color: C.tableSide, roughness: 0.8 }));
     base.position.set(top.position.x, t.top - 11, top.position.z);
     g.add(top, base);
-    const legMat = new MeshStandardMaterial({ color: COLORS.tableLeg, roughness: 0.6, metalness: 0.2 });
+    const legMat = new MeshStandardMaterial({ color: C.tableLeg, roughness: 0.6, metalness: 0.2 });
     for (const x of [t.x0 + 9, t.x1 - 9]) {
       for (const z of [t.z0 + 7, t.z1 - 7]) {
         const leg = new Mesh(new CylinderGeometry(1.8, 1.8, t.top - 13, 10), legMat);
@@ -356,13 +409,9 @@ export class Stage {
 
   /** Punto del miembro explorado junto al que va la letra D o I. */
   private sideAnchor(pat: Pose3): Vector3 | null {
-    if (this.side === "both") return null;
+    const seg = sideSegment(this.spec, this.side);
+    if (!seg || this.side === "both") return null;
     const s = this.side;
-    const all = [...(this.spec.pain ?? []), ...(this.spec.hands ?? []), ...Object.keys(this.spec.script?.steps.reduce((a, st) => ({ ...a, ...st.to }), {}) ?? {})];
-    const arm = all.some((a) => a.startsWith(`${s}_`) && /shoulder|upperarm|elbow|forearm|wrist|hand/.test(a));
-    const leg = all.some((a) => a.startsWith(`${s}_`) && /hip|thigh|knee|shank|ankle|foot/.test(a));
-    // Cabeza, cuello o tronco: junto al hombro de ese lado.
-    const seg = leg && !arm ? `${s}_thigh@0.45` : arm ? `${s}_upperarm@0.5` : `${s}_upperarm@0.05`;
     const info = anchorInfo(pat, seg);
     if (!info) return null;
     const out = new Vector3(sgn(s), 0, 0).applyQuaternion(pat.trunkQ);
@@ -376,6 +425,12 @@ export class Stage {
     const u = extremeU(this.keys);
     const step = Math.max(0, Math.round(u * S) - 1);
     return { m: u, mix: 1, reach: 1, arrows: 1, pain: 1, pulse: 0.5, step, markStep: step, phase: "look" };
+  }
+
+  /** Capa natural (respiración, mirada): activada o no. No cambia ningún ángulo del paciente. */
+  setNatural(on: boolean) {
+    this.natural = on;
+    this.render(this.lastT);
   }
 
   /** Modo clínico (ayudas visibles) o natural (el gesto limpio). */
@@ -468,19 +523,30 @@ export class Stage {
   }
 
   /** Coloca todo en el instante dado. */
-  private pose(tl: Moment) {
+  private pose(tl: Moment, sec = 0) {
     const spec = this.spec;
     const { m, reach, arrows, pain, pulse } = tl;
     const clinical = this.mode === "clinical";
     const { pat, ex, cts } = scenePoses(spec, this.layout, this.plan, tl);
-    this.patient.apply(pat);
-    if (ex && this.examiner) this.examiner.apply(ex);
+    // Capa natural: solo la piel, los dedos libres y la mirada del examinador (los ángulos del paciente, iguales).
+    const nat = this.natural ? naturalAt(sec) : null;
+    const shown = nat ? applyNatural(pat, ex, sec, cts.map((c) => c.p)) : { pat, ex };
+    this.patient.apply(shown.pat, nat?.breath.patient ?? 0);
+    if (shown.ex && this.examiner) this.examiner.apply(shown.ex, nat?.breath.examiner ?? 0);
     const toCam = this.camera.position.clone().sub(this.view.center).normalize();
     void m;
 
     if (this.sideTag) {
       const at = clinical ? this.sideAnchor(pat) : null;
-      if (at) this.place(this.sideTag, at, 1);
+      // La letra solo si se ve el miembro (no flotando sobre el examinador que lo tapa).
+      if (at && this.examiner) {
+        const cam = this.camera.position;
+        const to = at.clone().sub(cam);
+        const ray = new Raycaster(cam.clone(), to.clone().normalize(), 0, to.length() - 6);
+        this.scene.updateMatrixWorld();
+        if (ray.intersectObject(this.examiner.group, true).length) this.sideTag.style.opacity = "0";
+        else this.place(this.sideTag, at, 1);
+      } else if (at) this.place(this.sideTag, at, 1);
       else this.sideTag.style.opacity = "0";
     }
     if (this.scriptMarks) {
@@ -707,11 +773,9 @@ export class Stage {
     // Cámara fijada a mano en la figura (acimut desde delante del paciente, + hacia su derecha).
     if (this.spec.camera) {
       const c = this.spec.camera;
-      const h = new Vector3(-Math.sin(rad(c.az)), 0, Math.cos(rad(c.az))).applyQuaternion(this.rootQ).setY(0);
-      if (h.lengthSq() < 1e-4) h.set(0, 0, 1);
-      h.normalize();
-      const az = Math.atan2(h.x, h.z);
-      const el = rad(c.el);
+      const d = new Vector3(...c.from).normalize().applyQuaternion(this.rootQ);
+      const az = Math.atan2(d.x, d.z);
+      const el = Math.asin(Math.max(-0.2, Math.min(0.95, d.y)));
       const fit = this.fit(this.dirOf(az, el), fp);
       this.base = { az, el };
       this.view = { center: fit.center, dist: fit.dist / (c.zoom ?? 1), az, el };
@@ -896,8 +960,8 @@ export class Stage {
       const c = roi.reduce((a, b) => a.add(b), new Vector3()).multiplyScalar(1 / roi.length);
       const { pat, ex } = scenePoses(spec, this.layout, this.plan, this.stillMoment());
       const head = (p: Pose3) => [p.head.p, p.head.p.clone().add(new Vector3(0, 13, 0).applyQuaternion(p.head.q)), p.head.p.clone().add(new Vector3(0, -11, 0).applyQuaternion(p.head.q))];
-      if (pat.head.p.distanceTo(c) < 70) roi.push(...head(pat));
-      if (ex && ex.head.p.distanceTo(c) < 85) roi.push(...head(ex));
+      if (pat.head.p.distanceTo(c) < 50) roi.push(...head(pat));
+      if (ex && ex.head.p.distanceTo(c) < 55) roi.push(...head(ex));
     }
     return { roi, all };
   }
@@ -976,6 +1040,9 @@ export class Stage {
     const bRight = new Vector3().crossVectors(new Vector3(0, 1, 0), baseDir).normalize();
     this.key.position.copy(this.view.center).addScaledVector(bRight, -0.55 * L).addScaledVector(new Vector3(0, 1, 0), 1.25 * L).addScaledVector(baseDir, 0.55 * L);
     this.key.target.position.copy(this.view.center);
+    // Contraluz: detrás de las personas respecto a la cámara, algo alto.
+    this.rim.position.copy(this.view.center).addScaledVector(baseDir, -0.9 * L).addScaledVector(new Vector3(0, 1, 0), 0.7 * L).addScaledVector(bRight, 0.3 * L);
+    this.rim.target.position.copy(this.view.center);
     const sc = this.key.shadow.camera;
     const R = Math.max(130, this.view.dist * 0.6);
     sc.left = -R;
@@ -1050,7 +1117,7 @@ export class Stage {
       this.renderer.setSize(w, h, false);
       this.updateCamera();
     }
-    this.pose(still ? this.stillMoment() : this.clock.at(t));
+    this.pose(still ? this.stillMoment() : this.clock.at(t), t * this.clock.duration);
     this.renderer.render(this.scene, this.camera);
     this.layoutLabels();
   }

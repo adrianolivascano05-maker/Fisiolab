@@ -226,8 +226,7 @@ export const hombroTests: SpecialTest[] = [
           steps: [
             {
               marks: [
-                { kind: "resist", joint: "r_shoulder", dof: "rot", sign: -1, label: "El paciente empuja hacia RE" },
-                { kind: "push", at: "r_wrist", dir: "medial", label: "El examinador resiste" },
+                { kind: "resist", joint: "r_shoulder", dof: "rot", sign: -1, label: "Empuja hacia RE; el examinador lo frena" },
               ],
               dur: 0.4,
               hold: 3.2,

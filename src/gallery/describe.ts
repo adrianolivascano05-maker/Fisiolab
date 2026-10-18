@@ -131,3 +131,35 @@ export function mirrorText(s: string): string {
     return w[0] === w[0]!.toUpperCase() ? r[0]!.toUpperCase() + r.slice(1) : r;
   });
 }
+
+/** Lo que afirma una etiqueta escrita a mano: qué grado de libertad y en qué sentido (convenio). */
+export type Claim = { dof: Dof; sign: number; axial?: boolean; what: string };
+export function labelClaims(label: string): Claim[] {
+  const out: Claim[] = [];
+  const has = (re: RegExp) => re.test(label);
+  if (has(/\bRI\b|rotaci[oó]n interna/i)) out.push({ dof: "rot", sign: 1, what: "rotación interna" });
+  if (has(/\bRE\b|rotaci[oó]n externa/i)) out.push({ dof: "rot", sign: -1, what: "rotación externa" });
+  if (has(/rotaci[oó]n (a la )?derecha|gira a la derecha/i)) out.push({ dof: "rot", sign: 1, axial: true, what: "giro a la derecha" });
+  if (has(/rotaci[oó]n (a la )?izquierda|gira a la izquierda/i)) out.push({ dof: "rot", sign: -1, axial: true, what: "giro a la izquierda" });
+  if (has(/pronaci[oó]n/i)) out.push({ dof: "pron", sign: 1, what: "pronación" });
+  if (has(/supinaci[oó]n/i)) out.push({ dof: "pron", sign: -1, what: "supinación" });
+  if (has(/inversi[oó]n/i)) out.push({ dof: "inv", sign: 1, what: "inversión" });
+  if (has(/eversi[oó]n/i)) out.push({ dof: "inv", sign: -1, what: "eversión" });
+  if (has(/\babducci[oó]n/i)) out.push({ dof: "abd", sign: 1, what: "abducción" });
+  if (has(/\baducci[oó]n/i)) out.push({ dof: "abd", sign: -1, what: "aducción" });
+  if (has(/\bvalgo\b/i)) out.push({ dof: "abd", sign: 1, what: "valgo" });
+  if (has(/\bvaro\b/i)) out.push({ dof: "abd", sign: -1, what: "varo" });
+  if (has(/flexi[oó]n dorsal/i)) out.push({ dof: "flex", sign: 1, what: "flexión dorsal" });
+  else if (has(/flexi[oó]n plantar/i)) out.push({ dof: "flex", sign: -1, what: "flexión plantar" });
+  else if (has(/\bextensi[oó]n|\bextiende/i)) out.push({ dof: "flex", sign: -1, what: "extensión" });
+  else if (has(/\bflexi[oó]n|\bflexiona/i)) out.push({ dof: "flex", sign: 1, what: "flexión" });
+  return out;
+}
+
+/** Lo que una etiqueta afirma y el paso no hace (vacío si todo cuadra). */
+export function labelMismatches(label: string, ch: { joint: BodyKey; dof: Dof; from: number; to: number }[]): string[] {
+  const axial = (k: BodyKey) => k === "neck" || k === "trunk" || k === "pelvis";
+  return labelClaims(label)
+    .filter((c) => !ch.some((x) => x.dof === c.dof && Math.sign(x.to - x.from) === c.sign && (c.dof !== "rot" || axial(x.joint) === !!c.axial)))
+    .map((c) => `«${label}» dice ${c.what} y el paso no la hace`);
+}

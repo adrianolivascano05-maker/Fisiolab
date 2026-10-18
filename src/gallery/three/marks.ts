@@ -91,11 +91,11 @@ function track(joint: BodyKey, lm: (p: Pose3) => Vector3, poses: Pose3[]): Vecto
     // La cabeza: el recorrido de la nariz, llevado por encima de la cabeza (ahí no lo tapa nada).
     if (joint === "neck") return q.addScaledVector(new Vector3(0, 1, 0).applyQuaternion(p.trunkQ), 15);
     // El cuerpo entero que gira de pie sobre un pie: el recorrido de la pelvis, en el suelo (gira sobre ese pie).
-    if (joint === "pelvis" && p.root.q.equals(new Quaternion())) return q.setY(1.5);
+    if (joint === "pelvis" && p.root.q.equals(new Quaternion())) return new Vector3(0, 0, 38).applyQuaternion(p.pelvisQ).add(p.root.p).setY(1.5);
     const c = center(p, joint);
     const out = q.clone().sub(c);
     // Algo separada del cuerpo para que no se meta en él.
-    return out.lengthSq() > 1e-6 ? q.addScaledVector(out.normalize(), 3.2) : q;
+    return out.lengthSq() > 1e-6 ? q.addScaledVector(out.normalize(), 4.5) : q;
   });
 }
 
