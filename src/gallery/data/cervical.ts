@@ -279,6 +279,7 @@ export const cervicalTests: SpecialTest[] = [
         view: "front",
         posture: "sitting",
         joints: { r_shoulder: 150, r_elbow: 140 },
+        pose3d: { r_shoulder: { flex: 165, abd: 26, rot: 74 }, r_elbow: { flex: 100 } },
         pain: ["r_upperarm@0.5"],
         caption: "Mano sobre la cabeza: se busca alivio del dolor del brazo.",
       },

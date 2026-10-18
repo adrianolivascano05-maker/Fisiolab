@@ -185,7 +185,7 @@ export const atmTests: SpecialTest[] = [
         joints: { jaw: 0 },
         to: { jaw: 4 },
         hands: ["jaw"],
-        grips: [{ kind: "press", face: "caudal" }],
+        grips: [{ kind: "tips", face: "caudal" }],
         arrows: [{ at: "jaw", dir: "cranial", label: "resistencia", len: 12 }],
         pain: ["r_tmj"],
         caption: "Intento de apertura contra la mano bajo el mentón.",

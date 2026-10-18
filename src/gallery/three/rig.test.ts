@@ -2,7 +2,9 @@ import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import { tests } from "../data";
 import { CAMERAS, cameraKey } from "./cameras";
-import { contacts, examinerPose, handTarget, planExaminer } from "./examiner";
+import PLANS from "./plans.json";
+import { bodySDF, skinPoints, tableD } from "./collide";
+import { contacts, examinerPose, handAt, handTarget, planExaminer } from "./examiner";
 import { layoutPatient, patientPose } from "./layout";
 import { anchorInfo, DIM, fk, patientAngles, postureQ, upSide } from "./rig";
 
@@ -47,13 +49,44 @@ describe("maniquí 3D", () => {
         for (const arm of plan!.arms) {
           // La muñeca llega a donde la toma la necesita.
           const S = base.pt[`${arm.side}_shoulder`]!;
-          const gap = ex.seg[`${arm.side}_hand`].p.distanceTo(handTarget(cts[arm.hand]!, S).W);
+          const gap = ex.seg[`${arm.side}_hand`].p.distanceTo(handTarget(cts[arm.hand]!, S, handAt(arm, m)).W);
           if (gap > 4) far.push(`${id} ${f.hands[arm.hand]} ${gap.toFixed(1)} cm`);
         }
       }
     }
     expect(far).toEqual([]);
   }, 60_000);
+
+  it("el examinador no se mete en el paciente ni en la camilla, ni el paciente en sí mismo", () => {
+    const bad: string[] = [];
+    for (const { id, f } of figures) {
+      const L = layoutPatient(f);
+      const poses = [0, 1].map((m) => patientPose(L, m, 0));
+      const plan = f.hands?.length ? planExaminer(f, poses, L.table) : null;
+      for (const m of [0, 0.5, 1]) {
+        const pat = patientPose(L, m, 1);
+        const psdf = bodySDF(pat);
+        // Antebrazos y manos del paciente fuera de su tronco y su cabeza (apoyados, como mucho, hundiendo algo la piel).
+        const worst = Math.min(...skinPoints(pat, (p) => /forearm|hand/.test(p), 2).map((sp) => psdf(sp.p, (q) => q !== "torso" && q !== "head").d));
+        if (worst < -2.5) bad.push(`${id} m=${m} paciente: antebrazo o mano dentro del cuerpo ${(-worst).toFixed(1)} cm`);
+        if (!plan) continue;
+        const base = examinerPose(plan, contacts(f, pat, null, plan), 0, m);
+        const cts = contacts(f, pat, base, plan);
+        const ex = examinerPose(plan, cts, 1, m);
+        // Cuerpo, cabeza, piernas y brazos del examinador fuera del paciente y de la camilla.
+        const body = skinPoints(ex, (p) => !/hand|forearm/.test(p), 2);
+        const inside = Math.min(...body.map((sp) => psdf(sp.p).d));
+        if (inside < -1.5) bad.push(`${id} m=${m} examinador dentro del paciente ${(-inside).toFixed(1)} cm`);
+        if (L.table && Math.min(...body.map((sp) => tableD(L.table!, sp.p))) < -1.5) bad.push(`${id} m=${m} examinador dentro de la camilla`);
+      }
+    }
+    expect(bad).toEqual([]);
+  }, 120_000);
+
+  it("cada figura con examinador tiene su colocación precalculada (si falla: node scripts/gallery3d-plans.mjs)", () => {
+    const missing = figures.filter(({ f }) => f.hands?.length && f.examiner !== "none" && !(PLANS as Record<string, unknown>)[cameraKey(f)]).map((x) => x.id);
+    expect(missing).toEqual([]);
+  });
 
   it("cada figura tiene su cámara precalculada (si falla: node scripts/gallery3d-cameras.mjs)", () => {
     const missing = figures.filter(({ f }) => !CAMERAS[cameraKey(f)]).map((x) => x.id);

@@ -52,6 +52,8 @@ export type Arrow =
  *  o la que mira al examinador). Solo cambia la figura 3D. */
 export type Grip = { kind: "press" | "grasp" | "tips"; face?: Direction };
 
+export type Joint3D = { flex?: number; abd?: number; rot?: number };
+
 export type FigureSpec = {
   view: "side" | "front";
   posture: Posture;
@@ -71,6 +73,12 @@ export type FigureSpec = {
   pain?: Anchor[];
   /** Objeto en la escena: un depresor lingual entre los molares del lado derecho (solo en 3D). */
   prop?: "depressor";
+  /** Solo 3D: ángulos de las dos vistas a la vez para lo que el dibujo plano no puede expresar (la mano en el
+   *  hombro contrario, la aducción horizontal, el codo doblado hacia delante con el brazo en alto). flex: en
+   *  el plano sagital; abd: separación (negativa, aducción); rot: rotación del hombro o la cadera (interna +).
+   *  Sustituyen a los de `joints` (y `to3d` a los de `to`) en esas articulaciones. */
+  pose3d?: Partial<Record<JointKey, Joint3D>>;
+  to3d?: Partial<Record<JointKey, Joint3D>>;
   caption?: string;
 };
 

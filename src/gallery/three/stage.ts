@@ -32,7 +32,7 @@ import {
 } from "three";
 import { timeline, type Arrow, type FigureSpec } from "../figure";
 import { CAMERAS, cameraKey, type CamState } from "./cameras";
-import { contacts, examinerPose, planExaminer, type ExaminerPlan } from "./examiner";
+import { contacts, examinerPose, planExaminer, stoolOf, type ExaminerPlan } from "./examiner";
 import { layoutPatient, patientPose, type Layout, type Table } from "./layout";
 import { Person } from "./person";
 import { anatDir, anchorInfo, LYING, surfaceRadius, surfaceSamples, type Pose3 } from "./rig";
@@ -156,9 +156,11 @@ export class Stage {
     this.table = this.layout.table;
     if (this.table) this.addTable(this.table);
 
-    const poses = [0, 1].map((m) => this.patientPose(m, 0));
+    const poses = [0, 0.5, 1].map((m) => this.patientPose(m, 0));
     this.plan = planExaminer(spec, poses, this.table);
     this.examiner = this.plan ? new Person("examiner") : null;
+    const stool = this.plan ? stoolOf(this.plan) : null;
+    if (stool) this.addStool(stool);
     if (spec.prop === "depressor") this.patient.addDepressor();
     this.scene.add(this.patient.group);
     if (this.examiner) this.scene.add(this.examiner.group);
@@ -213,6 +215,34 @@ export class Stage {
     });
     this.disposables.push(top.material as MeshStandardMaterial, base.material as MeshStandardMaterial, legMat);
     this.tableGroup = g;
+    this.scene.add(g);
+  }
+
+  /** Taburete del examinador cuando explora sentado. */
+  private addStool(st: { x: number; z: number; h: number }) {
+    const g = new Group();
+    const seatMat = new MeshStandardMaterial({ color: "#3b3b3e", roughness: 0.7 });
+    const metal = new MeshStandardMaterial({ color: "#a3a19c", roughness: 0.35, metalness: 0.6 });
+    const seat = new Mesh(new CylinderGeometry(17, 16, 6, 28), seatMat);
+    seat.position.set(st.x, st.h - 3, st.z);
+    const pole = new Mesh(new CylinderGeometry(2.2, 2.2, st.h - 8, 12), metal);
+    pole.position.set(st.x, (st.h - 6) / 2 + 1, st.z);
+    g.add(seat, pole);
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI * 2;
+      const leg = new Mesh(new BoxGeometry(2.2, 2, 26), metal);
+      leg.position.set(st.x + Math.sin(a) * 12, 2, st.z + Math.cos(a) * 12);
+      leg.rotation.y = a;
+      g.add(leg);
+    }
+    g.traverse((o) => {
+      if (o instanceof Mesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+        this.disposables.push(o.geometry);
+      }
+    });
+    this.disposables.push(seatMat, metal);
     this.scene.add(g);
   }
 
@@ -521,7 +551,7 @@ export class Stage {
     // El lado contrario enseña el mismo plano del movimiento (perfil izquierdo en vez de derecho).
     const planeN = new Vector3(this.spec.view === "side" ? 1 : 0, 0, this.spec.view === "side" ? 0 : 1).applyQuaternion(this.rootQ);
     const mirror = Math.abs(planeN.y) < 0.5 ? prefDir.clone().addScaledVector(planeN.setY(0).normalize(), -2 * prefDir.dot(planeN)) : null;
-    const mirrorCost = this.spec.view === "side" ? 0.4 : 1.6;
+    const mirrorCost = this.spec.view === "side" ? 0.4 : 3.2;
     const sitFwd = this.spec.posture === "sitting" ? new Vector3(0, 0, 1).applyQuaternion(this.rootQ).setY(0).normalize() : null;
     const cranial = LYING.includes(this.spec.posture) ? new Vector3(0, 1, 0).applyQuaternion(this.rootQ).setY(0) : null;
     const exBody = this.plan ? surfaceSamples(examinerPose(this.plan, contacts(this.spec, this.patientPose(1, 1), null, this.plan), 1), (part) => part === "torso" || part === "head").map((x) => x.p) : [];

@@ -927,7 +927,7 @@ export const caderaTests: SpecialTest[] = [
         view: "side",
         posture: "sitting",
         hands: ["r_thigh@0.5", "r_knee"],
-        grips: [{ kind: "grasp", face: "posterior" }, { kind: "press", face: "cranial" }],
+        grips: [{ kind: "grasp", face: "lateral" }, { kind: "press", face: "cranial" }],
         arrows: [{ at: "r_knee", dir: "caudal", label: "presión" }],
         pain: ["r_thigh@0.5"],
         caption: "Antebrazo bajo el muslo como fulcro y presión hacia abajo en la rodilla.",

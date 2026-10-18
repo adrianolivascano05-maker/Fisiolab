@@ -38,23 +38,28 @@ export const LIMB: Record<Exclude<LimbSeg, "hand" | "foot">, { len: number; ring
   upperarm: {
     len: DIM.upperarm,
     rings: [
-      [-0.1, 3.6, 2.8, 3.8, 3.8],
-      [0, 5.8, 4.2, 5.6, 5.6],
-      [0.22, 5.1, 4.2, 4.9, 4.8],
-      [0.6, 4.4, 4.0, 4.5, 4.3],
-      [0.92, 3.8, 3.6, 3.6, 3.8],
-      [1.04, 3.0, 3.0, 3.0, 3.0],
+      [-0.065, 1.6, 1.2, 1.7, 1.7],
+      [-0.05, 3.4, 2.5, 3.6, 3.6],
+      [-0.02, 4.7, 3.6, 4.8, 4.9],
+      [0.03, 5.3, 4.2, 5.2, 5.4],
+      [0.15, 5.3, 4.3, 5.0, 5.0],
+      [0.38, 4.4, 4.1, 4.4, 4.4],
+      [0.6, 4.1, 3.9, 4.6, 4.3],
+      [0.85, 3.8, 3.7, 3.7, 3.9],
+      [1, 3.8, 3.9, 3.3, 3.6],
+      [1.06, 3.3, 3.3, 3.0, 3.2],
     ],
   },
   forearm: {
     len: DIM.forearm,
     rings: [
-      [-0.06, 3.0, 3.0, 3.0, 3.0],
-      [0.04, 3.8, 3.7, 3.6, 3.8],
-      [0.25, 4.1, 3.9, 3.9, 3.9],
-      [0.7, 3.1, 3.0, 2.7, 2.6],
-      [0.98, 2.9, 2.9, 1.95, 1.95],
-      [1.04, 2.4, 2.4, 1.6, 1.6],
+      [-0.07, 3.3, 3.3, 3.0, 3.3],
+      [0, 3.8, 3.8, 3.4, 3.7],
+      [0.18, 4.2, 4.0, 3.9, 3.7],
+      [0.4, 3.8, 3.6, 3.5, 3.3],
+      [0.7, 3.1, 2.9, 2.6, 2.5],
+      [0.95, 2.8, 2.8, 1.95, 1.95],
+      [1.05, 2.5, 2.5, 1.7, 1.7],
     ],
   },
   thigh: {
@@ -63,24 +68,38 @@ export const LIMB: Record<Exclude<LimbSeg, "hand" | "foot">, { len: number; ring
       [-0.14, 6.0, 4.0, 6.0, 6.5],
       [0, 8.8, 7.0, 8.2, 8.8],
       [0.25, 8.4, 7.2, 8.0, 7.8],
-      [0.6, 7.1, 6.2, 7.0, 6.3],
-      [0.9, 5.6, 5.4, 5.6, 5.3],
-      [1.03, 4.6, 4.6, 4.6, 4.6],
+      [0.6, 7.1, 6.4, 7.0, 6.3],
+      [0.85, 5.8, 5.8, 5.6, 5.3],
+      [0.97, 5.2, 5.3, 5.3, 4.8],
+      [1.05, 4.7, 4.7, 4.6, 4.6],
     ],
   },
   shank: {
     len: DIM.shank,
     rings: [
-      [-0.04, 4.6, 4.6, 4.4, 4.4],
+      [-0.05, 4.7, 4.7, 4.6, 4.4],
       [0.03, 5.1, 5.0, 5.0, 5.0],
       [0.22, 5.0, 5.5, 4.2, 6.4],
       [0.5, 4.0, 4.3, 3.7, 4.7],
-      [0.85, 3.0, 3.1, 2.8, 3.1],
-      [1, 3.0, 3.0, 2.8, 3.0],
-      [1.05, 2.4, 2.4, 2.2, 2.2],
+      [0.8, 3.0, 3.1, 2.8, 3.2],
+      [0.95, 3.3, 3.4, 2.7, 2.9],
+      [1.06, 2.5, 2.5, 2.3, 2.3],
     ],
   },
 };
+
+/** Pie: secciones a lo largo de z (del talón a los dedos), [z, semiancho, arriba, abajo] respecto al tobillo. */
+export const FOOT: [number, number, number, number][] = [
+  [-6.4, 1.6, -3.0, -5.6],
+  [-5.4, 3.0, -0.8, -6.9],
+  [-3, 3.3, 2.8, -7],
+  [2, 3.6, 0.8, -7],
+  [8, 4.1, -2.4, -7],
+  [13.5, 4.5, -3.8, -7],
+  [17.2, 4.1, -4.6, -7],
+  [19.2, 2.9, -5.2, -6.9],
+  [19.9, 1.4, -5.6, -6.6],
+];
 
 /** Tronco: [altura sobre las caderas, semiancho, hacia delante, hacia atrás]. */
 export const TORSO: [number, number, number, number][] = [
@@ -94,28 +113,29 @@ export const TORSO: [number, number, number, number][] = [
   [26, 14.8, 9.8, 8.4],
   [34, 16.2, 11, 8.9],
   [41, 17.2, 11.4, 9.3],
-  [46, 18, 10.2, 9.3],
-  [50, 17.6, 7.8, 8.6],
-  [53, 13.5, 6, 6.8],
-  [55.5, 8, 4.8, 5.4],
+  [46, 17.2, 10.2, 9.3],
+  [50, 15.6, 7.8, 8.6],
+  [53, 12.2, 6, 6.8],
+  [55.5, 7.8, 4.8, 5.4],
   [57.5, 5.5, 4.2, 4.8],
   [58.5, 2.5, 2, 2.5],
 ];
 
 /** Cabeza: [altura respecto al centro, semiancho, cara (z delante), nuca (z detrás)]. */
 export const HEAD: [number, number, number, number][] = [
-  [-12.2, 1.6, 6.2, 3.8],
-  [-11.4, 3.9, 7.4, 1.5],
-  [-9.5, 5.6, 8.3, -2.5],
-  [-6, 6.6, 8.9, -6.5],
-  [-2, 7.3, 9.3, -8.8],
+  [-11.3, 1.5, 6.3, 3.3],
+  [-10.6, 3.5, 7.5, 1.0],
+  [-8.8, 5.2, 8.3, -2.4],
+  [-5.8, 6.3, 8.9, -6.3],
+  [-2, 7.2, 9.3, -8.8],
   [2, 7.7, 9.3, -9.8],
   [6, 7.5, 8.4, -9.8],
-  [9.5, 6.2, 6.6, -8.4],
-  [11.8, 3.9, 4, -5.6],
-  [12.9, 1.2, 1.2, -2.2],
+  [9.5, 6.4, 6.8, -8.6],
+  [11.6, 4.6, 4.6, -6.2],
+  [12.6, 3.0, 2.7, -3.9],
+  [13.1, 1.3, 1.0, -1.9],
 ];
-export const HEAD_EXT = { x: 7.7, up: 13, down: 12.2, front: 9.4, back: 9.9 };
+export const HEAD_EXT = { x: 7.7, up: 13, down: 11.3, front: 9.4, back: 9.9 };
 
 /** Eje de la mandíbula (las dos ATM, delante de las orejas), en coordenadas de la cabeza. */
 export const JAW_PIVOT = { y: -1.6, z: 0.6 };
@@ -148,8 +168,9 @@ export function bendPoint(y: number, z: number, R: number): [number, number] {
   return [KNUCKLE_Y - (R - z) * Math.sin(phi), R - (R - z) * Math.cos(phi)];
 }
 export type HandState = { curl: number; grip: "press" | "grasp" | "tips" | "rest" };
-/** Ángulos de una articulación; `twist` (solo muñeca) gira el antebrazo sobre su eje antes de doblarla. */
-export type JA = { flex: number; abd: number; twist?: number };
+/** Ángulos de una articulación; `twist` (solo muñeca) gira el antebrazo sobre su eje antes de doblarla;
+ *  `rot` (hombro y cadera) gira el segmento sobre su eje (rotación interna +). */
+export type JA = { flex: number; abd: number; twist?: number; rot?: number };
 type Limb = Record<"shoulder" | "elbow" | "wrist" | "hip" | "knee" | "ankle", JA>;
 export type BodyAngles = { trunkFlex: number; trunkLat: number; neckFlex: number; neckLat: number; neckYaw: number; jaw: number; r: Limb; l: Limb };
 
@@ -280,13 +301,13 @@ export function patientAngles(spec: FigureSpec, m: number): BodyAngles {
     };
     switch (spec.posture) {
       case "standing":
-        set("shoulder", A.trunkFlex, 7 - sgn(s) * A.trunkLat);
+        set("shoulder", A.trunkFlex, 10 + Math.min(10, A.trunkFlex * 0.15) - sgn(s) * A.trunkLat);
         set("elbow", 8, 0);
         set("hip", A.trunkFlex, 3 - sgn(s) * A.trunkLat);
         set("knee", 2, 0);
         break;
       case "sitting":
-        set("shoulder", A.trunkFlex * 0.6, 4);
+        set("shoulder", A.trunkFlex * 0.6, 9);
         set("elbow", 75, -7);
         set("hip", A.trunkFlex, 6);
         break;
@@ -310,13 +331,27 @@ export function patientAngles(spec: FigureSpec, m: number): BodyAngles {
           set("hip", 25, 0);
           set("knee", 35, 0);
         } else {
-          set("elbow", 10, 0);
+          // El brazo de arriba, apoyado sobre el costado.
+          set("shoulder", 8, 14);
+          set("elbow", 15, 0);
           set("knee", 5, 0);
         }
         break;
       default:
         break;
     }
+  }
+  // Ángulos 3D explícitos (lo que la vista plana no puede describir).
+  for (const k of new Set([...Object.keys(spec.pose3d ?? {}), ...Object.keys(spec.to3d ?? {})]) as Set<JointKey>) {
+    const m3 = k.match(/^(r|l)_(\w+)$/);
+    if (!m3) continue;
+    const j = A[m3[1] as Side][m3[2] as keyof Limb];
+    const a0 = spec.pose3d?.[k] ?? {};
+    const a1 = spec.to3d?.[k] ?? a0;
+    const mix = (x?: number, y?: number) => (x ?? 0) + ((y ?? x ?? 0) - (x ?? 0)) * m;
+    j.flex = mix(a0.flex, a1.flex);
+    j.abd = mix(a0.abd, a1.abd);
+    j.rot = mix(a0.rot, a1.rot);
   }
   // Muñeca doblada hacia atrás con el codo muy flexionado (Phalen): en la figura plana es flexión con el
   // antebrazo en pronación. Se gira el antebrazo para que la palma quede del lado cóncavo.
@@ -374,14 +409,14 @@ export function fk(rootP: Vector3, rootQ: Quaternion, A: BodyAngles, nudges: Nud
   for (const s of ["r", "l"] as const) {
     const L = A[s];
     const sh = at(chestP, chestQ, new Vector3(sgn(s) * DIM.shoulderHalf, 0, DIM.shoulderZ));
-    const uaQ = qmul(chestQ.clone(), jr(L.shoulder.flex, L.shoulder.abd, s));
+    const uaQ = qmul(chestQ.clone(), jr(L.shoulder.flex, L.shoulder.abd, s), qAxis(Y, -sgn(s) * (L.shoulder.rot ?? 0)));
     const el = at(sh, uaQ, new Vector3(0, -DIM.upperarm, 0));
     const faQ = qmul(uaQ.clone(), jr(L.elbow.flex, L.elbow.abd, s));
     const wr = at(el, faQ, new Vector3(0, -DIM.forearm, 0));
     const hdQ = qmul(faQ.clone(), qAxis(Y, L.wrist.twist ?? 0), jr(L.wrist.flex, L.wrist.abd, s));
     const tip = at(wr, hdQ, new Vector3(0, -DIM.hand, 0));
     const hip = at(rootP, pelvisQ, new Vector3(sgn(s) * DIM.hipHalf, 0, 0));
-    const thQ = qmul(chestQ.clone(), jr(L.hip.flex, L.hip.abd, s));
+    const thQ = qmul(chestQ.clone(), jr(L.hip.flex, L.hip.abd, s), qAxis(Y, -sgn(s) * (L.hip.rot ?? 0)));
     const kn = at(hip, thQ, new Vector3(0, -DIM.thigh, 0));
     const shQ = qmul(thQ.clone(), jr(L.knee.flex, L.knee.abd, s, 1));
     const an = at(kn, shQ, new Vector3(0, -DIM.shank, 0));
@@ -469,7 +504,7 @@ export type AnchorInfo = {
   limb: boolean;
 };
 
-function limbSection(seg: "upperarm" | "forearm" | "thigh" | "shank", s: Side, t: number): Section {
+export function limbSection(seg: "upperarm" | "forearm" | "thigh" | "shank", s: Side, t: number): Section {
   const [lat, med, ant, post] = profileAt(LIMB[seg].rings, t) as [number, number, number, number];
   return s === "l" ? { xp: lat, xn: med, zp: ant, zn: post } : { xp: med, xn: lat, zp: ant, zn: post };
 }
@@ -503,7 +538,7 @@ export function anchorInfo(pose: Pose3, anchor: Anchor): AnchorInfo | null {
     sec: circle(r),
     limb: false,
   });
-  if (name === "jaw") return face(jawPoint(new Vector3(0, -10.4, 6), pose.jaw), 2.4);
+  if (name === "jaw") return face(jawPoint(new Vector3(0, -9.0, 6.2), pose.jaw), 1.8);
   if (name === "mouth") {
     const lower = jawPoint(new Vector3(0, LIPS_Y - 0.3, faceZ(LIPS_Y - 0.3) - 1.2), pose.jaw);
     return face(new Vector3(0, LIPS_Y + 0.2, faceZ(LIPS_Y) - 1.2).lerp(lower, 0.5), 1.2);

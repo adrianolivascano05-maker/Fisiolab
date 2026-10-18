@@ -2,6 +2,7 @@
 // ella) y su pose en cada momento de la maniobra. Puro: sirve igual para la escena y para las pruebas.
 import { Quaternion, Vector3 } from "three";
 import type { FigureSpec } from "../figure";
+import { skinPoints } from "./collide";
 import { anatDir, anchorInfo, fk, LYING, patientAngles, postureQ, surfaceSamples, upSide, type Nudges, type Pose3, type SegKey } from "./rig";
 
 export type Table = { x0: number; x1: number; z0: number; z1: number; top: number };
@@ -32,27 +33,44 @@ export function layoutPatient(spec: FigureSpec): Layout {
     L.fixedRoot = true;
     const torso = surfaceSamples(pose, (part) => part === "torso");
     const top = Math.min(...torso.filter((s) => s.p.z > pose.root.p.z + 10).map((s) => s.p.y));
-    const z0 = pose.root.p.z + 9;
+    const z0 = pose.root.p.z + 14;
     L.table = { x0: -34, x1: 34, z0, z1: z0 + 150, top };
   }
   if (lying || posture === "sitting") {
     const p0 = fk(new Vector3(), rootQ, patientAngles(spec, 0));
     const top = lying ? TABLE_TOP.lying : TABLE_TOP.sitting;
+    // De lado, también apoyan el hombro y la cadera de abajo.
+    const down = posture === "sidelying" ? (upSide(spec) === "l" ? "r" : "l") : null;
     const support = lying
-      ? surfaceSamples(p0, (part) => part === "torso" || part === "head" || (posture === "longsitting" && /thigh|shank/.test(part)))
-      : surfaceSamples(p0, (part) => part === "torso" || /thigh/.test(part));
+      ? skinPoints(p0, (part) => part === "torso" || part === "head" || (posture === "longsitting" && /thigh|shank/.test(part)) || (!!down && (part === `${down}_upperarm` || part === `${down}_thigh`)))
+      : skinPoints(p0, (part) => part === "torso" || /thigh/.test(part));
     const low = Math.min(...support.map((s) => s.p.y));
     L.rootP.set(0, top - low, 0);
     L.fixedRoot = true;
     const pose = fk(L.rootP, rootQ, patientAngles(spec, 0));
     const all = surfaceSamples(pose);
     if (lying) {
-      // La camilla llega hasta donde apoya el cuerpo (una pierna que cuelga queda fuera).
-      const resting = all.filter((s) => s.p.y < top + 14 && !/hand|forearm/.test(s.part));
+      // La camilla llega hasta donde apoya el cuerpo (una pierna que cuelga queda fuera); boca abajo, los
+      // pies quedan fuera, por el extremo.
+      const prone = posture === "prone";
+      const resting = all.filter((s) => s.p.y < top + 14 && !/hand|forearm/.test(s.part) && !(prone && /foot/.test(s.part)));
       const xs = resting.map((s) => s.p.x);
       const torso = all.filter((s) => s.part === "torso").map((s) => s.p.z);
       const zc = torso.reduce((a, b) => a + b, 0) / torso.length;
-      L.table = { x0: Math.min(...xs) - 8, x1: Math.max(...xs) + 8, z0: zc - 33, z1: zc + 33, top };
+      const t: Table = { x0: Math.min(...xs) - 8, x1: Math.max(...xs) + (prone ? -1 : 8), z0: zc - 33, z1: zc + 33, top };
+      // Una pierna que cuelga (Gaenslen, choque posterior): si la otra no apoya más abajo, el paciente queda
+      // con las nalgas en el extremo de la camilla; si no, al borde de ese lado.
+      for (const sd of ["r", "l"] as const) {
+        const hangs = surfaceSamples(pose, (part) => part === `${sd}_shank` || part === `${sd}_foot`).some((x) => x.p.y < top - 4 && x.p.x > t.x0 && x.p.x < t.x1);
+        if (!hangs) continue;
+        const hip = pose.pt[`${sd}_hip`]!;
+        const other = sd === "r" ? "l" : "r";
+        const otherRests = surfaceSamples(pose, (part) => part === `${other}_shank` || part === `${other}_foot`).some((x) => x.p.y < top + 14 && x.p.x > hip.x + 10);
+        if (!otherRests) t.x1 = Math.min(t.x1, hip.x + 4);
+        else if (hip.z > zc) t.z1 = Math.min(t.z1, hip.z - 3);
+        else t.z0 = Math.max(t.z0, hip.z + 3);
+      }
+      L.table = t;
     } else {
       // Sentado en el borde: el hueco de la rodilla en el canto.
       const front = Math.min(pose.pt.r_knee!.z, pose.pt.l_knee!.z) - 2;

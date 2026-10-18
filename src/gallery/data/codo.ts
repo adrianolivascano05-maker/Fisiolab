@@ -430,7 +430,7 @@ export const codoTests: SpecialTest[] = [
         posture: "sitting",
         joints: { r_shoulder: 10, r_elbow: 140, r_wrist: 40 },
         hands: ["r_elbow"],
-        grips: [{ kind: "tips", face: "medial" }],
+        grips: [{ kind: "tips", face: "posterior" }],
         pain: ["r_hand@0.7"],
         caption: "Codo en flexión máxima y presión sobre el nervio cubital.",
       },
@@ -468,6 +468,7 @@ export const codoTests: SpecialTest[] = [
         view: "front",
         posture: "sitting",
         joints: { r_elbow: 70, l_elbow: 70 },
+        pose3d: { r_shoulder: { abd: 4 }, l_shoulder: { abd: 4 }, r_elbow: { flex: 90 }, l_elbow: { flex: 90 } },
         hands: ["r_wrist", "l_wrist"],
         grips: [{ kind: "press", face: "lateral" }, { kind: "press", face: "lateral" }],
         arrows: [
