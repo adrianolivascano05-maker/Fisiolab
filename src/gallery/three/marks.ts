@@ -205,7 +205,7 @@ function bump(A: BodyAngles, joint: BodyKey, dof: Dof, d: number) {
     } else if (joint === "pelvis" && A.pelvis) {
       const k = dof === "rot" ? "rot" : dof === "lat" ? "lat" : "flex";
       A.pelvis[k] += d;
-    }
+    } else if (joint === "jaw") A.jaw = Math.max(0, A.jaw + d);
     return;
   }
   const s = m[1] as Side;

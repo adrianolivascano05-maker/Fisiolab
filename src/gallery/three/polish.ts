@@ -44,7 +44,44 @@ function variants(arm: ArmPlan): ArmPlan[][] {
   ];
 }
 
-export function polishPlan(spec: FigureSpec, L: Layout, plan: ExaminerPlan): ExaminerPlan {
+/** Variantes más amplias, para cuando las pequeñas no bastan: la mano que rueda mucho sobre el segmento (giros
+ *  grandes del brazo o la pierna del paciente), el giro de partida, el codo por tramos y por dónde llega. */
+function wideVariants(arm: ArmPlan): ArmPlan[] {
+  const s1 = arm.spin1 ?? arm.spin;
+  const w1 = arm.wrap1 ?? arm.wrap;
+  const out: ArmPlan[] = [];
+  for (const d of [-150, -120, -90, -45, 45, 90, 120, 150]) out.push({ ...arm, spin1: s1 + d, ...(w1 !== undefined ? { wrap1: w1 + d } : {}) });
+  for (const d of [-90, -45, 45, 90]) out.push({ ...arm, spin: arm.spin + d, spin1: s1, ...(arm.wrap !== undefined && w1 !== undefined ? { wrap: arm.wrap + d, wrap1: w1 } : {}) });
+  if (w1 !== undefined) for (const d of [-90, 90, 180]) out.push({ ...arm, wrap1: w1 + d });
+  arm.pole.forEach((_, i) => { for (const d of [-60, -30, 30, 60]) out.push({ ...arm, pole: arm.pole.map((q, k) => (k === i ? q + d : q)) }); });
+  for (const ap of [0, 1, 2, 3, 4, 5, 6, 7]) if (ap !== (arm.ap ?? 0)) out.push({ ...arm, ap });
+  return out;
+}
+
+export function polishPlan(spec: FigureSpec, L: Layout, plan: ExaminerPlan, wide = true): ExaminerPlan {
+  const best = narrowPolish(spec, L, plan);
+  if (!wide || planScore(spec, L, best) <= 0) return best;
+  // Si aún falla, variantes amplias de cada brazo (hasta cuatro rondas) y otro repaso fino.
+  let wider = best;
+  let score = planScore(spec, L, wider);
+  for (let round = 0; round < 4 && score > 0; round++) {
+    let improved = false;
+    for (let i = 0; i < wider.arms.length && score > 0; i++)
+      for (const v of wideVariants(wider.arms[i]!)) {
+        const cand = withArm(wider, i, v);
+        const sc = planScore(spec, L, cand);
+        if (sc < score - 0.05) {
+          wider = cand;
+          score = sc;
+          improved = true;
+        }
+      }
+    if (!improved) break;
+  }
+  return wider === best ? best : narrowPolish(spec, L, wider);
+}
+
+function narrowPolish(spec: FigureSpec, L: Layout, plan: ExaminerPlan): ExaminerPlan {
   let best = plan;
   let score = planScore(spec, L, plan);
   for (let round = 0; round < 3 && score > 0; round++) {

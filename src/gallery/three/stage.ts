@@ -698,19 +698,23 @@ export class Stage {
       const y0 = Math.min(h - hh - 2, Math.max(hh + 2, ((1 - v.y) / 2) * h));
       // Si se pisa con otra etiqueta (o con el rótulo, la letra del lado o la punta de una flecha), se busca el
       // sitio libre más cercano: arriba o abajo, y si no, también a un lado.
-      const free = (x: number, y: number) => !placed.some((q) => Math.abs(q.x - x) < q.hw + hw && Math.abs(q.y - y) < q.hh + hh);
+      // (Si no queda ningún hueco libre, donde menos se pise.)
+      const overlap = (x: number, y: number) => placed.reduce((a, q) => a + Math.max(0, q.hw + hw - Math.abs(q.x - x)) * Math.max(0, q.hh + hh - Math.abs(q.y - y)), 0);
       let x = x0;
       let y = y0;
+      let least = overlap(x0, y0);
       search: for (const dx of [0, -1, 1]) {
         for (const k of [0, 1, -1, 2, -2, 3, -3, 4, -4]) {
           const cx = Math.min(w - hw, Math.max(hw, x0 + dx * (hw + 6)));
           const cy = y0 + k * (2 * hh + 2);
           if (cy > h - hh - 2 || cy < hh + 2) continue;
-          if (free(cx, cy)) {
+          const o = overlap(cx, cy);
+          if (o < least - 1e-6) {
+            least = o;
             x = cx;
             y = cy;
-            break search;
           }
+          if (o === 0) break search;
         }
       }
       placed.push({ x, y, hw, hh });

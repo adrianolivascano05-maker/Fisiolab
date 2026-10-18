@@ -57,7 +57,9 @@ describe("figuras con guion", () => {
     const i = marks.steps.findIndex((ms) => ms.some((mk) => mk.path));
     const mk = marks.steps[i]!.find((x) => x.path)!;
     expect(drawnSense(L, (i + 1) / S, mk.path!)).toBe(mk.path!.sign);
-    expect(drawnSense(L, (i + 1) / S, { ...mk.path!, pts: [...mk.path!.pts].reverse() })).toBe(-mk.path!.sign);
+    // La misma flecha en el mismo sitio, apuntando al revés (simétrica respecto a su punta).
+    const tip = mk.path!.pts[mk.path!.pts.length - 1]!;
+    expect(drawnSense(L, (i + 1) / S, { ...mk.path!, pts: mk.path!.pts.map((p) => tip.clone().multiplyScalar(2).sub(p)) })).toBe(-mk.path!.sign);
   });
 
   it("las etiquetas escritas a mano no contradicen al movimiento", () => {
