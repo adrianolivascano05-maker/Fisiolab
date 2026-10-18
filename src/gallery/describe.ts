@@ -116,9 +116,10 @@ export function stepTechnical(keys: Key[], i: number): string {
   });
   const sh = keys[i + 1]!.shift;
   const sh0 = keys[i]!.shift;
-  if (sh && (!sh0 || sh0.cm !== sh.cm)) parts.push(`desplazamiento ${SEG[sh.seg.slice(2)] ?? sh.seg} ${DIR[sh.dir]} ${sh.cm} cm`);
+  if (sh && (!sh0 || sh0.cm !== sh.cm)) parts.push(`desplazamiento ${SEG[sh.seg.slice(2)] ?? sh.seg} ${DIR[sh.dir]} ${String(sh.cm).replace(".", ",")} cm`);
   if (!sh && sh0) parts.push("se suelta el desplazamiento");
-  return parts.join(" · ");
+  const line = parts.join(" · ");
+  return line && line[0]!.toUpperCase() + line.slice(1);
 }
 
 const SEG: Record<string, string> = { upperarm: "del brazo", forearm: "del antebrazo", hand: "de la mano", thigh: "del muslo", shank: "de la tibia", foot: "del pie" };
