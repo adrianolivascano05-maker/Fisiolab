@@ -463,7 +463,7 @@ function approach(spec: FigureSpec, poses: Pose3[], c: Vector3): Vector3 {
   else if (midline || (sides.includes("r") && sides.includes("l"))) d = dirOf(new Vector3(0, 0, -1));
   else if (armish) {
     // Un brazo: al lado y algo por detrás; si la mano del paciente está delante de su pecho, por delante.
-    const front = hands.some((h) => /_(forearm|wrist|hand)/.test(h) && (anchorInfo(p0, h)?.p.clone().sub(p0.pt.chest!).applyQuaternion(q.clone().invert()).z ?? 0) > 12);
+    const front = hands.some((h) => /_(forearm|wrist|hand)/.test(h) && (anchorInfo(p0, h)?.p.clone().sub(p0.pt.chest!).applyQuaternion(q.clone().invert()).z ?? 0) > 7);
     d = dirOf(new Vector3(sgn(side), 0, front ? 0.9 : -0.45));
   }
   else {
