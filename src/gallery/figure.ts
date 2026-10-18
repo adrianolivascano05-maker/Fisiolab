@@ -97,6 +97,10 @@ export type Step = {
   path?: BodyKey[] | false;
   /** Dolor visible desde este paso (por defecto, solo al final). */
   pain?: boolean;
+  /** Manos del examinador (su número en `hands`) que se separan al empezar este paso (vuelven para la vuelta). */
+  release?: number[];
+  /** Etiqueta de la flecha de recorrido del paso (si no, se escribe sola con los grados). */
+  label?: string;
   /** Qué se hace en este paso (texto bajo la figura). */
   text: string;
 };
@@ -144,6 +148,8 @@ export type FigureSpec = {
   side?: Side | "both";
   /** Marcas que se ven durante toda la maniobra (p. ej. la mano que estabiliza). */
   marks?: Mark[];
+  /** Colocación del examinador cuando la automática no es la clínica: postura y desde dónde llega. */
+  place?: { stance?: "stand" | "sit" | "squat" | "kneel"; from?: "front" | "behind" | "side" };
   /** Cámara fijada a mano: acimut desde delante del paciente (+ hacia su derecha), elevación y acercamiento (1 = el automático). */
   camera?: { az: number; el: number; zoom?: number };
   /** Textos propios de la figura (si no, los del test). */

@@ -57,6 +57,24 @@ export const caderaTests: SpecialTest[] = [
         ],
         pain: ["r_hip"],
         caption: "Flexión de 90°, aducción y rotación interna.",
+        side: "r",
+        script: {
+          start: { r_hip: { flex: 90, abd: 0, rot: 0 }, r_knee: { flex: 90 } },
+          steps: [
+            { to: { r_hip: { abd: -15 } }, by: "examiner", text: "Lleva la cadera a aducción: la rodilla va hacia la línea media." },
+            {
+              to: { r_hip: { rot: 35 } },
+              by: "examiner",
+              pain: true,
+              text: "Añade rotación interna hasta el final del recorrido (el pie se va hacia fuera) y pregunta si reproduce su dolor.",
+            },
+          ],
+        },
+        text: {
+          setup: "Paciente en supino. Examinador a su derecha: flexiona la cadera y la rodilla a 90°, con una mano en la rodilla y la otra en la pierna, cerca del tobillo.",
+          look: "Positivo si reproduce el dolor inguinal o anterior de cadera que el paciente refiere.",
+        },
+        supuestos: ["Aducción de 15° y rotación interna de 35° como final del recorrido (la fuente no da grados)."],
       },
     ],
     related: ["cad-faber", "cad-dexrit-diri", "cad-scour", "cad-choque-posterior"],
@@ -670,6 +688,30 @@ export const caderaTests: SpecialTest[] = [
         grips: [{ kind: "grasp", face: "medial" }, { kind: "press", face: "lateral" }],
         arrows: [{ at: "l_knee", dir: "caudal", kind: "move", label: "aducción" }],
         caption: "Ober modificado: la pierna de arriba cae hacia la camilla.",
+        side: "l",
+        script: {
+          start: { l_hip: { flex: 0, abd: 0 }, l_knee: { flex: 0 }, r_hip: { flex: 45 }, r_knee: { flex: 90 } },
+          steps: [
+            {
+              to: { l_hip: { abd: 25, flex: -10 } },
+              by: "examiner",
+              text: "Con la pelvis estabilizada, lleva la pierna de arriba a abducción (25°) y algo de extensión (10°), con la rodilla extendida (Ober modificado).",
+              label: "Abducción 25° + extensión 10°",
+            },
+            {
+              to: { l_hip: { abd: -10 } },
+              release: [0],
+              dur: 1.6,
+              text: "Suelta la pierna y deja que caiga hacia la camilla: si la banda iliotibial no está acortada, baja por debajo de la horizontal.",
+              label: "Cae: aducción hasta 10°",
+            },
+          ],
+        },
+        text: {
+          setup: "Paciente tumbado sobre el lado sano (aquí, el derecho), con la pierna de abajo flexionada. Examinador detrás, estabilizando la pelvis.",
+          look: "Positivo si la pierna se queda en abducción y no baja hasta la horizontal.",
+        },
+        supuestos: ["Ober modificado (rodilla extendida).", "Abducción de 25° con 10° de extensión; la caída normal llega a unos 10° de aducción.", "Lado explorado: izquierdo (tumbado sobre el derecho)."],
       },
     ],
     related: ["cad-thomas"],

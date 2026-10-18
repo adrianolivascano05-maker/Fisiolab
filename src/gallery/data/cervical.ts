@@ -251,6 +251,26 @@ export const cervicalTests: SpecialTest[] = [
         posture: "sitting",
         arrows: [{ at: "head", rotate: "ccw", label: "rotación" }],
         caption: "Rotación activa hacia el lado sintomático; positivo si < 60°.",
+        side: "r",
+        script: {
+          steps: [
+            {
+              to: { neck: { rot: 55 } },
+              by: "patient",
+              dur: 2.0,
+              hold: 1.2,
+              text: "Gira la cabeza todo lo que pueda hacia el lado sintomático (aquí, la derecha): llega a 55°, menos de 60°.",
+              label: "Rotación derecha 55°",
+            },
+            { to: { neck: { rot: -75 } }, by: "patient", dur: 2.6, hold: 1.0, text: "Compara con el otro lado: hacia la izquierda llega a 75°.", label: "Rotación izquierda 75°" },
+          ],
+        },
+        text: {
+          setup: "Paciente sentado con la espalda recta y mirando al frente. El examinador mide con un goniómetro o un inclinómetro.",
+          look: "Positivo si la rotación activa hacia el lado sintomático no llega a 60° (aquí, 55°).",
+        },
+        camera: { az: 15, el: 38 },
+        supuestos: ["Lado sintomático: derecho.", "Se dibuja una rotación de 55° hacia el lado sintomático (un positivo) y de 75° hacia el otro."],
       },
     ],
     related: ["cer-cluster-wainner"],

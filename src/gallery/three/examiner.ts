@@ -385,7 +385,7 @@ function search(ctx: Ctx, which: number[], fixedArms?: ArmPlan[], other?: Examin
       // Si va a desplazarse entre dos sitios, de pie o agachado (el taburete no le sigue y de rodillas no se
       // anda). Agacharse o arrodillarse, solo para lo que está bajo (los pies de alguien de pie, la pierna de
       // alguien sentado).
-      const usable = STANCES.filter((x) => (!(standing || other) || !["sit", "kneel", "heels"].includes(x.kind)) && c.y < STANCE_MAX_Y[x.kind]);
+      const usable = STANCES.filter((x) => (spec.place?.stance ? x.kind === spec.place.stance : (!(standing || other) || !["sit", "kneel", "heels"].includes(x.kind)) && c.y < STANCE_MAX_Y[x.kind]));
       for (const st of usable) {
         for (let extra = 0; extra <= 54; extra += 6) {
           for (let lean = 0; lean <= st.maxLean; lean += 5) {
@@ -598,6 +598,12 @@ function approach(spec: FigureSpec, poses: Pose3[], c: Vector3): Vector3 {
   const lying = LYING.includes(spec.posture);
   const sides = hands.map(anchorSide);
   const side: Side = sides.filter((s) => s === "l").length > sides.filter((s) => s === "r").length ? "l" : "r";
+  // Lo que pide la figura (si la colocación automática no es la que se usa en clínica).
+  const from = spec.place?.from;
+  if (from) {
+    const f = dirOf(from === "front" ? new Vector3(0, 0, 1) : from === "behind" ? new Vector3(0, 0, -1) : new Vector3(sgn(side), 0, 0));
+    if (f) return f;
+  }
   const FACE = /^(head|neck|jaw|mouth|depressor|[rl]_tmj)/;
   const headish = hands.every((h) => FACE.test(h));
   const midline = sides.every((s) => s === null);
@@ -1312,14 +1318,16 @@ function fingersOn(ct: Contact, W: Vector3, q: Quaternion, sdf: BodySDF, side: S
  * punto de tomar; 1: apoyada) y los dedos se cierran sobre la piel. `pat`: el paciente en este momento (para
  * apoyar bien las manos); `gaps`, si se pasa, recibe lo que le falta a cada muñeca para llegar.
  */
-export function examinerPose(plan: ExaminerPlan, cts: Contact[], reach: number, m = 1, pat?: Pose3 | null, gaps?: Partial<Record<Side, number>>, mix = m): Pose3 {
+export function examinerPose(plan: ExaminerPlan, cts: Contact[], reachAll: number, m = 1, pat?: Pose3 | null, gaps?: Partial<Record<Side, number>>, mix = m, handsReach?: number[]): Pose3 {
   const pose = baseExaminerPose(plan, mix);
   const sdf = pat ? bodySDF(pat) : null;
-  const land = ease(Math.min(1, Math.max(0, reach) / 0.6));
   const hands: Partial<Record<Side, HandState>> = { ...pose.hands };
   for (const arm of plan.arms) {
     const ct = cts[arm.hand];
     if (!ct) continue;
+    // Cada mano llega (o se separa) a su ritmo si el guion suelta alguna.
+    const reach = handsReach?.[arm.hand] ?? reachAll;
+    const land = ease(Math.min(1, Math.max(0, reach) / 0.6));
     const s = arm.side;
     const S0 = shoulder0(pose, s);
     const tg = handTarget(ct, S0, handAt(arm, mix));

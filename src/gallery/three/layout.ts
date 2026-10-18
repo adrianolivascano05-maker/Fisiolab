@@ -140,13 +140,15 @@ function settleArms(L: Layout) {
 }
 
 /** Pose del paciente en el momento m (0-1), con el pequeño desplazamiento de las fuerzas (`nudge`, 0-1). */
-export function patientPose(L: Layout, m: number, nudge: number): Pose3 {
+export function patientPose(L: Layout, m: number, nudge: number, edit?: (A: BodyAngles) => void): Pose3 {
   const spec = L.spec;
   const A = anglesOf(spec, m);
   for (const sd of ["r", "l"] as const) {
     A[sd].shoulder.flex += L.arms[sd].flex;
     A[sd].shoulder.abd += L.arms[sd].abd;
   }
+  // (Para las marcas: la pose con una articulación algo más girada, sin cambiar nada más.)
+  edit?.(A);
   let root = L.rootP;
   if (!L.fixedRoot) {
     // De pie: los pies (o pies y manos a cuatro patas) en el suelo en cada momento.

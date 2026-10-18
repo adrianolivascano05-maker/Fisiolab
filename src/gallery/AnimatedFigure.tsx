@@ -1,14 +1,15 @@
-// Ilustración animada de un test: la maniobra en bucle, con pausa, avance manual y el texto de cada fase.
-// En 3D (maniquíes que se pueden girar un poco) si el navegador tiene WebGL; si no, el dibujo plano.
-// Respeta «reducir movimiento».
+// Ilustración animada de un test: la maniobra en bucle, con pausa, avance manual y el texto de cada fase (y
+// de cada paso, con sus grados, si la figura tiene guion). En 3D (maniquíes que se pueden girar un poco) si el
+// navegador tiene WebGL; si no, el dibujo plano. Modo clínico (flechas, etiquetas, dolor) o natural (el gesto
+// limpio), y el mismo test en el otro lado (espejo). Respeta «reducir movimiento».
 import { Pause, Play, RotateCcw, RotateCw, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cx } from "../ui/cx";
+import { mirrorText, stepTechnical } from "./describe";
 import { phases, renderFrame, renderFigure, type FigureSpec } from "./figure";
-import type { Stage } from "./three/stage";
-
-/** Duración de una vuelta completa, en milisegundos. */
-const LOOP_MS = 7000;
+import { restValue } from "./posture";
+import { clockOf, scriptKeys, type PhaseId } from "./script";
+import type { Stage, StageMode } from "./three/stage";
 
 const reducedMotion = () => {
   try {
@@ -27,7 +28,7 @@ const figVars = {
 
 type Mode = "loading" | "3d" | "2d";
 
-export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; title: string; uid: string; texts: Record<(typeof phases)[number]["id"], string> }) {
+export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; title: string; uid: string; texts: Record<PhaseId, string> }) {
   const frame = useRef<HTMLDivElement>(null);
   const svgBox = useRef<HTMLDivElement>(null);
   const glBox = useRef<HTMLDivElement>(null);
@@ -35,10 +36,15 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
   const [mode, setMode] = useState<Mode>("loading");
   const [rotated, setRotated] = useState(false);
   const [playing, setPlaying] = useState(() => !reducedMotion());
+  const [view, setView] = useState<StageMode>("clinical");
+  const [mirror, setMirror] = useState(false);
   const [t, setT] = useState(0.6);
   const tRef = useRef(0.6);
   const [visible, setVisible] = useState(true);
   const still = useMemo(() => renderFigure(spec, title, uid), [spec, title, uid]);
+  // Reloj del guion (o el de siempre) y poses clave con la postura natural (para los textos con grados).
+  const keys = useMemo(() => (spec.script ? scriptKeys(spec.script, (k, d) => restValue(spec, k, d)) : null), [spec]);
+  const clock = useMemo(() => clockOf(spec, keys ?? undefined), [spec, keys]);
 
   const draw = useCallback(
     (tt: number) => {
@@ -83,6 +89,13 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
     };
   }, [spec, title]);
 
+  useEffect(() => {
+    stage.current?.setMode(view);
+  }, [view, mode]);
+  useEffect(() => {
+    stage.current?.setMirror(mirror);
+  }, [mirror, mode]);
+
   // Solo se anima mientras se ve en pantalla.
   useEffect(() => {
     const el = frame.current;
@@ -98,27 +111,33 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
       draw(tRef.current);
       return;
     }
+    const loopMs = clock.duration * 1000;
     let raf = 0;
     let last = 0;
     let cost = 0;
-    const start = performance.now() - tRef.current * LOOP_MS;
+    const start = performance.now() - tRef.current * loopMs;
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       // ~30 imágenes por segundo bastan; en un equipo lento, menos, para que la página siga respondiendo.
       if (now - last < Math.max(33, 3 * cost)) return;
       last = now;
-      const tt = ((now - start) % LOOP_MS) / LOOP_MS;
+      const tt = ((now - start) % loopMs) / loopMs;
       tRef.current = tt;
       const t0 = performance.now();
       draw(tt);
       cost = 0.7 * cost + 0.3 * (performance.now() - t0);
-      setT((prev) => (phaseOf(prev) !== phaseOf(tt) || Math.abs(prev - tt) > 0.02 ? tt : prev));
+      setT((prev) => {
+        const a = clock.at(prev);
+        const b = clock.at(tt);
+        return a.phase !== b.phase || a.step !== b.step || Math.abs(prev - tt) > 0.02 ? tt : prev;
+      });
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, visible, mode, draw]);
+  }, [playing, visible, mode, draw, clock]);
 
-  const ph = phases[phaseOf(t)]!;
+  const now = clock.at(t);
+  const ph = phases.find((p) => p.id === now.phase)!;
   const jump = (v: number) => {
     setPlaying(false);
     tRef.current = v;
@@ -129,7 +148,14 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
     stage.current?.rotateBy(deg);
     setRotated(true);
   };
+  const flip = (s: string) => (mirror ? mirrorText(s) : s);
+  // Texto: el de cada paso durante la maniobra (con sus grados en modo clínico); si no, el de la fase.
+  const steps = spec.script?.steps ?? [];
+  const stepNow = now.phase === "move" && now.step >= 0 ? steps[now.step] : undefined;
+  const caption = stepNow ? stepNow.text : now.phase === "back" ? texts.setup : texts[now.phase];
+  const technical = stepNow && keys && view === "clinical" ? stepTechnical(keys, now.step) : "";
   const ctl = "inline-flex size-11 items-center justify-center rounded-full bg-bg/90 text-text shadow-sm ring-1 ring-border backdrop-blur hover:bg-surface";
+  const seg = (on: boolean) => cx("h-8 rounded-md px-2.5 text-xs font-semibold transition-colors", on ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text");
   return (
     <figure className="flex flex-col overflow-hidden rounded-2xl border border-border bg-bg">
       <div ref={frame} className="relative aspect-[4/3] w-full" style={figVars}>
@@ -171,6 +197,31 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
           {playing ? <Pause aria-hidden="true" className="size-5" /> : <Play aria-hidden="true" className="size-5" />}
         </button>
       </div>
+      {mode === "3d" && (
+        <div className="mx-3 mt-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex gap-0.5 rounded-lg bg-surface p-0.5" role="group" aria-label="Ayudas visuales">
+            <button type="button" aria-pressed={view === "clinical"} onClick={() => setView("clinical")} className={seg(view === "clinical")}>
+              Clínico
+            </button>
+            <button type="button" aria-pressed={view === "natural"} onClick={() => setView("natural")} className={seg(view === "natural")}>
+              Natural
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-text-muted">Lado</span>
+            <div className="flex gap-0.5 rounded-lg bg-surface p-0.5" role="group" aria-label="Lado del test">
+              <button type="button" aria-pressed={!mirror} onClick={() => setMirror(false)} className={seg(!mirror)} aria-label="Como en la ficha">
+                {spec.side === "l" ? "I" : spec.side === "both" ? "D+I" : "D"}
+              </button>
+              {spec.side !== "both" && (
+                <button type="button" aria-pressed={mirror} onClick={() => setMirror(true)} className={seg(mirror)} aria-label="El otro lado (en espejo)">
+                  {spec.side === "l" ? "D" : "I"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       {mode === "3d" && <p className="px-4 pt-1.5 text-xs text-text-muted">Arrastra a los lados para girar un poco la figura.</p>}
       <input
         type="range"
@@ -183,27 +234,24 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
         className="mx-3 mt-2 h-6 accent-[var(--color-accent)]"
       />
       <ol className="mx-3 flex gap-1 rounded-lg bg-surface p-1" aria-label="Fases">
-        {phases.slice(0, 3).map((p, i) => (
+        {clock.phases.slice(0, 3).map((p, i) => (
           <li key={p.id} className="flex-1">
             <button
               type="button"
-              aria-current={ph.id === p.id ? "step" : undefined}
-              onClick={() => jump((p.from + p.to) / 2 + (p.id === "move" ? 0.1 : 0))}
-              className={cx("h-9 w-full rounded-md text-xs font-semibold transition-colors", ph.id === p.id ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text")}
+              aria-current={now.phase === p.id ? "step" : undefined}
+              onClick={() => jump(p.id === "move" && clock.steps[0] ? clock.steps[0].moveTo - 0.005 : (p.from + p.to) / 2 + (p.id === "move" ? 0.1 : 0))}
+              className={cx("h-9 w-full rounded-md text-xs font-semibold transition-colors", now.phase === p.id ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text")}
             >
-              {i + 1}. {p.label}
+              {i + 1}. {phases.find((x) => x.id === p.id)!.label}
             </button>
           </li>
         ))}
       </ol>
       <figcaption className="min-h-[4.5rem] px-4 pb-3 pt-2 text-sm leading-relaxed" aria-live="off">
-        {ph.id === "back" ? texts.setup : texts[ph.id]}
+        {stepNow && steps.length > 1 && <span className="mr-1.5 text-xs font-semibold text-text-muted">Paso {now.step + 1} de {steps.length}.</span>}
+        {flip(caption)}
+        {technical && <span className="mt-1 block text-xs text-text-muted">{flip(technical)}</span>}
       </figcaption>
     </figure>
   );
-}
-
-function phaseOf(t: number) {
-  const i = phases.findIndex((p) => t >= p.from && t < p.to);
-  return i < 0 ? phases.length - 1 : i;
 }

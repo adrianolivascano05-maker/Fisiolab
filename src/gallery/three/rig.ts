@@ -6,6 +6,7 @@
 // y es la vertical y el suelo está en y = 0. Unidades: centímetros.
 import { Matrix4, Quaternion, Vector3 } from "three";
 import type { Anchor, Direction, FigureSpec, JointKey, Posture } from "../figure";
+import { upSideOf } from "../posture";
 
 export type Side = "r" | "l";
 /** +1 en el lado izquierdo (x positivo), −1 en el derecho. */
@@ -526,11 +527,7 @@ const BASE: Record<Posture, Partial<Record<JointKey, number>>> = {
 
 /** En decúbito lateral, el lado que queda arriba: el de las manos, flechas y articulaciones que se mueven. */
 export function upSide(spec: FigureSpec): Side {
-  if (spec.side === "r" || spec.side === "l") return spec.side;
-  const keys = [...(spec.hands ?? []), ...(spec.arrows ?? []).map((a) => a.at), ...(spec.pain ?? []), ...Object.keys(spec.joints ?? {}), ...Object.keys(spec.to ?? {})];
-  const r = keys.filter((k) => k.startsWith("r_")).length;
-  const l = keys.filter((k) => k.startsWith("l_")).length;
-  return r > l ? "r" : "l";
+  return upSideOf(spec);
 }
 
 const ja = (flex = 0, abd = 0): JA => ({ flex, abd });

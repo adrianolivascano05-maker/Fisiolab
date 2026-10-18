@@ -302,10 +302,10 @@ export function GalleryTest() {
           title={`${t.name}${t.figures.length > 1 ? `, imagen ${i + 1}` : ""}`}
           uid={`${t.id}-${i}`}
           texts={{
-            setup: f.caption ? `${t.position} ${f.caption}` : t.position,
+            setup: f.text?.setup ?? (f.caption ? `${t.position} ${f.caption}` : t.position),
             move: t.steps.slice(t.steps.length > 2 ? 1 : 0).join(" "),
-            look: `Positivo si: ${t.positive}`,
-            back: t.position,
+            look: f.text?.look ?? `Positivo si: ${t.positive}`,
+            back: f.text?.setup ?? t.position,
           }}
         />
       ))}

@@ -144,7 +144,20 @@ export type PhaseId = (typeof legacyPhases)[number]["id"];
 /** Estado de la animación en un instante. m: progreso de la maniobra (u); mix: cuánto se ha alejado de la
  *  partida; reach: manos del examinador apoyadas (0 lejos, 1 en la toma); arrows: opacidad de las marcas del
  *  paso; pain: opacidad del dolor; step: paso en curso (−1 fuera de la maniobra). */
-export type Moment = { m: number; mix: number; reach: number; arrows: number; pain: number; pulse: number; step: number; phase: PhaseId; /** Paso cuyas marcas se ven (el último durante «qué buscar»). */ markStep: number };
+export type Moment = {
+  m: number;
+  mix: number;
+  reach: number;
+  arrows: number;
+  pain: number;
+  pulse: number;
+  step: number;
+  phase: PhaseId;
+  /** Paso cuyas marcas se ven (el último durante «qué buscar»). */
+  markStep: number;
+  /** Cuánto está apoyada cada mano (si alguna suelta durante la maniobra; si no, todas como `reach`). */
+  hands?: number[];
+};
 
 export type Clock = {
   /** Segundos de una vuelta completa. */
@@ -191,6 +204,7 @@ export function clockOf(spec: FigureSpec, keys?: Key[]): Clock {
   const leaveEnd = backEnd + LEAVE;
   const total = leaveEnd + END;
   const painFrom = Math.min(...spans.filter((x) => x.step.pain).map((x) => x.s), moveEnd - 0.3);
+  const released = spans.flatMap((sp) => (sp.step.release ?? []).map((hand) => ({ hand, at: sp.s })));
   const fade = (x: number, a: number, b: number, w = 0.25) => Math.max(0, Math.min(1, (x - a + w) / w, (b + w - x) / w));
   const at = (tt: number): Moment => {
     const x = ((tt % 1) + 1) % 1 * total;
@@ -215,7 +229,16 @@ export function clockOf(spec: FigureSpec, keys?: Key[]): Clock {
     const reach = x < SETUP ? smooth((x - 0.25) / (SETUP - 0.45)) : x < backEnd ? 1 : 1 - smooth((x - backEnd) / LEAVE);
     const pain = fade(x, painFrom, lookEnd - 0.1, 0.3);
     const phase: PhaseId = x < SETUP ? "setup" : x < moveEnd ? "move" : x < lookEnd ? "look" : "back";
-    return { m: u, mix: mixAt(ks, u), reach, arrows, pain, pulse: 0.5 + 0.5 * Math.sin(x * Math.PI * 2 * 1.1), step, markStep, phase };
+    // Una mano que suelta se separa al empezar su paso y vuelve a la toma al empezar la vuelta.
+    const hands = released.length
+      ? [0, 1].map((h) => {
+          const r = released.find((x) => x.hand === h);
+          if (!r || x < r.at) return reach;
+          const away = 1 - smooth((x - r.at) / 0.45);
+          return x < lookEnd ? away * reach : Math.min(reach, smooth((x - lookEnd) / 0.5));
+        })
+      : undefined;
+    return { m: u, mix: mixAt(ks, u), reach, arrows, pain, pulse: 0.5 + 0.5 * Math.sin(x * Math.PI * 2 * 1.1), step, markStep, phase, ...(hands ? { hands } : {}) };
   };
   return {
     duration: total,

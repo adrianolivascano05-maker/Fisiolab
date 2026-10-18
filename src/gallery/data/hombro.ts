@@ -220,6 +220,28 @@ export const hombroTests: SpecialTest[] = [
         arrows: [{ at: "r_wrist", dir: "medial", label: "resiste RE" }],
         pain: ["r_shoulder"],
         caption: "Codo pegado al cuerpo; el paciente rota hacia fuera contra resistencia",
+        side: "r",
+        script: {
+          start: { r_shoulder: { flex: 0, abd: 0, rot: 0 }, r_elbow: { flex: 90, pron: 0 } },
+          steps: [
+            {
+              marks: [
+                { kind: "resist", joint: "r_shoulder", dof: "rot", sign: -1, label: "El paciente empuja hacia RE" },
+                { kind: "push", at: "r_wrist", dir: "medial", label: "El examinador resiste" },
+              ],
+              dur: 0.4,
+              hold: 3.2,
+              pain: true,
+              text: "El paciente intenta rotar el brazo hacia fuera con fuerza; el examinador lo impide en la muñeca y le sujeta el codo contra el tronco. No hay movimiento (isométrico).",
+            },
+          ],
+        },
+        text: {
+          setup: "Paciente de pie, codo derecho a 90° pegado al costado y antebrazo en posición neutra (pulgar arriba). Examinador delante.",
+          look: "Positivo si hay dolor o debilidad en la rotación externa respecto al lado sano.",
+        },
+        place: { stance: "stand", from: "side" },
+        supuestos: ["Se muestra de pie (la fuente admite de pie o sentado)."],
       },
     ],
     related: ["hom-cluster-park-subacromial", "hom-cluster-park-rotura", "hom-lag-rotacion-externa"],

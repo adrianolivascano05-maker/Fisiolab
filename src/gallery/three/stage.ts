@@ -30,13 +30,17 @@ import {
   Vector3,
   WebGLRenderer,
 } from "three";
-import { timeline, type Arrow, type FigureSpec } from "../figure";
+import type { Arrow, FigureSpec } from "../figure";
+import { mirrorText, sideLabel, sideLetter } from "../describe";
+import { clockOf, extremeU, type Clock, type Key, type Moment } from "../script";
+import { keysOf } from "./anatomy";
 import { CAMERAS, cameraKey, type CamState } from "./cameras";
-import { planExaminer, stoolOf, type ExaminerPlan } from "./examiner";
+import { buildMarks, MARK_COLORS, type BuiltMark } from "./marks";
+import { mixFor, planExaminer, stoolOf, type ExaminerPlan } from "./examiner";
 import { layoutPatient, patientPose, type Layout, type Table } from "./layout";
 import { Person } from "./person";
 import { scenePoses } from "./scene";
-import { anatDir, anchorInfo, LYING, surfaceRadius, surfaceSamples, type Pose3 } from "./rig";
+import { anatDir, anchorInfo, LYING, sgn, surfaceRadius, surfaceSamples, type Pose3 } from "./rig";
 
 const COLORS = { force: "#1f6f54", move: "#6f675b", pain: "#d43a2a", table: "#c2b08f", tableSide: "#a8987a", tableLeg: "#7c7262", floor: "#efe6d6" };
 const FOV = 30;
@@ -52,6 +56,18 @@ export function webglAvailable(): boolean {
   } catch {
     return false;
   }
+}
+
+/** Clínico: con flechas, etiquetas y dolor. Natural: el gesto limpio (la misma animación). */
+export type StageMode = "clinical" | "natural";
+
+/** Lado explorado de una figura: el que dice, o el de la mayoría de lo que toca y mueve (por defecto, el derecho). */
+export function sideOf(spec: FigureSpec): "r" | "l" | "both" {
+  if (spec.side) return spec.side;
+  const keys = [...(spec.hands ?? []), ...(spec.pain ?? []), ...(spec.arrows ?? []).map((a) => a.at), ...Object.keys(spec.to ?? {}), ...Object.keys(spec.to3d ?? {})];
+  const l = keys.filter((k) => k.startsWith("l_")).length;
+  const r = keys.filter((k) => k.startsWith("r_")).length;
+  return l > r ? "l" : "r";
 }
 
 export type StageOptions = {
@@ -106,6 +122,16 @@ export class Stage {
   private tableGroup: Group | null = null;
   /** Test de la cara (ATM): plano cercano de la cabeza. */
   private readonly faceOnly: boolean;
+  /** Reloj de la animación (el del guion o el de siempre). */
+  readonly clock: Clock;
+  private readonly keys: Key[] | null;
+  private scriptMarks: { steps: BuiltMark[][]; always: BuiltMark[] } | null = null;
+  private readonly markLabels = new Map<BuiltMark, HTMLSpanElement>();
+  private mode: StageMode = "clinical";
+  private mirrored = false;
+  readonly side: "r" | "l" | "both";
+  private sideTag?: HTMLSpanElement;
+  private badge!: HTMLDivElement;
 
   constructor(
     private readonly host: HTMLElement,
@@ -155,6 +181,9 @@ export class Stage {
 
     // Paciente colocado en el suelo, la camilla o sentado en el borde de la camilla.
     this.layout = layoutPatient(spec);
+    this.keys = spec.script ? keysOf(spec) : null;
+    this.clock = clockOf(spec, this.keys ?? undefined);
+    this.side = sideOf(spec);
     this.rootQ = this.layout.rootQ;
     this.table = this.layout.table;
     if (this.table) this.addTable(this.table);
@@ -173,8 +202,10 @@ export class Stage {
     this.scene.add(floor);
     this.disposables.push(floor.geometry, floor.material as MeshStandardMaterial);
 
-    this.buildMarks();
-    this.pose(1, 1, 1, 1, 0.5);
+    if (spec.script) this.buildScriptMarks();
+    else this.buildMarks();
+    this.buildSide();
+    this.pose(this.stillMoment());
     const cached = opts.fresh ? undefined : CAMERAS[cameraKey(spec)];
     if (cached) {
       const [az, el, cx, cy, cz, dist] = cached;
@@ -248,14 +279,117 @@ export class Stage {
     this.scene.add(g);
   }
 
-  private label(text?: string) {
+  /** Etiqueta sobre la escena; con `color`, una franja del color de su marca para saber de cuál es. */
+  private label(text?: string, color?: string) {
     if (!text) return undefined;
     const s = document.createElement("span");
     s.textContent = text;
+    s.dataset.text = text;
     s.style.cssText =
-      "position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding:1px 7px;border-radius:999px;font:600 11px/1.5 var(--font-sans,system-ui);letter-spacing:.01em;white-space:nowrap;background:color-mix(in srgb,var(--color-bg,#fbf7f0) 88%,transparent);color:var(--color-text,#1b1b1d);box-shadow:0 0 0 1px var(--color-border,#dacbb0)";
+      "position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding:1px 7px;border-radius:999px;font:600 11.5px/1.5 var(--font-sans,system-ui);letter-spacing:.01em;white-space:nowrap;background:color-mix(in srgb,var(--color-bg,#fbf7f0) 90%,transparent);color:var(--color-text,#1b1b1d);box-shadow:0 0 0 1px var(--color-border,#dacbb0)" +
+      (color ? `;border-left:5px solid ${color};border-radius:6px 999px 999px 6px` : "");
     this.overlay.appendChild(s);
     return s;
+  }
+
+  /** Marcas de una figura con guion: recorrido de cada paso, empujes y resistencias. */
+  private buildScriptMarks() {
+    const built = buildMarks(this.spec, this.layout);
+    this.disposables.push(...built.geos);
+    for (const mk of [...built.steps.flat(), ...built.always]) {
+      this.disposables.push(...mk.mats);
+      mk.group.visible = false;
+      for (const c of mk.group.children) c.renderOrder = 5;
+      this.scene.add(mk.group);
+      const color = mk.kind === "push" ? MARK_COLORS.push : mk.kind === "resist" ? MARK_COLORS.resist : MARK_COLORS.path;
+      const l = this.label(mk.label, color);
+      if (l) this.markLabels.set(mk, l);
+    }
+    this.scriptMarks = { steps: built.steps, always: built.always };
+    if (this.spec.pain?.length) {
+      const tex = glowTexture();
+      this.disposables.push(tex);
+      for (const _ of this.spec.pain) {
+        const m = new SpriteMaterial({ map: tex, color: COLORS.pain, transparent: true, depthTest: false, depthWrite: false });
+        const s = new Sprite(m);
+        s.renderOrder = 20;
+        this.disposables.push(m);
+        this.scene.add(s);
+        this.pains.push(s);
+      }
+    }
+  }
+
+  /** Lado explorado: rótulo fijo en una esquina y letra junto al miembro explorado (en modo clínico). */
+  private buildSide() {
+    const b = document.createElement("div");
+    b.style.cssText =
+      "position:absolute;right:8px;top:8px;display:flex;align-items:center;gap:6px;padding:2px 9px 2px 3px;border-radius:999px;font:600 12px/1.6 var(--font-sans,system-ui);background:color-mix(in srgb,var(--color-bg,#fbf7f0) 92%,transparent);color:var(--color-text,#1b1b1d);box-shadow:0 0 0 1px var(--color-border,#dacbb0)";
+    this.badge = b;
+    this.overlay.appendChild(b);
+    if (this.side !== "both") {
+      const t = this.label(sideLetter(this.side));
+      if (t) {
+        t.style.font = "700 12px/1 var(--font-sans,system-ui)";
+        t.style.padding = "4px 6px";
+        t.style.background = "#1b1b1d";
+        t.style.color = "#fff";
+        t.style.boxShadow = "0 0 0 2px #fff";
+        this.sideTag = t;
+      }
+    }
+    this.updateSideTexts();
+  }
+
+  private updateSideTexts() {
+    const side = this.side === "both" ? "both" : this.mirrored ? (this.side === "r" ? "l" : "r") : this.side;
+    this.badge.innerHTML = "";
+    const dot = document.createElement("span");
+    dot.textContent = sideLetter(side);
+    dot.style.cssText = "display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 4px;border-radius:999px;background:#1b1b1d;color:#fff;font-size:11.5px";
+    const txt = document.createElement("span");
+    txt.textContent = sideLabel(side);
+    this.badge.append(dot, txt);
+    if (this.sideTag) this.sideTag.textContent = sideLetter(side);
+    for (const l of this.markLabels.values()) l.textContent = this.mirrored ? mirrorText(l.dataset.text ?? "") : (l.dataset.text ?? "");
+  }
+
+  /** Punto del miembro explorado junto al que va la letra D o I. */
+  private sideAnchor(pat: Pose3): Vector3 | null {
+    if (this.side === "both") return null;
+    const s = this.side;
+    const all = [...(this.spec.pain ?? []), ...(this.spec.hands ?? []), ...Object.keys(this.spec.script?.steps.reduce((a, st) => ({ ...a, ...st.to }), {}) ?? {})];
+    const arm = all.some((a) => a.startsWith(`${s}_`) && /shoulder|upperarm|elbow|forearm|wrist|hand/.test(a));
+    const leg = all.some((a) => a.startsWith(`${s}_`) && /hip|thigh|knee|shank|ankle|foot/.test(a));
+    // Cabeza, cuello o tronco: junto al hombro de ese lado.
+    const seg = leg && !arm ? `${s}_thigh@0.45` : arm ? `${s}_upperarm@0.5` : `${s}_upperarm@0.05`;
+    const info = anchorInfo(pat, seg);
+    if (!info) return null;
+    const out = new Vector3(sgn(s), 0, 0).applyQuaternion(pat.trunkQ);
+    return info.p.clone().addScaledVector(out, surfaceRadius(info, out) + 7);
+  }
+
+  /** Instante que enseña la maniobra en una imagen fija: la pose más alejada de la partida, con sus marcas. */
+  private stillMoment(): Moment {
+    if (!this.keys) return { m: 1, mix: 1, reach: 1, arrows: 1, pain: 1, pulse: 0.5, step: 0, markStep: 0, phase: "look" };
+    const S = this.keys.length - 1;
+    const u = extremeU(this.keys);
+    const step = Math.max(0, Math.round(u * S) - 1);
+    return { m: u, mix: 1, reach: 1, arrows: 1, pain: 1, pulse: 0.5, step, markStep: step, phase: "look" };
+  }
+
+  /** Modo clínico (ayudas visibles) o natural (el gesto limpio). */
+  setMode(mode: StageMode) {
+    this.mode = mode;
+    this.render(this.lastT);
+  }
+
+  /** El mismo test en el otro lado: la imagen en espejo (exacto: no cambia ningún ángulo). */
+  setMirror(on: boolean) {
+    this.mirrored = on;
+    this.renderer.domElement.style.transform = on ? "scaleX(-1)" : "";
+    this.updateSideTexts();
+    this.render(this.lastT);
   }
 
   private buildMarks() {
@@ -324,17 +458,53 @@ export class Stage {
     }
   }
 
+  private showMark(mk: BuiltMark, vis: number, pat: Pose3, ctsAt: Vector3[], toCam: Vector3, pulse: number) {
+    mk.group.visible = vis > 0.01;
+    mk.mats[0]!.opacity = vis;
+    mk.mats[1]!.opacity = vis;
+    if (mk.group.visible && mk.update) mk.update(pat, ctsAt, toCam, pulse);
+    const l = this.markLabels.get(mk);
+    if (l) this.place(l, mk.labelAt, vis);
+  }
+
   /** Coloca todo en el instante dado. */
-  private pose(m: number, reach: number, arrows: number, pain: number, pulse: number) {
+  private pose(tl: Moment) {
     const spec = this.spec;
-    const { pat, ex, cts } = scenePoses(spec, this.layout, this.plan, { m, reach, arrows });
+    const { m, reach, arrows, pain, pulse } = tl;
+    const clinical = this.mode === "clinical";
+    const { pat, ex, cts } = scenePoses(spec, this.layout, this.plan, tl);
     this.patient.apply(pat);
     if (ex && this.examiner) this.examiner.apply(ex);
     const toCam = this.camera.position.clone().sub(this.view.center).normalize();
+    void m;
+
+    if (this.sideTag) {
+      const at = clinical ? this.sideAnchor(pat) : null;
+      if (at) this.place(this.sideTag, at, 1);
+      else this.sideTag.style.opacity = "0";
+    }
+    if (this.scriptMarks) {
+      const ctsAt = cts.map((c) => c.p);
+      this.scriptMarks.steps.forEach((ms, i) => {
+        for (const mk of ms) this.showMark(mk, clinical && i === tl.markStep ? arrows : 0, pat, ctsAt, toCam, pulse);
+      });
+      const during = tl.phase === "move" || tl.phase === "look" ? Math.min(1, reach) : 0;
+      for (const mk of this.scriptMarks.always) this.showMark(mk, clinical ? during : 0, pat, ctsAt, toCam, pulse);
+      (spec.pain ?? []).forEach((a, i) => {
+        const s = this.pains[i]!;
+        const info = anchorInfo(pat, a);
+        s.visible = clinical && pain > 0.01 && !!info;
+        if (!info) return;
+        s.position.copy(info.p);
+        s.scale.setScalar((17 + 5 * pulse) * (this.faceOnly ? 0.45 : 1));
+        (s.material as SpriteMaterial).opacity = 0.85 * pain;
+      });
+      return;
+    }
 
     for (const a of this.arrows) {
       const info = anchorInfo(pat, a.spec.at);
-      a.group.visible = arrows > 0.01 && !!info;
+      a.group.visible = clinical && arrows > 0.01 && !!info;
       if (!info) {
         if (a.label) a.label.style.opacity = "0";
         continue;
@@ -385,12 +555,12 @@ export class Stage {
       }
       a.mats[0]!.opacity = arrows;
       a.mats[1]!.opacity = 0.28 * arrows;
-      if (a.label) this.place(a.label, kind === "force" ? tail.clone().addScaledVector(d, -4) : tip.clone().addScaledVector(d, 4), arrows);
+      if (a.label) this.place(a.label, kind === "force" ? tail.clone().addScaledVector(d, -4) : tip.clone().addScaledVector(d, 4), clinical ? arrows : 0);
     }
 
     for (const r of this.rots) {
       const info = anchorInfo(pat, r.spec.at);
-      r.group.visible = arrows > 0.01 && !!info;
+      r.group.visible = clinical && arrows > 0.01 && !!info;
       if (!info) {
         if (r.label) r.label.style.opacity = "0";
         continue;
@@ -411,13 +581,13 @@ export class Stage {
       r.group.scale.setScalar(radius);
       r.mats[0]!.opacity = arrows;
       r.mats[1]!.opacity = 0.28 * arrows;
-      if (r.label) this.place(r.label, info.p.clone().add(new Vector3(0, radius + 5, 0)), arrows);
+      if (r.label) this.place(r.label, info.p.clone().add(new Vector3(0, radius + 5, 0)), clinical ? arrows : 0);
     }
 
     (spec.pain ?? []).forEach((a, i) => {
       const s = this.pains[i]!;
       const info = anchorInfo(pat, a);
-      s.visible = pain > 0.01 && !!info;
+      s.visible = clinical && pain > 0.01 && !!info;
       if (!info) return;
       s.position.copy(info.p);
       s.scale.setScalar((17 + 5 * pulse) * (this.faceOnly ? 0.45 : 1));
@@ -437,7 +607,17 @@ export class Stage {
     const h = this.host.clientHeight;
     const v = new Vector3();
     const placed: { x: number; y: number; hw: number; hh: number }[] = [];
+    // El rótulo del lado, arriba a la derecha, tampoco se pisa; ni la punta y la mitad de las flechas que se ven.
+    if (this.badge.offsetWidth) placed.push({ x: w - 8 - this.badge.offsetWidth / 2, y: 8 + this.badge.offsetHeight / 2, hw: this.badge.offsetWidth / 2 + 3, hh: this.badge.offsetHeight / 2 + 2 });
+    for (const mk of this.scriptMarks ? [...this.scriptMarks.steps.flat(), ...this.scriptMarks.always] : []) {
+      if (!mk.group.visible) continue;
+      for (const k of mk.keep ?? []) {
+        v.copy(k).project(this.camera);
+        placed.push({ x: ((this.mirrored ? 1 - v.x : v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, hw: 9, hh: 9 });
+      }
+    }
     for (const el of this.overlay.children as HTMLCollectionOf<HTMLSpanElement>) {
+      if (el === this.badge) continue;
       if (el.dataset.x === undefined || el.style.opacity === "0") {
         el.style.visibility = "hidden";
         continue;
@@ -445,7 +625,7 @@ export class Stage {
       v.set(Number(el.dataset.x), Number(el.dataset.y), Number(el.dataset.z)).project(this.camera);
       const hw = el.offsetWidth / 2 + 3;
       const hh = el.offsetHeight / 2 + 1;
-      let x = Math.min(w - hw, Math.max(hw, ((v.x + 1) / 2) * w));
+      let x = Math.min(w - hw, Math.max(hw, ((this.mirrored ? 1 - v.x : v.x + 1) / 2) * w));
       let y = Math.min(h - hh - 2, Math.max(hh + 2, ((1 - v.y) / 2) * h));
       // Si se pisa con otra etiqueta, se aparta en vertical.
       for (let k = 0; k < 6; k++) {
@@ -468,7 +648,7 @@ export class Stage {
 
   private focusPoints(): { p: Vector3; w: number; allow: string[] }[] {
     const spec = this.spec;
-    const { pat, cts } = scenePoses(spec, this.layout, this.plan, { m: 1, reach: 1, arrows: 1 });
+    const { pat, cts } = scenePoses(spec, this.layout, this.plan, this.stillMoment());
     const pts: { p: Vector3; w: number; allow: string[] }[] = [];
     for (const c of cts) pts.push({ p: c.p, w: 1, allow: [`p:${c.part}`, "e:r_hand", "e:l_hand"] });
     for (const a of spec.pain ?? []) {
@@ -490,7 +670,8 @@ export class Stage {
   /** Dirección preferida: la de la figura plana, un poco girada para que se vea el volumen. */
   private preferred(): { az: number; el: number } {
     const spec = this.spec;
-    const local = spec.view === "side" ? new Vector3(spec.near === "l" ? 1 : -1, 0, 0) : new Vector3(0, 0, 1);
+    const near = spec.near ?? (this.side === "l" ? "l" : "r");
+    const local = spec.view === "side" ? new Vector3(near === "l" ? 1 : -1, 0, 0) : new Vector3(0, 0, 1);
     const d = local.applyQuaternion(this.rootQ);
     const lying = LYING.includes(spec.posture);
     const fromTop = d.y > 0.7;
@@ -510,7 +691,7 @@ export class Stage {
       el = 12;
       // La cara se ve mejor de tres cuartos por delante.
       const t = this.faceOnly ? 58 : 28;
-      h = turn(h, spec.view === "side" ? (spec.near === "l" ? -t : t) : 24);
+      h = turn(h, spec.view === "side" ? (near === "l" ? -t : t) : this.side === "l" ? -24 : 24);
     }
     return { az: Math.atan2(h.x, h.z), el: rad(el) };
   }
@@ -523,6 +704,28 @@ export class Stage {
     const pref = this.preferred();
     const focus = this.focusPoints();
     const fp = this.framePoints();
+    // Cámara fijada a mano en la figura (acimut desde delante del paciente, + hacia su derecha).
+    if (this.spec.camera) {
+      const c = this.spec.camera;
+      const h = new Vector3(-Math.sin(rad(c.az)), 0, Math.cos(rad(c.az))).applyQuaternion(this.rootQ).setY(0);
+      if (h.lengthSq() < 1e-4) h.set(0, 0, 1);
+      h.normalize();
+      const az = Math.atan2(h.x, h.z);
+      const el = rad(c.el);
+      const fit = this.fit(this.dirOf(az, el), fp);
+      this.base = { az, el };
+      this.view = { center: fit.center, dist: fit.dist / (c.zoom ?? 1), az, el };
+      this.updateCamera();
+      return;
+    }
+    // Lado explorado: mejor verlo desde su lado (que el miembro sano no quede delante).
+    const lat = this.side === "both" ? null : new Vector3(sgn(this.side), 0, 0).applyQuaternion(this.rootQ).setY(0);
+    if (lat && lat.lengthSq() > 0.05) lat.normalize();
+    // Flechas: el recorrido debe verse largo (no de punta) y las rectas, de lado.
+    const marks = this.scriptMarks ? [...this.scriptMarks.steps.flat(), ...this.scriptMarks.always] : [];
+    const pat1 = this.patientPose(this.stillMoment().m, 1);
+    const paths = marks.filter((mk) => mk.path).map((mk) => mk.path!.pts);
+    const straights = marks.filter((mk) => mk.dir).map((mk) => mk.dir!(pat1));
     const meshes: Mesh[] = [];
     const who = new Map<Object3D, string>();
     for (const [o, part] of this.patient.parts) who.set(o, `p:${part}`);
@@ -540,6 +743,11 @@ export class Stage {
     const stride = Math.max(1, Math.ceil(near.length / 28));
     const area = near.filter((_, i) => i % stride === 0).map((x) => ({ p: x.p, n: x.n, w: 1.6 / Math.max(1, Math.ceil(near.length / stride)), allow: [`p:${x.part}`] }));
     const pts: { p: Vector3; w: number; allow: string[]; n?: Vector3 | null }[] = [...focus, ...area];
+    // Las flechas tampoco pueden quedar tapadas.
+    for (const mk of this.scriptMarks ? [...this.scriptMarks.steps.flat(), ...this.scriptMarks.always] : []) {
+      const ps = mk.path ? mk.path.pts.filter((_, i, a) => i % Math.max(1, Math.floor(a.length / 5)) === 0) : [];
+      for (const p of ps) pts.push({ p, w: 0.7 / Math.max(1, ps.length / 3), allow: [] });
+    }
     // De qué lado está el examinador: la cámara prefiere no ponerse a su espalda.
     const exDir = this.plan ? new Vector3(-Math.sin(this.plan.yaw), 0, -Math.cos(this.plan.yaw)) : null;
     const prefDir = this.dirOf(pref.az, pref.el);
@@ -569,6 +777,19 @@ export class Stage {
         const angle = mirror ? Math.min(deg(prefDir), deg(mirror) + mirrorCost / 0.035) : deg(prefDir);
         let cost = angle * 0.035;
         if (exDir) cost += 6 * Math.max(0, dir.dot(exDir)) ** 2;
+        if (lat && lat.lengthSq() > 0.5) cost += 4 * Math.max(0, -dir.dot(lat)) ** 2;
+        for (const pts of paths) {
+          // Lo que se ve del recorrido: su largo proyectado en la imagen frente al real.
+          let real = 0;
+          let seen = 0;
+          for (let i = 1; i < pts.length; i++) {
+            const d = pts[i]!.clone().sub(pts[i - 1]!);
+            real += d.length();
+            seen += d.addScaledVector(dir, -d.dot(dir)).length();
+          }
+          if (real > 0) cost += 5 * (1 - seen / real) ** 2;
+        }
+        for (const d of straights) cost += 1.5 * dir.dot(d) ** 2;
         // Sentado en el borde de la camilla: desde delante o desde un lado, nunca por detrás de la camilla.
         if (sitFwd && dir.dot(sitFwd) < -0.05) cost += 6;
         if (cost >= best.cost) continue;
@@ -605,9 +826,12 @@ export class Stage {
         let hidden = 0;
         let total = 0;
         for (const f of pts) {
-          // La cara de atrás de una pieza no cuenta: la tapa ella misma.
-          if (f.n && f.n.dot(cam.clone().sub(f.p).normalize()) < 0.15) continue;
           total += f.w;
+          // Lo que queda de espaldas a la cámara tampoco se ve (la propia pieza lo tapa).
+          if (f.n && f.n.dot(cam.clone().sub(f.p).normalize()) < 0.15) {
+            hidden += f.w * 0.7;
+            continue;
+          }
           const to = f.p.clone().sub(cam);
           const dist = to.length();
           ray.set(cam, to.normalize());
@@ -636,8 +860,12 @@ export class Stage {
     const roi: Vector3[] = [];
     const all: Vector3[] = [];
     const p0 = this.patientPose(0, 0);
-    for (const m of [0, 0.5, 1]) {
-      const { pat, ex, cts } = scenePoses(spec, this.layout, this.plan, { m, reach: 1, arrows: m });
+    // Con guion, cada pose clave (la más alejada, la última); sin guion, principio, mitad y final.
+    const S = this.keys ? this.keys.length - 1 : 0;
+    const end = this.stillMoment().m;
+    const ms = this.keys ? [...Array.from({ length: S }, (_, i) => i / S).filter((u) => u !== end), end] : [0, 0.5, 1];
+    for (const m of ms) {
+      const { pat, ex, cts } = scenePoses(spec, this.layout, this.plan, { m, reach: 1, arrows: m, mix: this.keys ? mixFor(spec, m) : m });
       all.push(...surfaceSamples(pat).map((x) => x.p));
       if (ex) all.push(...surfaceSamples(ex).map((x) => x.p));
       for (const c of cts) roi.push(c.p);
@@ -659,9 +887,18 @@ export class Stage {
             : ["pelvis", "chest"];
         for (const k of keys) if (pat.pt[k]) roi.push(pat.pt[k]!);
       }
-      if (m === 1) for (const k of Object.keys(pat.pt)) if (pat.pt[k]!.distanceTo(p0.pt[k]!) > 4) roi.push(pat.pt[k]!, p0.pt[k]!);
+      if (m === end || this.keys) for (const k of Object.keys(pat.pt)) if (pat.pt[k]!.distanceTo(p0.pt[k]!) > 4) roi.push(pat.pt[k]!, p0.pt[k]!);
     }
-    this.patientPose(1, 1);
+    // Las flechas de recorrido enteras dentro de la imagen.
+    for (const mk of this.scriptMarks ? [...this.scriptMarks.steps.flat(), ...this.scriptMarks.always] : []) if (mk.path) roi.push(...mk.path.pts.filter((_, i) => i % 3 === 0));
+    // Las cabezas, si están cerca de la zona del test, enteras (mejor que cortadas por el borde).
+    if (roi.length && !this.faceOnly) {
+      const c = roi.reduce((a, b) => a.add(b), new Vector3()).multiplyScalar(1 / roi.length);
+      const { pat, ex } = scenePoses(spec, this.layout, this.plan, this.stillMoment());
+      const head = (p: Pose3) => [p.head.p, p.head.p.clone().add(new Vector3(0, 13, 0).applyQuaternion(p.head.q)), p.head.p.clone().add(new Vector3(0, -11, 0).applyQuaternion(p.head.q))];
+      if (pat.head.p.distanceTo(c) < 70) roi.push(...head(pat));
+      if (ex && ex.head.p.distanceTo(c) < 85) roi.push(...head(ex));
+    }
     return { roi, all };
   }
 
@@ -767,7 +1004,7 @@ export class Stage {
       const dx = e.clientX - this.drag.x;
       const dy = e.pointerType === "mouse" ? e.clientY - this.drag.y : 0;
       if (Math.abs(dx) + Math.abs(dy) < 3 && !this.custom) return;
-      this.view.az = this.drag.az - dx * 0.012;
+      this.view.az = this.drag.az - (this.mirrored ? -dx : dx) * 0.012;
       this.view.el = this.drag.el + dy * 0.01;
       this.limitView();
       this.custom = true;
@@ -786,7 +1023,7 @@ export class Stage {
 
   /** Gira la cámara alrededor de la figura (grados; positivo, hacia la derecha), dentro de lo permitido. */
   rotateBy(deg: number) {
-    this.view.az -= rad(deg);
+    this.view.az -= rad(this.mirrored ? -deg : deg);
     this.limitView();
     this.custom = true;
     this.updateCamera();
@@ -813,8 +1050,7 @@ export class Stage {
       this.renderer.setSize(w, h, false);
       this.updateCamera();
     }
-    const tl = still ? { reach: 1, m: 1, arrows: 1, pain: 1, pulse: 0.5 } : timeline(t);
-    this.pose(tl.m, tl.reach, tl.arrows, tl.pain, tl.pulse);
+    this.pose(still ? this.stillMoment() : this.clock.at(t));
     this.renderer.render(this.scene, this.camera);
     this.layoutLabels();
   }
