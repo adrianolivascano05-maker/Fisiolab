@@ -57,7 +57,7 @@ test.describe("Galería de tests", () => {
     await expect(page.getByText(/50 %/).first()).toBeVisible();
   });
 
-  test("G4 figura en 3D: se gira y vuelve a la vista inicial", async ({ page }) => {
+  test("G4 figura en 3D: se gira un poco y vuelve a la vista inicial", async ({ page }) => {
     await page.goto("./exploracion/rodilla/rod-lachman");
     await expect(page.getByRole("img", { name: "Test de Lachman" })).toBeVisible();
     await expect(page.locator("canvas")).toHaveCount(1);

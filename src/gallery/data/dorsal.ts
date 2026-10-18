@@ -117,8 +117,8 @@ export const dorsalTests: SpecialTest[] = [
         posture: "sitting",
         joints: { trunk: 25, neck: 40, r_knee: 50, r_ankle: 10 },
         to: { r_knee: 5 },
-        hands: ["neck", "r_shank@0.5"],
-        grips: [{ kind: "press", face: "posterior" }, { kind: "grasp", face: "posterior" }],
+        hands: ["head", "shoulder"],
+        grips: [{ kind: "press", face: "posterior" }, { kind: "press", face: "cranial" }],
         arrows: [
           { at: "head", dir: "caudal", label: "flexión" },
           { at: "r_ankle", dir: "anterior", kind: "move", label: "ext. rodilla" },

@@ -613,6 +613,7 @@ export const cervicalTests: SpecialTest[] = [
       {
         view: "side",
         posture: "supine",
+        joints: { neck: 20 },
         hands: ["neck@0.8", "head"],
         grips: [{ kind: "tips", face: "posterior" }, { kind: "grasp", face: "posterior" }],
         arrows: [{ at: "neck@0.8", dir: "anterior", label: "anterior" }],

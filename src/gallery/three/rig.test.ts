@@ -1,11 +1,14 @@
 import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
+import { timeline } from "../figure";
 import { tests } from "../data";
 import { CAMERAS, cameraKey } from "./cameras";
 import PLANS from "./plans.json";
-import { bodySDF, skinPoints, tableD } from "./collide";
-import { contacts, examinerPose, handAt, handTarget, planExaminer } from "./examiner";
-import { layoutPatient, patientPose } from "./layout";
+import { figureFaults } from "./audit";
+import { bodySDF } from "./collide";
+import { baseExaminerPose, fitHand, handAt, handTarget, planExaminer } from "./examiner";
+import { scenePoses } from "./scene";
+import { layoutPatient } from "./layout";
 import { anchorInfo, DIM, fk, patientAngles, postureQ, upSide } from "./rig";
 
 const figures = tests.flatMap((t) => t.figures.map((f, i) => ({ id: `${t.id}#${i}`, f })));
@@ -39,49 +42,67 @@ describe("maniquí 3D", () => {
     for (const { id, f } of figures) {
       if (!f.hands?.length) continue;
       const L = layoutPatient(f);
-      const poses = [0, 1].map((m) => patientPose(L, m, 0));
-      const plan = planExaminer(f, poses, L.table);
+      const plan = planExaminer(f, L);
       expect(plan, id).not.toBeNull();
-      for (const [m, p] of poses.entries()) {
-        const base = examinerPose(plan!, contacts(f, p, null, plan), 0, m);
-        const cts = contacts(f, p, base, plan);
-        const ex = examinerPose(plan!, cts, 1, m);
+      for (const m of [0, 1]) {
+        const { pat, ex, cts } = scenePoses(f, L, plan, { m, reach: 1, arrows: m });
+        const base = baseExaminerPose(plan!, m);
+        const sdf = bodySDF(pat);
         for (const arm of plan!.arms) {
-          // La muñeca llega a donde la toma la necesita.
-          const S = base.pt[`${arm.side}_shoulder`]!;
-          const gap = ex.seg[`${arm.side}_hand`].p.distanceTo(handTarget(cts[arm.hand]!, S, handAt(arm, m)).W);
-          if (gap > 4) far.push(`${id} ${f.hands[arm.hand]} ${gap.toFixed(1)} cm`);
+          // La muñeca llega a donde la toma la necesita (con la mano asentada en la piel).
+          const S = base.pt[`${arm.side}_shoulder`]!.clone().sub(base.girdle[arm.side]);
+          const ct = cts[arm.hand]!;
+          const fit = fitHand(ct, handTarget(ct, S, handAt(arm, m)), sdf, arm.side);
+          const gap = ex!.seg[`${arm.side}_hand`].p.distanceTo(fit.W);
+          if (gap > 1.5) far.push(`${id} ${f.hands[arm.hand]} ${gap.toFixed(1)} cm`);
         }
       }
     }
     expect(far).toEqual([]);
-  }, 60_000);
+  }, 120_000);
 
-  it("el examinador no se mete en el paciente ni en la camilla, ni el paciente en sí mismo", () => {
+  it("en ningún momento hay nada metido en otra cosa ni brazos pasados de los topes de sus articulaciones", () => {
     const bad: string[] = [];
     for (const { id, f } of figures) {
       const L = layoutPatient(f);
-      const poses = [0, 1].map((m) => patientPose(L, m, 0));
-      const plan = f.hands?.length ? planExaminer(f, poses, L.table) : null;
-      for (const m of [0, 0.5, 1]) {
-        const pat = patientPose(L, m, 1);
-        const psdf = bodySDF(pat);
-        // Antebrazos y manos del paciente fuera de su tronco y su cabeza (apoyados, como mucho, hundiendo algo la piel).
-        const worst = Math.min(...skinPoints(pat, (p) => /forearm|hand/.test(p), 2).map((sp) => psdf(sp.p, (q) => q !== "torso" && q !== "head").d));
-        if (worst < -2.5) bad.push(`${id} m=${m} paciente: antebrazo o mano dentro del cuerpo ${(-worst).toFixed(1)} cm`);
-        if (!plan) continue;
-        const base = examinerPose(plan, contacts(f, pat, null, plan), 0, m);
-        const cts = contacts(f, pat, base, plan);
-        const ex = examinerPose(plan, cts, 1, m);
-        // Cuerpo, cabeza, piernas y brazos del examinador fuera del paciente y de la camilla.
-        const body = skinPoints(ex, (p) => !/hand|forearm/.test(p), 2);
-        const inside = Math.min(...body.map((sp) => psdf(sp.p).d));
-        if (inside < -1.5) bad.push(`${id} m=${m} examinador dentro del paciente ${(-inside).toFixed(1)} cm`);
-        if (L.table && Math.min(...body.map((sp) => tableD(L.table!, sp.p))) < -1.5) bad.push(`${id} m=${m} examinador dentro de la camilla`);
-      }
+      const plan = f.hands?.length ? planExaminer(f, L) : null;
+      const { issues, joints } = figureFaults(f, L, plan, 0.05);
+      for (const is of issues) bad.push(`${id} t=${is.t} ${is.what} ${is.depth} cm`);
+      for (const [what, d] of joints) if (d > 2) bad.push(`${id} ${what} ${d.toFixed(0)}° de más`);
     }
     expect(bad).toEqual([]);
-  }, 120_000);
+  }, 600_000);
+
+  it("los codos y los hombros del examinador se mueven sin saltos", () => {
+    const bad: string[] = [];
+    for (const { id, f } of figures) {
+      if (!f.hands?.length || f.examiner === "none") continue;
+      const L = layoutPatient(f);
+      const plan = planExaminer(f, L)!;
+      // A 20 imágenes por segundo (la vuelta dura 7 s): el codo no puede ir mucho más deprisa que la mano.
+      let prev: ReturnType<typeof scenePoses>["ex"] = null;
+      let worst = { k: 0, t: 0, s: "" };
+      for (let i = 0; i <= 140; i++) {
+        const t = i / 140;
+        const ex = scenePoses(f, L, plan, timeline(t)).ex!;
+        if (prev) {
+          for (const arm of plan.arms) {
+            const s = arm.side;
+            // Respecto al hombro (si el examinador se desplaza, todo el brazo va con él).
+            const rel = (p: NonNullable<typeof ex>, k: string) => p.pt[`${s}_${k}`]!.clone().sub(p.pt[`${s}_shoulder`]!);
+            const dE = rel(ex, "elbow").distanceTo(rel(prev, "elbow"));
+            const dW = rel(ex, "wrist").distanceTo(rel(prev, "wrist"));
+            const dS = ex.girdle[s].distanceTo(prev.girdle[s]);
+            const k = Math.max(dE - 1.5 * dW - 2, dS - 0.8);
+            if (k > worst.k) worst = { k, t, s };
+          }
+        }
+        prev = ex;
+      }
+      if (worst.k > 0) bad.push(`${id} ${worst.s} t=${worst.t.toFixed(3)} salto de ${worst.k.toFixed(1)} cm`);
+    }
+    expect(bad).toEqual([]);
+  }, 300_000);
 
   it("cada figura con examinador tiene su colocación precalculada (si falla: node scripts/gallery3d-plans.mjs)", () => {
     const missing = figures.filter(({ f }) => f.hands?.length && f.examiner !== "none" && !(PLANS as Record<string, unknown>)[cameraKey(f)]).map((x) => x.id);

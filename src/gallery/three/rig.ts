@@ -18,7 +18,7 @@ export const LIMBS: LimbSeg[] = ["upperarm", "forearm", "hand", "thigh", "shank"
 export const DIM = {
   hipHalf: 9,
   shoulderY: 49,
-  shoulderHalf: 16.5,
+  shoulderHalf: 17.4,
   shoulderZ: -1.5,
   neckBase: new Vector3(0, 53.5, -2),
   neck: 7.5,
@@ -38,11 +38,11 @@ export const LIMB: Record<Exclude<LimbSeg, "hand" | "foot">, { len: number; ring
   upperarm: {
     len: DIM.upperarm,
     rings: [
-      [-0.065, 1.6, 1.2, 1.7, 1.7],
-      [-0.05, 3.4, 2.5, 3.6, 3.6],
-      [-0.02, 4.7, 3.6, 4.8, 4.9],
-      [0.03, 5.3, 4.2, 5.2, 5.4],
-      [0.15, 5.3, 4.3, 5.0, 5.0],
+      [-0.065, 1.3, 1.0, 1.4, 1.4],
+      [-0.05, 2.9, 2.1, 3.0, 3.1],
+      [-0.02, 4.1, 3.2, 4.3, 4.4],
+      [0.03, 4.8, 3.9, 4.9, 5.0],
+      [0.15, 5.0, 4.2, 4.9, 4.9],
       [0.38, 4.4, 4.1, 4.4, 4.4],
       [0.6, 4.1, 3.9, 4.6, 4.3],
       [0.85, 3.8, 3.7, 3.7, 3.9],
@@ -101,6 +101,95 @@ export const FOOT: [number, number, number, number][] = [
   [19.9, 1.4, -5.6, -6.6],
 ];
 
+/**
+ * Relieve de músculos y huesos que se notan bajo la piel de brazos y piernas: [t, ancho en t, ángulo en la
+ * sección (0 lateral, 90 anterior, 180 medial, 270 posterior), ancho angular (grados), cm hacia fuera].
+ */
+const LIMB_BUMPS: Record<keyof typeof LIMB, [number, number, number, number, number][]> = {
+  upperarm: [
+    [0.6, 0.17, 90, 32, 0.55], // bíceps
+    [0.36, 0.17, 270, 38, 0.5], // tríceps
+    [0.83, 0.07, 270, 30, -0.2], // tendón del tríceps
+    [0.45, 0.06, 5, 18, -0.25], // inserción del deltoides
+    [0.98, 0.035, 180, 24, 0.45], // epicóndilo medial
+    [0.98, 0.035, 0, 22, 0.25], // epicóndilo lateral
+  ],
+  forearm: [
+    [-0.01, 0.04, 270, 26, 0.5], // olécranon
+    [0.18, 0.14, 25, 38, 0.55], // braquiorradial
+    [0.22, 0.15, 140, 40, 0.4], // flexores
+    [0.6, 0.25, 235, 18, -0.22], // borde del cúbito
+    [0.96, 0.035, 210, 22, 0.35], // estiloides cubital
+  ],
+  thigh: [
+    [0.5, 0.2, 90, 35, 0.45], // recto anterior
+    [0.83, 0.07, 140, 30, 0.85], // vasto medial
+    [0.5, 0.2, 20, 32, 0.45], // vasto lateral
+    [0.6, 0.25, 330, 15, -0.3], // cintilla iliotibial
+    [0.55, 0.2, 270, 40, 0.35], // isquiotibiales
+    [0.99, 0.04, 270, 35, -0.5], // hueco poplíteo
+    [0.2, 0.15, 180, 35, 0.45], // aductores
+    [0.98, 0.035, 90, 26, 0.7], // rótula
+  ],
+  shank: [
+    [0.04, 0.035, 90, 14, 0.3], // tendón rotuliano
+    [0.05, 0.04, 55, 15, -0.35], // huecos a los lados del tendón
+    [0.05, 0.04, 125, 15, -0.35],
+    [0.1, 0.03, 90, 18, 0.35], // tuberosidad tibial
+    [0.27, 0.12, 225, 38, 0.95], // gemelo medial
+    [0.23, 0.1, 315, 34, 0.65], // gemelo lateral
+    [0.5, 0.25, 125, 25, -0.2], // cara medial de la tibia, plana
+    [0.86, 0.07, 235, 18, -0.35], // huecos a los lados del tendón de Aquiles
+    [0.86, 0.07, 305, 18, -0.35],
+    [0.97, 0.03, 180, 30, 0.55], // maléolo medial
+    [1.02, 0.03, 0, 28, 0.55], // maléolo lateral
+  ],
+};
+
+/** Relieve (cm) de un miembro a la altura t en la dirección (x, z) de su sección. */
+export function limbBump(seg: keyof typeof LIMB, s: Side, t: number, x: number, z: number): number {
+  const phi = (Math.atan2(z, x * sgn(s)) * 180) / Math.PI;
+  let b = 0;
+  for (const [tc, st, pc, sp, a] of LIMB_BUMPS[seg]) {
+    const u = (t - tc) / st;
+    if (u > 3 || u < -3) continue;
+    let dp = phi - pc;
+    dp -= 360 * Math.round(dp / 360);
+    if (dp > 3 * sp || dp < -3 * sp) continue;
+    b += a * Math.exp(-u * u - (dp / sp) ** 2);
+  }
+  return b;
+}
+
+const gs = (u: number) => Math.exp(-u * u);
+const win = (a: number, b: number, w: number, x: number) => smooth(a - w, a + w, x) * (1 - smooth(b - w, b + w, x));
+
+/** Relieve (cm) del tronco en un punto de su superficie (coordenadas del tronco): pecho, clavículas, escápulas, columna y glúteos. */
+export function torsoBump(x: number, y: number, z: number): number {
+  const ax = Math.abs(x);
+  let b = 0;
+  if (z > -1) {
+    const f = smooth(-1, 3, z);
+    // Pectorales (con su borde inferior más marcado), surco del esternón y horquilla esternal.
+    b += 0.8 * gs((ax - 7.5) / 5.5) * gs((y - 40.5) / (y < 40.5 ? 2.8 : 5.5)) * f;
+    b -= 0.3 * gs(ax / 1.3) * win(30, 46, 2, y) * f;
+    b -= 0.55 * gs(ax / 1.5) * gs((y - 51.2) / 1.4) * f;
+    // Clavículas: del esternón al hombro, algo hacia arriba.
+    const u = Math.min(1, Math.max(0, (ax - 2.5) / 11.5));
+    b += 0.35 * gs(Math.hypot(ax - (2.5 + 11.5 * u), y - (49.8 + 1.5 * u)) / 0.9) * f;
+  }
+  if (z < 1) {
+    const f = smooth(1, -3, z);
+    // Escápulas, surco de la columna, músculos erectores y glúteos con su pliegue.
+    b += 0.6 * gs((ax - 9) / 4) * gs((y - 39.5) / 5.5) * f;
+    b -= 0.55 * gs(ax / 1.5) * win(4, 46, 2, y) * f;
+    b += 0.5 * gs((ax - 3.6) / 2.2) * gs((y - 10) / 9) * f;
+    b += 1.4 * gs((ax - 6.5) / 5) * gs((y + 8) / 5.5) * f;
+    b -= 0.35 * gs(ax / 1.2) * smooth(-1, -5, y) * f;
+  }
+  return b;
+}
+
 /** Tronco: [altura sobre las caderas, semiancho, hacia delante, hacia atrás]. */
 export const TORSO: [number, number, number, number][] = [
   [-15.5, 2.5, 2, 3],
@@ -111,11 +200,11 @@ export const TORSO: [number, number, number, number][] = [
   [12, 14.8, 9.3, 8.4],
   [18, 13.9, 9.2, 8],
   [26, 14.8, 9.8, 8.4],
-  [34, 16.2, 11, 8.9],
-  [41, 17.2, 11.4, 9.3],
-  [46, 17.2, 10.2, 9.3],
-  [50, 15.6, 7.8, 8.6],
-  [53, 12.2, 6, 6.8],
+  [34, 15.7, 11, 8.9],
+  [41, 16.0, 11.4, 9.3],
+  [46, 16.4, 10.2, 9.3],
+  [50, 16.6, 7.6, 8.4],
+  [52.6, 12.6, 6.0, 6.7],
   [55.5, 7.8, 4.8, 5.4],
   [57.5, 5.5, 4.2, 4.8],
   [58.5, 2.5, 2, 2.5],
@@ -167,7 +256,175 @@ export function bendPoint(y: number, z: number, R: number): [number, number] {
   const phi = (KNUCKLE_Y - y) / R;
   return [KNUCKLE_Y - (R - z) * Math.sin(phi), R - (R - z) * Math.cos(phi)];
 }
-export type HandState = { curl: number; grip: "press" | "grasp" | "tips" | "rest" };
+export type HandState = {
+  curl: number;
+  grip: "press" | "grasp" | "tips" | "rest";
+  /** Flexión total (grados) de cada dedo, del índice al meñique (si falta, la de `curl`). */
+  fingers?: number[];
+  /** Flexión del pulgar (grados, entre sus dos articulaciones). */
+  thumb?: number;
+  /** Dónde va el pulgar si no es donde lo pone la toma (p. ej. junto a los dedos si al otro lado no cabe). */
+  thumbAt?: "press" | "grasp" | "tips" | "rest";
+};
+
+/** Dedos: [lado del pulgar (+) o del meñique (−), largo desde el nudillo, radio, separación en grados]. */
+export const FINGERS: [number, number, number, number][] = [
+  [2.9, 8.5, 0.95, -3],
+  [0.95, 9.4, 0.98, 0],
+  [-1.0, 8.9, 0.92, 2.5],
+  [-2.85, 7.0, 0.8, 6],
+];
+/** Curvatura de cada dedo respecto a la de la mano (relajada: el meñique más doblado). */
+export const FINGER_CURL: Record<HandState["grip"], number[]> = {
+  rest: [1.05, 1, 0.9, 0.78],
+  press: [1, 1, 1, 1],
+  grasp: [1, 1, 1, 1],
+  tips: [1, 1, 0.94, 0.86],
+};
+/** Flexión (grados) de cada dedo en una mano: la pedida o la que da el radio de curvatura `curl`. */
+export function fingerBends(st: HandState): number[] {
+  if (st.fingers) return st.fingers;
+  const fac = FINGER_CURL[st.grip];
+  return FINGERS.map(([, len], i) => deg(len / (st.curl * fac[i]!)));
+}
+/** Articulaciones de un dedo: dónde (fracción del largo desde el nudillo), qué parte de la flexión se lleva y
+ *  en cuánto largo se curva (cm a cada lado). */
+const FINGER_JOINTS: [number, number, number][] = [
+  [0.03, 0.34, 0.8],
+  [0.47, 0.42, 0.55],
+  [0.77, 0.24, 0.45],
+];
+/** Pulgar: la articulación metacarpofalángica y la interfalángica (cm desde su base), y su largo. */
+export const THUMB_JOINTS: [number, number, number][] = [
+  [5.4, 0.45, 0.7],
+  [8.2, 0.55, 0.55],
+];
+export const THUMB = { y0: 1.0, len: 10.85 };
+
+/**
+ * Dedo doblado `bend` grados repartidos entre sus articulaciones (falanges rectas, pliegues suaves). Devuelve
+ * dónde queda un punto que en el dedo recto está a `s` cm de la base y a `z` cm de la línea media (+ hacia
+ * la palma), en el plano (y, z) de la mano: [y, z], con la base en `y0` y el dedo hacia −y.
+ */
+export function bentFinger(y0: number, len: number, bend: number, joints: [number, number, number][] = FINGER_JOINTS) {
+  // Se repiten mucho (cada fotograma, cada dedo): se guardan las últimas curvas.
+  const b = Math.round(bend * 4) / 4;
+  const key = `${y0}|${len}|${b}|${joints === FINGER_JOINTS ? "f" : "t"}`;
+  let c = CURVES.get(key);
+  if (!c) {
+    if (CURVES.size > 3000) CURVES.clear();
+    c = fingerCurve(y0, len, b, joints);
+    CURVES.set(key, c);
+  }
+  return c;
+}
+const CURVES = new Map<string, (s: number, z: number) => [number, number]>();
+
+function fingerCurve(y0: number, len: number, bend: number, joints: [number, number, number][]) {
+  const phi = rad(bend);
+  const ds = 0.1;
+  const s0 = -1.5;
+  const n = Math.ceil((len + 2 - s0) / ds) + 2;
+  const Y = new Float64Array(n);
+  const Zs = new Float64Array(n);
+  const T = new Float64Array(n);
+  const K = new Float64Array(n);
+  const at = joints.map(([f, sh, w]) => ({ c: f <= 1 ? f * len : f, a: phi * sh, w }));
+  const ang = (x: number) => {
+    let t = 0;
+    let k = 0;
+    for (const j of at) {
+      const u = (x - j.c) / j.w;
+      if (u >= 1) t += j.a;
+      else if (u > -1) {
+        t += j.a * 0.5 * (1 + u + Math.sin(Math.PI * u) / Math.PI);
+        k += (j.a * 0.5 * (1 + Math.cos(Math.PI * u))) / j.w;
+      }
+    }
+    return [t, k] as const;
+  };
+  Y[0] = y0 - s0;
+  for (let i = 0; i < n; i++) {
+    const [t, k] = ang(s0 + i * ds);
+    T[i] = t;
+    K[i] = k;
+    if (i === 0) continue;
+    const tm = ang(s0 + (i - 0.5) * ds)[0];
+    Y[i] = Y[i - 1]! - Math.cos(tm) * ds;
+    Zs[i] = Zs[i - 1]! + Math.sin(tm) * ds;
+  }
+  return (s: number, z: number): [number, number] => {
+    if (s <= s0) return [y0 - s, z];
+    const f = Math.min(n - 1.001, (s - s0) / ds);
+    const i = Math.floor(f);
+    const u = f - i;
+    const t = T[i]! + (T[i + 1]! - T[i]!) * u;
+    const k = K[i]! + (K[i + 1]! - K[i]!) * u;
+    // Del lado de dentro del pliegue la piel no puede pasar del centro de la curva.
+    const zz = z > 0 && k > 1e-6 ? Math.min(z, 0.82 / k) : z;
+    return [Y[i]! + (Y[i + 1]! - Y[i]!) * u + zz * Math.sin(t), Zs[i]! + (Zs[i + 1]! - Zs[i]!) * u + zz * Math.cos(t)];
+  };
+}
+/** Dónde nace el pulgar y hacia dónde va en cada toma (mano izquierda; la derecha, en espejo). */
+function thumbPose(grip: HandState["grip"], curl: number): { base: Vector3; dir: Vector3 } {
+  switch (grip) {
+    case "press":
+      return { base: new Vector3(2.4, -1.2, 0.4), dir: new Vector3(0.42, -0.9, 0.1) };
+    case "tips":
+      return { base: new Vector3(2.4, -1.2, 0.6), dir: new Vector3(0.1, -0.8, 0.58) };
+    case "grasp": {
+      // Por el otro lado del segmento que abarcan los dedos: tangente a su contorno.
+      const B = new Vector3(2.4, -1.2, 0.3);
+      const cy = KNUCKLE_Y;
+      const cz = curl;
+      const rho = curl - 0.25;
+      const dy = cy - B.y;
+      const dz = cz - B.z;
+      const d = Math.hypot(dy, dz);
+      if (d <= rho + 0.2) return { base: B, dir: new Vector3(-0.15, -0.45, 0.88) };
+      const a0 = Math.atan2(dz, dy);
+      const al = Math.asin(rho / d);
+      const cand = [a0 + al, a0 - al].map((a) => new Vector3(-0.22, Math.cos(a), Math.sin(a)));
+      cand.sort((p, q) => q.z - p.z);
+      return { base: B, dir: cand[0]! };
+    }
+    default:
+      return { base: new Vector3(2.4, -1.2, 0.5), dir: new Vector3(0.3, -0.9, 0.3) };
+  }
+}
+
+/** Marco del pulgar en la mano (su eje hacia −y, la yema hacia +z). */
+export function thumbFrame(grip: HandState["grip"], curl: number, s: Side): Xf {
+  const r = sgn(s);
+  const t = thumbPose(grip, curl);
+  const dir = new Vector3(r * t.dir.x, t.dir.y, t.dir.z).normalize();
+  const y = dir.clone().negate();
+  // La yema mira a los dedos (hacia la palma y el lado cubital).
+  const z = new Vector3(-r * 0.7, 0, 0.7);
+  z.addScaledVector(y, -z.dot(y)).normalize();
+  return { p: new Vector3(r * t.base.x, t.base.y, t.base.z), q: new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(new Vector3().crossVectors(y, z), y, z)) };
+}
+
+/** Puntos de las yemas (y del medio de cada dedo) en la mano, para apoyarlos en una superficie. */
+export function fingerPads(s: Side, i: number, bend: number): Vector3[] {
+  const [x0, len, r0, spread] = FINGERS[i]!;
+  const f = bentFinger(KNUCKLE_Y, len, bend);
+  const tan = Math.tan(rad(spread));
+  return [0.3 * len, 0.6 * len, len - 0.35].map((d) => {
+    const [y, z] = f(d, 0.8 * r0);
+    return new Vector3(sgn(s) * (x0 + d * tan), y, z - 0.1);
+  });
+}
+export function thumbPad(s: Side, grip: HandState["grip"], curl: number, bend: number): Vector3 {
+  return thumbPoint(s, grip, curl, bend, THUMB.len - 0.45, 0.75);
+}
+/** Un punto del pulgar a `d` cm de su base (en la cara de la yema). */
+export function thumbPoint(s: Side, grip: HandState["grip"], curl: number, bend: number, d: number, z = 0.8): Vector3 {
+  const fr = thumbFrame(grip, curl, s);
+  const [y, zz] = bentFinger(THUMB.y0, THUMB.len, bend, THUMB_JOINTS)(d, z);
+  return new Vector3(0, y, zz).applyQuaternion(fr.q).add(fr.p);
+}
+
 /** Ángulos de una articulación; `twist` (solo muñeca) gira el antebrazo sobre su eje antes de doblarla;
  *  `rot` (hombro y cadera) gira el segmento sobre su eje (rotación interna +). */
 export type JA = { flex: number; abd: number; twist?: number; rot?: number };
@@ -189,6 +446,10 @@ export type Pose3 = {
   jaw: number;
   /** Cómo están las manos (solo el examinador; si falta, relajadas). */
   hands?: Partial<Record<Side, HandState>>;
+  /** Cuánto se ha desplazado cada hombro con la escápula (en el mundo). */
+  girdle: Record<Side, Vector3>;
+  /** Pronación del antebrazo: giro (grados) de la mano sobre el eje del antebrazo; el antebrazo se tuerce poco a poco. */
+  twist: Record<Side, number>;
 };
 
 export const SPINE_Y0 = -16;
@@ -198,6 +459,7 @@ const X = new Vector3(1, 0, 0);
 const Y = new Vector3(0, 1, 0);
 const Z = new Vector3(0, 0, 1);
 const rad = (d: number) => (d * Math.PI) / 180;
+const deg = (r: number) => (r * 180) / Math.PI;
 export const qAxis = (axis: Vector3, deg: number) => new Quaternion().setFromAxisAngle(axis, rad(deg));
 export const qmul = (...qs: Quaternion[]) => qs.reduce((a, b) => a.multiply(b), new Quaternion());
 const smooth = (a: number, b: number, x: number) => {
@@ -341,6 +603,10 @@ export function patientAngles(spec: FigureSpec, m: number): BodyAngles {
         break;
     }
   }
+  // Antebrazos relajados (pronación desde la palma hacia delante): de pie, la palma hacia el muslo; sentado,
+  // hacia abajo sobre los muslos; tumbado, hacia el cuerpo.
+  const PRON: Partial<Record<Posture, number>> = { standing: 70, sitting: 150, supine: 80, hooklying: 80, longsitting: 120, prone: 80, sidelying: 80, quadruped: 40 };
+  for (const s of ["r", "l"] as const) if (free(s, "wrist")) A[s].wrist.twist = -sgn(s) * (PRON[spec.posture] ?? 40);
   // Ángulos 3D explícitos (lo que la vista plana no puede describir).
   for (const k of new Set([...Object.keys(spec.pose3d ?? {}), ...Object.keys(spec.to3d ?? {})]) as Set<JointKey>) {
     const m3 = k.match(/^(r|l)_(\w+)$/);
@@ -383,6 +649,21 @@ const DISTAL: Record<LimbSeg, LimbSeg[]> = {
 };
 const TIPS: Partial<Record<LimbSeg, string[]>> = { hand: ["handtip"], foot: ["foottip", "heel"] };
 
+/**
+ * Cintura escapular: al levantar el brazo el hombro sube (la escápula gira y se eleva); al llevarlo hacia
+ * delante o cruzarlo por delante del cuerpo, se adelanta y se acerca al centro, y al llevarlo atrás, se
+ * atrasa. `d`: dirección del brazo (hombro → codo) en el mundo. Devuelve el desplazamiento del hombro (cm).
+ */
+export function girdleOffset(d: Vector3, trunkQ: Quaternion, s: Side): Vector3 {
+  const l = d.clone().applyQuaternion(trunkQ.clone().invert());
+  const lat = l.x * sgn(s);
+  const e = Math.acos(Math.max(-1, Math.min(1, -l.y)));
+  const up = 3.2 * smooth(0.6, 2.7, e);
+  const fwd = Math.max(0, l.z) * 2.2 + Math.max(0, -lat) * 1.3 - Math.max(0, -l.z) * 1.4;
+  const med = -0.7 * (Math.max(0, l.z) + Math.max(0, -lat));
+  return new Vector3(sgn(s) * med, up, fwd).applyQuaternion(trunkQ);
+}
+
 /** Cinemática directa: dónde queda cada parte con estos ángulos. */
 export function fk(rootP: Vector3, rootQ: Quaternion, A: BodyAngles, nudges: Nudges = {}): Pose3 {
   const pelvisQ = qmul(rootQ.clone(), trunkRot(A.trunkFlex * 0.5, A.trunkLat * 0.5));
@@ -406,10 +687,14 @@ export function fk(rootP: Vector3, rootQ: Quaternion, A: BodyAngles, nudges: Nud
 
   const seg = {} as Record<SegKey, Xf>;
   const pt: Record<string, Vector3> = { pelvis: rootP.clone(), neckBase, neck: neckTop, head: headC, chest: chestP.clone() };
+  const girdle = {} as Record<Side, Vector3>;
+  const twist = {} as Record<Side, number>;
   for (const s of ["r", "l"] as const) {
     const L = A[s];
-    const sh = at(chestP, chestQ, new Vector3(sgn(s) * DIM.shoulderHalf, 0, DIM.shoulderZ));
     const uaQ = qmul(chestQ.clone(), jr(L.shoulder.flex, L.shoulder.abd, s), qAxis(Y, -sgn(s) * (L.shoulder.rot ?? 0)));
+    girdle[s] = girdleOffset(new Vector3(0, -1, 0).applyQuaternion(uaQ), chestQ, s);
+    twist[s] = L.wrist.twist ?? 0;
+    const sh = at(chestP, chestQ, new Vector3(sgn(s) * DIM.shoulderHalf, 0, DIM.shoulderZ)).add(girdle[s]);
     const el = at(sh, uaQ, new Vector3(0, -DIM.upperarm, 0));
     const faQ = qmul(uaQ.clone(), jr(L.elbow.flex, L.elbow.abd, s));
     const wr = at(el, faQ, new Vector3(0, -DIM.forearm, 0));
@@ -447,7 +732,7 @@ export function fk(rootP: Vector3, rootQ: Quaternion, A: BodyAngles, nudges: Nud
       for (const t of TIPS[d] ?? []) pt[`${s}_${t}`]!.add(v);
     }
   }
-  return { root: { p: rootP.clone(), q: rootQ.clone() }, trunkQ: chestQ, pelvisQ, spine, neck: { p: neckBase, q: neckQ }, head: { p: headC, q: headQ }, seg, pt, jaw: A.jaw };
+  return { root: { p: rootP.clone(), q: rootQ.clone() }, trunkQ: chestQ, pelvisQ, spine, neck: { p: neckBase, q: neckQ }, head: { p: headC, q: headQ }, seg, pt, jaw: A.jaw, girdle, twist };
 }
 
 /** Marco de la columna a una altura (interpolado). */
@@ -568,7 +853,9 @@ export function anchorInfo(pose: Pose3, anchor: Anchor): AnchorInfo | null {
       return { p, part: `${s}_foot`, axis, frame: x.q, sec: circle(3.4), limb: true };
     }
     const L = LIMB[n].len;
-    return { p: x.p.clone().add(down(x.q).multiplyScalar(L * t)), part: `${s}_${n}`, axis: down(x.q), frame: x.q, sec: limbSection(n, s, t), limb: true };
+    // El antebrazo se tuerce hacia la muñeca con la pronación (como su piel).
+    const frame = n === "forearm" ? x.q.clone().multiply(qAxis(Y, forearmTwist(pose, s, t))) : x.q;
+    return { p: x.p.clone().add(down(x.q).multiplyScalar(L * t)), part: `${s}_${n}`, axis: down(x.q), frame, sec: limbSection(n, s, t), limb: true };
   };
   if (tStr !== undefined && (LIMBS as string[]).includes(what)) return segInfo(what as LimbSeg, Number(tStr));
   switch (what) {
@@ -595,6 +882,21 @@ export function anchorInfo(pose: Pose3, anchor: Anchor): AnchorInfo | null {
     default:
       return (LIMBS as string[]).includes(what) ? segInfo(what as LimbSeg, 0.5) : null;
   }
+}
+
+/** Giro (grados) del antebrazo a la altura t por la pronación: nada junto al codo, todo en la muñeca. */
+export function forearmTwist(pose: Pose3, s: Side, t: number): number {
+  return (pose.twist?.[s] ?? 0) * smooth(1 / DIM.forearm, 1, t);
+}
+
+/**
+ * Cara de un segmento de un miembro en el mundo: anterior, posterior, medial y lateral son las del propio
+ * segmento (la pantorrilla es la cara posterior de la pierna esté como esté la rodilla); craneal y caudal,
+ * las del cuerpo.
+ */
+export function limbFace(info: AnchorInfo, d: Direction, s: Side): Vector3 | null {
+  const local = { anterior: new Vector3(0, 0, 1), posterior: new Vector3(0, 0, -1), lateral: new Vector3(sgn(s), 0, 0), medial: new Vector3(-sgn(s), 0, 0) }[d as "anterior"];
+  return local ? local.applyQuaternion(info.frame) : null;
 }
 
 /** Distancia del eje a la superficie en la dirección n (vector unitario en el mundo). */

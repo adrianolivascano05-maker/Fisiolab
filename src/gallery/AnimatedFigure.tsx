@@ -1,5 +1,5 @@
 // Ilustración animada de un test: la maniobra en bucle, con pausa, avance manual y el texto de cada fase.
-// En 3D (maniquíes que se pueden girar) si el navegador tiene WebGL; si no, el dibujo plano.
+// En 3D (maniquíes que se pueden girar un poco) si el navegador tiene WebGL; si no, el dibujo plano.
 // Respeta «reducir movimiento».
 import { Pause, Play, RotateCcw, RotateCw, Undo2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -100,14 +100,18 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
     }
     let raf = 0;
     let last = 0;
+    let cost = 0;
     const start = performance.now() - tRef.current * LOOP_MS;
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
-      if (now - last < 33) return; // ~30 imágenes por segundo bastan
+      // ~30 imágenes por segundo bastan; en un equipo lento, menos, para que la página siga respondiendo.
+      if (now - last < Math.max(33, 3 * cost)) return;
       last = now;
       const tt = ((now - start) % LOOP_MS) / LOOP_MS;
       tRef.current = tt;
+      const t0 = performance.now();
       draw(tt);
+      cost = 0.7 * cost + 0.3 * (performance.now() - t0);
       setT((prev) => (phaseOf(prev) !== phaseOf(tt) || Math.abs(prev - tt) > 0.02 ? tt : prev));
     };
     raf = requestAnimationFrame(tick);
@@ -142,10 +146,10 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
         )}
         {mode === "3d" && (
           <div className="absolute left-2 top-2 flex gap-1.5">
-            <button type="button" onClick={() => turn(-30)} aria-label="Girar la vista a la izquierda" className={ctl}>
+            <button type="button" onClick={() => turn(-20)} aria-label="Girar la vista a la izquierda" className={ctl}>
               <RotateCcw aria-hidden="true" className="size-5" />
             </button>
-            <button type="button" onClick={() => turn(30)} aria-label="Girar la vista a la derecha" className={ctl}>
+            <button type="button" onClick={() => turn(20)} aria-label="Girar la vista a la derecha" className={ctl}>
               <RotateCw aria-hidden="true" className="size-5" />
             </button>
             {rotated && (
@@ -167,7 +171,7 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
           {playing ? <Pause aria-hidden="true" className="size-5" /> : <Play aria-hidden="true" className="size-5" />}
         </button>
       </div>
-      {mode === "3d" && <p className="px-4 pt-1.5 text-xs text-text-muted">Arrastra a los lados para girar la figura.</p>}
+      {mode === "3d" && <p className="px-4 pt-1.5 text-xs text-text-muted">Arrastra a los lados para girar un poco la figura.</p>}
       <input
         type="range"
         min={0}

@@ -1,6 +1,6 @@
 // Escena 3D de un test: paciente y examinador como maniquíes, camilla, flechas de fuerza y movimiento,
 // zona del síntoma y etiquetas. La cámara se elige sola (la que mejor deja ver las manos, las flechas y el
-// síntoma, cerca de la vista que pide la figura) y se puede girar arrastrando.
+// síntoma, cerca de la vista que pide la figura) y se puede girar un poco arrastrando (no la vuelta entera).
 import {
   AmbientLight,
   BoxGeometry,
@@ -32,13 +32,16 @@ import {
 } from "three";
 import { timeline, type Arrow, type FigureSpec } from "../figure";
 import { CAMERAS, cameraKey, type CamState } from "./cameras";
-import { contacts, examinerPose, planExaminer, stoolOf, type ExaminerPlan } from "./examiner";
+import { planExaminer, stoolOf, type ExaminerPlan } from "./examiner";
 import { layoutPatient, patientPose, type Layout, type Table } from "./layout";
 import { Person } from "./person";
+import { scenePoses } from "./scene";
 import { anatDir, anchorInfo, LYING, surfaceRadius, surfaceSamples, type Pose3 } from "./rig";
 
 const COLORS = { force: "#1f6f54", move: "#6f675b", pain: "#d43a2a", table: "#c2b08f", tableSide: "#a8987a", tableLeg: "#7c7262", floor: "#efe6d6" };
 const FOV = 30;
+/** Cuánto se puede girar la vista a cada lado (grados). */
+const MAX_TURN = 40;
 
 const rad = (d: number) => (d * Math.PI) / 180;
 
@@ -156,8 +159,7 @@ export class Stage {
     this.table = this.layout.table;
     if (this.table) this.addTable(this.table);
 
-    const poses = [0, 0.5, 1].map((m) => this.patientPose(m, 0));
-    this.plan = planExaminer(spec, poses, this.table);
+    this.plan = planExaminer(spec, this.layout);
     this.examiner = this.plan ? new Person("examiner") : null;
     const stool = this.plan ? stoolOf(this.plan) : null;
     if (stool) this.addStool(stool);
@@ -325,15 +327,9 @@ export class Stage {
   /** Coloca todo en el instante dado. */
   private pose(m: number, reach: number, arrows: number, pain: number, pulse: number) {
     const spec = this.spec;
-    const pat = this.patientPose(m, arrows);
+    const { pat, ex, cts } = scenePoses(spec, this.layout, this.plan, { m, reach, arrows });
     this.patient.apply(pat);
-    let exPose: Pose3 | null = null;
-    if (this.plan && this.examiner) {
-      const base = examinerPose(this.plan, contacts(spec, pat, null, this.plan), 0, m);
-      exPose = examinerPose(this.plan, contacts(spec, pat, base, this.plan), reach, m);
-      this.examiner.apply(exPose);
-    }
-    const cts = contacts(spec, pat, exPose, this.plan);
+    if (ex && this.examiner) this.examiner.apply(ex);
     const toCam = this.camera.position.clone().sub(this.view.center).normalize();
 
     for (const a of this.arrows) {
@@ -472,10 +468,9 @@ export class Stage {
 
   private focusPoints(): { p: Vector3; w: number; allow: string[] }[] {
     const spec = this.spec;
-    const pat = this.patientPose(1, 1);
+    const { pat, cts } = scenePoses(spec, this.layout, this.plan, { m: 1, reach: 1, arrows: 1 });
     const pts: { p: Vector3; w: number; allow: string[] }[] = [];
-    const ex = this.plan ? examinerPose(this.plan, contacts(spec, pat, null, this.plan), 1) : null;
-    for (const c of contacts(spec, pat, ex, this.plan)) pts.push({ p: c.p, w: 1, allow: [`p:${c.part}`, "e:r_hand", "e:l_hand"] });
+    for (const c of cts) pts.push({ p: c.p, w: 1, allow: [`p:${c.part}`, "e:r_hand", "e:l_hand"] });
     for (const a of spec.pain ?? []) {
       const i = anchorInfo(pat, a);
       if (i) pts.push({ p: i.p, w: 1.2, allow: [`p:${i.part}`] });
@@ -554,7 +549,8 @@ export class Stage {
     const mirrorCost = this.spec.view === "side" ? 0.4 : 3.2;
     const sitFwd = this.spec.posture === "sitting" ? new Vector3(0, 0, 1).applyQuaternion(this.rootQ).setY(0).normalize() : null;
     const cranial = LYING.includes(this.spec.posture) ? new Vector3(0, 1, 0).applyQuaternion(this.rootQ).setY(0) : null;
-    const exBody = this.plan ? surfaceSamples(examinerPose(this.plan, contacts(this.spec, this.patientPose(1, 1), null, this.plan), 1), (part) => part === "torso" || part === "head").map((x) => x.p) : [];
+    const exFinal = scenePoses(this.spec, this.layout, this.plan, { m: 1, reach: 1, arrows: 1 }).ex;
+    const exBody = exFinal ? surfaceSamples(exFinal, (part) => part === "torso" || part === "head").map((x) => x.p) : [];
     const clutter = exBody.map((p) => ({ p, w: 8 / exBody.length }));
     if (this.table && this.spec.posture === "sitting") {
       const t = this.table;
@@ -619,7 +615,7 @@ export class Stage {
           const hit = ray.intersectObjects(meshes, false)[0];
           if (!hit) continue;
           const tag = who.get(hit.object) ?? "";
-          if (hit.distance > dist - 11 || f.allow.includes(tag)) continue;
+          if (hit.distance > dist - 11 || f.allow.includes(tag) || f.allow.includes(tag.replace(/_arm$/, "_upperarm")) || f.allow.includes(tag.replace(/_arm$/, "_forearm")) || f.allow.includes(tag.replace(/_leg$/, "_thigh")) || f.allow.includes(tag.replace(/_leg$/, "_shank"))) continue;
           hidden += f.w * (tag.startsWith("e:") && /arm|hand/.test(tag) ? 0.5 : 1);
         }
         cost += total ? (hidden / total) * 10 : 0;
@@ -641,11 +637,10 @@ export class Stage {
     const all: Vector3[] = [];
     const p0 = this.patientPose(0, 0);
     for (const m of [0, 0.5, 1]) {
-      const pat = this.patientPose(m, m);
+      const { pat, ex, cts } = scenePoses(spec, this.layout, this.plan, { m, reach: 1, arrows: m });
       all.push(...surfaceSamples(pat).map((x) => x.p));
-      const ex = this.plan ? examinerPose(this.plan, contacts(spec, pat, null, this.plan), 1, m) : null;
       if (ex) all.push(...surfaceSamples(ex).map((x) => x.p));
-      for (const c of contacts(spec, pat, ex, this.plan)) roi.push(c.p);
+      for (const c of cts) roi.push(c.p);
       for (const a of [...(spec.pain ?? []), ...(spec.arrows ?? []).map((x) => x.at)]) {
         const i = anchorInfo(pat, a);
         if (i) roi.push(i.p);
@@ -773,7 +768,8 @@ export class Stage {
       const dy = e.pointerType === "mouse" ? e.clientY - this.drag.y : 0;
       if (Math.abs(dx) + Math.abs(dy) < 3 && !this.custom) return;
       this.view.az = this.drag.az - dx * 0.012;
-      this.view.el = Math.min(rad(85), Math.max(rad(2), this.drag.el + dy * 0.01));
+      this.view.el = this.drag.el + dy * 0.01;
+      this.limitView();
       this.custom = true;
       this.updateCamera();
       this.render(this.lastT);
@@ -781,9 +777,17 @@ export class Stage {
     });
   }
 
-  /** Gira la cámara alrededor de la figura (grados; positivo, hacia la derecha). */
+  /** Solo se gira un poco alrededor de la vista elegida (la que mejor enseña la maniobra), nunca la vuelta entera. */
+  private limitView() {
+    const clamp = (x: number, a: number, b: number) => Math.min(b, Math.max(a, x));
+    this.view.az = clamp(this.view.az, this.base.az - rad(MAX_TURN), this.base.az + rad(MAX_TURN));
+    this.view.el = clamp(this.view.el, Math.max(rad(2), this.base.el - rad(15)), Math.min(rad(80), this.base.el + rad(15)));
+  }
+
+  /** Gira la cámara alrededor de la figura (grados; positivo, hacia la derecha), dentro de lo permitido. */
   rotateBy(deg: number) {
     this.view.az -= rad(deg);
+    this.limitView();
     this.custom = true;
     this.updateCamera();
     this.render(this.lastT);

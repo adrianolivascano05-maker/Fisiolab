@@ -2,11 +2,13 @@
 // ella) y su pose en cada momento de la maniobra. Puro: sirve igual para la escena y para las pruebas.
 import { Quaternion, Vector3 } from "three";
 import type { FigureSpec } from "../figure";
-import { skinPoints } from "./collide";
-import { anatDir, anchorInfo, fk, LYING, patientAngles, postureQ, surfaceSamples, upSide, type Nudges, type Pose3, type SegKey } from "./rig";
+import { bodySDF, skinPoints, tableD } from "./collide";
+import { anatDir, anchorInfo, fk, LYING, patientAngles, postureQ, surfaceSamples, upSide, type Nudges, type Pose3, type SegKey, type Side } from "./rig";
 
 export type Table = { x0: number; x1: number; z0: number; z1: number; top: number };
-export type Layout = { spec: FigureSpec; rootQ: Quaternion; rootP: Vector3; fixedRoot: boolean; table: Table | null };
+/** Ajuste (grados) del hombro de cada brazo del paciente para que no se meta en su cuerpo ni en la camilla. */
+type ArmFix = { flex: number; abd: number };
+export type Layout = { spec: FigureSpec; rootQ: Quaternion; rootP: Vector3; fixedRoot: boolean; table: Table | null; arms: Record<Side, ArmFix> };
 
 const TABLE_TOP = { lying: 66, sitting: 56 };
 const JOINT_SEG: Record<string, string> = { elbow: "forearm", wrist: "hand", knee: "shank", ankle: "foot", handtip: "hand", foottip: "foot", hand: "hand", foot: "foot" };
@@ -23,7 +25,7 @@ function nudgeSeg(anchor: string): SegKey | null {
 export function layoutPatient(spec: FigureSpec): Layout {
   const posture = spec.posture;
   const rootQ = postureQ(posture, posture === "sidelying" ? upSide(spec) : "l");
-  const L: Layout = { spec, rootQ, rootP: new Vector3(), fixedRoot: false, table: null };
+  const L: Layout = { spec, rootQ, rootP: new Vector3(), fixedRoot: false, table: null, arms: { r: { flex: 0, abd: 0 }, l: { flex: 0, abd: 0 } } };
   const lying = LYING.includes(posture);
   const bent = posture === "standing" && !!spec.hands?.length && patientAngles(spec, 0).trunkFlex >= 60 && patientAngles(spec, 1).trunkFlex >= 60;
   if (bent) {
@@ -43,8 +45,9 @@ export function layoutPatient(spec: FigureSpec): Layout {
     const down = posture === "sidelying" ? (upSide(spec) === "l" ? "r" : "l") : null;
     const support = lying
       ? skinPoints(p0, (part) => part === "torso" || part === "head" || (posture === "longsitting" && /thigh|shank/.test(part)) || (!!down && (part === `${down}_upperarm` || part === `${down}_thigh`)))
-      : skinPoints(p0, (part) => part === "torso" || /thigh/.test(part));
-    const low = Math.min(...support.map((s) => s.p.y));
+      : skinPoints(p0, (part) => /thigh/.test(part));
+    // Sentado apoyan los muslos (los glúteos se aplastan contra el tablero y quedan dentro de él).
+    const low = Math.min(...support.map((s) => s.p.y)) + (lying ? 0 : 0.3);
     L.rootP.set(0, top - low, 0);
     L.fixedRoot = true;
     const pose = fk(L.rootP, rootQ, patientAngles(spec, 0));
@@ -61,7 +64,7 @@ export function layoutPatient(spec: FigureSpec): Layout {
       // Una pierna que cuelga (Gaenslen, choque posterior): si la otra no apoya más abajo, el paciente queda
       // con las nalgas en el extremo de la camilla; si no, al borde de ese lado.
       for (const sd of ["r", "l"] as const) {
-        const hangs = surfaceSamples(pose, (part) => part === `${sd}_shank` || part === `${sd}_foot`).some((x) => x.p.y < top - 4 && x.p.x > t.x0 && x.p.x < t.x1);
+        const hangs = surfaceSamples(pose, (part) => part === `${sd}_shank` || part === `${sd}_foot`).some((x) => x.p.y < top - 1 && x.p.x > t.x0 && x.p.x < t.x1);
         if (!hangs) continue;
         const hip = pose.pt[`${sd}_hip`]!;
         const other = sd === "r" ? "l" : "r";
@@ -72,18 +75,64 @@ export function layoutPatient(spec: FigureSpec): Layout {
       }
       L.table = t;
     } else {
-      // Sentado en el borde: el hueco de la rodilla en el canto.
-      const front = Math.min(pose.pt.r_knee!.z, pose.pt.l_knee!.z) - 2;
+      // Sentado en el borde: el hueco de la rodilla en el canto, con las pantorrillas por delante de él.
+      const calves = skinPoints(pose, (part) => /shank|foot/.test(part)).filter((x) => x.p.y < top + 1).map((x) => x.p.z);
+      const front = Math.min(pose.pt.r_knee!.z - 2, ...calves.map((z) => z - 0.8));
       L.table = { x0: -75, x1: 75, z0: front - 64, z1: front, top };
     }
   }
+  settleArms(L);
   return L;
+}
+
+/**
+ * Los brazos que la figura no coloca (o en el plano que el dibujo plano no enseña) se separan o se adelantan
+ * lo justo para que la mano y el antebrazo no se metan en el tronco, las piernas o la camilla en ningún
+ * momento de la maniobra.
+ */
+function settleArms(L: Layout) {
+  const spec = L.spec;
+  for (const s of ["r", "l"] as const) {
+    const key = `${s}_shoulder` as const;
+    if (spec.pose3d?.[key] || spec.to3d?.[key]) continue;
+    const mentioned = spec.joints?.[key] !== undefined || spec.to?.[key] !== undefined;
+    const canAbd = spec.view === "side" || !mentioned;
+    const canFlex = spec.view === "front" || !mentioned;
+    const inside = (fix: ArmFix) => {
+      L.arms[s] = fix;
+      let worst = 0;
+      for (const [m, nudge] of [[0, 0], [0, 1], [0.25, 1], [0.5, 1], [0.75, 1], [1, 1]] as const) {
+        const pose = patientPose(L, m, nudge);
+        const sdf = bodySDF(pose);
+        for (const sp of skinPoints(pose, (part) => part === `${s}_forearm` || part === `${s}_hand`, 2)) {
+          worst = Math.max(worst, -sdf(sp.p, (q) => !/torso|head|thigh|shank/.test(q)).d);
+          if (L.table) worst = Math.max(worst, -tableD(L.table, sp.p));
+        }
+      }
+      return worst;
+    };
+    if (inside({ flex: 0, abd: 0 }) <= 1.2) continue;
+    const cands: ArmFix[] = [];
+    for (const abd of canAbd ? [0, 8, 16, 24, 32, 40, -8, -16] : [0]) for (const flex of canFlex ? [0, 10, 20, 30, 40, 50, 60] : [0]) cands.push({ flex, abd });
+    cands.sort((a, b) => Math.abs(a.abd) + 1.2 * a.flex - (Math.abs(b.abd) + 1.2 * b.flex));
+    let best = { fix: { flex: 0, abd: 0 }, d: Infinity };
+    for (const c of cands.slice(1)) {
+      const d = inside(c);
+      if (d < best.d) best = { fix: c, d };
+      if (d <= 0.8) break;
+    }
+    L.arms[s] = best.fix;
+  }
 }
 
 /** Pose del paciente en el momento m (0-1), con el pequeño desplazamiento de las fuerzas (`nudge`, 0-1). */
 export function patientPose(L: Layout, m: number, nudge: number): Pose3 {
   const spec = L.spec;
   const A = patientAngles(spec, m);
+  for (const sd of ["r", "l"] as const) {
+    A[sd].shoulder.flex += L.arms[sd].flex;
+    A[sd].shoulder.abd += L.arms[sd].abd;
+  }
   let root = L.rootP;
   if (!L.fixedRoot) {
     // De pie: los pies (o pies y manos a cuatro patas) en el suelo en cada momento.

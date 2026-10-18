@@ -179,6 +179,7 @@ export const rodillaTests: SpecialTest[] = [
       {
         view: "side",
         posture: "supine",
+        joints: { r_hip: 8, r_knee: 10 },
         hands: ["r_shank@0.3", "r_thigh@0.75"],
         grips: [{ kind: "tips", face: "posterior" }, { kind: "press", face: "anterior" }],
         arrows: [
