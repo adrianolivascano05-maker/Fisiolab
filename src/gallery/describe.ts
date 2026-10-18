@@ -32,7 +32,7 @@ function motion(joint: string, dof: Dof, sign: number, short: boolean): string {
       return pick("Flexión", "Extensión");
     case "abd":
       if (joint === "wrist") return pick(short ? "Desv. radial" : "Desviación radial", short ? "Desv. cubital" : "Desviación cubital");
-      if (joint === "knee") return pick("Valgo", "Varo");
+      if (joint === "knee" || joint === "elbow") return pick("Valgo", "Varo");
       return pick("Abducción", "Aducción");
     case "rot":
       if (axial) return pick("Rotación derecha", "Rotación izquierda");

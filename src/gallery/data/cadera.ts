@@ -606,7 +606,7 @@ export const caderaTests: SpecialTest[] = [
         caption: "Apoyo sobre la pierna dolorosa durante 30 s.",
         side: "r",
         script: {
-          steps: [{ to: { l_hip: { flex: 45 }, l_knee: { flex: 70 }, l_ankle: { flex: 25 } }, by: "patient", dur: 1.6, hold: 2.0, pain: true, text: "Se apoya sobre la pierna derecha y levanta el pie izquierdo; mantiene hasta 30 segundos." }],
+          steps: [{ to: { l_hip: { flex: 45 }, l_knee: { flex: 70 }, l_ankle: { flex: 25 } }, by: "patient", dur: 1.6, path: false, hold: 2.0, pain: true, text: "Se apoya sobre la pierna derecha y levanta el pie izquierdo; mantiene hasta 30 segundos." }],
         },
         text: {
           setup: "Paciente de pie junto a una pared o una camilla, con un dedo apoyado solo para el equilibrio.",
@@ -767,7 +767,7 @@ export const caderaTests: SpecialTest[] = [
         side: "r",
         script: {
           steps: [
-            { to: { l_hip: { flex: 30 }, l_knee: { flex: 45 }, l_ankle: { flex: 15 } }, by: "patient", dur: 1.4, text: "Se apoya sobre la pierna derecha y levanta la izquierda." },
+            { to: { l_hip: { flex: 30 }, l_knee: { flex: 45 }, l_ankle: { flex: 15 } }, by: "patient", dur: 1.4, path: false, text: "Se apoya sobre la pierna derecha y levanta la izquierda." },
             { to: { pelvis: { lat: -8 } }, dur: 1.4, hold: 1.6, label: "Cae la pelvis izquierda", text: "Si fallan los abductores derechos, cae la pelvis del lado izquierdo (el de la pierna levantada)." },
           ],
         },

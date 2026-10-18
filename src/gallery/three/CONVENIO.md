@@ -22,7 +22,7 @@ Este documento es la única definición de nombres y signos de los ángulos que 
 | `neck` (cabeza respecto al tórax) | flexión + / extensión − | — | hacia la derecha + | `lat`: inclinación a la derecha + |
 | `jaw` | apertura de la boca (0 cerrada, ~30 máxima) | — | — | — |
 | `r_/l_shoulder` | flexión + / extensión − | abducción + / aducción − | interna + / externa − | — |
-| `r_/l_elbow` | flexión + | — | — | `pron`: pronación + / supinación − (desde neutra) |
+| `r_/l_elbow` | flexión + | valgo + / varo − (solo para pruebas de estrés) | — | `pron`: pronación + / supinación − (desde neutra) |
 | `r_/l_wrist` | flexión palmar + / extensión (dorsal) − | desviación radial + / cubital − | — | — |
 | `r_/l_hip` (respecto a la pelvis) | flexión + / extensión − | abducción + / aducción − | interna + / externa − | — |
 | `r_/l_knee` | flexión + | valgo + / varo − (solo para pruebas de estrés) | rotación interna de la tibia + / externa − | — |

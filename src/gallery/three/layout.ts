@@ -2,7 +2,7 @@
 // ella) y su pose en cada momento de la maniobra. Puro: sirve igual para la escena y para las pruebas.
 import { Quaternion, Vector3 } from "three";
 import type { FigureSpec } from "../figure";
-import { anatAngles, anatPose } from "./anatomy";
+import { anatAngles, anatPose, keysOf } from "./anatomy";
 import { mentioned as scriptMentions } from "../script";
 import { bodySDF, skinPoints, tableD } from "./collide";
 import { anatDir, anchorInfo, fk, LYING, patientAngles, postureQ, surfaceSamples, upSide, type BodyAngles, type Nudges, type Pose3, type SegKey, type Side } from "./rig";
@@ -87,6 +87,19 @@ export function layoutPatient(spec: FigureSpec): Layout {
         if (!otherRests) t.x1 = Math.min(t.x1, hip.x + 4);
         else if (hip.z > zc) t.z1 = Math.min(t.z1, hip.z - 3);
         else t.z0 = Math.max(t.z0, hip.z + 3);
+      }
+      // Con guion, si en algún momento la cabeza baja de la camilla (extensión del cuello), la camilla acaba en
+      // los hombros y el examinador la sostiene por fuera.
+      if (spec.script) {
+        const ks = keysOf(spec).length;
+        const headDips = Array.from({ length: ks }, (_, i) => fk(L.rootP, rootQ, anglesOf(spec, i / (ks - 1)))).some((q) =>
+          surfaceSamples(q, (part) => part === "head").some((x) => x.p.y < top - 1),
+        );
+        if (headDips) {
+          const nb = pose.pt.neckBase!;
+          if (pose.pt.head!.x < pose.root.p.x) t.x0 = Math.max(t.x0, nb.x - 2);
+          else t.x1 = Math.min(t.x1, nb.x + 2);
+        }
       }
       L.table = t;
     } else {
