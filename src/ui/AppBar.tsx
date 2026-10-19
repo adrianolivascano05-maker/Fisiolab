@@ -1,9 +1,10 @@
 import { BookOpen, ChevronLeft, Settings, Users } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 import { getDb } from "../data/db";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { cx } from "./cx";
+import { Logo } from "./Logo";
 
 /** Nombre de la pantalla a la que lleva «volver», para escribirlo junto a la flecha (como en el iPhone). */
 export function parentLabel(backTo: string | undefined): string {
@@ -45,14 +46,23 @@ export function TopBar({
 }) {
   const label = backLabel ?? parentLabel(backTo);
   return (
-    <header className={cx("sticky top-0 z-20 bg-bg/90 text-text backdrop-blur", titleShown ? "border-b border-border" : "border-b border-transparent")}>
+    // Barra en verde de la marca, con una línea de oro debajo. Dentro, los colores de texto y de acento pasan a los claros.
+    <header
+      className="sticky top-0 z-20 border-b-2 border-highlight bg-brand text-on-brand shadow-sm"
+      style={{ "--color-text": "var(--color-on-brand)", "--color-accent": "var(--color-on-brand)", "--color-surface": "rgb(242 232 216 / 0.16)" } as CSSProperties}
+    >
       <div className="mx-auto grid h-[var(--layout-header)] max-w-[var(--layout-content-max)] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-2">
         <div className="min-w-0">
+          {!backTo && (
+            <Link to="/" className="inline-flex rounded-md px-1.5 py-1">
+              <Logo onDark />
+            </Link>
+          )}
           {backTo && (
             <Link
               to={backTo}
               aria-label={label === "Atrás" ? "Volver atrás" : `Volver a ${label}`}
-              className="tap inline-flex max-w-full items-center rounded-md pr-2 font-semibold text-accent hover:bg-surface"
+              className="tap inline-flex max-w-full items-center rounded-md pr-2 font-semibold hover:bg-surface"
             >
               <ChevronLeft aria-hidden="true" className="size-6 shrink-0" />
               <span className="truncate">{label}</span>

@@ -3,26 +3,28 @@
 // que tools/build-icons.py.
 
 /** Símbolo: se ve bien desde 16 px. */
-export function LogoMark({ size = 28, title }: { size?: number; title?: string }) {
+export function LogoMark({ size = 28, title, onDark }: { size?: number; title?: string; onDark?: boolean }) {
+  const base = onDark ? "var(--color-on-brand)" : "var(--color-brand)";
+  const stroke = onDark ? "var(--color-brand)" : "var(--color-on-brand)";
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" role={title ? "img" : undefined} aria-hidden={title ? undefined : true}>
       {title && <title>{title}</title>}
-      <rect width="100" height="100" rx="26" fill="var(--color-brand)" />
-      <path d="M70.68 39.64 A27 27 0 1 0 70.68 74.36" fill="none" stroke="var(--color-on-brand)" strokeWidth="9" strokeLinecap="round" />
-      <circle cx="50" cy="30" r="14" fill="var(--color-brand)" />
+      <rect width="100" height="100" rx="26" fill={base} />
+      <path d="M70.68 39.64 A27 27 0 1 0 70.68 74.36" fill="none" stroke={stroke} strokeWidth="9" strokeLinecap="round" />
+      <circle cx="50" cy="30" r="14" fill={base} />
       <circle cx="50" cy="30" r="9.5" fill="var(--color-highlight)" />
     </svg>
   );
 }
 
 /** Símbolo + nombre, para la cabecera de la pantalla principal. */
-export function Logo() {
+export function Logo({ onDark }: { onDark?: boolean }) {
   return (
     <span className="flex items-center gap-2.5">
-      <LogoMark size={32} />
+      <LogoMark size={32} onDark={onDark} />
       <span className="flex flex-col leading-none">
-        <span className="font-display text-[22px] font-semibold tracking-tight text-brand">Cénit</span>
-        <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
+        <span className={`font-display text-[22px] font-semibold tracking-tight ${onDark ? "text-on-brand" : "text-brand"}`}>Cénit</span>
+        <span className={`mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] ${onDark ? "text-highlight" : "text-text-muted"}`}>Fisiolab</span>
       </span>
     </span>
   );
