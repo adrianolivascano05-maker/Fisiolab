@@ -18,7 +18,8 @@ Además:
 
 - **Informe** (`/pacientes/:id/informe`, icono de documento arriba en el resumen): datos, anamnesis, exploración con
   la evidencia de cada resultado, curva del dolor, mediciones con la simetría, cuestionarios y sesiones. Se eligen
-  los apartados y se imprime o se guarda en PDF con el diálogo del navegador (`window.print()`, A4).
+  los apartados y se imprime o se guarda en PDF con el diálogo del navegador (`window.print()`, A4). Con la cuenta de
+  Google, «Guardar en mi Drive (PDF)» lo sube a la carpeta «Cénit · Fisiolab» de Drive (`reportPdf.ts`).
 - **Cuestionarios** (`/pacientes/:id/cuestionarios/nuevo`): la PSFS (el paciente elige sus actividades; la
   siguiente vez se proponen las mismas) y el cambio global percibido (−7 a +7) se contestan en la app. Del resto
   (KOOS, HOOS, LEFS, FAAM, VISA-A, VISA-P, ACL-RSI, NDI, Oswestry, QuickDASH, SPADI, TSK-11 u otro con su nombre
@@ -33,8 +34,8 @@ Además:
   fisioterapeuta sin conectar ninguna cuenta (`calendar.ts`, `CalendarButton.tsx`): un enlace que abre Google
   Calendar con el evento escrito (se confirma con «Guardar») o un archivo .ics para el calendario del iPhone y
   del Mac, Outlook y los demás. El evento lleva el nombre del paciente y la hora, nada de su historia clínica.
-  Si se cambia la cita, hay que volver a añadirla: la app no puede tocar el calendario por su cuenta (eso
-  pediría conectar una cuenta de Google o Microsoft).
+  Con la cuenta de Google conectada, la cita se apunta sola en el calendario «Cénit · Citas» y se mueve si se
+  cambia (`src/cloud/googleCalendar.ts`). Sin ella, si se cambia la cita, hay que volver a añadirla.
 
 ## Archivos
 

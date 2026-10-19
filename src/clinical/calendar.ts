@@ -1,7 +1,9 @@
 // La siguiente cita en el calendario del fisioterapeuta sin conectar ninguna cuenta: un enlace que abre Google
 // Calendar con el evento ya escrito (se confirma con «Guardar») y un archivo .ics (RFC 5545) que abren el
 // calendario del iPhone o del Mac, Outlook y casi todos los demás. El evento lleva el nombre del paciente y la
-// hora, nada de su historia clínica.
+// hora, nada de su historia clínica. Con la cuenta de Google conectada, la app apunta además las citas sola en un
+// calendario suyo (src/cloud/googleCalendar.ts), con estos mismos eventos.
+import type { Session } from "../data/clinical";
 
 export type CalendarEvent = {
   /** Estable para la misma cita: si se vuelve a añadir, el calendario la reconoce. */
@@ -13,7 +15,38 @@ export type CalendarEvent = {
   description: string;
 };
 
-const end = (e: CalendarEvent) => new Date(Date.parse(e.start) + e.minutes * 60_000);
+export const DEFAULT_VISIT_MINUTES = 45;
+
+/** «lun, 26 oct, 10:00» */
+export const fmtVisit = (iso: string) =>
+  new Date(iso).toLocaleString("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+
+/** Cómo sale el paciente en el evento: con su nombre, o solo con sus iniciales (menos datos en el calendario). */
+export type EventNames = "full" | "initials";
+
+/** «Lucía Pérez Gil» → «L. P. G.» */
+export const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => `${w[0]!.toUpperCase()}.`)
+    .join(" ");
+
+/** El evento de la siguiente cita que se puso en una sesión. */
+export function visitEvent(s: Pick<Session, "id" | "nextAt" | "nextMinutes">, patient: { id: string; name: string }, names: EventNames = "full", origin = window.location.origin): CalendarEvent | null {
+  if (!s.nextAt) return null;
+  const link = new URL(`${import.meta.env.BASE_URL}pacientes/${patient.id}`, origin).href;
+  const who = names === "initials" ? initials(patient.name) : patient.name;
+  return {
+    uid: `cita-${s.id}@cenit-fisiolab`,
+    start: s.nextAt,
+    minutes: s.nextMinutes ?? DEFAULT_VISIT_MINUTES,
+    title: `Fisioterapia · ${who}`,
+    description: `Siguiente cita de ${who}.\nSu ficha en la app (en este dispositivo): ${link}`,
+  };
+}
+
+export const end = (e: CalendarEvent) => new Date(Date.parse(e.start) + e.minutes * 60_000);
 /** 2026-10-26T09:00:00.000Z → 20261026T090000Z */
 const utc = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 

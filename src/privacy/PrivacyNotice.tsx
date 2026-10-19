@@ -61,7 +61,7 @@ export function PrivacyNotice({ clinic, storage, patientName, privacy }: { clini
           Nadie fuera de la clínica, salvo obligación legal o que usted lo pida (por ejemplo, un informe para su médico o su mutua).{" "}
           {storage === "local"
             ? "Se guardan en los dispositivos de la clínica."
-            : `Se guardan en los dispositivos de la clínica y en una copia en Google Drive${storage === "cloud-encrypted" ? ", cifrada con una contraseña que solo tiene la clínica" : ""}. Google es el proveedor de ese almacenamiento y puede tratar datos fuera del Espacio Económico Europeo con las garantías del Marco de Privacidad de Datos UE-EE. UU. y de las cláusulas contractuales tipo de la Comisión Europea.`}
+            : `Se guardan en los dispositivos de la clínica y en una copia en Google Drive${storage === "cloud-encrypted" ? ", cifrada con una contraseña que solo tiene la clínica" : ""}. El día y la hora de sus citas, con su nombre o sus iniciales, se apuntan en el calendario de Google del fisioterapeuta. Google es el proveedor de ese almacenamiento y puede tratar datos fuera del Espacio Económico Europeo con las garantías del Marco de Privacidad de Datos UE-EE. UU. y de las cláusulas contractuales tipo de la Comisión Europea.`}
         </p>
       </Part>
 

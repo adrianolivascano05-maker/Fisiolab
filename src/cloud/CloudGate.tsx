@@ -14,12 +14,15 @@ import { loadCloudConfig, type CloudConfig } from "./config";
 import { forgetKey } from "./crypt";
 import { KeyPrompt } from "./EncryptionParts";
 import { userInfo } from "./drive";
+import { CalendarSync, type CalendarState } from "./googleCalendar";
 import { SyncController, type SyncState } from "./sync";
 
 type Cloud = {
   config: CloudConfig;
   account: Account;
   sync: SyncController;
+  /** Las citas en Google Calendar: después de cada sincronización. */
+  calendar: CalendarSync;
   /** Volver a entrar con Google (ir y volver): para cuando el token ha caducado. */
   reconnect: () => void;
   /** Cerrar sesión. `wipe`: borrar también los datos de esta cuenta en el dispositivo (la nube no se toca). */
@@ -33,6 +36,13 @@ const CloudContext = createContext<Cloud | null>(null);
 /** La cuenta y la sincronización, o null si la app funciona sin nube. */
 export function useCloud() {
   return useContext(CloudContext);
+}
+
+export function useCalendarState(): CalendarState | null {
+  const cloud = useCloud();
+  const [state, setState] = useState(cloud?.calendar.current ?? null);
+  useEffect(() => cloud?.calendar.subscribe(setState), [cloud]);
+  return state;
 }
 
 export function useSyncState(): SyncState | null {
@@ -61,11 +71,20 @@ const home = () => location.assign(import.meta.env.BASE_URL);
 /** La cuenta lista para usar, con su sincronización en marcha. `remount`: vuelve a cargar la pantalla. */
 function startCloud(config: CloudConfig, account: Account, remount: () => void): Cloud {
   const sync = new SyncController(getDb(), account);
+  const calendar = new CalendarSync(getDb(), account);
+  // Al acabar cada sincronización con Drive (ya con las citas de los otros dispositivos), al calendario.
+  let last = sync.current.status;
+  sync.subscribe((s) => {
+    if (last === "syncing" && s.status === "idle") void calendar.run();
+    last = s.status;
+  });
   sync.start();
+  void calendar.run(); // para saber ya si está activado y con permiso
   return {
     config,
     account,
     sync,
+    calendar,
     reconnect: () => startLogin(config.googleClientId, { hint: account.email }),
     logout: async (wipe) => {
       sync.stop();

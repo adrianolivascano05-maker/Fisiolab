@@ -41,7 +41,7 @@ export function PrivacyPage() {
           El alojamiento web solo sirve los archivos de la app. Como cualquier web, registra la dirección IP de quien la descarga. No recibe datos de
           pacientes. No hay analítica, ni publicidad, ni cookies.
           {cloud &&
-            " Google guarda la copia de la carpeta de la app en el Drive de cada fisioterapeuta; para entrar, Google ve el nombre y el correo de quien entra. Para historias clínicas hace falta un contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace de la clínica y no las de Gmail normales."}
+            " Google guarda la copia de la carpeta de la app en el Drive de cada fisioterapeuta, los informes y resultados que se guardan a la vista en su carpeta «Cénit · Fisiolab», y el día, la hora y el nombre (o las iniciales) de las citas en el calendario «Cénit · Citas»; para entrar, Google ve el nombre y el correo de quien entra. Para historias clínicas hace falta un contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace de la clínica y no las de Gmail normales."}
         </p>
         <h2 className="text-lg">Seguridad</h2>
         <p>

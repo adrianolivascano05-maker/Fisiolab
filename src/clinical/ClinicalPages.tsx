@@ -52,6 +52,7 @@ import { Chips, NumberScale, PainScale, PatientNav, ResultBadge, resultLabels, s
 import { byRegions, displayName, getKind, kindOf, OTHER, psfsScore, QUESTIONNAIRES, scoreText, type Better, type QDetails } from "./questionnaires";
 import { LSI_REFERENCE, symmetryRows } from "./symmetry";
 import { madridDay } from "./timeline";
+import { useAutoCalendar } from "../cloud/CalendarSettings";
 
 // ---------- Utilidades ----------
 
@@ -758,6 +759,8 @@ export function MeasurementsPage() {
 export function SessionsPage() {
   const { id = "" } = useParams();
   const [params, setParams] = useSearchParams();
+  // Con Google Calendar conectado la cita se apunta sola: no hace falta ofrecer el enlace.
+  const autoCalendar = useAutoCalendar();
   const data = useLoad(id, async () => {
     const db = getDb();
     const [patient, sessions, findings, tests] = await Promise.all([getPatient(db, id), listSessions(db, id), listFindings(db, id), listTests(db, id)]);
@@ -770,7 +773,7 @@ export function SessionsPage() {
   const visit = nextVisit(sessions);
   // Al guardar una sesión con siguiente cita se ofrece pasarla al calendario.
   const justSaved = sessions.find((s) => s.id === params.get("calendario"));
-  const justSavedEvent = justSaved && patient ? visitEvent(justSaved, patient) : null;
+  const justSavedEvent = justSaved && patient && !autoCalendar ? visitEvent(justSaved, patient) : null;
   return (
     <PatientShell patient={patient} id={id}>
       <div className="flex items-center justify-between gap-3">
@@ -782,8 +785,11 @@ export function SessionsPage() {
       {visit && patient && (
         <Card className="flex flex-wrap items-center gap-3">
           <CalendarCheck aria-hidden="true" className="size-5 shrink-0 text-accent" />
-          <span className="flex-1">
-            Próxima cita: <span className="font-semibold whitespace-nowrap">{fmtVisit(visit.nextAt!)}</span>
+          <span className="flex flex-1 flex-col">
+            <span>
+              Próxima cita: <span className="font-semibold whitespace-nowrap">{fmtVisit(visit.nextAt!)}</span>
+            </span>
+            {autoCalendar && <span className="text-sm text-text-muted">Apuntada en tu Google Calendar.</span>}
           </span>
           <CalendarButton event={visitEvent(visit, patient)!} />
         </Card>
@@ -897,6 +903,7 @@ export function SessionFormPage() {
   const { id = "", sid } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const autoCalendar = useAutoCalendar();
   const data = useLoad(`${id}|${sid ?? ""}`, async () => {
     const db = getDb();
     const [patient, session, sessions] = await Promise.all([getPatient(db, id), sid ? getSession(db, sid) : null, listSessions(db, id)]);
@@ -1000,7 +1007,7 @@ export function SessionFormPage() {
           {nextAt && (
             <Chips label="Duración" options={["30", "45", "60", "90"]} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => v[0] && setNextMinutes(Number(v[0]))} />
           )}
-          <p className="text-sm text-text-muted">Los botones la ponen a la hora de esta sesión, al cuarto de hora más cercano. Al guardar podrás añadirla a tu calendario (Google, iPhone, Outlook…).</p>
+          <p className="text-sm text-text-muted">Los botones la ponen a la hora de esta sesión, al cuarto de hora más cercano. {autoCalendar ? "Al guardar se apunta sola en tu Google Calendar." : "Al guardar podrás añadirla a tu calendario (Google, iPhone, Outlook…)."}</p>
         </fieldset>
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-semibold">Reevaluar</legend>

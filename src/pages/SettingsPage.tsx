@@ -6,6 +6,8 @@ import { Page } from "../app/Page";
 import { InstallSteps, useInstall } from "../app/pwa";
 import { AccountCard } from "../cloud/AccountPages";
 import { CloudSettings, useCloud } from "../cloud/CloudGate";
+import { CalendarSettings } from "../cloud/CalendarSettings";
+import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
@@ -66,6 +68,7 @@ export function SettingsPage() {
       {cloud ? (
         <>
           <CloudSettings />
+          <CalendarSettings />
           <EncryptionSettings />
         </>
       ) : (
@@ -127,6 +130,10 @@ export function SettingsPage() {
           >
             Exportar resultados a Excel (CSV)
           </Button>
+          <DriveSaveButton
+            label="Guardar los resultados en mi Drive (CSV)"
+            make={async () => ({ name: `fisiolab-resultados-${stamp()}.csv`, mimeType: "text/csv", bytes: new TextEncoder().encode(await exportCsv(getDb())) })}
+          />
         </Card>
       </section>
 

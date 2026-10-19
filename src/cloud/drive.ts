@@ -1,5 +1,7 @@
 // Google Drive: la copia de la base en la carpeta oculta de la app (appDataFolder). Solo esta app la ve; la
-// persona puede borrarla desde Drive → Configuración → Gestionar aplicaciones. API REST v3 con fetch.
+// persona puede borrarla desde Drive → Configuración → Gestionar aplicaciones. Además, con el permiso drive.file,
+// los archivos que la persona guarda a la vista (informes en PDF, resultados en CSV) en la carpeta «Cénit ·
+// Fisiolab» de su Drive: la app solo ve los archivos que ha creado ella. API REST v3 con fetch.
 import type { Account } from "./account";
 
 const FILES = "https://www.googleapis.com/drive/v3/files";
@@ -59,35 +61,73 @@ export async function download(token: string, id: string): Promise<Uint8Array> {
 
 const fields = "fields=id,version,modifiedTime";
 
-async function resumable(token: string, init: { method: "POST" | "PATCH"; url: string; metadata: object }, bytes: Uint8Array): Promise<RemoteFile> {
-  const start = await call(token, `${init.url}?uploadType=resumable&${fields}`, {
+async function resumable<T>(token: string, init: { method: "POST" | "PATCH"; url: string; metadata: object; contentType?: string; fields?: string }, bytes: Uint8Array): Promise<T> {
+  const contentType = init.contentType ?? "application/octet-stream";
+  const start = await call(token, `${init.url}?uploadType=resumable&${init.fields ?? fields}`, {
     method: init.method,
-    headers: { "Content-Type": "application/json; charset=UTF-8", "X-Upload-Content-Type": "application/octet-stream" },
+    headers: { "Content-Type": "application/json; charset=UTF-8", "X-Upload-Content-Type": contentType },
     body: JSON.stringify(init.metadata),
   });
   const session = start.headers.get("Location");
   if (!session) throw new Error("Google Drive no ha abierto la subida.");
-  return (await (await call(token, session, { method: "PUT", body: bytes as BlobPart })).json()) as RemoteFile;
+  return (await (await call(token, session, { method: "PUT", headers: { "Content-Type": contentType }, body: bytes as BlobPart })).json()) as T;
 }
 
-/** Sube la primera copia. */
-export async function createFile(token: string, bytes: Uint8Array): Promise<RemoteFile> {
-  const metadata = { name: FILE_NAME, parents: ["appDataFolder"], mimeType: "application/octet-stream" };
-  if (bytes.byteLength > SIMPLE_LIMIT) return resumable(token, { method: "POST", url: UPLOAD, metadata }, bytes);
+/** Sube un archivo nuevo con sus metadatos (nombre, carpeta, tipo). */
+async function upload<T>(token: string, metadata: { name: string; parents: string[]; mimeType: string }, bytes: Uint8Array, fieldList: string): Promise<T> {
+  if (bytes.byteLength > SIMPLE_LIMIT) return resumable<T>(token, { method: "POST", url: UPLOAD, metadata, contentType: metadata.mimeType, fields: fieldList }, bytes);
   const boundary = `cenit-${crypto.randomUUID()}`;
   const body = new Blob([
     `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`,
-    `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n`,
+    `--${boundary}\r\nContent-Type: ${metadata.mimeType}\r\n\r\n`,
     bytes as BlobPart,
     `\r\n--${boundary}--`,
   ]);
-  const res = await call(token, `${UPLOAD}?uploadType=multipart&${fields}`, { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body });
-  return (await res.json()) as RemoteFile;
+  const res = await call(token, `${UPLOAD}?uploadType=multipart&${fieldList}`, { method: "POST", headers: { "Content-Type": `multipart/related; boundary=${boundary}` }, body });
+  return (await res.json()) as T;
+}
+
+/** Sube la primera copia. */
+export function createFile(token: string, bytes: Uint8Array): Promise<RemoteFile> {
+  return upload<RemoteFile>(token, { name: FILE_NAME, parents: ["appDataFolder"], mimeType: "application/octet-stream" }, bytes, fields);
+}
+
+// ---------- Archivos a la vista (drive.file) ----------
+
+export const FOLDER_NAME = "Cénit · Fisiolab";
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+
+/** La carpeta de la app en «Mi unidad»: la guardada si sigue ahí (y no en la papelera); si no, otra. */
+export async function ensureFolder(token: string, id: string | null): Promise<string> {
+  if (id) {
+    try {
+      const f = (await (await call(token, `${FILES}/${id}?fields=id,trashed`)).json()) as { trashed?: boolean };
+      if (!f.trashed) return id;
+    } catch (e) {
+      if (!(e instanceof GoogleError && e.status === 404)) throw e;
+    }
+  }
+  const q = encodeURIComponent(`name = '${FOLDER_NAME}' and mimeType = '${FOLDER_MIME}' and trashed = false`);
+  const found = ((await (await call(token, `${FILES}?q=${q}&pageSize=1&fields=files(id)`)).json()) as { files: { id: string }[] }).files[0];
+  if (found) return found.id;
+  const res = await call(token, `${FILES}?fields=id`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json; charset=UTF-8" },
+    body: JSON.stringify({ name: FOLDER_NAME, mimeType: FOLDER_MIME }),
+  });
+  return ((await res.json()) as { id: string }).id;
+}
+
+export type VisibleFile = { id: string; webViewLink?: string };
+
+/** Guarda un archivo a la vista en la carpeta. */
+export function uploadVisible(token: string, folder: string, name: string, mimeType: string, bytes: Uint8Array): Promise<VisibleFile> {
+  return upload<VisibleFile>(token, { name, parents: [folder], mimeType }, bytes, "fields=id,webViewLink");
 }
 
 /** Sustituye la copia por la nueva. */
 export async function updateFile(token: string, id: string, bytes: Uint8Array): Promise<RemoteFile> {
-  if (bytes.byteLength > SIMPLE_LIMIT) return resumable(token, { method: "PATCH", url: `${UPLOAD}/${id}`, metadata: {} }, bytes);
+  if (bytes.byteLength > SIMPLE_LIMIT) return resumable<RemoteFile>(token, { method: "PATCH", url: `${UPLOAD}/${id}`, metadata: {} }, bytes);
   const res = await call(token, `${UPLOAD}/${id}?uploadType=media&${fields}`, { method: "PATCH", headers: { "Content-Type": "application/octet-stream" }, body: bytes as BlobPart });
   return (await res.json()) as RemoteFile;
 }

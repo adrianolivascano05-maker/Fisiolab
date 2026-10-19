@@ -2,29 +2,11 @@
 // del Mac u Outlook (archivo .ics). No conecta ninguna cuenta: el fisioterapeuta confirma en su calendario.
 import { CalendarPlus, Download, ExternalLink } from "lucide-react";
 import { useState } from "react";
-import type { Session } from "../data/clinical";
 import { Button, IconButton } from "../ui/Button";
 import { Sheet } from "../ui/Sheet";
-import { googleCalendarUrl, openIcs, type CalendarEvent } from "./calendar";
+import { fmtVisit, googleCalendarUrl, openIcs, type CalendarEvent } from "./calendar";
 
-export const DEFAULT_VISIT_MINUTES = 45;
-
-/** «lun, 26 oct, 10:00» */
-export const fmtVisit = (iso: string) =>
-  new Date(iso).toLocaleString("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
-
-/** El evento de la siguiente cita que se puso en una sesión. */
-export function visitEvent(s: Session, patient: { id: string; name: string }): CalendarEvent | null {
-  if (!s.nextAt) return null;
-  const link = new URL(`${import.meta.env.BASE_URL}pacientes/${patient.id}`, window.location.origin).href;
-  return {
-    uid: `cita-${s.id}@cenit-fisiolab`,
-    start: s.nextAt,
-    minutes: s.nextMinutes ?? DEFAULT_VISIT_MINUTES,
-    title: `Fisioterapia · ${patient.name}`,
-    description: `Siguiente cita de ${patient.name}.\nSu ficha en la app (en este dispositivo): ${link}`,
-  };
-}
+export { DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./calendar";
 
 const googleLink =
   "inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover";

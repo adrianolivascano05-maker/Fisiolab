@@ -1,7 +1,7 @@
 // Informe del paciente para imprimir o guardar en PDF desde el navegador: datos, anamnesis, exploración,
 // evolución del dolor, mediciones (con la simetría entre lados), cuestionarios y sesiones. Se eligen los apartados; en papel solo sale el informe.
 import { ChevronLeft, Printer } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { fmt, fmtDate, fmtDateShort } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
@@ -9,6 +9,8 @@ import { useAsync } from "../app/useAsync";
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
 import { getDb } from "../data/db";
 import { getPatient, listTests, listWellness } from "../data/repo";
+import { DriveSaveButton } from "../cloud/DriveSaveButton";
+import { safeName } from "../cloud/saveToDrive";
 import { Button } from "../ui/Button";
 import { LogoMark } from "../ui/Logo";
 import { ANAMNESIS, answerText } from "./anamnesis";
@@ -75,6 +77,7 @@ export function ReportPage() {
     ]);
     return { patient, anamnesis, findings, sessions, tests, wellness, questionnaires };
   }, [id]);
+  const article = useRef<HTMLElement>(null);
   const [parts, setParts] = useState<Record<Part, boolean>>({ anamnesis: true, exploracion: true, dolor: true, mediciones: true, cuestionarios: true, sesiones: true });
 
   const back = `/pacientes/${id}`;
@@ -139,9 +142,20 @@ export function ReportPage() {
             Imprimir o guardar en PDF
           </Button>
           <p className="text-sm text-text-muted">En el diálogo de impresión, elige «Guardar como PDF» para tenerlo en un archivo.</p>
+          <DriveSaveButton
+            label="Guardar en mi Drive (PDF)"
+            make={async () => {
+              const { reportPdf } = await import("./reportPdf");
+              return {
+                name: safeName(`Informe ${patient.name} ${today.slice(0, 10)}.pdf`),
+                mimeType: "application/pdf",
+                bytes: await reportPdf(article.current!),
+              };
+            }}
+          />
         </div>
 
-        <article aria-label="Informe" className="flex flex-col gap-5 rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
+        <article ref={article} aria-label="Informe" className="flex flex-col gap-5 rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
           <header className="flex items-start justify-between gap-4 border-b border-border pb-3">
             <div className="flex flex-col">
               <span className="text-xl font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>

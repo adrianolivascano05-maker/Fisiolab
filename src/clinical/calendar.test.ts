@@ -35,3 +35,20 @@ describe("cita en el calendario", () => {
     expect(url.searchParams.get("details")).toBe(visit.description);
   });
 });
+
+describe("eventos de la siguiente cita", () => {
+  it("con el nombre o solo con las iniciales; el id del evento vale para Google Calendar", async () => {
+    const { visitEvent, initials } = await import("./calendar");
+    const { eventId } = await import("../cloud/googleCalendar");
+    const s = { id: "0b5f3c1e-9a2d-4c11-8e7f-2d4c6a8b9e01", nextAt: "2030-05-06T08:00:00.000Z", nextMinutes: null };
+    const p = { id: "p1", name: "Lucía  Pérez gil" };
+    expect(initials(p.name)).toBe("L. P. G.");
+    expect(visitEvent(s, p, "full", "https://x.test")!.title).toBe("Fisioterapia · Lucía  Pérez gil");
+    const e = visitEvent(s, p, "initials", "https://x.test")!;
+    expect(e.title).toBe("Fisioterapia · L. P. G.");
+    expect(e.description).not.toContain("Lucía");
+    expect(e.minutes).toBe(45);
+    expect(eventId(s.id)).toMatch(/^[a-v0-9]{5,1024}$/);
+    expect(eventId("sesión rara")).toMatch(/^[a-v0-9]{5,1024}$/);
+  });
+});

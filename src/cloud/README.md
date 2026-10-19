@@ -55,11 +55,13 @@ de la última cuenta que entró en él.
 | Archivo | Qué hace |
 | --- | --- |
 | `config.ts` | lee `public/cloud.json` al abrir la app (sin conexión, la última que leyó); si no trae ID, el pegado en el dispositivo |
-| `auth.ts` | entrar con Google con redirección (OAuth 2.0 para apps web de cliente). Google vuelve con un token de una hora que solo sirve para la carpeta de la app en Drive y para el nombre y el correo |
+| `auth.ts` | entrar con Google con redirección (OAuth 2.0 para apps web de cliente). Google vuelve con un token de una hora que solo sirve para el nombre y el correo, la carpeta oculta de la app en Drive, los archivos que crea la app y su calendario |
 | `account.ts` | la cuenta que ha entrado en el dispositivo. Cada cuenta tiene su base (`fisiolab-u<id>.sqlite3`) |
 | `drive.ts` | la copia en Drive: listar, bajar, subir y borrar, con la API REST v3 |
 | `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista, 5 segundos después del último cambio y al salir de la app |
 | `AccountPages.tsx` | la tarjeta de la cuenta en la pantalla principal y la pantalla para pegar el ID de cliente en el dispositivo |
+| `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «Cénit · Citas» que crea la app |
+| `saveToDrive.ts`, `DriveSaveButton.tsx` | guardar el informe en PDF y los resultados en CSV en la carpeta «Cénit · Fisiolab» de Drive |
 | `crypt.ts`, `EncryptionParts.tsx` | cifrado opcional de la copia de Drive con una contraseña, y pedirla en otro dispositivo |
 | `CloudGate.tsx` | pantallas de entrada (y de pasar a la cuenta los datos que había sin cuenta), aviso de sincronización y la sección «Cuenta» de Ajustes |
 | `../data/migrations/008_sync.sql`, `../data/syncMerge.ts` | registro de cambios por fila y fusión de dos copias |
@@ -85,6 +87,21 @@ de la última cuenta que entró en él.
   como si viniera de otro dispositivo, y en cada fila gana el cambio más reciente.
 - **Copias de más de 4,5 MB** se suben con la subida reanudable de Drive. Las pruebas usan un Google simulado
   (`e2e/fakeGoogle.ts`) y no llegan a ese tamaño.
+- **Permisos de Google.** Además del nombre, el correo y la carpeta oculta (`drive.appdata`), la app pide
+  `drive.file` (solo los archivos que crea ella) y `calendar.app.created` (solo el calendario que crea ella). Los
+  tres son «no sensibles». Si alguien no acepta uno, lo demás funciona y la app dice qué falta y cómo darlo.
+- **Citas en Google Calendar.** Al acabar cada sincronización con Drive, la siguiente cita de cada paciente (la
+  de su última sesión, si aún no ha llegado) se pone en el calendario «Cénit · Citas». El id del evento sale de la
+  sesión (`cenit` + su id), así que dos dispositivos dejan un solo evento. Una cita cambiada se mueve; una que ya
+  no está (otra sesión con otra cita, sesión o paciente borrados) se quita. Las citas pasadas o empezadas no se
+  tocan. Si nada ha cambiado, no se pregunta a Google hasta media hora después. En Ajustes → Google Calendar se
+  desactiva o se elige que salgan solo las iniciales del paciente. Con esto activado, al guardar una sesión ya no
+  se ofrece el enlace de Google Calendar ni el .ics.
+- **Informe y resultados en Drive.** «Guardar en mi Drive (PDF)» en el informe y «Guardar los resultados en mi
+  Drive (CSV)» en Ajustes los suben a la carpeta «Cénit · Fisiolab» de «Mi unidad», que la app crea la primera vez
+  (su id va en el ajuste sincronizado `drive_folder_id`). El PDF es el informe dibujado tal como se ve, una imagen
+  por página A4 (`../clinical/reportPdf.ts` con html-to-image, y `../app/pdf.ts`): el texto no se puede
+  seleccionar. Estos archivos no se cifran aunque la copia sí lo esté.
 - **Copia cifrada (opcional).** En Ajustes → Cifrado de la copia de Drive. La base se cifra en el dispositivo antes
   de subirla, con AES-GCM de 256 bits y una clave sacada de la contraseña con PBKDF2-SHA-256 (600 000 vueltas).
   En Drive solo hay bytes ilegibles sin la contraseña. El archivo empieza por `CENITENC1`, seguido de la sal y el

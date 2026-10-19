@@ -211,9 +211,9 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expect(tablet.getByRole("link", { name: /Paciente Cifrado/ })).toBeVisible();
 
     // Lo que apunta la tablet se sube cifrado y llega al móvil.
-    const before = google.files[0]!.version;
+    const before = google.appData("ana")[0]!.version;
     await createPatient(tablet, { name: "Desde la Tablet" });
-    await expect.poll(() => google.files.length === 1 && google.files[0]!.version > before, { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => google.appData("ana").length === 1 && google.appData("ana")[0]!.version > before, { timeout: 15_000 }).toBe(true);
     expect(google.driveText("ana").startsWith("CENITENC1")).toBe(true);
     await page.getByRole("button", { name: "Sincronizar ahora" }).click();
     await page.getByRole("button", { name: "Mostrar" }).click();

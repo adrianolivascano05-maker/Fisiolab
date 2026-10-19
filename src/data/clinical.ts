@@ -152,6 +152,18 @@ export function nextVisit(sessions: Session[], now = new Date()): Session | null
   return last?.nextAt && Date.parse(last.nextAt) > now.getTime() ? last : null;
 }
 
+/** La siguiente cita de cada paciente (la de su última sesión) que aún no ha llegado, para el calendario. */
+export async function upcomingVisits(db: Db, now = new Date()): Promise<{ id: string; patientId: string; name: string; nextAt: string; nextMinutes: number | null }[]> {
+  return db.query(
+    `select s.id, p.id as patientId, p.name, s.next_at as nextAt, s.next_minutes as nextMinutes
+       from patients p
+       join sessions s on s.id = (select s2.id from sessions s2 where s2.patient_id = p.id order by s2.performed_at desc limit 1)
+      where s.next_at > ?
+      order by s.next_at`,
+    [now.toISOString()],
+  );
+}
+
 /** Pacientes con una reevaluación pendiente hasta `day` (AAAA-MM-DD): la última fecha que se les puso. */
 export async function dueReviews(db: Db, day: string): Promise<{ patientId: string; name: string; reviewOn: string }[]> {
   return db.query(
