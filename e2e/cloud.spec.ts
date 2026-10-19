@@ -111,6 +111,25 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expect.poll(() => google.driveText("ana").includes(enc("Previo Local")), { timeout: 15_000 }).toBe(true);
   });
 
+  test("NB4 desde la pantalla principal: pegar el ID de cliente en el dispositivo y entrar", async ({ page }) => {
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana", { publish: false });
+    await page.goto("./");
+    await page.getByRole("link", { name: "Iniciar sesión con Google" }).click();
+    await expect(page.getByRole("heading", { name: "Iniciar sesión con Google" })).toBeVisible();
+    await expect(page.getByText(/\/$/).first()).toBeVisible(); // la dirección de redirección, con su barra final
+    await expectAccessible(page);
+    await page.getByLabel("ID de cliente").fill("mi-contraseña");
+    await page.getByRole("button", { name: "Entrar con Google" }).click();
+    await expect(page.getByText("Eso no parece un ID de cliente")).toBeVisible();
+    await page.getByLabel("ID de cliente").fill(" 123456789012-abcdef.apps.googleusercontent.com ");
+    await page.getByRole("button", { name: "Entrar con Google" }).click();
+    // Vuelve de Google con la sesión iniciada: la pantalla principal ya enseña la cuenta.
+    await expect(page.getByRole("link", { name: /Ana Ruiz/ })).toBeVisible({ timeout: 15_000 });
+    await createPatient(page, { name: "Desde el Inicio" });
+    await expect.poll(() => google.driveText("ana").includes(enc("Desde el Inicio")), { timeout: 15_000 }).toBe(true);
+  });
+
   test("NB3 con la sesión de Google cerrada pide volver a entrar, o deja seguir sin conexión", async ({ page }) => {
     const google = new FakeGoogle(users);
     const errors: string[] = [];

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { fmtDate, testLabel } from "../app/format";
 import { InstallCard } from "../app/pwa";
+import { AccountCard } from "../cloud/AccountPages";
 import { useCloud } from "../cloud/CloudGate";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
@@ -69,6 +70,7 @@ export function PatientsPage() {
           Todo se perderá al cerrar la pestaña. Abre la app en Safari o Chrome actualizados.
         </Alert>
       )}
+      <AccountCard />
       <InstallCard />
       {/* Con la nube, la copia es automática: no hace falta recordar la de archivo. */}
       {!cloud && <BackupReminder

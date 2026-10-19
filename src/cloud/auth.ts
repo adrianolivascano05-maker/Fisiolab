@@ -37,11 +37,11 @@ type Flow = { state: string; returnTo: string; silent: boolean };
 
 /**
  * Va a Google. `silent`: sin preguntar nada (si la sesión de Google no está abierta, vuelve con un error).
- * `chooseAccount`: deja elegir la cuenta.
+ * `chooseAccount`: deja elegir la cuenta. `returnTo`: la dirección a la que volver (si no, esta misma).
  */
-export function startLogin(clientId: string, opts: { hint?: string; silent?: boolean; chooseAccount?: boolean } = {}) {
+export function startLogin(clientId: string, opts: { hint?: string; silent?: boolean; chooseAccount?: boolean; returnTo?: string } = {}) {
   const state = crypto.randomUUID();
-  const flow: Flow = { state, returnTo: location.pathname + location.search, silent: !!opts.silent };
+  const flow: Flow = { state, returnTo: opts.returnTo ?? location.pathname + location.search, silent: !!opts.silent };
   sessionStorage.setItem(FLOW_KEY, JSON.stringify(flow));
   if (opts.silent) sessionStorage.setItem(SILENT_KEY, String(Date.now()));
   const p = new URLSearchParams({

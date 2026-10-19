@@ -29,9 +29,12 @@ export class FakeGoogle {
   /** Para buscar un texto con tildes dentro de la copia. */
   static enc = (s: string) => Buffer.from(s, "utf8").toString("latin1");
 
-  /** Activa la nube en este contexto y simula Google. `who`: la cuenta que elegiría la persona en Google. */
-  async install(ctx: BrowserContext, who: () => string) {
-    await ctx.route("**/cloud.json", (r) => r.fulfill({ json: { googleClientId: "pruebas.apps.googleusercontent.com" } }));
+  /**
+   * Simula Google en este contexto. `who`: la cuenta que elegiría la persona en Google. `publish`: la app publicada
+   * lleva el ID de cliente (si no, hay que pegarlo en el dispositivo).
+   */
+  async install(ctx: BrowserContext, who: () => string, { publish = true } = {}) {
+    if (publish) await ctx.route("**/cloud.json", (r) => r.fulfill({ json: { googleClientId: "123456789012-pruebas.apps.googleusercontent.com" } }));
     await ctx.route("https://accounts.google.com/o/oauth2/v2/auth?**", (r) => this.auth(r, who()));
     await ctx.route("https://www.googleapis.com/**", (r) => this.api(r));
     await ctx.route("https://oauth2.googleapis.com/revoke", (r) => r.fulfill({ status: 200, headers: cors, body: "" }));

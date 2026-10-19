@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
 import { InstallSteps, useInstall } from "../app/pwa";
+import { AccountCard } from "../cloud/AccountPages";
 import { CloudSettings, useCloud } from "../cloud/CloudGate";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
@@ -59,7 +60,16 @@ export function SettingsPage() {
 
   return (
     <Page title="Ajustes" tabs>
-      <CloudSettings />
+      {cloud ? (
+        <CloudSettings />
+      ) : (
+        <section className="flex flex-col gap-3" aria-labelledby="h-cuenta">
+          <h2 id="h-cuenta" className="text-lg">
+            Cuenta
+          </h2>
+          <AccountCard />
+        </section>
+      )}
       <section className="flex flex-col gap-3" aria-labelledby="h-datos">
         <h2 id="h-datos" className="text-lg">Tus datos</h2>
         <p className="text-sm text-text-muted">

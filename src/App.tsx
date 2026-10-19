@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { DbGate } from "./app/DbGate";
+import { SignInSetupPage } from "./cloud/AccountPages";
 import { CloudGate } from "./cloud/CloudGate"; // Cuenta de Google y copia en Drive (src/cloud/README.md)
 import { UpdateBanner } from "./app/pwa";
 import { ToastProvider } from "./ui/Toast";
@@ -37,6 +38,7 @@ const LoadVelocityPage = lazy(() => import("./pages/LoadVelocityPage").then((m) 
 const RomHistoryPage = lazy(() => import("./pages/RomHistoryPage").then((m) => ({ default: m.RomHistoryPage })));
 const RomMeasurePage = lazy(() => import("./pages/RomMeasurePage").then((m) => ({ default: m.RomMeasurePage })));
 const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default: m.VideoPage })));
+const InstallPage = lazy(() => import("./pages/InstallPage").then((m) => ({ default: m.InstallPage })));
 const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 // En GitHub Pages la app vive en /Fisiolab/; en la raíz del dominio, en /.
@@ -79,6 +81,8 @@ const routes = [
   { path: "/validacion/sensor", element: l(<SensorCheckPage />) },
   { path: "/ajustes", element: <SettingsPage /> }, // S24
   { path: "/privacidad", element: <PrivacyPage /> },
+  { path: "/cuenta", element: <SignInSetupPage /> }, // Iniciar sesión con Google (sin el ID de cliente publicado)
+  { path: "/instalar", element: l(<InstallPage />) }, // Usar la app en otros dispositivos
   { path: "/design", element: l(<DesignPage />) },
   { path: "*", element: <ComingSoonPage title="Página no encontrada" /> },
 ];

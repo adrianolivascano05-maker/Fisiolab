@@ -44,6 +44,10 @@ Los nombres de los menús son los de la consola de Google en octubre de 2026; si
    { "googleClientId": "1234567890-abc123.apps.googleusercontent.com" }
    ```
 
+**Sin tocar el código:** en la pantalla principal, «Iniciar sesión con Google» lleva a una pantalla con estos pasos
+(y el origen y la redirección listos para copiar) donde se pega el ID. Pegado ahí vale solo para ese dispositivo:
+para que valga en todos los de la clínica, va en `public/cloud.json`, que tiene preferencia.
+
 Para desactivarla, deja `googleClientId` vacío. La app vuelve a funcionar solo en el dispositivo, con los datos
 de la última cuenta que entró en él.
 
@@ -51,11 +55,12 @@ de la última cuenta que entró en él.
 
 | Archivo | Qué hace |
 | --- | --- |
-| `config.ts` | lee `public/cloud.json` al abrir la app; sin conexión usa la última que leyó |
+| `config.ts` | lee `public/cloud.json` al abrir la app (sin conexión, la última que leyó); si no trae ID, el pegado en el dispositivo |
 | `auth.ts` | entrar con Google con redirección (OAuth 2.0 para apps web de cliente). Google vuelve con un token de una hora que solo sirve para la carpeta de la app en Drive y para el nombre y el correo |
 | `account.ts` | la cuenta que ha entrado en el dispositivo. Cada cuenta tiene su base (`fisiolab-u<id>.sqlite3`) |
 | `drive.ts` | la copia en Drive: listar, bajar, subir y borrar, con la API REST v3 |
 | `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista, 5 segundos después del último cambio y al salir de la app |
+| `AccountPages.tsx` | la tarjeta de la cuenta en la pantalla principal y la pantalla para pegar el ID de cliente en el dispositivo |
 | `CloudGate.tsx` | pantallas de entrada (y de pasar a la cuenta los datos que había sin cuenta), aviso de sincronización y la sección «Cuenta» de Ajustes |
 | `../data/migrations/008_sync.sql`, `../data/syncMerge.ts` | registro de cambios por fila y fusión de dos copias |
 
