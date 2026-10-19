@@ -1,8 +1,13 @@
 // Galería de tests de exploración (módulo independiente de src/gallery).
 import { expect, expectAccessible, test } from "./fixtures";
 
+// La escena 3D se dibuja por software en el navegador de las pruebas: en una máquina cargada tarda en salir
+// y frena la página; estas esperas tienen más margen que las demás.
+const SCENE = { timeout: 20_000 };
+
 test.describe("Galería de tests", () => {
   test("G1 articulación → patología → test, con animación, desplegables y favoritos", async ({ page }) => {
+    test.slow(); // dibuja la escena 3D dos veces
     await page.goto("./");
     await page.getByRole("link", { name: "Exploración" }).click();
     await expect(page.getByRole("heading", { name: "Exploración" })).toBeVisible();
@@ -14,7 +19,7 @@ test.describe("Galería de tests", () => {
     await page.getByText("Menisco", { exact: true }).click();
     await expect(page.getByRole("link", { name: /McMurray/ })).toBeVisible();
     await page.getByRole("link", { name: /Lachman/ }).first().click();
-    await expect(page.getByRole("img", { name: /Lachman/ }).first()).toBeVisible();
+    await expect(page.getByRole("img", { name: /Lachman/ }).first()).toBeVisible(SCENE);
     // Animación: fases con su texto, pausa y avance manual.
     await page.getByRole("button", { name: "3. Qué buscar" }).first().click();
     await expect(page.getByRole("button", { name: "Reproducir la animación" }).first()).toBeVisible();
@@ -28,15 +33,17 @@ test.describe("Galería de tests", () => {
     await expectAccessible(page);
     await page.getByRole("button", { name: "Añadir a favoritos" }).click();
     await page.reload();
-    await expect(page.getByText("Qué cambia el resultado")).toBeVisible();
+    await expect(page.getByText("Qué cambia el resultado")).toBeVisible(SCENE);
+    // Al recargar vuelve a sonar la animación; en pausa la página responde al momento.
+    await page.getByRole("button", { name: "Pausar la animación" }).first().click(SCENE);
     await page.getByRole("button", { name: "Abrir todo" }).click();
     await expect(page.getByText("Precauciones")).toBeVisible();
     await page.getByRole("button", { name: "Cerrar todo" }).click();
     await expect(page.getByText("Qué cambia el resultado")).toBeHidden();
     await page.getByRole("link", { name: "Volver" }).click();
-    await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible(SCENE);
     await page.getByRole("link", { name: "Volver" }).click();
-    await expect(page.getByRole("heading", { name: "Favoritos" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Favoritos" })).toBeVisible(SCENE);
   });
 
   test("G2 buscador sin tildes ni mayúsculas", async ({ page }) => {
@@ -58,9 +65,11 @@ test.describe("Galería de tests", () => {
   });
 
   test("G4 figura en 3D: se gira un poco y vuelve a la vista inicial", async ({ page }) => {
+    test.slow();
     await page.goto("./exploracion/rodilla/rod-lachman");
-    await expect(page.getByRole("img", { name: "Test de Lachman" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Test de Lachman" })).toBeVisible(SCENE);
     await expect(page.locator("canvas")).toHaveCount(1);
+    await page.getByRole("button", { name: "Pausar la animación" }).click(SCENE);
     await page.getByRole("button", { name: "Girar la vista a la derecha" }).click();
     await page.getByRole("button", { name: "Girar la vista a la izquierda" }).click();
     await page.getByRole("button", { name: "Volver a la vista inicial" }).click();
