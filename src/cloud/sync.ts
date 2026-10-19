@@ -4,12 +4,17 @@
 // - cinco segundos después del último cambio, y al salir de la app, para subir lo hecho aquí.
 // Si la nube ha cambiado desde la última vez, se descarga y se junta fila a fila (src/data/syncMerge.ts) antes de
 // subir: nunca se pisa sin más lo que hizo otro dispositivo.
+//
+// Si la cuenta cifra su copia (crypt.ts), se cifra antes de subir y se descifra al bajar. Sin la clave en este
+// dispositivo no se baja ni se sube nada: se pide la contraseña («needs-key»).
 import { onDbChange, type Db } from "../data/db";
+import { getSetting } from "../data/repo";
 import type { Account } from "./account";
 import { clearToken, getToken } from "./auth";
+import { decrypt, deriveKey, encrypt, ENCRYPTION_KEY, forgetKey, isEncrypted, saltOf, storedKey, storeKey, WrongPassword, type EncryptionSetting, type StoredKey } from "./crypt";
 import { AuthError, createFile, deleteFile, download, listFiles, updateFile } from "./drive";
 
-export type SyncStatus = "idle" | "syncing" | "offline" | "needs-auth" | "error";
+export type SyncStatus = "idle" | "syncing" | "offline" | "needs-auth" | "needs-key" | "error";
 export type SyncState = {
   status: SyncStatus;
   /** Última vez que la copia del dispositivo y la de la nube quedaron iguales. */
@@ -19,9 +24,18 @@ export type SyncState = {
   /** Han llegado datos de otro dispositivo que la pantalla abierta aún no enseña. */
   newData: boolean;
   error: string | null;
+  /** Con «needs-key»: la sal de la contraseña que hace falta. */
+  keySalt?: string | null;
 };
 
 type Meta = { fileId: string; version: string; lastSyncAt: string };
+
+/** Hace falta la contraseña de la copia de Drive (la sal con la que se cifró) para seguir. */
+class NeedsKey extends Error {
+  constructor(readonly salt: string) {
+    super("La copia de Google Drive está cifrada.");
+  }
+}
 
 const AFTER_CHANGE_MS = 5000;
 const EVERY_MS = 5 * 60_000;
@@ -156,11 +170,12 @@ export class SyncController {
       const files = await listFiles(t);
       const meta = this.meta();
       let pulled = 0;
+      let key = await storedKey(this.account.sub);
 
       if (!files.length) {
         // Primera vez: la copia de este dispositivo es la de la nube.
         const snap = await this.db.snapshot();
-        const f = await createFile(t, snap.bytes);
+        const f = await createFile(t, await this.seal(snap.bytes, key));
         await this.markPushed(snap.changes);
         this.saveMeta({ fileId: f.id, version: f.version, lastSyncAt: new Date().toISOString() });
       } else {
@@ -172,25 +187,35 @@ export class SyncController {
           // subieron la primera a la vez: se juntan las dos y se queda una.)
           needUpload = !!extra.length;
           for (const f of files) {
-            const r = await this.own(async () => this.db.merge(await download(t, f.id)));
+            const bytes = await this.open(await download(t, f.id), key);
+            const r = await this.own(() => this.db.merge(bytes));
             pulled += r.pulled;
             needUpload ||= r.needUpload;
           }
           if (!needUpload) await this.markPushed(s!.changes);
+          // Si otro dispositivo ha dejado de cifrar, o ha cambiado la contraseña, la clave de aquí ya no vale.
+          const enc = await this.encryption();
+          if (key && (!enc || enc.salt !== key.salt)) {
+            forgetKey(this.account.sub);
+            key = null;
+            needUpload ||= !enc; // que la copia de Drive quede sin cifrar también
+          }
         }
         let version = main!.version;
         if (needUpload) {
           const snap = await this.db.snapshot();
-          version = (await updateFile(t, main!.id, snap.bytes)).version;
+          version = (await updateFile(t, main!.id, await this.seal(snap.bytes, key))).version;
           await this.markPushed(snap.changes);
           for (const f of extra) await deleteFile(t, f.id);
         }
         this.saveMeta({ fileId: main!.id, version, lastSyncAt: new Date().toISOString() });
       }
       await this.refreshPending();
-      this.set({ status: "idle", lastSyncAt: this.meta()!.lastSyncAt, newData: this.state.newData || pulled > 0 });
+      this.set({ status: "idle", lastSyncAt: this.meta()!.lastSyncAt, newData: this.state.newData || pulled > 0, keySalt: null });
     } catch (e) {
-      if (e instanceof AuthError) {
+      if (e instanceof NeedsKey) {
+        this.set({ status: "needs-key", keySalt: e.salt });
+      } else if (e instanceof AuthError) {
         clearToken();
         this.set({ status: "needs-auth" });
       } else if (!navigator.onLine || (e instanceof TypeError && /fetch|network|load failed/i.test(e.message))) {
@@ -199,6 +224,72 @@ export class SyncController {
         this.set({ status: "error", error: e instanceof Error ? e.message : String(e) });
       }
     }
+  }
+
+  /** Si la copia de Drive va cifrada (ajuste sincronizado). */
+  private async encryption(): Promise<EncryptionSetting> {
+    return (await getSetting<EncryptionSetting>(this.db, ENCRYPTION_KEY)) ?? null;
+  }
+
+  /** La copia para subir: cifrada si la cuenta cifra (sin la clave, no se sube). */
+  private async seal(bytes: Uint8Array, key: StoredKey | null): Promise<Uint8Array> {
+    const enc = await this.encryption();
+    if (!enc) return bytes;
+    if (!key || key.salt !== enc.salt) throw new NeedsKey(enc.salt);
+    return encrypt(bytes, key.key, key.salt);
+  }
+
+  /** Una copia bajada de Drive, lista para juntar: descifrada si viene cifrada. */
+  private async open(bytes: Uint8Array, key: StoredKey | null): Promise<Uint8Array> {
+    if (!isEncrypted(bytes)) return bytes;
+    const salt = saltOf(bytes);
+    if (!key || key.salt !== salt) throw new NeedsKey(salt);
+    try {
+      return await decrypt(bytes, key.key);
+    } catch (e) {
+      // La clave guardada ya no abre la copia (otra contraseña con la misma sal no puede darse, pero por si acaso).
+      if (e instanceof WrongPassword) forgetKey(this.account.sub);
+      throw new NeedsKey(salt);
+    }
+  }
+
+  /**
+   * La contraseña de la copia cifrada, escrita en este dispositivo: se comprueba con la copia de Drive, se guarda
+   * la clave y se sincroniza. WrongPassword si no la abre.
+   */
+  async unlock(password: string): Promise<void> {
+    const salt = this.state.keySalt;
+    if (!salt) return;
+    const token = getToken();
+    if (!token || !navigator.onLine) throw new Error("Hace falta conexión para comprobar la contraseña con tu Drive.");
+    const key = await deriveKey(password, salt);
+    // Se comprueba con la copia de Drive: una clave equivocada cifraría la copia con otra contraseña.
+    const files = await listFiles(token.accessToken);
+    let checked = false;
+    for (const f of files) {
+      const bytes = await download(token.accessToken, f.id);
+      if (isEncrypted(bytes) && saltOf(bytes) === salt) {
+        await decrypt(bytes, key); // WrongPassword si no es
+        checked = true;
+        break;
+      }
+    }
+    if (!checked) throw new Error("No hay en tu Drive una copia cifrada con la que comprobar la contraseña. Pulsa «He olvidado la contraseña» para sustituirla por la de este dispositivo.");
+    await storeKey(this.account.sub, salt, key);
+    await this.sync();
+  }
+
+  /**
+   * Contraseña olvidada: borra las copias de Drive y sube la de este dispositivo (sin cifrar, o con la contraseña
+   * nueva si se ha activado otra vez). Lo que solo estuviera en Drive se pierde.
+   */
+  async replaceRemote(): Promise<void> {
+    const token = getToken();
+    if (!token) throw new Error("Vuelve a entrar con Google.");
+    for (const f of await listFiles(token.accessToken)) await deleteFile(token.accessToken, f.id);
+    this.forgetMeta();
+    this.set({ keySalt: null });
+    await this.sync();
   }
 
   private markPushed(changes: number) {

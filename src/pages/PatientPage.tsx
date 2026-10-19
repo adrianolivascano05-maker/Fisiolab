@@ -13,6 +13,7 @@ import { buildTimeline, painSeries, type EventKind } from "../clinical/timeline"
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions, nextVisit } from "../data/clinical";
 import { getDb } from "../data/db";
 import { getPatient, listTests, listWellness } from "../data/repo";
+import { PrivacyCard } from "../privacy/PrivacyCard";
 import { Alert } from "../ui/Alert";
 import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
@@ -122,6 +123,8 @@ export function PatientPage() {
           <CalendarButton event={visitEvent(visit, patient)!} compact />
         </Card>
       )}
+
+      <PrivacyCard patientId={id} privacy={patient.privacy} />
 
       {/* Lo clínico: por qué viene, banderas y dolor. */}
       <section aria-labelledby="clinico" className="flex flex-col gap-2">

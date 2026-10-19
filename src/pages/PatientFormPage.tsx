@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router";
-import { decimalText, parseDecimal } from "../app/format";
+import { decimalText, fmtDate, parseDecimal } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { getDb } from "../data/db";
+import { clinicalRecord, getClinic, keepUntil } from "../data/privacy";
 import { createPatient, deletePatient, getPatient, updatePatient, type PatientInput, type Sex } from "../data/repo";
+import { SEED_PREFIX } from "../data/seed";
+import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { NumberField, SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
@@ -67,6 +70,9 @@ export function PatientFormPage() {
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Al pedir borrar: hasta cuándo obliga la ley a conservar su historia (null si no hay nada que conservar).
+  const [keep, setKeep] = useState<{ until: Date; last: string; years: number } | null>(null);
+  const [keepAck, setKeepAck] = useState(false);
   const [failedSubmits, setFailedSubmits] = useState(0);
 
   // Tras un envío con errores, el foco va al primer campo marcado (ya pintado con su mensaje).
@@ -115,6 +121,16 @@ export function PatientFormPage() {
       toast(err instanceof Error ? err.message : "No se pudo guardar", "danger");
       setSaving(false);
     }
+  }
+
+  async function askDelete() {
+    if (!id || !form) return;
+    const db = getDb();
+    const [record, clinic] = await Promise.all([clinicalRecord(db, id), getClinic(db)]);
+    const until = record.last ? keepUntil(record.last, clinic.retentionYears) : null;
+    setKeep(record.records && until && until > new Date() && !form.name.startsWith(SEED_PREFIX) ? { until, last: record.last!, years: clinic.retentionYears } : null);
+    setKeepAck(false);
+    setConfirmDelete(true);
   }
 
   async function remove() {
@@ -177,14 +193,26 @@ export function PatientFormPage() {
           {id ? "Guardar cambios" : "Crear paciente"}
         </Button>
         {id && (
-          <Button variant="ghost" className="text-danger" onClick={() => setConfirmDelete(true)}>
+          <Button variant="ghost" className="text-danger" onClick={() => void askDelete()}>
             Borrar paciente
           </Button>
         )}
       </form>
       <Sheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title="¿Borrar este paciente?">
-        <p>Se borrarán {form.name} y todos sus tests. No se puede deshacer.</p>
-        <Button variant="danger" block onClick={remove}>
+        <p>Se borrarán {form.name} y toda su historia: anamnesis, sesiones, exploración y mediciones. No se puede deshacer.</p>
+        {keep && (
+          <>
+            <Alert tone="warning" title={`Hay que conservar su historia clínica hasta el ${fmtDate(keep.until.toISOString())}`}>
+              La ley obliga a guardarla al menos {keep.years} años desde la última atención ({fmtDate(keep.last)}), aunque el paciente pida borrarla (Ley
+              41/2002 y art. 17.3 del RGPD). Si lo que quiere es que no se use, anótalo en sus notas en lugar de borrarla.
+            </Alert>
+            <label className="flex min-h-11 items-start gap-3">
+              <input type="checkbox" className="mt-1 size-5 shrink-0 accent-accent" checked={keepAck} onChange={(e) => setKeepAck(e.target.checked)} />
+              <span>Lo borro igualmente: está duplicado, es un error o la clínica guarda su historia en otro sitio.</span>
+            </label>
+          </>
+        )}
+        <Button variant="danger" block disabled={!!keep && !keepAck} onClick={remove}>
           Borrar para siempre
         </Button>
         <Button variant="secondary" block onClick={() => setConfirmDelete(false)}>

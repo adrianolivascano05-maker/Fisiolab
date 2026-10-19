@@ -10,6 +10,7 @@ import { isCodType, type CodType } from "../calc/cod";
 import { summarizeRunning } from "../calc/running";
 import { getExercise, loadVelocityProfile, plausibleVbt, vbtResults, velocitiesFromMarks, type ExerciseId, type LoadVelocityProfile, type RepMark } from "../calc/strength";
 import type { Db } from "./db";
+import { parsePrivacy, type PatientPrivacy } from "./privacy";
 import type { Statement } from "./protocol";
 
 const newId = () => crypto.randomUUID();
@@ -30,7 +31,7 @@ export type PatientInput = {
   notes: string;
 };
 
-export type Patient = PatientInput & { id: string; createdAt: string; updatedAt: string };
+export type Patient = PatientInput & { id: string; createdAt: string; updatedAt: string; privacy: PatientPrivacy };
 
 export type PatientSummary = {
   id: string;
@@ -50,6 +51,7 @@ type PatientRow = {
   leg_length_cm: number | null;
   pushoff_distance_cm: number | null;
   notes: string;
+  privacy: string;
   created_at: string;
   updated_at: string;
 };
@@ -67,6 +69,7 @@ function toPatient(r: PatientRow): Patient {
     notes: r.notes,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    privacy: parsePrivacy(r.privacy),
   };
 }
 

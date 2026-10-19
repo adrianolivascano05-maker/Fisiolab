@@ -64,7 +64,13 @@ Fecha: 2026-10-17
    - Sin la nube activada no se sincroniza entre móviles; se pasa la copia de seguridad, y hay recordatorio semanal de copia.
    - Con la nube activada (`public/cloud.json`, guía en `src/cloud/README.md`), cada fisioterapeuta entra con su cuenta de Google y sus pacientes se guardan también en su Google Drive, en la carpeta oculta de la app. Se junta fila a fila con la copia de la nube: gana el cambio más reciente.
    - Solo una pestaña a la vez (Web Lock); la segunda avisa y se bloquea.
-   - Borrar un paciente borra todo lo suyo.
+   - Borrar un paciente borra todo lo suyo, pero avisa si su historia clínica aún hay que conservarla (5 años o lo que se ponga en Ajustes).
+   - **Protección de datos** (`src/privacy/README.md`):
+     - Datos de la clínica en Ajustes.
+     - Texto informativo del RGPD para que cada paciente lo firme, con sus consentimientos opcionales: fotos y vídeos, WhatsApp o correo, docencia y estudios.
+     - PIN para abrir la app.
+     - Copia de Drive cifrada con contraseña (opcional).
+     - Con la nube y cuentas de Gmail normales falta el contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace. La app lo recuerda.
 4. **El vídeo no se guarda:** se queda en la galería. Solo se guardan las marcas y los resultados, así que, si cambia una fórmula, se recalcula desde las marcas.
 5. **fps de grabación separados de los fps del archivo.**
    - Las cámaras lentas suelen guardarse ralentizadas (el Pixel graba a 120 y guarda a 30).

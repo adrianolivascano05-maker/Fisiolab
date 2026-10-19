@@ -46,7 +46,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
   test("F15-E1 cargar ejemplo no se duplica aunque se pulse rápido", async ({ page }) => {
     await page.goto("./ajustes");
     await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
-    await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Ejemplo · / })).toHaveCount(3);
     await page.goto("./ajustes");

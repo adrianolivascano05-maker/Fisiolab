@@ -78,6 +78,7 @@ test.describe("F16 Ficha clínica", () => {
   });
 
   test("F16-H3 registrar el resultado desde la galería", async ({ page }) => {
+    test.slow(); // la ficha del test carga la figura en 3D: 25-30 s en las pruebas
     await createPatient(page, { name: "Marta Galería" });
     await page.goto("./exploracion/rodilla/rod-lachman");
     await page.getByRole("button", { name: "Registrar el resultado en un paciente" }).click();

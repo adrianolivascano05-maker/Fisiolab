@@ -4,6 +4,7 @@ import { DbGate } from "./app/DbGate";
 import { SignInSetupPage } from "./cloud/AccountPages";
 import { CloudGate } from "./cloud/CloudGate"; // Cuenta de Google y copia en Drive (src/cloud/README.md)
 import { UpdateBanner } from "./app/pwa";
+import { AppLock } from "./privacy/AppLock"; // PIN para abrir la app (src/privacy/README.md)
 import { ToastProvider } from "./ui/Toast";
 import { freeRoutes } from "./free/routes"; // Módulo experimental (src/free/README.md)
 import { galleryRoutes } from "./gallery/routes"; // Galería de tests (src/gallery/README.md)
@@ -101,9 +102,11 @@ export function App() {
   return (
     <ToastProvider>
       <CloudGate>
-        <DbGate>
-          <Router />
-        </DbGate>
+        <AppLock>
+          <DbGate>
+            <Router />
+          </DbGate>
+        </AppLock>
       </CloudGate>
       <UpdateBanner />
     </ToastProvider>

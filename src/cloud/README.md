@@ -60,6 +60,7 @@ de la última cuenta que entró en él.
 | `drive.ts` | la copia en Drive: listar, bajar, subir y borrar, con la API REST v3 |
 | `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista, 5 segundos después del último cambio y al salir de la app |
 | `AccountPages.tsx` | la tarjeta de la cuenta en la pantalla principal y la pantalla para pegar el ID de cliente en el dispositivo |
+| `crypt.ts`, `EncryptionParts.tsx` | cifrado opcional de la copia de Drive con una contraseña, y pedirla en otro dispositivo |
 | `CloudGate.tsx` | pantallas de entrada (y de pasar a la cuenta los datos que había sin cuenta), aviso de sincronización y la sección «Cuenta» de Ajustes |
 | `../data/migrations/008_sync.sql`, `../data/syncMerge.ts` | registro de cambios por fila y fusión de dos copias |
 
@@ -84,13 +85,25 @@ de la última cuenta que entró en él.
   como si viniera de otro dispositivo, y en cada fila gana el cambio más reciente.
 - **Copias de más de 4,5 MB** se suben con la subida reanudable de Drive. Las pruebas usan un Google simulado
   (`e2e/fakeGoogle.ts`) y no llegan a ese tamaño.
+- **Copia cifrada (opcional).** En Ajustes → Cifrado de la copia de Drive. La base se cifra en el dispositivo antes
+  de subirla, con AES-GCM de 256 bits y una clave sacada de la contraseña con PBKDF2-SHA-256 (600 000 vueltas).
+  En Drive solo hay bytes ilegibles sin la contraseña. El archivo empieza por `CENITENC1`, seguido de la sal y el
+  vector de inicio. La sal va también en el ajuste sincronizado `drive_encryption`: así todos los dispositivos de
+  la cuenta saben que hay que cifrar. Cada dispositivo guarda la clave, no la contraseña, en su almacenamiento.
+  - Un dispositivo sin la clave no baja ni sube nada: pide la contraseña («needs-key») y la comprueba con la copia
+    de Drive antes de guardarla.
+  - Cambiar la contraseña o dejar de cifrar en un dispositivo hace que los demás la pidan de nuevo, o que olviden
+    la clave.
+  - Si se olvida la contraseña, se puede sustituir la copia de Drive por la del dispositivo, sin cifrar.
+  - Cerrar sesión borrando los datos del dispositivo borra también la clave.
 - **Una tabla nueva** en una migración necesita sus tres disparadores (como en la 008) y su línea en `SYNC_TABLES`
   de `syncMerge.ts`. `src/data/sync.test.ts` falla si falta alguno.
 
 ## Privacidad
 
 Son datos de salud. La copia vive en el Google Drive de cada fisioterapeuta, y Google la trata según las
-condiciones de esa cuenta. No está cifrada aparte: la protege la cuenta de Google, así que conviene activar la
-verificación en dos pasos. La clínica debe revisar con su delegado de protección de datos si las cuentas
+condiciones de esa cuenta. Se puede cifrar con una contraseña (arriba). Si no se cifra, la protege solo la cuenta
+de Google. En los dos casos conviene activar la verificación en dos pasos. La clínica debe revisar con su delegado de protección de datos si las cuentas
 personales de Google son adecuadas, o si conviene usar cuentas de Google Workspace de la clínica, que tienen
-contrato de encargado del tratamiento.
+contrato de encargado del tratamiento. Para historias clínicas ese contrato hace falta (art. 28 del RGPD), y la
+app lo recuerda en Ajustes → Protección de datos hasta que se marca que existe. Más en `../privacy/README.md`.

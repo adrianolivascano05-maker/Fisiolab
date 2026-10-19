@@ -11,6 +11,7 @@ const SessionsPage = lazy(() => pages().then((m) => ({ default: m.SessionsPage }
 const SessionFormPage = lazy(() => pages().then((m) => ({ default: m.SessionFormPage })));
 const QuestionnaireFormPage = lazy(() => pages().then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
+const PatientPrivacyPage = lazy(() => import("../privacy/PatientPrivacyPage").then((m) => ({ default: m.PatientPrivacyPage })));
 const l = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 export const clinicalRoutes = [
@@ -25,4 +26,5 @@ export const clinicalRoutes = [
   { path: "/pacientes/:id/cuestionarios/nuevo", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/cuestionarios/:qid", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/informe", element: l(<ReportPage />) },
+  { path: "/pacientes/:id/proteccion-datos", element: l(<PatientPrivacyPage />) }, // src/privacy
 ];

@@ -6,10 +6,13 @@ import { Page } from "../app/Page";
 import { InstallSteps, useInstall } from "../app/pwa";
 import { AccountCard } from "../cloud/AccountPages";
 import { CloudSettings, useCloud } from "../cloud/CloudGate";
+import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
 import { hasSeed, loadSeed, removeSeed } from "../data/seed";
+import { ClinicSettings } from "../privacy/ClinicSettings";
+import { LockSettings } from "../privacy/LockSettings";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -61,7 +64,10 @@ export function SettingsPage() {
   return (
     <Page title="Ajustes" tabs>
       {cloud ? (
-        <CloudSettings />
+        <>
+          <CloudSettings />
+          <EncryptionSettings />
+        </>
       ) : (
         <section className="flex flex-col gap-3" aria-labelledby="h-cuenta">
           <h2 id="h-cuenta" className="text-lg">
@@ -123,6 +129,10 @@ export function SettingsPage() {
           </Button>
         </Card>
       </section>
+
+      <LockSettings />
+
+      <ClinicSettings />
 
       <section className="flex flex-col gap-3" aria-labelledby="h-validacion">
         <h2 id="h-validacion" className="text-lg">Validación</h2>

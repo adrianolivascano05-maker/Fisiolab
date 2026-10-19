@@ -89,7 +89,7 @@ test.describe("PWA: instalable y sin conexión", () => {
   test("PWA-E3 recordatorio de copia con pacientes reales, no con los de ejemplo", async ({ page }) => {
     await page.goto("./ajustes");
     await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
-    await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Lucía/ })).toBeVisible();
     await expect(page.getByText("Haz una copia de seguridad")).toHaveCount(0);

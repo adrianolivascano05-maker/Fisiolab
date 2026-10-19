@@ -11,6 +11,8 @@ import { Sheet } from "../ui/Sheet";
 import { adoptionDone, clearAccount, dbFileFor, getAccount, setAccount, type Account } from "./account";
 import { authErrorText, getToken, revokeToken, silentTriedRecently, startLogin, takeRedirectResult, type RedirectResult } from "./auth";
 import { loadCloudConfig, type CloudConfig } from "./config";
+import { forgetKey } from "./crypt";
+import { KeyPrompt } from "./EncryptionParts";
 import { userInfo } from "./drive";
 import { SyncController, type SyncState } from "./sync";
 
@@ -70,6 +72,7 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void):
       if (wipe) {
         await getDb().wipe();
         sync.forgetMeta();
+        forgetKey(account.sub);
       }
       await revokeToken();
       clearAccount();
@@ -311,6 +314,8 @@ export function syncText(s: SyncState): string {
       return "Sincronizando…";
     case "needs-auth":
       return s.pending ? "Hay cambios sin subir: vuelve a entrar con Google." : "Sin sincronizar: vuelve a entrar con Google.";
+    case "needs-key":
+      return "La copia de tu Drive está cifrada: escribe su contraseña para sincronizar.";
     case "offline":
       return s.pending ? "Sin conexión: los cambios se subirán al volver la conexión." : "Sin conexión.";
     case "error":
@@ -345,6 +350,7 @@ export function SyncNotice() {
         Entrar con Google
       </Button>,
     );
+  if (s.status === "needs-key") return row(syncText(s), <KeyPrompt size="sm" />);
   if (s.status === "error")
     return row(
       syncText(s),
