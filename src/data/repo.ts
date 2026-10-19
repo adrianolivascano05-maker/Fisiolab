@@ -39,6 +39,10 @@ export type PatientSummary = {
   testCount: number;
   lastTestAt: string | null;
   lastTestType: string | null;
+  /** La última vez que se le atendió o se le registró algo (sesión, medición, exploración, cuestionario…). */
+  lastAt: string | null;
+  /** La siguiente cita que quedó puesta en su última sesión, si aún no ha llegado. */
+  nextAt: string | null;
 };
 
 type PatientRow = {
@@ -73,17 +77,26 @@ function toPatient(r: PatientRow): Patient {
   };
 }
 
-export async function listPatients(db: Db, search = ""): Promise<PatientSummary[]> {
-  return db.query<PatientSummary>(
+export async function listPatients(db: Db, search = "", now = new Date()): Promise<PatientSummary[]> {
+  const rows = await db.query<PatientSummary>(
     `select p.id, p.name,
             (select count(*) from tests t where t.patient_id = p.id) as testCount,
             (select max(t.performed_at) from tests t where t.patient_id = p.id) as lastTestAt,
-            (select t.type from tests t where t.patient_id = p.id order by t.performed_at desc limit 1) as lastTestType
+            (select t.type from tests t where t.patient_id = p.id order by t.performed_at desc limit 1) as lastTestType,
+            (select max(at) from (
+               select max(performed_at) as at from tests where patient_id = p.id
+               union all select max(performed_at) from sessions where patient_id = p.id
+               union all select max(performed_at) from findings where patient_id = p.id
+               union all select max(performed_at) from questionnaires where patient_id = p.id
+               union all select max(performed_at) from wellness where patient_id = p.id)) as lastAt,
+            (select s.next_at from sessions s where s.patient_id = p.id order by s.performed_at desc limit 1) as nextAt
        from patients p
       where ? = '' or p.name like '%' || ? || '%'
       order by p.name collate nocase`,
     [search.trim(), search.trim()],
   );
+  const t = now.toISOString();
+  return rows.map((r) => ({ ...r, nextAt: r.nextAt && r.nextAt > t ? r.nextAt : null }));
 }
 
 export async function getPatient(db: Db, id: string): Promise<Patient | null> {

@@ -3,7 +3,6 @@
 import {
   BookOpenCheck,
   Building2,
-  ChevronRight,
   ClipboardCheck,
   Database,
   Download,
@@ -12,7 +11,6 @@ import {
   MonitorSmartphone,
   ShieldCheck,
   UserRound,
-  type LucideIcon,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
@@ -35,7 +33,7 @@ import { getLock } from "../privacy/pin";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import { cx } from "../ui/cx";
+import { Group, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 
@@ -49,33 +47,6 @@ function download(name: string, data: BlobPart, type: string) {
 }
 
 const stamp = () => new Date().toISOString().slice(0, 10);
-
-/** Una fila del menú: icono, nombre y cómo está ahora. `warn`: hay algo pendiente. */
-function Row({ to, icon: Icon, title, detail, warn }: { to: string; icon: LucideIcon; title: string; detail: string; warn?: boolean }) {
-  return (
-    <li>
-      <Link to={to} className="flex min-h-16 items-center gap-3 px-4 py-2 hover:bg-surface">
-        <span aria-hidden="true" className={cx("flex size-10 shrink-0 items-center justify-center rounded-md", warn ? "bg-warning-soft text-warning" : "bg-accent-soft text-accent")}>
-          <Icon className="size-5" />
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col">
-          <span className="font-semibold">{title}</span>
-          <span className={cx("text-sm", warn ? "text-warning" : "text-text-muted")}>{detail}</span>
-        </span>
-        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
-      </Link>
-    </li>
-  );
-}
-
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2" aria-label={title}>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">{title}</h2>
-      <ul className="divide-y divide-border rounded-lg border border-border bg-bg">{children}</ul>
-    </section>
-  );
-}
 
 /** S24 Ajustes: el menú. */
 export function SettingsPage() {
@@ -92,47 +63,45 @@ export function SettingsPage() {
   return (
     <Page title="Ajustes" tabs>
       <Group title="Tú y tu clínica">
-        <Row
+        <RowLink
           to="/ajustes/cuenta"
           icon={UserRound}
-          title="Cuenta de Google"
-          detail={cloud && sync ? `${cloud.account.email} · ${syncText(sync)}` : "Sin conectar: tus pacientes están solo en este dispositivo."}
+          title={cloud ? cloud.account.name : "Cuenta de Google"}
+          subtitle={cloud && sync ? `${cloud.account.email} · ${syncText(sync)}` : "Sin conectar"}
           warn={!!sync && (sync.status === "needs-auth" || sync.status === "needs-key" || sync.status === "error")}
         />
-        <Row
+        <RowLink
           to="/ajustes/clinica"
           icon={Building2}
           title="Clínica y protección de datos"
-          detail={!clinic ? "…" : clinicComplete(clinic) ? clinic.name : "Faltan los datos de la clínica para el texto que firma cada paciente."}
+          subtitle={!clinic ? "…" : clinicComplete(clinic) ? clinic.name : "Faltan los datos de la clínica"}
           warn={!!clinic && !clinicComplete(clinic)}
+          tone={clinic && !clinicComplete(clinic) ? "warning" : "accent"}
         />
-        <Row to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" detail={lock ? "Activado en este dispositivo." : "Desactivado. Pide un PIN para abrir la app."} />
+        <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
       </Group>
 
       <Group title="Tus datos">
-        <Row
+        <RowLink
           to="/ajustes/datos"
           icon={Database}
           title="Copias de seguridad y exportar"
-          detail={
-            cloud
-              ? "Copia automática en tu Drive. Exportar a Excel, datos de ejemplo."
-              : `Última copia: ${state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}. Exportar a Excel, datos de ejemplo.`
-          }
+          subtitle={cloud ? "Copia automática en tu Drive" : `Última copia: ${state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}`}
           warn={!cloud && !!state.data && !state.data.lastBackup}
+          tone={!cloud && state.data && !state.data.lastBackup ? "warning" : "accent"}
         />
       </Group>
 
       <Group title="La app">
-        <Row
+        <RowLink
           to="/instalar"
           icon={MonitorSmartphone}
-          title="Instalar y usar en otros dispositivos"
-          detail={install.state === "installed" ? "Instalada en este dispositivo." : "Instálala aquí y ábrela en la tablet o el ordenador."}
+          title="Instalar la app"
+          subtitle={install.state === "installed" ? "Instalada en este dispositivo" : "En este y en otros dispositivos"}
         />
-        <Row to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" detail="La app en cinco pasos, de la primera visita al informe." />
-        <Row to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" detail="Compárala con una plataforma, un encoder o un goniómetro." />
-        <Row to="/privacidad" icon={ShieldCheck} title="Privacidad" detail="Qué datos guarda la app y dónde." />
+        <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
+        <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Con una plataforma, un encoder o un goniómetro" />
+        <RowLink to="/privacidad" icon={ShieldCheck} title="Privacidad" />
       </Group>
 
       {state.data && (

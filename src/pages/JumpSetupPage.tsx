@@ -72,7 +72,7 @@ export function JumpSetupPage() {
   }
 
   return (
-    <Page title="Saltos" backTo={`/pacientes/${id}/test`}>
+    <Page title="Saltos" backTo={`/pacientes/${id}/test`} tabs={false}>
       <form onSubmit={next} noValidate className="flex flex-col gap-4">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-sm font-semibold">Tipo de salto</legend>

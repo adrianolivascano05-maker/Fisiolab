@@ -145,7 +145,7 @@ export function PatientFormPage() {
   if (!form) return <Page title={title} backTo="/"><Loading /></Page>;
 
   return (
-    <Page title={title} backTo={id ? `/pacientes/${id}` : "/"}>
+    <Page title={title} backTo={id ? `/pacientes/${id}` : "/"} tabs={false}>
       <form onSubmit={submit} noValidate className="flex flex-col gap-4">
         <TextField label="Nombre" autoComplete="off" value={form.name} onChange={set("name")} error={errors.name} />
         <div className="grid grid-cols-2 gap-3">

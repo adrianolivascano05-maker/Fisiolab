@@ -79,7 +79,7 @@ export function SprintSetupPage() {
   }
 
   return (
-    <Page title="Sprint y cambio de dirección" backTo={`/pacientes/${id}/test`}>
+    <Page title="Sprint y cambio de dirección" backTo={`/pacientes/${id}/test`} tabs={false}>
       <form onSubmit={next} noValidate className="flex flex-col gap-4">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-sm font-semibold">Test</legend>

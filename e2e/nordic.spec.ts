@@ -1,9 +1,9 @@
-import { createPatient, expect, expectAccessible, loadSeed, markAt, scrubber, test, video } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, loadSeed, markAt, scrubber, test, video } from "./fixtures";
 
 test.describe("F12 Nórdico de isquios", () => {
   test("F12-H1 por vídeo: rotura, ángulo sobre el fotograma y momento estimado", async ({ page }) => {
     await createPatient(page, { name: "Isquios", mass: "80", height: "180" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Nórdico/ }).click();
     await page.getByRole("button", { name: "Cómo grabar y marcar" }).click();
     await expect(page.getByRole("img", { name: /tobillos sujetos/ })).toBeVisible();
@@ -38,7 +38,7 @@ test.describe("F12 Nórdico de isquios", () => {
 
   test("F12-H2 a mano y sin estatura: solo el ángulo", async ({ page }) => {
     await createPatient(page, { name: "Sin estatura", mass: "70" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Nórdico/ }).click();
     await expect(page.getByText("Sin masa o estatura, solo el ángulo")).toBeVisible();
     await page.getByRole("radio", { name: /A mano/ }).check({ force: true });

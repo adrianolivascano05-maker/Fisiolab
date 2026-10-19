@@ -1,6 +1,7 @@
 // Protección de datos de un paciente: el texto informativo para imprimir y firmar, y lo que se registra en la app
 // (cuándo se le entregó, quién firmó y sus consentimientos opcionales).
-import { ChevronLeft, Printer } from "lucide-react";
+import { Printer } from "lucide-react";
+import { TopBar } from "../ui/AppBar";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
@@ -38,13 +39,8 @@ export function PatientPrivacyPage() {
 
   const back = `/pacientes/${id}`;
   const bar = (
-    <div className="sticky top-0 z-10 border-b border-border bg-bg/95 backdrop-blur print:hidden">
-      <div className="mx-auto flex h-[var(--layout-header)] max-w-3xl items-center gap-1 px-2">
-        <Link to={back} aria-label="Volver" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
-          <ChevronLeft aria-hidden="true" className="size-6" />
-        </Link>
-        <h1 className="flex-1 truncate text-lg">Protección de datos</h1>
-      </div>
+    <div className="print:hidden">
+      <TopBar title="Protección de datos" backTo={back} />
     </div>
   );
   if (data.error) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={data.error} /></main></>;

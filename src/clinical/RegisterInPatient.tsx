@@ -1,8 +1,9 @@
-// Desde la ficha de un test de la galería: registrar su resultado en un paciente. Si se llega desde la ficha
-// de un paciente (?paciente=…), va directo a él.
+// Desde la ficha de un test de la Guía de tests: registrar su resultado en un paciente. Si se llega desde la ficha
+// de un paciente (?paciente=…), o se acaba de ver uno, va directo a él.
 import { Search, Stethoscope } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
+import { lastPatient } from "../app/recent";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
 import { getPatient, listPatients } from "../data/repo";
@@ -11,7 +12,7 @@ import { Sheet } from "../ui/Sheet";
 
 export function RegisterInPatient({ testId }: { testId: string }) {
   const [params] = useSearchParams();
-  const pid = params.get("paciente");
+  const pid = params.get("paciente") ?? lastPatient();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const current = useAsync(async () => (pid ? getPatient(getDb(), pid) : null), [pid]);

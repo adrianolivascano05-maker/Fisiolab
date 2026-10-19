@@ -117,7 +117,7 @@ export function SignInSetupPage() {
   const text = activationText(origin, redirectUri());
   const canShare = typeof navigator.share === "function";
   return (
-    <Page title="Iniciar sesión con Google" backTo="/">
+    <Page title="Iniciar sesión con Google" backTo="/ajustes/cuenta">
       <Card className="flex flex-col gap-3">
         <h2 className="font-semibold">Aún no está activado</h2>
         <p>

@@ -5,7 +5,7 @@ for (const width of [390, 1440]) {
   test(`pantallas a ${width} px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
     await loadSeed(page);
-    for (const path of ["./", "./ajustes", "./ajustes/cuenta", "./ajustes/clinica", "./ajustes/bloqueo", "./ajustes/datos", "./ayuda", "./instalar", "./comparar", "./pacientes/nuevo", "./design"]) {
+    for (const path of ["./", "./ajustes", "./ajustes/cuenta", "./ajustes/clinica", "./ajustes/bloqueo", "./ajustes/datos", "./ayuda", "./instalar", "./pacientes/nuevo", "./design"]) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
       expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(width);

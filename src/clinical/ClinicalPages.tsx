@@ -18,7 +18,6 @@ import {
   listFindings,
   listQuestionnaires,
   listSessions,
-  nextVisit,
   saveAnamnesis,
   saveFinding,
   saveQuestionnaire,
@@ -42,17 +41,18 @@ import { EmptyState } from "../ui/EmptyState";
 import { NumberField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { CalendarButton, CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
+import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
 import { ANAMNESIS, ALL_FIELDS, answerText, answeredCount, clinicalSummary, orphanAnswers, regionLabel, type Field } from "./anamnesis";
 import { findTest, galleryRegionLabel, galleryTests, galleryUrl, resultMeaning, searchTests, testsForRegions, type SpecialTest } from "./galleryLink";
 import { AnalysisNav, TestList } from "./measureParts";
 import { mainValue, trends } from "./measures";
 import { QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
-import { Chips, NumberScale, PainScale, PatientNav, ResultBadge, resultLabels, sideShort, TextArea } from "./parts";
+import { Chips, NumberScale, PainScale, ResultBadge, resultLabels, sideShort, TextArea } from "./parts";
 import { byRegions, displayName, getKind, kindOf, OTHER, psfsScore, QUESTIONNAIRES, scoreText, type Better, type QDetails } from "./questionnaires";
 import { LSI_REFERENCE, symmetryRows } from "./symmetry";
 import { madridDay } from "./timeline";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
+import { PatientShell } from "./PatientShell";
 
 // ---------- Utilidades ----------
 
@@ -79,15 +79,6 @@ function age(birthDate: string | null) {
 const sexLabels = { female: "Mujer", male: "Hombre", other: "Otro" } as const;
 
 /** Página de una pestaña de la ficha: título con el nombre, pestañas y el contenido. */
-function PatientShell({ patient, id, children }: { patient: Patient | null | undefined; id: string; children: React.ReactNode }) {
-  return (
-    <Page title={patient?.name ?? "Paciente"} backTo="/">
-      <PatientNav id={id} />
-      {children}
-    </Page>
-  );
-}
-
 function useLoad<T>(id: string, load: () => Promise<T>) {
   return useAsync(load, [id]);
 }
@@ -247,7 +238,7 @@ export function AnamnesisPage() {
 
   if (editing && draft) {
     return (
-      <PatientShell patient={patient} id={id}>
+      <PatientShell patient={patient} id={id} tabs={false}>
         <h2 className="text-xl">{anamnesis ? "Editar anamnesis" : "Anamnesis"}</h2>
         <p className="text-sm text-text-muted">Ficha de anamnesis de fisioterapia: historia clínica y valoración inicial. Rellena lo que necesites; todo se puede completar más tarde.</p>
         {/* Índice: la ficha es larga; cada apartado a un toque. */}
@@ -582,7 +573,7 @@ export function FindingFormPage() {
 
   if (!testId) {
     return (
-      <Page title="Test de exploración" backTo={back}>
+      <Page title="Test de exploración" backTo={back} tabs={false}>
         <p className="text-text-muted">{patient?.name}: elige el test que has hecho.</p>
         <TestPicker regions={summary?.regions ?? []} onPick={(t) => setParams({ test: t.id }, { replace: true })} />
       </Page>
@@ -628,7 +619,7 @@ export function FindingFormPage() {
   };
 
   return (
-    <Page title={fid ? "Editar resultado" : "Test de exploración"} backTo={back}>
+    <Page title={fid ? "Editar resultado" : "Test de exploración"} backTo={back} tabs={false}>
       <Card className="flex flex-col gap-1">
         <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
           {patient?.name} · {test ? `${galleryRegionLabel(test)} · ${test.group}` : regionLabel(finding?.region ?? "")}
@@ -789,8 +780,7 @@ export function SessionsPage() {
   const { patient, sessions, findings, tests } = data.data;
   const review = sessions[0]?.reviewOn ?? null;
   const today = todayDay();
-  const visit = nextVisit(sessions);
-  // Al guardar una sesión con siguiente cita se ofrece pasarla al calendario.
+  // Al guardar una sesión con siguiente cita se ofrece pasarla al calendario (la próxima cita, con su botón, está en la cabecera).
   const justSaved = sessions.find((s) => s.id === params.get("calendario"));
   const justSavedEvent = justSaved && patient && !autoCalendar ? visitEvent(justSaved, patient) : null;
   return (
@@ -801,18 +791,6 @@ export function SessionsPage() {
           <NotebookPen aria-hidden="true" className="size-5" /> Nueva sesión
         </Link>
       </div>
-      {visit && patient && (
-        <Card className="flex flex-wrap items-center gap-3">
-          <CalendarCheck aria-hidden="true" className="size-5 shrink-0 text-accent" />
-          <span className="flex flex-1 flex-col">
-            <span>
-              Próxima cita: <span className="font-semibold whitespace-nowrap">{fmtVisit(visit.nextAt!)}</span>
-            </span>
-            {autoCalendar && <span className="text-sm text-text-muted">Apuntada en tu Google Calendar.</span>}
-          </span>
-          <CalendarButton event={visitEvent(visit, patient)!} />
-        </Card>
-      )}
       {review && (
         <Alert tone={review <= today ? "warning" : "info"} title={review < today ? `Reevaluación pendiente desde el ${dayText(review)}` : review === today ? "Reevaluar hoy" : `Próxima reevaluación: ${dayText(review)}`} />
       )}
@@ -999,7 +977,7 @@ export function SessionFormPage() {
   };
 
   return (
-    <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back}>
+    <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back} tabs={false}>
       <p className="text-text-muted">{patient?.name}</p>
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <TextField label="Fecha y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
@@ -1138,7 +1116,7 @@ export function QuestionnaireFormPage() {
       </li>
     );
     return (
-      <Page title="Nuevo cuestionario" backTo={back}>
+      <Page title="Nuevo cuestionario" backTo={back} tabs={false}>
         <p className="text-text-muted">{patient?.name}: elige el cuestionario.</p>
         <h2 className="text-lg">Se contestan aquí</h2>
         <ul className="flex flex-col gap-2">{QUESTIONNAIRES.filter((k) => k.inApp).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" }))}</ul>
@@ -1217,7 +1195,7 @@ export function QuestionnaireFormPage() {
   const setActivity = (i: number, a: Partial<PsfsActivity>) => setActivities((list) => list.map((x, j) => (j === i ? { ...x, ...a } : x)));
 
   return (
-    <Page title={qid ? "Editar cuestionario" : "Nuevo cuestionario"} backTo={back}>
+    <Page title={qid ? "Editar cuestionario" : "Nuevo cuestionario"} backTo={back} tabs={false}>
       <p className="text-text-muted">{patient?.name}</p>
       <Card className="flex flex-col gap-2">
         <span className="text-lg font-semibold">{kind === OTHER ? "Otro cuestionario" : k.name}</span>

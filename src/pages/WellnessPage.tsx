@@ -45,8 +45,8 @@ export function WellnessPage() {
 
   const title = "Bienestar";
   const back = `/pacientes/${id}/mediciones`;
-  if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
-  if (!data.data) return <Page title={title} backTo={back}><Loading /></Page>;
+  if (data.error) return <Page title={title} backTo={back} tabs={false}><LoadError error={data.error} /></Page>;
+  if (!data.data) return <Page title={title} backTo={back} tabs={false}><Loading /></Page>;
   const { patient, entries } = data.data;
 
   async function submit(e: FormEvent) {
@@ -70,7 +70,7 @@ export function WellnessPage() {
   }
 
   return (
-    <Page title={title} backTo={back}>
+    <Page title={title} backTo={back} tabs={false}>
       <p className="text-text-muted">{patient?.name}</p>
       {todayEntry && <TodaySummary entry={todayEntry} previous={entries.filter((e) => e.id !== todayEntry.id)} />}
 

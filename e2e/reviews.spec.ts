@@ -29,10 +29,10 @@ test.describe("Mejoras por las reseñas", () => {
 
   test("R2 medición rápida sin rellenar ficha, siempre en la misma ficha", async ({ page }) => {
     await page.goto("./");
-    await page.getByRole("button", { name: "Medición rápida, sin ficha" }).click();
+    await page.getByRole("button", { name: /^Medición rápida/ }).click();
     await expect(page.getByRole("heading", { name: "Nueva medición" })).toBeVisible();
     await page.goto("./");
-    await page.getByRole("button", { name: "Medición rápida, sin ficha" }).click();
+    await page.getByRole("button", { name: /^Medición rápida/ }).click();
     await expect(page.getByRole("heading", { name: "Nueva medición" })).toBeVisible();
     await page.goto("./");
     await expect(page.getByRole("link", { name: /^Medición rápida/ })).toHaveCount(1);

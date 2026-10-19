@@ -1,4 +1,4 @@
-import { createPatient, expect, expectAccessible, loadSeed, markAt, markNextInSeries, startJump, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, loadSeed, markAt, markNextInSeries, startJump, test } from "./fixtures";
 
 test.describe("Fase 2 de saltos", () => {
   test("F04 perfil fuerza-velocidad con los SJ cargados de ejemplo", async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe("Fase 2 de saltos", () => {
 
   test("F07 salto horizontal sin vídeo", async ({ page }) => {
     await createPatient(page, { name: "Horizontal" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("radio", { name: /Salto horizontal/ }).check({ force: true });
     await page.getByRole("button", { name: "Guardar salto" }).click();

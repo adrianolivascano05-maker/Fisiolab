@@ -1,5 +1,5 @@
-// «Cómo se usa»: la app en cinco pasos, en el orden de una primera visita y su seguimiento, y dónde está cada cosa.
-import { BookOpen, ChartColumn, Settings, Users } from "lucide-react";
+// «Cómo se usa»: cómo está organizada la app y dónde está cada cosa.
+import { BookOpen, Settings, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { Page } from "../app/Page";
@@ -9,57 +9,57 @@ const link = "font-semibold text-accent underline underline-offset-2";
 
 const steps: { title: string; body: ReactNode }[] = [
   {
-    title: "Crea el paciente",
+    title: "Pacientes",
     body: (
       <>
-        En <b>Pacientes</b>, pulsa <b>«Nuevo paciente»</b>. Basta con el nombre; la masa y la estatura hacen falta para la fuerza y la potencia del
-        salto.
+        Pulsa <b>+</b> arriba a la derecha para añadir uno (con el nombre basta). Arriba salen sus <b>próximas citas</b> y las reevaluaciones
+        pendientes; debajo, todos por orden alfabético, con el buscador.
       </>
     ),
   },
   {
-    title: "Primera visita",
+    title: "La ficha de cada paciente",
     body: (
       <>
-        En su ficha, la guía <b>«Primera visita»</b> te lleva paso a paso: la hoja de <b>protección de datos</b> para que la firme, la{" "}
-        <b>anamnesis</b> y la <b>exploración</b>.
+        Sus datos y su próxima cita arriba, y las pestañas <b>Resumen, Anamnesis, Exploración, Mediciones y Sesiones</b>, que se quedan fijas al
+        bajar: de una a otra con un toque. <b>Editar</b>, arriba a la derecha.
       </>
     ),
   },
   {
-    title: "Explora y mide",
+    title: "Añadir lo que hagas, en el orden que quieras",
     body: (
       <>
-        <b>«Test de exploración»</b> apunta tests como el Lachman o el Neer (positivo, negativo o dudoso). <b>«Nueva medición»</b> mide saltos,
-        fuerza, sprint, carrera o movilidad con el vídeo o los sensores del móvil.
+        En el Resumen, <b>Añadir</b>: una sesión, una medición (salto, fuerza, sprint, carrera, movilidad), un test de exploración o un cuestionario.
+        Cada pestaña tiene además su propio botón para añadir.
       </>
     ),
   },
   {
-    title: "Cierra cada visita con una sesión",
+    title: "Protección de datos e informe",
     body: (
       <>
-        <b>«Nueva sesión»</b>: el dolor de ese día, qué refiere, qué haces, el plan, cuándo reevaluar y la <b>siguiente cita</b> (con tu cuenta de
-        Google, se apunta sola en tu calendario).
+        En el Resumen, debajo de Añadir: la hoja de <b>protección de datos</b> para que la firme (sale en naranja hasta que se la des) y el{" "}
+        <b>informe</b> para imprimir, guardar en PDF o en tu Drive.
       </>
     ),
   },
   {
-    title: "Sigue su evolución y haz el informe",
+    title: "Pasar de una sección a otra",
     body: (
       <>
-        El <b>Resumen</b> de la ficha enseña el dolor, las mediciones y los cuestionarios a lo largo del tiempo. <b>«Informe»</b> lo prepara para
-        imprimir, guardar en PDF o en tu Drive.
+        La barra de abajo está siempre a mano y <b>cada pestaña recuerda dónde estabas</b>: mira un test en la Guía y vuelve a la ficha con un toque
+        en Pacientes. Pulsa otra vez la pestaña en la que estás para volver a su inicio. Arriba a la izquierda, <b>‹</b> vuelve a la pantalla
+        anterior.
       </>
     ),
   },
 ];
 
 const places: { icon: typeof Users; name: string; text: string }[] = [
-  { icon: Users, name: "Pacientes", text: "tus pacientes, las próximas citas y las reevaluaciones pendientes." },
-  { icon: BookOpen, name: "Guía de tests", text: "212 tests de exploración por articulación, con cómo se hacen y lo que aportan." },
-  { icon: ChartColumn, name: "Comparar", text: "un ranking de tus pacientes en cualquier medición." },
-  { icon: Settings, name: "Ajustes", text: "tu cuenta, los datos de la clínica, el PIN, las copias y la instalación." },
+  { icon: Users, name: "Pacientes", text: "tus pacientes, sus próximas citas y las reevaluaciones pendientes." },
+  { icon: BookOpen, name: "Guía de tests", text: "212 tests de exploración por articulación. Desde un test, «Registrar el resultado» lo apunta en el paciente que estabas viendo." },
+  { icon: Settings, name: "Ajustes", text: "tu cuenta, los datos de la clínica, el PIN, las copias y la instalación. Un punto rojo avisa si falta algo." },
 ];
 
 export function HelpPage() {
@@ -111,7 +111,7 @@ export function HelpPage() {
             y bórralos después.
           </li>
           <li>
-            ¿Medir a alguien sin crear su ficha? En Pacientes, <b>«Medición rápida, sin ficha»</b>.
+            ¿Medir a alguien sin crear su ficha? En Pacientes, <b>«Medición rápida»</b>.
           </li>
           <li>
             Cada pantalla de medición tiene su ayuda: el botón <b>«Cómo grabar y marcar»</b>.

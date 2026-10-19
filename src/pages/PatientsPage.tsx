@@ -1,24 +1,43 @@
 import { CalendarCheck, CalendarClock, Plus, Search, Users, Zap } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { fmtDate, testLabel } from "../app/format";
-import { FirstSteps } from "../app/FirstSteps";
-import { AccountCard } from "../cloud/AccountPages";
+import { fmtDate } from "../app/format";
 import { useCloud } from "../cloud/CloudGate";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { fmtVisit } from "../clinical/calendar";
 import { dueReviews, upcomingVisits } from "../data/clinical";
 import { getDb } from "../data/db";
-import { createPatient, getSetting, listPatients } from "../data/repo";
+import { createPatient, getSetting, listPatients, type PatientSummary } from "../data/repo";
 import { SEED_PREFIX } from "../data/seed";
 import { Alert } from "../ui/Alert";
 import { EmptyState } from "../ui/EmptyState";
-import { List, PatientRow } from "../ui/ListItem";
+import { Group, RowButton } from "../ui/Grouped";
+import { PatientRow } from "../ui/ListItem";
 import { useToast } from "../ui/Toast";
 
 /** Ficha donde van las mediciones hechas sin elegir paciente. */
 export const QUICK_PATIENT = "Medición rápida";
+
+/** «Hoy, 10:00», «Mañana, 9:30» o «lun, 26 oct, 10:00». */
+function when(iso: string) {
+  const hour = new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+  const day = madridDay(iso);
+  return day === dayPlus(0) ? `Hoy, ${hour}` : day === dayPlus(1) ? `Mañana, ${hour}` : fmtVisit(iso);
+}
+
+/** Lo que más sirve de cada paciente en la lista: su próxima cita o la última vez que vino. */
+function meta(p: PatientSummary) {
+  if (p.nextAt) return `Próxima cita: ${when(p.nextAt)}`;
+  if (p.lastAt) return `Última visita: ${fmtDate(p.lastAt)}`;
+  return "Sin visitas todavía";
+}
+
+/** Primera letra para las secciones (sin tildes; «#» si no es una letra). */
+function letter(name: string) {
+  const c = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().charAt(0).toUpperCase();
+  return /[A-ZÑ]/.test(c) ? c : "#";
+}
 
 /** S01 Pacientes */
 export function PatientsPage() {
@@ -59,107 +78,87 @@ export function PatientsPage() {
   }
 
   const own = patients.data?.filter((p) => !p.name.startsWith(SEED_PREFIX) && p.name !== QUICK_PATIENT) ?? [];
+  // Sin buscar: por letras, como los contactos del móvil.
+  const byLetter = new Map<string, PatientSummary[]>();
+  for (const p of patients.data ?? []) byLetter.set(letter(p.name), [...(byLetter.get(letter(p.name)) ?? []), p]);
 
   return (
-    <Page title="Pacientes" tabs brand>
+    <Page
+      title="Pacientes"
+      action={
+        <Link to="/pacientes/nuevo" aria-label="Nuevo paciente" className="tap inline-flex items-center justify-center rounded-md text-accent hover:bg-surface">
+          <Plus aria-hidden="true" className="size-7" />
+        </Link>
+      }
+    >
       {info.data && !info.data.persistent && (
         <Alert tone="warning" title="Este navegador no guarda los datos">
           Todo se perderá al cerrar la pestaña. Abre la app en Safari o Chrome actualizados.
         </Alert>
       )}
-      {cloud && <AccountCard />}
-      <div className="grid grid-cols-2 gap-2">
-        <Link to="/pacientes/nuevo" className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
-          <Plus aria-hidden="true" className="size-5 shrink-0" /> Nuevo paciente
-        </Link>
-        <button
-          type="button"
-          disabled={quick}
-          aria-busy={quick || undefined}
-          onClick={quickMeasure}
-          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-md border border-border-input bg-bg px-3 text-left leading-tight font-semibold hover:bg-surface disabled:opacity-50"
-        >
-          <Zap aria-hidden="true" className="size-5 shrink-0 text-accent" /> Medición rápida, sin ficha
-        </button>
+      <div className="relative">
+        <label htmlFor="patient-search" className="sr-only">
+          Buscar paciente
+        </label>
+        <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-text-muted" />
+        <input
+          id="patient-search"
+          type="search"
+          placeholder="Buscar"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="h-11 w-full rounded-lg border border-transparent bg-surface pr-3 pl-10 text-base placeholder:text-text-muted focus:border-border-input"
+        />
       </div>
-      {patients.data && !search && <FirstSteps hasPatients={own.length > 0} />}
       {/* Con la nube, la copia es automática: no hace falta recordar la de archivo. */}
-      {!cloud && <BackupReminder
-        hasRealPatients={own.length > 0}
-        lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)}
-      />}
-      {visits.data && visits.data.length > 0 && !search && <Visits items={visits.data} />}
-      {reviews.data && reviews.data.length > 0 && !search && <Reviews items={reviews.data} />}
+      {!cloud && !search && <BackupReminder hasRealPatients={own.length > 0} lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)} />}
 
-      <section aria-labelledby="h-todos" className="flex flex-col gap-2">
-        <h2 id="h-todos" className="text-lg">
-          {patients.data?.length ? `Todos tus pacientes (${patients.data.length})` : "Tus pacientes"}
-        </h2>
-        <div className="relative">
-          <label htmlFor="patient-search" className="sr-only">
-            Buscar paciente
-          </label>
-          <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2 text-text-muted" />
-          <input
-            id="patient-search"
-            type="search"
-            placeholder="Buscar por nombre"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-11 w-full rounded-md border border-border-input bg-bg pl-10 pr-3 text-base placeholder:text-text-muted"
-          />
-        </div>
+      {!search && visits.data && visits.data.length > 0 && (
+        <Group title="Próximas citas">
+          {visits.data.map((v) => (
+            <PatientRow key={v.patientId} to={`/pacientes/${v.patientId}`} name={v.name} meta={when(v.nextAt)} icon={CalendarCheck} />
+          ))}
+        </Group>
+      )}
+      {!search && reviews.data && reviews.data.length > 0 && <Reviews items={reviews.data} />}
+      {!search && (
+        <Group>
+          <RowButton icon={Zap} title="Medición rápida" subtitle="Medir sin crear ficha" busy={quick} onClick={() => void quickMeasure()} />
+        </Group>
+      )}
 
-        {patients.error ? (
-          <LoadError error={patients.error} />
-        ) : !patients.data ? (
-          <Loading />
-        ) : patients.data.length === 0 ? (
-          search ? (
-            <p className="py-6 text-center text-text-muted">Ningún paciente se llama «{search}».</p>
-          ) : (
-            <EmptyState icon={Users} title="Todavía no hay pacientes">
-              Pulsa «Nuevo paciente» para añadir al primero. Con el nombre basta.
-            </EmptyState>
-          )
+      {patients.error ? (
+        <LoadError error={patients.error} />
+      ) : !patients.data ? (
+        <Loading />
+      ) : patients.data.length === 0 ? (
+        search ? (
+          <p className="py-6 text-center text-text-muted">Ningún paciente se llama «{search}».</p>
         ) : (
-          <List label="Pacientes">
-            {patients.data.map((p) => (
-              <PatientRow
-                key={p.id}
-                to={`/pacientes/${p.id}`}
-                name={p.name}
-                meta={
-                  p.lastTestAt
-                    ? `${p.testCount} ${p.testCount === 1 ? "medición" : "mediciones"} · última: ${testLabel(p.lastTestType ?? "")}, ${fmtDate(p.lastTestAt)}`
-                    : "Sin mediciones todavía"
-                }
-              />
-            ))}
-          </List>
-        )}
-      </section>
+          <EmptyState icon={Users} title="Todavía no hay pacientes">
+            Pulsa + arriba para añadir el primero. Con el nombre basta.
+          </EmptyState>
+        )
+      ) : search ? (
+        <Group title="Resultados">
+          {patients.data.map((p) => (
+            <PatientRow key={p.id} to={`/pacientes/${p.id}`} name={p.name} meta={meta(p)} />
+          ))}
+        </Group>
+      ) : (
+        <div role="list" aria-label="Pacientes" className="flex flex-col gap-4">
+          {[...byLetter].map(([l, list]) => (
+            <div role="listitem" key={l}>
+              <Group title={l}>
+                {list.map((p) => (
+                  <PatientRow key={p.id} to={`/pacientes/${p.id}`} name={p.name} meta={meta(p)} />
+                ))}
+              </Group>
+            </div>
+          ))}
+        </div>
+      )}
     </Page>
-  );
-}
-
-/** Citas de hoy y de los próximos 7 días (la siguiente cita que se puso en la última sesión de cada paciente). */
-function Visits({ items }: { items: { patientId: string; name: string; nextAt: string }[] }) {
-  const today = dayPlus(0);
-  const tomorrow = dayPlus(1);
-  const hour = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
-  const when = (iso: string) => (madridDay(iso) === today ? `Hoy, ${hour(iso)}` : madridDay(iso) === tomorrow ? `Mañana, ${hour(iso)}` : fmtVisit(iso));
-  return (
-    <section aria-labelledby="citas" className="flex flex-col gap-2">
-      <h2 id="citas" className="flex items-center gap-2 text-lg">
-        <CalendarCheck aria-hidden="true" className="size-5 text-accent" /> Próximas citas
-      </h2>
-      <List label="Próximas citas">
-        {items.map((v) => (
-          <PatientRow key={v.patientId} to={`/pacientes/${v.patientId}`} name={v.name} meta={when(v.nextAt)} />
-        ))}
-      </List>
-    </section>
   );
 }
 
@@ -173,21 +172,17 @@ const dayPlus = (n: number) => new Date(Date.now() + n * 86_400_000).toLocaleDat
 function Reviews({ items }: { items: { patientId: string; name: string; reviewOn: string }[] }) {
   const today = dayPlus(0);
   return (
-    <section aria-labelledby="reevaluar" className="flex flex-col gap-2">
-      <h2 id="reevaluar" className="flex items-center gap-2 text-lg">
-        <CalendarClock aria-hidden="true" className="size-5 text-accent" /> Para reevaluar
-      </h2>
-      <List label="Reevaluaciones">
-        {items.map((r) => (
-          <PatientRow
-            key={r.patientId}
-            to={`/pacientes/${r.patientId}/sesiones`}
-            name={r.name}
-            meta={r.reviewOn < today ? `Pendiente desde el ${fmtDate(`${r.reviewOn}T12:00:00`)}` : r.reviewOn === today ? "Hoy" : fmtDate(`${r.reviewOn}T12:00:00`)}
-          />
-        ))}
-      </List>
-    </section>
+    <Group title="Para reevaluar">
+      {items.map((r) => (
+        <PatientRow
+          key={r.patientId}
+          to={`/pacientes/${r.patientId}/sesiones`}
+          name={r.name}
+          icon={CalendarClock}
+          meta={r.reviewOn < today ? `Pendiente desde el ${fmtDate(`${r.reviewOn}T12:00:00`)}` : r.reviewOn === today ? "Hoy" : fmtDate(`${r.reviewOn}T12:00:00`)}
+        />
+      ))}
+    </Group>
   );
 }
 

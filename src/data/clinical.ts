@@ -152,6 +152,15 @@ export function nextVisit(sessions: Session[], now = new Date()): Session | null
   return last?.nextAt && Date.parse(last.nextAt) > now.getTime() ? last : null;
 }
 
+/** La siguiente cita de un paciente (la de su última sesión), si aún no ha llegado. */
+export async function nextVisitOf(db: Db, patientId: string, now = new Date()): Promise<{ id: string; nextAt: string; nextMinutes: number | null } | null> {
+  const [row] = await db.query<{ id: string; nextAt: string | null; nextMinutes: number | null }>(
+    "select id, next_at as nextAt, next_minutes as nextMinutes from sessions where patient_id = ? order by performed_at desc limit 1",
+    [patientId],
+  );
+  return row?.nextAt && row.nextAt > now.toISOString() ? { id: row.id, nextAt: row.nextAt, nextMinutes: row.nextMinutes } : null;
+}
+
 /** La siguiente cita de cada paciente (la de su última sesión) que aún no ha llegado, para el calendario. */
 export async function upcomingVisits(db: Db, now = new Date()): Promise<{ id: string; patientId: string; name: string; nextAt: string; nextMinutes: number | null }[]> {
   return db.query(

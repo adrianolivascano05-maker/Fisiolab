@@ -81,7 +81,7 @@ function Measure({ patientId, movement, side, back }: { patientId: string; movem
   const summary = readings.length ? summarize(readings) : null;
 
   return (
-    <Page title={movementLabel(movement, side)} backTo={back}>
+    <Page title={movementLabel(movement, side)} backTo={back} tabs={false}>
       <RomInstructions movement={movement} />
 
       <fieldset className="flex flex-col gap-2">

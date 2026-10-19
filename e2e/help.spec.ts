@@ -1,4 +1,4 @@
-import { createPatient, expect, expectAccessible, startJump, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, startJump, test } from "./fixtures";
 
 test.describe("S25 Ayuda con ilustraciones", () => {
   for (const [type, radio, first] of [
@@ -8,7 +8,7 @@ test.describe("S25 Ayuda con ilustraciones", () => {
   ] as const) {
     test(`AY-${type}: cómo grabar y qué fotograma marcar`, async ({ page }) => {
       await createPatient(page, { name: "Ayuda" });
-      await page.getByRole("link", { name: "Nueva medición" }).click();
+      await add(page, "Medición").click();
       await page.getByRole("link", { name: /Saltos/ }).click();
       await page.getByRole("radio", { name: radio }).check({ force: true });
       await page.getByRole("button", { name: "Cómo grabar y marcar" }).click();

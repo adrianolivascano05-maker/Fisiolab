@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
@@ -45,7 +45,7 @@ test.describe("F16 Ficha clínica", () => {
 
   test("F16-H2 exploración: registrar un test, ver su evidencia, editarlo y borrarlo", async ({ page }) => {
     await createPatient(page, { name: "Pablo Exploración" });
-    await page.getByRole("link", { name: "Test de exploración" }).click();
+    await add(page, "Exploración").click();
     await page.getByRole("searchbox", { name: "Buscar test" }).fill("lachman");
     await page.getByRole("button", { name: /Test de Lachman/ }).first().click();
     await page.getByRole("button", { name: "Guardar resultado" }).click();
@@ -81,8 +81,8 @@ test.describe("F16 Ficha clínica", () => {
     test.slow(); // la ficha del test carga la figura en 3D: 25-30 s en las pruebas
     await createPatient(page, { name: "Marta Galería" });
     await page.goto("./exploracion/rodilla/rod-lachman");
-    await page.getByRole("button", { name: "Registrar el resultado en un paciente" }).click();
-    await page.getByRole("dialog", { name: "¿En qué paciente?" }).getByRole("link", { name: "Marta Galería" }).click();
+    // Se acaba de ver su ficha: la guía ofrece apuntarlo en ella directamente.
+    await page.getByRole("link", { name: "Registrar el resultado en Marta Galería" }).click();
     await expect(page.getByText("Test de Lachman", { exact: true })).toBeVisible();
     await page.getByText("Negativo", { exact: true }).click();
     await page.getByRole("button", { name: "Guardar resultado" }).click();
@@ -91,7 +91,7 @@ test.describe("F16 Ficha clínica", () => {
 
   test("F16-H4 sesiones: dolor, tratamiento y reevaluación en la ficha", async ({ page }) => {
     await createPatient(page, { name: "Diego Sesiones" });
-    await page.getByRole("link", { name: "Nueva sesión" }).click();
+    await add(page, "Sesión").click();
     await page.locator("fieldset", { hasText: "Dolor hoy" }).getByText("4", { exact: true }).click();
     await page.getByLabel("Tratamiento").fill("Isométricos de cuádriceps");
     await page.getByRole("button", { name: "En 1 semana" }).click();
@@ -110,8 +110,8 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByRole("list", { name: "Historia del paciente" })).toContainText("Sesión");
     // En la lista de pacientes sale para reevaluar (la semana que viene).
     await page.goto("./");
-    await expect(page.getByRole("list", { name: "Reevaluaciones" })).toContainText("Diego Sesiones");
-    await page.getByRole("list", { name: "Reevaluaciones" }).getByRole("link", { name: /Diego Sesiones/ }).click();
+    await expect(page.getByRole("region", { name: "Para reevaluar" })).toContainText("Diego Sesiones");
+    await page.getByRole("region", { name: "Para reevaluar" }).getByRole("link", { name: /Diego Sesiones/ }).click();
 
     // Editar y borrar.
     await tab(page, "Sesiones").click();
@@ -123,7 +123,7 @@ test.describe("F16 Ficha clínica", () => {
 
   test("F16-H5 cuestionarios: la PSFS en la app, el KOOS por puntuación y su evolución", async ({ page }) => {
     await createPatient(page, { name: "Irene Cuestionarios" });
-    await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
+    await add(page, "Cuestionario").click();
     await page.getByRole("button", { name: /PSFS/ }).click();
     await page.getByLabel("Fecha y hora").fill("2026-09-01T10:00");
     await page.getByLabel("Actividad 1", { exact: true }).fill("Bajar escaleras");
@@ -189,7 +189,7 @@ test.describe("F16 Ficha clínica", () => {
     await expectAccessible(page);
 
     await tab(page, "Resumen").click();
-    await page.getByRole("link", { name: "Informe", exact: true }).click();
+    await page.getByRole("link", { name: /^Informe/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Informe de fisioterapia");
     await expect(report).toContainText("Marcos Vidal");
@@ -203,7 +203,7 @@ test.describe("F16 Ficha clínica", () => {
 
   test("F16-H7 siguiente cita: se guarda con la sesión y se pasa al calendario", async ({ page }) => {
     await createPatient(page, { name: "Nora Calendario" });
-    await page.getByRole("link", { name: "Nueva sesión" }).click();
+    await add(page, "Sesión").click();
     await page.getByLabel("Tratamiento").fill("Ejercicio de carga");
     await page.getByRole("button", { name: "Dentro de 1 semana" }).click();
     await page.getByText("60 min", { exact: true }).click();

@@ -33,8 +33,8 @@ export function NordicSetupPage() {
   const [saving, setSaving] = useState(false);
 
   const back = `/pacientes/${id}/test`;
-  if (patient.error) return <Page title="Nórdico" backTo={back}><LoadError error={patient.error} /></Page>;
-  if (patient.data === undefined) return <Page title="Nórdico" backTo={back}><Loading /></Page>;
+  if (patient.error) return <Page title="Nórdico" backTo={back} tabs={false}><LoadError error={patient.error} /></Page>;
+  if (patient.data === undefined) return <Page title="Nórdico" backTo={back} tabs={false}><Loading /></Page>;
   const p = patient.data;
 
   async function next(e: FormEvent) {
@@ -60,7 +60,7 @@ export function NordicSetupPage() {
   }
 
   return (
-    <Page title="Nórdico" backTo={back}>
+    <Page title="Nórdico" backTo={back} tabs={false}>
       {p && (!p.bodyMassKg || !p.heightCm) && (
         <Alert tone="info" title="Sin masa o estatura, solo el ángulo">
           Para estimar la fuerza de los isquios hacen falta la masa y la estatura.{" "}

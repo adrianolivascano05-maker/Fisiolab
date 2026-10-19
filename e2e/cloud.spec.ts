@@ -1,7 +1,7 @@
 // Cuenta de Google y copia en Drive (src/cloud), con Google simulado (fakeGoogle.ts): dos dispositivos de la
 // misma cuenta, un compañero con la suya, pasar a la cuenta lo que había sin cuenta y volver a entrar.
 import type { Browser, Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
 
 const users = {
@@ -58,7 +58,7 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await createPatient(page, { name: "Lucía Nube" });
     await expect.poll(() => google.driveText("ana").includes(enc("Lucía Nube")), { timeout: 15_000 }).toBe(true);
     await page.goto("./ajustes");
-    await expect(page.getByRole("link", { name: /Cuenta de Google.*ana@clinica\.test.*Guardado en tu Drive/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Ana Ruiz.*ana@clinica\.test.*Guardado en tu Drive/ })).toBeVisible();
     await page.goto("./ajustes/cuenta");
     await expect(page.getByText("ana@clinica.test")).toBeVisible();
     await expect(page.getByText(/Guardado en tu Drive/)).toBeVisible();
@@ -68,7 +68,7 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     const tablet = await device(browser, google, "ana", errors);
     await login(tablet);
     await tablet.getByRole("link", { name: /Lucía Nube/ }).click();
-    await tablet.getByRole("link", { name: "Nueva sesión" }).click();
+    await add(tablet, "Sesión").click();
     await tablet.getByLabel("Tratamiento").fill("Desde la tablet");
     await tablet.getByRole("button", { name: "Guardar sesión" }).click();
     await expect(tablet.getByText("Desde la tablet")).toBeVisible();
@@ -113,10 +113,11 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expect.poll(() => google.driveText("ana").includes(enc("Previo Local")), { timeout: 15_000 }).toBe(true);
   });
 
-  test("NB4 desde la pantalla principal: pegar el ID de cliente en el dispositivo y entrar", async ({ page }) => {
+  test("NB4 desde Ajustes: pegar el ID de cliente en el dispositivo y entrar", async ({ page }) => {
     const google = new FakeGoogle(users);
     await google.install(page.context(), () => "ana", { publish: false });
-    await page.goto("./");
+    await page.goto("./ajustes");
+    await page.getByRole("link", { name: /Cuenta de Google.*Sin conectar/ }).click();
     await page.getByRole("link", { name: "Iniciar sesión con Google" }).click();
     await expect(page.getByRole("heading", { name: "Iniciar sesión con Google" })).toBeVisible();
     // Quien no lo activa solo ve que falta activarlo y puede mandar los pasos (con los enlaces directos).
@@ -137,7 +138,9 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expect(page.getByText("Eso no parece un ID de cliente")).toBeVisible();
     await page.getByLabel("ID de cliente").fill(" 123456789012-abcdef.apps.googleusercontent.com ");
     await page.getByRole("button", { name: "Entrar con Google" }).click();
-    // Vuelve de Google con la sesión iniciada: la pantalla principal ya enseña la cuenta.
+    // Vuelve de Google con la sesión iniciada, a Pacientes; la cuenta sale en Ajustes.
+    await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: /Ajustes/ }).click();
     await expect(page.getByRole("link", { name: /Ana Ruiz/ })).toBeVisible({ timeout: 15_000 });
     await createPatient(page, { name: "Desde el Inicio" });
     await expect.poll(() => google.driveText("ana").includes(enc("Desde el Inicio")), { timeout: 15_000 }).toBe(true);

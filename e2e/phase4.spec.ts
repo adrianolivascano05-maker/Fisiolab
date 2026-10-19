@@ -1,15 +1,15 @@
 import type { Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, loadSeed, markNextInSeries, scrubber, test, video } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, loadSeed, markNextInSeries, scrubber, test, video } from "./fixtures";
 
 const card = (page: Page, label: string) => page.getByText(label, { exact: true }).locator("..");
 
 async function openSpeed(page: Page, testName: RegExp) {
-  await page.getByRole("link", { name: "Nueva medición" }).click();
+  await add(page, "Medición").click();
   await page.getByRole("link", { name: /Sprint/ }).click();
   await page.getByRole("radio", { name: testName }).check({ force: true });
 }
 
-test.describe("Fase 4: sprint, cambio de dirección, carrera y comparar", () => {
+test.describe("Fase 4: sprint, cambio de dirección y carrera", () => {
   test("F08-H1 sprint con fotocélulas: tramos y perfil fuerza-velocidad", async ({ page }) => {
     await createPatient(page, { name: "Velocista", mass: "70" });
     await openSpeed(page, /Sprint lineal/);
@@ -74,7 +74,7 @@ test.describe("Fase 4: sprint, cambio de dirección, carrera y comparar", () => 
 
   test("F10-H1 carrera en cinta: apoyos alternos, frecuencia y asimetría", async ({ page }) => {
     await createPatient(page, { name: "Corredora" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Carrera/ }).click();
     await page.getByLabel("Velocidad de la cinta (opcional)").fill("12");
     await page.getByRole("radio", { name: "Pie derecho" }).check({ force: true });
@@ -92,26 +92,6 @@ test.describe("Fase 4: sprint, cambio de dirección, carrera y comparar", () => 
     await expect(page.getByText(/Asimetría 20,0 % \(más largo el izquierdo\)/)).toBeVisible();
     await expect(card(page, "Longitud del paso")).toContainText("0,69"); // 12/3,6 · 0,208
     await expectAccessible(page);
-  });
-
-  test("F16-H1 comparar pacientes: ranking, orden y última medición", async ({ page }) => {
-    await loadSeed(page);
-    await page.goto("./");
-    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Comparar" }).click();
-    await expect(page.getByRole("table").getByRole("row")).toHaveCount(4); // CMJ: 3 pacientes
-    await page.getByLabel("Medida").selectOption({ label: "Sprint · 10 m" });
-    const rows = page.getByRole("table").getByRole("rowheader");
-    await expect(rows).toHaveText([/Marcos Vidal/, /Lucía Herrero/]);
-    await expect(page.getByText("2 pacientes · menos es mejor")).toBeVisible();
-    await page.getByRole("button", { name: "Mejor primero" }).click();
-    await expect(rows).toHaveText([/Lucía Herrero/, /Marcos Vidal/]);
-    await page.getByText("Su última medición", { exact: true }).click();
-    await expect(page).toHaveURL(/modo=ultima/);
-    await page.getByLabel("Medida").selectOption({ label: "Nórdico · ángulo de rotura" });
-    await expect(page.getByRole("table")).toContainText("57");
-    await expectAccessible(page);
-    await page.getByLabel("Medida").selectOption({ label: "V-Cut" });
-    await expect(page.getByText("Nadie tiene todavía esta medida")).toBeVisible();
   });
 });
 

@@ -68,12 +68,17 @@ export async function createPatient(page: Page, p: NewPatient) {
   return page.url();
 }
 
+/** Desde el resumen de la ficha: uno de los botones de «Añadir» (Sesión, Medición, Exploración, Cuestionario). */
+export function add(page: Page, what: "Sesión" | "Medición" | "Exploración" | "Cuestionario") {
+  return page.getByRole("navigation", { name: "Añadir" }).getByRole("link", { name: what, exact: true });
+}
+
 /** Desde la ficha: nuevo test de salto, hasta la pantalla de marcado. */
 export async function startJump(
   page: Page,
   opts: { type?: RegExp; box?: string; load?: string; side?: "Izquierda" | "Derecha"; file?: string; captureFps?: string } = {},
 ) {
-  await page.getByRole("link", { name: "Nueva medición" }).click();
+  await add(page, "Medición").click();
   await page.getByRole("link", { name: /Saltos/ }).click();
   if (opts.type) await page.getByRole("radio", { name: opts.type }).check({ force: true });
   if (opts.box) await page.getByLabel("Altura del cajón").fill(opts.box);

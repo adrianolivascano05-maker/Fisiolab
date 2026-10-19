@@ -32,7 +32,6 @@ const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ defaul
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m.MarkPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
-const ComparePage = lazy(() => import("./pages/ComparePage").then((m) => ({ default: m.ComparePage })));
 const ValidationPage = lazy(() => import("./pages/ValidationPage").then((m) => ({ default: m.ValidationPage })));
 const SensorCheckPage = lazy(() => import("./pages/SensorCheckPage").then((m) => ({ default: m.SensorCheckPage })));
 const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
@@ -78,7 +77,6 @@ const routes = [
   ...galleryRoutes, // Galería de tests de exploración
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07
   { path: "/tests/:id", element: <ResultPage /> }, // S08
-  { path: "/comparar", element: l(<ComparePage />) }, // S23
   { path: "/validacion", element: l(<ValidationPage />) },
   { path: "/validacion/sensor", element: l(<SensorCheckPage />) },
   { path: "/ajustes", element: <SettingsPage /> }, // S24

@@ -1,4 +1,4 @@
-import { createPatient, expect, expectAccessible, markAt, test, withoutCloud } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, markAt, test, withoutCloud } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 /** Espera a que el service worker controle la página (en la primera visita hace falta recargar). */
@@ -29,7 +29,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Sin internet/ })).toBeVisible();
     await page.getByRole("link", { name: /Sin internet/ }).click();
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("button", { name: "Continuar" }).click();
     await page.getByLabel("Elegir vídeo").setInputFiles((await import("./fixtures")).video.at240);
@@ -46,7 +46,7 @@ test.describe("PWA: instalable y sin conexión", () => {
   test("PWA-E3 otros dispositivos: enlace, código QR y pasos para cada sistema", async ({ page, context, baseURL }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("./ajustes");
-    await page.getByRole("link", { name: /Instalar y usar en otros dispositivos/ }).click();
+    await page.getByRole("link", { name: /Instalar la app/ }).click();
     await expect(page.getByRole("heading", { name: "Instalar la app" })).toBeVisible();
     const url = new URL(baseURL!).href;
     await expect(page.getByRole("img", { name: `Código QR con el enlace de la app: ${url}` })).toBeVisible();
@@ -57,30 +57,39 @@ test.describe("PWA: instalable y sin conexión", () => {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
   });
 
-  test("PWA-E1 primeros pasos: instalar, clínica y primer paciente; se marcan al hacerlos y se pueden ocultar", async ({ page }) => {
-    await page.goto("./");
-    const steps = page.getByRole("region", { name: "Primeros pasos" });
-    await expect(steps).toBeVisible();
-    await expect(steps.getByText(/^0 de \d hechos$/)).toBeVisible();
-    await expect(steps.getByRole("link", { name: /Instalar la app en este dispositivo/ })).toBeVisible();
+  test("PWA-E1 barra de abajo: tres pestañas que recuerdan dónde estabas; un punto en Ajustes si faltan datos", async ({ page }) => {
+    const bar = page.getByRole("navigation", { name: "Principal" });
+    const tab = (name: string | RegExp) => bar.getByRole("link", { name });
+    await createPatient(page, { name: "Rosa Pestañas" });
+    await expect(bar.getByRole("link")).toHaveCount(3);
+    await expect(tab(/Ajustes.*hay datos por completar/)).toBeVisible();
     await expectAccessible(page);
-    // El primer paciente queda marcado.
-    await steps.getByRole("link", { name: /Tu primer paciente/ }).click();
-    await page.getByLabel("Nombre").fill("Primero");
-    await page.getByRole("button", { name: "Crear paciente" }).click();
-    await expect(page.getByRole("heading", { name: "Primero" })).toBeVisible();
-    await page.goto("./");
-    await expect(steps.getByRole("link", { name: /Tu primer paciente.*Hecho/ })).toBeVisible();
-    // Instalar lleva a la pantalla con los pasos de este dispositivo.
-    await steps.getByRole("link", { name: /Instalar la app en este dispositivo/ }).click();
-    await expect(page.getByRole("heading", { name: "En este dispositivo" })).toBeVisible();
-    await expect(page.getByText(/«Instalar app»|Instalar la app|Añadir a pantalla de inicio/).first()).toBeVisible();
-    await page.goto("./");
-    await steps.getByRole("button", { name: "Ocultar" }).click();
-    await expect(steps).toHaveCount(0);
-    await page.reload();
-    await expect(page.getByRole("link", { name: /Primero/ })).toBeVisible();
-    await expect(steps).toHaveCount(0);
+
+    // De la ficha a la guía y de vuelta: cada pestaña sigue donde se dejó.
+    await tab("Guía de tests").click();
+    await page.getByRole("link", { name: /^Rodilla/ }).click();
+    await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
+    await tab("Pacientes").click();
+    await expect(page.getByRole("heading", { name: "Rosa Pestañas", level: 1 })).toBeVisible();
+    await tab("Guía de tests").click();
+    await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
+    // Pulsar la pestaña en la que se está vuelve a su inicio.
+    await tab("Guía de tests").click();
+    await expect(page.getByRole("heading", { name: "Guía de tests", level: 1 })).toBeVisible();
+    await tab("Pacientes").click();
+    await tab("Pacientes").click();
+    await expect(page.getByRole("heading", { name: "Pacientes", level: 1 })).toBeVisible();
+
+    // Con los datos de la clínica, el punto desaparece.
+    await tab(/Ajustes/).click();
+    await page.getByRole("link", { name: /Clínica y protección de datos/ }).click();
+    await page.getByLabel("Clínica (nombre o razón social)").fill("Fisio Prueba");
+    await page.getByLabel("Correo para ejercer los derechos").fill("datos@fisioprueba.test");
+    await page.getByRole("button", { name: "Guardar los datos de la clínica" }).click();
+    await expect(page.getByText("Datos de la clínica guardados")).toBeVisible();
+    await page.getByRole("link", { name: "Volver a Ajustes" }).click();
+    await expect(tab("Ajustes")).toBeVisible();
+    await expect(tab(/por completar/)).toHaveCount(0);
   });
 
   test("PWA-E2 en iPhone explica Compartir → Añadir a pantalla de inicio", async ({ browser }) => {
@@ -123,7 +132,7 @@ test.describe("PWA: instalable y sin conexión", () => {
 
   test("PWA-E4 ajustes: un menú con cada apartado y cómo está", async ({ page }) => {
     await page.goto("./ajustes");
-    for (const name of [/Cuenta de Google/, /Clínica y protección de datos/, /Bloqueo con PIN.*Desactivado/, /Copias de seguridad y exportar/, /Instalar y usar/, /Cómo se usa/, /Validación de las mediciones/, /Privacidad/])
+    for (const name of [/Cuenta de Google/, /Clínica y protección de datos/, /Bloqueo con PIN.*Desactivado/, /Copias de seguridad y exportar/, /Instalar la app/, /Cómo se usa/, /Validación de las mediciones/, /Privacidad/])
       await expect(page.getByRole("link", { name })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("link", { name: /Cómo se usa/ }).click();

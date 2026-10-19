@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
 
 /** Simula el sensor de orientación del móvil: envía `deviceorientation` cada 30 ms con esta inclinación. */
 async function tilt(page: Page, beta: number, gamma = 0) {
@@ -18,7 +18,7 @@ async function tilt(page: Page, beta: number, gamma = 0) {
 const current = (page: Page) => page.getByTestId("angulo-actual");
 
 async function startRom(page: Page, joint: string, movement: RegExp, side?: "Izquierdo" | "Derecho") {
-  await page.getByRole("link", { name: "Nueva medición" }).click();
+  await add(page, "Medición").click();
   await page.getByRole("link", { name: /Movilidad/ }).click();
   await page.getByRole("radio", { name: joint }).check({ force: true });
   await page.getByRole("radio", { name: movement }).check({ force: true });

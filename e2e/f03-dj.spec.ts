@@ -1,4 +1,4 @@
-import { createPatient, expect, markAt, startJump, test } from "./fixtures";
+import { add, createPatient, expect, markAt, startJump, test } from "./fixtures";
 
 test.describe("F03 Drop jump con RSI", () => {
   test("F03-H1 contacto 200 ms y vuelo 500 ms: RSI 1,53", async ({ page }) => {
@@ -20,7 +20,7 @@ test.describe("F03 Drop jump con RSI", () => {
 
   test("F03-N1 sin altura del cajón no deja continuar", async ({ page }) => {
     await createPatient(page, { name: "DJ sin cajón" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Saltos/ }).click();
     await page.getByRole("radio", { name: /Drop jump/ }).check({ force: true });
     await page.getByRole("button", { name: "Continuar" }).click();

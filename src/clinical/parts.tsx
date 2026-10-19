@@ -17,7 +17,8 @@ export function PatientNav({ id }: { id: string }) {
     { to: `/pacientes/${id}/sesiones`, label: "Sesiones", icon: NotebookPen },
   ];
   return (
-    <nav aria-label="Ficha del paciente">
+    // Fijas arriba al bajar: cambiar de pestaña está siempre a un toque.
+    <nav aria-label="Ficha del paciente" className="sticky top-[var(--layout-header)] z-10 -mx-4 bg-canvas/95 px-4 py-1.5 backdrop-blur">
       <ul className="grid grid-cols-5 gap-1 rounded-lg bg-surface p-1">
         {tabs.map(({ to, label, icon: Icon, end }) => (
           <li key={to} className="min-w-0">

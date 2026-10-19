@@ -103,7 +103,7 @@ export function MarkPage() {
   const t = test.data;
   if (!t) return <Page title="Marcar" backTo="/"><LoadError error={new Error("Esta medición no existe.")} /></Page>;
   const back = `/pacientes/${t.patientId}/mediciones`;
-  if (!t.video || !(isJumpType(t.type) || ["vbt", "nordic", "sprint_linear", "running"].includes(t.type) || isCodType(t.type))) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Esta medición no tiene vídeo.")} /></Page>;
+  if (!t.video || !(isJumpType(t.type) || ["vbt", "nordic", "sprint_linear", "running"].includes(t.type) || isCodType(t.type))) return <Page title="Marcar" backTo={back} tabs={false}><LoadError error={new Error("Esta medición no tiene vídeo.")} /></Page>;
   const type = t.type as MarkType;
   const label =
     type === "vbt"
@@ -121,7 +121,7 @@ export function MarkPage() {
 
   if (!file) {
     return (
-      <Page title="Marcar" backTo={back}>
+      <Page title="Marcar" backTo={back} tabs={false}>
         <RepickVideo
           expectedName={t.video.fileName}
           onFile={(f) => {

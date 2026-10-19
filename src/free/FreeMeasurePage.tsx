@@ -56,8 +56,8 @@ export function FreeMeasurePage() {
   const input = useRef<HTMLInputElement>(null);
   const back = `/pacientes/${id}`;
   const title = "Medición libre";
-  if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
-  if (!data.data) return <Page title={title} backTo={back}><Loading /></Page>;
+  if (data.error) return <Page title={title} backTo={back} tabs={false}><LoadError error={data.error} /></Page>;
+  if (!data.data) return <Page title={title} backTo={back} tabs={false}><Loading /></Page>;
   const { patient, saved } = data.data;
   if (!patient) return <Page title={title} backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
 
@@ -70,7 +70,7 @@ export function FreeMeasurePage() {
   }
 
   return (
-    <Page title={title} backTo={back}>
+    <Page title={title} backTo={back} tabs={false}>
       <p className="text-text-muted">{patient.name}</p>
       <Alert tone="info" title="Experimental">
         La pose 3D la estima una IA a partir de una sola cámara, en el propio móvil (nada sale de él). Sirve para seguir un movimiento; para

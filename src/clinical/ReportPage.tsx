@@ -1,8 +1,9 @@
 // Informe del paciente para imprimir o guardar en PDF desde el navegador: datos, anamnesis, exploración,
 // evolución del dolor, mediciones (con la simetría entre lados), cuestionarios y sesiones. Se eligen los apartados; en papel solo sale el informe.
-import { ChevronLeft, Printer } from "lucide-react";
+import { Printer } from "lucide-react";
+import { TopBar } from "../ui/AppBar";
 import { useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { fmt, fmtDate, fmtDateShort } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
@@ -82,13 +83,8 @@ export function ReportPage() {
 
   const back = `/pacientes/${id}`;
   const bar = (
-    <div className="sticky top-0 z-10 border-b border-border bg-bg/95 backdrop-blur print:hidden">
-      <div className="mx-auto flex h-[var(--layout-header)] max-w-3xl items-center gap-1 px-2">
-        <Link to={back} aria-label="Volver" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
-          <ChevronLeft aria-hidden="true" className="size-6" />
-        </Link>
-        <h1 className="flex-1 truncate text-lg">Informe</h1>
-      </div>
+    <div className="print:hidden">
+      <TopBar title="Informe" backTo={back} />
     </div>
   );
   if (data.error) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={data.error} /></main></>;

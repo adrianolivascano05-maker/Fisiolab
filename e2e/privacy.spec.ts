@@ -1,7 +1,7 @@
 // Protección de datos (src/privacy): texto informativo y consentimientos de cada paciente, datos de la clínica,
 // aviso de conservación al borrar y bloqueo de la app con PIN.
 import type { Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, test } from "./fixtures";
 
 /** El campo de la pantalla de bloqueo (lo de debajo está tapado y no cuenta). */
 const pin = (page: Page) => page.getByRole("textbox", { name: "PIN", exact: true });
@@ -21,9 +21,8 @@ test.describe("Protección de datos", () => {
     await expect(page.getByText("Datos de la clínica guardados")).toBeVisible();
 
     await createPatient(page, { name: "Marta Datos" });
-    // La guía de la primera visita empieza por la protección de datos.
-    const guide = page.getByRole("region", { name: "Primera visita" });
-    await guide.getByRole("link", { name: /Protección de datos/ }).click();
+    // En el resumen de la ficha, en naranja mientras no se le haya dado.
+    await page.getByRole("link", { name: /Protección de datos.*Pendiente/ }).click();
     await expect(page.getByRole("heading", { name: "Protección de datos", level: 1 })).toBeVisible();
     const notice = page.getByRole("article", { name: "Información sobre protección de datos" });
     await expect(notice.getByText(/Fisio Prueba S\.L\./)).toBeVisible();
@@ -37,26 +36,20 @@ test.describe("Protección de datos", () => {
     await expect(page.getByText(/Información entregada el/)).toBeVisible();
 
     await page.getByRole("link", { name: "Volver" }).click();
-    await expect(guide.getByRole("link", { name: /Protección de datos.*Hecho/ })).toBeVisible();
-    // Cerrada la primera visita, la ficha resume sus consentimientos.
-    await page.getByRole("link", { name: "Nueva sesión" }).click();
-    await page.getByLabel("Tratamiento").fill("Valoración");
-    await page.getByRole("button", { name: "Guardar sesión" }).click();
-    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
-    await expect(guide).toHaveCount(0);
-    const card = page.getByRole("link", { name: /Protección de datos: informado el/ });
-    await expect(card).toContainText("Fotos y vídeos: sí · WhatsApp, SMS o correo: no");
+    // La ficha resume cuándo se le informó y sus consentimientos.
+    const row = page.getByRole("link", { name: /Protección de datos.*Informado el/ });
+    await expect(row).toContainText("Fotos y vídeos: sí · WhatsApp, SMS o correo: no");
   });
 
   test("PD2 borrar un paciente con historia avisa del plazo de conservación", async ({ page }) => {
     await createPatient(page, { name: "Con Historia" });
-    await page.getByRole("link", { name: "Nueva sesión" }).click();
+    await add(page, "Sesión").click();
     await page.getByLabel("Tratamiento").fill("Terapia manual");
     await page.getByRole("button", { name: "Guardar sesión" }).click();
     await expect(page.getByText("Terapia manual")).toBeVisible();
     await page.goto("./");
     await page.getByRole("link", { name: /Con Historia/ }).click();
-    await page.getByRole("link", { name: "Editar datos" }).click();
+    await page.getByRole("link", { name: "Editar", exact: true }).click();
     await page.getByRole("button", { name: "Borrar paciente" }).click();
     const dialog = page.getByRole("dialog", { name: "¿Borrar este paciente?" });
     await expect(dialog.getByText(/Hay que conservar su historia clínica hasta el/)).toBeVisible();

@@ -32,7 +32,7 @@ export function RunningSetupPage() {
   }
 
   return (
-    <Page title="Carrera" backTo={`/pacientes/${id}/test`}>
+    <Page title="Carrera" backTo={`/pacientes/${id}/test`} tabs={false}>
       <form onSubmit={next} noValidate className="flex flex-col gap-4">
         <NumberField
           label="Velocidad de la cinta (opcional)"

@@ -1,10 +1,10 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 
-type PatientRowProps = { to: string; name: string; meta: string };
+type PatientRowProps = { to: string; name: string; meta: string; /** En lugar de las iniciales (p. ej. en las citas). */ icon?: LucideIcon };
 
 /** Iniciales del nombre (sin prefijos como «Ejemplo ·» ni signos). */
-function initials(name: string) {
+export function initials(name: string) {
   return name
     .split(" · ")
     .at(-1)!
@@ -16,7 +16,7 @@ function initials(name: string) {
 }
 
 /** Fila de la lista de pacientes (S01, S23). Toda la fila es el enlace. */
-export function PatientRow({ to, name, meta }: PatientRowProps) {
+export function PatientRow({ to, name, meta, icon: Icon }: PatientRowProps) {
   return (
     <li>
       <Link to={to} className="flex min-h-16 items-center gap-3 px-4 py-2 hover:bg-surface">
@@ -24,7 +24,7 @@ export function PatientRow({ to, name, meta }: PatientRowProps) {
           aria-hidden="true"
           className="flex size-10 shrink-0 items-center justify-center rounded-pill bg-accent-soft text-sm font-semibold text-accent"
         >
-          {initials(name)}
+          {Icon ? <Icon className="size-5" /> : initials(name)}
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate font-semibold">{name}</span>

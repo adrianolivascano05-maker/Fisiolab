@@ -33,7 +33,7 @@ export function RomSetupPage() {
   }
 
   return (
-    <Page title="Movilidad" backTo={`/pacientes/${id}/test`}>
+    <Page title="Movilidad" backTo={`/pacientes/${id}/test`} tabs={false}>
       <form onSubmit={next} noValidate className="flex flex-col gap-4">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-2 text-sm font-semibold">Articulación</legend>

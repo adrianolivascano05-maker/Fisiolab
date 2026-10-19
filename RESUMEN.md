@@ -31,7 +31,7 @@ Fecha: 2026-10-17
 - Sprint lineal: tiempos de paso (vídeo o fotocélulas), tramos y perfil fuerza-velocidad del sprint.
 - Cambio de dirección: 5-0-5, 5+5, V-Cut e Illinois; asimetría entre giros y déficit de cambio de dirección.
 - Carrera en cinta: contacto, vuelo, frecuencia, factor de apoyo, longitud del paso y asimetría por pie.
-- Comparar pacientes: ranking por 21 medidas.
+- Comparar pacientes (ranking por 21 medidas): quitado a petición del usuario el 2026-10-19; se recupera del commit `f820bb2` (`src/pages/ComparePage.tsx`, `src/data/compare.ts`) si se vuelve a pedir.
 - Nórdico de isquios: ángulo de rotura en el vídeo (o a mano) y momento estimado por pierna.
 - Bienestar: cuestionario diario (fatiga, sueño, dolor muscular, estrés y ánimo, de 1 a 5) más dolor de la lesión; total sobre 25, comparación con su media y avisos.
 - Movilidad: 14 movimientos de tobillo (lunge), cadera, hombro y cuello, medidos con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.
@@ -100,12 +100,25 @@ Fecha: 2026-10-17
 12. **Bienestar, un registro por día.** Si se rellena dos veces el mismo día, se corrige el primero. El dolor de la lesión se apunta aparte y no suma en el total.
 13. **Nórdico: ángulo respecto a la vertical** (0° erguido); se muestra también el ángulo con el suelo. El momento se calcula con los datos actuales del paciente y se presenta como estimación para comparar al mismo paciente.
 
-### Organización de la app (para quien la usa por primera vez)
+### Organización de la app (filosofía del iPhone)
 
-- **Barra de abajo:** Pacientes · Comparar · Guía de tests (la galería de tests de exploración; antes «Exploración», que chocaba con la pestaña del paciente) · Ajustes.
-- **Pacientes:** «Nuevo paciente» y «Medición rápida» arriba, «Primeros pasos» (cuenta, datos de la clínica, primer paciente, instalar, PIN; se marca solo y se puede ocultar), próximas citas de 7 días, reevaluaciones y la lista.
-- **Ficha:** «Informe» y «Editar datos» con texto; cuatro acciones con su explicación; guía «Primera visita» hasta guardar la primera sesión; sin apartados vacíos.
-- **Ajustes:** un menú con el estado de cada cosa y una pantalla por apartado (`/ajustes/cuenta`, `/clinica`, `/bloqueo`, `/datos`), más «Instalar» (`/instalar`), «Cómo se usa» (`/ayuda`), validación y privacidad.
+El usuario pidió una app tan intuitiva como un iPhone, sin listas que le digan qué hacer y en qué orden.
+
+- **Barra de abajo** (`src/ui/AppBar.tsx`):
+  - Tres pestañas: Pacientes · Guía de tests · Ajustes. Se ve en todas las pantallas salvo en formularios y vídeo.
+  - Cada pestaña recuerda dónde se estaba. Pulsar la pestaña activa vuelve a su inicio.
+  - Un punto rojo en Ajustes mientras falten los datos de la clínica.
+- **Arriba:** «‹ Pantalla anterior» y acciones a la derecha («+», «Editar»). En las pantallas principales y en la ficha, título grande que pasa a la barra al bajar.
+- **Pacientes:**
+  - «+» para añadir y buscador.
+  - Próximas citas de 7 días, reevaluaciones y «Medición rápida».
+  - Todos por letras, con su próxima cita o su última visita.
+- **Ficha** (`src/clinical/PatientShell.tsx`):
+  - Cabecera común a todas las pestañas: iniciales, nombre, datos, próxima cita con su botón de calendario, y «Editar».
+  - Las pestañas se quedan fijas al bajar.
+  - En el Resumen: «Añadir» (Sesión, Medición, Exploración, Cuestionario) y una lista con Anamnesis, Protección de datos (en naranja si falta) e Informe. Después, solo lo que tiene datos.
+- **Ajustes:** listas agrupadas con el estado de cada cosa y una pantalla por apartado.
+- **Enlaces entre secciones:** desde un test de la Guía, «Registrar el resultado en …» propone el último paciente abierto.
 - **Palabras:** «medición» para lo que se mide (salto, fuerza…) y «test de exploración» para Lachman, Neer…
 
 ## 4. Fórmulas acordadas (`src/calc/`)

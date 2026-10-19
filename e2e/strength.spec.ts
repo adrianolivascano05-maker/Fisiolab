@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, loadSeed, markNextInSeries, scrubber, test, video } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, loadSeed, markNextInSeries, scrubber, test, video } from "./fixtures";
 
 /** Tarjeta de una métrica, por su etiqueta. */
 const card = (page: Page, label: string) => page.getByText(label, { exact: true }).locator("..");
@@ -7,7 +7,7 @@ const card = (page: Page, label: string) => page.getByText(label, { exact: true 
 test.describe("F07 Fuerza: velocidad de barra y 1RM", () => {
   test("F07-H1 serie por vídeo: dos repeticiones, velocidad y pérdida", async ({ page }) => {
     await createPatient(page, { name: "Banca" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Fuerza/ }).click();
     await page.getByRole("radio", { name: "Press de banca" }).check({ force: true });
     await page.getByLabel("Carga en la barra").fill("50");
@@ -38,7 +38,7 @@ test.describe("F07 Fuerza: velocidad de barra y 1RM", () => {
 
   test("F07-H2 serie con encoder: velocidades escritas", async ({ page }) => {
     await createPatient(page, { name: "Encoder" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Fuerza/ }).click();
     await page.getByRole("radio", { name: "Peso muerto" }).check({ force: true });
     await page.getByLabel("Carga en la barra").fill("100");

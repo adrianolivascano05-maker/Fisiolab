@@ -1,13 +1,13 @@
 // Medición libre (módulo experimental de src/free). El vídeo de prueba no tiene personas: se comprueba
 // que el motor de pose carga desde la propia app (con su política de seguridad) y el flujo sin detección.
 // La detección con una persona real se comprobó a mano (abducción de 90° → 91,6°).
-import { createPatient, expect, expectAccessible, test, video } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, test, video } from "./fixtures";
 
 test.describe("Medición libre (experimental)", () => {
   test("FL-H1 carga el motor de pose y avisa si no hay nadie en el vídeo", async ({ page }) => {
     test.setTimeout(300_000);
     await createPatient(page, { name: "Libre" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Medición libre/ }).click();
     await expect(page.getByText("Experimental", { exact: true })).toBeVisible();
     await expectAccessible(page);

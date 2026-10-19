@@ -49,7 +49,7 @@ export function SensorCheckPage() {
   const ok = done && offset! <= SENSOR_TOL && vertical! <= SENSOR_TOL && spread! <= SENSOR_TOL;
 
   return (
-    <Page title="Comprobar el sensor" backTo="/validacion?tipo=rom_angle">
+    <Page title="Comprobar el sensor" backTo="/validacion?tipo=rom_angle" tabs={false}>
       <p className="text-text-muted">Antes de fiarte del inclinómetro, comprueba en 2 minutos que el sensor de este móvil mide bien. Cada lectura debería quedar a 1° o menos.</p>
       {sensor.status === "idle" || sensor.status === "denied" || sensor.status === "unavailable" ? (
         <>

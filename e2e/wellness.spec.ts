@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
 
 async function answer(page: Page, values: Record<string, number>) {
   for (const [item, v] of Object.entries(values)) {
@@ -13,7 +13,7 @@ async function answer(page: Page, values: Record<string, number>) {
 test.describe("F13 Bienestar", () => {
   test("F13-H1 cuestionario: incompleto, guardar, resumen y corregir el mismo día", async ({ page }) => {
     await createPatient(page, { name: "Bienestar" });
-    await page.getByRole("link", { name: "Nueva medición" }).click();
+    await add(page, "Medición").click();
     await page.getByRole("link", { name: /Bienestar/ }).click();
     await expect(page.getByRole("heading", { name: "¿Cómo está hoy?" })).toBeVisible();
     await answer(page, { Fatiga: 4, "Calidad del sueño": 2 });

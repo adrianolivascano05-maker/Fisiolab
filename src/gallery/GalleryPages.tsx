@@ -272,6 +272,7 @@ export function GalleryTest() {
     <Page
       title={t.name}
       backTo={back}
+      backLabel={regionBySlug(region)?.label}
       action={
         <button
           type="button"
