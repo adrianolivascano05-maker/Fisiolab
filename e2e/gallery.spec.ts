@@ -76,4 +76,20 @@ test.describe("Galería de tests", () => {
     await expect(page.getByRole("button", { name: "Volver a la vista inicial" })).toBeHidden();
     await expectAccessible(page);
   });
+
+  test("G5 varios tests seguidos: todos en 3D (cerrar una figura no deja la siguiente en el dibujo plano)", async ({ page }) => {
+    test.slow();
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("./exploracion/rodilla");
+    const links = page.getByRole("main").getByRole("link").filter({ hasText: /\S/ });
+    await links.first().waitFor();
+    const n = Math.min(5, await links.count());
+    for (let i = 0; i < n; i++) {
+      await links.nth(i).click();
+      await expect(page.getByRole("button", { name: "Girar la vista a la izquierda" }).first()).toBeVisible(SCENE);
+      await expect(page.locator("figure [class*='aspect-'] > div > svg")).toHaveCount(0);
+      await page.goBack();
+      await links.first().waitFor();
+    }
+  });
 });

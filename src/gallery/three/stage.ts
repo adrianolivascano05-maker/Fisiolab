@@ -76,13 +76,22 @@ const MAX_TURN = 40;
 
 const rad = (d: number) => (d * Math.PI) / 180;
 
+let webgl: boolean | null = null;
+/**
+ * Si el navegador puede dibujar en 3D. Se pregunta una vez y el lienzo de prueba se suelta enseguida: los
+ * navegadores solo dejan unos pocos contextos 3D abiertos y, si se acumulan, cierran los más viejos.
+ */
 export function webglAvailable(): boolean {
+  if (webgl !== null) return webgl;
   try {
     const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") ?? c.getContext("webgl"));
+    const gl = c.getContext("webgl2") ?? c.getContext("webgl");
+    webgl = !!gl;
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
   } catch {
-    return false;
+    webgl = false;
   }
+  return webgl;
 }
 
 /** Clínico: con flechas, etiquetas y dolor. Natural: el gesto limpio (la misma animación). */
@@ -201,6 +210,8 @@ export class Stage {
     canvas.setAttribute("aria-label", title);
     canvas.style.cssText = "display:block;width:100%;height:100%;touch-action:pan-y;cursor:grab";
     canvas.addEventListener("webglcontextlost", (e) => {
+      // Al cerrar la figura (dispose) se suelta el contexto a propósito: eso no es un fallo.
+      if (this.disposed) return;
       e.preventDefault();
       this.opts.onLost?.();
     });
@@ -1147,7 +1158,11 @@ export class Stage {
     return this.renderer.domElement.toDataURL("image/png");
   }
 
+  private disposed = false;
+
   dispose() {
+    if (this.disposed) return;
+    this.disposed = true;
     this.ro?.disconnect();
     this.patient.dispose();
     this.examiner?.dispose();

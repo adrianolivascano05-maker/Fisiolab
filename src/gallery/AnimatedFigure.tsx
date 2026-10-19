@@ -34,6 +34,12 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
   const glBox = useRef<HTMLDivElement>(null);
   const stage = useRef<Stage | null>(null);
   const [mode, setMode] = useState<Mode>("loading");
+  // Si el móvil cierra el contexto 3D (falta de memoria), se vuelve a montar la figura; solo tras dos intentos, el
+  // dibujo plano.
+  const [attempt, setAttempt] = useState(0);
+  // «Ver en 3D» desde el dibujo plano: se vuelve a intentar; sin WebGL no se ofrece.
+  const [retry, setRetry] = useState(0);
+  const [noWebgl, setNoWebgl] = useState(false);
   const [rotated, setRotated] = useState(false);
   const [playing, setPlaying] = useState(() => !reducedMotion());
   const [view, setView] = useState<StageMode>("clinical");
@@ -64,30 +70,44 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
       .then((m) => {
         const host = glBox.current;
         if (!alive || !host) return;
-        if (!m.webglAvailable()) return setMode("2d");
+        if (!m.webglAvailable()) {
+          setNoWebgl(true);
+          return setMode("2d");
+        }
         try {
           st = m.createStage(host, spec, title, {
             onRotate: () => setRotated(true),
             onLost: () => {
+              // El aviso puede llegar tarde, cuando ya se ve otra figura: entonces no es de esta.
+              if (!alive) return;
               st?.dispose();
               stage.current = null;
-              setMode("2d");
+              console.warn(`Figura 3D de «${title}»: el navegador cerró el contexto 3D (intento ${attempt + 1}).`);
+              if (attempt < 2) setAttempt((a) => a + 1);
+              else setMode("2d");
             },
           });
           stage.current = st;
           st.render(tRef.current);
           setMode("3d");
-        } catch {
+        } catch (e) {
+          console.warn(`Figura 3D de «${title}»: no se pudo montar, se enseña el dibujo plano.`, e);
           setMode("2d");
         }
       })
-      .catch(() => alive && setMode("2d"));
+      .catch((e) => {
+        console.warn("No se pudo cargar el motor 3D, se enseña el dibujo plano.", e);
+        if (alive) setMode("2d");
+      });
     return () => {
       alive = false;
       st?.dispose();
-      stage.current = null;
+      if (stage.current === st) stage.current = null;
     };
-  }, [spec, title]);
+  }, [spec, title, attempt, retry]);
+
+  // Otro test: vuelve a tener sus dos intentos.
+  useEffect(() => setAttempt(0), [spec]);
 
   useEffect(() => {
     stage.current?.setMode(view);
@@ -199,6 +219,20 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
           {playing ? <Pause aria-hidden="true" className="size-5" /> : <Play aria-hidden="true" className="size-5" />}
         </button>
       </div>
+      {mode === "2d" && !noWebgl && (
+        <div className="mx-3 mt-2">
+          <button
+            type="button"
+            onClick={() => {
+              setAttempt(0);
+              setRetry((r) => r + 1);
+            }}
+            className="tap inline-flex items-center rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface"
+          >
+            Ver en 3D
+          </button>
+        </div>
+      )}
       {mode === "3d" && (
         <div className="mx-3 mt-2 flex flex-wrap items-center justify-between gap-2">
           <div className="flex gap-0.5 rounded-lg bg-surface p-0.5" role="group" aria-label="Ayudas visuales">
