@@ -10,7 +10,7 @@ test.use({ serviceWorkers: "block" });
 async function login(page: Page) {
   await page.goto("./");
   await page.getByRole("button", { name: "Entrar con Google" }).click();
-  await expect(page.getByRole("heading", { name: "Pacientes" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
 test.describe("Google Calendar y archivos en Drive", () => {
@@ -45,7 +45,7 @@ test.describe("Google Calendar y archivos en Drive", () => {
     await expect.poll(() => google.events("ana").map((e) => Date.parse(e.start.dateTime)), { timeout: 20_000 }).toEqual([Date.parse("2030-05-06T09:30:00Z")]);
 
     // Solo las iniciales en el evento.
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/cuenta");
     await expect(page.getByRole("heading", { name: "Google Calendar" })).toBeVisible();
     await expectAccessible(page);
     await page.getByLabel("En el evento sale").selectOption("initials");
@@ -81,7 +81,7 @@ test.describe("Google Calendar y archivos en Drive", () => {
     expect(pdf.bytes.subarray(0, 8).toString("latin1")).toBe("%PDF-1.4");
     expect(pdf.bytes.byteLength).toBeGreaterThan(10_000);
 
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/datos");
     await page.getByRole("button", { name: "Guardar los resultados en mi Drive (CSV)" }).click();
     await expect(page.getByText(/fisiolab-resultados-.*\.csv» está en tu Drive/)).toBeVisible({ timeout: 20_000 });
     const csv = google.visible("ana").find((f) => f.mimeType === "text/csv")!;
@@ -94,8 +94,9 @@ test.describe("Google Calendar y archivos en Drive", () => {
     google.withheld = ["drive.file", "calendar.app.created"];
     await google.install(page.context(), () => "ana");
     await login(page);
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/cuenta");
     await expect(page.getByText("Falta el permiso de Google Calendar.")).toBeVisible();
+    await page.goto("./ajustes/datos");
     await page.getByRole("button", { name: "Guardar los resultados en mi Drive (CSV)" }).click();
     await expect(page.getByRole("alert").getByText(/Falta el permiso para guardar archivos en tu Drive/)).toBeVisible();
     await expectAccessible(page);

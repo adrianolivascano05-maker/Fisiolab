@@ -75,8 +75,8 @@ export function PatientPrivacyPage() {
           {!clinicComplete(clinic) && (
             <Alert tone="warning" title="Faltan los datos de la clínica">
               El texto necesita al menos el nombre y el correo del responsable. Rellénalos en{" "}
-              <Link className="underline" to="/ajustes#proteccion-datos">
-                Ajustes → Protección de datos
+              <Link className="underline" to="/ajustes/clinica">
+                Ajustes → Clínica y protección de datos
               </Link>
               .
             </Alert>

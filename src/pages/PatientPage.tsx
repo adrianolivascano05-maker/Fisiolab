@@ -1,4 +1,4 @@
-import { Activity, CalendarCheck, CalendarClock, ClipboardList, FileText, ListChecks, NotebookPen, Pencil, Plus, Stethoscope, TriangleAlert } from "lucide-react";
+import { Activity, CalendarCheck, CalendarClock, Circle, CircleCheck, ClipboardList, FileText, ListChecks, NotebookPen, Pencil, Stethoscope, TriangleAlert, type LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { fmt, fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
@@ -26,7 +26,65 @@ function age(birthDate: string | null) {
   return n.getFullYear() - b.getFullYear() - (n < new Date(n.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0);
 }
 
-const secondary = "tap inline-flex items-center justify-center gap-2 rounded-md border border-border-input bg-bg px-3 font-semibold hover:bg-surface";
+/** Saltos: los que usan la masa y la distancia de empuje para la fuerza y la potencia. */
+const JUMPS = new Set<string>(["cmj", "sj", "cmj_arms", "dj", "single_leg", "rj_10_5"]);
+
+const chip = "inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border-input bg-bg px-3 text-sm font-semibold hover:bg-surface";
+
+/** Una de las cuatro cosas que se hacen con un paciente: nombre grande y para qué sirve. */
+function Action({ to, icon: Icon, title, text }: { to: string; icon: LucideIcon; title: string; text: string }) {
+  return (
+    <Link to={to} className="flex flex-col gap-1 rounded-lg border border-border bg-bg p-3 shadow-card hover:border-accent">
+      <span className="flex items-center gap-2 font-semibold">
+        <Icon aria-hidden="true" className="size-5 shrink-0 text-accent" /> {title}
+      </span>
+      <span className="text-sm leading-snug text-text-muted">{text}</span>
+    </Link>
+  );
+}
+
+type VisitStep = { to: string; title: string; text: string; done: boolean };
+
+/** Guía de la primera visita: los pasos en orden, con lo hecho marcado. Desaparece al guardar la primera sesión. */
+function FirstVisit({ id, steps }: { id: string; steps: VisitStep[] }) {
+  const done = steps.filter((s) => s.done).length;
+  return (
+    <section aria-labelledby="primera-visita">
+      <Card className="flex flex-col gap-2 border-accent">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 id="primera-visita" className="text-lg">
+            Primera visita
+          </h2>
+          <span className="nums text-sm text-text-muted">
+            {done} de {steps.length}
+          </span>
+        </div>
+        <p className="text-sm text-text-muted">En este orden. Lo que ya esté hecho queda marcado.</p>
+        <ol className="flex flex-col">
+          {steps.map((s, i) => (
+            <li key={s.to}>
+              <Link to={`/pacientes/${id}/${s.to}`} className="flex min-h-14 items-start gap-3 rounded-md px-1 py-2 hover:bg-surface">
+                {s.done ? (
+                  <CircleCheck aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-success" />
+                ) : (
+                  <Circle aria-hidden="true" className="mt-0.5 size-5 shrink-0 text-text-muted" />
+                )}
+                <span className="flex flex-1 flex-col">
+                  <span className={cx("font-semibold", s.done && "text-text-muted")}>
+                    {i + 1}. {s.title}
+                  </span>
+                  {!s.done && <span className="text-sm text-text-muted">{s.text}</span>}
+                </span>
+                {s.done && <span className="pt-0.5 text-sm font-semibold text-success">Hecho</span>}
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </Card>
+    </section>
+  );
+}
+
 const kindStyle: Record<EventKind, { dot: string; label: string }> = {
   session: { dot: "bg-brand", label: "Sesión" },
   finding: { dot: "bg-danger", label: "Exploración" },
@@ -77,43 +135,47 @@ export function PatientPage() {
   const timeline = buildTimeline(id, { sessions, findings, tests, questionnaires, wellness, anamnesis }).slice(0, 8);
   const symmetry = symmetryRows(tests);
   const lowSymmetry = symmetry.filter((r) => r.lsi < LSI_REFERENCE);
+  // Hasta cerrar la primera sesión, una guía de la primera visita en lugar de apartados vacíos.
+  const firstVisit = sessions.length === 0;
 
   return (
-    <Page
-      title={patient.name}
-      backTo="/"
-      action={
-        <>
-          <Link to={`/pacientes/${id}/informe`} aria-label="Informe del paciente" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
-            <FileText aria-hidden="true" className="size-5" />
+    <Page title={patient.name} backTo="/">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-text-muted">{facts.length ? facts.join(" · ") : "Sin datos físicos"}</p>
+        <div className="flex gap-2">
+          <Link to={`/pacientes/${id}/informe`} className={chip}>
+            <FileText aria-hidden="true" className="size-4 text-accent" /> Informe
           </Link>
-          <Link to={`/pacientes/${id}/editar`} aria-label="Editar paciente" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
-            <Pencil aria-hidden="true" className="size-5" />
+          <Link to={`/pacientes/${id}/editar`} className={chip}>
+            <Pencil aria-hidden="true" className="size-4 text-accent" /> Editar datos
           </Link>
-        </>
-      }
-    >
-      <p className="text-text-muted">{facts.length ? facts.join(" · ") : "Sin datos físicos"}</p>
+        </div>
+      </div>
       <PatientNav id={id} />
-      {(!patient.bodyMassKg || !patient.pushOffDistanceCm) && (
+      {(!patient.bodyMassKg || !patient.pushOffDistanceCm) && tests.some((t) => JUMPS.has(t.type)) && (
         <Alert tone="info" title="Faltan datos para fuerza y potencia">
-          Añade la masa y la distancia de empuje en <Link className="underline" to={`/pacientes/${id}/editar`}>editar</Link>. La altura del salto se calcula igualmente.
+          Añade la masa y la distancia de empuje en <Link className="underline" to={`/pacientes/${id}/editar`}>editar datos</Link>. La altura del salto se calcula igualmente.
         </Alert>
       )}
-      <Link
-        to={`/pacientes/${id}/test`}
-        className="inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover"
-      >
-        <Plus aria-hidden="true" className="size-5" /> Nueva medición
-      </Link>
-      <div className="grid grid-cols-2 gap-2">
-        <Link to={`/pacientes/${id}/sesiones/nueva`} className={secondary}>
-          <NotebookPen aria-hidden="true" className="size-5 shrink-0 text-accent" /> Nueva sesión
-        </Link>
-        <Link to={`/pacientes/${id}/exploracion/nuevo`} className={secondary}>
-          <Stethoscope aria-hidden="true" className="size-5 shrink-0 text-accent" /> Registrar test
-        </Link>
-      </div>
+      {firstVisit && (
+        <FirstVisit
+          id={id}
+          steps={[
+            { to: "proteccion-datos", title: "Protección de datos", text: "Que lea y firme la hoja; apunta sus consentimientos.", done: !!patient.privacy.informedAt },
+            { to: "anamnesis", title: "Anamnesis", text: "Motivo de consulta, antecedentes, hábitos y objetivos.", done: !!anamnesis },
+            { to: "exploracion/nuevo", title: "Exploración física", text: "Los tests que le hagas, positivos o negativos.", done: findings.length > 0 },
+            { to: "test", title: "Medir (opcional)", text: "Salto, fuerza, movilidad… para comparar más adelante.", done: tests.length > 0 },
+            { to: "sesiones/nueva", title: "Cerrar la visita", text: "Apunta el tratamiento, el plan y la siguiente cita.", done: false },
+          ]}
+        />
+      )}
+      <nav aria-label="Qué quieres hacer" className="grid grid-cols-2 gap-2">
+        <Action to={`/pacientes/${id}/sesiones/nueva`} icon={NotebookPen} title="Nueva sesión" text="La visita de hoy: dolor, tratamiento y siguiente cita." />
+        <Action to={`/pacientes/${id}/test`} icon={Activity} title="Nueva medición" text="Salto, fuerza, sprint, carrera o movilidad." />
+        <Action to={`/pacientes/${id}/exploracion/nuevo`} icon={Stethoscope} title="Test de exploración" text="Lachman, Neer… positivo o negativo." />
+        <Action to={`/pacientes/${id}/cuestionarios/nuevo`} icon={ListChecks} title="Nuevo cuestionario" text="PSFS, KOOS, LEFS, NDI…" />
+      </nav>
+      {!firstVisit && <PrivacyCard patientId={id} privacy={patient.privacy} />}
       {visit && (
         <Card className="flex items-center gap-3">
           <CalendarCheck aria-hidden="true" className="size-5 shrink-0 text-accent" />
@@ -124,9 +186,8 @@ export function PatientPage() {
         </Card>
       )}
 
-      <PrivacyCard patientId={id} privacy={patient.privacy} />
-
       {/* Lo clínico: por qué viene, banderas y dolor. */}
+      {(!firstVisit || anamnesis) && (
       <section aria-labelledby="clinico" className="flex flex-col gap-2">
         <h2 id="clinico" className="text-lg">
           Motivo de consulta
@@ -167,7 +228,9 @@ export function PatientPage() {
           </Alert>
         )}
       </section>
+      )}
 
+      {(pain.length > 0 || review) && (
       <section aria-labelledby="dolor" className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-2">
           <h2 id="dolor" className="text-lg">
@@ -179,12 +242,10 @@ export function PatientPage() {
             </span>
           )}
         </div>
-        {pain.length ? (
+        {pain.length > 0 && (
           <Card>
             <PainChart points={pain} label={`Dolor de 0 a 10: ${pain.map((p) => `${fmtDate(p.at)} ${p.pain}`).join(", ")}`} />
           </Card>
-        ) : (
-          <p className="text-sm text-text-muted">Se dibuja con el dolor de la anamnesis y de cada sesión.</p>
         )}
         {review && (
           <Link to={`/pacientes/${id}/sesiones`} className="block">
@@ -198,20 +259,19 @@ export function PatientPage() {
           </Link>
         )}
       </section>
+      )}
 
+      {current.length > 0 && (
       <section aria-labelledby="exploracion" className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-2">
           <h2 id="exploracion" className="text-lg">
             Exploración
           </h2>
-          {current.length > 0 && (
-            <Link to={`/pacientes/${id}/exploracion`} className="text-sm font-semibold text-accent">
-              Ver todo
-            </Link>
-          )}
+          <Link to={`/pacientes/${id}/exploracion`} className="text-sm font-semibold text-accent">
+            Ver todo
+          </Link>
         </div>
-        {current.length ? (
-          <ul aria-label="Tests de exploración" className="flex flex-wrap gap-2">
+        <ul aria-label="Tests de exploración" className="flex flex-wrap gap-2">
             {[...positives, ...others].map((f) => (
               <li key={f.id}>
                 <Link to={`/pacientes/${id}/exploracion/${f.id}`} className="block">
@@ -224,11 +284,10 @@ export function PatientPage() {
               </li>
             ))}
           </ul>
-        ) : (
-          <p className="text-sm text-text-muted">Registra los tests que hagas (positivo, negativo o dudoso) y aparecerán aquí.</p>
-        )}
       </section>
+      )}
 
+      {(tests.length > 0 || wellness.length > 0 || !firstVisit) && (
       <section aria-labelledby="mediciones" className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between gap-2">
           <h2 id="mediciones" className="text-lg">
@@ -242,7 +301,7 @@ export function PatientPage() {
         </div>
         <AnalysisNav id={id} tests={tests} wellness={wellness[0] ?? null} />
         {tests.length === 0 ? (
-          <EmptyState icon={Activity} title="Sin tests todavía">
+          <EmptyState icon={Activity} title="Sin mediciones todavía">
             Pulsa «Nueva medición» para registrar su primer salto o su movilidad.
           </EmptyState>
         ) : (
@@ -255,22 +314,16 @@ export function PatientPage() {
           </>
         )}
       </section>
+      )}
 
-      <section aria-labelledby="cuestionarios" className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-2">
+      {questionnaires.length > 0 && (
+        <section aria-labelledby="cuestionarios" className="flex flex-col gap-2">
           <h2 id="cuestionarios" className="text-lg">
             Cuestionarios
           </h2>
-          <Link to={`/pacientes/${id}/cuestionarios/nuevo`} className="inline-flex items-center gap-1 text-sm font-semibold text-accent">
-            <ListChecks aria-hidden="true" className="size-4" /> Registrar cuestionario
-          </Link>
-        </div>
-        {questionnaires.length ? (
           <QuestionnaireTiles patientId={id} items={questionnaires} />
-        ) : (
-          <p className="text-sm text-text-muted">PSFS, cambio global percibido o la puntuación de KOOS, LEFS, NDI… para ver si mejora con el tratamiento.</p>
-        )}
-      </section>
+        </section>
+      )}
 
       {timeline.length > 0 && (
         <section aria-labelledby="historia" className="flex flex-col gap-2">

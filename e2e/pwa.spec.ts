@@ -45,9 +45,9 @@ test.describe("PWA: instalable y sin conexión", () => {
 
   test("PWA-E3 otros dispositivos: enlace, código QR y pasos para cada sistema", async ({ page, context, baseURL }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-    await page.goto("./");
-    await page.getByRole("link", { name: "Usar la app en otros dispositivos" }).click();
-    await expect(page.getByRole("heading", { name: "Otros dispositivos" })).toBeVisible();
+    await page.goto("./ajustes");
+    await page.getByRole("link", { name: /Instalar y usar en otros dispositivos/ }).click();
+    await expect(page.getByRole("heading", { name: "Instalar la app" })).toBeVisible();
     const url = new URL(baseURL!).href;
     await expect(page.getByRole("img", { name: `Código QR con el enlace de la app: ${url}` })).toBeVisible();
     for (const d of ["Ordenador con Chrome o Edge", "Mac con Safari", "iPad o iPhone", "Tablet o móvil Android"]) await expect(page.getByRole("heading", { name: new RegExp(d) })).toBeVisible();
@@ -57,17 +57,30 @@ test.describe("PWA: instalable y sin conexión", () => {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
   });
 
-  test("PWA-E1 tarjeta de instalación: pasos y ocultar durante dos semanas", async ({ page }) => {
+  test("PWA-E1 primeros pasos: instalar, clínica y primer paciente; se marcan al hacerlos y se pueden ocultar", async ({ page }) => {
     await page.goto("./");
-    const card = page.getByRole("heading", { name: "Ten Cénit a un toque" });
-    await expect(card).toBeVisible();
-    await expect(page.getByText(/«Instalar app»|Instalar la app|Añadir a pantalla de inicio/).first()).toBeVisible();
+    const steps = page.getByRole("region", { name: "Primeros pasos" });
+    await expect(steps).toBeVisible();
+    await expect(steps.getByText(/^0 de \d hechos$/)).toBeVisible();
+    await expect(steps.getByRole("link", { name: /Instalar la app en este dispositivo/ })).toBeVisible();
     await expectAccessible(page);
-    await page.getByRole("button", { name: "Ocultar durante dos semanas" }).click();
-    await expect(card).toHaveCount(0);
+    // El primer paciente queda marcado.
+    await steps.getByRole("link", { name: /Tu primer paciente/ }).click();
+    await page.getByLabel("Nombre").fill("Primero");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Primero" })).toBeVisible();
+    await page.goto("./");
+    await expect(steps.getByRole("link", { name: /Tu primer paciente.*Hecho/ })).toBeVisible();
+    // Instalar lleva a la pantalla con los pasos de este dispositivo.
+    await steps.getByRole("link", { name: /Instalar la app en este dispositivo/ }).click();
+    await expect(page.getByRole("heading", { name: "En este dispositivo" })).toBeVisible();
+    await expect(page.getByText(/«Instalar app»|Instalar la app|Añadir a pantalla de inicio/).first()).toBeVisible();
+    await page.goto("./");
+    await steps.getByRole("button", { name: "Ocultar" }).click();
+    await expect(steps).toHaveCount(0);
     await page.reload();
-    await expect(page.getByText("Todavía no hay pacientes")).toBeVisible();
-    await expect(card).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Primero/ })).toBeVisible();
+    await expect(steps).toHaveCount(0);
   });
 
   test("PWA-E2 en iPhone explica Compartir → Añadir a pantalla de inicio", async ({ browser }) => {
@@ -80,14 +93,16 @@ test.describe("PWA: instalable y sin conexión", () => {
     });
     await withoutCloud(ctx);
     const page = await ctx.newPage();
-    await page.goto("./");
-    await expect(page.getByText("«Añadir a pantalla de inicio»")).toBeVisible();
-    await expect(page.getByText("Compartir", { exact: true })).toBeVisible();
+    await page.goto("./instalar");
+    // Los pasos de este dispositivo (un iPhone), arriba del todo.
+    const here = page.getByRole("heading", { name: "En este dispositivo" }).locator("+ div");
+    await expect(here.getByText("«Añadir a pantalla de inicio»", { exact: true })).toBeVisible();
+    await expect(here.getByText("Compartir", { exact: true })).toBeVisible();
     await ctx.close();
   });
 
   test("PWA-E3 recordatorio de copia con pacientes reales, no con los de ejemplo", async ({ page }) => {
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/datos");
     await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
     await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
     await page.goto("./");
@@ -98,7 +113,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     await page.goto("./");
     await expect(page.getByText("Haz una copia de seguridad")).toBeVisible();
     await expect(page.getByText("Todavía no has hecho ninguna.", { exact: false })).toBeVisible();
-    await page.getByRole("link", { name: "Ir a Ajustes" }).click();
+    await page.getByRole("link", { name: "Hacer la copia" }).click();
     await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar copia de seguridad" }).click()]);
     await expect(page.getByText(/Última copia: \d/)).toBeVisible();
     await page.goto("./");
@@ -106,10 +121,14 @@ test.describe("PWA: instalable y sin conexión", () => {
     await expect(page.getByText("Haz una copia de seguridad")).toHaveCount(0);
   });
 
-  test("PWA-E4 ajustes muestran la instalación y la protección de datos", async ({ page }) => {
+  test("PWA-E4 ajustes: un menú con cada apartado y cómo está", async ({ page }) => {
     await page.goto("./ajustes");
-    await expect(page.getByRole("heading", { name: "Instalación" })).toBeVisible();
-    await expect(page.getByText(/El navegador (todavía no )?protege los datos/)).toBeVisible();
+    for (const name of [/Cuenta de Google/, /Clínica y protección de datos/, /Bloqueo con PIN.*Desactivado/, /Copias de seguridad y exportar/, /Instalar y usar/, /Cómo se usa/, /Validación de las mediciones/, /Privacidad/])
+      await expect(page.getByRole("link", { name })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("link", { name: /Cómo se usa/ }).click();
+    await expect(page.getByRole("heading", { name: "Cómo se usa" })).toBeVisible();
+    await expect(page.getByRole("list", { name: "Pasos" }).getByRole("listitem")).toHaveCount(5);
     await expectAccessible(page);
   });
 });

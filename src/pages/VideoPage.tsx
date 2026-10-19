@@ -123,7 +123,7 @@ export function VideoPage() {
       videoStore.set(testId, picked.file);
       navigate(`/tests/${testId}/marcar`, { replace: true });
     } catch (e) {
-      toast(e instanceof Error ? e.message : "No se pudo crear el test", "danger");
+      toast(e instanceof Error ? e.message : "No se pudo crear la medición", "danger");
       setSaving(false);
     }
   }

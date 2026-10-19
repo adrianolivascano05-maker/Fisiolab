@@ -2,7 +2,6 @@ import { Share, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useRegisterSW } from "virtual:pwa-register/react";
 import { Button, IconButton } from "../ui/Button";
-import { Card } from "../ui/Card";
 
 // ---------- Actualizaciones ----------
 
@@ -99,48 +98,5 @@ export function InstallSteps({ state, install }: ReturnType<typeof useInstall>) 
     <p className="text-sm">
       En el menú del navegador, elige <b>«Instalar app»</b> o <b>«Añadir a pantalla de inicio»</b>.
     </p>
-  );
-}
-
-const DISMISS_KEY = "fisiolab.install-dismissed-at";
-const DISMISS_DAYS = 14;
-
-function dismissedRecently(): boolean {
-  try {
-    const at = Number(localStorage.getItem(DISMISS_KEY));
-    return at > 0 && Date.now() - at < DISMISS_DAYS * 86_400_000;
-  } catch {
-    return false;
-  }
-}
-
-/** Tarjeta en la lista de pacientes hasta que se instale (o se aparte durante 14 días). */
-export function InstallCard() {
-  const install = useInstall();
-  const [hidden, setHidden] = useState(dismissedRecently);
-  if (install.state === "installed" || hidden) return null;
-  return (
-    <Card className="flex flex-col gap-3">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h2 className="font-semibold">Ten Cénit a un toque</h2>
-          <p className="text-sm text-text-muted">Instálala: abre sin internet y el navegador cuida tus datos.</p>
-        </div>
-        <IconButton
-          label="Ocultar durante dos semanas"
-          onClick={() => {
-            try {
-              localStorage.setItem(DISMISS_KEY, String(Date.now()));
-            } catch {
-              /* sin almacenamiento: se oculta solo en esta visita */
-            }
-            setHidden(true);
-          }}
-        >
-          <X aria-hidden="true" className="size-5" />
-        </IconButton>
-      </div>
-      <InstallSteps {...install} />
-    </Card>
   );
 }

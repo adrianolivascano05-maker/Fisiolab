@@ -17,14 +17,14 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
 
   test("F15-H2 copia de seguridad y restauración", async ({ page }) => {
     await createPatient(page, { name: "Antes de la copia" });
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/datos");
     await expect(page.getByText("Última copia: nunca")).toBeVisible();
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar copia de seguridad" }).click()]);
     const backup = (await dl.path())!;
     await expect(page.getByText(/Última copia: \d/)).toBeVisible();
 
     await createPatient(page, { name: "Después de la copia" });
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/datos");
     await page.getByLabel("Elegir copia de seguridad").setInputFiles(backup);
     await page.getByRole("dialog").getByRole("button", { name: "Sustituir mis datos" }).click();
     await expect(page.getByText("Copia restaurada")).toBeVisible();
@@ -35,7 +35,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
 
   test("F15-N1 un archivo que no es una copia no toca los datos", async ({ page }) => {
     await createPatient(page, { name: "Intacto" });
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/datos");
     await page.getByLabel("Elegir copia de seguridad").setInputFiles({ name: "x.sqlite3", mimeType: "application/octet-stream", buffer: Buffer.from("no soy una base") });
     await page.getByRole("dialog").getByRole("button", { name: "Sustituir mis datos" }).click();
     await expect(page.getByText("El archivo no es una copia de seguridad válida.")).toBeVisible();
@@ -44,12 +44,12 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
   });
 
   test("F15-E1 cargar ejemplo no se duplica aunque se pulse rápido", async ({ page }) => {
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/datos");
     await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
     await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Ejemplo · / })).toHaveCount(3);
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/datos");
     await page.getByRole("button", { name: "Borrar los datos de ejemplo" }).click();
     await expect(page.getByRole("button", { name: "Cargar datos de ejemplo" })).toBeVisible();
   });

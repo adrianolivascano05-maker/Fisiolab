@@ -45,7 +45,7 @@ test.describe("F16 Ficha clínica", () => {
 
   test("F16-H2 exploración: registrar un test, ver su evidencia, editarlo y borrarlo", async ({ page }) => {
     await createPatient(page, { name: "Pablo Exploración" });
-    await page.getByRole("link", { name: "Registrar test" }).click();
+    await page.getByRole("link", { name: "Test de exploración" }).click();
     await page.getByRole("searchbox", { name: "Buscar test" }).fill("lachman");
     await page.getByRole("button", { name: /Test de Lachman/ }).first().click();
     await page.getByRole("button", { name: "Guardar resultado" }).click();
@@ -123,7 +123,7 @@ test.describe("F16 Ficha clínica", () => {
 
   test("F16-H5 cuestionarios: la PSFS en la app, el KOOS por puntuación y su evolución", async ({ page }) => {
     await createPatient(page, { name: "Irene Cuestionarios" });
-    await page.getByRole("link", { name: "Registrar cuestionario" }).click();
+    await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
     await page.getByRole("button", { name: /PSFS/ }).click();
     await page.getByLabel("Fecha y hora").fill("2026-09-01T10:00");
     await page.getByLabel("Actividad 1", { exact: true }).fill("Bajar escaleras");
@@ -139,7 +139,7 @@ test.describe("F16 Ficha clínica", () => {
     await expect(list).toContainText("3/10");
 
     // La siguiente PSFS trae las mismas actividades y lo que puntuó la última vez.
-    await page.getByRole("link", { name: "Registrar cuestionario" }).click();
+    await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
     await page.getByRole("button", { name: /PSFS/ }).click();
     await expect(page.getByLabel("Actividad 1", { exact: true })).toHaveValue("Bajar escaleras");
     await expect(page.getByText("La última vez: 4")).toBeVisible();
@@ -150,7 +150,7 @@ test.describe("F16 Ficha clínica", () => {
     await expect(list).toContainText("+3 desde el primero (mejor)");
 
     // KOOS: solo la puntuación, con su subescala y su rango.
-    await page.getByRole("link", { name: "Registrar cuestionario" }).click();
+    await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
     await page.getByRole("button", { name: /KOOS/ }).click();
     await page.getByLabel("Puntuación", { exact: true }).fill("62");
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
@@ -189,7 +189,7 @@ test.describe("F16 Ficha clínica", () => {
     await expectAccessible(page);
 
     await tab(page, "Resumen").click();
-    await page.getByRole("link", { name: "Informe del paciente" }).click();
+    await page.getByRole("link", { name: "Informe", exact: true }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Informe de fisioterapia");
     await expect(report).toContainText("Marcos Vidal");

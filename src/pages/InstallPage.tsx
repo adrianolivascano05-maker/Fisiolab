@@ -46,11 +46,18 @@ export function InstallPage() {
   const [copied, setCopied] = useState(false);
   const canShare = typeof navigator.share === "function";
   return (
-    <Page title="Otros dispositivos" backTo="/">
+    <Page title="Instalar la app" backTo="/ajustes">
       <p>
         Cénit es una web que se instala: se abre con este enlace en cualquier móvil, tablet u ordenador, y desde ahí se añade como app. No hace falta
         ninguna tienda.
       </p>
+      <h2 className="text-lg">En este dispositivo</h2>
+      <Card className="flex flex-col gap-2">
+        <InstallSteps {...install} />
+        {install.state !== "installed" && <p className="text-sm text-text-muted">Instalada se abre sin internet y el navegador cuida mejor sus datos.</p>}
+      </Card>
+
+      <h2 className="text-lg">En otro dispositivo</h2>
       <Card className="flex flex-col items-center gap-3">
         <QrCode text={url} label={`Código QR con el enlace de la app: ${url}`} />
         <p className="text-center text-sm text-text-muted">Escanéalo con la cámara de la tablet o del otro móvil.</p>
@@ -83,7 +90,7 @@ export function InstallPage() {
         </div>
       </Card>
 
-      <h2 className="text-lg">Instalarla</h2>
+      <h2 className="text-lg">Cómo instalarla en cada uno</h2>
       <ul className="flex flex-col gap-2">
         {devices.map((d) => (
           <li key={d.title}>
@@ -107,10 +114,6 @@ export function InstallPage() {
           : "Si inicias sesión con Google en los dos, tienes los mismos pacientes en todos. Sin cuenta, cada dispositivo guarda los suyos: para pasarlos, usa la copia de seguridad de Ajustes."}
       </p>
 
-      <h2 className="text-lg">En este dispositivo</h2>
-      <Card>
-        <InstallSteps {...install} />
-      </Card>
     </Page>
   );
 }

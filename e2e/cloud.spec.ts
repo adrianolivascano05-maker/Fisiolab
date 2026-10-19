@@ -34,7 +34,7 @@ async function device(browser: Browser, google: FakeGoogle, who: keyof typeof us
 async function enter(page: Page) {
   await expect(page.getByRole("heading", { name: "Entra con tu cuenta de Google" })).toBeVisible();
   await page.getByRole("button", { name: "Entrar con Google" }).click();
-  await expect(page.getByRole("heading", { name: "Pacientes" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
 async function login(page: Page) {
@@ -54,10 +54,12 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expect(page.getByRole("heading", { name: "Entra con tu cuenta de Google" })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Entrar con Google" }).click();
-    await expect(page.getByRole("heading", { name: "Pacientes" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
     await createPatient(page, { name: "Lucía Nube" });
     await expect.poll(() => google.driveText("ana").includes(enc("Lucía Nube")), { timeout: 15_000 }).toBe(true);
     await page.goto("./ajustes");
+    await expect(page.getByRole("link", { name: /Cuenta de Google.*ana@clinica\.test.*Guardado en tu Drive/ })).toBeVisible();
+    await page.goto("./ajustes/cuenta");
     await expect(page.getByText("ana@clinica.test")).toBeVisible();
     await expect(page.getByText(/Guardado en tu Drive/)).toBeVisible();
     await expectAccessible(page);
@@ -87,7 +89,7 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expect(colleague.getByText("Lucía Nube")).toHaveCount(0);
 
     // La tablet cierra sesión borrando sus datos; al volver a entrar, Lucía vuelve desde Drive.
-    await tablet.goto("./ajustes");
+    await tablet.goto("./ajustes/cuenta");
     await tablet.getByRole("button", { name: "Cerrar sesión y borrar los datos de este dispositivo" }).click();
     await tablet.getByRole("dialog", { name: "¿Borrar los datos de este dispositivo?" }).getByRole("button", { name: "Borrar y cerrar sesión" }).click();
     await enter(tablet);
@@ -179,7 +181,7 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await createPatient(page, { name: "Paciente Cifrado" });
     await expect.poll(() => google.driveText("ana").includes(enc("Paciente Cifrado")), { timeout: 15_000 }).toBe(true);
 
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/cuenta");
     await page.getByRole("button", { name: "Cifrar la copia de Drive" }).click();
     const sheet = page.getByRole("dialog", { name: "Cifrar la copia de Drive" });
     await sheet.getByLabel("Contraseña", { exact: true }).fill("corta");

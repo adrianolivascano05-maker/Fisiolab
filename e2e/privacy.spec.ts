@@ -9,6 +9,8 @@ const pin = (page: Page) => page.getByRole("textbox", { name: "PIN", exact: true
 test.describe("Protección de datos", () => {
   test("PD1 datos de la clínica y hoja de protección de datos de un paciente", async ({ page }) => {
     await page.goto("./ajustes");
+    await expect(page.getByRole("link", { name: /Clínica y protección de datos.*Faltan los datos de la clínica/ })).toBeVisible();
+    await page.getByRole("link", { name: /Clínica y protección de datos/ }).click();
     await page.getByLabel("Clínica (nombre o razón social)").fill("Fisio Prueba S.L.");
     await page.getByLabel("Correo para ejercer los derechos").fill("datos@fisioprueba.test");
     await page.getByLabel("Conservar la historia clínica").fill("3");
@@ -19,7 +21,9 @@ test.describe("Protección de datos", () => {
     await expect(page.getByText("Datos de la clínica guardados")).toBeVisible();
 
     await createPatient(page, { name: "Marta Datos" });
-    await page.getByRole("link", { name: /Falta darle la información de protección de datos/ }).click();
+    // La guía de la primera visita empieza por la protección de datos.
+    const guide = page.getByRole("region", { name: "Primera visita" });
+    await guide.getByRole("link", { name: /Protección de datos/ }).click();
     await expect(page.getByRole("heading", { name: "Protección de datos", level: 1 })).toBeVisible();
     const notice = page.getByRole("article", { name: "Información sobre protección de datos" });
     await expect(notice.getByText(/Fisio Prueba S\.L\./)).toBeVisible();
@@ -33,6 +37,13 @@ test.describe("Protección de datos", () => {
     await expect(page.getByText(/Información entregada el/)).toBeVisible();
 
     await page.getByRole("link", { name: "Volver" }).click();
+    await expect(guide.getByRole("link", { name: /Protección de datos.*Hecho/ })).toBeVisible();
+    // Cerrada la primera visita, la ficha resume sus consentimientos.
+    await page.getByRole("link", { name: "Nueva sesión" }).click();
+    await page.getByLabel("Tratamiento").fill("Valoración");
+    await page.getByRole("button", { name: "Guardar sesión" }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
+    await expect(guide).toHaveCount(0);
     const card = page.getByRole("link", { name: /Protección de datos: informado el/ });
     await expect(card).toContainText("Fotos y vídeos: sí · WhatsApp, SMS o correo: no");
   });
@@ -45,7 +56,7 @@ test.describe("Protección de datos", () => {
     await expect(page.getByText("Terapia manual")).toBeVisible();
     await page.goto("./");
     await page.getByRole("link", { name: /Con Historia/ }).click();
-    await page.getByRole("link", { name: "Editar paciente" }).click();
+    await page.getByRole("link", { name: "Editar datos" }).click();
     await page.getByRole("button", { name: "Borrar paciente" }).click();
     const dialog = page.getByRole("dialog", { name: "¿Borrar este paciente?" });
     await expect(dialog.getByText(/Hay que conservar su historia clínica hasta el/)).toBeVisible();
@@ -59,7 +70,7 @@ test.describe("Protección de datos", () => {
 
   test("PD3 bloqueo con PIN: al bloquear, al volver a abrir y para quitarlo", async ({ page }) => {
     await createPatient(page, { name: "Paciente Secreto" });
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/bloqueo");
     await page.getByRole("button", { name: "Activar el bloqueo" }).click();
     const sheet = page.getByRole("dialog", { name: "Activar el bloqueo" });
     await sheet.getByLabel("PIN", { exact: true }).fill("12");
@@ -92,7 +103,7 @@ test.describe("Protección de datos", () => {
     await expect(page.getByRole("link", { name: /Paciente Secreto/ })).toBeVisible();
 
     // Quitarlo pide el PIN actual.
-    await page.goto("./ajustes");
+    await page.goto("./ajustes/bloqueo");
     await pin(page).fill("2468");
     await page.getByRole("button", { name: "Desbloquear" }).click();
     await page.getByRole("button", { name: "Quitar el bloqueo" }).click();
@@ -101,6 +112,6 @@ test.describe("Protección de datos", () => {
     await remove.getByRole("button", { name: "Quitar el bloqueo" }).click();
     await expect(page.getByRole("button", { name: "Activar el bloqueo" })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Bloqueo con PIN" })).toBeVisible();
   });
 });

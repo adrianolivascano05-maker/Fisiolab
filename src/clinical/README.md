@@ -8,7 +8,7 @@ La ficha del paciente tiene cinco pestañas:
 
 | Pestaña | Ruta | Qué hay |
 | --- | --- | --- |
-| Resumen | `/pacientes/:id` | motivo de consulta, banderas rojas, curva del dolor, próxima reevaluación, tests de exploración, tarjetas de las últimas mediciones con su tendencia, simetrías bajo el 90 %, cuestionarios e historia del paciente (`src/pages/PatientPage.tsx`) |
+| Resumen | `/pacientes/:id` | las cuatro acciones (nueva sesión, nueva medición, test de exploración, nuevo cuestionario) y, hasta guardar la primera sesión, la guía «Primera visita» (protección de datos, anamnesis, exploración, medir y cerrar la visita) en lugar de apartados vacíos; después, motivo de consulta, banderas rojas, curva del dolor, próxima reevaluación, tests de exploración, tarjetas de las últimas mediciones con su tendencia, simetrías bajo el 90 %, cuestionarios e historia del paciente (`src/pages/PatientPage.tsx`) |
 | Anamnesis | `/pacientes/:id/anamnesis` | la ficha de anamnesis de la clínica, apartado por apartado |
 | Exploración | `/pacientes/:id/exploracion` | tests especiales registrados, con lo que aporta cada resultado (razón de verosimilitud de la galería) y los tests propuestos para la zona |
 | Mediciones | `/pacientes/:id/mediciones` | análisis, simetría entre lados, cuestionarios y lista completa de saltos, fuerza, sprint, carrera, movilidad y nórdico |

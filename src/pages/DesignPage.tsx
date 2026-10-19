@@ -91,7 +91,7 @@ export function DesignPage() {
         <Section title="Lista de pacientes">
           <List label="Pacientes">
             <PatientRow to="#" name="Ana Martín López" meta="Último test: CMJ · 12 oct" />
-            <PatientRow to="#" name="Jorge Ruiz" meta="Sin tests todavía" />
+            <PatientRow to="#" name="Jorge Ruiz" meta="Sin mediciones todavía" />
           </List>
           <EmptyState icon={Users} title="Todavía no hay pacientes" action={<Button icon={<Plus aria-hidden="true" className="size-5" />}>Añadir paciente</Button>}>
             Añade a tu primer paciente y mide su salto en un par de minutos.

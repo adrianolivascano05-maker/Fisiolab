@@ -109,7 +109,7 @@ export function GalleryHome() {
   const favs = tests.filter((t) => favorites.includes(t.id));
 
   return (
-    <Page title="Exploración" tabs>
+    <Page title="Guía de tests" tabs>
       <div className="relative">
         <label htmlFor="galeria-buscar" className="sr-only">
           Buscar un test
@@ -190,7 +190,7 @@ export function GalleryRegion() {
   const open = useOpenState(`impulso.exploracion.grupos.${region}`, Object.fromEntries(groups.map((g, i) => [g, i === 0])));
   if (!r) {
     return (
-      <Page title="Exploración" backTo={GALLERY}>
+      <Page title="Guía de tests" backTo={GALLERY}>
         <EmptyState icon={BookOpen} title="Esta articulación no existe" />
       </Page>
     );
@@ -256,7 +256,7 @@ export function GalleryTest() {
   const back = `${GALLERY}/${region}`;
   if (!t) {
     return (
-      <Page title="Exploración" backTo={back}>
+      <Page title="Guía de tests" backTo={back}>
         <EmptyState icon={BookOpen} title="Este test no existe" />
       </Page>
     );

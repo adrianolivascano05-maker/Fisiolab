@@ -4,7 +4,7 @@ import { createPatient, expect, expectAccessible, markAt, scrubber, startJump, t
 test.describe("Validación y marcas", () => {
   test("V1 pares con una referencia: análisis, Bland-Altman, diferencia clínica y CSV", async ({ page }) => {
     await page.goto("./ajustes");
-    await page.getByRole("link", { name: "Abrir la validación" }).click();
+    await page.getByRole("link", { name: /Validación de las mediciones/ }).click();
     await expect(page.getByRole("heading", { name: "Validación" })).toBeVisible();
     await expect(page.getByText(/Con 2 pares o más/)).toBeVisible();
     const pairs: [string, string][] = [

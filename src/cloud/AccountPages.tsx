@@ -1,5 +1,5 @@
 // La cuenta en la pantalla principal y la pantalla «Iniciar sesión con Google» (src/cloud/README.md).
-import { Check, CloudUpload, Copy, LogIn, MonitorSmartphone, Share2 } from "lucide-react";
+import { Check, CloudUpload, Copy, LogIn, Share2 } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate } from "react-router";
 import { Page } from "../app/Page";
@@ -12,48 +12,40 @@ import { isClientId, setDeviceClientId } from "./config";
 
 const primaryLink = "inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover";
 
-/**
- * Pantalla principal: con sesión, quién ha entrado y cómo va la copia en Drive; sin nube, el enlace para iniciar
- * sesión con Google. Debajo, cómo usar la app en otros dispositivos.
- */
+/** Con sesión, quién ha entrado y cómo va la copia en Drive (en una línea); sin nube, la tarjeta para iniciar sesión. */
 export function AccountCard() {
   const cloud = useCloud();
   const s = useSyncState();
+  if (cloud && s)
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-bg px-3 py-2">
+        <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-accent">
+          {cloud.account.name.slice(0, 1).toUpperCase()}
+        </span>
+        <Link to="/ajustes/cuenta" className="flex min-w-0 flex-1 flex-col hover:underline">
+          <span className="truncate text-sm font-semibold">{cloud.account.name}</span>
+          <span className="truncate text-xs text-text-muted">{syncText(s)}</span>
+        </Link>
+        {s.status === "needs-auth" && (
+          <Button size="sm" onClick={cloud.reconnect}>
+            Entrar con Google
+          </Button>
+        )}
+      </div>
+    );
   return (
-    <div className="flex flex-col gap-2">
-      {cloud && s ? (
-        <Card className="flex items-center gap-3">
-          <span aria-hidden="true" className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-soft text-lg font-semibold text-accent">
-            {cloud.account.name.slice(0, 1).toUpperCase()}
-          </span>
-          <Link to="/ajustes" className="flex min-w-0 flex-1 flex-col hover:underline">
-            <span className="truncate font-semibold">{cloud.account.name}</span>
-            <span className="text-sm text-text-muted">{syncText(s)}</span>
-          </Link>
-          {s.status === "needs-auth" && (
-            <Button size="sm" onClick={cloud.reconnect}>
-              Entrar con Google
-            </Button>
-          )}
-        </Card>
-      ) : (
-        <Card className="flex flex-col gap-3">
-          <div className="flex items-start gap-3">
-            <CloudUpload aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-accent" />
-            <div>
-              <h2 className="font-semibold">Guarda tus pacientes en tu Google Drive</h2>
-              <p className="text-sm text-text-muted">Inicia sesión con tu cuenta de Google y tenlos en el móvil, la tablet o el ordenador.</p>
-            </div>
-          </div>
-          <Link to="/cuenta" className={primaryLink}>
-            <LogIn aria-hidden="true" className="size-5" /> Iniciar sesión con Google
-          </Link>
-        </Card>
-      )}
-      <Link to="/instalar" className="inline-flex min-h-11 items-center gap-2 self-start rounded-md px-1 text-sm font-semibold text-accent hover:underline">
-        <MonitorSmartphone aria-hidden="true" className="size-5" /> Usar la app en otros dispositivos
+    <Card className="flex flex-col gap-3">
+      <div className="flex items-start gap-3">
+        <CloudUpload aria-hidden="true" className="mt-0.5 size-6 shrink-0 text-accent" />
+        <div>
+          <h2 className="font-semibold">Guarda tus pacientes en tu Google Drive</h2>
+          <p className="text-sm text-text-muted">Inicia sesión con tu cuenta de Google y tenlos en el móvil, la tablet o el ordenador.</p>
+        </div>
+      </div>
+      <Link to="/cuenta" className={primaryLink}>
+        <LogIn aria-hidden="true" className="size-5" /> Iniciar sesión con Google
       </Link>
-    </div>
+    </Card>
   );
 }
 

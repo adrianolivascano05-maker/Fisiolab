@@ -16,6 +16,7 @@ import { PatientPage } from "./pages/PatientPage";
 import { AsymmetryPage } from "./pages/AsymmetryPage";
 import { PatientsPage } from "./pages/PatientsPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { HelpPage } from "./pages/HelpPage";
 import { ResultPage } from "./pages/ResultPage";
 import { RomSetupPage } from "./pages/RomSetupPage";
 import { StrengthSetupPage } from "./pages/StrengthSetupPage";
@@ -23,7 +24,7 @@ import { NordicSetupPage } from "./pages/NordicSetupPage";
 import { RunningSetupPage } from "./pages/RunningSetupPage";
 import { SprintSetupPage } from "./pages/SprintSetupPage";
 import { RomSummaryPage } from "./pages/RomSummaryPage";
-import { SettingsPage } from "./pages/SettingsPage";
+import { AccountSettingsPage, ClinicSettingsPage, DataSettingsPage, LockSettingsPage, SettingsPage } from "./pages/SettingsPage";
 import { TestPickerPage } from "./pages/TestPickerPage";
 
 // Las pantallas con librerías pesadas (gráficas, lector de vídeo) se cargan al entrar en ellas.
@@ -81,6 +82,11 @@ const routes = [
   { path: "/validacion", element: l(<ValidationPage />) },
   { path: "/validacion/sensor", element: l(<SensorCheckPage />) },
   { path: "/ajustes", element: <SettingsPage /> }, // S24
+  { path: "/ajustes/cuenta", element: <AccountSettingsPage /> },
+  { path: "/ajustes/clinica", element: <ClinicSettingsPage /> },
+  { path: "/ajustes/bloqueo", element: <LockSettingsPage /> },
+  { path: "/ajustes/datos", element: <DataSettingsPage /> },
+  { path: "/ayuda", element: <HelpPage /> }, // Cómo se usa
   { path: "/privacidad", element: <PrivacyPage /> },
   { path: "/cuenta", element: <SignInSetupPage /> }, // Iniciar sesión con Google (sin el ID de cliente publicado)
   { path: "/instalar", element: l(<InstallPage />) }, // Usar la app en otros dispositivos

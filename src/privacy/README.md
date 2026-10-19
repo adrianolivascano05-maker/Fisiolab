@@ -7,12 +7,12 @@ textos con su delegado. Nada de esto es asesoramiento legal.
 
 | Qué | Dónde | Archivo |
 | --- | --- | --- |
-| Datos de la clínica (responsable, NIF, contacto, delegado, años de conservación y si hay contrato con Google) | Ajustes → Protección de datos | `ClinicSettings.tsx`, ajuste `clinic_privacy` |
+| Datos de la clínica (responsable, NIF, contacto, delegado, años de conservación y si hay contrato con Google) | Ajustes → Clínica y protección de datos | `ClinicSettings.tsx`, ajuste `clinic_privacy` |
 | Texto informativo para el paciente (art. 13 RGPD, art. 11 LOPDGDD), con los consentimientos opcionales y el sitio para firmar | ficha del paciente → «Protección de datos» (`/pacientes/:id/proteccion-datos`) | `PrivacyNotice.tsx`, `PatientPrivacyPage.tsx` |
 | Cuándo se entregó, quién firmó (representante legal de menores de 16 años) y sí o no a fotos y vídeos, contacto por WhatsApp o correo, y docencia y estudios | la misma pantalla; la tarjeta de la ficha lo resume | `PrivacyCard.tsx`, columna `patients.privacy` (migración 009) |
 | Aviso al borrar un paciente con historia que aún hay que conservar | editar paciente → «Borrar paciente» | `../pages/PatientFormPage.tsx`, `clinicalRecord` y `keepUntil` |
-| Bloqueo de la app con PIN | Ajustes → Bloqueo de la app | `pin.ts`, `AppLock.tsx`, `LockSettings.tsx` |
-| Cifrado de la copia de Google Drive | Ajustes → Cifrado de la copia de Drive | `../cloud/crypt.ts`, `../cloud/EncryptionParts.tsx` |
+| Bloqueo de la app con PIN | Ajustes → Bloqueo con PIN | `pin.ts`, `AppLock.tsx`, `LockSettings.tsx` |
+| Cifrado de la copia de Google Drive | Ajustes → Cuenta de Google → Cifrado de la copia de Drive | `../cloud/crypt.ts`, `../cloud/EncryptionParts.tsx` |
 
 Los datos de las funciones están en `../data/privacy.ts`.
 

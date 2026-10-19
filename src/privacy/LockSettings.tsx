@@ -1,4 +1,4 @@
-// Ajustes → Bloqueo de la app: activar el PIN de este dispositivo, cuándo pedirlo, cambiarlo o quitarlo.
+// Ajustes → Bloqueo con PIN: activar el PIN de este dispositivo, cuándo pedirlo, cambiarlo o quitarlo.
 import { Lock, LockOpen } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/Button";

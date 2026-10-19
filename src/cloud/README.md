@@ -94,7 +94,7 @@ de la última cuenta que entró en él.
   de su última sesión, si aún no ha llegado) se pone en el calendario «Cénit · Citas». El id del evento sale de la
   sesión (`cenit` + su id), así que dos dispositivos dejan un solo evento. Una cita cambiada se mueve; una que ya
   no está (otra sesión con otra cita, sesión o paciente borrados) se quita. Las citas pasadas o empezadas no se
-  tocan. Si nada ha cambiado, no se pregunta a Google hasta media hora después. En Ajustes → Google Calendar se
+  tocan. Si nada ha cambiado, no se pregunta a Google hasta media hora después. En Ajustes → Cuenta de Google → Google Calendar se
   desactiva o se elige que salgan solo las iniciales del paciente. Con esto activado, al guardar una sesión ya no
   se ofrece el enlace de Google Calendar ni el .ics.
 - **Informe y resultados en Drive.** «Guardar en mi Drive (PDF)» en el informe y «Guardar los resultados en mi
@@ -102,7 +102,7 @@ de la última cuenta que entró en él.
   (su id va en el ajuste sincronizado `drive_folder_id`). El PDF es el informe dibujado tal como se ve, una imagen
   por página A4 (`../clinical/reportPdf.ts` con html-to-image, y `../app/pdf.ts`): el texto no se puede
   seleccionar. Estos archivos no se cifran aunque la copia sí lo esté.
-- **Copia cifrada (opcional).** En Ajustes → Cifrado de la copia de Drive. La base se cifra en el dispositivo antes
+- **Copia cifrada (opcional).** En Ajustes → Cuenta de Google → Cifrado de la copia de Drive. La base se cifra en el dispositivo antes
   de subirla, con AES-GCM de 256 bits y una clave sacada de la contraseña con PBKDF2-SHA-256 (600 000 vueltas).
   En Drive solo hay bytes ilegibles sin la contraseña. El archivo empieza por `CENITENC1`, seguido de la sal y el
   vector de inicio. La sal va también en el ajuste sincronizado `drive_encryption`: así todos los dispositivos de
@@ -123,4 +123,4 @@ condiciones de esa cuenta. Se puede cifrar con una contraseña (arriba). Si no s
 de Google. En los dos casos conviene activar la verificación en dos pasos. La clínica debe revisar con su delegado de protección de datos si las cuentas
 personales de Google son adecuadas, o si conviene usar cuentas de Google Workspace de la clínica, que tienen
 contrato de encargado del tratamiento. Para historias clínicas ese contrato hace falta (art. 28 del RGPD), y la
-app lo recuerda en Ajustes → Protección de datos hasta que se marca que existe. Más en `../privacy/README.md`.
+app lo recuerda en Ajustes → Clínica y protección de datos hasta que se marca que existe. Más en `../privacy/README.md`.

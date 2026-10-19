@@ -100,6 +100,14 @@ Fecha: 2026-10-17
 12. **Bienestar, un registro por día.** Si se rellena dos veces el mismo día, se corrige el primero. El dolor de la lesión se apunta aparte y no suma en el total.
 13. **Nórdico: ángulo respecto a la vertical** (0° erguido); se muestra también el ángulo con el suelo. El momento se calcula con los datos actuales del paciente y se presenta como estimación para comparar al mismo paciente.
 
+### Organización de la app (para quien la usa por primera vez)
+
+- **Barra de abajo:** Pacientes · Comparar · Guía de tests (la galería de tests de exploración; antes «Exploración», que chocaba con la pestaña del paciente) · Ajustes.
+- **Pacientes:** «Nuevo paciente» y «Medición rápida» arriba, «Primeros pasos» (cuenta, datos de la clínica, primer paciente, instalar, PIN; se marca solo y se puede ocultar), próximas citas de 7 días, reevaluaciones y la lista.
+- **Ficha:** «Informe» y «Editar datos» con texto; cuatro acciones con su explicación; guía «Primera visita» hasta guardar la primera sesión; sin apartados vacíos.
+- **Ajustes:** un menú con el estado de cada cosa y una pantalla por apartado (`/ajustes/cuenta`, `/clinica`, `/bloqueo`, `/datos`), más «Instalar» (`/instalar`), «Cómo se usa» (`/ayuda`), validación y privacidad.
+- **Palabras:** «medición» para lo que se mide (salto, fuerza…) y «test de exploración» para Lachman, Neer…
+
 ## 4. Fórmulas acordadas (`src/calc/`)
 
 | medida | fórmula | fuente / estado |

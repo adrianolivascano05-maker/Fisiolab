@@ -380,7 +380,7 @@ export function SyncNotice() {
   return null;
 }
 
-/** Ajustes → Cuenta: quién ha entrado, cómo va la sincronización y cerrar sesión. */
+/** Ajustes → Cuenta de Google: quién ha entrado, cómo va la sincronización y cerrar sesión. */
 export function CloudSettings() {
   const cloud = useCloud();
   const s = useSyncState();

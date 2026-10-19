@@ -9,8 +9,8 @@ test.describe("Galería de tests", () => {
   test("G1 articulación → patología → test, con animación, desplegables y favoritos", async ({ page }) => {
     test.slow(); // dibuja la escena 3D dos veces
     await page.goto("./");
-    await page.getByRole("link", { name: "Exploración" }).click();
-    await expect(page.getByRole("heading", { name: "Exploración" })).toBeVisible();
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Guía de tests" }).click();
+    await expect(page.getByRole("heading", { name: "Guía de tests" })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("link", { name: /^Rodilla/ }).click();
     await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();

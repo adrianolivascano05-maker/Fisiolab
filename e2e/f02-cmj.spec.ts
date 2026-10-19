@@ -34,7 +34,6 @@ test.describe("F02 Medir un CMJ", () => {
 
   test("F02-E1 sin masa: altura sí, potencia no, y se explica", async ({ page }) => {
     await createPatient(page, { name: "Sin masa" });
-    await expect(page.getByText("Faltan datos para fuerza y potencia")).toBeVisible();
     await startJump(page);
     await markAt(page, 100, "despegue");
     await markAt(page, 220, "aterrizaje");
@@ -132,13 +131,13 @@ test.describe("F02 Medir un CMJ", () => {
     await page.getByRole("button", { name: "Calcular" }).click();
     await expect(page).toHaveURL(/\/tests\/[^/]+$/);
     const url = page.url();
-    await page.getByRole("button", { name: "Borrar este test" }).click();
+    await page.getByRole("button", { name: "Borrar esta medición" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Borrar" }).click();
-    await expect(page.getByText("Sin tests todavía")).toBeVisible();
+    await expect(page.getByText("Sin mediciones todavía")).toBeVisible();
     await page.goto(url);
-    await expect(page.getByText("Este test no existe.")).toBeVisible();
+    await expect(page.getByText("Esta medición no existe.")).toBeVisible();
     await page.goto(url + "/marcar");
-    await expect(page.getByText("Este test no existe.")).toBeVisible();
+    await expect(page.getByText("Esta medición no existe.")).toBeVisible();
   });
 
   test("F02-E8 el marcado funciona con el dedo (arrastrar la barra)", async ({ page }) => {

@@ -38,15 +38,15 @@ export function ResultPage() {
   if (data.error) return <Page title="Resultado" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Resultado" backTo="/"><Loading /></Page>;
   const { test, patient } = data.data;
-  if (!test || !patient) return <Page title="Resultado" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
+  if (!test || !patient) return <Page title="Resultado" backTo="/"><LoadError error={new Error("Esta medición no existe.")} /></Page>;
 
   const back = `/pacientes/${patient.id}/mediciones`;
   const deleteUi = (
     <>
       <Button variant="ghost" className="text-danger" onClick={() => setConfirm(true)}>
-        Borrar este test
+        Borrar esta medición
       </Button>
-      <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar este test?">
+      <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar esta medición?">
         <p>Se borrarán sus marcas y resultados. No se puede deshacer.</p>
         <Button variant="danger" block onClick={remove}>
           Borrar
@@ -60,7 +60,7 @@ export function ResultPage() {
 
   async function remove() {
     await deleteTest(getDb(), id);
-    toast("Test borrado", "success");
+    toast("Medición borrada", "success");
     navigate(back, { replace: true });
   }
 

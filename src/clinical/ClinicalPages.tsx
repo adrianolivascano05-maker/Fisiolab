@@ -250,9 +250,28 @@ export function AnamnesisPage() {
       <PatientShell patient={patient} id={id}>
         <h2 className="text-xl">{anamnesis ? "Editar anamnesis" : "Anamnesis"}</h2>
         <p className="text-sm text-text-muted">Ficha de anamnesis de fisioterapia: historia clínica y valoración inicial. Rellena lo que necesites; todo se puede completar más tarde.</p>
+        {/* Índice: la ficha es larga; cada apartado a un toque. */}
+        <nav aria-label="Apartados de la anamnesis">
+          <ul className="flex flex-wrap gap-2">
+            {ANAMNESIS.map((section) => (
+              <li key={section.id}>
+                <a
+                  href={`#anamnesis-${section.id}`}
+                  onClick={(e) => {
+                    // Sin tocar la dirección: «Volver» sigue llevando a la ficha.
+                    e.preventDefault();
+                    document.getElementById(`anamnesis-${section.id}`)?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="inline-flex min-h-9 items-center rounded-pill border border-border-input bg-bg px-3 text-sm font-semibold hover:bg-surface">
+                  {section.title.replace(/^\d+\.\s*/, "")}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           {ANAMNESIS.map((section) => (
-            <fieldset key={section.id} className="flex flex-col gap-4 rounded-lg border border-border bg-bg p-4 shadow-card">
+            <fieldset key={section.id} id={`anamnesis-${section.id}`} className="flex scroll-mt-20 flex-col gap-4 rounded-lg border border-border bg-bg p-4 shadow-card">
               <legend className="float-left mb-1 w-full text-lg font-semibold text-brand">{section.title}</legend>
               {section.id === "datos" && (
                 <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
@@ -381,7 +400,7 @@ export function ExplorationPage() {
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl">Exploración</h2>
         <Link to={`/pacientes/${id}/exploracion/nuevo`} className={primaryLink}>
-          <Plus aria-hidden="true" className="size-5" /> Registrar test
+          <Plus aria-hidden="true" className="size-5" /> Nuevo test
         </Link>
       </div>
       {current.length > 0 && (
@@ -393,7 +412,7 @@ export function ExplorationPage() {
       )}
       {current.length === 0 ? (
         <EmptyState icon={Stethoscope} title="Ningún test registrado">
-          Registra cada test especial que hagas como positivo, negativo o dudoso. También puedes hacerlo desde la galería, en la ficha de cada test.
+          Registra cada test especial que hagas como positivo, negativo o dudoso. También puedes hacerlo desde la Guía de tests, en la ficha de cada test.
         </EmptyState>
       ) : (
         [...byRegion].map(([region, list]) => (
@@ -518,7 +537,7 @@ function TestPicker({ regions, onPick }: { regions: string[]; onPick: (t: Specia
       </div>
       {q.trim() ? (found.length ? group("Resultados", found) : <p className="text-sm text-text-muted">Ningún test se llama así.</p>) : null}
       {!q.trim() && group(`Tests de la zona (${regions.map(regionLabel).join(", ")})`, zone)}
-      {!q.trim() && group("Favoritos de la galería", favs)}
+      {!q.trim() && group("Tus favoritos de la Guía de tests", favs)}
       {!q.trim() && !zone.length && !favs.length && <p className="text-sm text-text-muted">Escribe el nombre del test. Si rellenas la zona en la anamnesis, aquí verás los de esa zona.</p>}
     </div>
   );
@@ -551,7 +570,7 @@ export function FindingFormPage() {
     setNotes(f.notes);
   }, [data.data?.finding]);
 
-  if (!data.data) return <Guard state={data} title="Registrar test" back={`/pacientes/${id}/exploracion`} />;
+  if (!data.data) return <Guard state={data} title="Test de exploración" back={`/pacientes/${id}/exploracion`} />;
   const { patient, finding, anamnesis } = data.data;
   const back = `/pacientes/${id}/exploracion`;
   if (fid && !finding) return <Page title="Test" backTo={back}><LoadError error={new Error("Este resultado no existe.")} /></Page>;
@@ -563,7 +582,7 @@ export function FindingFormPage() {
 
   if (!testId) {
     return (
-      <Page title="Registrar test" backTo={back}>
+      <Page title="Test de exploración" backTo={back}>
         <p className="text-text-muted">{patient?.name}: elige el test que has hecho.</p>
         <TestPicker regions={summary?.regions ?? []} onPick={(t) => setParams({ test: t.id }, { replace: true })} />
       </Page>
@@ -609,7 +628,7 @@ export function FindingFormPage() {
   };
 
   return (
-    <Page title={fid ? "Editar resultado" : "Registrar test"} backTo={back}>
+    <Page title={fid ? "Editar resultado" : "Test de exploración"} backTo={back}>
       <Card className="flex flex-col gap-1">
         <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
           {patient?.name} · {test ? `${galleryRegionLabel(test)} · ${test.group}` : regionLabel(finding?.region ?? "")}
@@ -730,7 +749,7 @@ export function MeasurementsPage() {
             Cuestionarios
           </h2>
           <Link to={`/pacientes/${id}/cuestionarios/nuevo`} className={primaryLink}>
-            <ListChecks aria-hidden="true" className="size-5" /> Registrar cuestionario
+            <ListChecks aria-hidden="true" className="size-5" /> Nuevo cuestionario
           </Link>
         </div>
         {questionnaires.length ? (
@@ -741,7 +760,7 @@ export function MeasurementsPage() {
       </section>
 
       {tests.length === 0 ? (
-        <EmptyState icon={Activity} title="Sin tests todavía">
+        <EmptyState icon={Activity} title="Sin mediciones todavía">
           Pulsa «Nueva medición» para registrar su primer salto, su fuerza o su movilidad.
         </EmptyState>
       ) : (
@@ -1119,7 +1138,7 @@ export function QuestionnaireFormPage() {
       </li>
     );
     return (
-      <Page title="Registrar cuestionario" backTo={back}>
+      <Page title="Nuevo cuestionario" backTo={back}>
         <p className="text-text-muted">{patient?.name}: elige el cuestionario.</p>
         <h2 className="text-lg">Se contestan aquí</h2>
         <ul className="flex flex-col gap-2">{QUESTIONNAIRES.filter((k) => k.inApp).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" }))}</ul>
@@ -1198,7 +1217,7 @@ export function QuestionnaireFormPage() {
   const setActivity = (i: number, a: Partial<PsfsActivity>) => setActivities((list) => list.map((x, j) => (j === i ? { ...x, ...a } : x)));
 
   return (
-    <Page title={qid ? "Editar cuestionario" : "Registrar cuestionario"} backTo={back}>
+    <Page title={qid ? "Editar cuestionario" : "Nuevo cuestionario"} backTo={back}>
       <p className="text-text-muted">{patient?.name}</p>
       <Card className="flex flex-col gap-2">
         <span className="text-lg font-semibold">{kind === OTHER ? "Otro cuestionario" : k.name}</span>

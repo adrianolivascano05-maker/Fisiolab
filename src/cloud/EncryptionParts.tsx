@@ -15,7 +15,7 @@ import { deriveKey, ENCRYPTION_KEY, forgetKey, MIN_PASSWORD, newSalt, storeKey, 
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** Ajustes → Cuenta: cifrar la copia de Drive. */
+/** Ajustes → Cuenta de Google: cifrar la copia de Drive. */
 export function EncryptionSettings() {
   const cloud = useCloud();
   const s = useSyncState();

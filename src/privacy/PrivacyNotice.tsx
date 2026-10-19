@@ -1,6 +1,6 @@
 // El texto informativo de protección de datos (RGPD, art. 13, y LOPDGDD, art. 11) que se entrega al paciente
 // en la primera visita, con los consentimientos opcionales y el sitio para firmar. Lo rellena la app con los
-// datos de la clínica (Ajustes → Protección de datos). Es una plantilla: la clínica debe revisarla con su
+// datos de la clínica (Ajustes → Clínica y protección de datos). Es una plantilla: la clínica debe revisarla con su
 // delegado de protección de datos.
 import type { ReactNode } from "react";
 import { CONSENTS, type ClinicInfo, type PatientPrivacy } from "../data/privacy";

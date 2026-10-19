@@ -35,7 +35,7 @@ export function TopBar({ title, backTo, action, brand }: { title: string; backTo
 const tabs = [
   { to: "/", label: "Pacientes", icon: Users },
   { to: "/comparar", label: "Comparar", icon: ChartColumn },
-  { to: "/exploracion", label: "Exploración", icon: BookOpen }, // src/gallery
+  { to: "/exploracion", label: "Guía de tests", icon: BookOpen }, // src/gallery
   { to: "/ajustes", label: "Ajustes", icon: Settings },
 ];
 

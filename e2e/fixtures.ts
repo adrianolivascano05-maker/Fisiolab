@@ -114,7 +114,7 @@ export async function markNextInSeries(page: Page, frame: number) {
 
 export async function loadSeed(page: Page) {
   test.slow(); // cargar el ejemplo tarda unos 12 s (más con todas las pruebas a la vez)
-  await page.goto("./ajustes");
+  await page.goto("./ajustes/datos");
   await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
   await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
 }

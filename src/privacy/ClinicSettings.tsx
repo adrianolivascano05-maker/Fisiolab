@@ -1,4 +1,4 @@
-// Ajustes → Protección de datos: los datos del responsable del tratamiento para el texto informativo y cuántos
+// Ajustes → Clínica y protección de datos: los datos del responsable del tratamiento para el texto informativo y cuántos
 // años se conserva la historia clínica.
 import { useEffect, useState } from "react";
 import { useCloud } from "../cloud/CloudGate";
@@ -21,8 +21,6 @@ export function ClinicSettings() {
     void getClinic(getDb()).then((clinic) => {
       setC(clinic);
       setYears(String(clinic.retentionYears));
-      // Desde el aviso de la hoja de protección de datos: directos a esta sección.
-      if (location.hash === "#proteccion-datos") requestAnimationFrame(() => document.getElementById("proteccion-datos")?.scrollIntoView());
     });
   }, []);
   if (!c) return null;
