@@ -27,8 +27,9 @@ def glyph(d: ImageDraw.ImageDraw, size: int, scale: float):
     """Mismas coordenadas que el SVG (caja de 100), reducidas a `scale` y centradas."""
     off = size * (1 - scale) / 2
 
+    # La C abre a la derecha: se corre un poco a la derecha y arriba para que se vea en medio (como en Logo.tsx).
     def p(x, y):
-        return (off + x / 100 * size * scale, off + y / 100 * size * scale)
+        return (off + (x + 3) / 100 * size * scale, off + (y - 2) / 100 * size * scale)
 
     u = size * scale / 100
     # Arco de circunferencia (centro 50,57; radio 27) abierto a la derecha: de −40° a +40° pasando por

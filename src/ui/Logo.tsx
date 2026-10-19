@@ -11,9 +11,12 @@ export function LogoMark({ size = 28, title, bordered }: { size?: number; title?
       {title && <title>{title}</title>}
       {/* Sobre el mismo verde (la barra de arriba), un borde dorado lo separa del fondo. */}
       {bordered ? <rect x="2.5" y="2.5" width="95" height="95" rx="24" fill={base} stroke="var(--color-highlight)" strokeWidth="5" /> : <rect width="100" height="100" rx="26" fill={base} />}
-      <path d="M70.68 39.64 A27 27 0 1 0 70.68 74.36" fill="none" stroke={stroke} strokeWidth="9" strokeLinecap="round" />
-      <circle cx="50" cy="30" r="14" fill={base} />
-      <circle cx="50" cy="30" r="9.5" fill="var(--color-highlight)" />
+      {/* La C abre a la derecha: se corre un poco a la derecha y arriba para que se vea en medio del cuadrado. */}
+      <g transform="translate(3 -2)">
+        <path d="M70.68 39.64 A27 27 0 1 0 70.68 74.36" fill="none" stroke={stroke} strokeWidth="9" strokeLinecap="round" />
+        <circle cx="50" cy="30" r="14" fill={base} />
+        <circle cx="50" cy="30" r="9.5" fill="var(--color-highlight)" />
+      </g>
     </svg>
   );
 }
