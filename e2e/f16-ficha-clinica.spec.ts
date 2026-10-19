@@ -152,6 +152,7 @@ test.describe("F16 Ficha clínica", () => {
     // KOOS: solo la puntuación, con su subescala y su rango.
     await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
     await page.getByRole("button", { name: /KOOS/ }).click();
+    await page.getByText("Solo anotar la nota").click();
     await page.getByLabel("Puntuación", { exact: true }).fill("62");
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(page.getByText("Elige la subescala.")).toBeVisible();
@@ -176,6 +177,58 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("dialog", { name: "¿Borrar este cuestionario?" }).getByRole("button", { name: "Borrar" }).click();
     await expect(list).toContainText("PSFS");
     await expect(list).not.toContainText("KOOS");
+  });
+
+  test("F16-H8 cuestionarios enteros en la app: la nota se calcula sola y se guarda", async ({ page }) => {
+    await createPatient(page, { name: "Tomás Rellena" });
+    await add(page, "Cuestionario").click();
+    await page.getByRole("button", { name: /LEFS/ }).click();
+    const result = page.getByRole("heading", { name: "Resultado" }).locator("..");
+    await expect(result).toContainText("Faltan 20");
+    const questions = page.getByRole("group").filter({ has: page.getByText("Ninguna dificultad") });
+    await expect(questions).toHaveCount(20);
+    for (let i = 0; i < 20; i++) await questions.nth(i).getByText(i < 2 ? "Dificultad moderada" : "Ninguna dificultad").click();
+    // 18 × 4 + 2 × 2 = 76
+    await expect(result).toContainText("76/80");
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    const list = page.getByRole("list", { name: "Cuestionarios" });
+    await expect(list).toContainText("LEFS");
+    await expect(list).toContainText("76/80");
+
+    // KOOS: una nota por subescala; con solo el dolor contestado, solo se guarda el dolor.
+    await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
+    await page.getByRole("button", { name: /KOOS/ }).click();
+    const section = (name: string) => page.getByRole("region", { name }).getByRole("group");
+    const firstOfEach = async (name: string) => {
+      const qs = section(name);
+      await qs.first().waitFor();
+      for (let i = 0; i < (await qs.count()); i++) await qs.nth(i).locator("label").first().click();
+    };
+    await firstOfEach("Dolor");
+    await expect(result).toContainText("Dolor");
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    await expect(list).toContainText("KOOS (rodilla) · Dolor");
+    await expect(list).not.toContainText("Calidad de vida");
+    // Al editarlo vuelven las respuestas; contestando la calidad de vida se añade su nota.
+    await list.getByRole("link", { name: /KOOS/ }).click();
+    await expect(result).toContainText("100/100");
+    await firstOfEach("Calidad de vida");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(list).toContainText("KOOS (rodilla) · Dolor");
+    await expect(list).toContainText("KOOS (rodilla) · Calidad de vida");
+
+    // Hoja de respuestas (Oswestry): números de la hoja oficial y la nota en %.
+    await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
+    await page.getByRole("button", { name: /Oswestry/ }).click();
+    const odi = page.getByRole("region", { name: "Apartados" }).getByRole("group");
+    for (let i = 0; i < 10; i++) await odi.nth(i).getByText(i < 5 ? "2" : "1", { exact: true }).click();
+    // (5 × 2 + 5 × 1) / 50 = 30 %
+    await expect(result).toContainText("30 %");
+    await expect(result).toContainText("Limitación moderada");
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    await expect(list).toContainText("30 %");
   });
 
   test("F16-H6 simetría entre lados e informe imprimible con los datos de ejemplo", async ({ page }) => {

@@ -1,6 +1,7 @@
-// Catálogo de cuestionarios. La PSFS y el cambio global percibido se contestan en la app (no tienen un texto
-// protegido: el paciente elige sus actividades o responde a una pregunta general). De los demás solo se guarda la
-// puntuación que da su hoja oficial, para no reproducir sus ítems ni sus traducciones validadas.
+// Catálogo de cuestionarios. La PSFS y el cambio global percibido se contestan en la app con su propia pantalla. El
+// resto se rellena entero en la app (src/clinical/forms, con la nota calculada) o, si se pasó en papel, se anota
+// solo la nota. Los que tienen derechos sobre su texto (NDI, Oswestry, QuickDASH, SPADI, TSK-11) van como hoja de
+// respuestas: sin el texto de las preguntas.
 export type Better = "higher" | "lower";
 export type QuestionnaireKind = {
   id: string;
@@ -45,7 +46,21 @@ export function byRegions(regions: string[]): { kind: QuestionnaireKind; forRegi
   return [...all.filter((k) => k.forRegion), ...all.filter((k) => !k.forRegion)];
 }
 
-export type QDetails = { activities?: { name: string; score: number }[]; subscale?: string; name?: string; min?: number; max?: number; better?: Better };
+export type QDetails = {
+  activities?: { name: string; score: number }[];
+  subscale?: string;
+  name?: string;
+  min?: number;
+  max?: number;
+  better?: Better;
+  /** Rellenado en la app: las respuestas por ítem (null, «No aplica»). */
+  answers?: Record<string, number | null>;
+  /** KOOS y HOOS rellenados en la app: las subescalas de una misma vez comparten este id. */
+  group?: string;
+  /** Subescalas (SPADI) y cómo se lee la nota, tal como salieron al guardarlo. */
+  subscores?: { name: string; score: number }[];
+  text?: string;
+};
 
 /** El tipo efectivo de un registro (con «otro», el nombre y el rango que se escribieron). */
 export function kindOf(kind: string, d: QDetails): QuestionnaireKind {

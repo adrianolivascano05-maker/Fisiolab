@@ -22,10 +22,13 @@ Además:
   los apartados y se imprime o se guarda en PDF con el diálogo del navegador (`window.print()`, A4). Con la cuenta de
   Google, «Guardar en mi Drive (PDF)» lo sube a la carpeta «Cénit · Fisiolab» de Drive (`reportPdf.ts`).
 - **Cuestionarios** (`/pacientes/:id/cuestionarios/nuevo`): la PSFS (el paciente elige sus actividades; la
-  siguiente vez se proponen las mismas) y el cambio global percibido (−7 a +7) se contestan en la app. Del resto
-  (KOOS, HOOS, LEFS, FAAM, VISA-A, VISA-P, ACL-RSI, NDI, Oswestry, QuickDASH, SPADI, TSK-11 u otro con su nombre
-  y rango) solo se anota la puntuación de su hoja oficial: así no se copian sus ítems ni sus traducciones, que
-  tienen derechos. Los de la zona de la anamnesis salen primero.
+  siguiente vez se proponen las mismas) y el cambio global percibido (−7 a +7) se contestan en la app. KOOS, HOOS,
+  LEFS, FAAM, VISA-A, VISA-P y ACL-RSI se rellenan enteros en la app (`forms/`) y la nota se calcula sola con su
+  regla; el KOOS y el HOOS guardan una nota por subescala. NDI, Oswestry, QuickDASH, SPADI y TSK-11 tienen derechos
+  sobre su texto: van como hoja de respuestas (el paciente contesta en la hoja oficial y aquí se marca el número de
+  cada respuesta) y la nota también se calcula sola. Si se pasó en papel, «Solo anotar la nota». El texto de los
+  ítems es una traducción de trabajo: hay que revisarlo con la versión española publicada antes de usarlo en
+  consulta. Los de la zona de la anamnesis salen primero.
 - **Simetría entre lados** (`symmetry.ts`): lado peor / lado mejor × 100 con la última medición de cada lado
   (salto a una pierna, 5-0-5 con cada pierna, movilidad por lados). La raya del 90 % es la referencia habitual de
   vuelta al deporte; es una ayuda para leer los datos, no un criterio de alta.
@@ -47,6 +50,7 @@ Además:
 | `parts.tsx` | pestañas del paciente, escalas numéricas (dolor, PSFS, cambio global), chips, resultado de un test y gráficas pequeñas en SVG |
 | `measures.ts`, `measureParts.tsx` | el dato principal de cada medición, sus tarjetas con tendencia y la lista |
 | `timeline.ts` | historia del paciente y serie del dolor |
+| `forms/`, `FormFill.tsx` | cuestionarios enteros: ítems, respuestas y cálculo de la nota de cada uno, y la pantalla para rellenarlos |
 | `questionnaires.ts`, `outcomeParts.tsx` | catálogo de cuestionarios (rango, qué es mejor, zonas), puntuación de la PSFS, tarjetas de cuestionarios y barras de simetría |
 | `symmetry.ts` | índice de simetría entre lados |
 | `ReportPage.tsx` | informe imprimible |

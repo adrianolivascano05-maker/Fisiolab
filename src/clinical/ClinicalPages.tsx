@@ -53,6 +53,8 @@ import { LSI_REFERENCE, symmetryRows } from "./symmetry";
 import { madridDay } from "./timeline";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PatientShell } from "./PatientShell";
+import { formFor, type Answers as FormAnswers } from "./forms";
+import { FormFill, formResult } from "./FormFill";
 
 // ---------- Utilidades ----------
 
@@ -1066,6 +1068,9 @@ export function QuestionnaireFormPage() {
   const [groc, setGroc] = useState<number | null>(null);
   const [other, setOther] = useState<{ name: string; min: string; max: string; better: Better }>({ name: "", min: "0", max: "100", better: "higher" });
   const [notes, setNotes] = useState("");
+  const [answers, setAnswers] = useState<FormAnswers>({});
+  // Los que tienen el cuestionario entero en la app se rellenan aquí; también se puede anotar solo la nota.
+  const [mode, setMode] = useState<"fill" | "score">("fill");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -1082,6 +1087,8 @@ export function QuestionnaireFormPage() {
     if (d.activities?.length) setActivities(d.activities);
     if (q.kind === "groc") setGroc(q.score);
     if (q.kind === OTHER) setOther({ name: d.name ?? "", min: decimalText(d.min ?? 0), max: decimalText(d.max ?? 100), better: d.better ?? "higher" });
+    setAnswers(d.answers ?? {});
+    setMode(d.answers ? "fill" : "score");
     setNotes(q.notes);
   }, [data.data?.record]);
 
@@ -1117,17 +1124,16 @@ export function QuestionnaireFormPage() {
     );
     return (
       <Page title="Nuevo cuestionario" backTo={back} tabs={false}>
-        <p className="text-text-muted">{patient?.name}: elige el cuestionario.</p>
-        <h2 className="text-lg">Se contestan aquí</h2>
-        <ul className="flex flex-col gap-2">{QUESTIONNAIRES.filter((k) => k.inApp).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" }))}</ul>
-        <h2 className="text-lg">Anota la puntuación</h2>
-        <p className="-mt-2 text-sm text-text-muted">Pásalo con su hoja oficial y escribe aquí el resultado: la app guarda la evolución.</p>
+        <p className="text-text-muted">{patient?.name}: elige el cuestionario. Se rellena aquí y la nota se calcula sola.</p>
         <ul className="flex flex-col gap-2">
+          {QUESTIONNAIRES.filter((k) => k.inApp).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" }))}
           {byRegions(regions)
             .filter(({ kind: k }) => !k.inApp)
-            .map(({ kind: k, forRegion }) =>
-              option({ id: k.id, name: k.name, text: `De ${k.min} a ${k.max} · ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`, tag: forRegion ? "Su zona" : undefined }),
-            )}
+            .map(({ kind: k, forRegion }) => {
+              const f = formFor(k.id);
+              const how = !f ? "Anotas la nota" : f.sheet ? "Con su hoja oficial: marcas las respuestas" : `${f.sections.reduce((n, s) => n + s.items.length, 0)} preguntas`;
+              return option({ id: k.id, name: k.name, text: `${how} · de ${k.min} a ${k.max}, ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`, tag: forRegion ? "Su zona" : undefined });
+            })}
           {option({ id: OTHER, name: "Otro cuestionario", text: "Escribe su nombre y su rango." })}
         </ul>
       </Page>
@@ -1135,11 +1141,15 @@ export function QuestionnaireFormPage() {
   }
 
   const known = getKind(kind);
+  const form = formFor(kind);
+  const filling = !!form && mode === "fill";
+  const result = filling ? formResult(form, answers) : null;
   const otherMin = parseDecimal(other.min);
   const otherMax = parseDecimal(other.max);
   const k = kindOf(kind, { name: other.name, min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better });
   const details: QDetails =
     kind === "psfs" ? { activities: activities.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), score: a.score ?? Number.NaN })) }
+    : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(result && "ok" in result && result.ok.text ? { text: result.ok.text } : {}) }
     : known?.subscales ? { subscale: subscale[0] }
     : kind === OTHER ? { name: other.name.trim(), min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better }
     : {};
@@ -1161,6 +1171,11 @@ export function QuestionnaireFormPage() {
       if (groc === null) throw new RangeError("Marca cómo está respecto al inicio.");
       return groc;
     }
+    if (filling) {
+      if (!result || "missing" in result) throw new RangeError(result && "missing" in result ? result.missing : "Contesta el cuestionario.");
+      if (result.ok.score === null) throw new RangeError("Este cuestionario solo tiene subescalas.");
+      return result.ok.score;
+    }
     if (known?.subscales && !subscale.length) throw new RangeError("Elige la subescala.");
     if (kind === OTHER) {
       if (!other.name.trim()) throw new RangeError("Escribe el nombre del cuestionario.");
@@ -1178,13 +1193,31 @@ export function QuestionnaireFormPage() {
     setSaving(true);
     setError(null);
     try {
-      await saveQuestionnaire(getDb(), id, { kind, performedAt: new Date(when).toISOString(), score: computeScore(), details, notes }, qid);
+      const performedAt = new Date(when).toISOString();
+      if (filling && known?.subscales) await saveSubscales(performedAt);
+      else await saveQuestionnaire(getDb(), id, { kind, performedAt, score: computeScore(), details, notes }, qid);
       toast(qid ? "Cuestionario guardado" : "Cuestionario registrado", "success");
       navigate(back, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSaving(false);
     }
+  };
+  // KOOS, HOOS: una nota por subescala, cada una en su registro (así se ve la evolución de cada una), unidas por
+  // `group` y con las mismas respuestas. Al editar, se cambian las del grupo; la subescala que ya no se pueda
+  // calcular se borra.
+  const saveSubscales = async (performedAt: string) => {
+    if (!result || "missing" in result) throw new RangeError(result && "missing" in result ? result.missing : "Contesta el cuestionario.");
+    const db = getDb();
+    const group = (record?.details as QDetails | undefined)?.group ?? crypto.randomUUID();
+    const siblings = all.filter((q) => q.kind === kind && (q.details as QDetails).group === group);
+    if (record && !siblings.some((q) => q.id === record.id)) siblings.push(record);
+    const subs = result.ok.subscores ?? [];
+    for (const sub of subs) {
+      const prev = siblings.find((q) => (q.details as QDetails).subscale === sub.name);
+      await saveQuestionnaire(db, id, { kind, performedAt, score: sub.score, details: { subscale: sub.name, answers, group }, notes }, prev?.id);
+    }
+    for (const q of siblings) if (!subs.some((sub) => sub.name === (q.details as QDetails).subscale)) await deleteQuestionnaire(db, q.id);
   };
   const remove = async () => {
     if (!qid) return;
@@ -1200,7 +1233,16 @@ export function QuestionnaireFormPage() {
       <Card className="flex flex-col gap-2">
         <span className="text-lg font-semibold">{kind === OTHER ? "Otro cuestionario" : k.name}</span>
         {known?.hint && <p className="text-sm text-text-muted">{known.hint}</p>}
-        {!known?.inApp && kind !== OTHER && <p className="text-sm text-text-muted">Pásalo con su hoja oficial y escribe aquí la puntuación total.</p>}
+        {form && (
+          <Chips
+            label="Cómo"
+            options={["fill", "score"]}
+            render={(o) => (o === "fill" ? "Rellenarlo aquí" : "Solo anotar la nota")}
+            value={[mode]}
+            onChange={(v) => v[0] && setMode(v[0] as "fill" | "score")}
+          />
+        )}
+        {!known?.inApp && kind !== OTHER && !filling && <p className="text-sm text-text-muted">Pásalo con su hoja oficial y escribe aquí la puntuación total.</p>}
         {previous && (
           <p className="text-sm">
             La última vez: <span className="nums font-semibold">{scoreText(k, previous.score)}</span> el {fmtDate(previous.performedAt)}
@@ -1230,7 +1272,35 @@ export function QuestionnaireFormPage() {
             />
           </>
         )}
-        {known?.subscales && <Chips label="Subescala" options={known.subscales} value={subscale} onChange={setSubscale} />}
+        {known?.subscales && !filling && <Chips label="Subescala" options={known.subscales} value={subscale} onChange={setSubscale} />}
+        {filling && form && <FormFill form={form} answers={answers} onChange={setAnswers} />}
+        {filling && result && (
+          <Card className="flex flex-col gap-2 border-accent" aria-live="polite">
+            <h2 className="text-lg">Resultado</h2>
+            {"missing" in result ? (
+              <p className="text-text-muted">{result.missing}</p>
+            ) : (
+              <>
+                {result.ok.score !== null && (
+                  <p className="nums text-[2rem] leading-tight font-bold" aria-label={`Nota: ${scoreText(k, result.ok.score)}`}>
+                    {scoreText(k, result.ok.score)}
+                  </p>
+                )}
+                {result.ok.text && <p className="font-semibold">{result.ok.text}</p>}
+                {result.ok.subscores && (
+                  <ul className="nums flex flex-col gap-1">
+                    {result.ok.subscores.map((sub) => (
+                      <li key={sub.name} className="flex justify-between gap-2">
+                        <span>{sub.name}</span>
+                        <span className="font-semibold">{fmt(sub.score, Number.isInteger(sub.score) ? 0 : 1)}{known?.subscales ? "/100" : " %"}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </Card>
+        )}
         {kind === "psfs" && (
           <fieldset className="flex flex-col gap-3">
             <legend className="text-sm font-semibold">Actividades</legend>
@@ -1267,7 +1337,7 @@ export function QuestionnaireFormPage() {
         {kind === "groc" && (
           <NumberScale label="Respecto al inicio del tratamiento, ¿cómo está ahora?" from={-7} to={7} value={groc} onChange={setGroc} ends={["−7 muchísimo peor", "+7 muchísimo mejor"]} hint="0 igual" />
         )}
-        {!known?.inApp && (
+        {!known?.inApp && !filling && (
           <NumberField
             label="Puntuación"
             unit={k.unit ?? `/${fmt(k.max, Number.isInteger(k.max) ? 0 : 1)}`}
