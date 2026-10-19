@@ -1,16 +1,32 @@
 // Entrar con Google sin servidor: OAuth 2.0 para aplicaciones web de cliente (flujo con redirección). La app
 // manda a Google con su ID de cliente y Google vuelve a la app con un token de una hora en la dirección
-// (#access_token=…). El token solo da acceso a la carpeta oculta de la app en el Drive de quien entra
-// (drive.appdata) y a su nombre y correo. No hay contraseñas ni secretos en la app.
+// (#access_token=…). El token da acceso al nombre y el correo de quien entra, a la carpeta oculta de la app en su
+// Drive (drive.appdata, la copia de la base), a los archivos que crea la app en su Drive (drive.file: informes) y
+// al calendario que crea la app en su Google Calendar (calendar.app.created: citas). Los tres son permisos «no
+// sensibles» de Google. No hay contraseñas ni secretos en la app.
 //
 // Volver a entrar cuando el token caduca no pide nada si la sesión de Google sigue abierta (prompt=none):
 // es un ir y volver de un segundo al abrir la app.
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
-export const SCOPES = "openid email profile https://www.googleapis.com/auth/drive.appdata";
+export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
+export const SCOPES = `openid email profile https://www.googleapis.com/auth/drive.appdata ${DRIVE_FILE_SCOPE} ${CALENDAR_SCOPE}`;
 
 export type Token = { accessToken: string; expiresAt: number };
+
+// Google deja aceptar unos permisos y otros no: se recuerda qué concedió (para el informe y el calendario).
+const GRANTED_KEY = "fisiolab.oauth.granted";
+
+/** Si quien ha entrado concedió este permiso la última vez que entró. */
+export function hasGranted(scope: string): boolean {
+  try {
+    return (JSON.parse(localStorage.getItem(GRANTED_KEY) ?? "[]") as string[]).includes(scope);
+  } catch {
+    return false;
+  }
+}
 
 const TOKEN_KEY = "fisiolab.token"; // sessionStorage: solo esta pestaña, mientras esté abierta
 const FLOW_KEY = "fisiolab.oauth"; // lo que hay que recordar mientras se va a Google y se vuelve
@@ -85,6 +101,7 @@ export function takeRedirectResult(): RedirectResult | null {
   if (!(hash.get("scope") ?? "").includes("drive.appdata")) return { token: null, error: "drive_scope_denied", silent: flow.silent };
   const token = { accessToken, expiresAt: Date.now() + Number(hash.get("expires_in") ?? 3600) * 1000 };
   sessionStorage.setItem(TOKEN_KEY, JSON.stringify(token));
+  localStorage.setItem(GRANTED_KEY, JSON.stringify((hash.get("scope") ?? "").split(" ").filter(Boolean)));
   return { token, error: null, silent: flow.silent };
 }
 
@@ -93,6 +110,7 @@ export async function revokeToken() {
   const t = getToken();
   clearToken();
   sessionStorage.removeItem(SILENT_KEY);
+  localStorage.removeItem(GRANTED_KEY);
   if (!t) return;
   try {
     await fetch(REVOKE_URL, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: `token=${encodeURIComponent(t.accessToken)}` });

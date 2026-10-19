@@ -14,7 +14,18 @@ export type RemoteFile = { id: string; version: string; modifiedTime: string };
 /** El token ha caducado o se ha retirado el permiso: hay que volver a entrar. */
 export class AuthError extends Error {}
 
-async function call(token: string, url: string, init: RequestInit = {}): Promise<Response> {
+/** Google ha respondido con un error (404 no existe, 409 ya existe…). */
+export class GoogleError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
+}
+
+/** Petición a una API de Google con el token. Los errores, como AuthError o GoogleError. */
+export async function call(token: string, url: string, init: RequestInit = {}): Promise<Response> {
   const res = await fetch(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}` } });
   if (res.status === 401) throw new AuthError("La sesión de Google ha caducado.");
   if (!res.ok) {
@@ -24,8 +35,8 @@ async function call(token: string, url: string, init: RequestInit = {}): Promise
     } catch {
       /* sin detalle */
     }
-    if (res.status === 403 && /insufficient|scope/i.test(detail)) throw new AuthError("Falta el permiso para la carpeta de la app en Drive.");
-    throw new Error(`Google Drive respondió ${res.status}${detail ? `: ${detail}` : ""}`);
+    if (res.status === 403 && /insufficient|scope/i.test(detail)) throw new AuthError("Falta un permiso de Google: vuelve a entrar y acéptalo.");
+    throw new GoogleError(`Google respondió ${res.status}${detail ? `: ${detail}` : ""}`, res.status);
   }
   return res;
 }
