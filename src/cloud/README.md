@@ -14,22 +14,21 @@ que permite entrar con Google.
 
 Los nombres de los menús son los de la consola de Google en octubre de 2026; si alguno cambia, el orden es el mismo.
 
-1. Entra en <https://console.cloud.google.com/> con la cuenta de Google de la clínica (o la tuya).
-2. Arriba, en el selector de proyectos: **Proyecto nuevo** → nombre `Cenit Fisiolab` → **Crear**. Comprueba que
-   queda elegido.
-3. **APIs y servicios → Biblioteca** → busca **Google Drive API** → **Habilitar**.
-4. **APIs y servicios → Pantalla de consentimiento de OAuth** (o **Google Auth Platform**) → **Empezar**:
+1. Abre <https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com> con la cuenta de Google de
+   la clínica (o la tuya). En el mismo paso se crea el proyecto (nombre `Cenit Fisiolab`) y se activa la Google
+   Drive API. Comprueba arriba que queda elegido ese proyecto.
+2. <https://console.cloud.google.com/auth/branding> (**Google Auth Platform**) → **Empezar**:
    - Nombre de la aplicación: `Cénit · Fisiolab`; correo de asistencia: el tuyo.
    - Público: **Externo**.
    - Datos de contacto: tu correo. Acepta las condiciones y **Crear**.
-5. **Acceso a datos** → **Añadir o quitar permisos** → marca `.../auth/drive.appdata` («Ver, crear y eliminar
+3. <https://console.cloud.google.com/auth/scopes> (**Acceso a datos**) → **Añadir o quitar permisos** → marca `.../auth/drive.appdata` («Ver, crear y eliminar
    sus propios datos de configuración en Google Drive»). Los de nombre y correo (`openid`, `userinfo.email`,
    `userinfo.profile`) no hace falta añadirlos. **Guardar**.
-6. **Público** → **Publicar aplicación**. Todos estos permisos son de los que Google llama «no sensibles», así que
+4. **Público** → **Publicar aplicación**. Todos estos permisos son de los que Google llama «no sensibles», así que
    no debería pedir verificación. Si la pide, o si al entrar sale el aviso «Google no ha verificado esta
    aplicación», deja la app **en pruebas**. Añade en **Usuarios de prueba** el correo de cada fisioterapeuta
    (hasta 100). Solo podrán entrar esas cuentas, y Google pedirá volver a aceptar los permisos de vez en cuando.
-7. **Clientes** → **Crear cliente**:
+5. **Clientes** → **Crear cliente**:
    - Tipo de aplicación: **Aplicación web**; nombre: `Cénit web`.
    - **Orígenes de JavaScript autorizados**: `https://adrianolivascano05-maker.github.io`
    - **URIs de redireccionamiento autorizados**: `https://adrianolivascano05-maker.github.io/Fisiolab/` (con la
@@ -38,7 +37,7 @@ Los nombres de los menús son los de la consola de Google en octubre de 2026; si
      `http://localhost:5173/`.
    - **Crear**. Copia el **ID de cliente**, que termina en `.apps.googleusercontent.com`. El «secreto del cliente»
      no hace falta: no lo uses ni lo compartas.
-8. Pon el ID en `public/cloud.json` (o pásaselo a quien mantenga la app) y publica:
+6. Pon el ID en `public/cloud.json` (o pásaselo a quien mantenga la app) y publica:
 
    ```json
    { "googleClientId": "1234567890-abc123.apps.googleusercontent.com" }

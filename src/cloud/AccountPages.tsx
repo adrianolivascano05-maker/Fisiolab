@@ -1,5 +1,5 @@
 // La cuenta en la pantalla principal y la pantalla «Iniciar sesión con Google» (src/cloud/README.md).
-import { Check, CloudUpload, Copy, LogIn, MonitorSmartphone } from "lucide-react";
+import { Check, CloudUpload, Copy, LogIn, MonitorSmartphone, Share2 } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate } from "react-router";
 import { Page } from "../app/Page";
@@ -85,79 +85,125 @@ function CopyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+// Enlaces directos de la consola de Google (Google Auth Platform) para quien lo active.
+const CONSOLE = {
+  enableDrive: "https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com",
+  branding: "https://console.cloud.google.com/auth/branding",
+  scopes: "https://console.cloud.google.com/auth/scopes",
+};
+
+/** Los pasos en texto, para mandarlos por WhatsApp o correo a quien lo vaya a activar. */
+function activationText(origin: string, redirect: string) {
+  return [
+    "Activar «Entrar con Google» en Cénit · Fisiolab (una sola vez, gratis, unos 10 minutos):",
+    `1. Crear el proyecto y activar Google Drive: ${CONSOLE.enableDrive}`,
+    `2. ${CONSOLE.branding} → nombre «Cénit · Fisiolab», tu correo, público «Externo». Después, en «Público», pulsa «Publicar aplicación».`,
+    `3. ${CONSOLE.scopes} → añadir el permiso …/auth/drive.appdata.`,
+    `4. En «Clientes» → «Crear cliente» → «Aplicación web», con origen autorizado ${origin} y URI de redirección ${redirect}`,
+    "5. Copiar el ID de cliente (termina en .apps.googleusercontent.com) y enviarlo. El «secreto» no hace falta.",
+  ].join("\n");
+}
+
+const ext = (href: string, text: string) => (
+  <a href={href} target="_blank" rel="noopener noreferrer" className="font-semibold text-accent underline underline-offset-2">
+    {text}
+  </a>
+);
+
 /**
- * «Iniciar sesión con Google» cuando la app publicada aún no lleva el ID de cliente: cómo crearlo (una vez para
- * toda la clínica) y pegarlo aquí para entrar ya en este dispositivo.
+ * «Iniciar sesión con Google» mientras la app publicada no lleva el ID de cliente. Para el fisioterapeuta: aún no
+ * está activado y un botón para mandar los pasos a quien lo active. Para quien lo activa (desplegable): los pasos
+ * con enlaces directos y el campo para pegar el ID y entrar ya en este dispositivo.
  */
 export function SignInSetupPage() {
   const cloud = useCloud();
   const [id, setId] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   if (cloud) return <Navigate to="/" replace />;
   const origin = location.origin;
-  const steps = [
-    <>
-      Entra en <b>console.cloud.google.com</b> con tu cuenta de Google y crea un proyecto (por ejemplo, «Cenit Fisiolab»).
-    </>,
-    <>
-      En <b>APIs y servicios → Biblioteca</b>, activa <b>Google Drive API</b>.
-    </>,
-    <>
-      En <b>Pantalla de consentimiento</b>: nombre «Cénit · Fisiolab», tu correo, público <b>Externo</b>. En <b>Acceso a datos</b>, añade el permiso{" "}
-      <b>drive.appdata</b>. En <b>Público</b>, <b>Publicar aplicación</b>.
-    </>,
-    <>
-      En <b>Clientes → Crear cliente</b>: tipo <b>Aplicación web</b>, con este origen y esta dirección de redirección:
-    </>,
-    <>
-      Copia el <b>ID de cliente</b> (termina en <b>.apps.googleusercontent.com</b>) y pégalo abajo. El «secreto» no hace falta.
-    </>,
-  ];
+  const text = activationText(origin, redirectUri());
+  const canShare = typeof navigator.share === "function";
   return (
     <Page title="Iniciar sesión con Google" backTo="/">
-      <p>
-        Para entrar con Google, la app necesita una sola vez un <b>ID de cliente</b> de Google. Es gratis, no es una contraseña y sirve para toda la
-        clínica. Se crea en unos 10 minutos:
-      </p>
       <Card className="flex flex-col gap-3">
-        <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm">
-          {steps.map((s, i) => (
-            <li key={i}>{s}</li>
-          ))}
-        </ol>
-        <CopyRow label="Origen" value={origin} />
-        <CopyRow label="Redirección" value={redirectUri()} />
-      </Card>
-      <form
-        className="flex flex-col gap-3"
-        noValidate
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!isClientId(id)) return setError("Eso no parece un ID de cliente: tiene que terminar en .apps.googleusercontent.com.");
-          setDeviceClientId(id);
-          startLogin(id.trim(), { chooseAccount: true, returnTo: import.meta.env.BASE_URL }); // vuelve a la pantalla principal
-        }}
-      >
-        <TextField
-          label="ID de cliente"
-          placeholder="123456789012-abc….apps.googleusercontent.com"
-          autoComplete="off"
-          spellCheck={false}
-          value={id}
-          error={error ?? undefined}
-          onChange={(e) => {
-            setId(e.target.value);
-            setError(null);
+        <h2 className="font-semibold">Aún no está activado</h2>
+        <p>
+          El inicio de sesión con Google se activa <b>una sola vez para toda la clínica</b>. Después, cada fisioterapeuta solo pulsa «Entrar con Google».
+        </p>
+        <p className="text-sm text-text-muted">Mientras tanto la app funciona igual: tus pacientes se guardan en este dispositivo.</p>
+        {canShare && (
+          <Button icon={<Share2 aria-hidden="true" className="size-5" />} onClick={() => void navigator.share({ title: "Activar Entrar con Google", text }).catch(() => {})}>
+            Enviar los pasos a quien lo active
+          </Button>
+        )}
+        <Button
+          variant={canShare ? "secondary" : "primary"}
+          icon={copied ? <Check aria-hidden="true" className="size-5" /> : <Copy aria-hidden="true" className="size-5" />}
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(text);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            } catch {
+              /* sin portapapeles: los pasos están abajo */
+            }
           }}
-        />
-        <Button type="submit" size="lg" block icon={<LogIn aria-hidden="true" className="size-5" />}>
-          Entrar con Google
+        >
+          {copied ? "Pasos copiados" : "Copiar los pasos"}
         </Button>
-      </form>
-      <p className="text-sm text-text-muted">
-        Pegado aquí, vale para este dispositivo. Para que se active en todos los dispositivos de la clínica sin pegarlo en cada uno, el ID se pone una
-        vez en la app publicada (archivo <code>public/cloud.json</code>).
-      </p>
+      </Card>
+
+      <details className="rounded-lg border border-border bg-bg p-4">
+        <summary className="cursor-pointer font-semibold">Lo activo yo, o ya tengo el ID de cliente</summary>
+        <div className="mt-3 flex flex-col gap-3">
+          <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm">
+            <li>{ext(CONSOLE.enableDrive, "Crear el proyecto y activar Google Drive")} (con tu cuenta de Google).</li>
+            <li>
+              {ext(CONSOLE.branding, "Pantalla de consentimiento")}: nombre «Cénit · Fisiolab», tu correo, público <b>Externo</b>. Después, en <b>Público</b>,{" "}
+              <b>Publicar aplicación</b>.
+            </li>
+            <li>
+              {ext(CONSOLE.scopes, "Acceso a datos")}: añade el permiso <b>drive.appdata</b>.
+            </li>
+            <li>
+              En <b>Clientes → Crear cliente</b>: <b>Aplicación web</b>, con este origen y esta redirección:
+            </li>
+          </ol>
+          <CopyRow label="Origen" value={origin} />
+          <CopyRow label="Redirección" value={redirectUri()} />
+          <form
+            className="flex flex-col gap-3"
+            noValidate
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!isClientId(id)) return setError("Eso no parece un ID de cliente: tiene que terminar en .apps.googleusercontent.com.");
+              setDeviceClientId(id);
+              startLogin(id.trim(), { chooseAccount: true, returnTo: import.meta.env.BASE_URL }); // vuelve a la pantalla principal
+            }}
+          >
+            <TextField
+              label="ID de cliente"
+              placeholder="123456789012-abc….apps.googleusercontent.com"
+              autoComplete="off"
+              spellCheck={false}
+              value={id}
+              error={error ?? undefined}
+              onChange={(e) => {
+                setId(e.target.value);
+                setError(null);
+              }}
+            />
+            <Button type="submit" size="lg" block icon={<LogIn aria-hidden="true" className="size-5" />}>
+              Entrar con Google
+            </Button>
+          </form>
+          <p className="text-sm text-text-muted">
+            Pegado aquí, vale para este dispositivo. Para que valga en todos los de la clínica sin pegarlo en cada uno, el ID se pone una vez en la app
+            publicada (archivo <code>public/cloud.json</code>).
+          </p>
+        </div>
+      </details>
     </Page>
   );
 }

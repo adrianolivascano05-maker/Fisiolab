@@ -117,7 +117,18 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await page.goto("./");
     await page.getByRole("link", { name: "Iniciar sesión con Google" }).click();
     await expect(page.getByRole("heading", { name: "Iniciar sesión con Google" })).toBeVisible();
-    await expect(page.getByText(/\/$/).first()).toBeVisible(); // la dirección de redirección, con su barra final
+    // Quien no lo activa solo ve que falta activarlo y puede mandar los pasos (con los enlaces directos).
+    await expect(page.getByRole("heading", { name: "Aún no está activado" })).toBeVisible();
+    await expect(page.getByLabel("ID de cliente")).toBeHidden();
+    await expectAccessible(page);
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.getByRole("button", { name: "Copiar los pasos" }).click();
+    await expect(page.getByRole("button", { name: "Pasos copiados" })).toBeVisible();
+    const steps = await page.evaluate(() => navigator.clipboard.readText());
+    expect(steps).toContain("https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com");
+    expect(steps).toContain(`URI de redirección ${new URL(test.info().project.use.baseURL!).href}`);
+    // Quien lo activa abre el desplegable, pega el ID y entra.
+    await page.getByText("Lo activo yo, o ya tengo el ID de cliente").click();
     await expectAccessible(page);
     await page.getByLabel("ID de cliente").fill("mi-contraseña");
     await page.getByRole("button", { name: "Entrar con Google" }).click();
