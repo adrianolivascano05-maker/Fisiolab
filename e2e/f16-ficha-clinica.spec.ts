@@ -26,7 +26,8 @@ test.describe("F16 Ficha clínica", () => {
     await expectAccessible(page);
 
     await tab(page, "Resumen").click();
-    await expect(page.getByText("Dolor de rodilla al bajar escaleras")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Motivo: Dolor de rodilla al bajar escaleras" })).toBeVisible();
+    await expect(page.getByRole("main").getByText("Dolor de rodilla al bajar escaleras", { exact: true }).last()).toBeVisible();
     await expect(page.getByText("Diagnóstico fisioterápico: Tendinopatía rotuliana")).toBeVisible();
     await expect(page.getByText("Banderas rojas: 1")).toBeVisible();
     // El dolor de la anamnesis ya dibuja la gráfica.
@@ -40,7 +41,7 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByText("Ninguna")).toBeVisible();
     await page.reload();
-    await expect(page.getByText("Dolor de rodilla al bajar escaleras")).toBeVisible();
+    await expect(page.getByRole("main").getByText("Dolor de rodilla al bajar escaleras", { exact: true }).last()).toBeVisible();
   });
 
   test("F16-H2 exploración: registrar un test, ver su evidencia, editarlo y borrarlo", async ({ page }) => {
@@ -229,6 +230,70 @@ test.describe("F16 Ficha clínica", () => {
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(list).toContainText("30 %");
+  });
+
+  test("F16-H9 motivos de consulta: cada uno con su anamnesis y sus registros, y un filtro en la ficha", async ({ page }) => {
+    await createPatient(page, { name: "Elena Motivos" });
+    await tab(page, "Anamnesis").click();
+    await page.getByLabel("Motivo principal").fill("Esguince de tobillo");
+    await page.getByLabel("Profesión").fill("Enfermera");
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByRole("button", { name: /Motivo: Esguince de tobillo/ })).toBeVisible();
+    await tab(page, "Resumen").click();
+    await add(page, "Sesión").click();
+    await page.getByLabel("Tratamiento").fill("Propiocepción");
+    await page.getByRole("button", { name: "Guardar sesión" }).click();
+    await expect(page.getByText("Propiocepción")).toBeVisible();
+
+    // Vuelve meses después por otra cosa: motivo nuevo, con su anamnesis (se copian los datos personales).
+    await page.getByRole("button", { name: /Motivo:/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Motivo de consulta" });
+    await expect(sheet).toContainText("1 registro");
+    await expectAccessible(page);
+    await sheet.getByRole("button", { name: "Nuevo motivo de consulta" }).click();
+    const form = page.getByRole("dialog", { name: "Nuevo motivo de consulta" });
+    await form.getByLabel("¿Por qué viene ahora?").fill("Dolor lumbar");
+    await form.getByRole("button", { name: "Crear y rellenar su anamnesis" }).click();
+    await expect(page.getByLabel("Motivo principal")).toHaveValue("Dolor lumbar");
+    await expect(page.getByLabel("Profesión")).toHaveValue("Enfermera");
+    await page.getByText("Lumbar", { exact: true }).click();
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByRole("button", { name: /Motivo: Dolor lumbar/ })).toBeVisible();
+
+    // Las sesiones del motivo nuevo empiezan vacías; lo que se añade va a este motivo.
+    await tab(page, "Sesiones").click();
+    await expect(page.getByText("Propiocepción")).toHaveCount(0);
+    await tab(page, "Resumen").click();
+    await add(page, "Sesión").click();
+    await page.getByLabel("Tratamiento").fill("Control motor");
+    await page.getByRole("button", { name: "Guardar sesión" }).click();
+    await expect(page.getByText("Control motor")).toBeVisible();
+    await expect(page.getByText("Propiocepción")).toHaveCount(0);
+
+    // Al primer motivo: su anamnesis y su sesión.
+    await page.getByRole("button", { name: /Motivo:/ }).click();
+    await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: /Esguince de tobillo/ }).click();
+    await expect(page.getByText("Propiocepción")).toBeVisible();
+    await expect(page.getByText("Control motor")).toHaveCount(0);
+    await tab(page, "Anamnesis").click();
+    await expect(page.getByText("Esguince de tobillo").first()).toBeVisible();
+
+    // Todos juntos.
+    await page.getByRole("button", { name: /Motivo:/ }).click();
+    await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: /Todos los motivos/ }).click();
+    await tab(page, "Sesiones").click();
+    await expect(page.getByText("Propiocepción")).toBeVisible();
+    await expect(page.getByText("Control motor")).toBeVisible();
+
+    // Borrar el segundo motivo se lleva lo suyo.
+    await page.getByRole("button", { name: /Motivo:/ }).click();
+    await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: /Dolor lumbar/ }).click();
+    await page.getByRole("button", { name: /Motivo: Dolor lumbar/ }).click();
+    await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: "Borrar este motivo" }).click();
+    await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: "Borrar el motivo" }).click();
+    await expect(page.getByRole("button", { name: /Motivo: Esguince de tobillo/ })).toBeVisible();
+    await expect(page.getByText("Propiocepción")).toBeVisible();
+    await expect(page.getByText("Control motor")).toHaveCount(0);
   });
 
   test("F16-H6 simetría entre lados e informe imprimible con los datos de ejemplo", async ({ page }) => {

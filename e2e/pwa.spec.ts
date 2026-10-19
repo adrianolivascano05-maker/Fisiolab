@@ -137,7 +137,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     await expectAccessible(page);
     await page.getByRole("link", { name: /Cómo se usa/ }).click();
     await expect(page.getByRole("heading", { name: "Cómo se usa" })).toBeVisible();
-    await expect(page.getByRole("list", { name: "Pasos" }).getByRole("listitem")).toHaveCount(5);
+    await expect(page.getByRole("list", { name: "Pasos" }).getByRole("listitem")).toHaveCount(6);
     await expectAccessible(page);
   });
 });

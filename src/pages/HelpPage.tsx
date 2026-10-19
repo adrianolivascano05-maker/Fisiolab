@@ -27,10 +27,20 @@ const steps: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    title: "Si vuelve por otro problema",
+    body: (
+      <>
+        Debajo de su nombre, <b>Motivo</b>: crea un <b>nuevo motivo de consulta</b> con su propia anamnesis (se copian sus datos personales y
+        antecedentes). La ficha enseña lo del motivo que elijas, y lo que añadas va a ese motivo. También puedes verlos <b>todos juntos</b>.
+      </>
+    ),
+  },
+  {
     title: "Añadir lo que hagas, en el orden que quieras",
     body: (
       <>
-        En el Resumen, <b>Añadir</b>: una sesión, una medición (salto, fuerza, sprint, carrera, movilidad), un test de exploración o un cuestionario.
+        En el Resumen, <b>Añadir</b>: una sesión, una medición (salto, fuerza, sprint, carrera, movilidad), un test de exploración o un cuestionario
+        (se rellena entero en la app y la nota se calcula sola).
         Cada pestaña tiene además su propio botón para añadir.
       </>
     ),

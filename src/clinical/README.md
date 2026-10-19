@@ -4,8 +4,17 @@ Lo que el fisioterapeuta registra de cada paciente además de las mediciones: la
 exploración que hace (positivos, negativos o dudosos), los cuestionarios y cada sesión. Todo se guarda en el dispositivo, en la misma
 base que el resto (migración `src/data/migrations/006_clinical.sql`), entra en la copia de seguridad y en el CSV.
 
-La ficha del paciente tiene una cabecera común (`PatientShell.tsx`: iniciales, nombre, datos, próxima cita y «Editar») y
-cinco pestañas que se quedan fijas arriba al bajar:
+La ficha del paciente tiene una cabecera común (`PatientShell.tsx`: iniciales, nombre, datos, motivo de consulta, próxima
+cita y «Editar») y cinco pestañas que se quedan fijas arriba al bajar:
+
+**Motivos de consulta** (`EpisodePicker.tsx`, `../data/episodes.ts`, migración `010_episodes.sql`). Un paciente que vuelve
+por otro problema tiene otro motivo, con su propia anamnesis (al crearlo se copian los datos personales, los antecedentes
+y los hábitos). Las pestañas y el informe enseñan lo del motivo elegido, o todo junto; lo que se añade va al motivo que se
+ve (o, viendo todos, al último abierto): lo apunta un disparador de la base, así que vale para cualquier forma de crear
+sesiones, hallazgos, cuestionarios y mediciones. El primer motivo tiene el id del paciente y su anamnesis sigue en la
+tabla `anamnesis`; sus registros tienen `episode_id` nulo. Qué motivo se ve es de cada dispositivo (`episode_focus`, no se
+sincroniza); los motivos y a cuál pertenece cada registro, sí. Un motivo se puede renombrar, dar por terminado o borrar
+con todo lo suyo (el primero no se borra).
 
 | Pestaña | Ruta | Qué hay |
 | --- | --- | --- |

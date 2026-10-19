@@ -10,6 +10,7 @@ import { isCodType, type CodType } from "../calc/cod";
 import { summarizeRunning } from "../calc/running";
 import { getExercise, loadVelocityProfile, plausibleVbt, vbtResults, velocitiesFromMarks, type ExerciseId, type LoadVelocityProfile, type RepMark } from "../calc/strength";
 import type { Db } from "./db";
+import { inFocus } from "./episodes";
 import { parsePrivacy, type PatientPrivacy } from "./privacy";
 import type { Statement } from "./protocol";
 
@@ -335,7 +336,7 @@ export async function listTests(db: Db, patientId: string): Promise<TestSummary[
             (select value from results r where r.test_id = t.id and r.metric = 'time_s' and r.series_index = 0) as timeS,
             (select value from results r where r.test_id = t.id and r.metric = 'contact_time_ms' and r.series_index = 0) as contactMs
        from tests t
-      where t.patient_id = ?
+      where t.patient_id = ? and ${inFocus("t")}
       order by t.performed_at desc`,
     [patientId],
   );

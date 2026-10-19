@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useDataVersion } from "./dataVersion";
 
 type State<T> = { data: T | undefined; error: Error | null; loading: boolean };
 
@@ -6,6 +7,7 @@ type State<T> = { data: T | undefined; error: Error | null; loading: boolean };
 export function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {
   const [state, setState] = useState<State<T>>({ data: undefined, error: null, loading: true });
   const [tick, setTick] = useState(0);
+  const version = useDataVersion();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- las dependencias las da quien llama
   const run = useCallback(load, deps);
   useEffect(() => {
@@ -18,6 +20,6 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {
     return () => {
       alive = false;
     };
-  }, [run, tick]);
+  }, [run, tick, version]);
   return { ...state, reload: () => setTick((t) => t + 1) };
 }

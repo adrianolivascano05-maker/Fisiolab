@@ -108,17 +108,19 @@ El usuario pidió una app tan intuitiva como un iPhone, sin listas que le digan 
   - Tres pestañas: Pacientes · Guía de tests · Ajustes. Se ve en todas las pantallas salvo en formularios y vídeo.
   - Cada pestaña recuerda dónde se estaba. Pulsar la pestaña activa vuelve a su inicio.
   - Un punto rojo en Ajustes mientras falten los datos de la clínica.
-- **Arriba:** «‹ Pantalla anterior» y acciones a la derecha («+», «Editar»). En las pantallas principales y en la ficha, título grande que pasa a la barra al bajar.
+- **Arriba:** barra en el verde de la marca con línea de oro; en las pantallas principales, el logo a la izquierda. «‹ Pantalla anterior» y acciones a la derecha («+», «Editar»). En las pantallas principales y en la ficha, título grande que pasa a la barra al bajar.
 - **Pacientes:**
   - «+» para añadir y buscador.
   - Próximas citas de 7 días, reevaluaciones y «Medición rápida».
   - Todos por letras, con su próxima cita o su última visita.
 - **Ficha** (`src/clinical/PatientShell.tsx`):
-  - Cabecera común a todas las pestañas: iniciales, nombre, datos, próxima cita con su botón de calendario, y «Editar».
+  - Cabecera común a todas las pestañas: iniciales, nombre, datos, **motivo de consulta**, próxima cita con su botón de calendario, y «Editar».
+  - **Motivos de consulta:** un paciente que vuelve por otro problema tiene otro motivo, con su propia anamnesis y sus registros. La ficha enseña los del motivo elegido o todos juntos (`src/clinical/README.md`).
   - Las pestañas se quedan fijas al bajar.
   - En el Resumen: «Añadir» (Sesión, Medición, Exploración, Cuestionario) y una lista con Anamnesis, Protección de datos (en naranja si falta) e Informe. Después, solo lo que tiene datos.
 - **Ajustes:** listas agrupadas con el estado de cada cosa y una pantalla por apartado.
 - **Enlaces entre secciones:** desde un test de la Guía, «Registrar el resultado en …» propone el último paciente abierto.
+- **Cuestionarios enteros en la app** (`src/clinical/forms/`), con la nota calculada al final y guardada con las respuestas. NDI, Oswestry, QuickDASH, SPADI y TSK-11 tienen derechos sobre su texto: van como hoja de respuestas (se marca el número de cada respuesta de la hoja oficial). El texto de los ítems es una traducción de trabajo, por revisar con las versiones españolas publicadas.
 - **Palabras:** «medición» para lo que se mide (salto, fuerza…) y «test de exploración» para Lachman, Neer…
 
 ## 4. Fórmulas acordadas (`src/calc/`)

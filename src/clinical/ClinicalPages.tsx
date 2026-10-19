@@ -2,8 +2,9 @@
 // simetría) y sesiones.
 import { Activity, CalendarCheck, CalendarClock, ClipboardList, ExternalLink, ListChecks, NotebookPen, Pencil, Plus, Search, Stethoscope, Trash } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { decimalText, fmt, fmtDate, fmtDateTime, parseDecimal, testTitle } from "../app/format";
+import { bumpData } from "../app/dataVersion";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import {
@@ -31,6 +32,7 @@ import {
   type Session,
 } from "../data/clinical";
 import { getDb } from "../data/db";
+import { ALL, currentEpisode, episodeLabel, getFocus, listEpisodes } from "../data/episodes";
 import { getPatient, listTests, listWellness, type Patient } from "../data/repo";
 import { useFavorites } from "../gallery/useFavorites";
 import { Alert } from "../ui/Alert";
@@ -187,11 +189,25 @@ function ExplorationLinks({ id, findings, romTrends }: { id: string; findings: F
 
 export function AnamnesisPage() {
   const { id = "" } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  /** Recién creado un motivo de consulta: su id, para abrir su anamnesis para rellenar. */
+  const editEpisode = (location.state as { editEpisode?: string } | null)?.editEpisode;
   const toast = useToast();
   const data = useLoad(id, async () => {
     const db = getDb();
-    const [patient, anamnesis, findings, tests] = await Promise.all([getPatient(db, id), getAnamnesis(db, id), listFindings(db, id), listTests(db, id)]);
-    return { patient, anamnesis, findings, tests };
+    const [patient, anamnesis, findings, tests, episodes, focus, current] = await Promise.all([
+      getPatient(db, id),
+      getAnamnesis(db, id),
+      listFindings(db, id),
+      listTests(db, id),
+      listEpisodes(db, id),
+      getFocus(db, id),
+      currentEpisode(db, id),
+    ]);
+    // Viendo todos los motivos, la anamnesis es la del último abierto: se dice cuál.
+    const shown = focus === ALL && episodes.length > 1 ? episodes.find((e) => e.id === current) : undefined;
+    return { patient, anamnesis, findings, tests, shown, current };
   });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Answers | null>(null);
@@ -199,17 +215,24 @@ export function AnamnesisPage() {
   const [error, setError] = useState<string | null>(null);
   const autoStarted = useRef(false);
 
-  // Sin anamnesis todavía: se empieza directamente a rellenar, con la fecha de hoy (solo al entrar).
+  // Sin anamnesis todavía: se empieza directamente a rellenar, con la fecha de hoy (solo al entrar). Recién creado un
+  // motivo de consulta, en cuanto llega su anamnesis (la que ya trae los datos personales).
   useEffect(() => {
-    if (data.data && !data.data.anamnesis && !autoStarted.current) {
+    if (!data.data) return;
+    if (editEpisode && data.data.current === editEpisode) {
+      autoStarted.current = true;
+      setDraft({ ...(data.data.anamnesis?.answers ?? {}) });
+      setEditing(true);
+      navigate(".", { replace: true, state: null });
+    } else if (!data.data.anamnesis && !autoStarted.current) {
       autoStarted.current = true;
       setDraft({ fecha_valoracion: todayDay() });
       setEditing(true);
     }
-  }, [data.data]);
+  }, [data.data, editEpisode, navigate]);
 
   if (!data.data) return <Guard state={data} title="Anamnesis" back={`/pacientes/${id}`} />;
-  const { patient, anamnesis, findings, tests } = data.data;
+  const { patient, anamnesis, findings, tests, shown } = data.data;
   if (!patient) return <Page title="Anamnesis" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const romTrends = trends(tests.filter((t) => t.movement !== null));
 
@@ -229,7 +252,8 @@ export function AnamnesisPage() {
       toast("Anamnesis guardada", "success");
       setEditing(false);
       setDraft(null);
-      data.reload();
+      // También la cabecera: el nombre del motivo de consulta sale de la anamnesis.
+      bumpData();
       window.scrollTo({ top: 0 });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -242,6 +266,7 @@ export function AnamnesisPage() {
     return (
       <PatientShell patient={patient} id={id} tabs={false}>
         <h2 className="text-xl">{anamnesis ? "Editar anamnesis" : "Anamnesis"}</h2>
+        {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
         <p className="text-sm text-text-muted">Ficha de anamnesis de fisioterapia: historia clínica y valoración inicial. Rellena lo que necesites; todo se puede completar más tarde.</p>
         {/* Índice: la ficha es larga; cada apartado a un toque. */}
         <nav aria-label="Apartados de la anamnesis">
@@ -307,6 +332,7 @@ export function AnamnesisPage() {
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col">
           <h2 className="text-xl">Anamnesis</h2>
+          {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
           <p className="text-sm text-text-muted">
             {valued ? `Valoración del ${dayText(valued)}` : `Rellenada el ${fmtDate(anamnesis.createdAt)}`}
             {anamnesis.updatedAt !== anamnesis.createdAt && ` · actualizada el ${fmtDate(anamnesis.updatedAt)}`} · {done} de {ALL_FIELDS.length} campos

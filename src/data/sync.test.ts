@@ -22,9 +22,11 @@ beforeEach(async () => {
 describe("registro de cambios", () => {
   it("todas las tablas de datos se sincronizan, con sus tres disparadores y su clave", async () => {
     const tables = (await a.query<{ name: string }>("select name from sqlite_master where type = 'table' and name not like 'sync_%' and name not like 'sqlite_%'")).map((t) => t.name);
+    // El motivo que se está viendo es de cada dispositivo (migración 010).
+    tables.splice(tables.indexOf("episode_focus"), 1);
     expect(tables.sort()).toEqual(SYNC_TABLES.map((t) => t.name).sort());
     for (const t of SYNC_TABLES) {
-      const triggers = await a.query("select name from sqlite_master where type = 'trigger' and tbl_name = ?", [t.name]);
+      const triggers = await a.query("select name from sqlite_master where type = 'trigger' and tbl_name = ? and name like 'sync_%'", [t.name]);
       expect(triggers, t.name).toHaveLength(3);
       const pk = (await a.query<{ name: string; pk: number }>(`select name, pk from pragma_table_info('${t.name}') where pk > 0 order by pk`)).map((c) => c.name);
       expect(pk, t.name).toEqual(t.pk);

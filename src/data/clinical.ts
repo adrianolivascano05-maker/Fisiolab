@@ -2,6 +2,7 @@
 // cuestionarios (migración 006). Mismo estilo que repo.ts:
 // una función por operación; las pantallas no escriben SQL.
 import type { Db } from "./db";
+import { currentEpisode, getEpisodeAnswers, inFocus, saveEpisodeAnswers } from "./episodes";
 
 const newId = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
@@ -13,7 +14,13 @@ export type AnswerValue = string | number | boolean | string[] | null;
 export type Answers = Record<string, AnswerValue>;
 export type Anamnesis = { answers: Answers; createdAt: string; updatedAt: string };
 
+/** La anamnesis del motivo de consulta que se está viendo (src/data/episodes.ts). */
 export async function getAnamnesis(db: Db, patientId: string): Promise<Anamnesis | null> {
+  const episode = await currentEpisode(db, patientId);
+  if (episode !== patientId) {
+    const a = await getEpisodeAnswers(db, episode);
+    return a && Object.keys(a.answers).length ? a : null;
+  }
   const [row] = await db.query<{ answers: string; created_at: string; updated_at: string }>(
     "select answers, created_at, updated_at from anamnesis where patient_id = ?",
     [patientId],
@@ -26,6 +33,8 @@ export async function saveAnamnesis(db: Db, patientId: string, answers: Answers)
   const clean = Object.fromEntries(
     Object.entries(answers).filter(([, v]) => v !== null && v !== "" && !(Array.isArray(v) && v.length === 0) && !(typeof v === "number" && Number.isNaN(v))),
   );
+  const episode = await currentEpisode(db, patientId);
+  if (episode !== patientId) return saveEpisodeAnswers(db, episode, clean);
   const t = now();
   await db.transaction([
     {
@@ -133,7 +142,7 @@ export async function saveSession(db: Db, patientId: string, input: SessionInput
 
 /** Sesiones del paciente, la más reciente primero. */
 export async function listSessions(db: Db, patientId: string): Promise<Session[]> {
-  const rows = await db.query<SessionRow>("select * from sessions where patient_id = ? order by performed_at desc", [patientId]);
+  const rows = await db.query<SessionRow>(`select * from sessions s where patient_id = ? and ${inFocus("s")} order by performed_at desc`, [patientId]);
   return rows.map(toSession);
 }
 
@@ -254,7 +263,7 @@ export async function saveFinding(db: Db, patientId: string, input: FindingInput
 
 /** Hallazgos del paciente, el más reciente primero. */
 export async function listFindings(db: Db, patientId: string): Promise<Finding[]> {
-  const rows = await db.query<FindingRow>("select * from findings where patient_id = ? order by performed_at desc, created_at desc", [patientId]);
+  const rows = await db.query<FindingRow>(`select * from findings f where patient_id = ? and ${inFocus("f")} order by performed_at desc, created_at desc`, [patientId]);
   return rows.map(toFinding);
 }
 
@@ -326,7 +335,7 @@ export async function saveQuestionnaire(db: Db, patientId: string, input: Questi
 
 /** Cuestionarios del paciente, el más reciente primero. */
 export async function listQuestionnaires(db: Db, patientId: string): Promise<Questionnaire[]> {
-  const rows = await db.query<QuestionnaireRow>("select * from questionnaires where patient_id = ? order by performed_at desc, created_at desc", [patientId]);
+  const rows = await db.query<QuestionnaireRow>(`select * from questionnaires q where patient_id = ? and ${inFocus("q")} order by performed_at desc, created_at desc`, [patientId]);
   return rows.map(toQuestionnaire);
 }
 

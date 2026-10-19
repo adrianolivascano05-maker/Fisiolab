@@ -1,5 +1,5 @@
 // Lo común a todas las pantallas de la ficha de un paciente: «‹ Pacientes» y «Editar» arriba, su cabecera (iniciales,
-// nombre, datos y la próxima cita) y las pestañas, que se quedan fijas arriba al bajar.
+// nombre, datos, el motivo de consulta que se está viendo y la próxima cita) y las pestañas, que se quedan fijas arriba al bajar.
 import { CalendarCheck } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
 import { Link } from "react-router";
@@ -15,6 +15,7 @@ import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { initials } from "../ui/ListItem";
 import { fmtVisit, visitEvent } from "./calendar";
 import { CalendarButton } from "./CalendarButton";
+import { EpisodePicker } from "./EpisodePicker";
 import { PatientNav } from "./parts";
 
 export function PatientShell({ patient, id, tabs = true, children }: { patient: Patient | null | undefined; id: string; tabs?: boolean; children: ReactNode }) {
@@ -56,6 +57,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
               {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin datos físicos"}</p>}
             </div>
           </div>
+          {patient && <EpisodePicker patientId={id} />}
           {visit.data && (
             <div className="flex flex-wrap items-center gap-x-2">
               <Link
