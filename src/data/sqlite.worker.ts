@@ -5,7 +5,10 @@ import { Engine, type Storage } from "./engine";
 import { migrations } from "./migrations";
 import type { Request } from "./protocol";
 
-const FILE = "/fisiolab.sqlite3";
+// Sin cuentas, la base de siempre. Con cuenta (src/cloud), la suya: el nombre llega como nombre del worker.
+const LEGACY = "/fisiolab.sqlite3";
+const [account, flag] = (self.name || "").split("|");
+const FILE = account ? `/${account}.sqlite3` : LEGACY;
 
 /**
  * Solo una pestaña puede tener abierta la base en OPFS. Se reserva con un Web Lock que dura lo
@@ -28,6 +31,16 @@ async function start(): Promise<Engine | "locked"> {
   let storage: Storage;
   try {
     const pool = await sqlite3.installOpfsSAHPoolVfs({ name: "fisiolab-pool" });
+    // Cada base ocupa dos huecos (el archivo y su diario): sitio para varias cuentas en el mismo dispositivo.
+    if (pool.getCapacity() - pool.getFileCount() < 4) await pool.addCapacity(4);
+    // Primera vez con cuenta en este dispositivo: los datos que había sin cuenta pasan a ser suyos.
+    if (flag === "adopt" && FILE !== LEGACY) {
+      const files: string[] = pool.getFileNames();
+      if (!files.includes(FILE) && files.includes(LEGACY)) {
+        await pool.importDb(FILE, pool.exportFile(LEGACY));
+        pool.unlink(LEGACY);
+      }
+    }
     storage = {
       persistent: true,
       open: () => new pool.OpfsSAHPoolDb(FILE),

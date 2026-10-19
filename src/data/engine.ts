@@ -1,6 +1,7 @@
 // Núcleo de la base de datos: abre, migra y atiende peticiones. Lo usan el worker del navegador
 // y los tests en Node, así que no sabe nada de mensajes ni de OPFS.
-import type { Bind, Info, Request, Statement } from "./protocol";
+import type { Bind, Info, Request, Snapshot, Statement } from "./protocol";
+import { mergeInto, wipeAll, type MergeResult } from "./syncMerge";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- la API de sqlite-wasm no está tipada al detalle */
 type Sqlite3 = any;
@@ -29,7 +30,10 @@ export class Engine {
   }
 
   private openAndMigrate(): DB {
-    const db = this.storage.open();
+    return this.migrate(this.storage.open());
+  }
+
+  private migrate(db: DB): DB {
     db.exec("pragma foreign_keys = on;");
     const current = db.selectValue("pragma user_version") as number;
     for (const m of [...this.migrations].sort((a, b) => a.version - b.version)) {
@@ -39,6 +43,22 @@ export class Engine {
         db.exec(`pragma user_version = ${m.version}`);
       });
     }
+    return db;
+  }
+
+  private get latestVersion() {
+    return Math.max(...this.migrations.map((m) => m.version));
+  }
+
+  /** Abre una copia (bytes de un archivo .sqlite3) en memoria, sin tocar la base. */
+  private openBytes(bytes: Uint8Array): DB {
+    const header = new TextDecoder().decode(bytes.slice(0, 16));
+    if (header !== SQLITE_HEADER) throw new Error("La copia de la nube no es una base de esta app.");
+    const { capi, wasm, oo1 } = this.sqlite3;
+    const db = new oo1.DB(":memory:", "c");
+    const p = wasm.allocFromTypedArray(bytes);
+    const rc = capi.sqlite3_deserialize(db.pointer, "main", p, bytes.byteLength, bytes.byteLength, capi.SQLITE_DESERIALIZE_FREEONCLOSE | capi.SQLITE_DESERIALIZE_RESIZEABLE);
+    db.checkRc(rc);
     return db;
   }
 
@@ -54,6 +74,38 @@ export class Engine {
         return this.importBytes(req.bytes);
       case "info":
         return this.info();
+      case "snapshot":
+        return this.snapshot();
+      case "merge":
+        return this.merge(req.bytes);
+      case "wipe":
+        this.db.transaction(() => wipeAll(this.db));
+        return null;
+    }
+  }
+
+  private snapshot(): Snapshot {
+    return {
+      bytes: this.sqlite3.capi.sqlite3_js_db_export(this.db) as Uint8Array,
+      changes: this.db.selectValue("select changes from sync_state") as number,
+    };
+  }
+
+  /** Junta la copia de la nube con esta base (src/data/syncMerge.ts). Si algo falla, la base queda como estaba. */
+  private merge(bytes: Uint8Array): MergeResult {
+    const remote = this.openBytes(bytes);
+    try {
+      if (remote.selectValue("pragma integrity_check") !== "ok") throw new Error("La copia de la nube está dañada.");
+      const version = remote.selectValue("pragma user_version") as number;
+      if (version > this.latestVersion) throw new Error("La copia de la nube es de una versión más nueva de la app: actualiza la app en este dispositivo.");
+      this.migrate(remote);
+      let result: MergeResult = { pulled: 0, needUpload: false };
+      this.db.transaction(() => {
+        result = mergeInto(this.db, remote);
+      });
+      return result;
+    } finally {
+      remote.close();
     }
   }
 
