@@ -51,7 +51,7 @@ export function ProfilePage() {
   }
 
   const title = "Perfil fuerza-velocidad";
-  const back = `/pacientes/${id}`;
+  const back = `/pacientes/${id}/mediciones`;
   if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title={title} backTo={back}><Loading /></Page>;
   const { patient, saved } = data.data;

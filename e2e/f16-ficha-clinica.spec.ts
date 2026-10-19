@@ -1,0 +1,201 @@
+import { createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import type { Page } from "@playwright/test";
+
+const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
+
+test.describe("F16 Ficha clínica", () => {
+  test("F16-H1 anamnesis: se rellena, se guarda y resume la ficha", async ({ page }) => {
+    await createPatient(page, { name: "Lucía Anamnesis" });
+    await tab(page, "Anamnesis").click();
+    await expect(page.getByRole("heading", { name: "Anamnesis", exact: true })).toBeVisible();
+    await expect(page.getByText("1. Datos personales")).toBeVisible();
+    await expect(page.getByText("9. Observaciones")).toBeVisible();
+    await page.getByLabel("Motivo principal").fill("Dolor de rodilla al bajar escaleras");
+    await page.getByText("Rodilla", { exact: true }).click();
+    await page.getByText("Derecho", { exact: true }).click();
+    await page.locator("fieldset", { hasText: "Intensidad (EVA 0-10)" }).getByText("6", { exact: true }).click();
+    await page.getByText("Fiebre o malestar general").click();
+    await page.getByLabel("Diagnóstico funcional").fill("Tendinopatía rotuliana");
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+
+    await expect(page.getByRole("button", { name: "Editar" })).toBeVisible();
+    await expect(page.getByText("Banderas rojas: 1")).toBeVisible();
+    await expect(page.getByText("6/10")).toBeVisible();
+    await expectAccessible(page);
+
+    await tab(page, "Resumen").click();
+    await expect(page.getByText("Dolor de rodilla al bajar escaleras")).toBeVisible();
+    await expect(page.getByText("Diagnóstico fisioterápico: Tendinopatía rotuliana")).toBeVisible();
+    await expect(page.getByText("Banderas rojas: 1")).toBeVisible();
+    // El dolor de la anamnesis ya dibuja la gráfica.
+    await expect(page.getByRole("img", { name: /Dolor de 0 a 10/ })).toBeVisible();
+
+    // Editar conserva lo escrito.
+    await tab(page, "Anamnesis").click();
+    await page.getByRole("button", { name: "Editar" }).click();
+    await expect(page.getByLabel("Motivo principal")).toHaveValue("Dolor de rodilla al bajar escaleras");
+    await page.getByLabel("Alergias").fill("Ninguna");
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByText("Ninguna")).toBeVisible();
+    await page.reload();
+    await expect(page.getByText("Dolor de rodilla al bajar escaleras")).toBeVisible();
+  });
+
+  test("F16-H2 exploración: registrar un test, ver su evidencia, editarlo y borrarlo", async ({ page }) => {
+    await createPatient(page, { name: "Pablo Exploración" });
+    await page.getByRole("link", { name: "Registrar test" }).click();
+    await page.getByRole("searchbox", { name: "Buscar test" }).fill("lachman");
+    await page.getByRole("button", { name: /Test de Lachman/ }).first().click();
+    await page.getByRole("button", { name: "Guardar resultado" }).click();
+    await expect(page.getByText("Marca si ha sido positivo, negativo o dudoso.")).toBeVisible();
+    await page.getByText("Positivo", { exact: true }).click();
+    await expect(page.getByText(/LR\+ .* · /).first()).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar resultado" }).click();
+
+    await expect(page.getByRole("heading", { name: "Exploración", exact: true })).toBeVisible();
+    const row = page.getByRole("link", { name: /Test de Lachman.*Positivo/ });
+    await expect(row).toBeVisible();
+    await expectAccessible(page);
+
+    await tab(page, "Resumen").click();
+    await expect(page.getByRole("list", { name: "Tests de exploración" })).toContainText("Test de Lachman");
+
+    // Editar: pasa a negativo.
+    await tab(page, "Exploración").click();
+    await row.click();
+    await page.getByText("Negativo", { exact: true }).click();
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByRole("link", { name: /Test de Lachman.*Negativo/ })).toBeVisible();
+
+    // Borrar.
+    await page.getByRole("link", { name: /Test de Lachman.*Negativo/ }).click();
+    await page.getByRole("button", { name: "Borrar este resultado" }).click();
+    await page.getByRole("dialog", { name: "¿Borrar este resultado?" }).getByRole("button", { name: "Borrar" }).click();
+    await expect(page.getByText("Ningún test registrado")).toBeVisible();
+  });
+
+  test("F16-H3 registrar el resultado desde la galería", async ({ page }) => {
+    await createPatient(page, { name: "Marta Galería" });
+    await page.goto("./exploracion/rodilla/rod-lachman");
+    await page.getByRole("button", { name: "Registrar el resultado en un paciente" }).click();
+    await page.getByRole("dialog", { name: "¿En qué paciente?" }).getByRole("link", { name: "Marta Galería" }).click();
+    await expect(page.getByText("Test de Lachman", { exact: true })).toBeVisible();
+    await page.getByText("Negativo", { exact: true }).click();
+    await page.getByRole("button", { name: "Guardar resultado" }).click();
+    await expect(page.getByRole("link", { name: /Test de Lachman.*Negativo/ })).toBeVisible();
+  });
+
+  test("F16-H4 sesiones: dolor, tratamiento y reevaluación en la ficha", async ({ page }) => {
+    await createPatient(page, { name: "Diego Sesiones" });
+    await page.getByRole("link", { name: "Nueva sesión" }).click();
+    await page.locator("fieldset", { hasText: "Dolor hoy" }).getByText("4", { exact: true }).click();
+    await page.getByLabel("Tratamiento").fill("Isométricos de cuádriceps");
+    await page.getByRole("button", { name: "En 1 semana" }).click();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar sesión" }).click();
+
+    await expect(page.getByRole("heading", { name: "Sesiones", exact: true })).toBeVisible();
+    await expect(page.getByText("Dolor 4/10")).toBeVisible();
+    await expect(page.getByText("Isométricos de cuádriceps")).toBeVisible();
+    await expect(page.getByText(/Próxima reevaluación/)).toBeVisible();
+    await expectAccessible(page);
+
+    await tab(page, "Resumen").click();
+    await expect(page.getByRole("img", { name: /Dolor de 0 a 10/ })).toBeVisible();
+    await expect(page.getByText(/Próxima reevaluación/)).toBeVisible();
+    await expect(page.getByRole("list", { name: "Historia del paciente" })).toContainText("Sesión");
+    // En la lista de pacientes sale para reevaluar (la semana que viene).
+    await page.goto("./");
+    await expect(page.getByRole("list", { name: "Reevaluaciones" })).toContainText("Diego Sesiones");
+    await page.getByRole("list", { name: "Reevaluaciones" }).getByRole("link", { name: /Diego Sesiones/ }).click();
+
+    // Editar y borrar.
+    await tab(page, "Sesiones").click();
+    await page.getByRole("link", { name: "Editar la sesión 1" }).click();
+    await page.getByRole("button", { name: "Borrar sesión" }).click();
+    await page.getByRole("dialog", { name: "¿Borrar esta sesión?" }).getByRole("button", { name: "Borrar" }).click();
+    await expect(page.getByText("Sin sesiones todavía")).toBeVisible();
+  });
+
+  test("F16-H5 cuestionarios: la PSFS en la app, el KOOS por puntuación y su evolución", async ({ page }) => {
+    await createPatient(page, { name: "Irene Cuestionarios" });
+    await page.getByRole("link", { name: "Registrar cuestionario" }).click();
+    await page.getByRole("button", { name: /PSFS/ }).click();
+    await page.getByLabel("Fecha y hora").fill("2026-09-01T10:00");
+    await page.getByLabel("Actividad 1", { exact: true }).fill("Bajar escaleras");
+    await page.getByRole("group", { name: "Cómo hace la actividad 1" }).getByText("4", { exact: true }).click();
+    await page.getByRole("button", { name: "Añadir actividad" }).click();
+    await page.getByLabel("Actividad 2", { exact: true }).fill("Correr");
+    await page.getByRole("group", { name: "Cómo hace la actividad 2" }).getByText("2", { exact: true }).click();
+    await expect(page.getByText("Media: 3,0/10")).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    const list = page.getByRole("list", { name: "Cuestionarios" });
+    await expect(list).toContainText("PSFS");
+    await expect(list).toContainText("3/10");
+
+    // La siguiente PSFS trae las mismas actividades y lo que puntuó la última vez.
+    await page.getByRole("link", { name: "Registrar cuestionario" }).click();
+    await page.getByRole("button", { name: /PSFS/ }).click();
+    await expect(page.getByLabel("Actividad 1", { exact: true })).toHaveValue("Bajar escaleras");
+    await expect(page.getByText("La última vez: 4")).toBeVisible();
+    await page.getByRole("group", { name: "Cómo hace la actividad 1" }).getByText("7", { exact: true }).click();
+    await page.getByRole("group", { name: "Cómo hace la actividad 2" }).getByText("5", { exact: true }).click();
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    await expect(list).toContainText("6/10");
+    await expect(list).toContainText("+3 desde el primero (mejor)");
+
+    // KOOS: solo la puntuación, con su subescala y su rango.
+    await page.getByRole("link", { name: "Registrar cuestionario" }).click();
+    await page.getByRole("button", { name: /KOOS/ }).click();
+    await page.getByLabel("Puntuación", { exact: true }).fill("62");
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    await expect(page.getByText("Elige la subescala.")).toBeVisible();
+    await page.getByText("Dolor", { exact: true }).click();
+    await page.getByLabel("Puntuación", { exact: true }).fill("120");
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    await expect(page.getByText("La puntuación va de 0 a 100.")).toBeVisible();
+    await page.getByLabel("Puntuación", { exact: true }).fill("62");
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    await expect(list).toContainText("KOOS (rodilla) · Dolor");
+    await expect(list).toContainText("62/100");
+
+    await tab(page, "Resumen").click();
+    await expect(page.getByRole("list", { name: "Cuestionarios" })).toContainText("KOOS");
+    await expect(page.getByRole("list", { name: "Historia del paciente" })).toContainText("Cuestionario");
+
+    // Corregir y borrar.
+    await page.getByRole("list", { name: "Cuestionarios" }).getByRole("link", { name: /KOOS/ }).click();
+    await expect(page.getByLabel("Puntuación", { exact: true })).toHaveValue("62");
+    await page.getByRole("button", { name: "Borrar cuestionario" }).click();
+    await page.getByRole("dialog", { name: "¿Borrar este cuestionario?" }).getByRole("button", { name: "Borrar" }).click();
+    await expect(list).toContainText("PSFS");
+    await expect(list).not.toContainText("KOOS");
+  });
+
+  test("F16-H6 simetría entre lados e informe imprimible con los datos de ejemplo", async ({ page }) => {
+    await loadSeed(page);
+    await page.goto("./");
+    await page.getByRole("link", { name: /Marcos Vidal/ }).click();
+    await tab(page, "Mediciones").click();
+    const sym = page.getByRole("list", { name: "Simetría entre lados" });
+    await expect(sym).toContainText("CMJ a una pierna");
+    await expect(sym).toContainText("bajo el 90 %");
+    await expectAccessible(page);
+
+    await tab(page, "Resumen").click();
+    await page.getByRole("link", { name: "Informe del paciente" }).click();
+    const report = page.getByRole("article", { name: "Informe" });
+    await expect(report).toContainText("Informe de fisioterapia");
+    await expect(report).toContainText("Marcos Vidal");
+    await expect(report).toContainText("Simetría entre lados");
+    await expectAccessible(page);
+    // Lo que no se marca no sale.
+    await page.getByRole("checkbox", { name: "Mediciones" }).uncheck();
+    await expect(report).not.toContainText("Simetría entre lados");
+    await expect(page.getByRole("button", { name: "Imprimir o guardar en PDF" })).toBeVisible();
+  });
+});

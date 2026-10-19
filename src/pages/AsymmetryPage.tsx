@@ -29,7 +29,7 @@ export function AsymmetryPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => ({ patient: await getPatient(getDb(), id), jumps: await singleLegJumps(getDb(), id) }), [id]);
   const title = "Asimetría";
-  const back = `/pacientes/${id}`;
+  const back = `/pacientes/${id}/mediciones`;
   if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title={title} backTo={back}><Loading /></Page>;
   const all = sessions(data.data.jumps);

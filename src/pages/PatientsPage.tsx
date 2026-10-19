@@ -1,10 +1,11 @@
-import { Plus, Search, Users, Zap } from "lucide-react";
+import { CalendarClock, Plus, Search, Users, Zap } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { fmtDate, testLabel } from "../app/format";
 import { InstallCard } from "../app/pwa";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
+import { dueReviews } from "../data/clinical";
 import { getDb } from "../data/db";
 import { createPatient, getSetting, listPatients } from "../data/repo";
 import { SEED_PREFIX } from "../data/seed";
@@ -23,6 +24,7 @@ export function PatientsPage() {
   const patients = useAsync(() => listPatients(getDb(), search), [search]);
   const info = useAsync(() => getDb().info(), []);
   const lastBackup = useAsync(() => getSetting<string>(getDb(), "last_backup_at"), []);
+  const reviews = useAsync(() => dueReviews(getDb(), dayPlus(7)), []);
   const navigate = useNavigate();
   const toast = useToast();
   const [quick, setQuick] = useState(false);
@@ -70,6 +72,7 @@ export function PatientsPage() {
         hasRealPatients={!!patients.data?.some((p) => !p.name.startsWith(SEED_PREFIX))}
         lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)}
       />
+      {reviews.data && reviews.data.length > 0 && !search && <Reviews items={reviews.data} />}
       <Button variant="secondary" block loading={quick} icon={<Zap aria-hidden="true" className="size-5" />} onClick={quickMeasure}>
         Medición rápida, sin ficha
       </Button>
@@ -125,6 +128,31 @@ export function PatientsPage() {
         </List>
       )}
     </Page>
+  );
+}
+
+/** AAAA-MM-DD de hoy más n días, en la hora de Madrid. */
+const dayPlus = (n: number) => new Date(Date.now() + n * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+
+/** Reevaluaciones de hoy, atrasadas y de los próximos 7 días (la última fecha que se puso en cada paciente). */
+function Reviews({ items }: { items: { patientId: string; name: string; reviewOn: string }[] }) {
+  const today = dayPlus(0);
+  return (
+    <section aria-labelledby="reevaluar" className="flex flex-col gap-2">
+      <h2 id="reevaluar" className="flex items-center gap-2 text-lg">
+        <CalendarClock aria-hidden="true" className="size-5 text-accent" /> Para reevaluar
+      </h2>
+      <List label="Reevaluaciones">
+        {items.map((r) => (
+          <PatientRow
+            key={r.patientId}
+            to={`/pacientes/${r.patientId}/sesiones`}
+            name={r.name}
+            meta={r.reviewOn < today ? `Pendiente desde el ${fmtDate(`${r.reviewOn}T12:00:00`)}` : r.reviewOn === today ? "Hoy" : fmtDate(`${r.reviewOn}T12:00:00`)}
+          />
+        ))}
+      </List>
+    </section>
   );
 }
 

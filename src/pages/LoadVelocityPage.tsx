@@ -48,7 +48,7 @@ export function LoadVelocityPage() {
   }, [storedMvt.data]);
 
   const title = "Perfil carga-velocidad";
-  const back = `/pacientes/${id}`;
+  const back = `/pacientes/${id}/mediciones`;
   if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data || chosen === null) return <Page title={title} backTo={back}><Loading /></Page>;
 

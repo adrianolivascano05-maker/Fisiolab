@@ -13,6 +13,7 @@ import { likelihoodRatios, lrMeaning, postTest } from "./evidence";
 import { regionBySlug, regionOf, regions } from "./regions";
 import type { SpecialTest } from "./types";
 import { useFavorites } from "./useFavorites";
+import { RegisterInPatient } from "../clinical/RegisterInPatient"; // enlace con la ficha clínica
 
 export const GALLERY = "/exploracion";
 const testUrl = (t: SpecialTest) => `${GALLERY}/${regionOf(t.region).slug}/${t.id}`;
@@ -325,6 +326,8 @@ export function GalleryTest() {
           ))}
         </dl>
       )}
+
+      <RegisterInPatient testId={t.id} />
 
       <div className="flex justify-end">
         <button type="button" onClick={() => open.setAll([...present], !allOpen)} className="tap inline-flex items-center gap-1 rounded-md px-2 text-sm text-accent hover:bg-surface">

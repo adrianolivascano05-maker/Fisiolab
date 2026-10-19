@@ -5,6 +5,7 @@ import { UpdateBanner } from "./app/pwa";
 import { ToastProvider } from "./ui/Toast";
 import { freeRoutes } from "./free/routes"; // Módulo experimental (src/free/README.md)
 import { galleryRoutes } from "./gallery/routes"; // Galería de tests (src/gallery/README.md)
+import { clinicalRoutes } from "./clinical/routes"; // Ficha clínica: anamnesis, exploración, mediciones y sesiones
 import { ComingSoonPage } from "./pages/ComingSoonPage";
 import { JumpSetupPage } from "./pages/JumpSetupPage";
 import { PatientFormPage } from "./pages/PatientFormPage";
@@ -67,6 +68,7 @@ const router = createBrowserRouter([
   { path: "/pacientes/:id/movilidad/:mov", element: l(<RomHistoryPage />) }, // S19
   { path: "/pacientes/:id/bienestar", element: l(<WellnessPage />) }, // S21
   { path: "/pacientes/:id/evolucion/:tipo", element: l(<EvolutionPage />) }, // S22
+  ...clinicalRoutes, // Ficha clínica
   ...freeRoutes, // Medición libre (experimental)
   ...galleryRoutes, // Galería de tests de exploración
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07

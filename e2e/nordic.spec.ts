@@ -56,6 +56,7 @@ test.describe("F12 Nórdico de isquios", () => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Mediciones" }).click();
     await page.getByRole("link", { name: /Nórdico.*57°/ }).click();
     await expect(page.getByRole("heading", { name: "Evolución" })).toBeVisible();
     await expect(page.getByRole("table").getByRole("row")).toHaveCount(3);

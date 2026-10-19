@@ -25,7 +25,7 @@ export function RomSummaryPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => ({ patient: await getPatient(getDb(), id), entries: await romEntries(getDb(), id) }), [id]);
   const title = "Movilidad";
-  const back = `/pacientes/${id}`;
+  const back = `/pacientes/${id}/mediciones`;
   if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title={title} backTo={back}><Loading /></Page>;
   const { patient, entries } = data.data;

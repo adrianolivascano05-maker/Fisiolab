@@ -102,7 +102,7 @@ export function MarkPage() {
   if (test.data === undefined) return <Page title="Marcar" backTo="/"><Loading /></Page>;
   const t = test.data;
   if (!t) return <Page title="Marcar" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
-  const back = `/pacientes/${t.patientId}`;
+  const back = `/pacientes/${t.patientId}/mediciones`;
   if (!t.video || !(isJumpType(t.type) || ["vbt", "nordic", "sprint_linear", "running"].includes(t.type) || isCodType(t.type))) return <Page title="Marcar" backTo={back}><LoadError error={new Error("Este test no tiene vídeo.")} /></Page>;
   const type = t.type as MarkType;
   const label =

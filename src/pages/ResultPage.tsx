@@ -40,7 +40,7 @@ export function ResultPage() {
   const { test, patient } = data.data;
   if (!test || !patient) return <Page title="Resultado" backTo="/"><LoadError error={new Error("Este test no existe.")} /></Page>;
 
-  const back = `/pacientes/${patient.id}`;
+  const back = `/pacientes/${patient.id}/mediciones`;
   const deleteUi = (
     <>
       <Button variant="ghost" className="text-danger" onClick={() => setConfirm(true)}>

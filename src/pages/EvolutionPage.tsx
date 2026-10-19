@@ -33,7 +33,7 @@ export function EvolutionPage() {
     return { patient: await getPatient(db, id), points: await history(db, id, type, metric), types };
   }, [id, type, metric]);
   const title = "Evolución";
-  const back = `/pacientes/${id}`;
+  const back = `/pacientes/${id}/mediciones`;
 
   if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title={title} backTo={back}><Loading /></Page>;
