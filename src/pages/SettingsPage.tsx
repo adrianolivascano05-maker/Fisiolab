@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
 import { InstallSteps, useInstall } from "../app/pwa";
+import { CloudSettings, useCloud } from "../cloud/CloudGate";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
@@ -29,6 +30,7 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 export function SettingsPage() {
   const toast = useToast();
   const install = useInstall();
+  const cloud = useCloud();
   const input = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<File | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -57,10 +59,13 @@ export function SettingsPage() {
 
   return (
     <Page title="Ajustes" tabs>
+      <CloudSettings />
       <section className="flex flex-col gap-3" aria-labelledby="h-datos">
         <h2 id="h-datos" className="text-lg">Tus datos</h2>
         <p className="text-sm text-text-muted">
-          Todo se guarda solo en este dispositivo. Nada se envía a ningún servidor. Por eso conviene hacer una copia de seguridad cada semana.
+          {cloud
+            ? "Se guardan en este dispositivo y, cada vez que cambian, en tu Google Drive (una carpeta oculta que solo usa esta app). La copia de seguridad en archivo es opcional."
+            : "Todo se guarda solo en este dispositivo. Nada se envía a ningún servidor. Por eso conviene hacer una copia de seguridad cada semana."}
         </p>
         {state.data && !state.data.info.persistent && (
           <Alert tone="warning" title="Este navegador no guarda los datos">Se perderán al cerrar la pestaña.</Alert>

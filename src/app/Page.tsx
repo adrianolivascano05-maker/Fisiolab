@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { SyncNotice } from "../cloud/CloudGate";
 import { Alert } from "../ui/Alert";
 import { TabBar, TopBar } from "../ui/AppBar";
 import { cx } from "../ui/cx";
@@ -21,6 +22,7 @@ export function Page({ title, backTo, action, tabs, tone = "default", brand, chi
       <TopBar title={title} backTo={backTo} action={action} brand={brand} />
       <main className={cx("mx-auto flex max-w-[var(--layout-content-max)] flex-col gap-4 px-4 pt-4", tabs ? "pb-28" : "pb-12")}>
         {brand && <h1 className="text-xl">{title}</h1>}
+        <SyncNotice />
         {children}
       </main>
       {tabs && <TabBar />}

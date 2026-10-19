@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import { DbGate } from "./app/DbGate";
+import { CloudGate } from "./cloud/CloudGate"; // Cuenta de Google y copia en Drive (src/cloud/README.md)
 import { UpdateBanner } from "./app/pwa";
 import { ToastProvider } from "./ui/Toast";
 import { freeRoutes } from "./free/routes"; // Módulo experimental (src/free/README.md)
@@ -42,7 +43,7 @@ const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
 
 // Una ruta por pantalla del recon (replica/recon.md). Las de fases posteriores muestran cuándo llegan.
-const router = createBrowserRouter([
+const routes = [
   { path: "/", element: <PatientsPage /> }, // S01
   { path: "/pacientes/nuevo", element: <PatientFormPage /> }, // S03
   { path: "/pacientes/:id", element: <PatientPage /> }, // S02
@@ -80,7 +81,13 @@ const router = createBrowserRouter([
   { path: "/privacidad", element: <PrivacyPage /> },
   { path: "/design", element: l(<DesignPage />) },
   { path: "*", element: <ComingSoonPage title="Página no encontrada" /> },
-], { basename: BASENAME });
+];
+
+/** El router se crea al entrar (después de volver de Google, con la dirección ya en su sitio). */
+function Router() {
+  const [router] = useState(() => createBrowserRouter(routes, { basename: BASENAME }));
+  return <RouterProvider router={router} />;
+}
 
 export function App() {
   useEffect(() => {
@@ -89,9 +96,11 @@ export function App() {
   }, []);
   return (
     <ToastProvider>
-      <DbGate>
-        <RouterProvider router={router} />
-      </DbGate>
+      <CloudGate>
+        <DbGate>
+          <Router />
+        </DbGate>
+      </CloudGate>
       <UpdateBanner />
     </ToastProvider>
   );

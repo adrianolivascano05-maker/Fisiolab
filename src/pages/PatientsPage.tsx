@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { fmtDate, testLabel } from "../app/format";
 import { InstallCard } from "../app/pwa";
+import { useCloud } from "../cloud/CloudGate";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { dueReviews } from "../data/clinical";
@@ -28,6 +29,7 @@ export function PatientsPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const [quick, setQuick] = useState(false);
+  const cloud = useCloud();
 
   /** Medir ya, sin rellenar una ficha: usa (o crea) la ficha «Medición rápida». */
   async function quickMeasure() {
@@ -68,10 +70,11 @@ export function PatientsPage() {
         </Alert>
       )}
       <InstallCard />
-      <BackupReminder
+      {/* Con la nube, la copia es automática: no hace falta recordar la de archivo. */}
+      {!cloud && <BackupReminder
         hasRealPatients={!!patients.data?.some((p) => !p.name.startsWith(SEED_PREFIX))}
         lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)}
-      />
+      />}
       {reviews.data && reviews.data.length > 0 && !search && <Reviews items={reviews.data} />}
       <Button variant="secondary" block loading={quick} icon={<Zap aria-hidden="true" className="size-5" />} onClick={quickMeasure}>
         Medición rápida, sin ficha

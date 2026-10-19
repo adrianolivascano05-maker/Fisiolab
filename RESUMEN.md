@@ -60,9 +60,9 @@ Fecha: 2026-10-17
 
 1. **Por fases, saltos primero.** El usuario pidió «toda la app»; se construye por fases. Las fases 1 a 4 están hechas.
 2. **Web instalable (PWA), no app nativa.** Funciona en cualquier móvil, sin tiendas, sin cuentas de desarrollador y gratis.
-3. **Datos solo en el dispositivo:** SQLite WASM sobre OPFS, sin servidor ni cuentas. Son datos de salud (RGPD), con coste 0 € y funcionan sin conexión. Consecuencias:
-   - No se sincroniza entre móviles; se pasa la copia de seguridad.
-   - Hay recordatorio semanal de copia.
+3. **Datos en el dispositivo:** SQLite WASM sobre OPFS, sin servidor propio. Son datos de salud (RGPD), con coste 0 € y funcionan sin conexión. Consecuencias:
+   - Sin la nube activada no se sincroniza entre móviles; se pasa la copia de seguridad, y hay recordatorio semanal de copia.
+   - Con la nube activada (`public/cloud.json`, guía en `src/cloud/README.md`), cada fisioterapeuta entra con su cuenta de Google y sus pacientes se guardan también en su Google Drive, en la carpeta oculta de la app. Se junta fila a fila con la copia de la nube: gana el cambio más reciente.
    - Solo una pestaña a la vez (Web Lock); la segunda avisa y se bloquea.
    - Borrar un paciente borra todo lo suyo.
 4. **El vídeo no se guarda:** se queda en la galería. Solo se guardan las marcas y los resultados, así que, si cambia una fórmula, se recalcula desde las marcas.

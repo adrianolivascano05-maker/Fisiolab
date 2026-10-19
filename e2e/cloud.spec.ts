@@ -1,0 +1,142 @@
+// Cuenta de Google y copia en Drive (src/cloud), con Google simulado (fakeGoogle.ts): dos dispositivos de la
+// misma cuenta, un compañero con la suya, pasar a la cuenta lo que había sin cuenta y volver a entrar.
+import type { Browser, Page } from "@playwright/test";
+import { createPatient, expect, expectAccessible, test } from "./fixtures";
+import { FakeGoogle } from "./fakeGoogle";
+
+const users = {
+  ana: { sub: "1001", email: "ana@clinica.test", name: "Ana Ruiz" },
+  bruno: { sub: "1002", email: "bruno@clinica.test", name: "Bruno Gil" },
+};
+const enc = FakeGoogle.enc;
+// Sin service worker: así cada carga lee cloud.json de la red (simulada).
+test.use({ serviceWorkers: "block" });
+
+/** Otro dispositivo: navegador limpio, con la nube activada y sus errores de consola vigilados. */
+async function device(browser: Browser, google: FakeGoogle, who: keyof typeof users, errors: string[]) {
+  const { baseURL, viewport, locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
+  const ctx = await browser.newContext({ baseURL, viewport, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
+  await google.install(ctx, () => who);
+  const page = await ctx.newPage();
+  // Como en fixtures.ts: en GitHub Pages, abrir una ruta interna directamente da 404 (y la app funciona igual).
+  let nav404 = 0;
+  const ghPages = (process.env.E2E_BASE ?? "/") !== "/";
+  page.on("response", (r) => ghPages && r.status() === 404 && r.request().isNavigationRequest() && nav404++);
+  page.on("console", (m) => {
+    if (m.type() !== "error" || (m.text().includes("status of 404") && nav404-- > 0)) return;
+    errors.push(`${who}: ${m.text()}`);
+  });
+  page.on("pageerror", (e) => errors.push(`${who}: ${e.message}`));
+  return page;
+}
+
+/** Desde la pantalla de entrada. */
+async function enter(page: Page) {
+  await expect(page.getByRole("heading", { name: "Entra con tu cuenta de Google" })).toBeVisible();
+  await page.getByRole("button", { name: "Entrar con Google" }).click();
+  await expect(page.getByRole("heading", { name: "Pacientes" })).toBeVisible({ timeout: 15_000 });
+}
+
+async function login(page: Page) {
+  await page.goto("./");
+  await enter(page);
+}
+
+test.describe("Nube: cuenta de Google y Google Drive", () => {
+  test("NB1 dos dispositivos de la misma cuenta comparten pacientes; un compañero no los ve", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana");
+
+    // Móvil de Ana: entra y crea un paciente; en unos segundos está en su Drive.
+    await page.goto("./");
+    await expect(page.getByRole("heading", { name: "Entra con tu cuenta de Google" })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Entrar con Google" }).click();
+    await expect(page.getByRole("heading", { name: "Pacientes" })).toBeVisible({ timeout: 15_000 });
+    await createPatient(page, { name: "Lucía Nube" });
+    await expect.poll(() => google.driveText("ana").includes(enc("Lucía Nube")), { timeout: 15_000 }).toBe(true);
+    await page.goto("./ajustes");
+    await expect(page.getByText("ana@clinica.test")).toBeVisible();
+    await expect(page.getByText(/Guardado en tu Drive/)).toBeVisible();
+    await expectAccessible(page);
+
+    // Tablet de Ana: al entrar ya tiene a Lucía; apunta una sesión.
+    const tablet = await device(browser, google, "ana", errors);
+    await login(tablet);
+    await tablet.getByRole("link", { name: /Lucía Nube/ }).click();
+    await tablet.getByRole("link", { name: "Nueva sesión" }).click();
+    await tablet.getByLabel("Tratamiento").fill("Desde la tablet");
+    await tablet.getByRole("button", { name: "Guardar sesión" }).click();
+    await expect(tablet.getByText("Desde la tablet")).toBeVisible();
+    await expect.poll(() => google.driveText("ana").includes(enc("Desde la tablet")), { timeout: 15_000 }).toBe(true);
+
+    // El móvil, que sigue abierto, la trae al sincronizar y avisa de que hay datos nuevos.
+    await page.getByRole("button", { name: "Sincronizar ahora" }).click();
+    await page.getByRole("button", { name: "Mostrar" }).click();
+    await page.goto("./");
+    await page.getByRole("link", { name: /Lucía Nube/ }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Sesiones" }).click();
+    await expect(page.getByText("Desde la tablet")).toBeVisible();
+
+    // Bruno, compañero de la clínica, entra con su cuenta: no ve a los pacientes de Ana.
+    const colleague = await device(browser, google, "bruno", errors);
+    await login(colleague);
+    await expect(colleague.getByText("Todavía no hay pacientes")).toBeVisible();
+    await expect(colleague.getByText("Lucía Nube")).toHaveCount(0);
+
+    // La tablet cierra sesión borrando sus datos; al volver a entrar, Lucía vuelve desde Drive.
+    await tablet.goto("./ajustes");
+    await tablet.getByRole("button", { name: "Cerrar sesión y borrar los datos de este dispositivo" }).click();
+    await tablet.getByRole("dialog", { name: "¿Borrar los datos de este dispositivo?" }).getByRole("button", { name: "Borrar y cerrar sesión" }).click();
+    await enter(tablet);
+    await expect(tablet.getByRole("link", { name: /Lucía Nube/ })).toBeVisible();
+    // Borrar en el dispositivo no ha borrado nada en la nube.
+    expect(google.driveText("ana").includes(enc("Desde la tablet"))).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
+  test("NB2 lo que había en el dispositivo sin cuenta pasa a la cuenta al entrar", async ({ page }) => {
+    // Antes de activar la nube: un paciente guardado solo en el dispositivo.
+    await createPatient(page, { name: "Previo Local" });
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana");
+    await page.goto("./");
+    await page.getByRole("button", { name: "Entrar con Google" }).click();
+    await expect(page.getByText("1 paciente guardado")).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Pasarlos a mi cuenta" }).click();
+    await expect(page.getByRole("link", { name: /Previo Local/ })).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => google.driveText("ana").includes(enc("Previo Local")), { timeout: 15_000 }).toBe(true);
+  });
+
+  test("NB3 con la sesión de Google cerrada pide volver a entrar, o deja seguir sin conexión", async ({ page }) => {
+    const google = new FakeGoogle(users);
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana");
+    await login(page);
+    await createPatient(page, { name: "Sin Sesión" });
+    await expect.poll(() => google.driveText("ana").includes(enc("Sin Sesión")), { timeout: 15_000 }).toBe(true);
+
+    // Otra pestaña (sin token) con la sesión de Google cerrada: no puede entrar sin preguntar. (La base solo se
+    // abre en una pestaña a la vez: la primera se va a otra página.)
+    google.sessionOpen = false;
+    await page.goto("about:blank");
+    const other = await page.context().newPage();
+    other.on("pageerror", (e) => errors.push(e.message));
+    await other.goto("./");
+    await expect(other.getByText("Entrarás como ana@clinica.test")).toBeVisible();
+    await expect(other.getByRole("button", { name: "Continuar con Google" })).toBeVisible();
+    await expectAccessible(other);
+    await other.getByRole("button", { name: "Seguir sin conexión" }).click();
+    await expect(other.getByRole("link", { name: /Sin Sesión/ })).toBeVisible();
+    await other.close();
+    // Volver a entrar sí funciona (Google pregunta y la persona acepta).
+    const again = await page.context().newPage();
+    await again.goto("./");
+    await again.getByRole("button", { name: "Continuar con Google" }).click();
+    await expect(again.getByRole("link", { name: /Sin Sesión/ })).toBeVisible({ timeout: 15_000 });
+    expect(errors).toEqual([]);
+  });
+});

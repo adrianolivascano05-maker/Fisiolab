@@ -1,7 +1,9 @@
 import { Page } from "../app/Page";
+import { useCloud } from "../cloud/CloudGate";
 
 /** Privacidad: qué datos trata la app y dónde están. Texto propio de Fisiolab. */
 export function PrivacyPage() {
+  const cloud = useCloud();
   return (
     <Page title="Privacidad" backTo="/ajustes">
       <article className="flex flex-col gap-3 text-base">
@@ -15,15 +17,27 @@ export function PrivacyPage() {
           (marcas del vídeo y valores calculados). Los vídeos <b>no</b> se guardan: se quedan en la galería del móvil.
         </p>
         <h2 className="text-lg">Dónde están</h2>
-        <p>
-          Solo en el almacenamiento de este dispositivo. La app no tiene servidor, ni cuentas, ni envía los datos a
-          nadie. Las copias de seguridad y los CSV son archivos que descarga quien usa la app y que la clínica debe
-          guardar con las mismas precauciones que la historia clínica.
-        </p>
+        {cloud ? (
+          <p>
+            En el almacenamiento de este dispositivo y en el Google Drive de cada fisioterapeuta, en una carpeta oculta
+            que solo usa esta app (cada uno entra con su cuenta de Google y solo ve sus pacientes). La app no tiene
+            servidor propio: el dispositivo habla directamente con Google Drive. Las copias de seguridad y los CSV son
+            archivos que descarga quien usa la app y que la clínica debe guardar con las mismas precauciones que la
+            historia clínica.
+          </p>
+        ) : (
+          <p>
+            Solo en el almacenamiento de este dispositivo. La app no tiene servidor, ni cuentas, ni envía los datos a
+            nadie. Las copias de seguridad y los CSV son archivos que descarga quien usa la app y que la clínica debe
+            guardar con las mismas precauciones que la historia clínica.
+          </p>
+        )}
         <h2 className="text-lg">Proveedores</h2>
         <p>
           El alojamiento web solo sirve los archivos de la app. Como cualquier web, registra la dirección IP de quien la
           descarga. No recibe datos de pacientes. No hay analítica, ni publicidad, ni cookies.
+          {cloud &&
+            " Google trata los datos de la carpeta de la app en el Drive de cada fisioterapeuta según las condiciones de su cuenta de Google; para entrar, Google ve el nombre y el correo de quien entra."}
         </p>
         <h2 className="text-lg">Derechos</h2>
         <p>
