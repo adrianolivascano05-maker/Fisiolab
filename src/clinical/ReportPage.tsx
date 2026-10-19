@@ -144,7 +144,7 @@ export function ReportPage() {
         <article aria-label="Informe" className="flex flex-col gap-5 rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
           <header className="flex items-start justify-between gap-4 border-b border-border pb-3">
             <div className="flex flex-col">
-              <span className="text-2xl font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
+              <span className="text-xl font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
                 Informe de fisioterapia
               </span>
               <span className="text-sm text-text-muted">Historia clínica y evolución · {fmtDate(today)}</span>
