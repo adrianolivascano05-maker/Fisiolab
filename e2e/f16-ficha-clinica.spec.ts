@@ -219,17 +219,54 @@ test.describe("F16 Ficha clínica", () => {
     await expect(list).toContainText("KOOS (rodilla) · Dolor");
     await expect(list).toContainText("KOOS (rodilla) · Calidad de vida");
 
-    // Hoja de respuestas (Oswestry): números de la hoja oficial y la nota en %.
+    // Oswestry: cada apartado con sus seis frases; la nota en %.
     await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
     await page.getByRole("button", { name: /Oswestry/ }).click();
     const odi = page.getByRole("region", { name: "Apartados" }).getByRole("group");
-    for (let i = 0; i < 10; i++) await odi.nth(i).getByText(i < 5 ? "2" : "1", { exact: true }).click();
+    await expect(odi).toHaveCount(10);
+    // La tercera frase vale 2 y la segunda 1.
+    for (let i = 0; i < 10; i++) await odi.nth(i).locator("label").nth(i < 5 ? 2 : 1).click();
     // (5 × 2 + 5 × 1) / 50 = 30 %
     await expect(result).toContainText("30 %");
     await expect(result).toContainText("Limitación moderada");
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(list).toContainText("30 %");
+  });
+
+  test("F16-H10 cuestionarios generales: agrupados por tema, ánimo y actividad física", async ({ page }) => {
+    await createPatient(page, { name: "Pablo Generales" });
+    await add(page, "Cuestionario").click();
+    for (const topic of ["Calidad de vida", "Estado de ánimo", "Dolor, miedo y creencias", "Actividad física"])
+      await expect(page.getByRole("heading", { name: topic, exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Calidad de vida" })).toContainText("RAND-36");
+    await expectAccessible(page);
+
+    await page.getByRole("button", { name: /GAD-7/ }).click();
+    const result = page.getByRole("heading", { name: "Resultado" }).locator("..");
+    const qs = page.getByRole("group").filter({ hasText: "Casi todos los días" });
+    await expect(qs).toHaveCount(7);
+    for (let i = 0; i < 7; i++) await qs.nth(i).getByText(i === 0 ? "Casi todos los días" : "Nunca", { exact: true }).click();
+    await expect(result).toContainText("3/21");
+    await expect(result).toContainText("mínima");
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    const list = page.getByRole("list", { name: "Cuestionarios" });
+    await expect(list).toContainText("GAD-7");
+
+    // IPAQ: días con botones y minutos escritos; la nota en MET-min por semana y su nivel.
+    await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
+    await page.getByRole("button", { name: /IPAQ/ }).click();
+    await page.getByRole("region", { name: "Actividad intensa" }).getByRole("group").getByText("0", { exact: true }).click();
+    await page.getByRole("region", { name: "Actividad moderada" }).getByRole("group").getByText("0", { exact: true }).click();
+    const walk = page.getByRole("region", { name: "Caminar" });
+    await walk.getByRole("group").getByText("5", { exact: true }).click();
+    await walk.getByRole("textbox").fill("30");
+    // 3,3 × 30 min × 5 días = 495
+    await expect(result).toContainText("495 MET-min/sem");
+    await expect(result).toContainText("Moderado");
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    await expect(list).toContainText("495 MET-min/sem");
   });
 
   test("F16-H9 motivos de consulta: cada uno con su anamnesis y sus registros, y un filtro en la ficha", async ({ page }) => {

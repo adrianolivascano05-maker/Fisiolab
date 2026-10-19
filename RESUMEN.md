@@ -120,7 +120,7 @@ El usuario pidió una app tan intuitiva como un iPhone, sin listas que le digan 
   - En el Resumen: «Añadir» (Sesión, Medición, Exploración, Cuestionario) y una lista con Anamnesis, Protección de datos (en naranja si falta) e Informe. Después, solo lo que tiene datos.
 - **Ajustes:** listas agrupadas con el estado de cada cosa y una pantalla por apartado.
 - **Enlaces entre secciones:** desde un test de la Guía, «Registrar el resultado en …» propone el último paciente abierto.
-- **Cuestionarios enteros en la app** (`src/clinical/forms/`), con la nota calculada al final y guardada con las respuestas. NDI, Oswestry, QuickDASH, SPADI y TSK-11 tienen derechos sobre su texto: van como hoja de respuestas (se marca el número de cada respuesta de la hoja oficial). El texto de los ítems es una traducción de trabajo, por revisar con las versiones españolas publicadas.
+- **Cuestionarios enteros en la app** (`src/clinical/forms/`), con el texto de cada pregunta y respuesta, la nota calculada al final y guardada con las respuestas. Por zona (KOOS, HOOS, LEFS, FAAM, VISA-A/P, ACL-RSI, NDI, Oswestry, QuickDASH, SPADI) y generales (RAND-36, PHQ-9, GAD-7, TSK-11, PCS, PSEQ, FABQ, CSI, Örebro corto, IPAQ corto). El texto de los ítems es una traducción de trabajo, por revisar con las versiones españolas publicadas.
 - **Palabras:** «medición» para lo que se mide (salto, fuerza…) y «test de exploración» para Lachman, Neer…
 
 ## 4. Fórmulas acordadas (`src/calc/`)

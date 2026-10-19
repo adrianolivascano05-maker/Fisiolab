@@ -39,3 +39,46 @@ describe("hojas de respuestas", () => {
     expect(() => tsk11.score(all(tsk11, 2, ["t3"]))).toThrow(RangeError);
   });
 });
+
+describe("texto completo", () => {
+  const forms = [ndi, odi, quickdash, spadi, tsk11];
+  const items = (f: QuestionForm) => f.sections.flatMap((s) => s.items);
+  const values = (f: QuestionForm) => items(f).map((i) => i.options?.map((o) => o.value));
+
+  it("ya no son hojas de respuestas y avisan de que el texto es de trabajo", () => {
+    for (const f of forms) {
+      expect(f.instructions).not.toMatch(/hoja oficial/);
+      expect(f.source).toMatch(/Texto de trabajo: revisar con la versión española publicada\.$/);
+    }
+  });
+  it("cada ítem tiene su texto y cada respuesta el suyo, sin números sueltos", () => {
+    for (const f of forms) {
+      const texts = items(f).map((i) => i.text);
+      expect(new Set(texts).size).toBe(texts.length);
+      for (const i of items(f)) {
+        expect(i.text).not.toMatch(/^(Pregunta|Afirmación|Dolor|Discapacidad) \d+$/);
+        for (const o of i.options ?? []) expect(o.label).toMatch(/^[A-ZÁÉÍÓÚÑ¿]/);
+      }
+    }
+  });
+  it("NDI y Oswestry: 10 apartados con 6 frases distintas, de 0 a 5", () => {
+    for (const f of [ndi, odi]) {
+      expect(items(f)).toHaveLength(10);
+      expect(values(f).every((v) => v?.join() === "0,1,2,3,4,5")).toBe(true);
+      for (const i of items(f)) expect(new Set(i.options?.map((o) => o.label)).size).toBe(6);
+    }
+  });
+  it("QuickDASH de 1 a 5, TSK-11 de 1 a 4 y SPADI de 0 a 10 con «No aplica» solo en discapacidad", () => {
+    expect(items(quickdash)).toHaveLength(11);
+    expect(values(quickdash).every((v) => v?.join() === "1,2,3,4,5")).toBe(true);
+    expect(items(tsk11)).toHaveLength(11);
+    expect(values(tsk11).every((v) => v?.join() === "1,2,3,4")).toBe(true);
+    expect(items(tsk11)[0].options?.map((o) => o.label)).toEqual(["Totalmente en desacuerdo", "En desacuerdo", "De acuerdo", "Totalmente de acuerdo"]);
+    const [pain, dis] = spadi.sections;
+    expect(pain.items).toHaveLength(5);
+    expect(dis.items).toHaveLength(8);
+    for (const i of [...pain.items, ...dis.items]) expect(i.scale).toMatchObject({ from: 0, to: 10 });
+    expect(pain.items.every((i) => !i.na)).toBe(true);
+    expect(dis.items.every((i) => i.na)).toBe(true);
+  });
+});

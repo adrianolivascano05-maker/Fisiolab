@@ -10,8 +10,10 @@ export type Item = {
   text: string;
   /** Respuestas en lista (lo habitual)… */
   options?: Option[];
-  /** …o una escala numérica de botones (0-10, por ejemplo) con el texto de cada extremo. */
+  /** …o una escala numérica de botones (0-10, por ejemplo) con el texto de cada extremo… */
   scale?: { from: number; to: number; ends: [string, string] };
+  /** …o un número que se escribe (minutos, días…), entre min y max. */
+  input?: { min: number; max: number; unit: string };
   /** Se puede marcar «No aplica» (cuenta como sin responder al calcular). */
   na?: boolean;
 };
@@ -24,8 +26,11 @@ export type Answers = Record<string, number | null>;
 export type FormScore = {
   /** La nota total; null en los que solo tienen subescalas (KOOS, HOOS). */
   score: number | null;
-  /** Subescalas con su nota; los nombres, iguales que `subscales` en ../questionnaires.ts. */
-  subscores?: { name: string; score: number }[];
+  /**
+   * Subescalas con su nota; si el catálogo (../questionnaires.ts) las tiene, con los mismos nombres. `max`: sobre
+   * cuánto es (sin él, un porcentaje), para las que no están en el catálogo.
+   */
+  subscores?: { name: string; score: number; max?: number }[];
   /** Cómo se lee la nota, si el cuestionario lo define (p. ej. «Discapacidad moderada»). */
   text?: string;
 };
@@ -40,11 +45,6 @@ export type QuestionForm = {
   score(answers: Answers): FormScore;
   /** Autores y año del original y de la versión española en que se basa el texto. */
   source: string;
-  /**
-   * Hoja de respuestas: el texto de las preguntas tiene derechos de autor y no se reproduce. Cada ítem lleva solo
-   * su tema y los números; el paciente contesta en la hoja oficial y aquí se marca lo que eligió.
-   */
-  sheet?: boolean;
 };
 
 /** Las respuestas contestadas (sin «No aplica») de unos ítems. */

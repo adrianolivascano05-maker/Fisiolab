@@ -1148,20 +1148,39 @@ export function QuestionnaireFormPage() {
         </button>
       </li>
     );
+    const describe = (k: (typeof QUESTIONNAIRES)[number]) => {
+      const f = formFor(k.id);
+      const n = f?.sections.reduce((acc, sec) => acc + sec.items.length, 0);
+      const range = k.unit && k.unit !== "%" ? k.unit : `de ${k.min} a ${k.max}, ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`;
+      return `${n ? `${n} preguntas` : "Anotas la nota"} · ${range}`;
+    };
+    const ranked = byRegions(regions).filter(({ kind: k }) => !k.inApp);
+    const TOPICS = ["Calidad de vida", "Estado de ánimo", "Dolor, miedo y creencias", "Actividad física"];
+    // De su zona primero; después la evolución que cuenta el paciente, los generales por tema y el resto por zona.
+    const groups = [
+      { title: "De su zona", items: ranked.filter((r) => r.forRegion).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k), tag: "Su zona" })) },
+      { title: "Cómo lo vive el paciente", items: QUESTIONNAIRES.filter((k) => k.inApp).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" })) },
+      ...TOPICS.map((topic) => ({
+        title: topic,
+        items: ranked.filter((r) => !r.forRegion && r.kind.topic === topic).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k) })),
+      })),
+      {
+        title: "Por zona del cuerpo",
+        items: [
+          ...ranked.filter((r) => !r.forRegion && !r.kind.topic).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k) })),
+          option({ id: OTHER, name: "Otro cuestionario", text: "Escribe su nombre y su rango." }),
+        ],
+      },
+    ].filter((g) => g.items.length);
     return (
       <Page title="Nuevo cuestionario" backTo={back} tabs={false}>
         <p className="text-text-muted">{patient?.name}: elige el cuestionario. Se rellena aquí y la nota se calcula sola.</p>
-        <ul className="flex flex-col gap-2">
-          {QUESTIONNAIRES.filter((k) => k.inApp).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" }))}
-          {byRegions(regions)
-            .filter(({ kind: k }) => !k.inApp)
-            .map(({ kind: k, forRegion }) => {
-              const f = formFor(k.id);
-              const how = !f ? "Anotas la nota" : f.sheet ? "Con su hoja oficial: marcas las respuestas" : `${f.sections.reduce((n, s) => n + s.items.length, 0)} preguntas`;
-              return option({ id: k.id, name: k.name, text: `${how} · de ${k.min} a ${k.max}, ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`, tag: forRegion ? "Su zona" : undefined });
-            })}
-          {option({ id: OTHER, name: "Otro cuestionario", text: "Escribe su nombre y su rango." })}
-        </ul>
+        {groups.map((g) => (
+          <section key={g.title} aria-label={g.title} className="flex flex-col gap-2">
+            <h2 className="text-lg">{g.title}</h2>
+            <ul className="flex flex-col gap-2">{g.items}</ul>
+          </section>
+        ))}
       </Page>
     );
   }
@@ -1318,7 +1337,11 @@ export function QuestionnaireFormPage() {
                     {result.ok.subscores.map((sub) => (
                       <li key={sub.name} className="flex justify-between gap-2">
                         <span>{sub.name}</span>
-                        <span className="font-semibold">{fmt(sub.score, Number.isInteger(sub.score) ? 0 : 1)}{known?.subscales ? "/100" : " %"}</span>
+                        <span className="font-semibold">
+                          {known?.subscales
+                            ? scoreText(kindOf(kind, { subscale: sub.name }), sub.score)
+                            : `${fmt(sub.score, Number.isInteger(sub.score) ? 0 : 1)}${sub.max ? `/${sub.max}` : " %"}`}
+                        </span>
                       </li>
                     ))}
                   </ul>

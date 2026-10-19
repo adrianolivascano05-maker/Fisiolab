@@ -18,6 +18,10 @@ export type QuestionnaireKind = {
   hint?: string;
   /** Zonas del cuerpo (ids de BODY_REGIONS) para las que se suele usar: se proponen primero. */
   regions?: string[];
+  /** Los generales (no de una zona): de qué tratan, para agruparlos al elegir. */
+  topic?: string;
+  /** Subescalas con su propio rango (FABQ): por nombre. */
+  subscaleRange?: Record<string, { min: number; max: number }>;
 };
 
 export const QUESTIONNAIRES: QuestionnaireKind[] = [
@@ -34,7 +38,34 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
   { id: "odi", name: "Oswestry (lumbar)", min: 0, max: 100, better: "lower", unit: "%", regions: ["lumbar", "sacroiliaca"] },
   { id: "quickdash", name: "QuickDASH (miembro superior)", min: 0, max: 100, better: "lower", regions: ["hombro", "codo", "muneca_mano"] },
   { id: "spadi", name: "SPADI (hombro)", min: 0, max: 100, better: "lower", regions: ["hombro"] },
-  { id: "tsk11", name: "TSK-11 (kinesiofobia)", min: 11, max: 44, better: "lower" },
+  { id: "tsk11", name: "TSK-11 (kinesiofobia)", min: 11, max: 44, better: "lower", topic: "Dolor, miedo y creencias" },
+  // Generales: no son de una zona del cuerpo.
+  {
+    id: "rand36",
+    name: "RAND-36 (calidad de vida relacionada con la salud)",
+    min: 0,
+    max: 100,
+    better: "higher",
+    subscales: ["Función física", "Rol físico", "Dolor corporal", "Salud general", "Vitalidad", "Función social", "Rol emocional", "Salud mental"],
+    topic: "Calidad de vida",
+  },
+  { id: "phq9", name: "PHQ-9 (síntomas depresivos)", min: 0, max: 27, better: "lower", topic: "Estado de ánimo" },
+  { id: "gad7", name: "GAD-7 (ansiedad)", min: 0, max: 21, better: "lower", topic: "Estado de ánimo" },
+  { id: "pcs", name: "PCS (catastrofismo ante el dolor)", min: 0, max: 52, better: "lower", topic: "Dolor, miedo y creencias" },
+  { id: "pseq", name: "PSEQ (autoeficacia ante el dolor)", min: 0, max: 60, better: "higher", topic: "Dolor, miedo y creencias" },
+  {
+    id: "fabq",
+    name: "FABQ (miedo y evitación)",
+    min: 0,
+    max: 42,
+    better: "lower",
+    subscales: ["Actividad física", "Trabajo"],
+    subscaleRange: { "Actividad física": { min: 0, max: 24 }, Trabajo: { min: 0, max: 42 } },
+    topic: "Dolor, miedo y creencias",
+  },
+  { id: "csi", name: "CSI (sensibilización central)", min: 0, max: 100, better: "lower", topic: "Dolor, miedo y creencias" },
+  { id: "ompsq10", name: "Örebro corto (riesgo de que el dolor se cronifique)", min: 0, max: 100, better: "lower", topic: "Dolor, miedo y creencias" },
+  { id: "ipaq", name: "IPAQ corto (actividad física)", min: 0, max: 20000, better: "higher", unit: "MET-min/sem", topic: "Actividad física" },
 ];
 
 export const OTHER = "otro";
@@ -65,7 +96,8 @@ export type QDetails = {
 /** El tipo efectivo de un registro (con «otro», el nombre y el rango que se escribieron). */
 export function kindOf(kind: string, d: QDetails): QuestionnaireKind {
   const k = getKind(kind);
-  if (k) return k;
+  const range = d.subscale ? k?.subscaleRange?.[d.subscale] : undefined;
+  if (k) return range ? { ...k, ...range } : k;
   return { id: OTHER, name: d.name || "Cuestionario", min: d.min ?? 0, max: d.max ?? 100, better: d.better ?? "higher" };
 }
 
@@ -85,5 +117,6 @@ export const GROC_LABELS: Record<number, string> = { [-7]: "Muchísimo peor", 0:
 export function scoreText(k: QuestionnaireKind, score: number): string {
   const n = Number.isInteger(score) ? String(score) : score.toFixed(1).replace(".", ",");
   if (k.inApp === "groc") return score > 0 ? `+${n}` : n;
-  return k.unit === "%" ? `${n} %` : `${n}/${k.max}`;
+  if (k.unit === "%") return `${n} %`;
+  return k.unit ? `${n} ${k.unit}` : `${n}/${k.max}`;
 }

@@ -31,13 +31,17 @@ Además:
   los apartados y se imprime o se guarda en PDF con el diálogo del navegador (`window.print()`, A4). Con la cuenta de
   Google, «Guardar en mi Drive (PDF)» lo sube a la carpeta «Cénit · Fisiolab» de Drive (`reportPdf.ts`).
 - **Cuestionarios** (`/pacientes/:id/cuestionarios/nuevo`): la PSFS (el paciente elige sus actividades; la
-  siguiente vez se proponen las mismas) y el cambio global percibido (−7 a +7) se contestan en la app. KOOS, HOOS,
-  LEFS, FAAM, VISA-A, VISA-P y ACL-RSI se rellenan enteros en la app (`forms/`) y la nota se calcula sola con su
-  regla; el KOOS y el HOOS guardan una nota por subescala. NDI, Oswestry, QuickDASH, SPADI y TSK-11 tienen derechos
-  sobre su texto: van como hoja de respuestas (el paciente contesta en la hoja oficial y aquí se marca el número de
-  cada respuesta) y la nota también se calcula sola. Si se pasó en papel, «Solo anotar la nota». El texto de los
-  ítems es una traducción de trabajo: hay que revisarlo con la versión española publicada antes de usarlo en
-  consulta. Los de la zona de la anamnesis salen primero.
+  siguiente vez se proponen las mismas) y el cambio global percibido (−7 a +7) tienen su propia pantalla. Los demás
+  se rellenan enteros en la app, con el texto de cada pregunta y de cada respuesta (`forms/`), y la nota se calcula
+  sola con su regla:
+  - por zona: KOOS, HOOS, LEFS, FAAM, VISA-A, VISA-P, ACL-RSI, NDI, Oswestry, QuickDASH y SPADI;
+  - generales: RAND-36 (calidad de vida, ocho dimensiones), PHQ-9 y GAD-7 (ánimo), TSK-11, PCS, PSEQ, FABQ, CSI y
+    Örebro corto (dolor, miedo y creencias) e IPAQ corto (actividad física).
+
+  KOOS, HOOS, RAND-36 y FABQ guardan una nota por subescala. Si se pasó en papel, «Solo anotar la nota». Al elegir,
+  salen primero los de la zona de la anamnesis y después los generales por tema. El texto de los ítems es una
+  traducción de trabajo: hay que revisarlo con la versión española publicada antes de usarlo en consulta, y algunos
+  instrumentos (Oswestry, NDI, QuickDASH…) tienen titulares de derechos cuyas condiciones de uso debe mirar la clínica.
 - **Simetría entre lados** (`symmetry.ts`): lado peor / lado mejor × 100 con la última medición de cada lado
   (salto a una pierna, 5-0-5 con cada pierna, movilidad por lados). La raya del 90 % es la referencia habitual de
   vuelta al deporte; es una ayuda para leer los datos, no un criterio de alta.
