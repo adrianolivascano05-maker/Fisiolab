@@ -1047,5 +1047,30 @@ export async function exportCsv(db: Db): Promise<string> {
       lines.push([cell(w.patient), w.performed_at, "bienestar", "", "", "", "", "", "", "", metric, num(w[col]), col === "pain" ? "0-10" : "1-5"].join(";"));
     }
   }
+  // Ficha clínica: el dolor de cada sesión y el resultado de cada test de exploración (1 positivo, 0 negativo).
+  const sessions = await db.query<{ patient: string; performed_at: string; pain: number }>(
+    `select p.name as patient, s.performed_at, s.pain from sessions s join patients p on p.id = s.patient_id
+      where s.pain is not null order by p.name collate nocase, s.performed_at`,
+  );
+  for (const s of sessions) lines.push([cell(s.patient), s.performed_at, "sesion", "", "", "", "", "", "", "", "dolor_eva", num(s.pain), "0-10"].join(";"));
+  const findings = await db.query<{ patient: string; performed_at: string; test_name: string; side: string | null; result: string }>(
+    `select p.name as patient, f.performed_at, f.test_name, f.side, f.result from findings f join patients p on p.id = f.patient_id
+      order by p.name collate nocase, f.performed_at`,
+  );
+  const sideText: Record<string, string> = { left: "izquierda", right: "derecha", both: "ambos" };
+  const resultText: Record<string, [string, string]> = { positive: ["1", "positivo"], negative: ["0", "negativo"], inconclusive: ["", "dudoso"] };
+  for (const f of findings) {
+    const [value, word] = resultText[f.result]!;
+    lines.push([cell(f.patient), f.performed_at, "exploracion", cell(f.test_name), f.side ? sideText[f.side] : "", "", "", "", "", "", "resultado", value, word].join(";"));
+  }
+  const questionnaires = await db.query<{ patient: string; performed_at: string; kind: string; score: number; details: string }>(
+    `select p.name as patient, q.performed_at, q.kind, q.score, q.details from questionnaires q join patients p on p.id = q.patient_id
+      order by p.name collate nocase, q.performed_at`,
+  );
+  for (const q of questionnaires) {
+    const d = JSON.parse(q.details) as { subscale?: string; name?: string };
+    const name = `${q.kind === "otro" ? (d.name ?? "otro") : q.kind}${d.subscale ? ` · ${d.subscale}` : ""}`;
+    lines.push([cell(q.patient), q.performed_at, "cuestionario", cell(name), "", "", "", "", "", "", "puntuacion", num(q.score), ""].join(";"));
+  }
   return "﻿" + [header.join(";"), ...lines].join("\r\n") + "\r\n";
 }

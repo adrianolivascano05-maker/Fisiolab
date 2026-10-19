@@ -1,0 +1,74 @@
+// Catálogo de cuestionarios. La PSFS y el cambio global percibido se contestan en la app (no tienen un texto
+// protegido: el paciente elige sus actividades o responde a una pregunta general). De los demás solo se guarda la
+// puntuación que da su hoja oficial, para no reproducir sus ítems ni sus traducciones validadas.
+export type Better = "higher" | "lower";
+export type QuestionnaireKind = {
+  id: string;
+  name: string;
+  /** Rango de la puntuación y qué es mejor. */
+  min: number;
+  max: number;
+  better: Better;
+  unit?: string;
+  /** Se contesta en la app. */
+  inApp?: "psfs" | "groc";
+  /** Subescalas (KOOS, HOOS): se registra una cada vez. */
+  subscales?: string[];
+  hint?: string;
+  /** Zonas del cuerpo (ids de BODY_REGIONS) para las que se suele usar: se proponen primero. */
+  regions?: string[];
+};
+
+export const QUESTIONNAIRES: QuestionnaireKind[] = [
+  { id: "psfs", name: "PSFS · escala funcional específica del paciente", min: 0, max: 10, better: "higher", inApp: "psfs", hint: "El paciente elige hasta cinco actividades que le cuesta hacer y puntúa cada una de 0 (no puede) a 10 (como antes)." },
+  { id: "groc", name: "Cambio global percibido", min: -7, max: 7, better: "higher", inApp: "groc", hint: "Cómo está ahora respecto al inicio del tratamiento, de −7 (muchísimo peor) a +7 (muchísimo mejor)." },
+  { id: "koos", name: "KOOS (rodilla)", min: 0, max: 100, better: "higher", subscales: ["Dolor", "Síntomas", "AVD", "Deporte y ocio", "Calidad de vida"], regions: ["rodilla"] },
+  { id: "hoos", name: "HOOS (cadera)", min: 0, max: 100, better: "higher", subscales: ["Dolor", "Síntomas", "AVD", "Deporte y ocio", "Calidad de vida"], regions: ["cadera"] },
+  { id: "lefs", name: "LEFS (miembro inferior)", min: 0, max: 80, better: "higher", regions: ["cadera", "rodilla", "tobillo_pie"] },
+  { id: "faam", name: "FAAM AVD (tobillo y pie)", min: 0, max: 100, better: "higher", unit: "%", regions: ["tobillo_pie"] },
+  { id: "visa_a", name: "VISA-A (tendón de Aquiles)", min: 0, max: 100, better: "higher", regions: ["tobillo_pie"] },
+  { id: "visa_p", name: "VISA-P (tendón rotuliano)", min: 0, max: 100, better: "higher", regions: ["rodilla"] },
+  { id: "acl_rsi", name: "ACL-RSI (preparación psicológica)", min: 0, max: 100, better: "higher", regions: ["rodilla"] },
+  { id: "ndi", name: "NDI (cuello)", min: 0, max: 50, better: "lower", regions: ["cervical"] },
+  { id: "odi", name: "Oswestry (lumbar)", min: 0, max: 100, better: "lower", unit: "%", regions: ["lumbar", "sacroiliaca"] },
+  { id: "quickdash", name: "QuickDASH (miembro superior)", min: 0, max: 100, better: "lower", regions: ["hombro", "codo", "muneca_mano"] },
+  { id: "spadi", name: "SPADI (hombro)", min: 0, max: 100, better: "lower", regions: ["hombro"] },
+  { id: "tsk11", name: "TSK-11 (kinesiofobia)", min: 11, max: 44, better: "lower" },
+];
+
+export const OTHER = "otro";
+export const getKind = (id: string) => QUESTIONNAIRES.find((q) => q.id === id);
+
+/** El catálogo con los de las zonas del paciente primero (el orden de cada grupo no cambia). */
+export function byRegions(regions: string[]): { kind: QuestionnaireKind; forRegion: boolean }[] {
+  const all = QUESTIONNAIRES.map((kind) => ({ kind, forRegion: !!kind.regions?.some((r) => regions.includes(r)) }));
+  return [...all.filter((k) => k.forRegion), ...all.filter((k) => !k.forRegion)];
+}
+
+export type QDetails = { activities?: { name: string; score: number }[]; subscale?: string; name?: string; min?: number; max?: number; better?: Better };
+
+/** El tipo efectivo de un registro (con «otro», el nombre y el rango que se escribieron). */
+export function kindOf(kind: string, d: QDetails): QuestionnaireKind {
+  const k = getKind(kind);
+  if (k) return k;
+  return { id: OTHER, name: d.name || "Cuestionario", min: d.min ?? 0, max: d.max ?? 100, better: d.better ?? "higher" };
+}
+
+/** Nombre para mostrar: con la subescala si la hay. */
+export const displayName = (kind: string, d: QDetails) => `${kindOf(kind, d).name}${d.subscale ? ` · ${d.subscale}` : ""}`;
+
+/** PSFS: media de las actividades puntuadas. */
+export function psfsScore(activities: { name: string; score: number }[]): number {
+  const valid = activities.filter((a) => a.name.trim() && Number.isFinite(a.score));
+  if (!valid.length) throw new RangeError("Escribe al menos una actividad y puntúala.");
+  return valid.reduce((s, a) => s + a.score, 0) / valid.length;
+}
+
+export const GROC_LABELS: Record<number, string> = { [-7]: "Muchísimo peor", 0: "Igual", 7: "Muchísimo mejor" };
+
+/** Texto de una puntuación: «62/100», «4,3/10», «+3». */
+export function scoreText(k: QuestionnaireKind, score: number): string {
+  const n = Number.isInteger(score) ? String(score) : score.toFixed(1).replace(".", ",");
+  if (k.inApp === "groc") return score > 0 ? `+${n}` : n;
+  return k.unit === "%" ? `${n} %` : `${n}/${k.max}`;
+}
