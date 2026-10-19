@@ -43,6 +43,20 @@ test.describe("PWA: instalable y sin conexión", () => {
     await context.setOffline(false);
   });
 
+  test("PWA-E3 otros dispositivos: enlace, código QR y pasos para cada sistema", async ({ page, context, baseURL }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("./");
+    await page.getByRole("link", { name: "Usar la app en otros dispositivos" }).click();
+    await expect(page.getByRole("heading", { name: "Otros dispositivos" })).toBeVisible();
+    const url = new URL(baseURL!).href;
+    await expect(page.getByRole("img", { name: `Código QR con el enlace de la app: ${url}` })).toBeVisible();
+    for (const d of ["Ordenador con Chrome o Edge", "Mac con Safari", "iPad o iPhone", "Tablet o móvil Android"]) await expect(page.getByRole("heading", { name: new RegExp(d) })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Copiar enlace" }).click();
+    await expect(page.getByRole("button", { name: "Enlace copiado" })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+  });
+
   test("PWA-E1 tarjeta de instalación: pasos y ocultar durante dos semanas", async ({ page }) => {
     await page.goto("./");
     const card = page.getByRole("heading", { name: "Ten Cénit a un toque" });
