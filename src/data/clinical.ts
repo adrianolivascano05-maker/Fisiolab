@@ -1,4 +1,5 @@
-// Ficha clínica: anamnesis, sesiones y hallazgos de la exploración (migración 006). Mismo estilo que repo.ts:
+// Ficha clínica: anamnesis, sesiones (con la siguiente cita, migración 007), hallazgos de la exploración y
+// cuestionarios (migración 006). Mismo estilo que repo.ts:
 // una función por operación; las pantallas no escriben SQL.
 import type { Db } from "./db";
 
@@ -46,6 +47,9 @@ export type SessionInput = {
   plan: string;
   /** AAAA-MM-DD. */
   reviewOn: string | null;
+  /** Siguiente cita (ISO) y cuánto dura, en minutos. */
+  nextAt: string | null;
+  nextMinutes: number | null;
 };
 export type Session = SessionInput & { id: string; patientId: string };
 
@@ -59,6 +63,8 @@ type SessionRow = {
   treatment: string;
   plan: string;
   review_on: string | null;
+  next_at: string | null;
+  next_minutes: number | null;
 };
 
 const toSession = (r: SessionRow): Session => ({
@@ -71,15 +77,32 @@ const toSession = (r: SessionRow): Session => ({
   treatment: r.treatment,
   plan: r.plan,
   reviewOn: r.review_on,
+  nextAt: r.next_at,
+  nextMinutes: r.next_minutes,
 });
 
 function checkSession(s: SessionInput) {
   if (Number.isNaN(Date.parse(s.performedAt))) throw new RangeError("Pon la fecha de la sesión.");
   if (s.pain !== null && !(Number.isInteger(s.pain) && s.pain >= 0 && s.pain <= 10)) throw new RangeError("El dolor va de 0 a 10.");
   if (s.reviewOn !== null && !/^\d{4}-\d{2}-\d{2}$/.test(s.reviewOn)) throw new RangeError("La fecha de reevaluación no es válida.");
+  if (s.nextAt !== null) {
+    if (Number.isNaN(Date.parse(s.nextAt))) throw new RangeError("La fecha de la siguiente cita no es válida.");
+    if (Date.parse(s.nextAt) <= Date.parse(s.performedAt)) throw new RangeError("La siguiente cita tiene que ser después de esta sesión.");
+    if (!(Number.isInteger(s.nextMinutes) && s.nextMinutes! >= 5 && s.nextMinutes! <= 480)) throw new RangeError("Elige cuánto dura la siguiente cita.");
+  }
 }
 
-const sessionBind = (s: SessionInput) => [s.performedAt, s.pain, s.subjective.trim(), s.objective.trim(), s.treatment.trim(), s.plan.trim(), s.reviewOn];
+const sessionBind = (s: SessionInput) => [
+  s.performedAt,
+  s.pain,
+  s.subjective.trim(),
+  s.objective.trim(),
+  s.treatment.trim(),
+  s.plan.trim(),
+  s.reviewOn,
+  s.nextAt,
+  s.nextAt === null ? null : s.nextMinutes,
+];
 
 /** Crea la sesión (sin id) o la actualiza. Devuelve su id. */
 export async function saveSession(db: Db, patientId: string, input: SessionInput, id?: string): Promise<string> {
@@ -88,7 +111,8 @@ export async function saveSession(db: Db, patientId: string, input: SessionInput
   if (id) {
     await db.transaction([
       {
-        sql: `update sessions set performed_at = ?, pain = ?, subjective = ?, objective = ?, treatment = ?, plan = ?, review_on = ?, updated_at = ?
+        sql: `update sessions set performed_at = ?, pain = ?, subjective = ?, objective = ?, treatment = ?, plan = ?, review_on = ?, next_at = ?,
+                      next_minutes = ?, updated_at = ?
                where id = ? and patient_id = ?`,
         bind: [...sessionBind(input), t, id, patientId],
       },
@@ -98,8 +122,9 @@ export async function saveSession(db: Db, patientId: string, input: SessionInput
   const nid = newId();
   await db.transaction([
     {
-      sql: `insert into sessions (performed_at, pain, subjective, objective, treatment, plan, review_on, id, patient_id, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `insert into sessions (performed_at, pain, subjective, objective, treatment, plan, review_on, next_at, next_minutes, id, patient_id,
+                                  created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [...sessionBind(input), nid, patientId, t, t],
     },
   ]);
@@ -119,6 +144,12 @@ export async function getSession(db: Db, id: string): Promise<Session | null> {
 
 export async function deleteSession(db: Db, id: string): Promise<void> {
   await db.transaction([{ sql: "delete from sessions where id = ?", bind: [id] }]);
+}
+
+/** La siguiente cita que quedó puesta en la última sesión, si aún no ha pasado. */
+export function nextVisit(sessions: Session[], now = new Date()): Session | null {
+  const last = sessions[0];
+  return last?.nextAt && Date.parse(last.nextAt) > now.getTime() ? last : null;
 }
 
 /** Pacientes con una reevaluación pendiente hasta `day` (AAAA-MM-DD): la última fecha que se les puso. */

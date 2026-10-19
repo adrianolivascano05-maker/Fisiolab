@@ -1,6 +1,6 @@
 // Pantallas de la ficha clínica: anamnesis, exploración (tests especiales), mediciones (con cuestionarios y
 // simetría) y sesiones.
-import { Activity, CalendarClock, ClipboardList, ExternalLink, ListChecks, NotebookPen, Pencil, Plus, Search, Stethoscope, Trash } from "lucide-react";
+import { Activity, CalendarCheck, CalendarClock, ClipboardList, ExternalLink, ListChecks, NotebookPen, Pencil, Plus, Search, Stethoscope, Trash } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { decimalText, fmt, fmtDate, fmtDateTime, parseDecimal, testTitle } from "../app/format";
@@ -18,6 +18,7 @@ import {
   listFindings,
   listQuestionnaires,
   listSessions,
+  nextVisit,
   saveAnamnesis,
   saveFinding,
   saveQuestionnaire,
@@ -41,6 +42,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { NumberField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { CalendarButton, CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
 import { ANAMNESIS, ALL_FIELDS, answerText, answeredCount, clinicalSummary, orphanAnswers, regionLabel, type Field } from "./anamnesis";
 import { findTest, galleryRegionLabel, galleryTests, galleryUrl, resultMeaning, searchTests, testsForRegions, type SpecialTest } from "./galleryLink";
 import { AnalysisNav, TestList } from "./measureParts";
@@ -755,6 +757,7 @@ export function MeasurementsPage() {
 
 export function SessionsPage() {
   const { id = "" } = useParams();
+  const [params, setParams] = useSearchParams();
   const data = useLoad(id, async () => {
     const db = getDb();
     const [patient, sessions, findings, tests] = await Promise.all([getPatient(db, id), listSessions(db, id), listFindings(db, id), listTests(db, id)]);
@@ -764,6 +767,10 @@ export function SessionsPage() {
   const { patient, sessions, findings, tests } = data.data;
   const review = sessions[0]?.reviewOn ?? null;
   const today = todayDay();
+  const visit = nextVisit(sessions);
+  // Al guardar una sesión con siguiente cita se ofrece pasarla al calendario.
+  const justSaved = sessions.find((s) => s.id === params.get("calendario"));
+  const justSavedEvent = justSaved && patient ? visitEvent(justSaved, patient) : null;
   return (
     <PatientShell patient={patient} id={id}>
       <div className="flex items-center justify-between gap-3">
@@ -772,6 +779,15 @@ export function SessionsPage() {
           <NotebookPen aria-hidden="true" className="size-5" /> Nueva sesión
         </Link>
       </div>
+      {visit && patient && (
+        <Card className="flex flex-wrap items-center gap-3">
+          <CalendarCheck aria-hidden="true" className="size-5 shrink-0 text-accent" />
+          <span className="flex-1">
+            Próxima cita: <span className="font-semibold whitespace-nowrap">{fmtVisit(visit.nextAt!)}</span>
+          </span>
+          <CalendarButton event={visitEvent(visit, patient)!} />
+        </Card>
+      )}
       {review && (
         <Alert tone={review <= today ? "warning" : "info"} title={review < today ? `Reevaluación pendiente desde el ${dayText(review)}` : review === today ? "Reevaluar hoy" : `Próxima reevaluación: ${dayText(review)}`} />
       )}
@@ -785,6 +801,9 @@ export function SessionsPage() {
             <SessionCard key={s.id} s={s} n={sessions.length - i} id={id} findings={findings.filter((f) => madridDay(f.performedAt) === madridDay(s.performedAt))} tests={tests.filter((t) => madridDay(t.performedAt) === madridDay(s.performedAt))} />
           ))}
         </ol>
+      )}
+      {justSavedEvent && (
+        <CalendarSheet open onClose={() => setParams({}, { replace: true })} event={justSavedEvent} title="¿Añadir la cita a tu calendario?" />
       )}
     </PatientShell>
   );
@@ -859,6 +878,11 @@ function SessionCard({ s, n, id, findings, tests }: { s: Session; n: number; id:
             </ul>
           </div>
         )}
+        {s.nextAt && (
+          <span className="inline-flex items-center gap-1.5 text-sm">
+            <CalendarCheck aria-hidden="true" className="size-4 text-accent" /> Siguiente cita: {fmtVisit(s.nextAt)} · {s.nextMinutes} min
+          </span>
+        )}
         {s.reviewOn && (
           <span className="inline-flex items-center gap-1.5 text-sm text-text-muted">
             <CalendarClock aria-hidden="true" className="size-4" /> Reevaluar el {dayText(s.reviewOn)}
@@ -876,7 +900,8 @@ export function SessionFormPage() {
   const data = useLoad(`${id}|${sid ?? ""}`, async () => {
     const db = getDb();
     const [patient, session, sessions] = await Promise.all([getPatient(db, id), sid ? getSession(db, sid) : null, listSessions(db, id)]);
-    return { patient, session, count: sessions.length };
+    // La duración de la siguiente cita: la que se usó la última vez.
+    return { patient, session, lastMinutes: sessions.find((s) => s.nextMinutes)?.nextMinutes ?? DEFAULT_VISIT_MINUTES };
   });
   const [when, setWhen] = useState(() => localInput(new Date().toISOString()));
   const [pain, setPain] = useState<number | null>(null);
@@ -885,6 +910,8 @@ export function SessionFormPage() {
   const [treatment, setTreatment] = useState("");
   const [plan, setPlan] = useState("");
   const [reviewOn, setReviewOn] = useState("");
+  const [nextAt, setNextAt] = useState("");
+  const [nextMinutes, setNextMinutes] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -899,21 +926,32 @@ export function SessionFormPage() {
     setTreatment(s.treatment);
     setPlan(s.plan);
     setReviewOn(s.reviewOn ?? "");
+    setNextAt(s.nextAt ? localInput(s.nextAt) : "");
+    setNextMinutes(s.nextMinutes);
   }, [data.data?.session]);
 
   const back = `/pacientes/${id}/sesiones`;
   if (!data.data) return <Guard state={data} title="Sesión" back={back} />;
-  const { patient, session } = data.data;
+  const { patient, session, lastMinutes } = data.data;
   if (sid && !session) return <Page title="Sesión" backTo={back}><LoadError error={new Error("Esta sesión no existe.")} /></Page>;
+  const minutes = nextMinutes ?? lastMinutes;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      await saveSession(getDb(), id, { performedAt: new Date(when).toISOString(), pain, subjective, objective, treatment, plan, reviewOn: reviewOn || null }, sid);
+      const next = nextAt ? new Date(nextAt).toISOString() : null;
+      const saved = await saveSession(
+        getDb(),
+        id,
+        { performedAt: new Date(when).toISOString(), pain, subjective, objective, treatment, plan, reviewOn: reviewOn || null, nextAt: next, nextMinutes: next ? minutes : null },
+        sid,
+      );
       toast(sid ? "Sesión guardada" : "Sesión registrada", "success");
-      navigate(back, { replace: true });
+      // Cita nueva o cambiada: se ofrece pasarla al calendario.
+      const changed = next !== null && (next !== session?.nextAt || minutes !== session?.nextMinutes);
+      navigate(changed ? `${back}?calendario=${saved}` : back, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSaving(false);
@@ -926,6 +964,13 @@ export function SessionFormPage() {
     navigate(back, { replace: true });
   };
   const base = when.slice(0, 10) || todayDay();
+  /** La hora de esta sesión al cuarto de hora más cercano, `n` días después. */
+  const sameTimeIn = (n: number) => {
+    const d = new Date(when);
+    d.setDate(d.getDate() + n);
+    d.setMinutes(Math.round(d.getMinutes() / 15) * 15, 0, 0);
+    return Number.isNaN(d.getTime()) ? "" : localInput(d.toISOString());
+  };
 
   return (
     <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back}>
@@ -937,6 +982,26 @@ export function SessionFormPage() {
         <TextArea label="Qué encuentras" hint="Exploración de hoy, cambios." value={objective} onChange={setObjective} />
         <TextArea label="Tratamiento" value={treatment} onChange={setTreatment} rows={4} />
         <TextArea label="Plan y ejercicios para casa" value={plan} onChange={setPlan} />
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-semibold">Siguiente cita</legend>
+          <div className="flex flex-wrap gap-2">
+            {[7, 14].map((d) => (
+              <Button key={d} variant={nextAt && nextAt === sameTimeIn(d) ? "primary" : "secondary"} size="sm" onClick={() => setNextAt(sameTimeIn(d))}>
+                {d === 7 ? "Dentro de 1 semana" : "Dentro de 2 semanas"}
+              </Button>
+            ))}
+            {nextAt && (
+              <Button variant="ghost" size="sm" onClick={() => setNextAt("")}>
+                Sin cita
+              </Button>
+            )}
+          </div>
+          <TextField label="Día y hora" type="datetime-local" value={nextAt} onChange={(e) => setNextAt(e.target.value)} />
+          {nextAt && (
+            <Chips label="Duración" options={["30", "45", "60", "90"]} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => v[0] && setNextMinutes(Number(v[0]))} />
+          )}
+          <p className="text-sm text-text-muted">Los botones la ponen a la hora de esta sesión, al cuarto de hora más cercano. Al guardar podrás añadirla a tu calendario (Google, iPhone, Outlook…).</p>
+        </fieldset>
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-semibold">Reevaluar</legend>
           <div className="flex flex-wrap gap-2">

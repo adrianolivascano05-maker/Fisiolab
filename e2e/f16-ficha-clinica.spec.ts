@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -197,5 +198,55 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("checkbox", { name: "Mediciones" }).uncheck();
     await expect(report).not.toContainText("Simetría entre lados");
     await expect(page.getByRole("button", { name: "Imprimir o guardar en PDF" })).toBeVisible();
+  });
+
+  test("F16-H7 siguiente cita: se guarda con la sesión y se pasa al calendario", async ({ page }) => {
+    await createPatient(page, { name: "Nora Calendario" });
+    await page.getByRole("link", { name: "Nueva sesión" }).click();
+    await page.getByLabel("Tratamiento").fill("Ejercicio de carga");
+    await page.getByRole("button", { name: "Dentro de 1 semana" }).click();
+    await page.getByText("60 min", { exact: true }).click();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar sesión" }).click();
+
+    // Al guardar se ofrece: Google Calendar con el evento escrito o el archivo .ics.
+    const sheet = page.getByRole("dialog", { name: "¿Añadir la cita a tu calendario?" });
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toContainText("60 min");
+    await expect(sheet.getByRole("link", { name: "Google Calendar" })).toHaveAttribute(
+      "href",
+      /^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE&text=Fisioterapia\+%C2%B7\+Nora\+Calendario&dates=\d{8}T\d{6}Z%2F\d{8}T\d{6}Z&/,
+    );
+    await expectAccessible(page);
+    // El enlace se abre de verdad en otra pestaña (sin salir a internet: la respuesta es local).
+    await page.context().route("https://calendar.google.com/**", (r) => r.fulfill({ contentType: "text/html", body: "<title>Google Calendar</title>" }));
+    const [google] = await Promise.all([page.waitForEvent("popup"), sheet.getByRole("link", { name: "Google Calendar" }).click()]);
+    await google.waitForURL(/^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE/);
+    await google.close();
+    await expect(sheet).toBeHidden();
+    // Y el .ics, desde el botón de la próxima cita.
+    await page.getByRole("button", { name: "Añadir al calendario" }).click();
+    const again = page.getByRole("dialog", { name: "Añadir al calendario" });
+    const [dl] = await Promise.all([page.waitForEvent("download"), again.getByRole("button", { name: /\.ics/ }).click()]);
+    expect(dl.suggestedFilename()).toMatch(/^cita-fisioterapia-\d{4}-\d{2}-\d{2}\.ics$/);
+    const ics = readFileSync((await dl.path())!, "utf8");
+    expect(ics).toContain("SUMMARY:Fisioterapia · Nora Calendario");
+    const at = (k: string) => {
+      const [, y, mo, d, h, mi] = ics.match(new RegExp(`${k}:(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})00Z`))!.map(Number);
+      return Date.UTC(y!, mo! - 1, d!, h!, mi!);
+    };
+    expect(at("DTEND") - at("DTSTART")).toBe(60 * 60_000);
+    // Dentro de una semana, al cuarto de hora.
+    expect(new Date(at("DTSTART")).getUTCMinutes() % 15).toBe(0);
+    expect(at("DTSTART") - Date.now()).toBeGreaterThan(6.9 * 24 * 3600_000);
+    await expect(again).toBeHidden();
+    await expect(page.getByText("Próxima cita:")).toBeVisible();
+    await expect(page.getByText(/Siguiente cita: .* · 60 min/)).toBeVisible();
+
+    // En el resumen, la próxima cita con su botón.
+    await tab(page, "Resumen").click();
+    await expect(page.getByText("Próxima cita:")).toBeVisible();
+    await page.getByRole("button", { name: "Añadir al calendario" }).click();
+    await expect(page.getByRole("dialog", { name: "Añadir al calendario" }).getByRole("link", { name: "Google Calendar" })).toBeVisible();
   });
 });

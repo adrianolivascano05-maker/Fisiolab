@@ -1,15 +1,16 @@
-import { Activity, CalendarClock, ClipboardList, FileText, ListChecks, NotebookPen, Pencil, Plus, Stethoscope, TriangleAlert } from "lucide-react";
+import { Activity, CalendarCheck, CalendarClock, ClipboardList, FileText, ListChecks, NotebookPen, Pencil, Plus, Stethoscope, TriangleAlert } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { fmt, fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { clinicalSummary, regionLabel } from "../clinical/anamnesis";
+import { CalendarButton, fmtVisit, visitEvent } from "../clinical/CalendarButton";
 import { AnalysisNav, TrendTiles } from "../clinical/measureParts";
 import { QuestionnaireTiles, SymmetryPanel } from "../clinical/outcomeParts";
 import { PainChart, PatientNav, ResultBadge, sideShort } from "../clinical/parts";
 import { LSI_REFERENCE, symmetryRows } from "../clinical/symmetry";
 import { buildTimeline, painSeries, type EventKind } from "../clinical/timeline";
-import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
+import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions, nextVisit } from "../data/clinical";
 import { getDb } from "../data/db";
 import { getPatient, listTests, listWellness } from "../data/repo";
 import { Alert } from "../ui/Alert";
@@ -66,6 +67,7 @@ export function PatientPage() {
   const summary = anamnesis ? clinicalSummary(anamnesis.answers) : null;
   const pain = painSeries({ sessions, wellness, anamnesis });
   const lastSession = sessions[0] ?? null;
+  const visit = nextVisit(sessions);
   const review = lastSession?.reviewOn ?? null;
   const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
   const current = latestFindings(findings);
@@ -111,6 +113,15 @@ export function PatientPage() {
           <Stethoscope aria-hidden="true" className="size-5 shrink-0 text-accent" /> Registrar test
         </Link>
       </div>
+      {visit && (
+        <Card className="flex items-center gap-3">
+          <CalendarCheck aria-hidden="true" className="size-5 shrink-0 text-accent" />
+          <Link to={`/pacientes/${id}/sesiones`} className="flex-1 hover:underline">
+            Próxima cita: <span className="font-semibold whitespace-nowrap">{fmtVisit(visit.nextAt!)}</span>
+          </Link>
+          <CalendarButton event={visitEvent(visit, patient)!} compact />
+        </Card>
+      )}
 
       {/* Lo clínico: por qué viene, banderas y dolor. */}
       <section aria-labelledby="clinico" className="flex flex-col gap-2">

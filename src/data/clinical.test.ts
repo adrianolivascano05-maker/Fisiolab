@@ -33,6 +33,8 @@ const session = (over: Partial<SessionInput> = {}): SessionInput => ({
   treatment: "Terapia manual",
   plan: "Sentadilla isométrica",
   reviewOn: null,
+  nextAt: null,
+  nextMinutes: null,
   ...over,
 });
 
@@ -84,6 +86,20 @@ describe("sesiones", () => {
     expect((await listSessions(db, pid)).find((s) => s.id === a)!.pain).toBe(5);
     await expect(saveSession(db, pid, session({ pain: 11 }))).rejects.toThrow("0 a 10");
     await expect(saveSession(db, pid, session({ reviewOn: "mañana" }))).rejects.toThrow("reevaluación");
+  });
+
+  it("siguiente cita: después de la sesión, con duración; la de la última sesión si no ha pasado", async () => {
+    const { nextVisit } = await import("./clinical");
+    await expect(saveSession(db, pid, session({ nextAt: "2026-09-30T10:00:00.000Z", nextMinutes: 45 }))).rejects.toThrow("después");
+    await expect(saveSession(db, pid, session({ nextAt: "2026-10-08T10:00:00.000Z", nextMinutes: null }))).rejects.toThrow("cuánto dura");
+    // Sin fecha, la duración no se guarda.
+    const a = await saveSession(db, pid, session({ nextMinutes: 60 }));
+    expect((await listSessions(db, pid))[0]).toMatchObject({ id: a, nextAt: null, nextMinutes: null });
+    await saveSession(db, pid, session({ nextAt: "2026-10-08T10:00:00.000Z", nextMinutes: 45 }), a);
+    const list = await listSessions(db, pid);
+    expect(list[0]).toMatchObject({ nextAt: "2026-10-08T10:00:00.000Z", nextMinutes: 45 });
+    expect(nextVisit(list, new Date("2026-10-05T00:00:00Z"))?.id).toBe(a);
+    expect(nextVisit(list, new Date("2026-10-09T00:00:00Z"))).toBeNull();
   });
 
   it("reevaluaciones pendientes: cuenta la de la última sesión", async () => {

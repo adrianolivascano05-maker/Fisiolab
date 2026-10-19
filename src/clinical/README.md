@@ -29,6 +29,12 @@ Además:
   vuelta al deporte; es una ayuda para leer los datos, no un criterio de alta.
 - **Reevaluaciones**: la fecha que se pone en la última sesión. La lista de pacientes muestra «Para reevaluar»
   con las de los próximos 7 días y las atrasadas.
+- **Siguiente cita** (migración 007): día, hora y duración al guardar una sesión. Se pasa al calendario del
+  fisioterapeuta sin conectar ninguna cuenta (`calendar.ts`, `CalendarButton.tsx`): un enlace que abre Google
+  Calendar con el evento escrito (se confirma con «Guardar») o un archivo .ics para el calendario del iPhone y
+  del Mac, Outlook y los demás. El evento lleva el nombre del paciente y la hora, nada de su historia clínica.
+  Si se cambia la cita, hay que volver a añadirla: la app no puede tocar el calendario por su cuenta (eso
+  pediría conectar una cuenta de Google o Microsoft).
 
 ## Archivos
 
@@ -42,6 +48,7 @@ Además:
 | `questionnaires.ts`, `outcomeParts.tsx` | catálogo de cuestionarios (rango, qué es mejor, zonas), puntuación de la PSFS, tarjetas de cuestionarios y barras de simetría |
 | `symmetry.ts` | índice de simetría entre lados |
 | `ReportPage.tsx` | informe imprimible |
+| `calendar.ts`, `CalendarButton.tsx` | la siguiente cita como enlace de Google Calendar o archivo .ics, y el botón «Añadir al calendario» |
 | `galleryLink.ts`, `RegisterInPatient.tsx` | enlace con la galería de tests: buscar tests, proponer los de la zona, la evidencia de un resultado y el botón «Registrar el resultado en un paciente» de la ficha de cada test |
 | `../data/clinical.ts` | datos: anamnesis, sesiones, hallazgos, cuestionarios y reevaluaciones pendientes |
 

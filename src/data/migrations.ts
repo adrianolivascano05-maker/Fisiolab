@@ -4,6 +4,7 @@ import wellness003 from "./migrations/003_wellness.sql?raw";
 import phase4004 from "./migrations/004_phase4.sql?raw";
 import validation005 from "./migrations/005_validation.sql?raw";
 import clinical006 from "./migrations/006_clinical.sql?raw";
+import nextVisit007 from "./migrations/007_next_visit.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -13,4 +14,5 @@ export const migrations: Migration[] = [
   { version: 4, sql: phase4004 },
   { version: 5, sql: validation005 },
   { version: 6, sql: clinical006 },
+  { version: 7, sql: nextVisit007 },
 ];
