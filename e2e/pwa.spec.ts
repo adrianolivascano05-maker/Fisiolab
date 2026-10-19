@@ -1,4 +1,4 @@
-import { createPatient, expect, expectAccessible, markAt, test } from "./fixtures";
+import { createPatient, expect, expectAccessible, markAt, test, withoutCloud } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 /** Espera a que el service worker controle la página (en la primera visita hace falta recargar). */
@@ -78,6 +78,7 @@ test.describe("PWA: instalable y sin conexión", () => {
       hasTouch: true,
       locale: "es-ES",
     });
+    await withoutCloud(ctx);
     const page = await ctx.newPage();
     await page.goto("./");
     await expect(page.getByText("«Añadir a pantalla de inicio»")).toBeVisible();

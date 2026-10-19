@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type BrowserContext, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
 /** Vídeos de prueba en VP9 (el Chromium de pruebas no reproduce H.264). */
@@ -11,8 +11,20 @@ export const video = {
   notVideo: fileURLToPath(new URL("../package.json", import.meta.url)),
 };
 
+/**
+ * La app publicada lleva el ID de cliente de Google (public/cloud.json) y pediría entrar con Google. Las pruebas
+ * usan la app sin nube, salvo las de la nube, que ponen su ID de pruebas encima (fakeGoogle.ts).
+ */
+export async function withoutCloud(ctx: BrowserContext) {
+  await ctx.route("**/cloud.json", (r) => r.fulfill({ json: { googleClientId: "" } }));
+}
+
 /** Todo test falla si la página escribe un error en consola o lanza una excepción. */
 export const test = base.extend<{ consoleErrors: string[] }>({
+  context: async ({ context }, use) => {
+    await withoutCloud(context);
+    await use(context);
+  },
   consoleErrors: [
     async ({ page }, use) => {
       const errors: string[] = [];
