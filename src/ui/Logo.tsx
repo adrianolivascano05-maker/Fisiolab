@@ -9,8 +9,8 @@ export function LogoMark({ size = 28, title, bordered }: { size?: number; title?
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" role={title ? "img" : undefined} aria-hidden={title ? undefined : true}>
       {title && <title>{title}</title>}
-      {/* Sobre el mismo verde (la barra de arriba), un borde claro lo separa del fondo. */}
-      {bordered ? <rect x="2.5" y="2.5" width="95" height="95" rx="24" fill={base} stroke={stroke} strokeWidth="5" /> : <rect width="100" height="100" rx="26" fill={base} />}
+      {/* Sobre el mismo verde (la barra de arriba), un borde dorado lo separa del fondo. */}
+      {bordered ? <rect x="2.5" y="2.5" width="95" height="95" rx="24" fill={base} stroke="var(--color-highlight)" strokeWidth="5" /> : <rect width="100" height="100" rx="26" fill={base} />}
       <path d="M70.68 39.64 A27 27 0 1 0 70.68 74.36" fill="none" stroke={stroke} strokeWidth="9" strokeLinecap="round" />
       <circle cx="50" cy="30" r="14" fill={base} />
       <circle cx="50" cy="30" r="9.5" fill="var(--color-highlight)" />
