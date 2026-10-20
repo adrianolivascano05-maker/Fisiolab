@@ -17,6 +17,8 @@ export function ShiftSheet({
   onClose,
   shift,
   day,
+  from: presetFrom,
+  person,
   staff,
   me,
   admin,
@@ -27,6 +29,9 @@ export function ShiftSheet({
   shift: Shift | null;
   /** Día (AAAA-MM-DD) con el que empieza un turno nuevo. */
   day: string;
+  /** Hora de entrada (HH:MM) y persona de un turno nuevo desde un hueco de la agenda. */
+  from?: string;
+  person?: string;
   staff: Staff[];
   /** Correo de quien ha entrado. */
   me: string;
@@ -44,14 +49,15 @@ export function ShiftSheet({
 
   useEffect(() => {
     if (!open) return;
-    setWho(shift?.staffEmail ?? me);
+    const later = (hhmm: string, hours: number) => `${String(Math.min(23, Number(hhmm.slice(0, 2)) + hours)).padStart(2, "0")}${hhmm.slice(2)}`;
+    setWho(shift?.staffEmail ?? (admin && person ? person : me));
     setDate(shift ? localInput(shift.startsAt).slice(0, 10) : day);
-    setFrom(shift ? localInput(shift.startsAt).slice(11) : "09:00");
-    setTo(shift ? localInput(shift.endsAt).slice(11) : "14:00");
+    setFrom(shift ? localInput(shift.startsAt).slice(11) : (presetFrom ?? "09:00"));
+    setTo(shift ? localInput(shift.endsAt).slice(11) : presetFrom ? later(presetFrom, 5) : "14:00");
     setNote(shift?.note ?? "");
     setRepeat("0");
     setError(null);
-  }, [open, shift, day, me]);
+  }, [open, shift, day, me, admin, person, presetFrom]);
 
   // Cada persona elige solo entre sus turnos; quien administra, entre todo el equipo.
   const people = admin ? [...staff] : staff.filter((s) => s.email === me);

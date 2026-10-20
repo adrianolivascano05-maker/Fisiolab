@@ -114,4 +114,48 @@ test.describe("Agenda y seguimiento", () => {
     await page.reload();
     await expect(page.getByRole("article", { name: "Informe de alta" })).toContainText("Seguir con el puente glúteo");
   });
+
+  test("AG4 agenda como Google Calendar: arrastrar una cita, deshacer, crear en un hueco y moverla una semana", async ({ page }) => {
+    await createPatient(page, { name: "Eva Mueve" });
+    await giveAppointment(page, "Eva Mueve", "2026-10-20T12:00");
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Agenda" }).click();
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Martes, 20 de octubre" })).toBeVisible();
+    const event = page.getByRole("button", { name: /^Eva Mueve\s*,\s*12:00–12:45/ });
+    await expect(event).toBeVisible();
+    await expectAccessible(page);
+
+    // Arrastrar una hora hacia abajo (56 px por hora).
+    const box = (await event.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + 30, { steps: 4 });
+    await page.mouse.move(box.x + box.width / 2, box.y + 8 + 56, { steps: 6 });
+    await page.mouse.up();
+    await expect(page.getByRole("button", { name: /^Eva Mueve\s*,\s*13:00–13:45/ })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Movida" })).toContainText("Eva Mueve");
+    await page.getByRole("button", { name: "Deshacer" }).click();
+    await expect(page.getByRole("button", { name: /^Eva Mueve\s*,\s*12:00–12:45/ })).toBeVisible();
+
+    // Moverla una semana desde su hoja.
+    await page.getByRole("button", { name: /^Eva Mueve\s*,\s*12:00–12:45/ }).click();
+    await page.getByRole("dialog", { name: "Cita de Eva Mueve" }).getByRole("group", { name: "Mover la cita" }).getByRole("button", { name: "1 semana después" }).click();
+    await expect(page.getByRole("button", { name: /Eva Mueve/ })).toHaveCount(0);
+    await page.getByRole("button", { name: "Día siguiente" }).click();
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Semana" }).click();
+    await page.getByRole("button", { name: "Semana siguiente" }).click();
+    await expect(page.getByRole("button", { name: /^Eva Mueve\s*,\s*12:00–12:45/ })).toBeVisible();
+
+    // Una cita nueva desde el botón, eligiendo el paciente.
+    await page.getByRole("button", { name: "Hoy" }).click();
+    await page.getByRole("button", { name: "Nueva cita" }).click();
+    const sheet = page.getByRole("dialog", { name: "Nueva cita" });
+    await sheet.getByLabel("Paciente", { exact: true }).fill("eva");
+    await sheet.getByRole("list", { name: "Pacientes" }).getByRole("button", { name: "Eva Mueve" }).click();
+    await expect(sheet.getByText("Paciente: Eva Mueve")).toBeVisible();
+    await sheet.getByLabel("Día y hora").fill("2026-10-21T16:30");
+    await sheet.getByRole("button", { name: "Dar la cita" }).click();
+    await expect(page.getByRole("button", { name: /^Eva Mueve\s*,\s*16:30–17:15/ })).toBeVisible();
+    await expectAccessible(page);
+  });
 });

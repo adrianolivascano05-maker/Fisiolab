@@ -991,6 +991,9 @@ export async function bestSprintSplit(db: Db, patientId: string, distanceM: numb
   return row ?? null;
 }
 
+/** Ficha donde van las mediciones hechas sin elegir paciente (pantalla Pacientes, «Medir ya»). */
+export const QUICK_PATIENT = "Medición rápida";
+
 // ---------- Ajustes ----------
 
 export async function getSetting<T>(db: Db, key: string): Promise<T | null> {

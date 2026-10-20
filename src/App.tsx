@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { DbGate } from "./app/DbGate";
 import { CloudGate } from "./cloud/CloudGate"; // Cuenta de Google y copia en Drive (src/cloud/README.md)
 import { UpdateBanner } from "./app/pwa";
@@ -89,7 +89,8 @@ const routes = [
   { path: "/ajustes/cuenta", element: l(<AccountSettingsPage />) },
   { path: "/ajustes/clinica", element: l(<ClinicSettingsPage />) },
   { path: "/ajustes/equipo", element: l(<TeamPage />) },
-  { path: "/horario", element: l(<SchedulePage />) },
+  { path: "/agenda", element: l(<SchedulePage />) },
+  { path: "/horario", element: <Navigate to="/agenda" replace /> },
   { path: "/ajustes/bloqueo", element: l(<LockSettingsPage />) },
   { path: "/ajustes/datos", element: l(<DataSettingsPage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa

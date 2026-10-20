@@ -1,102 +1,211 @@
-// Horario de la clínica (src/data/schedule.ts): la semana día a día, con los turnos de cada persona del equipo y sus
-// citas. Desde aquí se ponen turnos y se pasa una cita a otra persona. Va en la base de la clínica, así que cada
-// compañero lo ve en sus dispositivos en cuanto se sincroniza (con la pantalla abierta, se pone al día sola).
-import { ChevronLeft, ChevronRight, CopyPlus, Plus, TriangleAlert } from "lucide-react";
+// Agenda: las citas como en Google Calendar, por día, 3 días o semana, y en una clínica también los turnos de cada
+// persona y una columna por persona en la vista de un día. Las citas se arrastran para moverlas (de hora, de día o
+// de persona) y se puede deshacer; tocar un hueco da una cita o pone un turno. Sirve igual a quien trabaja solo (sin
+// equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
+// compartida: cada compañero ve los cambios de los demás en su dispositivo, solo.
+import { CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Plus, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Navigate } from "react-router";
 import { bumpData } from "../app/dataVersion";
-import { madridDay } from "../app/format";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { AppointmentSheet } from "../clinical/AppointmentSheet";
-import { addDays, todayDay } from "../clinical/pageKit";
+import { fmtVisit } from "../clinical/calendar";
+import { addDays, localInput, todayDay } from "../clinical/pageKit";
 import { useCloud, useSyncState } from "../cloud/CloudGate";
-import { agenda, STATUS_LABELS, type AgendaItem } from "../data/appointments";
+import { agenda, updateAppointment, type AgendaItem } from "../data/appointments";
 import { getDb } from "../data/db";
-import { copyWeekForward, plusWeeks, shiftsBetween, staffColor, withinShift, type Shift } from "../data/schedule";
+import { copyWeekForward, shiftsBetween, staffColor, type Shift } from "../data/schedule";
 import { Button, IconButton } from "../ui/Button";
+import { cx } from "../ui/cx";
 import { SelectField } from "../ui/Field";
+import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { AgendaGrid, type Move } from "./AgendaGrid";
+import { atMinutes, dayColumns, personColumns, type Column } from "./layout";
 import { ShiftSheet } from "./ShiftSheet";
-import { useStaff } from "./useStaff";
+import { staffName, useStaff } from "./useStaff";
 
-const hour = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
-const dayTitle = (day: string) => {
-  const t = new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "short" });
-  return t.charAt(0).toUpperCase() + t.slice(1);
-};
+type View = "day" | "3days" | "week";
+const VIEWS: { id: View; label: string; days: number }[] = [
+  { id: "day", label: "Día", days: 1 },
+  { id: "3days", label: "3 días", days: 3 },
+  { id: "week", label: "Semana", days: 7 },
+];
+const VIEW_KEY = "fisiolab.agenda.view";
+
 /** El lunes (AAAA-MM-DD) de la semana de `day`. */
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T12:00:00`).getDay() + 6) % 7));
-const short = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+const fmt = (day: string, o: Intl.DateTimeFormatOptions) => new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", o);
+const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/** La vista de la última vez; la primera, por día en el móvil y por semana en el ordenador. */
+function savedView(): View {
+  try {
+    const v = localStorage.getItem(VIEW_KEY) as View | null;
+    if (v && VIEWS.some((x) => x.id === v)) return v;
+  } catch {
+    /* sin almacenamiento */
+  }
+  return window.innerWidth >= 900 ? "week" : "day";
+}
+
+type Creating = { kind: "ask" | "appointment" | "shift"; start: string; person?: string | null };
 
 export function SchedulePage() {
   const cloud = useCloud();
   const toast = useToast();
   const sync = useSyncState();
   const staff = useStaff();
-  const [monday, setMonday] = useState(() => mondayOf(todayDay()));
+  const team = !!cloud?.clinic;
+  const me = cloud?.account.email.trim().toLowerCase() ?? "";
+  const admin = cloud?.clinic?.role === "admin";
+  const today = todayDay();
+  const [view, setView] = useState<View>(savedView);
+  const [anchor, setAnchor] = useState(today);
   const [who, setWho] = useState("");
-  const [editing, setEditing] = useState<{ shift: Shift | null; day: string } | null>(null);
+  const [creating, setCreating] = useState<Creating | null>(null);
+  const [editingShift, setEditingShift] = useState<Shift | null>(null);
   const [managing, setManaging] = useState<AgendaItem | null>(null);
+  const [undo, setUndo] = useState<{ text: string; back: () => Promise<void> } | null>(null);
   const [copying, setCopying] = useState(false);
-  const from = new Date(`${monday}T00:00:00`).toISOString();
-  const week = useAsync(async () => {
-    const to = plusWeeks(from, 1);
-    return { shifts: await shiftsBetween(getDb(), from, to), appointments: await agenda(getDb(), from, to) };
-  }, [from]);
 
-  // Con el horario a la vista, lo que llega de los compañeros se enseña solo (si no se está escribiendo nada).
-  const newData = !!sync?.newData;
+  const span = VIEWS.find((v) => v.id === view)!.days;
+  const first = view === "week" ? mondayOf(anchor) : anchor;
+  const days = useMemo(() => Array.from({ length: span }, (_, i) => addDays(first, i)), [first, span]);
+  const from = new Date(`${days[0]}T00:00:00`).toISOString();
+  const to = new Date(`${addDays(days.at(-1)!, 1)}T00:00:00`).toISOString();
+  const data = useAsync(async () => ({ shifts: await shiftsBetween(getDb(), from, to), appointments: await agenda(getDb(), from, to) }), [from, to]);
+
   useEffect(() => {
-    if (newData && !editing && !managing && cloud) {
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch {
+      /* sin almacenamiento */
+    }
+  }, [view]);
+
+  // Con la agenda a la vista, lo que cambian los compañeros se enseña solo (si no se está escribiendo nada).
+  const newData = !!sync?.newData;
+  const sheetOpen = !!(creating || editingShift || managing);
+  useEffect(() => {
+    if (newData && !sheetOpen && cloud) {
       cloud.sync.seenNewData();
       bumpData();
     }
-  }, [newData, editing, managing, cloud]);
+  }, [newData, sheetOpen, cloud]);
 
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(monday, i)), [monday]);
-  if (!cloud?.clinic) return <Navigate to="/" replace />;
-  const me = cloud.account.email.trim().toLowerCase();
-  const admin = cloud.clinic.role === "admin";
-  const today = todayDay();
-  const shifts = (week.data?.shifts ?? []).filter((s) => !who || s.staffEmail === who);
-  const appointments = (week.data?.appointments ?? []).filter((a) => !who || a.assignedTo === who || (who === "-" && !a.assignedTo));
-  const order = (email: string | null) => (email === null ? 1e6 : staff.findIndex((s) => s.email === email) + (staff.some((s) => s.email === email) ? 0 : 1e5));
+  // El aviso de «Deshacer» se va solo.
+  useEffect(() => {
+    if (!undo) return;
+    const t = setTimeout(() => setUndo(null), 10_000);
+    return () => clearTimeout(t);
+  }, [undo]);
+
+  const filter = who === "-" ? null : who || undefined;
+  const shifts = useMemo(() => (data.data?.shifts ?? []).filter((s) => filter === undefined || s.staffEmail === filter), [data.data, filter]);
+  const appointments = useMemo(() => (data.data?.appointments ?? []).filter((a) => filter === undefined || a.assignedTo === filter), [data.data, filter]);
+  // En el día de una clínica, una columna por persona: quien trabaja o tiene citas ese día (y tú), y «sin asignar».
+  const byPerson = team && view === "day" && who === "";
+  const columns: Column[] = useMemo(() => {
+    if (!byPerson) return dayColumns(days, filter);
+    const busy = new Set<string | null>([...shifts.map((s) => s.staffEmail), ...appointments.map((a) => a.assignedTo)]);
+    const people: (string | null)[] = staff.map((s) => s.email).filter((e) => busy.has(e) || e === me);
+    for (const e of busy) if (e && !people.includes(e)) people.push(e);
+    if (busy.has(null)) people.push(null);
+    return personColumns(days[0]!, people.length ? people : [me]);
+  }, [byPerson, days, filter, shifts, appointments, staff, me]);
+
+  const step = (n: number) => setAnchor(addDays(anchor, n * (view === "week" ? 7 : span)));
+  const title =
+    span === 1
+      ? cap(fmt(days[0]!, { weekday: "long", day: "numeric", month: "long" }))
+      : `${fmt(days[0]!, { day: "numeric", month: "short" })} – ${fmt(days.at(-1)!, { day: "numeric", month: "short", year: "numeric" })}`;
+  const showsToday = days.includes(today);
+  const firstDay = showsToday ? today : days[0]!;
+  const noun = view === "week" ? "Semana" : view === "day" ? "Día" : "Días";
+
+  async function onMove({ item, column, minutes }: Move) {
+    const startsAt = atMinutes(column.day, minutes);
+    const person = column.person !== undefined && column.person !== item.assignedTo ? { assignedTo: column.person } : {};
+    const before = { startsAt: item.startsAt, assignedTo: item.assignedTo, status: item.status };
+    try {
+      await updateAppointment(getDb(), item.id, { startsAt, ...person });
+      bumpData();
+      const withWhom = "assignedTo" in person ? `, con ${staffName(staff, column.person ?? null)}` : "";
+      setUndo({
+        text: `${item.name}: ${fmtVisit(startsAt)}${withWhom}`,
+        back: async () => {
+          await updateAppointment(getDb(), item.id, before);
+          bumpData();
+        },
+      });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), "danger");
+    }
+  }
+
+  const header = (c: Column) => {
+    if (byPerson) {
+      const p = staff.find((s) => s.email === c.person);
+      return { title: c.person === null ? "Sin asignar" : `${p?.name ?? c.person}${c.person === me ? " (tú)" : ""}`, color: c.person ? staffColor(p) : undefined };
+    }
+    return { title: cap(fmt(c.day, { weekday: "short" })), subtitle: fmt(c.day, { day: "numeric" }), today: c.day === today };
+  };
 
   return (
-    <Page title="Horario">
-      <div className="flex items-center justify-between gap-2">
-        <IconButton label="Semana anterior" onClick={() => setMonday(addDays(monday, -7))}>
+    <Page title="Agenda" large={false} wide>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="secondary" disabled={showsToday} onClick={() => setAnchor(today)}>
+          Hoy
+        </Button>
+        <IconButton label={`${noun} anterior${view === "3days" ? "es" : ""}`} onClick={() => step(-1)}>
           <ChevronLeft aria-hidden="true" className="size-6" />
         </IconButton>
-        <p className="text-center font-semibold" aria-live="polite">
-          {short(monday)} – {short(addDays(monday, 6))}
-        </p>
-        <IconButton label="Semana siguiente" onClick={() => setMonday(addDays(monday, 7))}>
+        <IconButton label={`${noun} siguiente${view === "3days" ? "s" : ""}`} onClick={() => step(1)}>
           <ChevronRight aria-hidden="true" className="size-6" />
         </IconButton>
+        <h2 className="min-w-[10rem] flex-1 truncate text-base font-semibold" aria-live="polite">
+          {title}
+        </h2>
+        <div role="group" aria-label="Vista" className="flex rounded-md border border-border p-0.5">
+          {VIEWS.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              aria-pressed={view === v.id}
+              className={cx("tap rounded px-2.5 text-sm", view === v.id ? "bg-accent font-semibold text-on-accent" : "text-text hover:bg-surface")}
+              onClick={() => setView(v.id)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
       </div>
-      {monday !== mondayOf(today) && (
-        <Button variant="ghost" size="sm" onClick={() => setMonday(mondayOf(today))}>
-          Volver a esta semana
+      <div className="flex flex-wrap items-end gap-2">
+        {team && (
+          <div className="min-w-48 flex-1">
+            <SelectField label="Ver" value={who} onChange={(e) => setWho(e.target.value)}>
+              <option value="">Todo el equipo</option>
+              {staff.map((s) => (
+                <option key={s.email} value={s.email}>
+                  {s.email === me ? `${s.name} (tú)` : s.name}
+                </option>
+              ))}
+              <option value="-">Citas sin asignar</option>
+            </SelectField>
+          </div>
+        )}
+        <Button icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setCreating({ kind: "appointment", start: atMinutes(firstDay, 10 * 60) })}>
+          Nueva cita
         </Button>
-      )}
-      <SelectField label="Ver" value={who} onChange={(e) => setWho(e.target.value)}>
-        <option value="">Todo el equipo</option>
-        {staff.map((s) => (
-          <option key={s.email} value={s.email}>
-            {s.email === me ? `${s.name} (tú)` : s.name}
-          </option>
-        ))}
-        <option value="-">Citas sin asignar</option>
-      </SelectField>
-      <div className="flex flex-wrap gap-2">
-        <Button icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setEditing({ shift: null, day: days.includes(today) ? today : monday })}>
-          Añadir turno
-        </Button>
-        {admin && (
+        {team && (
+          <Button variant="secondary" icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={() => setCreating({ kind: "shift", start: atMinutes(firstDay, 9 * 60) })}>
+            Añadir turno
+          </Button>
+        )}
+        {team && admin && view === "week" && (
           <Button
-            variant="secondary"
+            variant="ghost"
             loading={copying}
             icon={<CopyPlus aria-hidden="true" className="size-5" />}
             onClick={async () => {
@@ -105,7 +214,7 @@ export function SchedulePage() {
                 const n = await copyWeekForward(getDb(), from);
                 toast(n ? `${n === 1 ? "1 turno copiado" : `${n} turnos copiados`} a la semana siguiente` : "La semana siguiente ya tiene estos turnos", "success");
                 bumpData();
-                setMonday(addDays(monday, 7));
+                step(1);
               } catch (e) {
                 toast(e instanceof Error ? e.message : String(e), "danger");
               } finally {
@@ -113,81 +222,74 @@ export function SchedulePage() {
               }
             }}
           >
-            Repetir esta semana en la siguiente
+            Repetir los turnos la semana siguiente
           </Button>
         )}
       </div>
 
-      {days.map((day) => {
-        const dayShifts = shifts.filter((s) => madridDay(s.startsAt) === day);
-        const dayAppointments = appointments.filter((a) => madridDay(a.startsAt) === day);
-        const people = [...new Set<string | null>([...dayShifts.map((s) => s.staffEmail), ...dayAppointments.map((a) => a.assignedTo)])].sort((a, b) => order(a) - order(b));
-        return (
-          <section key={day} aria-labelledby={`dia-${day}`} className="flex flex-col gap-2">
-            <h2 id={`dia-${day}`} className="text-base font-semibold">
-              {dayTitle(day)}
-              {day === today && <span className="font-normal text-text-muted"> · Hoy</span>}
-            </h2>
-            {people.length === 0 ? (
-              <p className="text-sm text-text-muted">Sin turnos ni citas.</p>
-            ) : (
-              <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
-                {people.map((email) => {
-                  const person = staff.find((s) => s.email === email);
-                  const mine = dayShifts.filter((s) => s.staffEmail === email);
-                  const theirs = dayAppointments.filter((a) => a.assignedTo === email);
-                  return (
-                    <li key={email ?? "-"} className="flex flex-col gap-1.5 border-l-4 px-3 py-2" style={{ borderLeftColor: email ? staffColor(person) : "transparent" }}>
-                      <p className="font-semibold">{email === null ? "Sin asignar" : `${person?.name ?? email}${email === me ? " (tú)" : ""}`}</p>
-                      {mine.map((s) => {
-                        const text = `Turno ${hour(s.startsAt)}–${hour(s.endsAt)}${s.note ? ` · ${s.note}` : ""}`;
-                        return admin || s.staffEmail === me ? (
-                          <button key={s.id} type="button" className="tap self-start rounded-md bg-surface px-2 text-left text-sm hover:underline" onClick={() => setEditing({ shift: s, day })}>
-                            {text}
-                          </button>
-                        ) : (
-                          <p key={s.id} className="text-sm">
-                            {text}
-                          </p>
-                        );
-                      })}
-                      {theirs.map((a) => {
-                        const outside = email !== null && a.status === "scheduled" && !withinShift(week.data?.shifts ?? [], email, a.startsAt, a.minutes);
-                        return (
-                          <button key={a.id} type="button" className="tap flex flex-wrap items-center gap-x-2 text-left text-sm hover:underline" onClick={() => setManaging(a)}>
-                            <span className="font-semibold">{hour(a.startsAt)}</span>
-                            <span>{a.name}</span>
-                            <span className="text-text-muted">
-                              {a.minutes} min{a.status !== "scheduled" && ` · ${STATUS_LABELS[a.status]}`}
-                            </span>
-                            {outside && (
-                              <span className="inline-flex items-center gap-1 text-warning">
-                                <TriangleAlert aria-hidden="true" className="size-4" /> Fuera de turno
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-        );
-      })}
+      {undo && (
+        <div role="status" className="flex items-center justify-between gap-2 rounded-md bg-text px-3 py-2 text-sm text-bg">
+          <span className="min-w-0 truncate">Movida · {undo.text}</span>
+          <button
+            type="button"
+            className="tap inline-flex shrink-0 items-center gap-1 rounded px-2 font-semibold underline-offset-2 hover:underline"
+            onClick={async () => {
+              const u = undo;
+              setUndo(null);
+              await u.back();
+            }}
+          >
+            <Undo2 aria-hidden="true" className="size-4" /> Deshacer
+          </button>
+        </div>
+      )}
+
+      <AgendaGrid
+        columns={columns}
+        header={header}
+        appointments={appointments}
+        shifts={team ? shifts : []}
+        staff={team ? staff : []}
+        today={today}
+        showPerson={team && !byPerson && filter === undefined}
+        onOpen={setManaging}
+        onMove={(m) => void onMove(m)}
+        onSlot={(c, minutes) => setCreating({ kind: team ? "ask" : "appointment", start: atMinutes(c.day, minutes), person: c.person })}
+        onShift={team ? (s) => (admin || s.staffEmail === me) && setEditingShift(s) : undefined}
+      />
       <p className="text-sm text-text-muted">
-        Las citas se dan desde la ficha de cada paciente («Dar cita»); al darlas o al tocarlas aquí, eliges con quién son. A cada persona le salen en su Google
-        Calendar solo las suyas.
+        Arrastra una cita para moverla (en el móvil, mantenla pulsada un momento); tócala para atenderla, anularla o moverla una hora, un día o una
+        semana. Toca un hueco para dar una cita{team ? " o poner un turno" : ""}.
       </p>
 
-      {editing && (
-        <ShiftSheet open onClose={() => setEditing(null)} shift={editing.shift} day={editing.day} staff={staff} me={me} admin={admin} />
+      {creating?.kind === "ask" && (
+        <Sheet open onClose={() => setCreating(null)} title={cap(fmtVisit(creating.start))}>
+          <Button block icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setCreating({ ...creating, kind: "appointment" })}>
+            Dar una cita
+          </Button>
+          <Button block variant="secondary" icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={() => setCreating({ ...creating, kind: "shift" })}>
+            Poner un turno
+          </Button>
+        </Sheet>
       )}
-      {managing && (
-        <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} />
+      {creating?.kind === "appointment" && <AppointmentSheet open onClose={() => setCreating(null)} appointment={null} start={creating.start} person={creating.person} />}
+      {(creating?.kind === "shift" || editingShift) && (
+        <ShiftSheet
+          open
+          onClose={() => {
+            setCreating(null);
+            setEditingShift(null);
+          }}
+          shift={editingShift}
+          day={creating ? localInput(creating.start).slice(0, 10) : today}
+          from={creating ? localInput(creating.start).slice(11) : undefined}
+          person={creating?.person ?? undefined}
+          staff={staff}
+          me={me}
+          admin={admin}
+        />
       )}
+      {managing && <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} />}
     </Page>
   );
 }
-

@@ -10,7 +10,7 @@ import { fmtVisit } from "../clinical/calendar";
 import { agenda, STATUS_LABELS, type AgendaItem } from "../data/appointments";
 import { dueReviews, upcomingVisits } from "../data/clinical";
 import { getDb } from "../data/db";
-import { createPatient, getSetting, listPatients, matchesPatient, type PatientSummary } from "../data/repo";
+import { createPatient, getSetting, listPatients, matchesPatient, QUICK_PATIENT, type PatientSummary } from "../data/repo";
 import { SEED_PREFIX } from "../data/seed";
 import { Alert } from "../ui/Alert";
 import { EmptyState } from "../ui/EmptyState";
@@ -18,8 +18,7 @@ import { Group, RowButton } from "../ui/Grouped";
 import { PatientRow } from "../ui/ListItem";
 import { useToast } from "../ui/Toast";
 
-/** Ficha donde van las mediciones hechas sin elegir paciente. */
-export const QUICK_PATIENT = "Medición rápida";
+export { QUICK_PATIENT } from "../data/repo";
 
 /** «10:00», en la hora de Madrid. */
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });

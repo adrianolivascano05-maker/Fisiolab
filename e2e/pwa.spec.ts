@@ -57,11 +57,11 @@ test.describe("PWA: instalable y sin conexión", () => {
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
   });
 
-  test("PWA-E1 barra de abajo: tres pestañas que recuerdan dónde estabas; un punto en Ajustes si faltan datos", async ({ page }) => {
+  test("PWA-E1 barra de abajo: cuatro pestañas que recuerdan dónde estabas; un punto en Ajustes si faltan datos", async ({ page }) => {
     const bar = page.getByRole("navigation", { name: "Principal" });
     const tab = (name: string | RegExp) => bar.getByRole("link", { name });
     await createPatient(page, { name: "Rosa Pestañas" });
-    await expect(bar.getByRole("link")).toHaveCount(3);
+    await expect(bar.getByRole("link")).toHaveCount(4);
     await expect(tab(/Ajustes.*hay datos por completar/)).toBeVisible();
     await expectAccessible(page);
 

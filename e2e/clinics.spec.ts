@@ -241,7 +241,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     expect(errors).toEqual([]);
   });
 
-  test("CL5 horario: Ana pone el turno de Bruno y le asigna una cita; Bruno lo ve en su móvil", async ({ page, browser }) => {
+  test("CL5 agenda: Ana pone el turno de Bruno y le asigna una cita; Bruno lo ve en su móvil", async ({ page, browser }) => {
     test.slow();
     const google = new FakeGoogle(users);
     google.creators = ["ana"];
@@ -258,10 +258,11 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("button", { name: "Añadir al equipo" }).click();
     await expect(page.getByRole("region", { name: "Equipo" }).getByRole("button", { name: /bruno@clinica\.test/ })).toBeVisible();
 
-    // El turno de Bruno, hoy y la semana que viene.
+    // El turno de Bruno, hoy y la semana que viene (en la vista de un día, una columna por persona).
     const nav = page.getByRole("navigation", { name: "Principal" });
-    await nav.getByRole("link", { name: "Horario" }).click();
-    await expect(page.getByRole("heading", { name: "Horario", exact: true })).toBeVisible();
+    await nav.getByRole("link", { name: "Agenda" }).click();
+    await expect(page.getByRole("heading", { name: "Agenda", exact: true })).toBeVisible();
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
     await page.getByRole("button", { name: "Añadir turno" }).click();
     const sheet = page.getByRole("dialog", { name: "Nuevo turno" });
     await sheet.getByLabel("Persona").selectOption({ label: "bruno" });
@@ -271,12 +272,11 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await sheet.getByLabel("Repetir").selectOption({ label: "También la semana siguiente" });
     await sheet.getByRole("button", { name: "Guardar el turno" }).click();
     await expect(sheet).toBeHidden();
-    const todayBox = page.getByRole("region", { name: /· Hoy/ });
-    await expect(todayBox.getByText("Turno 09:00–14:00")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Turno de bruno, 09:00–14:00" })).toBeVisible();
     await expectAccessible(page);
 
-    // Una cita del paciente con Bruno, a las 10:00.
-    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Pacientes" }).click();
+    // Una cita del paciente con Bruno, a las 10:00, desde su ficha.
+    await nav.getByRole("link", { name: "Pacientes" }).click();
     await page.getByRole("link", { name: /Paciente Horario/ }).click();
     await page.getByRole("button", { name: "Dar cita" }).click();
     const give = page.getByRole("dialog", { name: "Dar cita a Paciente Horario" });
@@ -285,23 +285,23 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await give.getByLabel("Con quién").selectOption({ label: "bruno" });
     await give.getByRole("button", { name: "Dar la cita" }).click();
     await expect(give).toBeHidden();
-    await nav.getByRole("link", { name: "Horario" }).click();
-    const brunoRow = todayBox.getByRole("listitem").filter({ hasText: "bruno" });
-    await expect(brunoRow.getByRole("button", { name: /10:00.*Paciente Horario/ })).toBeVisible();
-    await expect(brunoRow.getByText("Fuera de turno")).toHaveCount(0);
+    await nav.getByRole("link", { name: "Agenda" }).click();
+    await expect(page.getByRole("button", { name: /^Paciente Horario\s*,\s*10:00–10:45\s*,\s*con bruno/ })).toBeVisible();
 
     // Bruno entra en su móvil: ve su turno y su cita, con su nombre de Google; sus turnos solo los pone él.
     const bruno = await device(browser, google, "bruno", errors);
     await enter(bruno);
     await patients(bruno);
     await unlock(bruno);
-    await bruno.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Horario" }).click();
-    const mine = bruno.getByRole("region", { name: /· Hoy/ }).getByRole("listitem").filter({ hasText: "Bruno Gil (tú)" });
-    await expect(mine.getByText("Turno 09:00–14:00")).toBeVisible();
-    await expect(mine.getByRole("button", { name: /10:00.*Paciente Horario/ })).toBeVisible();
+    await bruno.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Agenda" }).click();
+    await bruno.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    await expect(bruno.getByRole("button", { name: "Turno de Bruno Gil, 09:00–14:00" })).toBeVisible();
+    await expect(bruno.getByRole("button", { name: /^Paciente Horario\s*,\s*10:00–10:45\s*,\s*con Bruno Gil/ })).toBeVisible();
     await bruno.getByRole("button", { name: "Añadir turno" }).click();
     await expect(bruno.getByRole("dialog", { name: "Nuevo turno" }).getByLabel("Persona")).toBeDisabled();
-    await expect(bruno.getByRole("button", { name: "Repetir esta semana en la siguiente" })).toHaveCount(0);
+    await bruno.keyboard.press("Escape");
+    await bruno.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Semana" }).click();
+    await expect(bruno.getByRole("button", { name: "Repetir los turnos la semana siguiente" })).toHaveCount(0);
     await expectAccessible(bruno);
     expect(errors).toEqual([]);
   });

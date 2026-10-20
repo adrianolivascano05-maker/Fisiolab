@@ -20,6 +20,8 @@ type PageProps = {
   large?: boolean;
   /** En lugar del título grande, una cabecera propia (debe llevar el h1). */
   header?: ReactNode;
+  /** Más ancha en pantallas grandes (la agenda, con una columna por día). */
+  wide?: boolean;
   children: ReactNode;
 };
 
@@ -37,14 +39,14 @@ function useScrolledPast() {
   return { ref, past };
 }
 
-export function Page({ title, backTo, backLabel, action, tabs = true, tone = "default", large = !backTo, header, children }: PageProps) {
+export function Page({ title, backTo, backLabel, action, tabs = true, tone = "default", large = !backTo, header, wide = false, children }: PageProps) {
   const big = large || !!header;
   const { ref, past } = useScrolledPast();
   const showTabs = tabs && tone !== "media";
   return (
     <div className={cx("min-h-dvh", tone === "media" && "bg-media-bg text-media-text")}>
       <TopBar title={title} backTo={backTo} backLabel={backLabel} action={action} large={big} titleShown={!big || past} />
-      <main className={cx("mx-auto flex max-w-[var(--layout-content-max)] flex-col gap-4 px-4 pt-2", showTabs ? "pb-28" : "pb-12")}>
+      <main className={cx("mx-auto flex flex-col gap-4 px-4 pt-2", wide ? "max-w-[90rem]" : "max-w-[var(--layout-content-max)]", showTabs ? "pb-28" : "pb-12")}>
         {header ?? (big && <h1 className="text-[2rem] leading-tight font-bold">{title}</h1>)}
         {big && <div ref={ref} aria-hidden="true" className="-mt-4 h-0" />}
         <SyncNotice />
