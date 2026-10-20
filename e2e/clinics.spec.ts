@@ -99,7 +99,7 @@ async function unlock(page: Page) {
 
 /** Espera a que un texto esté en la copia de la clínica (descifrada con su contraseña). */
 const inServer = (google: FakeGoogle, text: string) =>
-  expect.poll(async () => (await FakeGoogle.open(google.clinicCopy("Fisiolab Centro")?.bytes ?? Buffer.alloc(0), PASSWORD)).includes(enc(text)), { timeout: 20_000 }).toBe(true);
+  expect.poll(async () => (await google.clinicText("Fisiolab Centro", PASSWORD)).includes(enc(text)), { timeout: 20_000 }).toBe(true);
 
 test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
   test("CL1 dar de alta la clínica: solo copias cifradas en el servidor, nada en Drive; otro dispositivo la elige", async ({ page, browser }) => {
@@ -200,6 +200,9 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     // Lo que apunta Bruno lo ve Ana al abrir la app.
     await createPatient(bruno, { name: "Paciente de Bruno" });
     await inServer(google, "Paciente de Bruno");
+    // Por cambios: lo de Bruno sube solo, en un lote cifrado; la copia entera no se vuelve a subir.
+    expect((await FakeGoogle.open(google.clinicCopy("Fisiolab Centro")!.bytes, PASSWORD)).includes(enc("Paciente de Bruno"))).toBe(false);
+    expect(google.clinicDeltas("Fisiolab Centro").every((d) => d.data.subarray(0, 9).toString("latin1") === "CENITENC1")).toBe(true);
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Paciente de Bruno/ })).toBeVisible();
     // «Editado por»: en la ficha, quién la cambió por última vez.
@@ -231,6 +234,108 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(bruno.getByText("Lucía Equipo")).toHaveCount(0);
     await unlock(bruno);
     await expect(bruno.getByRole("link", { name: /Lucía Equipo/ })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("CL9 con un servidor anterior, la copia entera; al actualizarlo, la clínica pasa a sincronizar por cambios sin perder nada", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    google.deltaServer = false;
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Primera Paciente" });
+    await choosePassword(page);
+    await inServer(google, "Primera Paciente");
+    await page.goto("./");
+    await createPatient(page, { name: "Segunda Paciente" });
+    await expect
+      .poll(async () => (await FakeGoogle.open(google.clinicCopy("Fisiolab Centro")?.bytes ?? Buffer.alloc(0), PASSWORD)).includes(enc("Segunda Paciente")), { timeout: 20_000 })
+      .toBe(true);
+    expect(google.clinicDeltas("Fisiolab Centro")).toEqual([]);
+    // Otro dispositivo la trae igual.
+    const tablet = await device(browser, google, "ana", errors);
+    await enter(tablet);
+    await tablet.getByRole("list", { name: "Tus clínicas" }).getByRole("button", { name: /Fisiolab Centro/ }).click();
+    await patients(tablet);
+    await unlock(tablet);
+    await expect(tablet.getByRole("link", { name: /Segunda Paciente/ })).toBeVisible();
+
+    // Se actualiza el servidor: el primer dispositivo que sincroniza pasa la clínica a cambios, sin perder nada.
+    google.deltaServer = true;
+    await createPatient(tablet, { name: "Tercera Paciente" });
+    await inServer(google, "Tercera Paciente");
+    expect(google.deltaBase.size).toBe(1);
+    await page.goto("./");
+    await expect(page.getByRole("link", { name: /Tercera Paciente/ })).toBeVisible({ timeout: 15_000 });
+    // Desde ahora, lo nuevo viaja en lotes de cambios.
+    await createPatient(page, { name: "Cuarta Paciente" });
+    await expect.poll(() => google.clinicDeltas("Fisiolab Centro").length, { timeout: 20_000 }).toBeGreaterThan(0);
+    await inServer(google, "Cuarta Paciente");
+    await tablet.goto("./");
+    await expect(tablet.getByRole("link", { name: /Cuarta Paciente/ })).toBeVisible({ timeout: 15_000 });
+    expect(errors).toEqual([]);
+  });
+
+  test("CL10 Ana cambia la contraseña: la copia se vuelve a cifrar con la nueva y Bruno, al escribirla, sigue sincronizando", async ({ page, browser }) => {
+    test.slow();
+    const NEW = "otra frase larga 2026";
+    const google = new FakeGoogle(users);
+    google.creators = ["ana"];
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Antes Del Cambio" });
+    await choosePassword(page);
+    await inServer(google, "Antes Del Cambio");
+    await page.goto("./ajustes/equipo");
+    await page.getByLabel("Su correo de Google").fill("bruno@clinica.test");
+    await page.getByRole("button", { name: "Añadir al equipo" }).click();
+    await expect(page.getByRole("region", { name: "Equipo" }).getByRole("button", { name: /bruno@clinica\.test/ })).toBeVisible();
+    const bruno = await device(browser, google, "bruno", errors);
+    await enter(bruno);
+    await patients(bruno);
+    await unlock(bruno);
+    await expect(bruno.getByRole("link", { name: /Antes Del Cambio/ })).toBeVisible();
+
+    // Ana cambia la contraseña: la copia entera del servidor pasa a ir con la nueva.
+    await page.goto("./ajustes/cuenta");
+    await page.getByRole("button", { name: "Cambiar la contraseña" }).click();
+    const sheet = page.getByRole("dialog", { name: "Cambiar la contraseña" });
+    await sheet.getByLabel("Contraseña nueva").fill(NEW);
+    await sheet.getByLabel("Repite la contraseña").fill(NEW);
+    await sheet.getByRole("button", { name: "Cambiar la contraseña" }).click();
+    const kit = page.getByRole("dialog", { name: "Kit de recuperación de la clínica" });
+    await expect(kit).toBeVisible({ timeout: 15_000 });
+    await kit.getByLabel(/He guardado el código/).check();
+    await kit.getByRole("button", { name: "Hecho" }).click();
+    await expect
+      .poll(async () => (await FakeGoogle.open(google.clinicCopy("Fisiolab Centro")!.bytes, NEW)).includes(enc("Antes Del Cambio")), { timeout: 20_000 })
+      .toBe(true);
+    await page.goto("./");
+    await createPatient(page, { name: "Con La Nueva" });
+    await expect.poll(async () => (await google.clinicText("Fisiolab Centro", NEW)).includes(enc("Con La Nueva")), { timeout: 20_000 }).toBe(true);
+
+    // Bruno: al abrir la app se le pide la contraseña nueva; con ella, llega lo de Ana y lo suyo sube.
+    await bruno.goto("./");
+    await expect(bruno.getByRole("status").getByText(/está cifrada: escribe su contraseña/)).toBeVisible({ timeout: 15_000 });
+    await bruno.getByRole("button", { name: "Escribir la contraseña" }).click();
+    const ask = bruno.getByRole("dialog", { name: "Contraseña de la copia del servidor" });
+    await ask.getByLabel("Contraseña").fill(PASSWORD);
+    await ask.getByRole("button", { name: "Abrir la copia" }).click();
+    await expect(ask.getByText("No es la contraseña de esta copia.")).toBeVisible();
+    await ask.getByLabel("Contraseña").fill(NEW);
+    await ask.getByRole("button", { name: "Abrir la copia" }).click();
+    await bruno.getByRole("button", { name: "Mostrar" }).click();
+    await expect(bruno.getByRole("link", { name: /Con La Nueva/ })).toBeVisible();
+    await createPatient(bruno, { name: "Bruno Tras El Cambio" });
+    await expect.poll(async () => (await google.clinicText("Fisiolab Centro", NEW)).includes(enc("Bruno Tras El Cambio")), { timeout: 20_000 }).toBe(true);
+    await page.goto("./");
+    await expect(page.getByRole("link", { name: /Bruno Tras El Cambio/ })).toBeVisible({ timeout: 15_000 });
     expect(errors).toEqual([]);
   });
 

@@ -115,7 +115,8 @@ abogado).
 **Al actualizar el servidor** (si cambia `worker.js` en la app), repite el paso 4 desde **Edit code**. Las
 variables y el enlace se conservan. Si además cambia `schema.sql`, vuelve a ejecutarlo entero en la **Console**
 de la base (paso 3): crea las tablas que falten y no borra nada. Así se pasó, en octubre de 2026, a la versión
-con clínicas (tablas `clinics` y `members`).
+con clínicas (tablas `clinics` y `members`) y después a la sincronización por cambios (tablas `deltas` y
+`delta_base`; ejecuta el SQL **antes** de pegar el `worker.js` nuevo).
 
 ## Otra forma: con Wrangler (terminal)
 
@@ -146,9 +147,12 @@ variables solo en ese.
 
 En peticiones y espacio, para una clínica sobra:
 
-- **Workers:** 100 000 peticiones al día. Cada dispositivo con la app abierta hace unas pocas cada 5 minutos.
+- **Workers:** 100 000 peticiones al día. Cada dispositivo con la app abierta hace una o dos por minuto (unas
+  1 200 al día en una jornada de 10 horas): unos 80 dispositivos a la vez antes de llegar al límite.
 - **D1:** 5 GB en total (cada base, hasta 500 MB) y unos límites diarios de filas leídas y escritas. Cada copia
-  se guarda en trozos de 1 MB, así que una copia de unos MB son pocas filas.
+  se guarda en trozos de 1 MB, así que una copia de unos MB son pocas filas. Con la sincronización por cambios,
+  cada guardado es un lote pequeño (una fila), y de vez en cuando se sube una copia entera que deja borrar los
+  lotes anteriores.
 - **Cada copia,** como mucho 50 MB.
 - **Sin tarjeta:** Workers y D1 no la piden. Por eso no se usa R2 (el almacén de archivos de Cloudflare), que sí
   pide una tarjeta aunque no se pague nada.
@@ -166,7 +170,7 @@ nada más.
 | Archivo | Qué es |
 | --- | --- |
 | `worker.js` | el servidor. JavaScript sin dependencias, para pegarlo tal cual en el panel |
-| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica) y `parts` (sus trozos, en texto base64) |
+| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica), `parts` (sus trozos, en texto base64), `deltas` (los lotes de cambios cifrados, numerados) y `delta_base` (hasta qué lote lleva la copia entera, y su época) |
 | `wrangler.toml` | la configuración, solo para instalarlo con Wrangler (siempre con `-c wrangler.toml`) |
 | `worker.test.ts`, `d1shim.ts` | las pruebas (`npx vitest run cloudflare`), con una base D1 simulada sobre SQLite |
 
@@ -192,6 +196,11 @@ Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "
 | `DELETE /v1/clinicas/:id/miembros/:correo` | `204`; un administrador quita a cualquiera, y cada uno puede quitarse a sí mismo |
 | `GET`, `PUT /v1/clinicas/:id/recuperacion` | `{ blob, updatedAt }` / `{ blob }`: la clave de la copia cerrada con el código de recuperación de la clínica (sin el código no sirve); solo administradores |
 | `GET`, `PUT`, `DELETE /v1/clinicas/:id/copia` y `GET /v1/clinicas/:id/copia/info` | la copia de la clínica, como las de abajo; borrarla, solo administradores |
+| `GET /v1/clinicas/:id/copia/info?v=2` | además `{ epoch, base, last, deltas, deltaSize }`: la época de la copia (`null` si la clínica aún no va por cambios), hasta qué lote lleva la copia entera, el último lote y cuántos lotes hay después de la copia (y cuánto ocupan) |
+| `PUT /v1/clinicas/:id/copia?v=2&seq=N` | la copia entera, que ya lleva los lotes hasta `N`: esos se borran. La primera vez pasa la clínica a los cambios (nueva época). Responde además `{ epoch, base }` |
+| `POST /v1/clinicas/:id/copia/cambios?v=2` | un lote cifrado en base64 (como mucho 1 000 000 caracteres): `200 { seq }`. Sin copia por cambios aún, `409` |
+| `GET /v1/clinicas/:id/copia/cambios?v=2&desde=N` | `200 { epoch, base, deltas: [{ seq, data }], more }`: los lotes después de `N`, por tandas de 100 (o 3 millones de caracteres). Si `N` es menor que `base`, sin lotes: hay que bajar la copia entera |
+| las rutas de la copia sin `?v=2`, con la clínica ya por cambios | `426 { error }`: una versión anterior de la app tiene que actualizarse |
 
 Las rutas de la copia (aquí con `/v1/copia`, la copia personal de versiones anteriores de la app, solo para
 `ALLOWED_EMAILS`; con clínica, igual bajo `/v1/clinicas/:id`):

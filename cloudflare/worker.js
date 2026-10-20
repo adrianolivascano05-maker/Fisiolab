@@ -28,6 +28,11 @@
 //   PUT    /v1/clinicas/:id/copia              guarda una copia en base64: If-None-Match: * (crear) o
 //                                              If-Match: <versión> (sustituir)
 //   DELETE /v1/clinicas/:id/copia              borra la copia (administrador; 204, también si no había)
+//   Sincronización por cambios (la app nueva añade ?v=2 a las rutas de la copia; ver abajo):
+//   GET    /v1/clinicas/:id/copia/info?v=2     además { epoch, base, last, deltas, deltaSize }
+//   PUT    /v1/clinicas/:id/copia?v=2&seq=N    la copia entera, que ya lleva los cambios hasta N (se borran)
+//   GET    /v1/clinicas/:id/copia/cambios?v=2&desde=N  { epoch, base, deltas: [{ seq, data }], more }
+//   POST   /v1/clinicas/:id/copia/cambios?v=2  un lote de cambios cifrado, en base64 → { seq }
 //   GET    /v1/clinicas/:id/recuperacion       { blob, updatedAt } (administrador): la clave de la copia cerrada con el
 //                                              código de recuperación de la clínica (sin el código no sirve de nada)
 //   PUT    /v1/clinicas/:id/recuperacion       { blob } → la guarda (administrador)
@@ -45,6 +50,11 @@
 // Borrar una clínica (DELETE /v1/clinicas/:id, con la declaración de quien la borra) la deja 30 días en la papelera:
 // nadie puede usarla, pero se puede recuperar entera; después se borra para siempre (al pasar por /v1/yo o por el
 // panel del proveedor). Una clínica suspendida no puede subir nada, pero sí bajar su copia.
+//
+// Sincronización por cambios: en vez de subir y bajar la copia entera en cada cambio, cada dispositivo sube solo lo
+// que ha cambiado (un lote cifrado con número correlativo) y baja lo de los demás. La primera vez que una versión
+// nueva de la app sincroniza una clínica, la pasa a este modo (sube la copia con ?v=2&seq=0); desde entonces las
+// versiones anteriores de la app reciben 426 («actualiza la app») en las rutas de la copia.
 //
 // Enlace a la base D1: DB. Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS y OPERATOR_EMAILS (quien
 // gestiona el servidor: ve el panel del proveedor).
@@ -95,6 +105,9 @@ const PART_CHARS = 1_000_000;
 const MAX_CHARS = Math.ceil((50 * 1024 * 1024) / 3) * 4;
 /** Trozos por viaje a D1, al escribir y al leer. */
 const PARTS_PER_TRIP = 4;
+/** Lotes de cambios por respuesta, y caracteres como mucho (se piden los siguientes con «more»). */
+const DELTAS_PER_TRIP = 100;
+const DELTA_TRIP_CHARS = 3_000_000;
 /** Días que una clínica borrada se puede recuperar antes de borrarse para siempre. */
 const DELETE_GRACE_DAYS = 30;
 /** Personas como mucho en el equipo de una clínica. */
@@ -200,7 +213,8 @@ async function route(request, env, deps, originAllowed) {
     (member !== null && ["PUT", "DELETE"].includes(method)) ||
     (rest === "/recuperacion" && ["GET", "PUT"].includes(method)) ||
     (rest === "/recuperar" && method === "POST") ||
-    copyMethod(rest, method);
+    copyMethod(rest, method) ||
+    (rest === "/copia/cambios" && ["GET", "POST"].includes(method));
   if (!known) throw notFound();
 
   const who = await authenticate(request, env, deps);
@@ -288,7 +302,117 @@ async function route(request, env, deps, originAllowed) {
   }
   // La copia de la clínica: todo el equipo la baja y la sube; borrarla, solo quien administra.
   if (method === "DELETE") admin();
-  return copyRoute(request, db, clinicOwner(id), rest.endsWith("/info"), deps.now);
+  return clinicCopy(request, db, clinicOwner(id), rest, deps.now);
+}
+
+/**
+ * @typedef {{ epoch: string, seq: number }} Base
+ * La sincronización por cambios de una copia: desde qué cambio la copia entera ya lo lleva todo (seq) y su época.
+ */
+
+/**
+ * @param {D1Database} db
+ * @param {string} owner
+ * @returns {Promise<Base | null>}
+ */
+async function getBase(db, owner) {
+  const row = await db.prepare("SELECT epoch, seq FROM delta_base WHERE owner = ?").bind(owner).first();
+  return row ? { epoch: String(row.epoch), seq: Number(row.seq) } : null;
+}
+
+const OLD_APP =
+  "Esta clínica usa ya la sincronización nueva: actualiza la app en este dispositivo (ciérrala del todo y vuelve a abrirla). Lo que tengas sin subir se sube al actualizar.";
+
+/**
+ * La copia de una clínica, con la sincronización por cambios (?v=2) o como en las versiones anteriores de la app.
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {string} owner
+ * @param {string} rest «/copia», «/copia/info» o «/copia/cambios»
+ * @param {() => number} now
+ */
+async function clinicCopy(request, db, owner, rest, now) {
+  const params = new URL(request.url).searchParams;
+  const v2 = params.get("v") === "2";
+  const base = await getBase(db, owner);
+  // Una versión anterior de la app no sabe de los cambios: si sube o baja la copia entera, se pierde lo de los demás.
+  if (base && !v2) throw new HttpError(426, OLD_APP);
+  if (!v2) {
+    if (rest === "/copia/cambios") throw notFound();
+    return copyRoute(request, db, owner, rest.endsWith("/info"), now);
+  }
+
+  if (rest === "/copia/info") {
+    const head = await getHead(db, owner);
+    const stats = await db.prepare("SELECT count(*) AS n, coalesce(sum(length(data)), 0) AS chars, max(seq) AS last FROM deltas WHERE owner = ?").bind(owner).first();
+    return json(200, {
+      version: head?.version ?? null,
+      size: head ? approxBytes(head.chars) : 0,
+      updatedAt: head?.updatedAt ?? null,
+      epoch: base?.epoch ?? null,
+      base: base?.seq ?? null,
+      last: Math.max(Number(stats?.last ?? 0), base?.seq ?? 0),
+      deltas: Number(stats?.n ?? 0),
+      deltaSize: approxBytes(Number(stats?.chars ?? 0)),
+    });
+  }
+
+  if (rest === "/copia/cambios") {
+    if (!base) throw new HttpError(409, "Esta clínica aún no usa la sincronización por cambios: sube primero la copia entera.");
+    if (request.method === "POST") {
+      const text = await request.text();
+      if (text.length > PART_CHARS) throw new HttpError(413, "El lote de cambios es demasiado grande: la app tiene que partirlo.");
+      if (!(text.length > MAGIC.length && text.startsWith(MAGIC))) throw new HttpError(415, "Solo se guardan copias cifradas.");
+      // El número siguiente al último que hay (o al de la copia entera, si ya se borraron los anteriores).
+      const row = await db
+        .prepare(
+          `INSERT INTO deltas (owner, seq, data, created_at)
+           VALUES (?, max(coalesce((SELECT max(seq) FROM deltas WHERE owner = ?), 0), coalesce((SELECT seq FROM delta_base WHERE owner = ?), 0)) + 1, ?, ?)
+           RETURNING seq`,
+        )
+        .bind(owner, owner, owner, text, new Date(now()).toISOString())
+        .first();
+      return json(200, { seq: Number(row?.seq) });
+    }
+    const since = Number(params.get("desde") ?? "0");
+    if (!Number.isSafeInteger(since) || since < 0) throw new HttpError(400, "«desde» tiene que ser un número.");
+    // Si la copia entera ya lleva lo que pide (y lo anterior se ha borrado), tiene que bajarse la copia.
+    if (since < base.seq) return json(200, { epoch: base.epoch, base: base.seq, deltas: [], more: false });
+    const { results = [] } = await db
+      .prepare("SELECT seq, data FROM deltas WHERE owner = ? AND seq > ? ORDER BY seq LIMIT ?")
+      .bind(owner, since, DELTAS_PER_TRIP)
+      .all();
+    const deltas = [];
+    let chars = 0;
+    for (const r of results) {
+      const data = String(r.data);
+      if (deltas.length && chars + data.length > DELTA_TRIP_CHARS) break;
+      deltas.push({ seq: Number(r.seq), data });
+      chars += data.length;
+    }
+    return json(200, { epoch: base.epoch, base: base.seq, deltas, more: deltas.length < results.length || results.length === DELTAS_PER_TRIP });
+  }
+
+  if (request.method === "PUT") {
+    const seq = Number(params.get("seq"));
+    if (!params.has("seq") || !Number.isSafeInteger(seq) || seq < 0) throw new HttpError(400, "Falta «seq»: hasta qué cambio lleva esta copia.");
+    const res = await writeCopy(request, db, owner, now);
+    // La copia ya lleva los cambios hasta «seq»: esos sobran. La primera vez, la clínica pasa a este modo.
+    await db.batch([
+      db
+        .prepare("INSERT INTO delta_base (owner, epoch, seq) VALUES (?, ?, ?) ON CONFLICT (owner) DO UPDATE SET seq = max(seq, excluded.seq)")
+        .bind(owner, crypto.randomUUID(), seq),
+      db.prepare("DELETE FROM deltas WHERE owner = ? AND seq <= (SELECT seq FROM delta_base WHERE owner = ?)").bind(owner, owner),
+    ]);
+    const after = await getBase(db, owner);
+    const body = /** @type {Record<string, unknown>} */ (await res.json());
+    return json(200, { ...body, epoch: after?.epoch ?? null, base: after?.seq ?? seq }, { ETag: res.headers.get("ETag") ?? "" });
+  }
+  if (request.method === "DELETE") {
+    // Sin copia no hay base: la próxima subida empieza otra época, y los dispositivos vuelven a empezar.
+    await db.batch([db.prepare("DELETE FROM deltas WHERE owner = ?").bind(owner), db.prepare("DELETE FROM delta_base WHERE owner = ?").bind(owner)]);
+  }
+  return copyRoute(request, db, owner, false, now);
 }
 
 /** Las rutas de una copia: «/copia» con GET, PUT o DELETE y «/copia/info» con GET. */
@@ -399,6 +523,8 @@ async function removeClinic(db, id) {
   await db.batch([
     db.prepare("DELETE FROM heads WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner),
+    db.prepare("DELETE FROM deltas WHERE owner = ?").bind(owner),
+    db.prepare("DELETE FROM delta_base WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM members WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM recovery WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM clinic_status WHERE clinic_id = ?").bind(id),
@@ -515,7 +641,8 @@ async function operatorRoute(request, env, deps, rest) {
       `SELECT c.id, c.name, c.created_by, c.created_at,
               (SELECT count(*) FROM members m WHERE m.clinic_id = c.id) AS members,
               (SELECT group_concat(m.email, ', ') FROM members m WHERE m.clinic_id = c.id AND m.role = 'admin') AS admins,
-              h.size, h.updated_at, s.suspended_at, s.deleted_at, s.deleted_by, s.declaration, s.purge_after
+              h.size + coalesce((SELECT sum(length(d.data)) FROM deltas d WHERE d.owner = h.owner), 0) AS size,
+              max(h.updated_at, coalesce((SELECT max(d.created_at) FROM deltas d WHERE d.owner = h.owner), '')) AS updated_at, s.suspended_at, s.deleted_at, s.deleted_by, s.declaration, s.purge_after
          FROM clinics c LEFT JOIN heads h ON h.owner = 'clinic:' || c.id LEFT JOIN clinic_status s ON s.clinic_id = c.id
         ORDER BY c.name COLLATE NOCASE`,
     )
@@ -649,7 +776,7 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
+      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }

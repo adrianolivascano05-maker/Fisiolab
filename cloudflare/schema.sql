@@ -68,3 +68,20 @@ CREATE TABLE IF NOT EXISTS clinic_status (
   declaration TEXT,
   purge_after TEXT
 );
+
+-- Sincronización por cambios de las clínicas (src/cloud/README.md): cada dispositivo sube solo lo que ha cambiado,
+-- cifrado, con un número correlativo («seq»); los demás bajan lo que va después del último que tienen. Cada cierto
+-- tiempo un dispositivo sube la copia entera, que ya lleva todo hasta «seq» de delta_base, y los cambios anteriores
+-- se borran. «epoch» cambia si se borra la copia: los dispositivos saben que tienen que volver a empezar.
+CREATE TABLE IF NOT EXISTS deltas (
+  owner TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  data TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (owner, seq)
+);
+CREATE TABLE IF NOT EXISTS delta_base (
+  owner TEXT PRIMARY KEY,
+  epoch TEXT NOT NULL,
+  seq INTEGER NOT NULL
+);

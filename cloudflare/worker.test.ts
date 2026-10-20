@@ -571,6 +571,92 @@ describe("clínicas", () => {
     expect(await count("SELECT count(*) AS n FROM recovery")).toBe(0);
   });
 
+  it("sincronización por cambios: la app nueva convierte la clínica y las versiones anteriores reciben 426", async () => {
+    const c = await clinic();
+    await send("PUT", `/v1/clinicas/${c.id}/miembros/eva@clinica.es`, "tok-ana", { role: "member" });
+    const base = `/v1/clinicas/${c.id}/copia`;
+    type Info = { version: string | null; epoch: string | null; base: number | null; last: number; deltas: number; deltaSize: number };
+    const info = async (token = "tok-ana") => (await (await call("GET", `${base}/info?v=2`, { token })).json()) as Info;
+    const post = (token: string, body: string) => call("POST", `${base}/cambios?v=2`, { token, body });
+    type Got = { epoch: string; base: number; deltas: { seq: number; data: string }[]; more: boolean };
+    const since = async (n: number, token = "tok-ana") => (await (await call("GET", `${base}/cambios?v=2&desde=${n}`, { token })).json()) as Got;
+
+    // Antes de convertirla: la app anterior trabaja como siempre y los cambios no se aceptan.
+    const v1 = ((await (await putClinic(c.id, "tok-eva", encrypted(3000, 1), { "If-None-Match": "*" })).json()) as { version: string }).version;
+    expect(await info()).toMatchObject({ version: v1, epoch: null, base: null, last: 0, deltas: 0 });
+    expect((await post("tok-ana", encrypted(100))).status).toBe(409);
+    expect((await call("GET", `${base}/cambios`, { token: "tok-ana" })).status).toBe(404);
+    // La subida con ?v=2 necesita «seq».
+    expect((await call("PUT", `${base}?v=2`, { token: "tok-ana", body: encrypted(3000, 2), headers: { "If-Match": v1 } })).status).toBe(400);
+
+    // La app nueva la convierte: sube la copia entera con seq=0.
+    const conv = await call("PUT", `${base}?v=2&seq=0`, { token: "tok-ana", body: encrypted(3000, 2), headers: { "If-Match": v1 } });
+    expect(conv.status).toBe(200);
+    const { version: v2, epoch } = (await conv.json()) as { version: string; epoch: string };
+    expect(epoch).toMatch(/^[0-9a-f-]{36}$/);
+    // Desde ahora, la app anterior no puede ni mirar la copia: tiene que actualizarse.
+    for (const path of [`${base}/info`, base]) {
+      const old = await call("GET", path, { token: "tok-eva" });
+      expect(old.status).toBe(426);
+      expect(((await old.json()) as { error: string }).error).toMatch(/actualiza la app/);
+    }
+    expect((await putClinic(c.id, "tok-eva", encrypted(3000, 3), { "If-Match": v2 })).status).toBe(426);
+
+    // Cambios: números correlativos; cada uno baja lo que va después del suyo.
+    expect((await (await post("tok-eva", encrypted(200, 4))).json()) as { seq: number }).toEqual({ seq: 1 });
+    expect((await (await post("tok-ana", encrypted(200, 5))).json()) as { seq: number }).toEqual({ seq: 2 });
+    expect(await since(0)).toEqual({ epoch, base: 0, deltas: [{ seq: 1, data: encrypted(200, 4) }, { seq: 2, data: encrypted(200, 5) }], more: false });
+    expect((await since(1, "tok-eva")).deltas.map((d) => d.seq)).toEqual([2]);
+    expect(await info()).toMatchObject({ version: v2, epoch, base: 0, last: 2, deltas: 2 });
+    // Sin cifrar no; nadie de fuera.
+    expect((await post("tok-ana", Buffer.from("{}").toString("base64"))).status).toBe(415);
+    expect((await post("tok-luis", encrypted(100))).status).toBe(403);
+    expect((await post("tok-ana", encrypted(1_000_001))).status).toBe(413);
+
+    // Copia entera hasta el 2: los cambios hasta el 2 sobran; el siguiente sigue la cuenta.
+    const v3 = ((await (await call("PUT", `${base}?v=2&seq=2`, { token: "tok-eva", body: encrypted(3000, 6), headers: { "If-Match": v2 } })).json()) as { version: string }).version;
+    expect(await count("SELECT count(*) AS n FROM deltas")).toBe(0);
+    expect(await info()).toMatchObject({ version: v3, epoch, base: 2, last: 2, deltas: 0 });
+    expect((await (await post("tok-ana", encrypted(200, 7))).json()) as { seq: number }).toEqual({ seq: 3 });
+    // Quien se quedó atrás (desde 1) tiene que bajar la copia entera.
+    expect(await since(1)).toEqual({ epoch, base: 2, deltas: [], more: false });
+    expect((await since(2)).deltas.map((d) => d.seq)).toEqual([3]);
+
+    // Muchos cambios: llegan por tandas.
+    for (let i = 0; i < 120; i++) await post("tok-ana", encrypted(50, 100 + i));
+    const first = await since(2);
+    expect(first.deltas.length).toBe(100);
+    expect(first.more).toBe(true);
+    const rest = await since(first.deltas.at(-1)!.seq);
+    expect(rest.deltas.length).toBe(21);
+    expect(rest.more).toBe(false);
+
+    // Borrar la copia (contraseña olvidada) empieza otra época.
+    expect((await call("DELETE", `${base}?v=2`, { token: "tok-ana" })).status).toBe(204);
+    expect(await info()).toMatchObject({ version: null, epoch: null, base: null, last: 0, deltas: 0 });
+    const again = await call("PUT", `${base}?v=2&seq=0`, { token: "tok-ana", body: encrypted(3000, 8), headers: { "If-None-Match": "*" } });
+    expect(((await again.json()) as { epoch: string }).epoch).not.toBe(epoch);
+
+    // La papelera y el borrado definitivo se llevan también los cambios.
+    await post("tok-ana", encrypted(100, 9));
+    expect((await send("DELETE", `/v1/clinicas/${c.id}`, "tok-ana", { declaration: "Conservo la copia de seguridad descargada." })).status).toBe(200);
+    expect((await post("tok-ana", encrypted(100, 10))).status).toBe(410);
+    await me("tok-ana", undefined, () => Date.now() + 31 * 86_400_000);
+    expect(await count("SELECT count(*) AS n FROM deltas")).toBe(0);
+    expect(await count("SELECT count(*) AS n FROM delta_base")).toBe(0);
+  });
+
+  it("suspendida: se bajan los cambios, no se suben", async () => {
+    const c = await clinic();
+    const base = `/v1/clinicas/${c.id}/copia`;
+    await call("PUT", `${base}?v=2&seq=0`, { token: "tok-ana", body: encrypted(3000), headers: { "If-None-Match": "*" } });
+    await call("POST", `${base}/cambios?v=2`, { token: "tok-ana", body: encrypted(100) });
+    const ops = { OPERATOR_EMAILS: "ana@clinica.es" };
+    await handle(request("POST", `/v1/proveedor/clinicas/${c.id}/suspender`, { token: "tok-ana", body: JSON.stringify({ suspended: true }) }), env(ops), { verifyToken });
+    expect((await call("POST", `${base}/cambios?v=2`, { token: "tok-ana", body: encrypted(100) })).status).toBe(423);
+    expect((await call("GET", `${base}/cambios?v=2&desde=0`, { token: "tok-ana" })).status).toBe(200);
+  });
+
   it("la copia personal de antes sigue solo para ALLOWED_EMAILS", async () => {
     expect((await call("GET", "/v1/copia/info", { token: "tok-eva" })).status).toBe(403);
     expect((await call("GET", "/v1/copia/info", { token: "tok-ana" })).status).toBe(200);

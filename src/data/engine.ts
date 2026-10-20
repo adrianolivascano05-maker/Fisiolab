@@ -1,7 +1,7 @@
 // Núcleo de la base de datos: abre, migra y atiende peticiones. Lo usan el worker del navegador
 // y los tests en Node, así que no sabe nada de mensajes ni de OPFS.
 import type { Bind, Info, Request, Snapshot, Statement } from "./protocol";
-import { mergeInto, prepareForClinic, wipeAll, type MergeResult } from "./syncMerge";
+import { applyDelta, mergeInto, pendingChanges, prepareForClinic, wipeAll, type DeltaItem, type MergeResult, type Pending } from "./syncMerge";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- la API de sqlite-wasm no está tipada al detalle */
 type Sqlite3 = any;
@@ -78,6 +78,10 @@ export class Engine {
         return this.snapshot();
       case "merge":
         return this.merge(req.bytes, req.member);
+      case "pending":
+        return pendingChanges(this.db) as Pending;
+      case "apply":
+        return this.applyDelta(req.items, req.schema);
       case "wipe":
         this.db.transaction(() => wipeAll(this.db));
         return null;
@@ -106,11 +110,23 @@ export class Engine {
       let result: MergeResult = { pulled: 0, needUpload: false };
       this.db.transaction(() => {
         result = mergeInto(this.db, remote);
+        // Lo que se trae de la base de la cuenta es de este dispositivo y aún no está en la clínica: todo por subir.
+        if (member) this.db.exec("update sync_changes set n = (select changes from sync_state) + 1; update sync_state set changes = changes + 1");
       });
       return result;
     } finally {
       remote.close();
     }
+  }
+
+  /** Un lote de cambios de otro dispositivo (sincronización por cambios). Si algo falla, la base queda como estaba. */
+  private applyDelta(items: DeltaItem[], schema: number): MergeResult {
+    if (schema > this.latestVersion) throw new Error("Hay cambios hechos con una versión más nueva de la app: actualiza la app en este dispositivo.");
+    let result: MergeResult = { pulled: 0, needUpload: false };
+    this.db.transaction(() => {
+      result = applyDelta(this.db, items);
+    });
+    return result;
   }
 
   private query(sql: string, bind?: Bind) {

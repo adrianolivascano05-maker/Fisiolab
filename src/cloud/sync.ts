@@ -6,17 +6,23 @@
 // Si la nube ha cambiado desde la última vez, se descarga y se junta fila a fila (src/data/syncMerge.ts) antes de
 // subir: nunca se pisa sin más lo que hizo otro dispositivo.
 //
+// Con el servidor de una clínica, por cambios (DeltaApi en remote.ts): cada dispositivo sube solo lo que ha cambiado
+// desde la última vez (un lote cifrado) y baja lo de los demás, en vez de la base entera. La copia entera se baja la
+// primera vez (o tras mucho tiempo sin sincronizar) y, de vez en cuando, un dispositivo sube una nueva que ya lo lleva
+// todo para que el servidor borre los lotes anteriores. Con un servidor de una versión anterior, como siempre.
+//
 // La copia va siempre cifrada (crypt.ts): se cifra antes de subir y se descifra al bajar. Sin contraseña de
 // cifrado en la cuenta no se sube nada («needs-password»); con ella pero sin la clave en este dispositivo, no se baja
 // ni se sube nada hasta escribirla («needs-key»). Una copia antigua sin cifrar se sigue pudiendo bajar y juntar.
 import { onDbChange, type Db } from "../data/db";
 import { describeOverwritten } from "../data/editors";
 import { getSetting } from "../data/repo";
+import type { DeltaItem, MergeResult } from "../data/syncMerge";
 import type { Account } from "./account";
-import { clearToken, getToken } from "./auth";
+import { clearToken, getToken, type Token } from "./auth";
 import { decrypt, deriveKey, encrypt, ENCRYPTION_KEY, forgetKey, isEncrypted, saltOf, storedKey, storeKey, WrongPassword, type EncryptionSetting, type StoredKey } from "./crypt";
 import { AuthError } from "./drive";
-import { driveStore, RemoteConflict, type RemoteStore } from "./remote";
+import { driveStore, RemoteConflict, type DeltaApi, type DeltaInfo, type RemoteStore } from "./remote";
 
 export type SyncStatus = "idle" | "syncing" | "offline" | "needs-auth" | "needs-key" | "needs-password" | "error";
 export type SyncState = {
@@ -36,7 +42,49 @@ export type SyncState = {
   overwritten?: string[];
 };
 
-type Meta = { fileId: string; version: string; lastSyncAt: string };
+type Meta = {
+  fileId: string;
+  version: string;
+  lastSyncAt: string;
+  /** Sincronización por cambios: la época de la copia del servidor y el último cambio que ya está aquí. */
+  epoch?: string | null;
+  seq?: number;
+  /** La sal con la que va cifrada la copia entera del servidor, y la de la clave de este dispositivo en la última vuelta. */
+  salt?: string;
+  keySalt?: string;
+  /** Contraseñas anteriores (sus sales): un lote cifrado con una de ellas ya lo ha vuelto a subir quien lo hizo. */
+  oldSalts?: string[];
+  /** Lo subido por cambios en el último día: desde qué cambio y con qué contraseña (para volver a subirlo si cambia). */
+  recent?: { from: number; salt: string; at: string }[];
+};
+
+/** Un lote de cambios como viaja (cifrado): la versión de la base que lo hizo y los cambios. */
+type DeltaBatch = { schema: number; items: DeltaItem[] };
+/** Tamaño de cada lote al subir: así ningún lote pasa del máximo del servidor (1 MB en base64, ya comprimido). */
+const BATCH_ITEMS = 400;
+const BATCH_CHARS = 500_000;
+/** Con tantos lotes (o tanto tamaño) después de la copia entera, se sube una nueva y el servidor borra los anteriores. */
+const COMPACT_DELTAS = 200;
+const COMPACT_BYTES = 2 * 1024 * 1024;
+
+/** Parte los cambios en lotes que no pasen de BATCH_ITEMS ni de BATCH_CHARS (en JSON, antes de comprimir). */
+function batches(items: DeltaItem[]): DeltaItem[][] {
+  const out: DeltaItem[][] = [];
+  let cur: DeltaItem[] = [];
+  let chars = 0;
+  for (const item of items) {
+    const size = JSON.stringify(item).length;
+    if (cur.length && (cur.length >= BATCH_ITEMS || chars + size > BATCH_CHARS)) {
+      out.push(cur);
+      cur = [];
+      chars = 0;
+    }
+    cur.push(item);
+    chars += size;
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
 
 /** Hace falta la contraseña de la copia (la sal con la que se cifró) para seguir. */
 class NeedsKey extends Error {
@@ -194,57 +242,10 @@ export class SyncController {
     if (!navigator.onLine) return this.set({ status: "offline" });
     this.set({ status: "syncing", error: null });
     try {
-      const store = this.store;
-      const [s] = await this.db.query<{ changes: number; pushed: number }>("select changes, pushed from sync_state");
-      const dirty = s!.changes > s!.pushed;
-      const files = await store.list(token);
-      const meta = this.meta();
-      let pulled = 0;
-      let key = await storedKey(this.scope);
-
-      if (!files.length) {
-        // Primera vez: la copia de este dispositivo es la de la nube.
-        const snap = await this.db.snapshot();
-        const f = await store.create(token, await this.seal(snap.bytes, key));
-        await this.markPushed(snap.changes);
-        this.saveMeta({ fileId: f.id, version: f.version, lastSyncAt: new Date().toISOString() });
-      } else {
-        const [main, ...extra] = files;
-        const unchanged = !extra.length && meta?.fileId === main!.id && meta.version === main!.version;
-        let needUpload = dirty;
-        if (!unchanged) {
-          // Otro dispositivo ha subido algo: se junta antes de subir. (Dos copias solo si dos dispositivos
-          // subieron la primera a la vez: se juntan las dos y se queda una.)
-          needUpload = !!extra.length;
-          for (const f of files) {
-            const bytes = await this.open(await store.download(token, f), key);
-            const r = await this.own(() => this.db.merge(bytes));
-            pulled += r.pulled;
-            needUpload ||= r.needUpload;
-            if (r.overwritten?.length) {
-              const lost = await describeOverwritten(this.db, r.overwritten);
-              if (lost.length) this.set({ overwritten: [...new Set([...(this.state.overwritten ?? []), ...lost])] });
-            }
-          }
-          if (!needUpload) await this.markPushed(s!.changes);
-          // Si otro dispositivo ha cambiado la contraseña, la clave de aquí ya no vale.
-          const enc = await this.encryption();
-          if (key && (!enc || enc.salt !== key.salt)) {
-            await forgetKey(this.scope);
-            key = null;
-          }
-        }
-        let version = main!.version;
-        if (needUpload) {
-          const snap = await this.db.snapshot();
-          version = (await store.update(token, main!, await this.seal(snap.bytes, key))).version;
-          await this.markPushed(snap.changes);
-          for (const f of extra) await store.remove(token, f);
-        }
-        this.saveMeta({ fileId: main!.id, version, lastSyncAt: new Date().toISOString() });
-      }
+      const info = this.store.deltas && (await this.store.deltas.info(token));
+      const pulled = info ? await this.deltaRound(token, info, this.store.deltas!) : await this.wholeRound(token);
       await this.refreshPending();
-      this.set({ status: "idle", lastSyncAt: this.meta()!.lastSyncAt, newData: this.state.newData || pulled > 0, keySalt: null });
+      this.set({ status: "idle", lastSyncAt: this.meta()?.lastSyncAt ?? null, newData: this.state.newData || pulled > 0, keySalt: null });
     } catch (e) {
       if (e instanceof RemoteConflict) {
         // Otro dispositivo ha subido entre medias: otra vuelta, que baja lo suyo, lo junta y sube.
@@ -262,6 +263,219 @@ export class SyncController {
         this.set({ status: "error", error: e instanceof Error ? e.message : String(e) });
       }
     }
+  }
+
+  /** Aviso de lo que se acababa de cambiar aquí y otro ha cambiado después («Editado por»). */
+  private async noteOverwritten(r: MergeResult) {
+    if (!r.overwritten?.length) return;
+    const lost = await describeOverwritten(this.db, r.overwritten);
+    if (lost.length) this.set({ overwritten: [...new Set([...(this.state.overwritten ?? []), ...lost])] });
+  }
+
+  /** Una vuelta con la copia entera (Drive o un servidor de una versión anterior). Devuelve las filas que han llegado. */
+  private async wholeRound(token: Token): Promise<number> {
+    const store = this.store;
+    const [s] = await this.db.query<{ changes: number; pushed: number }>("select changes, pushed from sync_state");
+    const dirty = s!.changes > s!.pushed;
+    const files = await store.list(token);
+    const meta = this.meta();
+    let pulled = 0;
+    let key = await storedKey(this.scope);
+
+    if (!files.length) {
+      // Primera vez: la copia de este dispositivo es la de la nube.
+      const snap = await this.db.snapshot();
+      const f = await store.create(token, await this.seal(snap.bytes, key));
+      await this.markPushed(snap.changes);
+      this.saveMeta({ fileId: f.id, version: f.version, lastSyncAt: new Date().toISOString() });
+    } else {
+      const [main, ...extra] = files;
+      const unchanged = !extra.length && meta?.fileId === main!.id && meta.version === main!.version;
+      let needUpload = dirty;
+      if (!unchanged) {
+        // Otro dispositivo ha subido algo: se junta antes de subir. (Dos copias solo si dos dispositivos
+        // subieron la primera a la vez: se juntan las dos y se queda una.)
+        needUpload = !!extra.length;
+        for (const f of files) {
+          const bytes = await this.open(await store.download(token, f), key);
+          const r = await this.own(() => this.db.merge(bytes));
+          pulled += r.pulled;
+          needUpload ||= r.needUpload;
+          await this.noteOverwritten(r);
+        }
+        if (!needUpload) await this.markPushed(s!.changes);
+        // Si otro dispositivo ha cambiado la contraseña, la clave de aquí ya no vale.
+        key = await this.checkKey(key);
+      }
+      let version = main!.version;
+      if (needUpload) {
+        const snap = await this.db.snapshot();
+        version = (await store.update(token, main!, await this.seal(snap.bytes, key))).version;
+        await this.markPushed(snap.changes);
+        for (const f of extra) await store.remove(token, f);
+      }
+      this.saveMeta({ fileId: main!.id, version, lastSyncAt: new Date().toISOString() });
+    }
+    return pulled;
+  }
+
+  /**
+   * Una vuelta por cambios con el servidor de la clínica. Devuelve las filas que han llegado.
+   * 1. La copia entera, solo si hace falta: la primera vez, si se ha sustituido (otra época) o si este dispositivo se
+   *    ha quedado atrás (el servidor ya borró los cambios que le faltan).
+   * 2. Los cambios de los demás desde el último que llegó aquí.
+   * 3. Lo de aquí: un lote con lo cambiado desde la última subida. O la copia entera, la primera vez que la clínica
+   *    sincroniza por cambios o si este dispositivo tenía cambios sin subir de una versión anterior de la app.
+   * 4. De vez en cuando, una copia entera nueva para que el servidor borre los cambios anteriores.
+   */
+  private async deltaRound(token: Token, info: DeltaInfo, api: DeltaApi): Promise<number> {
+    const store = this.store;
+    const meta = this.meta();
+    const now = () => new Date().toISOString();
+    let key = await storedKey(this.scope);
+    let pulled = 0;
+    // Una contraseña nueva en este dispositivo: la anterior pasa a ser vieja.
+    const oldSalts = [...(meta?.oldSalts ?? [])];
+    if (key && meta?.keySalt && meta.keySalt !== key.salt && !oldSalts.includes(meta.keySalt)) oldSalts.push(meta.keySalt);
+    const recent = (meta?.recent ?? []).filter((r) => Date.parse(r.at) > Date.now() - 86_400_000);
+    const save = (patch: Partial<Meta>) =>
+      this.saveMeta({ fileId: "copia", version: "", lastSyncAt: meta?.lastSyncAt ?? now(), ...meta, oldSalts, recent, keySalt: key?.salt, ...patch });
+
+    if (!info.version) {
+      // Nada en el servidor: la copia de aquí es la primera (y con ella, la clínica sincroniza por cambios).
+      const snap = await this.db.snapshot();
+      const sealed = await this.seal(snap.bytes, key);
+      const f = await store.create(token, sealed, 0);
+      await this.markPushed(snap.changes);
+      await this.clearLegacy();
+      save({ version: f.version, lastSyncAt: now(), epoch: f.epoch ?? null, seq: f.base ?? 0, salt: saltOf(sealed) });
+      return 0;
+    }
+
+    let version = info.version;
+    let epoch = info.epoch;
+    let snapSalt = meta?.salt;
+    const [st] = await this.db.query<{ legacy: number }>("select legacy from sync_state");
+    const legacy = !!st?.legacy;
+    const current = !legacy && !!meta?.epoch && meta.epoch === info.epoch && meta.seq !== undefined && info.base !== null && meta.seq >= info.base;
+    let cursor = current ? meta!.seq! : (info.base ?? 0);
+    let uploadWhole = false;
+    if (!current) {
+      const raw = await store.download(token, { id: "copia", version });
+      const bytes = await this.open(raw, key);
+      snapSalt = isEncrypted(raw) ? saltOf(raw) : undefined;
+      const r = await this.own(() => this.db.merge(bytes));
+      pulled += r.pulled;
+      await this.noteOverwritten(r);
+      // Subir la copia entera: para pasar la clínica a la sincronización por cambios, para no perder lo que este
+      // dispositivo tenía sin subir de antes, o si la copia del servidor se ha sustituido y aquí hay cosas que no tiene.
+      uploadWhole = info.epoch === null || (r.needUpload && (legacy || (!!meta?.epoch && meta.epoch !== info.epoch)));
+      key = await this.checkKey(key);
+    }
+
+    if (info.base !== null && info.last > cursor) {
+      for (;;) {
+        const page = await api.since(token, cursor);
+        if (page.epoch !== epoch || page.base > cursor) {
+          // Mientras tanto se ha sustituido o resumido la copia: otra vuelta, con la copia entera.
+          save({ epoch: null, seq: undefined });
+          this.again = true;
+          return pulled;
+        }
+        for (const d of page.deltas) {
+          const batch = await this.openDelta(d.data, key, oldSalts, recent);
+          if (batch) {
+            const r = await this.own(() => this.db.apply(batch.items, batch.schema));
+            pulled += r.pulled;
+            await this.noteOverwritten(r);
+          }
+          cursor = d.seq;
+        }
+        if (!uploadWhole) save({ version, epoch, seq: cursor, salt: snapSalt });
+        if (!page.more || !page.deltas.length) break;
+      }
+      key = await this.checkKey(key);
+    }
+
+    if (uploadWhole) {
+      const snap = await this.db.snapshot();
+      const sealed = await this.seal(snap.bytes, key);
+      const f = await store.update(token, { id: "copia", version }, sealed, cursor);
+      version = f.version;
+      epoch = f.epoch ?? epoch;
+      snapSalt = saltOf(sealed);
+      await this.markPushed(snap.changes);
+      await this.clearLegacy();
+    } else {
+      if (legacy) await this.clearLegacy();
+      const [s] = await this.db.query<{ pushed: number }>("select pushed from sync_state");
+      const p = await this.db.pending();
+      let sent = 0;
+      if (p.items.length) {
+        const schema = (await this.db.info()).schemaVersion;
+        for (const items of batches(p.items)) {
+          const sealed = await this.seal(new TextEncoder().encode(JSON.stringify({ schema, items } satisfies DeltaBatch)), key);
+          await api.post(token, sealed);
+          sent++;
+        }
+        recent.push({ from: s!.pushed, salt: key!.salt, at: now() });
+      }
+      if (p.changes > s!.pushed) await this.markPushed(p.changes);
+      // Resumir: una copia entera con todo hasta aquí (y con la contraseña de ahora); el servidor borra lo anterior.
+      if (key && (info.deltas + sent >= COMPACT_DELTAS || info.deltaSize >= COMPACT_BYTES || snapSalt !== key.salt)) {
+        try {
+          const snap = await this.db.snapshot();
+          const sealed = await this.seal(snap.bytes, key);
+          version = (await store.update(token, { id: "copia", version }, sealed, cursor)).version;
+          snapSalt = key.salt;
+        } catch (e) {
+          // Otro dispositivo ha resumido a la vez: ya está hecho.
+          if (!(e instanceof RemoteConflict)) throw e;
+        }
+      }
+    }
+    save({ version, lastSyncAt: now(), epoch, seq: cursor, salt: snapSalt });
+    return pulled;
+  }
+
+  /** Si otro dispositivo ha cambiado la contraseña (ajuste ya juntado aquí), la clave de aquí ya no vale. */
+  private async checkKey(key: StoredKey | null): Promise<StoredKey | null> {
+    const enc = await this.encryption();
+    if (key && (!enc || enc.salt !== key.salt)) {
+      await forgetKey(this.scope);
+      return null;
+    }
+    return key;
+  }
+
+  /**
+   * Un lote de cambios bajado del servidor, descifrado. null si va con una contraseña anterior: quien lo subió lo
+   * vuelve a subir con la nueva al escribirla (abajo). Sin la clave de su contraseña, NeedsKey.
+   */
+  private async openDelta(bytes: Uint8Array, key: StoredKey | null, oldSalts: string[], recent: NonNullable<Meta["recent"]>): Promise<DeltaBatch | null> {
+    if (!isEncrypted(bytes)) throw new Error("Un cambio del servidor no viene cifrado.");
+    const salt = saltOf(bytes);
+    if (oldSalts.includes(salt)) return null;
+    if (!key || key.salt !== salt) {
+      // La contraseña ha cambiado y aquí aún no está la nueva: lo que se subió aquí con la anterior hace poco, los
+      // demás no lo pueden abrir. Se vuelve a subir (con la nueva) al escribirla.
+      const from = recent.filter((r) => key && r.salt === key.salt).map((r) => r.from);
+      if (from.length) await this.own(() => this.db.transaction([{ sql: "update sync_state set pushed = min(pushed, ?)", bind: [Math.min(...from)] }]));
+      throw new NeedsKey(salt);
+    }
+    try {
+      return JSON.parse(new TextDecoder().decode(await decrypt(bytes, key.key))) as DeltaBatch;
+    } catch (e) {
+      if (e instanceof WrongPassword) {
+        await forgetKey(this.scope);
+        throw new NeedsKey(salt);
+      }
+      throw e;
+    }
+  }
+
+  private clearLegacy() {
+    return this.own(() => this.db.transaction([{ sql: "update sync_state set legacy = 0" }]));
   }
 
   /** Si la copia de Drive va cifrada (ajuste sincronizado). */

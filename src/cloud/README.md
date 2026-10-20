@@ -147,6 +147,25 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
 - La copia va al servidor de la clínica (Cloudflare Workers + D1 con jurisdicción `eu`), no a Drive, y la app ya no
   pide el permiso de la carpeta oculta de Drive (`drive.appdata`).
 - Como en Drive, solo se suben copias cifradas; además, el servidor rechaza lo que no empiece por `CENITENC1`.
+- **Por cambios, no la base entera** (`sync.ts`, `deltaRound`; migración 017). Una clínica de 15 personas con un año
+  de uso ocupa unos 26 MB (2,6 MB comprimida y cifrada): subirla y bajarla en cada cambio, en cada dispositivo, no
+  escala. Así que cada dispositivo sube solo lo que ha cambiado desde la última vez (un lote cifrado con las filas
+  cambiadas: `pendingChanges` en `syncMerge.ts`, lo que tiene en `sync_changes.n` un número mayor que
+  `sync_state.pushed`) y baja los lotes de los demás desde el último que tiene (`applyDelta`, con la misma regla:
+  gana el cambio más reciente de cada fila). La copia entera solo se baja la primera vez en un dispositivo o si se
+  ha quedado atrás; cuando se juntan 200 lotes (o 2 MB), un dispositivo sube una copia entera nueva y el servidor
+  borra los anteriores. Cada lote dice con qué versión de la base se hizo: uno de una versión más nueva pide
+  actualizar la app.
+- **Paso de la copia entera a los cambios.** La app nueva añade `?v=2` a las rutas de la copia. Con un servidor
+  anterior (que no lo entiende) sincroniza con la copia entera, como siempre. Con el servidor nuevo, el primer
+  dispositivo actualizado que sincroniza junta la copia y la vuelve a subir: desde ese momento la clínica va por
+  cambios y las versiones anteriores de la app reciben «actualiza la app» (`426`) en vez de subir una copia que
+  pisaría los cambios. Un dispositivo que tenía cambios sin subir de antes (`sync_state.legacy`) sube la copia
+  entera una vez para no perderlos.
+- **Contraseña nueva.** Los lotes van cifrados con la contraseña de la clínica. Quien la cambia sube enseguida una
+  copia entera con la nueva; los demás dispositivos piden la nueva al encontrar un lote suyo. Lo que un dispositivo
+  subió con la anterior en el último día lo vuelve a subir con la nueva cuando se escribe (`recent` en `sync.ts`), y
+  los demás saltan los lotes de una contraseña anterior (`oldSalts`).
 - **Se trabaja en una clínica** (`clinic.ts`). La primera vez en cada dispositivo, la cuenta elige su clínica o,
   si su correo está en `ALLOWED_EMAILS`, la da de alta y queda como administradora. Quien la administra añade al
   equipo por correo en Ajustes → Equipo de la clínica. Con una sola clínica y nada que llevar a ella, se entra

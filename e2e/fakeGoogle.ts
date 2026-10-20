@@ -92,12 +92,27 @@ export class FakeGoogle {
   creators: string[] | null = null;
   /** El servidor de antes de las clínicas: solo la copia de cada cuenta (/v1/copia). */
   oldServer = false;
+  /** Sincronización por cambios (?v=2), como el servidor de ahora; false: como uno anterior, solo la copia entera. */
+  deltaServer = true;
+  /** Los lotes de cambios de cada clínica («clinic:<id>»), cifrados, y desde cuál lleva su copia entera. */
+  deltas = new Map<string, { seq: number; data: Buffer }[]>();
+  deltaBase = new Map<string, { epoch: string; seq: number }>();
   static SERVER = "https://cenit-datos.pruebas.workers.dev";
 
   /** La copia de una clínica, buscada por su nombre. */
   clinicCopy(name: string) {
     const id = [...this.clinics].find(([, c]) => c.name === name)?.[0];
     return id ? this.server.get(`clinic:${id}`) : undefined;
+  }
+  /** Los lotes de cambios de una clínica que aún guarda el servidor. */
+  clinicDeltas(name: string) {
+    const id = [...this.clinics].find(([, c]) => c.name === name)?.[0];
+    return id ? (this.deltas.get(`clinic:${id}`) ?? []) : [];
+  }
+  /** Lo que tiene el servidor de una clínica (la copia entera y sus cambios), descifrado, como texto. */
+  async clinicText(name: string, password: string): Promise<string> {
+    const parts = [this.clinicCopy(name)?.bytes, ...this.clinicDeltas(name).map((d) => d.data)].filter((b): b is Buffer => !!b);
+    return (await Promise.all(parts.map((b) => FakeGoogle.open(b, password)))).join("\n");
   }
 
   /**
@@ -277,6 +292,35 @@ export class FakeGoogle {
 
     const mine = this.server.get(owner);
     const meta = (c: { bytes: Buffer; version: string }) => ({ version: c.version, size: c.bytes.length, updatedAt: new Date().toISOString() });
+    // Sincronización por cambios: como cloudflare/worker.js (clinicCopy).
+    const query = new URL(req.url()).searchParams;
+    const v2 = this.deltaServer && owner.startsWith("clinic:") && query.get("v") === "2";
+    const base = this.deltaBase.get(owner);
+    const list = this.deltas.get(owner) ?? [];
+    if (owner.startsWith("clinic:") && base && !v2) return send(426, { error: "Esta clínica usa ya la sincronización nueva: actualiza la app en este dispositivo." });
+    if (v2 && rest === "/copia/info")
+      return send(200, {
+        ...(mine ? meta(mine) : { version: null, size: 0, updatedAt: null }),
+        epoch: base?.epoch ?? null,
+        base: base?.seq ?? null,
+        last: Math.max(list.at(-1)?.seq ?? 0, base?.seq ?? 0),
+        deltas: list.length,
+        deltaSize: list.reduce((n, d) => n + d.data.length, 0),
+      });
+    if (v2 && rest === "/copia/cambios") {
+      if (!base) return send(409, { error: "Sube primero la copia entera." });
+      if (method === "POST") {
+        const data = Buffer.from(req.postData() ?? "", "base64");
+        if (!data.subarray(0, 9).equals(Buffer.from("CENITENC1"))) return send(415, { error: "Solo se guardan copias cifradas." });
+        const seq = Math.max(list.at(-1)?.seq ?? 0, base.seq) + 1;
+        this.deltas.set(owner, [...list, { seq, data }]);
+        return send(200, { seq });
+      }
+      const since = Number(query.get("desde") ?? 0);
+      if (since < base.seq) return send(200, { epoch: base.epoch, base: base.seq, deltas: [], more: false });
+      const page = list.filter((d) => d.seq > since).slice(0, 100);
+      return send(200, { epoch: base.epoch, base: base.seq, deltas: page.map((d) => ({ seq: d.seq, data: d.data.toString("base64") })), more: page.length === 100 });
+    }
     if (rest === "/copia/info") return send(200, mine ? meta(mine) : { version: null, size: 0, updatedAt: null });
     if (rest !== "/copia") return send(404, { error: "No existe." });
     if (method === "GET")
@@ -286,6 +330,10 @@ export class FakeGoogle {
     if (method === "DELETE") {
       if (owner !== user.sub && !admin) return send(403, { error: "Solo quien administra la clínica puede borrar su copia." });
       this.server.delete(owner);
+      if (v2) {
+        this.deltas.delete(owner);
+        this.deltaBase.delete(owner);
+      }
       return send(204);
     }
     // Como el servidor de verdad: la copia llega en base64 y tiene que estar cifrada.
@@ -296,6 +344,13 @@ export class FakeGoogle {
     if ((create && mine) || (!create && mine?.version !== ifMatch)) return send(412, { error: "La copia ha cambiado.", version: mine?.version ?? null });
     const copy = { bytes: data, version: `v${this.next++}` };
     this.server.set(owner, copy);
+    if (v2) {
+      const seq = Number(query.get("seq"));
+      const b = { epoch: base?.epoch ?? randomUUID(), seq: Math.max(base?.seq ?? 0, seq) };
+      this.deltaBase.set(owner, b);
+      this.deltas.set(owner, list.filter((d) => d.seq > b.seq));
+      return route.fulfill({ status: 200, headers: { ...headers, etag: `"${copy.version}"` }, json: { ...meta(copy), epoch: b.epoch, base: b.seq } });
+    }
     return route.fulfill({ status: 200, headers: { ...headers, etag: `"${copy.version}"` }, json: meta(copy) });
   }
 

@@ -1,5 +1,5 @@
 import type { Bind, Info, Request, Snapshot, Statement } from "./protocol";
-import type { MergeResult } from "./syncMerge";
+import type { DeltaItem, MergeResult, Pending } from "./syncMerge";
 
 /** Acceso a la base. La app usa el worker; los tests, el motor directamente. Mismas firmas. */
 export interface Db {
@@ -14,6 +14,9 @@ export interface Db {
    */
   snapshot(): Promise<Snapshot>;
   merge(bytes: Uint8Array, member?: string): Promise<MergeResult>;
+  /** Sincronización por cambios (syncMerge.ts): lo que falta por subir, y aplicar un lote de otro dispositivo. */
+  pending(): Promise<Pending>;
+  apply(items: DeltaItem[], schema: number): Promise<MergeResult>;
   wipe(): Promise<void>;
 }
 
@@ -30,6 +33,8 @@ export function dbFromHandler(handle: (req: Request) => Promise<unknown>): Db {
     info: () => handle({ op: "info" }) as Promise<Info>,
     snapshot: () => handle({ op: "snapshot" }) as Promise<Snapshot>,
     merge: (bytes, member) => handle({ op: "merge", bytes, member }) as Promise<MergeResult>,
+    pending: () => handle({ op: "pending" }) as Promise<Pending>,
+    apply: (items, schema) => handle({ op: "apply", items, schema }) as Promise<MergeResult>,
     wipe: async () => {
       await handle({ op: "wipe" });
     },

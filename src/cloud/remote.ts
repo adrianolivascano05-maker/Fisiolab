@@ -4,7 +4,33 @@
 import type { Token } from "./auth";
 import { AuthError, createFile, deleteFile, download, listFiles, updateFile } from "./drive";
 
-export type RemoteCopy = { id: string; version: string };
+/** `epoch` y `base`: con la sincronización por cambios, la época de la copia y hasta qué cambio lleva (DeltaApi). */
+export type RemoteCopy = { id: string; version: string; epoch?: string | null; base?: number };
+
+/** Lo que dice el servidor de la copia de una clínica con la sincronización por cambios (cloudflare/worker.js). */
+export type DeltaInfo = {
+  version: string | null;
+  /** null: la clínica aún no sincroniza por cambios (la primera vuelta la pasa). */
+  epoch: string | null;
+  /** Hasta qué cambio lleva la copia entera (los anteriores ya no están). */
+  base: number | null;
+  /** El último cambio que hay. */
+  last: number;
+  /** Cambios guardados después de la copia entera, y cuánto ocupan. */
+  deltas: number;
+  deltaSize: number;
+};
+export type DeltaPage = { epoch: string; base: number; deltas: { seq: number; data: Uint8Array }[]; more: boolean };
+
+/** La sincronización por cambios: cada dispositivo sube lo que ha cambiado y baja lo de los demás. */
+export interface DeltaApi {
+  /** null si el servidor es de una versión anterior (sin cambios): entonces, la copia entera como siempre. */
+  info(token: Token): Promise<DeltaInfo | null>;
+  /** Los cambios después de `seq` (por tandas: `more`). */
+  since(token: Token, seq: number): Promise<DeltaPage>;
+  /** Sube un lote cifrado; devuelve su número. */
+  post(token: Token, bytes: Uint8Array): Promise<number>;
+}
 
 /** La copia ha cambiado desde que se leyó (otro dispositivo ha subido entre medias): hay que volver a juntar. */
 export class RemoteConflict extends Error {
@@ -21,10 +47,13 @@ export interface RemoteStore {
   /** Las copias que hay (normalmente una), la más reciente primero. */
   list(token: Token): Promise<RemoteCopy[]>;
   download(token: Token, copy: RemoteCopy): Promise<Uint8Array>;
-  create(token: Token, bytes: Uint8Array): Promise<RemoteCopy>;
+  /** `seq`: con la sincronización por cambios, hasta qué cambio lleva la copia. */
+  create(token: Token, bytes: Uint8Array, seq?: number): Promise<RemoteCopy>;
   /** Sustituye la copia; RemoteConflict si ya no es la versión que se leyó (si el almacén lo sabe comprobar). */
-  update(token: Token, copy: RemoteCopy, bytes: Uint8Array): Promise<RemoteCopy>;
+  update(token: Token, copy: RemoteCopy, bytes: Uint8Array, seq?: number): Promise<RemoteCopy>;
   remove(token: Token, copy: RemoteCopy): Promise<void>;
+  /** Solo el servidor de una clínica: sincronizar por cambios. */
+  readonly deltas?: DeltaApi;
 }
 
 export const driveStore: RemoteStore = {
@@ -94,28 +123,44 @@ export async function serverCall(baseUrl: string, t: Token, path: string, init: 
 export function cloudflareStore(baseUrl: string, clinicId?: string): RemoteStore {
   const path = clinicId ? `/v1/clinicas/${encodeURIComponent(clinicId)}/copia` : "/v1/copia";
   const ID = "copia";
+  // La app de ahora sabe sincronizar por cambios (?v=2): un servidor de una versión anterior no mira la consulta.
+  const v2 = clinicId ? "?v=2" : "";
   const call = (t: Token, sub: string, init?: RequestInit) => serverCall(baseUrl, t, path + sub, init);
+  const put = async (t: Token, bytes: Uint8Array, seq: number | undefined, precondition: Record<string, string>): Promise<RemoteCopy> => {
+    const res = await call(t, clinicId ? `${v2}&seq=${seq ?? 0}` : "", { method: "PUT", headers: { ...precondition, "Content-Type": "text/plain" }, body: toBase64(bytes) });
+    const r = (await res.json()) as { version: string; epoch?: string | null; base?: number };
+    return { id: ID, version: r.version, epoch: r.epoch, base: r.base };
+  };
+  const deltas: DeltaApi = {
+    async info(t) {
+      const r = (await (await call(t, `/info${v2}`)).json()) as Partial<DeltaInfo>;
+      return typeof r.last === "number" ? (r as DeltaInfo) : null;
+    },
+    async since(t, seq) {
+      const r = (await (await call(t, `/cambios${v2}&desde=${seq}`)).json()) as Omit<DeltaPage, "deltas"> & { deltas: { seq: number; data: string }[] };
+      return { ...r, deltas: r.deltas.map((d) => ({ seq: d.seq, data: fromBase64(d.data) })) };
+    },
+    async post(t, bytes) {
+      const res = await call(t, `/cambios${v2}`, { method: "POST", headers: { "Content-Type": "text/plain" }, body: toBase64(bytes) });
+      return ((await res.json()) as { seq: number }).seq;
+    },
+  };
   return {
     where: "el servidor de la clínica",
     kind: "server",
     async list(t) {
       // Sin copia aún, { version: null }.
-      const { version } = (await (await call(t, "/info")).json()) as { version: string | null };
+      const { version } = (await (await call(t, `/info${v2}`)).json()) as { version: string | null };
       return version ? [{ id: ID, version }] : [];
     },
     async download(t) {
-      return fromBase64(await (await call(t, "")).text());
+      return fromBase64(await (await call(t, v2)).text());
     },
-    async create(t, bytes) {
-      const res = await call(t, "", { method: "PUT", headers: { "If-None-Match": "*", "Content-Type": "text/plain" }, body: toBase64(bytes) });
-      return { id: ID, version: ((await res.json()) as { version: string }).version };
-    },
-    async update(t, c, bytes) {
-      const res = await call(t, "", { method: "PUT", headers: { "If-Match": `"${c.version}"`, "Content-Type": "text/plain" }, body: toBase64(bytes) });
-      return { id: ID, version: ((await res.json()) as { version: string }).version };
-    },
+    create: (t, bytes, seq) => put(t, bytes, seq, { "If-None-Match": "*" }),
+    update: (t, c, bytes, seq) => put(t, bytes, seq, { "If-Match": `"${c.version}"` }),
     async remove(t) {
-      await call(t, "", { method: "DELETE" });
+      await call(t, v2, { method: "DELETE" });
     },
+    ...(clinicId ? { deltas } : {}),
   };
 }

@@ -1,4 +1,5 @@
 // Mensajes entre la app y el worker de SQLite.
+import type { DeltaItem } from "./syncMerge";
 export type Bind = Array<string | number | null>;
 export type Statement = { sql: string; bind?: Bind };
 
@@ -11,6 +12,9 @@ export type Request =
   /** Sincronización: la copia y cuántos cambios lleva (a la vez), y juntar con la copia de la nube. */
   | { op: "snapshot" }
   | { op: "merge"; bytes: Uint8Array; member?: string }
+  /** Sincronización por cambios: lo que falta por subir, y aplicar un lote de otros dispositivos (de la versión `schema`). */
+  | { op: "pending" }
+  | { op: "apply"; items: DeltaItem[]; schema: number }
   /** Vacía la base sin que cuente como borrado (cerrar sesión borrando los datos del dispositivo). */
   | { op: "wipe" };
 

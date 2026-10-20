@@ -36,6 +36,10 @@ export const SYNC_TABLES: { name: string; pk: string[]; unique?: string[][] }[] 
 ];
 
 type Change = { tbl: string; pk: string; op: "upsert" | "delete"; at: string; device: string };
+/** Un cambio con la fila tal como quedó (sin fila si es un borrado): lo que viaja en la sincronización por cambios. */
+export type DeltaItem = Change & { row?: Record<string, unknown> };
+/** Lo que falta por subir: los cambios hechos aquí después del último subido, y hasta qué número llegan. */
+export type Pending = { changes: number; items: DeltaItem[] };
 export type MergeResult = {
   /** Filas que han llegado de la nube (altas, cambios o borrados). */
   pulled: number;
@@ -66,11 +70,11 @@ function record(db: DB, c: Change) {
   });
 }
 
-/** Un borrado hecho ahora por este dispositivo. */
+/** Un borrado hecho ahora por este dispositivo (con su número de cambio: hay que subirlo, migración 017). */
 function tombstone(db: DB, tbl: string, pk: string) {
   db.exec({
-    sql: `insert into sync_changes (tbl, pk, op, at, device) values (?, ?, 'delete', ${NOW}, (select device from sync_state))
-          on conflict (tbl, pk) do update set op = 'delete', at = excluded.at, device = excluded.device`,
+    sql: `insert into sync_changes (tbl, pk, op, at, device, n) values (?, ?, 'delete', ${NOW}, (select device from sync_state), (select changes from sync_state) + 1)
+          on conflict (tbl, pk) do update set op = 'delete', at = excluded.at, device = excluded.device, n = excluded.n`,
     bind: [tbl, pk],
   });
   db.exec("update sync_state set changes = changes + 1");
@@ -124,21 +128,69 @@ export function prepareForClinic(db: DB, sub: string) {
  */
 export function mergeInto(local: DB, remote: DB): MergeResult {
   const specs = new Map(SYNC_TABLES.map((t) => [t.name, t]));
-  const mine = new Map(changes(local).map((c) => [keyOf(c), c]));
-  const theirs = new Map(changes(remote).map((c) => [keyOf(c), c]));
+  const rowOf = (c: Change) => remote.selectObject(`select * from ${c.tbl} where ${pkWhere(specs.get(c.tbl)!)}`, pkValues(specs.get(c.tbl)!, c.pk)) as Record<string, unknown> | undefined;
+  return apply(local, changes(remote), rowOf, true);
+}
+
+/**
+ * Aplica en `local` un lote de cambios de otros dispositivos (sincronización por cambios), con la misma regla: gana
+ * el más reciente de cada fila. Dentro de una transacción de `local`.
+ */
+export function applyDelta(local: DB, items: DeltaItem[]): MergeResult {
+  const byKey = new Map(items.map((i) => [keyOf(i), i]));
+  return apply(local, [...byKey.values()], (c) => byKey.get(keyOf(c))?.row, false);
+}
+
+/** Lo que falta por subir de este dispositivo: los cambios con número mayor que el último subido, con sus filas. */
+export function pendingChanges(db: DB): Pending {
+  const specs = new Map(SYNC_TABLES.map((t) => [t.name, t]));
+  const [state] = db.exec({ sql: "select changes, pushed from sync_state", rowMode: "object", returnValue: "resultRows" }) as { changes: number; pushed: number }[];
+  const list: Change[] = db.exec({
+    sql: "select tbl, pk, op, at, device from sync_changes where n > ? order by n",
+    bind: [state!.pushed],
+    rowMode: "object",
+    returnValue: "resultRows",
+  });
+  const items: DeltaItem[] = [];
+  for (const c of list) {
+    const spec = specs.get(c.tbl);
+    if (!spec) continue;
+    if (c.op === "delete") {
+      items.push(c);
+      continue;
+    }
+    const row = db.selectObject(`select * from ${c.tbl} where ${pkWhere(spec)}`, pkValues(spec, c.pk)) as Record<string, unknown> | undefined;
+    if (row) items.push({ ...c, row });
+  }
+  return { changes: state!.changes, items };
+}
+
+/**
+ * Junta con `local` los cambios `incoming` (las filas, con `rowOf`). `full`: es una copia entera, que trae todo; si
+ * no, es un lote de cambios y solo se mira lo que trae (sin calcular si hay que subir: eso lo dice el número de cada
+ * cambio, migración 017).
+ */
+function apply(local: DB, incoming: Change[], rowOf: (c: Change) => Record<string, unknown> | undefined, full: boolean): MergeResult {
+  const specs = new Map(SYNC_TABLES.map((t) => [t.name, t]));
+  const mine = full ? new Map(changes(local).map((c) => [keyOf(c), c])) : null;
+  const theirs = new Map(incoming.map((c) => [keyOf(c), c]));
+  const mineOf = (c: Change): Change | undefined =>
+    mine
+      ? mine.get(keyOf(c))
+      : (local.selectObject("select tbl, pk, op, at, device from sync_changes where tbl = ? and pk = ?", [c.tbl, c.pk]) as Change | undefined);
   let needUpload = false;
   const wins: Change[] = [];
   const here = local.selectValue("select device from sync_state") as string;
   const recent = new Date(Date.now() - 15 * 60_000).toISOString();
   const overwritten: { tbl: string; pk: string; device: string }[] = [];
-  for (const [k, r] of theirs) {
+  for (const r of theirs.values()) {
     if (!specs.has(r.tbl)) continue; // una tabla que esta versión no conoce: la copia es más nueva (se avisa antes)
-    const l = mine.get(k);
+    const l = mineOf(r);
     if (l && newer(r, l) && l.device === here && r.device !== here && l.op === "upsert" && l.at > recent) overwritten.push({ tbl: r.tbl, pk: r.pk, device: r.device });
     if (!l || newer(r, l)) wins.push(r);
     else if (newer(l, r)) needUpload = true;
   }
-  for (const k of mine.keys()) if (!theirs.has(k)) needUpload = true;
+  if (mine) for (const k of mine.keys()) if (!theirs.has(k)) needUpload = true;
 
   local.exec("update sync_state set applying = 1");
   // Las claves ajenas se comprueban al final: así no importa en qué orden llegan padres e hijos.
@@ -155,7 +207,7 @@ export function mergeInto(local: DB, remote: DB): MergeResult {
   }
   for (const c of upserts) {
     const spec = specs.get(c.tbl)!;
-    const row = remote.selectObject(`select * from ${c.tbl} where ${pkWhere(spec)}`, pkValues(spec, c.pk)) as Record<string, unknown> | undefined;
+    const row = rowOf(c);
     if (!row) continue; // el registro dice que existe pero no está: se queda como estaba
     // Otra fila de aquí con la misma clave única (p. ej. el mismo resultado del mismo test) pierde frente a esta.
     for (const cols of spec.unique ?? []) {
@@ -181,8 +233,10 @@ export function mergeInto(local: DB, remote: DB): MergeResult {
   }
 
   // Filas que se quedan sin padre (un paciente borrado en un lado y un test nuevo suyo en el otro): fuera.
-  for (let guard = 0; guard < 10; guard++) {
-    const orphans: { table: string; rowid: number }[] = local.exec({ sql: "pragma foreign_key_check", rowMode: "object", returnValue: "resultRows" });
+  // Con un lote de cambios sin borrados, basta con mirar las tablas que han recibido filas.
+  const checks = full || deletes.length ? ["pragma foreign_key_check"] : [...new Set(upserts.map((c) => c.tbl))].map((t) => `pragma foreign_key_check(${t})`);
+  for (let guard = 0; guard < 10 && checks.length; guard++) {
+    const orphans: { table: string; rowid: number }[] = checks.flatMap((sql) => local.exec({ sql, rowMode: "object", returnValue: "resultRows" }));
     if (!orphans.length) break;
     for (const o of orphans) {
       const spec = specs.get(o.table);
@@ -198,7 +252,7 @@ export function mergeInto(local: DB, remote: DB): MergeResult {
 
   // El registro tiene que decir la verdad: lo que figura como existente y ya no está (borrado en cascada) es un
   // borrado. Si la nube ya lo tenía borrado, se copia su borrado; si no, es un cambio de aquí.
-  for (const spec of SYNC_TABLES) {
+  for (const spec of full || deletes.length ? SYNC_TABLES : []) {
     const gone: { pk: string }[] = local.exec({
       sql: `select pk from sync_changes where tbl = ? and op = 'upsert' and pk not in (select ${pkExpr(spec)} from ${spec.name})`,
       bind: [spec.name],
