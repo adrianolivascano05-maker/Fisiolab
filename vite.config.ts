@@ -50,7 +50,7 @@ export default defineConfig({
       manifest: {
         name: "Cénit · Fisiolab",
         short_name: "Cénit",
-        description: "Valoración funcional en vídeo, sensores y tests de exploración, para la clínica Fisiolab.",
+        description: "Registro y organización para fisioterapia: fichas, mediciones en vídeo y sensores, tests de exploración y agenda. Las decisiones clínicas son del profesional.",
         lang: "es",
         start_url: base,
         scope: base,

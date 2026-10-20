@@ -46,14 +46,20 @@ export function Block({ title, children }: { title: string; children: ReactNode 
 }
 
 /** Firma del fisioterapeuta (el de Ajustes → Clínica) y la fecha, al pie. */
+/** Lo que es la app: registra y organiza; no decide nada clínico (va al pie de los informes y en la ayuda). */
+export const RECORD_ONLY = "Cénit registra y organiza; las decisiones clínicas son del profesional.";
+
 export function SignatureLine({ name, license, date }: { name: string; license: string; date: string }) {
   return (
-    <footer className="mt-4 flex flex-wrap justify-between gap-6 border-t border-border pt-4 text-sm">
-      <span>
-        Firma del fisioterapeuta: <span className="inline-block min-w-48 border-b border-text-muted">{name}</span>
-        {license && <span className="block text-text-muted">Nº de colegiado {license}</span>}
-      </span>
-      <span>Fecha: {date}</span>
+    <footer className="mt-4 flex flex-col gap-3 border-t border-border pt-4 text-sm">
+      <div className="flex flex-wrap justify-between gap-6">
+        <span>
+          Firma del fisioterapeuta: <span className="inline-block min-w-48 border-b border-text-muted">{name}</span>
+          {license && <span className="block text-text-muted">Nº de colegiado {license}</span>}
+        </span>
+        <span>Fecha: {date}</span>
+      </div>
+      <p className="text-xs text-text-muted">{RECORD_ONLY}</p>
     </footer>
   );
 }

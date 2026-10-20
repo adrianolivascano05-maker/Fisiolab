@@ -187,7 +187,7 @@ export function DischargePage() {
           </dl>
 
           {(str("diagnostico_funcional") || str("motivo")) && (
-            <Block title="Diagnóstico">
+            <Block title="Diagnóstico fisioterapéutico">
               {str("diagnostico_funcional") ? <p className="whitespace-pre-line">{str("diagnostico_funcional")}</p> : <p className="whitespace-pre-line">{str("motivo")}</p>}
             </Block>
           )}

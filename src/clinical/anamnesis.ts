@@ -127,7 +127,7 @@ export const ANAMNESIS: Section[] = [
     id: "diagnostico",
     title: "7. Diagnóstico fisioterápico",
     fields: [
-      { id: "diagnostico_funcional", label: "Diagnóstico funcional", type: "textarea" },
+      { id: "diagnostico_funcional", label: "Diagnóstico fisioterapéutico (criterio del profesional)", type: "textarea" },
       { id: "estructuras", label: "Estructuras implicadas", type: "text" },
     ],
   },

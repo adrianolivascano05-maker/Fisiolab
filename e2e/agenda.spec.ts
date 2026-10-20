@@ -73,7 +73,7 @@ test.describe("Agenda y seguimiento", () => {
     await tab(page, "Anamnesis").click();
     await page.getByLabel("Motivo principal").fill("Dolor lumbar");
     await page.locator("fieldset", { hasText: "Intensidad (EVA 0-10)" }).getByText("7", { exact: true }).click();
-    await page.getByLabel("Diagnóstico funcional").fill("Lumbalgia mecánica");
+    await page.getByLabel("Diagnóstico fisioterapéutico (criterio del profesional)").fill("Lumbalgia mecánica");
     await page.getByLabel("Sesiones previstas (o del bono)").fill("2");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
 

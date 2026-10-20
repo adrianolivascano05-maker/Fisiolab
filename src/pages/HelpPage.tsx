@@ -3,6 +3,7 @@ import { BookOpen, Settings, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { Page } from "../app/Page";
+import { RECORD_ONLY } from "../clinical/reportParts";
 import { Card } from "../ui/Card";
 
 const link = "font-semibold text-accent underline underline-offset-2";
@@ -85,6 +86,10 @@ const places: { icon: typeof Users; name: string; text: string }[] = [
 export function HelpPage() {
   return (
     <Page title="Cómo se usa" backTo="/ajustes">
+      <p className="rounded-md bg-accent-soft p-3 text-sm">
+        <b>Qué es Cénit.</b> Una herramienta de registro y organización para tu práctica: fichas, anamnesis, mediciones, sesiones y agenda, todo a
+        mano. No diagnostica ni decide tratamientos. {RECORD_ONLY}
+      </p>
       <ol aria-label="Pasos" className="flex flex-col gap-3">
         {steps.map((s, i) => (
           <li key={s.title}>

@@ -16,7 +16,7 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByText("Derecho", { exact: true }).click();
     await page.locator("fieldset", { hasText: "Intensidad (EVA 0-10)" }).getByText("6", { exact: true }).click();
     await page.getByText("Fiebre o malestar general").click();
-    await page.getByLabel("Diagnóstico funcional").fill("Tendinopatía rotuliana");
+    await page.getByLabel("Diagnóstico fisioterapéutico (criterio del profesional)").fill("Tendinopatía rotuliana");
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
 
