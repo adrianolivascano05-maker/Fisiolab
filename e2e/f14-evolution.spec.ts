@@ -32,6 +32,6 @@ test.describe("F14 Ver la evolución", () => {
     await page.getByRole("link", { name: /Irene Soto/ }).click();
     await page.getByRole("link", { name: "Evolución" }).click();
     await page.getByLabel("Medida").selectOption({ label: "Potencia media" });
-    await expect(page.getByText("La potencia necesita la masa y la distancia de empuje del paciente.")).toBeVisible();
+    await expect(page.getByText("La potencia necesita el peso y la distancia de empuje del paciente.")).toBeVisible();
   });
 });

@@ -8,6 +8,7 @@ type DB = any;
 /** Tablas que se sincronizan, de padres a hijos. `unique`: otras claves únicas además de la primaria. */
 export const SYNC_TABLES: { name: string; pk: string[]; unique?: string[][] }[] = [
   { name: "patients", pk: ["id"] },
+  { name: "free_measurements", pk: ["id"] },
   { name: "episodes", pk: ["id"] },
   { name: "tests", pk: ["id"] },
   { name: "profiles", pk: ["id"] },

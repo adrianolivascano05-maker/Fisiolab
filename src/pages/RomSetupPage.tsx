@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { ScanLine } from "lucide-react";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { getMovement, jointLabels, movements, type RomJoint } from "../calc/rom";
 import { Page } from "../app/Page";
 import type { Side } from "../data/repo";
@@ -95,6 +96,17 @@ export function RomSetupPage() {
           Continuar
         </Button>
       </form>
+      {/* Goniometría en vídeo con pose por IA (src/free): cualquier articulación, a lo largo de un movimiento. */}
+      <Link
+        to={`/pacientes/${id}/medicion-libre`}
+        className="flex items-center gap-3 rounded-lg border border-border bg-bg p-3 hover:border-accent"
+      >
+        <ScanLine aria-hidden="true" className="size-6 shrink-0 text-accent" />
+        <span className="flex flex-col">
+          <span className="font-semibold">Ángulos en vídeo con IA</span>
+          <span className="text-sm text-text-muted">Cualquier articulación a lo largo de un movimiento · experimental</span>
+        </span>
+      </Link>
     </Page>
   );
 }

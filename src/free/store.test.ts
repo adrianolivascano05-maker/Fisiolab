@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createPatient, deletePatient } from "../data/repo";
-import { migrations } from "../data/migrations";
 import { createTestDb } from "../data/testDb";
 import { deleteMeasurement, getMeasurement, listMeasurements, reportCsv, saveMeasurement } from "./store";
 import type { BiomechanicalMeasurement } from "./types";
 
 describe("guardado de la medición libre", () => {
-  it("tabla propia: guarda, lista, borra y desaparece con el paciente", async () => {
+  it("guarda, lista, borra, se sincroniza y desaparece con el paciente", async () => {
     const db = await createTestDb();
     const pid = await createPatient(db, { name: "Libre", birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
     const m: BiomechanicalMeasurement = {
@@ -36,9 +35,9 @@ describe("guardado de la medición libre", () => {
     expect(csv).toContain("plano;frontal\r\n");
     expect(csv).toContain("amplitud_grados;87,5\r\n");
     expect(csv).toContain("30;1,000;92,5\r\n");
+    // Cada medición deja su cambio para la copia de la nube.
+    expect(await db.query("select op from sync_changes where tbl = 'free_measurements' and pk = 'm1'")).toEqual([{ op: "upsert" }]);
     await deletePatient(db, pid);
     expect(await db.query("select * from free_measurements")).toEqual([]);
-    // La versión del esquema de la app no cambia: la tabla no es una migración.
-    expect((await db.info()).schemaVersion).toBe(migrations.at(-1)!.version);
   });
 });

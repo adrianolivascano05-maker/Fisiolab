@@ -48,10 +48,10 @@ Fecha: 2026-10-17
 - Probar la movilidad con el sensor de un Android real.
 - Prueba con TalkBack.
 
-**Experimental (se puede quitar):** «Medición libre» (Nueva medición → Medición libre).
+**Experimental (se puede quitar):** «Ángulos en vídeo con IA» (Nueva medición → Movilidad → Ángulos en vídeo con IA).
 - Pose 3D por IA (MediaPipe, Apache 2.0) en el propio móvil.
 - Esqueleto superpuesto, plano anatómico con compensación de la perspectiva, filtro One Euro, anclaje a las articulaciones, Δθ e informe CSV.
-- Está toda en `src/free/` y usa su propia tabla. Cómo quitarla, en `src/free/README.md`, o con `git revert` de su commit.
+- Está toda en `src/free/`; sus mediciones se sincronizan con la nube (tabla `free_measurements`, migración 012). Cómo quitarla, en `src/free/README.md`.
 - Comprobado: abducción de 90° → 91,6° en una foto de ejemplo; temblor de unos 2° en imagen quieta.
 
 ## 3. Decisiones tomadas (y por qué)
@@ -112,7 +112,9 @@ El usuario pidió una app tan intuitiva como un iPhone, sin listas que le digan 
   - Próximas citas de 7 días, reevaluaciones y «Medición rápida».
   - Todos por letras, con su próxima cita o su última visita.
 - **Ficha** (`src/clinical/PatientShell.tsx`):
-  - Cabecera común a todas las pestañas: iniciales, nombre, datos, **motivo de consulta**, próxima cita con su botón de calendario, y «Editar».
+  - Cabecera común a todas las pestañas: iniciales, nombre, edad, teléfono, peso y estatura, **motivo de consulta**, próxima cita con su botón de calendario, y «Editar». El contacto (teléfono, email, dirección) es del paciente, no de cada anamnesis (migración 012); los datos para saltos van plegados en el alta.
+  - Anamnesis en apartados plegables; abiertos al llegar: motivo, antecedentes (con las precauciones), diagnóstico y objetivos (con el plan).
+  - Mediciones: arriba, «Pruebas físicas» o «Cuestionarios», cada uno en su pantalla.
   - **Motivos de consulta:** un paciente que vuelve por otro problema tiene otro motivo, con su propia anamnesis y sus registros. La ficha enseña los del motivo elegido o todos juntos (`src/clinical/README.md`).
   - Las pestañas se quedan fijas al bajar.
   - En el Resumen: «Añadir» (Sesión, Medición, Exploración, Cuestionario) y una lista con Anamnesis, Protección de datos (en naranja si falta) e Informe. Después, solo lo que tiene datos.

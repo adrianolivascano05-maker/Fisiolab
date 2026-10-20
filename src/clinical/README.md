@@ -19,9 +19,9 @@ con todo lo suyo (el primero no se borra).
 | Pestaña | Ruta | Qué hay |
 | --- | --- | --- |
 | Resumen | `/pacientes/:id` | «Añadir» (sesión, medición, exploración, cuestionario), una lista con Anamnesis, Protección de datos e Informe, y lo que tenga datos: motivo de consulta y banderas rojas, curva del dolor, reevaluación, tests de exploración, últimas mediciones con su tendencia, simetrías bajo el 90 %, cuestionarios e historia (`src/pages/PatientPage.tsx`) |
-| Anamnesis | `/pacientes/:id/anamnesis` | la ficha de anamnesis de la clínica, apartado por apartado |
+| Anamnesis | `/pacientes/:id/anamnesis` | la ficha de anamnesis de la clínica, en apartados plegables (abiertos: motivo, antecedentes con las precauciones, diagnóstico y objetivos con el plan). El contacto (teléfono, email, dirección) no va aquí sino en los datos del paciente |
 | Exploración | `/pacientes/:id/exploracion` | tests especiales registrados, con lo que aporta cada resultado (razón de verosimilitud de la galería) y los tests propuestos para la zona |
-| Mediciones | `/pacientes/:id/mediciones` | análisis, simetría entre lados, cuestionarios y lista completa de saltos, fuerza, sprint, carrera, movilidad y nórdico |
+| Mediciones | `/pacientes/:id/mediciones` y `/pacientes/:id/cuestionarios` | dos pantallas con un selector arriba: «Pruebas físicas» (análisis, simetría entre lados y lista completa de saltos, fuerza, sprint, carrera, movilidad y nórdico) y «Cuestionarios» |
 | Sesiones | `/pacientes/:id/sesiones` | cada visita: dolor 0-10, qué refiere, qué encuentras, tratamiento, plan y cuándo reevaluar; con lo que se midió ese día |
 
 Además:
@@ -59,7 +59,7 @@ Además:
 | Archivo | Qué hace |
 | --- | --- |
 | `anamnesis.ts` | plantilla de la anamnesis (la «Ficha de anamnesis de fisioterapia» de la clínica). Para cambiar la ficha basta con cambiar esta lista: las respuestas se guardan por id de campo y lo ya escrito no se pierde |
-| `ClinicalPages.tsx`, `routes.tsx` | pantallas de las pestañas y sus rutas (se cargan al entrar) |
+| `ClinicalPages.tsx`, `ExplorationPages.tsx`, `pageKit.tsx`, `routes.tsx` | pantallas de las pestañas (la Exploración aparte, porque carga la Guía de tests), sus piezas comunes y sus rutas (se cargan al entrar) |
 | `parts.tsx` | pestañas del paciente, escalas numéricas (dolor, PSFS, cambio global), chips, resultado de un test y gráficas pequeñas en SVG |
 | `measures.ts`, `measureParts.tsx` | el dato principal de cada medición, sus tarjetas con tendencia y la lista |
 | `timeline.ts` | historia del paciente y serie del dolor |

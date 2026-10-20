@@ -21,13 +21,16 @@ type Form = {
   legLengthCm: string;
   pushOffDistanceCm: string;
   notes: string;
+  phone: string;
+  email: string;
+  address: string;
 };
 
-const empty: Form = { name: "", birthDate: "", sex: "", bodyMassKg: "", heightCm: "", legLengthCm: "", pushOffDistanceCm: "", notes: "" };
+const empty: Form = { name: "", birthDate: "", sex: "", bodyMassKg: "", heightCm: "", legLengthCm: "", pushOffDistanceCm: "", notes: "", phone: "", email: "", address: "" };
 
 // Mismos rangos que la base de datos (src/data/migrations/001_init.sql).
 const ranges = {
-  bodyMassKg: [10, 300, "La masa debe estar entre 10 y 300 kg."],
+  bodyMassKg: [10, 300, "El peso debe estar entre 10 y 300 kg."],
   heightCm: [50, 250, "La estatura debe estar entre 50 y 250 cm."],
   legLengthCm: [30, 150, "La longitud de pierna debe estar entre 30 y 150 cm."],
   pushOffDistanceCm: [5, 80, "La distancia de empuje debe estar entre 5 y 80 cm."],
@@ -38,6 +41,7 @@ type Errors = Partial<Record<keyof Form, string>>;
 function validate(f: Form): { errors: Errors; input?: PatientInput } {
   const errors: Errors = {};
   if (!f.name.trim()) errors.name = "Escribe el nombre.";
+  if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) errors.email = "Ese correo no parece completo.";
   const nums: Record<string, number | null> = {};
   for (const [key, [min, max, msg]] of Object.entries(ranges)) {
     const v = parseDecimal(f[key as keyof Form]);
@@ -56,6 +60,9 @@ function validate(f: Form): { errors: Errors; input?: PatientInput } {
       legLengthCm: nums.legLengthCm ?? null,
       pushOffDistanceCm: nums.pushOffDistanceCm ?? null,
       notes: f.notes,
+      phone: f.phone,
+      email: f.email,
+      address: f.address,
     },
   };
 }
@@ -94,6 +101,9 @@ export function PatientFormPage() {
               legLengthCm: decimalText(p.legLengthCm),
               pushOffDistanceCm: decimalText(p.pushOffDistanceCm),
               notes: p.notes,
+              phone: p.phone,
+              email: p.email,
+              address: p.address,
             })
           : setLoadError(new Error("Este paciente no existe.")),
       setLoadError,
@@ -157,26 +167,40 @@ export function PatientFormPage() {
             <option value="other">Otro</option>
           </SelectField>
         </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <TextField label="Teléfono" type="tel" autoComplete="off" value={form.phone} onChange={set("phone")} />
+          <TextField label="Email" type="email" autoComplete="off" value={form.email} onChange={set("email")} error={errors.email} />
+        </div>
+        <TextField label="Dirección" autoComplete="off" value={form.address} onChange={set("address")} />
         <div className="grid grid-cols-2 gap-3">
-          <NumberField label="Masa" unit="kg" value={form.bodyMassKg} onChange={set("bodyMassKg")} error={errors.bodyMassKg} />
+          <NumberField label="Peso" unit="kg" value={form.bodyMassKg} onChange={set("bodyMassKg")} error={errors.bodyMassKg} />
           <NumberField label="Estatura" unit="cm" value={form.heightCm} onChange={set("heightCm")} error={errors.heightCm} />
         </div>
-        <NumberField
-          label="Longitud de pierna"
-          unit="cm"
-          value={form.legLengthCm}
-          onChange={set("legLengthCm")}
-          error={errors.legLengthCm}
-          hint="Del trocánter mayor a la punta del pie en flexión plantar, tumbado."
-        />
-        <NumberField
-          label="Distancia de empuje"
-          unit="cm"
-          value={form.pushOffDistanceCm}
-          onChange={set("pushOffDistanceCm")}
-          error={errors.pushOffDistanceCm}
-          hint="Longitud de pierna menos la altura del trocánter en sentadilla a 90°. Hace falta, con la masa, para calcular fuerza y potencia."
-        />
+        {/* Solo hacen falta para la fuerza y la potencia de los saltos: plegados salvo que ya tengan algo (o un error). */}
+        <details
+          open={!!(form.legLengthCm || form.pushOffDistanceCm || errors.legLengthCm || errors.pushOffDistanceCm) || undefined}
+          className="rounded-md border border-border bg-bg p-3 [&[open]>summary]:mb-3"
+        >
+          <summary className="min-h-11 cursor-pointer content-center font-semibold">Datos para saltos</summary>
+          <div className="flex flex-col gap-4">
+            <NumberField
+              label="Longitud de pierna"
+              unit="cm"
+              value={form.legLengthCm}
+              onChange={set("legLengthCm")}
+              error={errors.legLengthCm}
+              hint="Del trocánter mayor a la punta del pie en flexión plantar, tumbado."
+            />
+            <NumberField
+              label="Distancia de empuje"
+              unit="cm"
+              value={form.pushOffDistanceCm}
+              onChange={set("pushOffDistanceCm")}
+              error={errors.pushOffDistanceCm}
+              hint="Longitud de pierna menos la altura del trocánter en sentadilla a 90°. Hace falta, con el peso, para calcular fuerza y potencia."
+            />
+          </div>
+        </details>
         <div className="flex flex-col gap-1">
           <label htmlFor="notes" className="text-sm font-semibold">
             Notas

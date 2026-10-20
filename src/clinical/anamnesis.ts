@@ -49,9 +49,6 @@ export const ANAMNESIS: Section[] = [
     fields: [
       { id: "fecha_valoracion", label: "Fecha", type: "date", hint: "De esta valoración." },
       { id: "profesion", label: "Profesión", type: "text" },
-      { id: "telefono", label: "Teléfono", type: "text", inputMode: "tel" },
-      { id: "email", label: "Email", type: "text", inputMode: "email" },
-      { id: "direccion", label: "Dirección", type: "text" },
       { id: "derivado_por", label: "Médico / derivado por", type: "text" },
     ],
   },

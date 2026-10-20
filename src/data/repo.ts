@@ -31,9 +31,13 @@ export type PatientInput = {
   legLengthCm: number | null;
   pushOffDistanceCm: number | null;
   notes: string;
+  /** Contacto (vacío si no se sabe). */
+  phone?: string;
+  email?: string;
+  address?: string;
 };
 
-export type Patient = PatientInput & { id: string; createdAt: string; updatedAt: string; privacy: PatientPrivacy };
+export type Patient = Required<PatientInput> & { id: string; createdAt: string; updatedAt: string; privacy: PatientPrivacy };
 
 export type PatientSummary = {
   id: string;
@@ -69,6 +73,9 @@ type PatientRow = {
   leg_length_cm: number | null;
   pushoff_distance_cm: number | null;
   notes: string;
+  phone: string;
+  email: string;
+  address: string;
   privacy: string;
   created_at: string;
   updated_at: string;
@@ -85,6 +92,9 @@ function toPatient(r: PatientRow): Patient {
     legLengthCm: r.leg_length_cm,
     pushOffDistanceCm: r.pushoff_distance_cm,
     notes: r.notes,
+    phone: r.phone,
+    email: r.email,
+    address: r.address,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     privacy: parsePrivacy(r.privacy),
@@ -104,10 +114,9 @@ export async function listPatients(db: Db, search = "", now = new Date()): Promi
                union all select max(performed_at) from questionnaires where patient_id = p.id
                union all select max(performed_at) from wellness where patient_id = p.id)) as lastAt,
             (select s.next_at from sessions s where s.patient_id = p.id order by s.performed_at desc limit 1) as nextAt,
-            concat_ws(' ', p.notes,
-              (select concat_ws(' ', a.answers ->> '$.telefono', a.answers ->> '$.email', a.answers ->> '$.motivo', a.answers ->> '$.diagnostico_funcional')
-                 from anamnesis a where a.patient_id = p.id),
-              (select group_concat(concat_ws(' ', e.title, e.answers ->> '$.telefono', e.answers ->> '$.motivo', e.answers ->> '$.diagnostico_funcional'), ' ')
+            concat_ws(' ', p.phone, p.email, p.notes,
+              (select concat_ws(' ', a.answers ->> '$.motivo', a.answers ->> '$.diagnostico_funcional') from anamnesis a where a.patient_id = p.id),
+              (select group_concat(concat_ws(' ', e.title, e.answers ->> '$.motivo', e.answers ->> '$.diagnostico_funcional'), ' ')
                  from episodes e where e.patient_id = p.id)) as searchText
        from patients p
       order by p.name collate nocase`,
@@ -122,7 +131,19 @@ export async function getPatient(db: Db, id: string): Promise<Patient | null> {
 }
 
 function patientBind(p: PatientInput) {
-  return [p.name.trim(), p.birthDate, p.sex, p.bodyMassKg, p.heightCm, p.legLengthCm, p.pushOffDistanceCm, p.notes];
+  return [
+    p.name.trim(),
+    p.birthDate,
+    p.sex,
+    p.bodyMassKg,
+    p.heightCm,
+    p.legLengthCm,
+    p.pushOffDistanceCm,
+    p.notes,
+    (p.phone ?? "").trim(),
+    (p.email ?? "").trim(),
+    (p.address ?? "").trim(),
+  ];
 }
 
 export async function createPatient(db: Db, input: PatientInput): Promise<string> {
@@ -130,8 +151,8 @@ export async function createPatient(db: Db, input: PatientInput): Promise<string
   const t = now();
   await db.transaction([
     {
-      sql: `insert into patients (name, birth_date, sex, body_mass_kg, height_cm, leg_length_cm, pushoff_distance_cm, notes, id, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `insert into patients (name, birth_date, sex, body_mass_kg, height_cm, leg_length_cm, pushoff_distance_cm, notes, phone, email, address, id, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [...patientBind(input), id, t, t],
     },
   ]);
@@ -142,7 +163,7 @@ export async function updatePatient(db: Db, id: string, input: PatientInput): Pr
   await db.transaction([
     {
       sql: `update patients set name = ?, birth_date = ?, sex = ?, body_mass_kg = ?, height_cm = ?, leg_length_cm = ?,
-                   pushoff_distance_cm = ?, notes = ?, updated_at = ?
+                   pushoff_distance_cm = ?, notes = ?, phone = ?, email = ?, address = ?, updated_at = ?
              where id = ?`,
       bind: [...patientBind(input), now(), id],
     },

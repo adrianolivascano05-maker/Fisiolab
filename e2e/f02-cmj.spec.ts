@@ -40,7 +40,7 @@ test.describe("F02 Medir un CMJ", () => {
     await page.getByRole("button", { name: "Calcular" }).click();
     await expect(page.getByText("30,7", { exact: true })).toBeVisible();
     await expect(page.getByText("Potencia media")).toHaveCount(0);
-    await expect(page.getByText(/Para fuerza y potencia, añade la masa/)).toBeVisible();
+    await expect(page.getByText(/Para fuerza y potencia, añade el peso/)).toBeVisible();
   });
 
   test("F02-E2 cámara lenta exportada a 30 fps: avisa y, con 240 de grabación, mide bien", async ({ page }) => {

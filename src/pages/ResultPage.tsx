@@ -200,14 +200,14 @@ function SingleResult({ test, get, hasPowerData, patientId }: { test: Test; get:
       <HowCalculated test={test} heightCm={height.value} />
       {(test.type === "cmj" || test.type === "sj") && !get("power_w") && !hasPowerData && (
         <p className="text-sm text-text-muted">
-          Para fuerza y potencia, añade la masa y la distancia de empuje en la{" "}
+          Para fuerza y potencia, añade el peso y la distancia de empuje en la{" "}
           <Link className="text-accent underline" to={`/pacientes/${patientId}/editar`}>
             ficha
           </Link>{" "}
           y vuelve a calcular.
         </p>
       )}
-      {test.type === "dj" && !get("stiffness_kn_m") && <p className="text-sm text-text-muted">Para la rigidez vertical, añade la masa del paciente y vuelve a calcular.</p>}
+      {test.type === "dj" && !get("stiffness_kn_m") && <p className="text-sm text-text-muted">Para la rigidez vertical, añade el peso del paciente y vuelve a calcular.</p>}
       {(test.type === "cmj_arms" || test.type === "single_leg") && (
         <p className="text-sm text-text-muted">
           Fuerza y potencia no se calculan en este salto: el método de Samozino supone dos piernas y sin impulso de brazos.

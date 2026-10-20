@@ -29,9 +29,9 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
   const facts = patient
     ? [
         years !== null && `${years} años`,
+        patient.phone,
         patient.bodyMassKg && `${fmt(patient.bodyMassKg)} kg`,
         patient.heightCm && `${fmt(patient.heightCm, 0)} cm`,
-        patient.pushOffDistanceCm && `empuje ${fmt(patient.pushOffDistanceCm)} cm`,
       ].filter(Boolean)
     : [];
   return (
@@ -54,7 +54,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
             </span>
             <div className="flex min-w-0 flex-col">
               <h1 className="text-[1.75rem] leading-tight font-bold break-words">{name}</h1>
-              {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin datos físicos"}</p>}
+              {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin más datos"}</p>}
             </div>
           </div>
           {patient && <EpisodePicker patientId={id} />}

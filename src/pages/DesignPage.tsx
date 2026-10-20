@@ -62,7 +62,7 @@ export function DesignPage() {
         <Section title="Campos">
           <TextField label="Nombre" placeholder="Nombre y apellidos" />
           <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Masa" unit="kg" defaultValue="62,5" />
+            <NumberField label="Peso" unit="kg" defaultValue="62,5" />
             <NumberField label="Estatura" unit="cm" defaultValue="170" />
           </div>
           <NumberField label="Distancia de empuje" unit="cm" hint="Longitud de la pierna estirada menos la altura en sentadilla a 90°." />

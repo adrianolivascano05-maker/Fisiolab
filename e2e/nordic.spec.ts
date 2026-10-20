@@ -32,7 +32,7 @@ test.describe("F12 Nórdico de isquios", () => {
     await expect(card("Ángulo de rotura")).toContainText("con el suelo: 35°");
     // 0,878 · 80 · 9,81 · 0,322 · 1,80 · sen 55° / 2 = 163,6 N·m
     await expect(card("Momento por pierna (estimado)")).toContainText("164");
-    await expect(card("Relativo a la masa")).toContainText("2,04");
+    await expect(card("Relativo al peso")).toContainText("2,04");
     await expectAccessible(page);
   });
 
@@ -40,14 +40,14 @@ test.describe("F12 Nórdico de isquios", () => {
     await createPatient(page, { name: "Sin estatura", mass: "70" });
     await add(page, "Medición").click();
     await page.getByRole("link", { name: /Nórdico/ }).click();
-    await expect(page.getByText("Sin masa o estatura, solo el ángulo")).toBeVisible();
+    await expect(page.getByText("Sin peso o estatura, solo el ángulo")).toBeVisible();
     await page.getByRole("radio", { name: /A mano/ }).check({ force: true });
     await page.getByRole("textbox", { name: "Ángulo de rotura" }).fill("95");
     await page.getByRole("button", { name: "Guardar" }).click();
     await expect(page.getByText("Escribe la inclinación en grados (0-90).")).toBeVisible();
     await page.getByRole("textbox", { name: "Ángulo de rotura" }).fill("45");
     await page.getByRole("button", { name: "Guardar" }).click();
-    await expect(page.getByText(/añade la masa y la estatura/)).toBeVisible();
+    await expect(page.getByText(/añade el peso y la estatura/)).toBeVisible();
     await page.getByRole("link", { name: "Volver" }).first().click();
     await expect(page.getByRole("link", { name: /Nórdico.*45°/ })).toBeVisible();
   });

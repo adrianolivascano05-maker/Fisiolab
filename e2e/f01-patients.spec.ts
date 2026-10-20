@@ -6,7 +6,17 @@ test.describe("F01 Dar de alta un paciente", () => {
     await expect(page.getByText("Todavía no hay pacientes")).toBeVisible();
     await expectAccessible(page);
     await createPatient(page, { name: "Ana Martín López", mass: "62,5", pushOff: "38" });
-    await expect(page.getByText("62,5 kg · empuje 38,0 cm")).toBeVisible();
+    await expect(page.getByText("62,5 kg", { exact: true })).toBeVisible();
+    // El contacto va en la ficha (no en cada anamnesis) y sale en la cabecera.
+    await page.getByRole("link", { name: "Editar", exact: true }).click();
+    await expect(page.getByLabel("Distancia de empuje")).toHaveValue("38");
+    await page.getByLabel("Teléfono").fill("612 34 56 78");
+    await page.getByLabel("Email").fill("ana@");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByText("Ese correo no parece completo.")).toBeVisible();
+    await page.getByLabel("Email").fill("ana@correo.es");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByText("612 34 56 78 · 62,5 kg")).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("link", { name: "Volver" }).click();
     await expect(page.getByRole("link", { name: /Ana Martín López.*Sin visitas todavía/ })).toBeVisible();
@@ -23,10 +33,10 @@ test.describe("F01 Dar de alta un paciente", () => {
   test("F01-E2 valores fuera de rango y texto en un número", async ({ page }) => {
     await page.goto("./pacientes/nuevo");
     await page.getByLabel("Nombre").fill("X");
-    await page.getByLabel("Masa").fill("900");
+    await page.getByLabel("Peso").fill("900");
     await page.getByLabel("Estatura").fill("abc");
     await page.getByRole("button", { name: "Crear paciente" }).click();
-    await expect(page.getByText("La masa debe estar entre 10 y 300 kg.")).toBeVisible();
+    await expect(page.getByText("El peso debe estar entre 10 y 300 kg.")).toBeVisible();
     await expect(page.getByText("La estatura debe estar entre 50 y 250 cm.")).toBeVisible();
     await expect(page).toHaveURL(/\/pacientes\/nuevo$/);
   });
@@ -52,7 +62,7 @@ test.describe("F01 Dar de alta un paciente", () => {
     await createPatient(page, { name: "Jorge Ruiz" });
     await createPatient(page, { name: "Lucía Herrero" });
     await page.getByRole("link", { name: "Editar", exact: true }).click();
-    await page.getByLabel("Masa").fill("58.5");
+    await page.getByLabel("Peso").fill("58.5");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(page.getByText("58,5 kg")).toBeVisible();
     await page.goto("./");

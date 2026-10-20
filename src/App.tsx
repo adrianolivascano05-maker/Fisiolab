@@ -5,7 +5,7 @@ import { CloudGate } from "./cloud/CloudGate"; // Cuenta de Google y copia en Dr
 import { UpdateBanner } from "./app/pwa";
 import { AppLock } from "./privacy/AppLock"; // PIN para abrir la app (src/privacy/README.md)
 import { ToastProvider } from "./ui/Toast";
-import { freeRoutes } from "./free/routes"; // Módulo experimental (src/free/README.md)
+import { freeRoutes } from "./free/routes"; // Ángulos en vídeo con IA, desde Movilidad (src/free/README.md)
 import { galleryRoutes } from "./gallery/routes"; // Galería de tests (src/gallery/README.md)
 import { clinicalRoutes } from "./clinical/routes"; // Ficha clínica: anamnesis, exploración, mediciones y sesiones
 import { PatientsPage } from "./pages/PatientsPage";
@@ -77,7 +77,7 @@ const routes = [
   { path: "/pacientes/:id/bienestar", element: l(<WellnessPage />) }, // S21
   { path: "/pacientes/:id/evolucion/:tipo", element: l(<EvolutionPage />) }, // S22
   ...clinicalRoutes, // Ficha clínica
-  ...freeRoutes, // Medición libre (experimental)
+  ...freeRoutes, // Ángulos en vídeo con IA (experimental)
   ...galleryRoutes, // Galería de tests de exploración
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07
   { path: "/tests/:id", element: l(<ResultPage />) }, // S08

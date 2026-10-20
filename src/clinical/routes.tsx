@@ -10,6 +10,7 @@ const FindingFormPage = lazy(() => exploration().then((m) => ({ default: m.Findi
 const MeasurementsPage = lazy(() => pages().then((m) => ({ default: m.MeasurementsPage })));
 const SessionsPage = lazy(() => pages().then((m) => ({ default: m.SessionsPage })));
 const SessionFormPage = lazy(() => pages().then((m) => ({ default: m.SessionFormPage })));
+const QuestionnairesPage = lazy(() => pages().then((m) => ({ default: m.QuestionnairesPage })));
 const QuestionnaireFormPage = lazy(() => pages().then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
 const PatientPrivacyPage = lazy(() => import("../privacy/PatientPrivacyPage").then((m) => ({ default: m.PatientPrivacyPage })));
@@ -28,6 +29,7 @@ export const clinicalRoutes = [
   { path: "/pacientes/:id/sesiones", element: l(<SessionsPage />) },
   { path: "/pacientes/:id/sesiones/nueva", element: l(<SessionFormPage />) },
   { path: "/pacientes/:id/sesiones/:sid", element: l(<SessionFormPage />) },
+  { path: "/pacientes/:id/cuestionarios", element: l(<QuestionnairesPage />) },
   { path: "/pacientes/:id/cuestionarios/nuevo", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/cuestionarios/:qid", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/informe", element: l(<ReportPage />) },

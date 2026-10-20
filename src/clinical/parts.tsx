@@ -2,13 +2,15 @@
 // y gráficas pequeñas en SVG (sin librería: la ficha se abre al instante).
 import { Activity, CircleHelp, ClipboardList, LayoutDashboard, Minus, NotebookPen, Plus, Stethoscope } from "lucide-react";
 import { useId, type ReactNode } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 import { fmtDateShort } from "../app/format";
 import type { FindingResult } from "../data/clinical";
 import { cx } from "../ui/cx";
 
 /** Pestañas dentro de la ficha de un paciente: las cinco caben en el móvil (icono y nombre). */
 export function PatientNav({ id }: { id: string }) {
+  // Los cuestionarios tienen su pantalla, pero van dentro de la pestaña Mediciones.
+  const inQuestionnaires = useLocation().pathname.endsWith(`/pacientes/${id}/cuestionarios`);
   const tabs = [
     { to: `/pacientes/${id}`, label: "Resumen", icon: LayoutDashboard, end: true },
     { to: `/pacientes/${id}/anamnesis`, label: "Anamnesis", icon: ClipboardList },
@@ -25,10 +27,11 @@ export function PatientNav({ id }: { id: string }) {
             <NavLink
               to={to}
               end={end}
+              aria-current={inQuestionnaires && label === "Mediciones" ? "page" : undefined}
               className={({ isActive }) =>
                 cx(
                   "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-[0.6875rem] leading-tight font-semibold",
-                  isActive ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text",
+                  isActive || (inQuestionnaires && label === "Mediciones") ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text",
                 )
               }
             >

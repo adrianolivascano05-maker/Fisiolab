@@ -273,6 +273,8 @@ test.describe("F16 Ficha clínica", () => {
     await createPatient(page, { name: "Elena Motivos" });
     await tab(page, "Anamnesis").click();
     await page.getByLabel("Motivo principal").fill("Esguince de tobillo");
+    // Los datos personales van plegados al empezar.
+    await page.getByText("1. Datos personales").click();
     await page.getByLabel("Profesión").fill("Enfermera");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByRole("button", { name: /Motivo: Esguince de tobillo/ })).toBeVisible();

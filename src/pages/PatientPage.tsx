@@ -22,7 +22,7 @@ import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
 import { Group, RowLink } from "../ui/Grouped";
 
-/** Saltos: los que usan la masa y la distancia de empuje para la fuerza y la potencia. */
+/** Saltos: los que usan el peso y la distancia de empuje para la fuerza y la potencia. */
 const JUMPS = new Set<string>(["cmj", "sj", "cmj_arms", "dj", "single_leg", "rj_10_5"]);
 
 /** Un botón de «Añadir»: icono y nombre, como los de la ficha de un contacto en el móvil. */
@@ -101,7 +101,7 @@ export function PatientPage() {
 
       {(!patient.bodyMassKg || !patient.pushOffDistanceCm) && tests.some((t) => JUMPS.has(t.type)) && (
         <Alert tone="info" title="Faltan datos para fuerza y potencia">
-          Añade la masa y la distancia de empuje en <Link className="underline" to={`/pacientes/${id}/editar`}>Editar</Link>. La altura del salto se calcula igualmente.
+          Añade el peso y la distancia de empuje en <Link className="underline" to={`/pacientes/${id}/editar`}>Editar</Link>. La altura del salto se calcula igualmente.
         </Alert>
       )}
       {review && review <= today && (
@@ -262,9 +262,14 @@ export function PatientPage() {
 
       {questionnaires.length > 0 && (
         <section aria-labelledby="cuestionarios" className="flex flex-col gap-2">
-          <h2 id="cuestionarios" className="text-lg">
-            Cuestionarios
-          </h2>
+          <div className="flex items-baseline justify-between gap-2">
+            <h2 id="cuestionarios" className="text-lg">
+              Cuestionarios
+            </h2>
+            <Link to={`/pacientes/${id}/cuestionarios`} className="text-sm font-semibold text-accent">
+              Ver todos
+            </Link>
+          </div>
           <QuestionnaireTiles patientId={id} items={questionnaires} />
         </section>
       )}

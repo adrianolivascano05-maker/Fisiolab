@@ -18,7 +18,7 @@ export function NordicHelp() {
         rodilla y la cadera en ese fotograma: el ángulo es la inclinación respecto a la vertical (0° erguido, 90° en el suelo).
       </p>
       <p className="text-sm text-text-muted">
-        Con la masa y la estatura del paciente, la app estima el momento de fuerza de los isquios en ese punto, por pierna. Es una
+        Con el peso y la estatura del paciente, la app estima el momento de fuerza de los isquios en ese punto, por pierna. Es una
         estimación con proporciones corporales medias, útil para comparar al mismo paciente en el tiempo.
       </p>
     </div>

@@ -54,7 +54,7 @@ export function FreeMeasurePage() {
   const data = useAsync(async () => ({ patient: await getPatient(getDb(), id), saved: await listMeasurements(getDb(), id) }), [id]);
   const [file, setFile] = useState<File | null>(null);
   const input = useRef<HTMLInputElement>(null);
-  const back = `/pacientes/${id}`;
+  const back = `/pacientes/${id}/test/movilidad`;
   const title = "Medición libre";
   if (data.error) return <Page title={title} backTo={back} tabs={false}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title={title} backTo={back} tabs={false}><Loading /></Page>;

@@ -44,11 +44,11 @@ export function NordicResult({ test, patient }: { test: Test; patient: Patient }
           {torque ? (
             <div className="grid grid-cols-2 gap-3">
               <MetricCard label="Momento por pierna (estimado)" value={fmt(torque.perLegNm, 0)} unit="N·m" />
-              <MetricCard label="Relativo a la masa" value={fmt(torque.perLegNmKg, 2)} unit="N·m/kg" />
+              <MetricCard label="Relativo al peso" value={fmt(torque.perLegNmKg, 2)} unit="N·m/kg" />
             </div>
           ) : (
             <p className="text-sm text-text-muted">
-              Para estimar el momento de los isquios, añade la masa y la estatura en la{" "}
+              Para estimar el momento de los isquios, añade el peso y la estatura en la{" "}
               <Link className="text-accent underline" to={`/pacientes/${patient.id}/editar`}>
                 ficha
               </Link>

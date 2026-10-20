@@ -73,7 +73,7 @@ export function EvolutionPage() {
       {points.length === 0 ? (
         <EmptyState icon={ChartLine} title="Sin datos de esta medida">
           {metric === "power_w" || metric === "relative_power_w_kg"
-            ? "La potencia necesita la masa y la distancia de empuje del paciente."
+            ? "La potencia necesita el peso y la distancia de empuje del paciente."
             : "Mide un salto para empezar la gráfica."}
         </EmptyState>
       ) : (

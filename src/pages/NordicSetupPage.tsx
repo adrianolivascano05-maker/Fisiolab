@@ -62,8 +62,8 @@ export function NordicSetupPage() {
   return (
     <Page title="Nórdico" backTo={back} tabs={false}>
       {p && (!p.bodyMassKg || !p.heightCm) && (
-        <Alert tone="info" title="Sin masa o estatura, solo el ángulo">
-          Para estimar la fuerza de los isquios hacen falta la masa y la estatura.{" "}
+        <Alert tone="info" title="Sin peso o estatura, solo el ángulo">
+          Para estimar la fuerza de los isquios hacen falta el peso y la estatura.{" "}
           <Link className="underline" to={`/pacientes/${id}/editar`}>
             Añádelas
           </Link>

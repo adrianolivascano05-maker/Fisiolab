@@ -1,29 +1,9 @@
-// Guardado de las mediciones libres en su propia tabla, que crea el módulo la primera vez.
-// No forma parte de las migraciones de la app: si se quita el módulo, la tabla queda sin uso
-// (o se borra con `drop table free_measurements`) y nada más cambia.
+// Guardado de las mediciones libres en la tabla free_measurements (migración 012), que se sincroniza con la copia de
+// la nube como las demás.
 import type { Db } from "../data/db";
 import type { BiomechanicalMeasurement } from "./types";
 
-const ensured = new WeakSet<Db>();
-
-async function ensureTable(db: Db) {
-  if (ensured.has(db)) return;
-  await db.transaction([
-    {
-      sql: `create table if not exists free_measurements (
-              id         text primary key,
-              patient_id text not null references patients (id) on delete cascade,
-              created_at text not null,
-              data       text not null check (json_valid(data))
-            )`,
-    },
-    { sql: "create index if not exists free_measurements_patient on free_measurements (patient_id, created_at)" },
-  ]);
-  ensured.add(db);
-}
-
 export async function saveMeasurement(db: Db, m: BiomechanicalMeasurement): Promise<void> {
-  await ensureTable(db);
   await db.transaction([
     {
       sql: "insert into free_measurements (id, patient_id, created_at, data) values (?, ?, ?, ?)",
@@ -33,19 +13,16 @@ export async function saveMeasurement(db: Db, m: BiomechanicalMeasurement): Prom
 }
 
 export async function listMeasurements(db: Db, patientId: string): Promise<BiomechanicalMeasurement[]> {
-  await ensureTable(db);
   const rows = await db.query<{ data: string }>("select data from free_measurements where patient_id = ? order by created_at desc", [patientId]);
   return rows.map((r) => JSON.parse(r.data) as BiomechanicalMeasurement);
 }
 
 export async function getMeasurement(db: Db, id: string): Promise<BiomechanicalMeasurement | null> {
-  await ensureTable(db);
   const [row] = await db.query<{ data: string }>("select data from free_measurements where id = ?", [id]);
   return row ? (JSON.parse(row.data) as BiomechanicalMeasurement) : null;
 }
 
 export async function deleteMeasurement(db: Db, id: string): Promise<void> {
-  await ensureTable(db);
   await db.transaction([{ sql: "delete from free_measurements where id = ?", bind: [id] }]);
 }
 

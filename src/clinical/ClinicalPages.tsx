@@ -1,7 +1,7 @@
 // Pantallas de la ficha clínica: anamnesis, mediciones (con cuestionarios y simetría) y sesiones. La exploración
 // (tests especiales) está en ExplorationPages.tsx, para no cargar la Guía de tests al abrir las demás.
-import { Activity, CalendarCheck, CalendarClock, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Trash } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Trash } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { decimalText, fmt, fmtDate, fmtDateTime, parseDecimal, testTitle } from "../app/format";
 import { bumpData } from "../app/dataVersion";
@@ -82,7 +82,7 @@ function FieldInput({ field, value, onChange }: { field: Field; value: AnswerVal
   }
 }
 
-/** Nombre, edad y sexo vienen de los datos del paciente (se editan allí). */
+/** Nombre, edad, sexo y contacto vienen de los datos del paciente (se editan allí). */
 function PatientBasics({ patient }: { patient: Patient }) {
   const years = ageOn(patient.birthDate);
   const rows: [string, string][] = [
@@ -90,6 +90,9 @@ function PatientBasics({ patient }: { patient: Patient }) {
     ["Fecha de nacimiento", patient.birthDate ? fmtDate(`${patient.birthDate}T12:00:00`) : "—"],
     ["Edad", years !== null ? `${years} años` : "—"],
     ["Sexo", patient.sex ? sexLabels[patient.sex] : "—"],
+    ["Teléfono", patient.phone || "—"],
+    ["Email", patient.email || "—"],
+    ...(patient.address ? [["Dirección", patient.address] as [string, string]] : []),
   ];
   return (
     <dl className="grid grid-cols-[minmax(0,10rem)_1fr] gap-x-3 gap-y-1 text-sm">
@@ -100,6 +103,27 @@ function PatientBasics({ patient }: { patient: Patient }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/** Apartados que se ven abiertos al llegar: lo que más se consulta (motivo, precauciones, diagnóstico y plan). */
+const OPEN_FIRST = new Set(["motivo", "antecedentes", "diagnostico", "objetivos"]);
+/** Campos con respuesta en un apartado (sin contar la fecha, que se pone sola). */
+const filled = (section: (typeof ANAMNESIS)[number], a: Answers) => answeredCount(a, section.fields.filter((f) => f.id !== "fecha_valoracion"));
+
+/** Un apartado de la anamnesis que se pliega: el título, cuántos campos tiene rellenos y el contenido. */
+function Fold({ id, title, count, open, children }: { id: string; title: string; count: string; open: boolean; children: ReactNode }) {
+  return (
+    <details id={id} open={open || undefined} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
+      <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
+        <span className="text-lg font-semibold text-brand">{title}</span>
+        <span className="flex items-center gap-2 text-sm text-text-muted">
+          {count}
+          <ChevronDown aria-hidden="true" className="size-5 transition-transform group-open:rotate-180" />
+        </span>
+      </summary>
+      <div className="flex flex-col gap-4 px-4 pb-4">{children}</div>
+    </details>
   );
 }
 
@@ -233,9 +257,11 @@ export function AnamnesisPage() {
                 <a
                   href={`#anamnesis-${section.id}`}
                   onClick={(e) => {
-                    // Sin tocar la dirección: «Volver» sigue llevando a la ficha.
+                    // Sin tocar la dirección: «Volver» sigue llevando a la ficha. Si el apartado está plegado, se abre.
                     e.preventDefault();
-                    document.getElementById(`anamnesis-${section.id}`)?.scrollIntoView({ behavior: "smooth" });
+                    const el = document.getElementById(`anamnesis-${section.id}`);
+                    if (el instanceof HTMLDetailsElement) el.open = true;
+                    el?.scrollIntoView({ behavior: "smooth" });
                   }}
                   className="inline-flex min-h-9 items-center rounded-pill border border-border-input bg-bg px-3 text-sm font-semibold hover:bg-surface">
                   {section.title.replace(/^\d+\.\s*/, "")}
@@ -245,23 +271,33 @@ export function AnamnesisPage() {
           </ul>
         </nav>
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-          {ANAMNESIS.map((section) => (
-            <fieldset key={section.id} id={`anamnesis-${section.id}`} className="flex scroll-mt-20 flex-col gap-4 rounded-lg border border-border bg-bg p-4 shadow-card">
-              <legend className="float-left mb-1 w-full text-lg font-semibold text-brand">{section.title}</legend>
-              {section.id === "datos" && (
-                <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
-                  <PatientBasics patient={patient} />
-                  <Link to={`/pacientes/${id}/editar`} className="self-start text-sm font-semibold text-accent">
-                    Editar nombre, nacimiento y sexo
-                  </Link>
+          {ANAMNESIS.map((section) => {
+            const n = filled(section, draft);
+            return (
+              <Fold
+                key={section.id}
+                id={`anamnesis-${section.id}`}
+                title={section.title}
+                count={n ? `${n} de ${section.fields.length}` : ""}
+                open={OPEN_FIRST.has(section.id) || (n > 0 && !!anamnesis)}
+              >
+                <div role="group" aria-label={section.title} className="flex flex-col gap-4">
+                  {section.id === "datos" && (
+                    <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
+                      <PatientBasics patient={patient} />
+                      <Link to={`/pacientes/${id}/editar`} className="self-start text-sm font-semibold text-accent">
+                        Editar nombre, nacimiento, sexo y contacto
+                      </Link>
+                    </div>
+                  )}
+                  {section.fields.map((f) => (
+                    <FieldInput key={f.id} field={f} value={draft[f.id]} onChange={set(f.id)} />
+                  ))}
+                  {section.id === "exploracion" && <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />}
                 </div>
-              )}
-              {section.fields.map((f) => (
-                <FieldInput key={f.id} field={f} value={draft[f.id]} onChange={set(f.id)} />
-              ))}
-              {section.id === "exploracion" && <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />}
-            </fieldset>
-          ))}
+              </Fold>
+            );
+          })}
           {error && <Alert tone="danger" title="No se pudo guardar">{error}</Alert>}
           <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-border bg-bg/95 px-4 py-3 backdrop-blur">
             {anamnesis && (
@@ -306,11 +342,9 @@ export function AnamnesisPage() {
       )}
       {ANAMNESIS.map((section) => {
         const rows = section.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");
+        const n = filled(section, a);
         return (
-          <section key={section.id} aria-labelledby={`an-${section.id}`} className="flex flex-col gap-2 rounded-lg border border-border bg-bg p-4 shadow-card">
-            <h3 id={`an-${section.id}`} className="text-lg text-brand">
-              {section.title}
-            </h3>
+          <Fold key={section.id} id={`an-${section.id}`} title={section.title} count={n ? `${n} de ${section.fields.length}` : "Sin rellenar"} open={OPEN_FIRST.has(section.id) && n > 0}>
             {section.id === "datos" && <PatientBasics patient={patient} />}
             {rows.length > 0 ? (
               <dl className="flex flex-col gap-2">
@@ -325,7 +359,7 @@ export function AnamnesisPage() {
               section.id !== "datos" && <p className="text-sm text-text-muted">Sin rellenar.</p>
             )}
             {section.id === "exploracion" && <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />}
-          </section>
+          </Fold>
         );
       })}
       {orphans.length > 0 && (
@@ -347,21 +381,68 @@ export function AnamnesisPage() {
   );
 }
 
-// ---------- Mediciones ----------
+// ---------- Mediciones y cuestionarios ----------
+
+/** Dentro de la pestaña Mediciones: las pruebas físicas o los cuestionarios, cada uno en su pantalla. */
+function MeasureSwitch({ id, current }: { id: string; current: "pruebas" | "cuestionarios" }) {
+  const item = (key: typeof current, to: string, label: string) => (
+    <Link
+      to={to}
+      replace
+      aria-current={current === key ? "page" : undefined}
+      className={`flex min-h-11 flex-1 items-center justify-center rounded-md px-3 text-sm font-semibold ${current === key ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text"}`}
+    >
+      {label}
+    </Link>
+  );
+  return (
+    <nav aria-label="Pruebas o cuestionarios" className="flex gap-1 rounded-lg bg-surface p-1">
+      {item("pruebas", `/pacientes/${id}/mediciones`, "Pruebas físicas")}
+      {item("cuestionarios", `/pacientes/${id}/cuestionarios`, "Cuestionarios")}
+    </nav>
+  );
+}
+
+export function QuestionnairesPage() {
+  const { id = "" } = useParams();
+  const data = useLoad(id, async () => {
+    const db = getDb();
+    const [patient, questionnaires] = await Promise.all([getPatient(db, id), listQuestionnaires(db, id)]);
+    return { patient, questionnaires };
+  });
+  if (!data.data) return <Guard state={data} title="Cuestionarios" back={`/pacientes/${id}`} />;
+  const { patient, questionnaires } = data.data;
+  return (
+    <PatientShell patient={patient} id={id}>
+      <MeasureSwitch id={id} current="cuestionarios" />
+      <Link to={`/pacientes/${id}/cuestionarios/nuevo`} className="inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover">
+        <ListChecks aria-hidden="true" className="size-5" /> Nuevo cuestionario
+      </Link>
+      {questionnaires.length ? (
+        <QuestionnaireTiles patientId={id} items={questionnaires} />
+      ) : (
+        <EmptyState icon={ListChecks} title="Sin cuestionarios todavía">
+          Se rellenan aquí pregunta a pregunta y la nota sale sola. Si el paciente lo hizo en papel, puedes anotar solo la puntuación.
+        </EmptyState>
+      )}
+    </PatientShell>
+  );
+}
 
 export function MeasurementsPage() {
   const { id = "" } = useParams();
   const data = useLoad(id, async () => {
     const db = getDb();
-    const [patient, tests, wellness, questionnaires] = await Promise.all([getPatient(db, id), listTests(db, id), listWellness(db, id), listQuestionnaires(db, id)]);
-    return { patient, tests, wellness, questionnaires };
+    const [patient, tests, wellness] = await Promise.all([getPatient(db, id), listTests(db, id), listWellness(db, id)]);
+    return { patient, tests, wellness };
   });
   if (!data.data) return <Guard state={data} title="Mediciones" back={`/pacientes/${id}`} />;
-  const { patient, tests, wellness, questionnaires } = data.data;
+  const { patient, tests, wellness } = data.data;
   const symmetry = symmetryRows(tests);
   const above = symmetry.filter((r) => r.lsi >= LSI_REFERENCE).length;
   return (
     <PatientShell patient={patient} id={id}>
+      <MeasureSwitch id={id} current="pruebas" />
       <Link to={`/pacientes/${id}/test`} className="inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover">
         <Plus aria-hidden="true" className="size-5" /> Nueva medición
       </Link>
@@ -383,22 +464,6 @@ export function MeasurementsPage() {
           <SymmetryPanel rows={symmetry} />
         </section>
       )}
-
-      <section aria-labelledby="cuestionarios" className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 id="cuestionarios" className="text-lg">
-            Cuestionarios
-          </h2>
-          <Link to={`/pacientes/${id}/cuestionarios/nuevo`} className={primaryLink}>
-            <ListChecks aria-hidden="true" className="size-5" /> Nuevo cuestionario
-          </Link>
-        </div>
-        {questionnaires.length ? (
-          <QuestionnaireTiles patientId={id} items={questionnaires} />
-        ) : (
-          <p className="text-sm text-text-muted">Se rellenan aquí pregunta a pregunta y la nota sale sola. Si el paciente lo hizo en papel, puedes anotar solo la puntuación.</p>
-        )}
-      </section>
 
       {tests.length === 0 ? (
         <EmptyState icon={Activity} title="Sin mediciones todavía">
@@ -749,7 +814,7 @@ export function QuestionnaireFormPage() {
     if (names.length) setActivities(names.map((name) => ({ name, score: null })));
   }, [qid, kind, data.data]);
 
-  const back = `/pacientes/${id}/mediciones`;
+  const back = `/pacientes/${id}/cuestionarios`;
   if (!data.data) return <Guard state={data} title="Cuestionario" back={back} />;
   const { patient, record, all, anamnesis } = data.data;
   if (qid && !record) return <Page title="Cuestionario" backTo={back}><LoadError error={new Error("Este cuestionario no existe.")} /></Page>;

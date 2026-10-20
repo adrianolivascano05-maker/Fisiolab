@@ -75,7 +75,7 @@ export function ProfilePage() {
       <p className="text-text-muted">{patient?.name}</p>
       {!patient?.bodyMassKg || !patient.pushOffDistanceCm ? (
         <Alert tone="info" title="Faltan datos del paciente">
-          El perfil necesita la masa y la distancia de empuje.{" "}
+          El perfil necesita el peso y la distancia de empuje.{" "}
           <Link className="underline" to={`/pacientes/${id}/editar`}>
             Añádelos
           </Link>{" "}
@@ -111,7 +111,7 @@ export function ProfilePage() {
 
       {candidates.length === 0 ? (
         <EmptyState icon={Gauge} title={`Sin ${jumpLabels[type].short} con fuerza calculada`}>
-          Mide {jumpLabels[type].short} con 2 o más cargas distintas (por ejemplo 0, 20 y 40 kg). Hace falta la masa y la distancia de empuje del
+          Mide {jumpLabels[type].short} con 2 o más cargas distintas (por ejemplo 0, 20 y 40 kg). Hacen falta el peso y la distancia de empuje del
           paciente.
         </EmptyState>
       ) : (
@@ -280,7 +280,7 @@ function ProfileView({ profile: p, points }: { profile: FvProfile; points: FvCan
         </table>
       </details>
       <p className="text-xs text-text-muted">
-        Método de Samozino: fuerza y velocidad medias del empuje a partir de la altura, la masa y la distancia de empuje. El
+        Método de Samozino: fuerza y velocidad medias del empuje a partir de la altura, el peso y la distancia de empuje. El
         perfil óptimo se calcula con el mismo modelo, buscando la pendiente que con la misma potencia daría el salto más alto.
       </p>
     </section>

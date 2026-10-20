@@ -70,7 +70,9 @@ describe("migración 2", () => {
     const storage = { persistent: false, open: () => new sqlite3.oo1.DB(file, "c") };
     const e1 = new Engine(sqlite3, storage, migrations.slice(0, 1));
     const v1 = dbFromHandler((req) => e1.handle(req));
-    const id = await createPatient(v1, person);
+    // El paciente, a mano: la versión 1 aún no tiene las columnas de contacto (migración 12).
+    const id = "p-v1";
+    await v1.transaction([{ sql: "insert into patients (id, name, notes, created_at, updated_at) values (?, 'Versión uno', '', ?, ?)", bind: [id, "2026-01-01", "2026-01-01"] }]);
     const tid = await createJumpTest(v1, { patientId: id, type: "cmj" });
     await saveVideo(v1, tid, { fileName: "a.mov", captureFps: 240, containerFps: 240, frameCount: 100, durationS: 1, fpsSource: "container" });
     await saveMarksAndCompute(v1, tid, marksFromFrames({ takeoff: 100, landing: 220 }));

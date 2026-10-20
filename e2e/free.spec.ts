@@ -8,7 +8,8 @@ test.describe("Medición libre (experimental)", () => {
     test.setTimeout(300_000);
     await createPatient(page, { name: "Libre" });
     await add(page, "Medición").click();
-    await page.getByRole("link", { name: /Medición libre/ }).click();
+    await page.getByRole("link", { name: /Movilidad/ }).click();
+    await page.getByRole("link", { name: /Ángulos en vídeo con IA/ }).click();
     await expect(page.getByText("Experimental", { exact: true })).toBeVisible();
     await expectAccessible(page);
     await page.getByLabel("Elegir vídeo").setInputFiles(video.at240);

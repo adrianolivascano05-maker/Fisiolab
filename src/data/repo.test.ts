@@ -5,6 +5,7 @@ import {
   createPatient,
   deletePatient,
   exportCsv,
+  getPatient,
   getTest,
   history,
   listPatients,
@@ -15,6 +16,10 @@ import {
 } from "./repo";
 import { saveAnamnesis } from "./clinical";
 import { createTestDb } from "./testDb";
+import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
+import { dbFromHandler } from "./db";
+import { Engine } from "./engine";
+import { migrations } from "./migrations";
 import { marksFromFrames } from "../calc/results";
 
 const ana: PatientInput = {
@@ -36,7 +41,7 @@ beforeEach(async () => {
 
 describe("base de datos", () => {
   it("migra a la última versión", async () => {
-    expect((await db.info()).schemaVersion).toBe(11);
+    expect((await db.info()).schemaVersion).toBe(12);
   });
 
   it("flujo completo: paciente → CMJ → vídeo → marcas → resultados", async () => {
@@ -80,9 +85,9 @@ describe("base de datos", () => {
   });
 
   it("busca sin tildes y también por teléfono, motivo y diagnóstico", async () => {
-    const lucia = await createPatient(db, { ...ana, name: "Lucía Pérez" });
+    const lucia = await createPatient(db, { ...ana, name: "Lucía Pérez", phone: "612 34 56 78" });
     await createPatient(db, { ...ana, name: "Jorge Ruiz" });
-    await saveAnamnesis(db, lucia, { telefono: "612 34 56 78", motivo: "Dolor de hombro al nadar", diagnostico_funcional: "Tendinopatía del supraespinoso" });
+    await saveAnamnesis(db, lucia, { motivo: "Dolor de hombro al nadar", diagnostico_funcional: "Tendinopatía del supraespinoso" });
     const names = async (q: string) => (await listPatients(db, q)).map((p) => p.name);
     expect(await names("lucia perez")).toEqual(["Lucía Pérez"]);
     expect(await names("612345")).toEqual(["Lucía Pérez"]);
@@ -135,5 +140,26 @@ describe("base de datos", () => {
     expect(await listPatients(db)).toHaveLength(2);
     await db.importBytes(backup);
     expect((await listPatients(db)).map((p) => p.name)).toEqual(["Ana Martín"]);
+  });
+});
+
+describe("migración 012: el contacto pasa de la anamnesis a la ficha", () => {
+  it("copia teléfono, email y dirección al paciente y los quita de las anamnesis", async () => {
+    const sqlite3 = await sqlite3InitModule();
+    const storage = { persistent: false, open: () => new sqlite3.oo1.DB("/migrate-v11.sqlite3", "c") };
+    const before = dbFromHandler((req) => new Engine(sqlite3, storage, migrations.filter((m) => m.version < 12)).handle(req));
+    await before.transaction([
+      { sql: "insert into patients (id, name, notes, created_at, updated_at) values ('p1', 'Ana', '', '2026-01-01', '2026-01-01'), ('p2', 'Luis', '', '2026-01-01', '2026-01-01')" },
+      { sql: `insert into anamnesis (patient_id, answers, created_at, updated_at) values ('p1', '{"telefono":" 600 11 22 33 ","email":"ana@x.es","motivo":"Hombro"}', '2026-01-01', '2026-01-01')` },
+      { sql: `insert into episodes (id, patient_id, title, started_at, answers, created_at, updated_at) values ('e1', 'p2', 'Rodilla', '2026-02-01', '{"direccion":"Calle Mayor 1"}', '2026-02-01', '2026-02-01')` },
+    ]);
+    const after = dbFromHandler((req) => new Engine(sqlite3, storage, migrations).handle(req));
+    const p1 = (await getPatient(after, "p1"))!;
+    expect([p1.phone, p1.email, p1.address]).toEqual(["600 11 22 33", "ana@x.es", ""]);
+    expect((await getPatient(after, "p2"))!.address).toBe("Calle Mayor 1");
+    const [a] = await after.query<{ answers: string }>("select answers from anamnesis where patient_id = 'p1'");
+    expect(JSON.parse(a!.answers)).toEqual({ motivo: "Hombro" });
+    const [e] = await after.query<{ answers: string }>("select answers from episodes where id = 'e1'");
+    expect(JSON.parse(e!.answers)).toEqual({});
   });
 });

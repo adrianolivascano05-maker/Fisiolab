@@ -60,8 +60,11 @@ export type NewPatient = { name: string; mass?: string; pushOff?: string; height
 export async function createPatient(page: Page, p: NewPatient) {
   await page.goto("./pacientes/nuevo");
   await page.getByLabel("Nombre").fill(p.name);
-  if (p.mass) await page.getByLabel("Masa").fill(p.mass);
-  if (p.pushOff) await page.getByLabel("Distancia de empuje").fill(p.pushOff);
+  if (p.mass) await page.getByLabel("Peso").fill(p.mass);
+  if (p.pushOff) {
+    await page.getByText("Datos para saltos").click();
+    await page.getByLabel("Distancia de empuje").fill(p.pushOff);
+  }
   if (p.height) await page.getByLabel("Estatura").fill(p.height);
   await page.getByRole("button", { name: "Crear paciente" }).click();
   await expect(page.getByRole("heading", { name: p.name })).toBeVisible();

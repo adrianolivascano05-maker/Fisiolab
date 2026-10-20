@@ -117,7 +117,7 @@ export function ReportPage() {
     ["Sexo", patient.sex ? sexLabels[patient.sex] : "—"],
     ["Fecha de la valoración", valued ? fmtDate(`${valued}T12:00:00`) : anamnesis ? fmtDate(anamnesis.createdAt) : "—"],
     ...(typeof a.derivado_por === "string" && a.derivado_por ? [["Derivado por", a.derivado_por] as [string, string]] : []),
-    ...(patient.bodyMassKg ? [["Masa", `${fmt(patient.bodyMassKg)} kg`] as [string, string]] : []),
+    ...(patient.bodyMassKg ? [["Peso", `${fmt(patient.bodyMassKg)} kg`] as [string, string]] : []),
     ...(patient.heightCm ? [["Estatura", `${fmt(patient.heightCm, 0)} cm`] as [string, string]] : []),
   ];
 

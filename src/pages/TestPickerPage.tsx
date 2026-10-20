@@ -1,4 +1,4 @@
-import { Activity, Dumbbell, Footprints, HeartPulse, Rotate3d, ScanLine, Timer, Zap } from "lucide-react";
+import { Activity, Dumbbell, Footprints, HeartPulse, Rotate3d, Timer, Zap } from "lucide-react";
 import { useParams } from "react-router";
 import { Page } from "../app/Page";
 import { CategoryTile } from "../ui/CategoryTile";
@@ -10,7 +10,6 @@ const categories = [
   { slug: "carrera", icon: Footprints, title: "Carrera", detail: "Contacto y frecuencia de paso" },
   { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello" },
   { slug: "isquios", icon: Zap, title: "Nórdico", detail: "Ángulo de rotura y fuerza" },
-  { slug: "libre", icon: ScanLine, title: "Medición libre", detail: "Ángulos en vídeo con IA · experimental", to: "medicion-libre" }, // src/free
   { slug: "bienestar", icon: HeartPulse, title: "Bienestar", detail: "Sueño, fatiga, estrés, dolor, ánimo", to: "bienestar" },
 ] as const;
 
