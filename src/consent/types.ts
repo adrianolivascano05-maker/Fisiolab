@@ -17,8 +17,6 @@ export type ConsentContext = {
   detected: { precaution: string; word: string }[];
   /** Banderas rojas marcadas. */
   redFlags: string[];
-  /** El paciente tiene mediciones de rendimiento (saltos, fuerza, sprint…). */
-  hasPerformanceTests: boolean;
   /** Texto del plan de intervención y del diagnóstico, en minúsculas, para sugerir técnicas. */
   planText: string;
 };
@@ -46,17 +44,13 @@ export type ConsentTemplate = {
   techniques: Technique[];
   /** Por qué se propone para este paciente; null si no hay motivo para proponerla (sigue disponible). */
   suggest(ctx: ConsentContext): string | null;
-  /** Qué es, cómo se hace y para qué (párrafos). */
+  /** Qué es, para qué sirve y cómo se hace, con ejemplos («como… etc.»): uno o dos párrafos cortos. */
   description: string[];
-  /** Beneficios que se esperan. */
-  benefits: string[];
-  /** Consecuencias seguras o molestias habituales. */
-  expected: string[];
-  /** Riesgos frecuentes (leves) y poco frecuentes (graves). */
-  risks: { frequent: string[]; rare: string[] };
-  /** Contraindicaciones generales. */
+  /** Molestias y riesgos, de los frecuentes a los raros pero graves. */
+  risks: string[];
+  /** Cuándo no se aplica. */
   contraindications: string[];
-  /** Alternativas razonables. */
+  /** Alternativas, incluida la de no hacerlo. */
   alternatives: string[];
   /** Riesgos y contraindicaciones por las circunstancias del paciente (art. 10.1.b). */
   personal(ctx: ConsentContext): PersonalRisk[];

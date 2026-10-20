@@ -28,22 +28,22 @@ test.describe("Consentimientos", () => {
 
     await tab(page, "Resumen").click();
     const row = page.getByRole("link", { name: /^Consentimientos/ });
-    await expect(row).toContainText("Falta por escrito: fisioterapia invasiva");
+    await expect(row).toContainText("Falta por escrito: tratamientos invasivos");
     await row.click();
 
     await expect(page.getByRole("heading", { name: "Consentimientos" })).toBeVisible();
     // Escrito y sin marcar: lo avisa.
     await expect(page.getByText("Pone «diabetes»: ¿diabetes?")).toBeVisible();
     const proposed = page.getByRole("region", { name: "Propuestos para este paciente" });
-    await expect(proposed).toContainText("Fisioterapia invasiva");
+    await expect(proposed).toContainText("Tratamientos invasivos");
     await expect(proposed).toContainText("Valoración y tratamiento de fisioterapia");
     await expectAccessible(page);
 
-    await proposed.getByRole("link", { name: /Fisioterapia invasiva/ }).click();
+    await proposed.getByRole("link", { name: /Tratamientos invasivos/ }).click();
     await expect(page.getByRole("checkbox", { name: "Punción seca" })).toBeChecked();
     const doc = page.locator("article");
     await expect(doc).toContainText("Marta Consentimiento");
-    await expect(doc).toContainText("Riesgos por sus circunstancias");
+    await expect(doc).toContainText("En su caso, según su historia");
     await expect(doc).toContainText(/anticoagulantes/);
     await expect(doc).toContainText(/neumotórax/);
     await expectAccessible(page);
@@ -72,6 +72,6 @@ test.describe("Consentimientos", () => {
     await page.getByRole("link", { name: "Volver a Consentimientos" }).click();
     await expect(page.getByRole("region", { name: "Firmados" })).toContainText("Retirado el");
     // Retirado: vuelve a proponerse.
-    await expect(page.getByRole("region", { name: "Propuestos para este paciente" })).toContainText("Fisioterapia invasiva");
+    await expect(page.getByRole("region", { name: "Propuestos para este paciente" })).toContainText("Tratamientos invasivos");
   });
 });

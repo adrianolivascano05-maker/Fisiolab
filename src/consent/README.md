@@ -29,14 +29,19 @@ con el colegio profesional o la asesoría jurídica de la clínica antes de usar
 | Qué | Dónde | Archivo |
 | --- | --- | --- |
 | Precauciones de la anamnesis (anticoagulantes, marcapasos, embarazo, osteoporosis…) y las palabras que las delatan en el texto libre | anamnesis → Antecedentes → Precauciones | `precautions.ts` |
-| Ocho plantillas: valoración y tratamiento, fisioterapia invasiva, manipulación, electroterapia, ondas de choque, suelo pélvico, pruebas de rendimiento, telefisioterapia; cuándo se proponen y qué riesgos personales añaden | — | `templates.ts`, `types.ts` |
+| Cinco plantillas cortas, una por grupo de técnicas: valoración y tratamiento (con las pruebas físicas), tratamientos invasivos, manipulaciones, electroterapia y otros aparatos (con las ondas de choque) y suelo pélvico; cuándo se proponen y qué añaden según la anamnesis | — | `templates.ts`, `types.ts` |
 | Lo que importa de la ficha para los consentimientos | — | `context.ts` |
 | Lista (firmados, propuestos, otros), preparar, firmar, imprimir y retirar | ficha → Resumen → Consentimientos (`/pacientes/:id/consentimientos`) | `ConsentPages.tsx`, `ConsentDocumentView.tsx`, `../ui/SignaturePad.tsx` |
 | Guardar y retirar | — | `../data/consents.ts`, migración `011_consents.sql` |
 
+- **Cortos y por grupos**: cada documento nombra el grupo con ejemplos («Tratamientos invasivos, como la punción
+  seca, la electrólisis percutánea o la neuromodulación percutánea, etc.») y tiene cinco apartados: qué es,
+  riesgos, lo de su caso según su historia (solo si hay algo), cuándo no se aplica y alternativas. La declaración
+  de la firma resume los derechos: ha podido preguntar, el resultado no se garantiza, lo puede retirar por escrito
+  y recibe una copia.
 - **Se proponen solos**: el de valoración y tratamiento siempre; los demás si el plan de intervención o el
-  diagnóstico los nombran (punción, electrólisis, manipulación, TENS, ondas de choque, suelo pélvico…) o si hay
-  mediciones de rendimiento. El resumen de la ficha avisa de los que la ley pide por escrito y faltan.
+  diagnóstico los nombran (punción, electrólisis, manipulación, TENS, ondas de choque, suelo pélvico…). El resumen
+  de la ficha avisa de los que la ley pide por escrito y faltan.
 - **Riesgos personales**: cada plantilla añade los suyos según las precauciones marcadas, la zona, la edad y las
   banderas rojas («Como toma anticoagulantes, el riesgo de hematoma es mayor…»). Las contraindicaciones absolutas
   salen en rojo para el fisioterapeuta. Lo que está escrito en el texto libre y no marcado («Sintrom») solo avisa al

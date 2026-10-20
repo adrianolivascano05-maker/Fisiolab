@@ -18,7 +18,7 @@ beforeEach(async () => {
 async function doc(): Promise<ConsentDocument> {
   const t = templateById("invasiva")!;
   const patient = (await getPatient(db, pid))!;
-  const ctx = consentContext(patient, { precauciones: ["Toma anticoagulantes o antiagregantes"], regiones: ["cervical"] }, []);
+  const ctx = consentContext(patient, { precauciones: ["Toma anticoagulantes o antiagregantes"], regiones: ["cervical"] });
   return {
     templateId: t.id,
     version: t.version,
@@ -41,7 +41,7 @@ describe("consentimientos firmados", () => {
     const id = await saveSignedConsent(db, pid, d, "screen", { patient: "data:image/png;base64,AA", professional: "data:image/png;base64,BB" });
     const paper = await saveSignedConsent(db, pid, d, "paper", { patient: "ignorada" });
     const c = (await getConsent(db, id))!;
-    expect(c.document.sections.some((s) => s.title === "Riesgos por sus circunstancias")).toBe(true);
+    expect(c.document.sections.some((s) => s.title === "En su caso, según su historia")).toBe(true);
     expect(c.signatures.professional).toBe("data:image/png;base64,BB");
     expect((await getConsent(db, paper))!.signatures).toEqual({});
     expect((await listConsents(db, pid)).map((x) => x.method).sort()).toEqual(["paper", "screen"]);

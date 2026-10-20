@@ -67,7 +67,7 @@ export function PatientPage() {
   const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   // Consentimientos: los firmados vigentes y los que su anamnesis pide por escrito y faltan.
-  const consentCtx = consentContext(patient, anamnesis?.answers ?? {}, tests);
+  const consentCtx = consentContext(patient, anamnesis?.answers ?? {});
   const inForce = signed.filter((c) => !c.revokedAt);
   const missing = TEMPLATES.filter((t) => t.written === "required" && t.suggest(consentCtx) && !inForce.some((c) => c.template === t.id));
 

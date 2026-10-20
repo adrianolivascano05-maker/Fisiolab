@@ -11,7 +11,7 @@ import { getAnamnesis } from "../data/clinical";
 import { getConsent, listConsents, revokeConsent, saveSignedConsent, type Signatures, type SignedConsent } from "../data/consents";
 import { getDb } from "../data/db";
 import { ADULT_CONSENT_AGE, getClinic } from "../data/privacy";
-import { getPatient, listTests } from "../data/repo";
+import { getPatient } from "../data/repo";
 import { Alert } from "../ui/Alert";
 import { TopBar } from "../ui/AppBar";
 import { Button } from "../ui/Button";
@@ -33,8 +33,8 @@ const base = (id: string) => `/pacientes/${id}/consentimientos`;
 /** El paciente, su anamnesis (del motivo que se ve) y lo que importa para los consentimientos. */
 async function loadAll(id: string) {
   const db = getDb();
-  const [patient, anamnesis, tests, consents, clinic] = await Promise.all([getPatient(db, id), getAnamnesis(db, id), listTests(db, id), listConsents(db, id), getClinic(db)]);
-  const ctx = patient ? consentContext(patient, anamnesis?.answers ?? {}, tests) : null;
+  const [patient, anamnesis, consents, clinic] = await Promise.all([getPatient(db, id), getAnamnesis(db, id), listConsents(db, id), getClinic(db)]);
+  const ctx = patient ? consentContext(patient, anamnesis?.answers ?? {}) : null;
   return { patient, hasAnamnesis: !!anamnesis, consents, clinic, ctx };
 }
 
@@ -210,6 +210,15 @@ export function ConsentNewPage() {
             </Alert>
           )}
           {ctx && <DetectedWarning id={id} ctx={ctx} />}
+          {!data.data.clinic.name && (
+            <Alert tone="warning" title="Faltan los datos de la clínica">
+              El documento sale sin el nombre, el NIF ni la dirección del centro. Rellénalos en{" "}
+              <Link className="underline" to="/ajustes/clinica">
+                Ajustes → Clínica y protección de datos
+              </Link>
+              .
+            </Alert>
+          )}
           {step === "edit" ? (
             <Card className="flex flex-col gap-4">
               <p className="text-sm text-text-muted">

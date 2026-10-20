@@ -11,7 +11,6 @@ const ctx = (over: Partial<ConsentContext> = {}): ConsentContext => ({
   precautions: [],
   detected: [],
   redFlags: [],
-  hasPerformanceTests: false,
   planText: "",
   ...over,
 });
@@ -22,27 +21,26 @@ const tpl = (id: string): ConsentTemplate => {
   return t;
 };
 
-const IDS = ["general", "invasiva", "manipulacion", "electroterapia", "ondas_choque", "suelo_pelvico", "rendimiento", "telefisio"];
+const IDS = ["general", "invasiva", "manipulacion", "electroterapia", "suelo_pelvico"];
 
 /** Ids de las plantillas que sugieren algo para este plan. */
-const suggested = (planText: string, over: Partial<ConsentContext> = {}) =>
-  TEMPLATES.filter((t) => t.suggest(ctx({ planText, ...over })) !== null).map((t) => t.id);
+const suggested = (planText: string) => TEMPLATES.filter((t) => t.suggest(ctx({ planText })) !== null).map((t) => t.id);
 
 const texts = (id: string, over: Partial<ConsentContext>) => tpl(id).personal(ctx(over)).map((r) => r.text).join("\n");
 const absolutes = (id: string, over: Partial<ConsentContext>) => tpl(id).personal(ctx(over)).filter((r) => r.absolute).map((r) => r.text);
 
 describe("plantillas de consentimiento", () => {
-  it("las ocho, con ids únicos, versión y textos completos", () => {
+  it("las cinco, con ids únicos, versión y textos cortos", () => {
     expect(TEMPLATES.map((t) => t.id)).toEqual(IDS);
-    expect(new Set(TEMPLATES.map((t) => t.id)).size).toBe(TEMPLATES.length);
     for (const t of TEMPLATES) {
-      expect(t.version, t.id).toBe("1");
+      expect(t.version, t.id).toBe("3");
       expect(t.title.trim(), t.id).not.toBe("");
-      expect(t.summary.trim(), t.id).not.toBe("");
-      expect(t.summary, t.id).not.toContain("\n");
-      expect(t.description.length, t.id).toBeGreaterThanOrEqual(2);
-      expect(t.description.length, t.id).toBeLessThanOrEqual(4);
-      for (const list of [t.description, t.benefits, t.expected, t.risks.frequent, t.risks.rare, t.contraindications, t.alternatives]) {
+      expect(t.summary, t.id).toMatch(/, etc\.$/);
+      expect(t.description.length, t.id).toBeLessThanOrEqual(2);
+      expect(t.risks.length, t.id).toBeLessThanOrEqual(5);
+      expect(t.contraindications.length, t.id).toBeLessThanOrEqual(5);
+      expect(t.alternatives, t.id).toHaveLength(1);
+      for (const list of [t.description, t.risks, t.contraindications, t.alternatives]) {
         expect(list.length, t.id).toBeGreaterThan(0);
         for (const s of list) expect(s.trim(), t.id).not.toBe("");
       }
@@ -51,13 +49,17 @@ describe("plantillas de consentimiento", () => {
     }
   });
 
+  it("cada uno pone ejemplos («como… etc.»)", () => {
+    for (const t of TEMPLATES) expect(t.description[0], t.id).toMatch(/como .*etc\./);
+  });
+
   it("por escrito obligado en lo invasivo o con riesgos notorios", () => {
     const required = TEMPLATES.filter((t) => t.written === "required").map((t) => t.id);
     expect(required).toEqual(["invasiva", "manipulacion", "suelo_pelvico"]);
   });
 
   it("templateById", () => {
-    expect(templateById("invasiva")?.title).toBe("Fisioterapia invasiva");
+    expect(templateById("invasiva")?.title).toBe("Tratamientos invasivos");
     expect(templateById("no-existe")).toBeUndefined();
   });
 
@@ -69,20 +71,21 @@ describe("plantillas de consentimiento", () => {
 });
 
 describe("suggest: palabras del plan, sin tildes ni mayúsculas", () => {
-  it("fisioterapia invasiva", () => {
+  it("tratamientos invasivos", () => {
     for (const plan of ["punción seca del trapecio", "PUNCION SECA", "aguja en gemelo", "Electrólisis percutánea", "EPI en tendón rotuliano", "epte", "Neuromodulación percutánea del mediano"]) {
       expect(suggested(plan), plan).toContain("invasiva");
     }
-    // «epicondilalgia» no es EPI.
+    // «epicondilalgia» no es EPI, y la neuromodulación por la piel no es invasiva.
     expect(suggested("epicondilalgia lateral")).not.toContain("invasiva");
+    expect(suggested("Neuromodulación transcutánea del tibial")).not.toContain("invasiva");
   });
 
-  it("manipulación", () => {
+  it("manipulaciones", () => {
     for (const plan of ["Manipulación dorsal", "manipulacion lumbar", "thrust en C7", "HVLA"]) expect(suggested(plan), plan).toContain("manipulacion");
   });
 
-  it("electroterapia y agentes físicos", () => {
-    for (const plan of ["TENS", "electroestimulación del cuádriceps", "Ultrasonido", "diatermia", "Tecarterapia", "radiofrecuencia", "Láser", "laser", "magnetoterapia"]) {
+  it("electroterapia y otros aparatos, ondas de choque incluidas", () => {
+    for (const plan of ["TENS", "electroestimulación del cuádriceps", "Ultrasonido", "diatermia", "Tecarterapia", "radiofrecuencia", "Láser", "laser", "magnetoterapia", "Ondas de choque radiales", "ONDAS focales"]) {
       expect(suggested(plan), plan).toContain("electroterapia");
     }
     // Ni «extensión» ni «tensión» son TENS, y la electrólisis es invasiva.
@@ -90,37 +93,18 @@ describe("suggest: palabras del plan, sin tildes ni mayúsculas", () => {
     expect(suggested("electrólisis percutánea")).not.toContain("electroterapia");
   });
 
-  it("ondas de choque", () => {
-    expect(suggested("Ondas de choque radiales")).toContain("ondas_choque");
-    expect(suggested("ONDAS focales")).toContain("ondas_choque");
-  });
-
   it("suelo pélvico", () => {
     for (const plan of ["fisioterapia de suelo pélvico", "SUELO PELVICO", "valoración intracavitaria", "masaje perineal", "periné"]) {
       expect(suggested(plan), plan).toContain("suelo_pelvico");
     }
   });
-
-  it("rendimiento: por las mediciones o por el plan", () => {
-    expect(suggested("", { hasPerformanceTests: true })).toContain("rendimiento");
-    expect(tpl("rendimiento").suggest(ctx({ hasPerformanceTests: true }))).toMatch(/mediciones/);
-    for (const plan of ["saltos pliométricos", "Fuerza de cuádriceps", "sprint", "Readaptación", "readaptacion", "vuelta al deporte"]) {
-      expect(suggested(plan), plan).toContain("rendimiento");
-    }
-  });
-
-  it("telefisioterapia", () => {
-    for (const plan of ["telefisioterapia", "Videollamada semanal", "seguimiento ONLINE", "ejercicios a distancia"]) {
-      expect(suggested(plan), plan).toContain("telefisio");
-    }
-  });
 });
 
-describe("personal: riesgos por las circunstancias del paciente", () => {
-  it("invasiva y anticoagulantes: más riesgo de hematoma, no absoluta", () => {
+describe("personal: lo de cada paciente según su anamnesis", () => {
+  it("invasiva y anticoagulantes: más moratones, no absoluta", () => {
     const r = tpl("invasiva").personal(ctx({ precautions: ["anticoagulantes"] }));
     expect(r).toHaveLength(1);
-    expect(r[0].text).toMatch(/^Como toma anticoagulantes o antiagregantes, el riesgo de hematoma es mayor/);
+    expect(r[0].text).toMatch(/^Como toma anticoagulantes o antiagregantes, es más fácil que salga un moratón/);
     expect(r[0].absolute).toBeFalsy();
   });
 
@@ -132,15 +116,7 @@ describe("personal: riesgos por las circunstancias del paciente", () => {
       }
     }
     expect(found.sort()).toEqual(
-      [
-        "invasiva+coagulacion",
-        "invasiva+linfedema",
-        "electroterapia+marcapasos",
-        "manipulacion+osteoporosis",
-        "manipulacion+cancer",
-        "ondas_choque+embarazo",
-        "ondas_choque+coagulacion",
-      ].sort(),
+      ["invasiva+coagulacion", "invasiva+linfedema", "electroterapia+marcapasos", "manipulacion+osteoporosis", "manipulacion+cancer"].sort(),
     );
   });
 
@@ -154,8 +130,8 @@ describe("personal: riesgos por las circunstancias del paciente", () => {
     expect(absolutes("manipulacion", { precautions: ["reuma"] })).toHaveLength(0);
   });
 
-  it("manipulación: riesgo arterial si es el cuello y hueso más frágil desde los 65", () => {
-    expect(texts("manipulacion", { regions: ["cervical"] })).toMatch(/arteria del cuello/);
+  it("manipulación: aviso si es el cuello y hueso más frágil desde los 65", () => {
+    expect(texts("manipulacion", { regions: ["cervical"] })).toMatch(/arteria/);
     expect(texts("manipulacion", { regions: ["lumbar"] })).toBe("");
     expect(texts("manipulacion", { age: 70 })).toMatch(/Como tiene 70 años, el hueso puede ser más frágil/);
     expect(texts("manipulacion", { age: 64 })).toBe("");
@@ -173,15 +149,15 @@ describe("personal: riesgos por las circunstancias del paciente", () => {
     expect(texts("invasiva", { precautions: ["embarazo"], regions: ["hombro"] })).toMatch(/no se pincha la zona lumbar/);
   });
 
-  it("ondas de choque en menores: cartílago de crecimiento", () => {
-    expect(texts("ondas_choque", { age: 15 })).toMatch(/cartílagos de crecimiento/);
-    expect(texts("ondas_choque", { age: 18 })).toBe("");
+  it("aparatos en menores: cartílagos de crecimiento", () => {
+    expect(texts("electroterapia", { age: 15 })).toMatch(/cartílagos de crecimiento/);
+    expect(texts("electroterapia", { age: 18 })).toBe("");
   });
 
-  it("suelo pélvico y embarazo: según criterio médico, no absoluta", () => {
+  it("suelo pélvico y embarazo: según su médico o matrona, no absoluta", () => {
     const r = tpl("suelo_pelvico").personal(ctx({ precautions: ["embarazo"] }));
     expect(r).toHaveLength(1);
-    expect(r[0].text).toMatch(/médico o su matrona/);
+    expect(r[0].text).toMatch(/médico o matrona/);
     expect(r[0].absolute).toBeFalsy();
     expect(texts("suelo_pelvico", { sex: "male" })).toMatch(/vía anal/);
     expect(texts("suelo_pelvico", { sex: "female" })).toBe("");
@@ -198,7 +174,7 @@ describe("personal: riesgos por las circunstancias del paciente", () => {
     for (const t of TEMPLATES) expect(t.personal(ctx({ detected })), t.id).toEqual([]);
   });
 
-  it("los textos van en segunda persona y sin huecos", () => {
+  it("los textos van en segunda persona, sin huecos y en una frase", () => {
     const full = ctx({
       age: 70,
       sex: "male",
@@ -211,39 +187,25 @@ describe("personal: riesgos por las circunstancias del paciente", () => {
         expect(r.text, t.id).toMatch(/^(Como |Nos ha comentado |En su caso)/);
         expect(r.text, t.id).not.toMatch(/undefined|null|\$\{/);
         expect(r.text.endsWith("."), r.text).toBe(true);
+        expect(r.text.slice(0, -1), r.text).not.toMatch(/\. [A-ZÁÉÍÓÚ]/);
       }
     }
   });
 });
 
 describe("buildSections", () => {
-  const ORDER = [
-    "Qué es y cómo se hace",
-    "Para qué sirve",
-    "Lo que es normal notar",
-    "Riesgos frecuentes",
-    "Riesgos poco frecuentes pero importantes",
-    "Riesgos por sus circunstancias",
-    "Cuándo no se debe aplicar",
-    "Alternativas",
-    "Sus derechos",
-  ];
+  const ORDER = ["Qué es", "Riesgos", "En su caso, según su historia", "Cuándo no se aplica", "Alternativas"];
 
-  it("todas las plantillas: apartados en orden, ninguno vacío, y al final «Sus derechos»", () => {
+  it("cinco apartados como mucho, en orden; el personal solo si hay algo", () => {
     for (const t of TEMPLATES) {
       const s = buildSections(t, ctx(), []);
-      expect(s.map((x) => x.title), t.id).toEqual(ORDER.filter((x) => x !== "Riesgos por sus circunstancias"));
+      expect(s.map((x) => x.title), t.id).toEqual(ORDER.filter((x) => x !== "En su caso, según su historia"));
       for (const x of s) expect(x.items.length, `${t.id}: ${x.title}`).toBeGreaterThan(0);
-      expect(s.at(-1)?.title).toBe("Sus derechos");
     }
-  });
-
-  it("riesgos personales entre los riesgos y las contraindicaciones, solo si hay", () => {
-    const s = buildSections(tpl("invasiva"), ctx({ precautions: ["anticoagulantes"], detected: [{ precaution: "diabetes", word: "diabet" }] }), []);
+    const s = buildSections(tpl("invasiva"), ctx({ precautions: ["anticoagulantes"], detected: [{ precaution: "diabetes", word: "diabetes" }] }), []);
     expect(s.map((x) => x.title)).toEqual(ORDER);
-    expect(s[5].items).toHaveLength(1);
-    expect(s[5].items[0]).toMatch(/anticoagulantes/);
-    expect(s.at(-1)?.title).toBe("Sus derechos");
+    expect(s[2].items).toHaveLength(1);
+    expect(s[2].items[0]).toMatch(/anticoagulantes/);
   });
 
   it("qué es: la descripción y, si se marcan, las técnicas", () => {
@@ -251,24 +213,20 @@ describe("buildSections", () => {
     expect(buildSections(t, ctx(), [])[0].items).toEqual(t.description);
     const items = buildSections(t, ctx(), ["puncion_seca", "neuromodulacion"])[0].items;
     expect(items).toHaveLength(t.description.length + 1);
-    expect(items.at(-1)).toBe("Técnicas que se van a usar en su caso: punción seca; neuromodulación percutánea.");
+    expect(items.at(-1)).toBe("En su caso: punción seca; neuromodulación percutánea.");
     // Las siglas se quedan en mayúsculas.
     expect(buildSections(tpl("electroterapia"), ctx(), ["tens"])[0].items.at(-1)).toMatch(/: TENS y electroestimulación\.$/);
   });
 
-  it("sus derechos: preguntar, revocar por escrito (art. 8.5), copia y acompañante", () => {
-    const rights = buildSections(tpl("general"), ctx(), []).at(-1)?.items.join("\n") ?? "";
-    expect(rights).toMatch(/preguntar/);
-    expect(rights).toMatch(/retirar este consentimiento en cualquier momento, por escrito/);
-    expect(rights).toMatch(/Ley 41\/2002, art\. 8\.5/);
-    expect(rights).toMatch(/copia/);
-    expect(rights).toMatch(/acompañante/);
+  it("los riesgos graves dicen qué hacer", () => {
+    expect(tpl("invasiva").risks.join("\n")).toMatch(/neumotórax.*urgencias/);
+    expect(tpl("manipulacion").risks.join("\n")).toMatch(/ictus.*112/);
   });
 
   it("el documento no comparte arrays con la plantilla", () => {
     const t = tpl("general");
-    const before = [...t.benefits];
+    const before = [...t.risks];
     buildSections(t, ctx(), [])[1].items.push("cambiado");
-    expect(t.benefits).toEqual(before);
+    expect(t.risks).toEqual(before);
   });
 });

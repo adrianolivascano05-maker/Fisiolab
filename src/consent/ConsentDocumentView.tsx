@@ -85,7 +85,8 @@ export function ConsentDocumentView({
         <h3 className="text-base font-semibold text-brand">Declaración</h3>
         <p>
           Yo, {signer}, declaro que he leído (o me han leído) este documento, que lo he entendido, que he podido preguntar todo lo que he querido y
-          que me han respondido. Sé que puedo retirar este consentimiento en cualquier momento. Por eso, <b>doy mi consentimiento</b> para que se me
+          que me han respondido. Sé que el resultado no se puede garantizar, que puedo retirar este consentimiento por escrito en cualquier
+          momento y que recibo una copia. Por eso, <b>doy mi consentimiento</b> para que se me
           {doc.representative ? " (o a la persona a la que represento) " : " "}
           aplique {doc.techniques.length ? doc.techniques.join(", ").toLowerCase() : doc.title.toLowerCase()}.
         </p>
