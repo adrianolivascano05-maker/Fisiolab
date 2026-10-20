@@ -1,15 +1,17 @@
 // Dar, cambiar o cerrar una cita (src/data/appointments.ts): desde la cabecera de la ficha (la próxima cita o «Dar
 // cita») y desde la agenda de hoy en Pacientes. Al cambiar algo se recargan las pantallas (y, con la cuenta de
-// Google, el calendario se pone al día solo).
+// Google, el calendario se pone al día solo). En una clínica, también con quién es (el horario, src/schedule).
 import { CalendarX2, NotebookPen, Pencil, RotateCcw, Trash, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
 import { createAppointment, deleteAppointment, STATUS_LABELS, updateAppointment, type Appointment, type AppointmentStatus } from "../data/appointments";
 import { getDb } from "../data/db";
+import { memberEmail } from "../data/member";
+import { staffName, useStaff } from "../schedule/useStaff";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
-import { TextField } from "../ui/Field";
+import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { DEFAULT_VISIT_MINUTES, fmtVisit } from "./calendar";
@@ -36,6 +38,8 @@ export function AppointmentSheet({
   const [editing, setEditing] = useState(!appointment);
   const [when, setWhen] = useState("");
   const [minutes, setMinutes] = useState(DEFAULT_VISIT_MINUTES);
+  const staff = useStaff();
+  const [assignedTo, setAssignedTo] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,6 +49,7 @@ export function AppointmentSheet({
     setEditing(!appointment);
     setWhen(appointment ? localInput(appointment.startsAt) : "");
     setMinutes(appointment?.minutes ?? DEFAULT_VISIT_MINUTES);
+    setAssignedTo(appointment ? (appointment.assignedTo ?? "") : (memberEmail() ?? ""));
     setError(null);
   }, [open, appointment]);
 
@@ -66,8 +71,13 @@ export function AppointmentSheet({
   const save = () => {
     if (!when) return setError("Pon el día y la hora de la cita.");
     const startsAt = new Date(when).toISOString();
+    // Sin equipo (sin clínica) no se toca con quién es.
+    const who = staff.length ? { assignedTo: assignedTo || null } : {};
     return run(
-      () => (appointment ? updateAppointment(getDb(), appointment.id, { startsAt, minutes }) : createAppointment(getDb(), patientId, { startsAt, minutes })),
+      () =>
+        appointment
+          ? updateAppointment(getDb(), appointment.id, { startsAt, minutes, ...who })
+          : createAppointment(getDb(), patientId, { startsAt, minutes, ...who }),
       appointment ? "Cita cambiada" : "Cita dada",
     );
   };
@@ -80,6 +90,7 @@ export function AppointmentSheet({
           <p>
             <span className="font-semibold">{fmtVisit(appointment.startsAt)}</span> · {appointment.minutes} min ·{" "}
             <span className={appointment.status === "scheduled" ? "" : "font-semibold"}>{STATUS_LABELS[appointment.status]}</span>
+            {staff.length > 0 && <> · Con {staffName(staff, appointment.assignedTo)}</>}
           </p>
           {appointment.status !== "done" && (
             <Link
@@ -122,6 +133,17 @@ export function AppointmentSheet({
         >
           <TextField label="Día y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
           <Chips label="Duración" options={DURATIONS} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => v[0] && setMinutes(Number(v[0]))} />
+          {staff.length > 0 && (
+            <SelectField label="Con quién" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
+              <option value="">Sin asignar</option>
+              {staff.map((p) => (
+                <option key={p.email} value={p.email}>
+                  {p.name}
+                </option>
+              ))}
+              {assignedTo && !staff.some((p) => p.email === assignedTo) && <option value={assignedTo}>{assignedTo}</option>}
+            </SelectField>
+          )}
           <Button type="submit" block loading={busy}>
             {appointment ? "Guardar el cambio" : "Dar la cita"}
           </Button>

@@ -3,14 +3,19 @@
 // que da. Aquí se sabe quién está trabajando (el «sub» de su cuenta de Google); sin clínica, nadie en concreto y
 // los ajustes se guardan como siempre.
 let current: string | null = null;
+let currentEmail: string | null = null;
 
-/** Al abrir la base de una clínica: quién ha entrado. */
-export function setMember(sub: string | null) {
+/** Al abrir la base de una clínica: quién ha entrado (y su correo, con el que sale en el horario). */
+export function setMember(sub: string | null, email: string | null = null) {
   current = sub;
+  currentEmail = sub && email ? email.trim().toLowerCase() : null;
 }
 
 /** Quién trabaja en la base de la clínica, o null sin clínica. */
 export const member = () => current;
+
+/** Su correo (en minúsculas), con el que figura en el equipo y en el horario (src/schedule); null sin clínica. */
+export const memberEmail = () => currentEmail;
 
 /** La clave de un ajuste de cada persona: en una clínica, «clave@sub»; sin clínica, la de siempre. */
 export const memberKey = (key: string) => (current ? `${key}@${current}` : key);

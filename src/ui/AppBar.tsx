@@ -1,6 +1,7 @@
-import { BookOpen, ChevronLeft, Settings, Users } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronLeft, Settings, Users } from "lucide-react";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
+import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { cx } from "./cx";
@@ -92,7 +93,9 @@ type Tab = { root: string; label: string; icon: typeof Users; match: (path: stri
 
 const SETTINGS = /^\/(ajustes|instalar|ayuda|privacidad|validacion|cuenta|design)(\/|$)/;
 const tabs: Tab[] = [
-  { root: "/", label: "Pacientes", icon: Users, match: (p) => !p.startsWith("/exploracion") && !SETTINGS.test(p) },
+  { root: "/", label: "Pacientes", icon: Users, match: (p) => !p.startsWith("/exploracion") && !p.startsWith("/horario") && !SETTINGS.test(p) },
+  // Solo en una clínica con equipo (src/schedule).
+  { root: "/horario", label: "Horario", icon: CalendarDays, match: (p) => p.startsWith("/horario") },
   { root: "/exploracion", label: "Guía de tests", icon: BookOpen, match: (p) => p.startsWith("/exploracion") }, // src/gallery
   { root: "/ajustes", label: "Ajustes", icon: Settings, match: (p) => SETTINGS.test(p) },
 ];
@@ -126,15 +129,17 @@ function useSettingsPending() {
  */
 export function TabBar() {
   const { pathname, search } = useLocation();
-  const current = tabs.find((t) => t.match(pathname)) ?? tabs[0]!;
+  const cloud = useCloud();
+  const shown = cloud?.clinic ? tabs : tabs.filter((t) => t.root !== "/horario");
+  const current = shown.find((t) => t.match(pathname)) ?? shown[0]!;
   useEffect(() => {
     lastIn.set(current.root, pathname + search);
   }, [current.root, pathname, search]);
   const pending = useSettingsPending();
   return (
     <nav aria-label="Principal" className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur">
-      <ul className="mx-auto grid h-[var(--layout-tabbar)] max-w-[var(--layout-content-max)]" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
-        {tabs.map(({ root, label, icon: Icon }) => {
+      <ul className="mx-auto grid h-[var(--layout-tabbar)] max-w-[var(--layout-content-max)]" style={{ gridTemplateColumns: `repeat(${shown.length}, minmax(0, 1fr))` }}>
+        {shown.map(({ root, label, icon: Icon }) => {
           const active = root === current.root;
           return (
             <li key={root}>

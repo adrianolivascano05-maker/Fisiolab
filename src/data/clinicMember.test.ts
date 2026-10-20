@@ -60,8 +60,8 @@ describe("ajustes de cada persona", () => {
     setMember(EVA);
     const e = await createAppointment(clinic, pid, { startsAt: "2026-10-22T09:00:00.000Z", minutes: 45 });
     expect((await upcomingAppointments(clinic, NOW)).map((x) => x.id)).toEqual([a, e, s]);
-    expect((await upcomingAppointments(clinic, NOW, ANA)).map((x) => x.id)).toEqual([a, s]);
-    expect((await upcomingAppointments(clinic, NOW, EVA)).map((x) => x.id)).toEqual([e]);
+    expect((await upcomingAppointments(clinic, NOW, { sub: ANA, email: null })).map((x) => x.id)).toEqual([a, s]);
+    expect((await upcomingAppointments(clinic, NOW, { sub: EVA, email: null })).map((x) => x.id)).toEqual([e]);
   });
 });
 

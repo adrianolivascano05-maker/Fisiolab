@@ -1,20 +1,28 @@
 // Citas (migración 013): la agenda del día, la próxima cita de cada paciente y lo que va a Google Calendar. La cita
 // que se da al guardar una sesión lleva el id de esa sesión (src/data/clinical.ts, saveSession); las demás se dan
 // desde la ficha. Al apuntar una sesión, las citas pendientes de ese día pasan a atendidas. En una clínica, cada cita
-// lleva quién la dio (migración 014): va a su Google Calendar.
+// lleva quién la dio (migración 014) y con quién es (migración 015, el horario): va al Google Calendar de esa persona.
 import { madridDay } from "../app/format";
 import type { Db } from "./db";
-import { member } from "./member";
+import { member, memberEmail } from "./member";
 
 export type AppointmentStatus = "scheduled" | "done" | "no_show" | "cancelled";
-export type Appointment = { id: string; patientId: string; startsAt: string; minutes: number; status: AppointmentStatus };
+/** `assignedTo`: con quién es (correo del equipo de la clínica); null, con quien la dio o sin clínica. */
+export type Appointment = { id: string; patientId: string; startsAt: string; minutes: number; status: AppointmentStatus; assignedTo: string | null };
 /** Una cita con el nombre de su paciente, para la agenda. */
 export type AgendaItem = Appointment & { name: string };
 
 export const STATUS_LABELS: Record<AppointmentStatus, string> = { scheduled: "Pendiente", done: "Atendida", no_show: "No vino", cancelled: "Anulada" };
 
-type Row = { id: string; patient_id: string; starts_at: string; minutes: number; status: AppointmentStatus; name?: string };
-const toAppointment = (r: Row): Appointment => ({ id: r.id, patientId: r.patient_id, startsAt: r.starts_at, minutes: r.minutes, status: r.status });
+type Row = { id: string; patient_id: string; starts_at: string; minutes: number; status: AppointmentStatus; assigned_to: string | null; name?: string };
+const toAppointment = (r: Row): Appointment => ({
+  id: r.id,
+  patientId: r.patient_id,
+  startsAt: r.starts_at,
+  minutes: r.minutes,
+  status: r.status,
+  assignedTo: r.assigned_to,
+});
 const now = () => new Date().toISOString();
 
 export function checkAppointment(startsAt: string, minutes: number) {
@@ -22,22 +30,26 @@ export function checkAppointment(startsAt: string, minutes: number) {
   if (!(Number.isInteger(minutes) && minutes >= 5 && minutes <= 480)) throw new RangeError("Elige cuánto dura la cita.");
 }
 
-/** Da una cita sin sesión. Devuelve su id. */
-export async function createAppointment(db: Db, patientId: string, input: { startsAt: string; minutes: number }): Promise<string> {
+/** Da una cita sin sesión (en una clínica, por defecto con quien la da). Devuelve su id. */
+export async function createAppointment(db: Db, patientId: string, input: { startsAt: string; minutes: number; assignedTo?: string | null }): Promise<string> {
   checkAppointment(input.startsAt, input.minutes);
   const id = crypto.randomUUID();
   const t = now();
   await db.transaction([
     {
-      sql: "insert into appointments (id, patient_id, starts_at, minutes, status, created_by, created_at, updated_at) values (?, ?, ?, ?, 'scheduled', ?, ?, ?)",
-      bind: [id, patientId, new Date(input.startsAt).toISOString(), input.minutes, member(), t, t],
+      sql: "insert into appointments (id, patient_id, starts_at, minutes, status, created_by, assigned_to, created_at, updated_at) values (?, ?, ?, ?, 'scheduled', ?, ?, ?, ?)",
+      bind: [id, patientId, new Date(input.startsAt).toISOString(), input.minutes, member(), input.assignedTo === undefined ? memberEmail() : input.assignedTo, t, t],
     },
   ]);
   return id;
 }
 
-/** Cambia el día, la duración o el estado. Cambiar el día la deja otra vez pendiente. */
-export async function updateAppointment(db: Db, id: string, change: { startsAt?: string; minutes?: number; status?: AppointmentStatus }): Promise<void> {
+/** Cambia el día, la duración, el estado o con quién es. Cambiar el día la deja otra vez pendiente. */
+export async function updateAppointment(
+  db: Db,
+  id: string,
+  change: { startsAt?: string; minutes?: number; status?: AppointmentStatus; assignedTo?: string | null },
+): Promise<void> {
   const current = await getAppointment(db, id);
   if (!current) throw new RangeError("Esta cita ya no existe.");
   const startsAt = change.startsAt !== undefined ? new Date(change.startsAt).toISOString() : current.startsAt;
@@ -45,8 +57,12 @@ export async function updateAppointment(db: Db, id: string, change: { startsAt?:
   checkAppointment(startsAt, minutes);
   const moved = startsAt !== current.startsAt;
   const status = change.status ?? (moved ? "scheduled" : current.status);
+  const assignedTo = change.assignedTo === undefined ? current.assignedTo : change.assignedTo;
   await db.transaction([
-    { sql: "update appointments set starts_at = ?, minutes = ?, status = ?, updated_at = ? where id = ?", bind: [startsAt, minutes, status, now(), id] },
+    {
+      sql: "update appointments set starts_at = ?, minutes = ?, status = ?, assigned_to = ?, updated_at = ? where id = ?",
+      bind: [startsAt, minutes, status, assignedTo, now(), id],
+    },
   ]);
 }
 
@@ -69,15 +85,20 @@ export async function agenda(db: Db, from: string, to: string): Promise<AgendaIt
   return rows.map((r) => ({ ...toAppointment(r), name: r.name! }));
 }
 
+/** Una persona de la clínica: su `sub` de Google y su correo. */
+export type Worker = { sub: string; email: string | null };
+
 /**
- * Las citas pendientes que aún no han llegado (para el calendario y «Próximas citas»). `by`: solo las que dio esa
- * persona de la clínica (las de su Google Calendar).
+ * Las citas pendientes que aún no han llegado (para el calendario y «Próximas citas»). `by`: solo las de esa persona
+ * de la clínica, las de su Google Calendar: las que son con ella y las que dio sin decir con quién.
  */
-export async function upcomingAppointments(db: Db, at = new Date(), by: string | null = null): Promise<AgendaItem[]> {
+export async function upcomingAppointments(db: Db, at = new Date(), by: Worker | null = null): Promise<AgendaItem[]> {
   const rows = await db.query<Row>(
     `select a.*, p.name from appointments a join patients p on p.id = a.patient_id
-      where a.status = 'scheduled' and a.starts_at > ? and (? is null or a.created_by = ?) order by a.starts_at`,
-    [at.toISOString(), by, by],
+      where a.status = 'scheduled' and a.starts_at > ?
+        and (? is null or a.assigned_to = ? or (a.assigned_to is null and a.created_by = ?))
+      order by a.starts_at`,
+    [at.toISOString(), by?.sub ?? null, by?.email ?? null, by?.sub ?? null],
   );
   return rows.map((r) => ({ ...toAppointment(r), name: r.name! }));
 }
@@ -99,10 +120,10 @@ export function sessionAppointmentSql(sessionId: string, patientId: string, next
   if (nextAt === null) return [{ sql: "delete from appointments where id = ? and status = 'scheduled'", bind: [sessionId] }];
   return [
     {
-      sql: `insert into appointments (id, patient_id, starts_at, minutes, status, created_by, created_at, updated_at) values (?, ?, ?, ?, 'scheduled', ?, ?, ?)
+      sql: `insert into appointments (id, patient_id, starts_at, minutes, status, created_by, assigned_to, created_at, updated_at) values (?, ?, ?, ?, 'scheduled', ?, ?, ?, ?)
             on conflict (id) do update set starts_at = excluded.starts_at, minutes = excluded.minutes, status = 'scheduled', updated_at = excluded.updated_at
             where appointments.starts_at <> excluded.starts_at or appointments.minutes <> excluded.minutes`,
-      bind: [sessionId, patientId, nextAt, minutes, member(), t, t],
+      bind: [sessionId, patientId, nextAt, minutes, member(), memberEmail(), t, t],
     },
   ];
 }

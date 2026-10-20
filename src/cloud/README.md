@@ -161,6 +161,12 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
   le junta la de la cuenta (`syncMerge.ts`, `prepareForClinic`): lo de la persona pasa a su nombre, la contraseña
   de la cuenta no se lleva y, en los demás ajustes, ganan los que ya tenga la clínica. La base de la cuenta no se
   toca.
+- **Horario de la clínica** (`../schedule/`, `../data/schedule.ts`, migración 015): con clínica, la pestaña «Horario»
+  enseña la semana con los turnos de cada persona y sus citas. Quien administra pone los turnos de todos (y puede
+  repetir una semana en la siguiente); cada persona, los suyos. Cada cita es con alguien (`assigned_to`, «Con quién»
+  al darla); a cada Google Calendar solo van las suyas. El equipo está en la base (`staff`), con nombre y color: cada
+  persona se añade sola al entrar y quien administra al añadirla. Con el servidor la app mira la nube cada minuto, y
+  con el horario a la vista lo nuevo se enseña solo.
 - **Al quitar a alguien del equipo** el servidor deja de darle la copia y, la próxima vez que abre la app con
   conexión, se borran de su dispositivo los datos de la clínica.
 - El servidor comprueba el token de Google de cada petición (que sea de esta app) y que la cuenta sea del equipo

@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useRef, useState, type FormEvent,
 import { Link } from "react-router";
 import { configureDb, getDb } from "../data/db";
 import { setMember } from "../data/member";
+import { ensureStaff } from "../data/schedule";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -234,7 +235,7 @@ export function CloudGate({ children }: { children: ReactNode }) {
         // El servidor aún es de antes de las clínicas (falta pegar el worker.js nuevo): la copia de la cuenta, como antes.
       } else {
         configureDb(clinic ? clinicDbFile(account, clinic) : dbFileFor(account));
-        setMember(clinic ? account.sub : null);
+        setMember(clinic ? account.sub : null, account.email);
         await getDb().info();
         if (clinic) adoptedIntoClinic(account);
         else adoptionDone();
@@ -258,6 +259,8 @@ export function CloudGate({ children }: { children: ReactNode }) {
         await Promise.race([cloud.sync.sync(), wait(6000)]);
         if (cloud.sync.current.status !== "syncing") cloud.sync.seenNewData(); // la pantalla aún no se ha abierto
       }
+      // En el horario de la clínica, cada persona sale con su nombre de Google.
+      if (clinic) await ensureStaff(getDb(), account.email, account.name, true).catch(() => {});
       setPhase({ kind: "ready", cloud });
     })();
 

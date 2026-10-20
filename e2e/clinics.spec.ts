@@ -240,4 +240,69 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect.poll(async () => (await FakeGoogle.open(google.server.get(users.ana.sub)?.bytes ?? Buffer.alloc(0), PASSWORD)).includes(enc("Copia de Antes")), { timeout: 20_000 }).toBe(true);
     expect(errors).toEqual([]);
   });
+
+  test("CL5 horario: Ana pone el turno de Bruno y le asigna una cita; Bruno lo ve en su móvil", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    google.creators = ["ana"];
+    const errors: string[] = [];
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Paciente Horario" });
+    await choosePassword(page);
+    await page.goto("./ajustes/equipo");
+    await page.getByLabel("Su correo de Google").fill("bruno@clinica.test");
+    await page.getByRole("button", { name: "Añadir al equipo" }).click();
+    await expect(page.getByRole("region", { name: "Equipo" }).getByRole("button", { name: /bruno@clinica\.test/ })).toBeVisible();
+
+    // El turno de Bruno, hoy y la semana que viene.
+    const nav = page.getByRole("navigation", { name: "Principal" });
+    await nav.getByRole("link", { name: "Horario" }).click();
+    await expect(page.getByRole("heading", { name: "Horario", exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Añadir turno" }).click();
+    const sheet = page.getByRole("dialog", { name: "Nuevo turno" });
+    await sheet.getByLabel("Persona").selectOption({ label: "bruno" });
+    await sheet.getByLabel("Día").fill(today);
+    await sheet.getByLabel("Entrada").fill("09:00");
+    await sheet.getByLabel("Salida").fill("14:00");
+    await sheet.getByLabel("Repetir").selectOption({ label: "También la semana siguiente" });
+    await sheet.getByRole("button", { name: "Guardar el turno" }).click();
+    await expect(sheet).toBeHidden();
+    const todayBox = page.getByRole("region", { name: /· Hoy/ });
+    await expect(todayBox.getByText("Turno 09:00–14:00")).toBeVisible();
+    await expectAccessible(page);
+
+    // Una cita del paciente con Bruno, a las 10:00.
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Pacientes" }).click();
+    await page.getByRole("link", { name: /Paciente Horario/ }).click();
+    await page.getByRole("button", { name: "Dar cita" }).click();
+    const give = page.getByRole("dialog", { name: "Dar cita a Paciente Horario" });
+    await give.getByLabel("Día y hora").fill(`${today}T10:00`);
+    await expect(give.getByLabel("Con quién")).toHaveValue("ana@clinica.test");
+    await give.getByLabel("Con quién").selectOption({ label: "bruno" });
+    await give.getByRole("button", { name: "Dar la cita" }).click();
+    await expect(give).toBeHidden();
+    await nav.getByRole("link", { name: "Horario" }).click();
+    const brunoRow = todayBox.getByRole("listitem").filter({ hasText: "bruno" });
+    await expect(brunoRow.getByRole("button", { name: /10:00.*Paciente Horario/ })).toBeVisible();
+    await expect(brunoRow.getByText("Fuera de turno")).toHaveCount(0);
+
+    // Bruno entra en su móvil: ve su turno y su cita, con su nombre de Google; sus turnos solo los pone él.
+    const bruno = await device(browser, google, "bruno", errors);
+    await enter(bruno);
+    await patients(bruno);
+    await unlock(bruno);
+    await bruno.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Horario" }).click();
+    const mine = bruno.getByRole("region", { name: /· Hoy/ }).getByRole("listitem").filter({ hasText: "Bruno Gil (tú)" });
+    await expect(mine.getByText("Turno 09:00–14:00")).toBeVisible();
+    await expect(mine.getByRole("button", { name: /10:00.*Paciente Horario/ })).toBeVisible();
+    await bruno.getByRole("button", { name: "Añadir turno" }).click();
+    await expect(bruno.getByRole("dialog", { name: "Nuevo turno" }).getByLabel("Persona")).toBeDisabled();
+    await expect(bruno.getByRole("button", { name: "Repetir esta semana en la siguiente" })).toHaveCount(0);
+    await expectAccessible(bruno);
+    expect(errors).toEqual([]);
+  });
 });

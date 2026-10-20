@@ -1,7 +1,7 @@
 // Ficha clínica: anamnesis, sesiones (con la siguiente cita, migración 007), hallazgos de la exploración y
 // cuestionarios (migración 006). Mismo estilo que repo.ts:
 // una función por operación; las pantallas no escriben SQL.
-import { markAttended, nextAppointmentOf, sessionAppointmentSql, upcomingAppointments } from "./appointments";
+import { markAttended, nextAppointmentOf, sessionAppointmentSql, upcomingAppointments, type Worker } from "./appointments";
 import type { Db } from "./db";
 import { currentEpisode, getEpisodeAnswers, inFocus, saveEpisodeAnswers } from "./episodes";
 
@@ -193,7 +193,7 @@ export async function nextVisitOf(db: Db, patientId: string, now = new Date()): 
 export async function upcomingVisits(
   db: Db,
   now = new Date(),
-  by: string | null = null,
+  by: Worker | null = null,
 ): Promise<{ id: string; patientId: string; name: string; nextAt: string; nextMinutes: number | null }[]> {
   return (await upcomingAppointments(db, now, by)).map((a) => ({ id: a.id, patientId: a.patientId, name: a.name, nextAt: a.startsAt, nextMinutes: a.minutes }));
 }

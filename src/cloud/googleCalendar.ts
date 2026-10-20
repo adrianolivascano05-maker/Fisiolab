@@ -6,7 +6,7 @@
 import { visitEvent, end, type CalendarEvent, type EventNames } from "../clinical/calendar";
 import { upcomingVisits } from "../data/clinical";
 import type { Db } from "../data/db";
-import { member, memberKey } from "../data/member";
+import { member, memberEmail, memberKey } from "../data/member";
 import { getSetting, setSetting } from "../data/repo";
 import type { Account } from "./account";
 import { getToken, hasGranted, CALENDAR_SCOPE } from "./auth";
@@ -214,7 +214,8 @@ export class CalendarSync {
     const token = getToken();
     if (!token || !navigator.onLine) return;
     const now = new Date();
-    const visits = await upcomingVisits(this.db, now, member());
+    const me = member();
+    const visits = await upcomingVisits(this.db, now, me ? { sub: me, email: memberEmail() } : null);
     const wanted = new Map<string, CalendarEvent>();
     for (const v of visits) {
       const e = visitEvent(v, { id: v.patientId, name: v.name }, settings.names);

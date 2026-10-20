@@ -12,6 +12,8 @@ import { TextField } from "../ui/Field";
 import { Group, Row, RowButton } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { getDb } from "../data/db";
+import { ensureStaff, removeStaff } from "../data/schedule";
 import { getToken } from "./auth";
 import { ROLE_LABELS, type Member, type Role } from "./clinic";
 import { useCloud } from "./CloudGate";
@@ -28,7 +30,10 @@ export function TeamPage() {
     const token = getToken();
     if (!token) throw new Error("Vuelve a entrar con Google para ver el equipo.");
     if (!navigator.onLine) throw new Error("Sin conexión: el equipo se ve con internet.");
-    return api.members(token, clinic.id);
+    const list = await api.members(token, clinic.id);
+    // Todo el equipo sale en el horario (con el nombre de su correo hasta que entre y ponga el suyo).
+    for (const m of list) await ensureStaff(getDb(), m.email, "");
+    return list;
   }, [clinic?.id]);
   const [email, setEmail] = useState("");
   const [canManage, setCanManage] = useState(false);
@@ -66,7 +71,12 @@ export function TeamPage() {
     const clean = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) return setEmailError("Escribe su correo de Google (nombre@gmail.com o el de la clínica).");
     if (members.data?.some((m) => m.email === clean)) return setEmailError("Ya forma parte del equipo.");
-    if (await run((t) => api!.putMember(t, clinic!.id, clean, canManage ? "admin" : "member"), `${clean} añadido al equipo`)) {
+    if (
+      await run(async (t) => {
+        await api!.putMember(t, clinic!.id, clean, canManage ? "admin" : "member");
+        await ensureStaff(getDb(), clean, "");
+      }, `${clean} añadido al equipo`)
+    ) {
       setEmail("");
       setCanManage(false);
       members.reload();
@@ -81,7 +91,12 @@ export function TeamPage() {
     }
   };
   const remove = async (m: Member) => {
-    if (await run((t) => api.removeMember(t, clinic.id, m.email), `${m.email} ya no está en el equipo`)) {
+    if (
+      await run(async (t) => {
+        await api.removeMember(t, clinic.id, m.email);
+        await removeStaff(getDb(), m.email);
+      }, `${m.email} ya no está en el equipo`)
+    ) {
       setSelected(null);
       members.reload();
     }
@@ -182,7 +197,8 @@ export function TeamPage() {
               <>
                 <p className="text-sm text-text-muted">
                   Al quitarle del equipo deja de poder bajar la copia de la clínica y, la próxima vez que abra la app con conexión, sus pacientes se borran de
-                  sus dispositivos. Por más seguridad, cambia después la contraseña de cifrado (Ajustes → Cuenta).
+                  sus dispositivos. Sale del horario: sus turnos desde hoy se borran y sus citas pendientes quedan sin asignar. Por más seguridad, cambia
+                  después la contraseña de cifrado (Ajustes → Cuenta).
                 </p>
                 <Button variant="danger" block loading={busy} onClick={() => void remove(selected)}>
                   Quitar del equipo

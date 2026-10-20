@@ -12,6 +12,7 @@ import consents011 from "./migrations/011_consents.sql?raw";
 import contactFree012 from "./migrations/012_contact_free.sql?raw";
 import appointments013 from "./migrations/013_appointments.sql?raw";
 import clinicMember014 from "./migrations/014_clinic_member.sql?raw";
+import schedule015 from "./migrations/015_schedule.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -29,4 +30,5 @@ export const migrations: Migration[] = [
   { version: 12, sql: contactFree012 },
   { version: 13, sql: appointments013 },
   { version: 14, sql: clinicMember014 },
+  { version: 15, sql: schedule015 },
 ];

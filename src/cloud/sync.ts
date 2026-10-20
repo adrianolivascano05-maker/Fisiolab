@@ -1,6 +1,7 @@
 // Sincronización con la copia de la nube: Google Drive o el servidor de la clínica en Cloudflare (remote.ts). La
 // app trabaja siempre con la base del dispositivo (funciona sin conexión); esto la junta con la de la nube:
-// - al abrir la app y cada pocos minutos con la app a la vista, para traer lo hecho en otros dispositivos;
+// - al abrir la app y cada pocos minutos (con el servidor de la clínica, cada minuto) con la app a la vista, para traer
+//   lo hecho en otros dispositivos;
 // - cinco segundos después del último cambio, y al salir de la app, para subir lo hecho aquí.
 // Si la nube ha cambiado desde la última vez, se descarga y se junta fila a fila (src/data/syncMerge.ts) antes de
 // subir: nunca se pisa sin más lo que hizo otro dispositivo.
@@ -49,7 +50,9 @@ class NeedsPassword extends Error {
 }
 
 const AFTER_CHANGE_MS = 5000;
+/** Cada cuánto se mira la nube con la app a la vista: con el servidor de la clínica, cada minuto (lo hace todo el equipo). */
 const EVERY_MS = 5 * 60_000;
+const EVERY_MS_SERVER = 60_000;
 
 export class SyncController {
   private state: SyncState;
@@ -122,7 +125,7 @@ export class SyncController {
     const onOnline = () => this.schedule(0);
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("online", onOnline);
-    const every = setInterval(() => document.visibilityState === "visible" && void this.sync(), EVERY_MS);
+    const every = setInterval(() => document.visibilityState === "visible" && void this.sync(), this.store.kind === "server" ? EVERY_MS_SERVER : EVERY_MS);
     this.stops.push(
       () => document.removeEventListener("visibilitychange", onVisibility),
       () => window.removeEventListener("online", onOnline),
