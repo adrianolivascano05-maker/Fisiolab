@@ -1,10 +1,8 @@
 // Protección de datos (src/privacy): texto informativo y consentimientos de cada paciente, datos de la clínica,
 // aviso de conservación al borrar y bloqueo de la app con PIN.
-import type { Page } from "@playwright/test";
 import { add, createPatient, expect, expectAccessible, test } from "./fixtures";
 
 /** El campo de la pantalla de bloqueo (lo de debajo está tapado y no cuenta). */
-const pin = (page: Page) => page.getByRole("textbox", { name: "PIN", exact: true });
 
 test.describe("Protección de datos", () => {
   test("PD1 datos de la clínica y hoja de protección de datos de un paciente", async ({ page }) => {
@@ -75,30 +73,32 @@ test.describe("Protección de datos", () => {
     await sheet.getByRole("button", { name: "Activar el bloqueo" }).click();
     await expect(page.getByText("Esta app pide PIN en este dispositivo")).toBeVisible();
 
-    // Bloquear ahora: la pantalla se tapa sin perder dónde se estaba.
+    // Bloquear ahora: la pantalla se tapa sin perder dónde se estaba. Teclado como el del móvil.
     await page.getByRole("button", { name: "Bloquear ahora" }).click();
-    await expect(page.getByRole("heading", { name: "App bloqueada" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeVisible();
     await expectAccessible(page);
-    await pin(page).fill("1111");
-    await page.getByRole("button", { name: "Desbloquear" }).click();
+    const keypad = page.getByRole("group", { name: "Teclado del PIN" });
+    for (const d of "1111") await keypad.getByRole("button", { name: d, exact: true }).click();
     await expect(page.getByText("PIN incorrecto.")).toBeVisible();
-    await pin(page).fill("2468");
-    await page.getByRole("button", { name: "Desbloquear" }).click();
-    await expect(page.getByRole("heading", { name: "App bloqueada" })).toBeHidden();
+    for (const d of "2468") await keypad.getByRole("button", { name: d, exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeHidden();
     await expect(page.getByText("Esta app pide PIN en este dispositivo")).toBeVisible();
 
-    // Al volver a abrir la app no se ve nada de los pacientes hasta poner el PIN.
+    // Recargar dentro del tiempo elegido no lo pide (como el móvil); con «en cuanto salgo», sí.
+    await page.reload();
+    await expect(page.getByText("Esta app pide PIN en este dispositivo")).toBeVisible();
+    await page.getByLabel("Pedir el PIN al volver").selectOption({ label: "En cuanto salgo de la app" });
+    // Al volver a abrir la app no se ve nada de los pacientes hasta poner el PIN (con el teclado del ordenador).
     await page.goto("./");
-    await expect(page.getByRole("heading", { name: "App bloqueada" })).toBeVisible();
-    await expect(page.getByText("Paciente Secreto")).toHaveCount(0);
-    await pin(page).fill("2468");
-    await page.keyboard.press("Enter");
+    await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeVisible();
+    await expect(page.getByText("Paciente Secreto")).toBeHidden();
+    await page.keyboard.type("2468");
     await expect(page.getByRole("link", { name: /Paciente Secreto/ })).toBeVisible();
 
     // Quitarlo pide el PIN actual.
     await page.goto("./ajustes/bloqueo");
-    await pin(page).fill("2468");
-    await page.getByRole("button", { name: "Desbloquear" }).click();
+    await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeVisible();
+    await page.keyboard.type("2468");
     await page.getByRole("button", { name: "Quitar el bloqueo" }).click();
     const remove = page.getByRole("dialog", { name: "Quitar el bloqueo" });
     await remove.getByLabel("PIN actual").fill("2468");

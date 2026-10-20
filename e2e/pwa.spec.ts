@@ -107,6 +107,11 @@ test.describe("PWA: instalable y sin conexión", () => {
     const here = page.getByRole("heading", { name: "En este dispositivo" }).locator("+ div");
     await expect(here.getByText("«Añadir a pantalla de inicio»", { exact: true })).toBeVisible();
     await expect(here.getByText("Compartir", { exact: true })).toBeVisible();
+    // Sin instalar, la pantalla principal avisa de que Safari puede borrar los datos.
+    await page.goto("./");
+    await expect(page.getByRole("status").filter({ hasText: "Instala la app en este iPhone" })).toBeVisible();
+    await page.getByRole("link", { name: "Cómo instalarla" }).click();
+    await expect(page.getByRole("heading", { name: "En este dispositivo" })).toBeVisible();
     await ctx.close();
   });
 

@@ -36,7 +36,19 @@ async function device(browser: Browser, google: FakeGoogle, who: keyof typeof us
   return page;
 }
 
-const patients = (page: Page) => expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
+/** Ya dentro de la clínica: la primera vez en el dispositivo se elige el PIN (obligatorio en una clínica). */
+async function patients(page: Page) {
+  const list = page.getByRole("heading", { name: "Pacientes", exact: true });
+  const choose = page.getByRole("heading", { name: "Elige tu PIN" });
+  await expect(list.or(choose)).toBeVisible({ timeout: 15_000 });
+  if (await choose.isVisible()) {
+    await page.keyboard.type("2580");
+    await page.getByRole("button", { name: "Siguiente" }).click();
+    await page.keyboard.type("2580");
+    await page.getByRole("button", { name: "Guardar el PIN" }).click();
+  }
+  await expect(list).toBeVisible({ timeout: 15_000 });
+}
 
 /** Entrar con Google desde la pantalla de entrada (y, si hace falta, elegir la clínica). */
 async function enter(page: Page) {
@@ -222,6 +234,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByText("1 paciente guardado")).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Llevarlos a la clínica" }).click();
+    await patients(page);
     await expect(page.getByRole("link", { name: /Previo Local/ })).toBeVisible({ timeout: 15_000 });
     await choosePassword(page);
     await inServer(google, "Previo Local");
@@ -304,5 +317,32 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(bruno.getByRole("button", { name: "Repetir los turnos la semana siguiente" })).toHaveCount(0);
     await expectAccessible(bruno);
     expect(errors).toEqual([]);
+  });
+
+  test("CL6 PIN de la clínica: obligatorio; tras 5 fallos se vuelve a entrar con Google y se elige otro", async ({ page }) => {
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 15_000 });
+    await expectAccessible(page);
+    await patients(page);
+    await createPatient(page, { name: "Paciente Bloqueo" });
+    await page.goto("./ajustes/bloqueo");
+    await expect(page.getByText("En una clínica el PIN es obligatorio.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Quitar el bloqueo" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Bloquear ahora" }).click();
+    await expect(page.getByRole("button", { name: "Cambiar de cuenta de Google" })).toBeVisible();
+    for (const left of ["Quedan 4 intentos", "Quedan 3 intentos", "Quedan 2 intentos", "Queda 1 intento"]) {
+      await page.keyboard.type("0000");
+      await expect(page.getByText(`PIN incorrecto. ${left}.`)).toBeVisible();
+    }
+    await page.keyboard.type("0000");
+    await expect(page.getByRole("heading", { name: "Demasiados intentos" })).toBeVisible();
+    await page.getByRole("button", { name: "Entrar con Google" }).click();
+    // Vuelve de Google a su clínica: elige un PIN nuevo y sus pacientes siguen ahí.
+    await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 15_000 });
+    await patients(page);
+    await expect(page.getByRole("link", { name: /Paciente Bloqueo/ })).toBeVisible();
   });
 });

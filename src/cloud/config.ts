@@ -33,6 +33,14 @@ const read = (): CloudConfig | null => {
   }
 };
 
+/** La última configuración leída, sin esperar a la red (para la pantalla de bloqueo, que sale antes que nada). */
+export function cachedCloudConfig(): CloudConfig | null {
+  const c = read();
+  if (c?.googleClientId) return c;
+  const onDevice = localStorage.getItem(DEVICE_KEY);
+  return onDevice ? { googleClientId: onDevice } : null;
+}
+
 /** La configuración, o null si la nube no está activada. Sin conexión, la última que se leyó. */
 export async function loadCloudConfig(): Promise<CloudConfig | null> {
   let config = read();

@@ -115,13 +115,14 @@ export function App() {
   }, []);
   return (
     <ToastProvider>
-      <CloudGate>
-        <AppLock>
+      {/* El PIN va por fuera: sale al instante y la app carga por detrás mientras se teclea. */}
+      <AppLock>
+        <CloudGate>
           <DbGate>
             <Router />
           </DbGate>
-        </AppLock>
-      </CloudGate>
+        </CloudGate>
+      </AppLock>
       <UpdateBanner />
     </ToastProvider>
   );

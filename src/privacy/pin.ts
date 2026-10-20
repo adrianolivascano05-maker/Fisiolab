@@ -1,21 +1,34 @@
 // PIN para abrir la app en este dispositivo (src/privacy/README.md). Se guarda solo una huella del PIN
 // (PBKDF2-SHA-256 con sal), nunca el PIN. Es una barrera para quien coja el dispositivo desbloqueado: los datos
-// no se cifran con él (eso lo hace el propio dispositivo con su bloqueo).
+// no se cifran con él (eso lo hace el propio dispositivo con su bloqueo). Con cuenta de Google, cada persona tiene
+// su PIN en el dispositivo (setLockScope): en una tablet compartida, cada una el suyo.
 
-const KEY = "fisiolab.lock";
-const FAILS_KEY = "fisiolab.lock.fails";
+const BASE_KEY = "fisiolab.lock";
 const ITERATIONS = 150_000;
 
-export type LockConfig = { salt: string; hash: string; afterMs: number };
+/** `length`: cifras del PIN (para comprobarlo al teclear la última); `passkey`: Face ID o huella (passkey.ts). */
+export type LockConfig = { salt: string; hash: string; afterMs: number; length?: number; passkey?: string };
 
-/** Cuánto puede estar la app fuera de la vista sin pedir el PIN al volver. */
+let scope: string | null = null;
+/** De quién es el PIN: la cuenta que ha entrado (su `sub`), o null sin cuenta. */
+export function setLockScope(sub: string | null) {
+  scope = sub;
+}
+const key = () => (scope ? `${BASE_KEY}.${scope}` : BASE_KEY);
+const failsKey = () => `${key()}.fails`;
+
+/** Cuánto tiempo sin usar la app (o fuera de ella) antes de pedir el PIN otra vez. */
 export const LOCK_AFTER: { ms: number; label: string }[] = [
   { ms: 0, label: "En cuanto salgo de la app" },
   { ms: 60_000, label: "Al cabo de 1 minuto" },
   { ms: 5 * 60_000, label: "Al cabo de 5 minutos" },
   { ms: 15 * 60_000, label: "Al cabo de 15 minutos" },
+  { ms: 30 * 60_000, label: "Al cabo de 30 minutos" },
+  { ms: 60 * 60_000, label: "Al cabo de 1 hora" },
 ];
-export const DEFAULT_LOCK_AFTER = 60_000;
+export const DEFAULT_LOCK_AFTER = 60 * 60_000;
+/** Fallos seguidos tras los que, con cuenta, hay que volver a entrar con Google. */
+export const MAX_FAILS = 5;
 
 export const isPin = (pin: string) => /^\d{4,8}$/.test(pin);
 
@@ -30,36 +43,58 @@ async function digest(pin: string, salt: Uint8Array): Promise<string> {
 
 export function getLock(): LockConfig | null {
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "null") as LockConfig | null;
+    const own = JSON.parse(localStorage.getItem(key()) ?? "null") as LockConfig | null;
+    if (own || !scope) return own;
+    // El PIN de antes era del dispositivo: pasa a ser de la primera cuenta que entra.
+    const old = JSON.parse(localStorage.getItem(BASE_KEY) ?? "null") as LockConfig | null;
+    if (old) {
+      localStorage.setItem(key(), JSON.stringify(old));
+      localStorage.removeItem(BASE_KEY);
+    }
+    return old;
   } catch {
     return null;
   }
 }
 
+const save = (c: LockConfig) => localStorage.setItem(key(), JSON.stringify(c));
+
 export async function setPin(pin: string, afterMs = getLock()?.afterMs ?? DEFAULT_LOCK_AFTER): Promise<void> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  localStorage.setItem(KEY, JSON.stringify({ salt: b64(salt), hash: await digest(pin, salt), afterMs } satisfies LockConfig));
-  localStorage.removeItem(FAILS_KEY);
+  save({ ...getLock(), salt: b64(salt), hash: await digest(pin, salt), afterMs, length: pin.length });
+  localStorage.removeItem(failsKey());
 }
 
 export function setLockAfter(afterMs: number) {
   const c = getLock();
-  if (c) localStorage.setItem(KEY, JSON.stringify({ ...c, afterMs }));
+  if (c) save({ ...c, afterMs });
+}
+
+/** Face ID o huella para desbloquear (el id de la passkey), o quitarlo con null. */
+export function setPasskey(id: string | null) {
+  const c = getLock();
+  if (!c) return;
+  const { passkey: _, ...rest } = c;
+  save(id ? { ...rest, passkey: id } : rest);
 }
 
 export function clearLock() {
-  localStorage.removeItem(KEY);
-  localStorage.removeItem(FAILS_KEY);
+  localStorage.removeItem(key());
+  localStorage.removeItem(failsKey());
+  localStorage.removeItem(`${key()}.active`);
 }
 
 type Fails = { count: number; until: number };
 function fails(): Fails {
   try {
-    return (JSON.parse(localStorage.getItem(FAILS_KEY) ?? "null") as Fails | null) ?? { count: 0, until: 0 };
+    return (JSON.parse(localStorage.getItem(failsKey()) ?? "null") as Fails | null) ?? { count: 0, until: 0 };
   } catch {
     return { count: 0, until: 0 };
   }
 }
+
+/** Fallos seguidos hasta ahora. */
+export const failCount = () => fails().count;
 
 /** Hasta cuándo hay que esperar para volver a probar (ms desde 1970), o 0. */
 export const waitUntil = () => (fails().until > Date.now() ? fails().until : 0);
@@ -74,11 +109,33 @@ export async function checkPin(pin: string): Promise<boolean> {
   if (waitUntil()) return false;
   const ok = (await digest(pin, unb64(c.salt))) === c.hash;
   if (ok) {
-    localStorage.removeItem(FAILS_KEY);
+    localStorage.removeItem(failsKey());
     return true;
   }
   const count = fails().count + 1;
-  const until = count >= 5 ? Date.now() + Math.min(30_000 * 2 ** (count - 5), 15 * 60_000) : 0;
-  localStorage.setItem(FAILS_KEY, JSON.stringify({ count, until }));
+  const until = count >= MAX_FAILS ? Date.now() + Math.min(30_000 * 2 ** (count - MAX_FAILS), 15 * 60_000) : 0;
+  localStorage.setItem(failsKey(), JSON.stringify({ count, until }));
   return false;
+}
+
+/**
+ * Última vez que se usó la app desbloqueada (también en otra carga de la página): al recargar o volver a abrirla
+ * antes del tiempo elegido no se pide otra vez, como en el móvil.
+ */
+export function markActive(at = Date.now()) {
+  localStorage.setItem(`${key()}.active`, String(at));
+}
+export function lastActiveAt(): number {
+  return Number(localStorage.getItem(`${key()}.active`)) || 0;
+}
+/** Si al abrir la app hay que pedir el PIN. */
+export function lockedOnOpen(): boolean {
+  const c = getLock();
+  if (!c) return false;
+  return c.afterMs === 0 || Date.now() - lastActiveAt() >= c.afterMs;
+}
+
+/** Desbloqueo con Face ID o huella: cuenta como acertar el PIN. */
+export function unlockedOtherwise() {
+  localStorage.removeItem(failsKey());
 }

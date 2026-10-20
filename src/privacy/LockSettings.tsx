@@ -1,13 +1,15 @@
 // Ajustes → Bloqueo con PIN: activar el PIN de este dispositivo, cuándo pedirlo, cambiarlo o quitarlo.
-import { Lock, LockOpen } from "lucide-react";
-import { useState } from "react";
+import { Fingerprint, Lock, LockOpen } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getAccount } from "../cloud/account";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useAppLock } from "./AppLock";
-import { checkPin, clearLock, getLock, isPin, LOCK_AFTER, setLockAfter, setPin, waitUntil } from "./pin";
+import { createPasskey, passkeyAvailable } from "./passkey";
+import { checkPin, clearLock, getLock, isPin, LOCK_AFTER, setLockAfter, setPasskey, setPin, waitUntil } from "./pin";
 
 type Mode = "set" | "change" | "remove";
 const titles: Record<Mode, string> = { set: "Activar el bloqueo", change: "Cambiar el PIN", remove: "Quitar el bloqueo" };
@@ -17,8 +19,12 @@ const digits = (s: string) => s.replace(/\D/g, "");
 
 export function LockSettings() {
   const toast = useToast();
-  const { lockNow } = useAppLock();
+  const { lockNow, required } = useAppLock();
   const [config, setConfig] = useState(getLock);
+  const [bio, setBio] = useState(false);
+  useEffect(() => {
+    void passkeyAvailable().then(setBio);
+  }, []);
   const [mode, setMode] = useState<Mode | null>(null);
   const [current, setCurrent] = useState("");
   const [pin, setPinText] = useState("");
@@ -75,7 +81,8 @@ export function LockSettings() {
                 setConfig(getLock());
               }}
             >
-              {LOCK_AFTER.map((o) => (
+              {/* En una clínica, como mucho una hora sin pedirlo. */}
+              {LOCK_AFTER.filter((o) => !required || o.ms <= 60 * 60_000).map((o) => (
                 <option key={o.ms} value={o.ms}>
                   {o.label}
                 </option>
@@ -87,9 +94,41 @@ export function LockSettings() {
             <Button variant="secondary" onClick={() => open("change")}>
               Cambiar el PIN
             </Button>
-            <Button variant="ghost" icon={<LockOpen aria-hidden="true" className="size-5" />} onClick={() => open("remove")}>
-              Quitar el bloqueo
-            </Button>
+            {bio &&
+              (config.passkey ? (
+                <Button
+                  variant="secondary"
+                  icon={<Fingerprint aria-hidden="true" className="size-5" />}
+                  onClick={() => {
+                    setPasskey(null);
+                    setConfig(getLock());
+                    toast("Face ID o huella desactivados", "success");
+                  }}
+                >
+                  Dejar de usar Face ID o huella
+                </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  icon={<Fingerprint aria-hidden="true" className="size-5" />}
+                  onClick={async () => {
+                    const id = await createPasskey(getAccount()?.email ?? "Cénit");
+                    if (!id) return toast("No se ha activado: el dispositivo no lo ha confirmado.", "danger");
+                    setPasskey(id);
+                    setConfig(getLock());
+                    toast("Ya puedes desbloquear con Face ID o huella", "success");
+                  }}
+                >
+                  Desbloquear también con Face ID o huella
+                </Button>
+              ))}
+            {required ? (
+              <p className="text-sm text-text-muted">En una clínica el PIN es obligatorio.</p>
+            ) : (
+              <Button variant="ghost" icon={<LockOpen aria-hidden="true" className="size-5" />} onClick={() => open("remove")}>
+                Quitar el bloqueo
+              </Button>
+            )}
           </>
         ) : (
           <>
@@ -143,7 +182,13 @@ export function LockSettings() {
               />
             </>
           )}
-          {mode === "set" && <p className="text-sm text-text-muted">Si lo olvidas, para volver a entrar hay que borrar los datos de este dispositivo.</p>}
+          {mode === "set" && (
+            <p className="text-sm text-text-muted">
+              {getAccount()
+                ? "Si lo olvidas, vuelves a entrar con tu cuenta de Google y eliges otro."
+                : "Si lo olvidas, para volver a entrar hay que borrar los datos de este dispositivo."}
+            </p>
+          )}
           <Button type="submit" block loading={busy} variant={mode === "remove" ? "danger" : "primary"}>
             {mode === "remove" ? "Quitar el bloqueo" : mode === "change" ? "Cambiar el PIN" : "Activar el bloqueo"}
           </Button>

@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router";
 import { fmtDate, madridDay } from "../app/format";
 import { useCloud } from "../cloud/CloudGate";
 import { LoadError, Loading, Page } from "../app/Page";
+import { isIos, isStandalone } from "../app/pwa";
 import { useAsync } from "../app/useAsync";
 import { AppointmentSheet } from "../clinical/AppointmentSheet";
 import { fmtVisit } from "../clinical/calendar";
@@ -120,6 +121,15 @@ export function PatientsPage() {
           className="h-11 w-full rounded-lg border border-transparent bg-surface pr-3 pl-10 text-base placeholder:text-text-muted focus:border-border-input"
         />
       </div>
+      {/* En iPhone, Safari puede borrar los datos de una web que no se abre en unos días; instalada, no. */}
+      {isIos() && !isStandalone() && (
+        <Alert tone="warning" title="Instala la app en este iPhone">
+          Si no, Safari puede borrar los pacientes de este dispositivo tras unos días sin abrirla.{" "}
+          <Link to="/instalar" className="font-semibold underline underline-offset-2">
+            Cómo instalarla
+          </Link>
+        </Alert>
+      )}
       {/* Con la nube, la copia es automática: no hace falta recordar la de archivo. */}
       {!cloud && !search && <BackupReminder hasRealPatients={own.length > 0} lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)} />}
 
