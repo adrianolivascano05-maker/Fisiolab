@@ -46,12 +46,21 @@ export class FakeGoogle {
   /** Para buscar un texto con tildes dentro de la copia. */
   static enc = (s: string) => Buffer.from(s, "utf8").toString("latin1");
 
+  /** Copias en el servidor de Cloudflare simulado, por `sub`, ya decodificadas (solo con `server` en install). */
+  server = new Map<string, { bytes: Buffer; version: string }>();
+  static SERVER = "https://cenit-datos.pruebas.workers.dev";
+
   /**
    * Simula Google en este contexto. `who`: la cuenta que elegiría la persona en Google. `publish`: la app publicada
-   * lleva el ID de cliente (si no, hay que pegarlo en el dispositivo).
+   * lleva el ID de cliente (si no, hay que pegarlo en el dispositivo). `server`: la app usa además el servidor de
+   * la clínica en Cloudflare (cloudflare/worker.js), simulado aquí con las mismas reglas.
    */
-  async install(ctx: BrowserContext, who: () => string, { publish = true } = {}) {
-    if (publish) await ctx.route("**/cloud.json", (r) => r.fulfill({ json: { googleClientId: "123456789012-pruebas.apps.googleusercontent.com" } }));
+  async install(ctx: BrowserContext, who: () => string, { publish = true, server = false } = {}) {
+    if (publish)
+      await ctx.route("**/cloud.json", (r) =>
+        r.fulfill({ json: { googleClientId: "123456789012-pruebas.apps.googleusercontent.com", ...(server ? { cloudflareUrl: FakeGoogle.SERVER } : {}) } }),
+      );
+    if (server) await ctx.route(`${FakeGoogle.SERVER}/**`, (r) => this.worker(r));
     await ctx.route("https://accounts.google.com/o/oauth2/v2/auth?**", (r) => this.auth(r, who()));
     await ctx.route("https://www.googleapis.com/**", (r) => this.api(r));
     await ctx.route("https://oauth2.googleapis.com/revoke", (r) => r.fulfill({ status: 200, headers: cors, body: "" }));
@@ -74,6 +83,43 @@ export class FakeGoogle {
     }
     back.hash = params.toString();
     return route.fulfill({ status: 302, headers: { location: back.href } });
+  }
+
+  /** El servidor de Cloudflare: una copia por cuenta, con versión, y solo cifrada. */
+  private async worker(route: Route) {
+    const req = route.request();
+    const headers = {
+      "access-control-allow-origin": req.headers()["origin"] ?? "*",
+      "access-control-allow-methods": "GET, PUT, DELETE, OPTIONS",
+      "access-control-allow-headers": "authorization, content-type, if-match, if-none-match",
+      "access-control-expose-headers": "etag",
+      "cache-control": "no-store",
+    };
+    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
+    const user = this.user(req);
+    if (!user) return route.fulfill({ status: 401, headers, json: { error: "Sesión caducada." } });
+    const path = new URL(req.url()).pathname;
+    const mine = this.server.get(user.sub);
+    const meta = (c: { bytes: Buffer; version: string }) => ({ version: c.version, size: c.bytes.length, updatedAt: new Date().toISOString() });
+    if (path === "/v1/copia/info") return route.fulfill({ status: 200, headers, json: mine ? meta(mine) : { version: null, size: 0, updatedAt: null } });
+    if (path !== "/v1/copia") return route.fulfill({ status: 404, headers, json: { error: "No existe." } });
+    if (req.method() === "GET")
+      return mine
+        ? route.fulfill({ status: 200, headers: { ...headers, etag: `"${mine.version}"`, "content-type": "text/plain; charset=utf-8" }, body: mine.bytes.toString("base64") })
+        : route.fulfill({ status: 404, headers, json: { error: "Sin copia." } });
+    if (req.method() === "DELETE") {
+      this.server.delete(user.sub);
+      return route.fulfill({ status: 204, headers });
+    }
+    // Como el servidor de verdad: la copia llega en base64 y tiene que estar cifrada.
+    const body = Buffer.from(req.postData() ?? "", "base64");
+    if (!body.subarray(0, 9).equals(Buffer.from("CENITENC1"))) return route.fulfill({ status: 415, headers, json: { error: "Solo se guardan copias cifradas." } });
+    const ifMatch = (req.headers()["if-match"] ?? "").replace(/"/g, "");
+    const create = req.headers()["if-none-match"] === "*";
+    if ((create && mine) || (!create && mine?.version !== ifMatch)) return route.fulfill({ status: 412, headers, json: { error: "La copia ha cambiado.", version: mine?.version ?? null } });
+    const copy = { bytes: body, version: `v${this.next++}` };
+    this.server.set(user.sub, copy);
+    return route.fulfill({ status: 200, headers: { ...headers, etag: `"${copy.version}"` }, json: meta(copy) });
   }
 
   private user(req: Request) {

@@ -122,11 +122,11 @@ export async function updateEpisode(db: Db, patientId: string, id: string, chang
   ]);
 }
 
-/** Borra un motivo (no el primero) con todo lo suyo: anamnesis, sesiones, exploración, cuestionarios y mediciones. */
+/** Borra un motivo (no el primero) con todo lo suyo: anamnesis, sesiones, exploración, cuestionarios, mediciones y consentimientos. */
 export async function deleteEpisode(db: Db, patientId: string, id: string): Promise<void> {
   if (id === patientId) throw new RangeError("El primer motivo no se puede borrar.");
   await db.transaction([
-    ...["sessions", "findings", "questionnaires", "tests"].map((t) => ({ sql: `delete from ${t} where patient_id = ? and episode_id = ?`, bind: [patientId, id] })),
+    ...["sessions", "findings", "questionnaires", "tests", "consents"].map((t) => ({ sql: `delete from ${t} where patient_id = ? and episode_id = ?`, bind: [patientId, id] })),
     { sql: "delete from episodes where id = ? and patient_id = ?", bind: [id, patientId] },
     { sql: "update episode_focus set episode_id = ? where patient_id = ? and episode_id = ?", bind: [ALL, patientId, id] },
   ]);
@@ -139,7 +139,8 @@ export async function episodeCounts(db: Db, patientId: string): Promise<Record<s
        select patient_id, episode_id from sessions where patient_id = ?1
        union all select patient_id, episode_id from findings where patient_id = ?1
        union all select patient_id, episode_id from questionnaires where patient_id = ?1
-       union all select patient_id, episode_id from tests where patient_id = ?1)
+       union all select patient_id, episode_id from tests where patient_id = ?1
+       union all select patient_id, episode_id from consents where patient_id = ?1)
      group by ep`,
     [patientId],
   );

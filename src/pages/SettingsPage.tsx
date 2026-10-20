@@ -86,7 +86,7 @@ export function SettingsPage() {
           to="/ajustes/datos"
           icon={Database}
           title="Copias de seguridad y exportar"
-          subtitle={cloud ? "Copia automática en tu Drive" : `Última copia: ${state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}`}
+          subtitle={cloud ? `Copia automática en ${cloud.sync.store.where}` : `Última copia: ${state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}`}
           warn={!cloud && !!state.data && !state.data.lastBackup}
           tone={!cloud && state.data && !state.data.lastBackup ? "warning" : "accent"}
         />
@@ -194,7 +194,9 @@ export function DataSettingsPage() {
         </h2>
         <p className="text-sm text-text-muted">
           {cloud
-            ? "Se guardan en este dispositivo y, cada vez que cambian, en tu Google Drive (una carpeta oculta que solo usa esta app). La copia de seguridad en archivo es opcional."
+            ? cloud.sync.store.encryptedOnly
+              ? "Se guardan en este dispositivo y, cada vez que cambian, cifrados en el servidor de la clínica (Cloudflare, en la Unión Europea). La copia de seguridad en archivo es opcional."
+              : "Se guardan en este dispositivo y, cada vez que cambian, en tu Google Drive (una carpeta oculta que solo usa esta app). La copia de seguridad en archivo es opcional."
             : "Todo se guarda solo en este dispositivo. Nada se envía a ningún servidor. Por eso conviene hacer una copia de seguridad cada semana."}
         </p>
         {state.data && !state.data.info.persistent && <Alert tone="warning" title="Este navegador no guarda los datos">Se perderán al cerrar la pestaña.</Alert>}

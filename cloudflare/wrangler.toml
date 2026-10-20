@@ -1,0 +1,31 @@
+# Servidor de datos de Cénit en Cloudflare (Workers + D1). Solo hace falta para instalarlo con Wrangler, desde
+# esta carpeta; desde el panel de Cloudflare no se usa (README.md).
+# Usa siempre «-c wrangler.toml»: sin eso, Wrangler coge el wrangler.jsonc de la carpeta de arriba (el de la app).
+name = "cenit-datos"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+# La base de datos. Créala con jurisdicción de la UE (npx wrangler d1 create cenit-datos --jurisdiction eu -c wrangler.toml)
+# y pega aquí el «database_id» que te da.
+[[d1_databases]]
+binding = "DB"
+database_name = "cenit-datos"
+database_id = "PEGA-AQUI-EL-ID-DE-TU-BASE"
+
+[vars]
+# El ID de cliente de Google de la app (el mismo que «googleClientId» en public/cloud.json).
+GOOGLE_CLIENT_ID = "1084216324372-0mrfdeckqcfu8p2t1tjsosdebs7g2tmb.apps.googleusercontent.com"
+# Los correos de Google de los fisioterapeutas que pueden guardar copias, separados por comas.
+# Vacío: no entra nadie.
+ALLOWED_EMAILS = ""
+# Las direcciones desde donde se abre la app, separadas por comas.
+ALLOWED_ORIGINS = "https://adrianolivascano05-maker.github.io,http://localhost:5173"
+
+# Sin registros guardados en Cloudflare: no hacen falta y así no queda constancia de cada petición.
+# (El servidor nunca escribe en el registro el contenido de una copia ni el token.)
+[observability]
+enabled = false
+
+[observability.logs]
+enabled = false
+invocation_logs = false

@@ -227,4 +227,53 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     expect(google.driveText("ana").includes(enc("Desde la Tablet"))).toBe(false);
     expect(errors).toEqual([]);
   });
+
+  test("NB6 servidor de la clínica en Cloudflare: solo copias cifradas, nada en Drive", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await page.goto("./");
+    await expect(page.getByText("cifrados, en el servidor de la clínica")).toBeVisible();
+    await page.getByRole("button", { name: "Entrar con Google" }).click();
+    await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
+    await createPatient(page, { name: "Paciente Servidor" });
+
+    // Sin contraseña de cifrado no sube nada: lo pide.
+    const notice = page.getByRole("status").filter({ hasText: "solo guarda copias cifradas" });
+    await expect(notice).toBeVisible({ timeout: 15_000 });
+    expect(google.server.size).toBe(0);
+    await notice.getByRole("link", { name: "Elegir contraseña" }).click();
+    await expect(page.getByRole("button", { name: "Dejar de cifrar" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Elegir la contraseña de cifrado" }).click();
+    const sheet = page.getByRole("dialog", { name: "Contraseña de cifrado" });
+    await sheet.getByLabel("Contraseña", { exact: true }).fill("frase de la clínica 2026");
+    await sheet.getByLabel("Repite la contraseña").fill("frase de la clínica 2026");
+    await sheet.getByRole("button", { name: "Cifrar", exact: true }).click();
+    await expect(page.getByText("La copia del servidor de la clínica va cifrada")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Dejar de cifrar" })).toHaveCount(0);
+    await expectAccessible(page);
+
+    // En el servidor, solo bytes cifrados; en Drive, nada.
+    await expect.poll(() => google.server.get(users.ana.sub)?.bytes.subarray(0, 9).toString() ?? "", { timeout: 15_000 }).toBe("CENITENC1");
+    expect(google.server.get(users.ana.sub)!.bytes.toString("latin1").includes(enc("Paciente Servidor"))).toBe(false);
+    expect(google.appData("ana")).toHaveLength(0);
+    await expect(page.getByText(/Guardado en el servidor de la clínica/)).toBeVisible();
+
+    // Otro dispositivo: pide la contraseña y trae los pacientes.
+    const { baseURL, viewport, locale, timezoneId } = test.info().project.use;
+    const ctx = await browser.newContext({ baseURL, viewport, locale, timezoneId, serviceWorkers: "block" });
+    await google.install(ctx, () => "ana", { server: true });
+    const tablet = await ctx.newPage();
+    tablet.on("pageerror", (e) => errors.push(e.message));
+    await login(tablet);
+    await expect(tablet.getByRole("status").getByText("La copia del servidor de la clínica está cifrada: escribe su contraseña para sincronizar.")).toBeVisible();
+    await tablet.getByRole("button", { name: "Escribir la contraseña" }).click();
+    const ask = tablet.getByRole("dialog", { name: "Contraseña de la copia del servidor" });
+    await ask.getByLabel("Contraseña").fill("frase de la clínica 2026");
+    await ask.getByRole("button", { name: "Abrir la copia" }).click();
+    await tablet.getByRole("button", { name: "Mostrar" }).click();
+    await expect(tablet.getByRole("link", { name: /Paciente Servidor/ })).toBeVisible();
+    expect(errors).toEqual([]);
+  });
 });

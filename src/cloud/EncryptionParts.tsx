@@ -1,5 +1,6 @@
-// Cifrado de la copia de Drive en pantalla (crypt.ts): activarlo, cambiar la contraseña o quitarlo en Ajustes, y
-// pedir la contraseña en un dispositivo que aún no la tiene.
+// Cifrado de la copia de la nube en pantalla (crypt.ts): activarlo, cambiar la contraseña o quitarlo en Ajustes, y
+// pedir la contraseña en un dispositivo que aún no la tiene. El servidor de Cloudflare solo acepta copias cifradas:
+// ahí no se puede dejar de cifrar.
 import { KeyRound, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useAsync } from "../app/useAsync";
@@ -15,7 +16,18 @@ import { deriveKey, ENCRYPTION_KEY, forgetKey, MIN_PASSWORD, newSalt, storeKey, 
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** Ajustes → Cuenta de Google: cifrar la copia de Drive. */
+/** «la copia de tu Drive» o «la copia del servidor de la clínica», y si se puede guardar sin cifrar. */
+function copyName(cloud: NonNullable<ReturnType<typeof useCloud>>) {
+  const server = cloud.sync.store.encryptedOnly;
+  return {
+    copy: server ? "la copia del servidor de la clínica" : "la copia de tu Drive",
+    Copy: server ? "Copia del servidor" : "Copia de Drive",
+    short: server ? "la copia del servidor" : "la copia de Drive",
+    server,
+  };
+}
+
+/** Ajustes → Cuenta de Google: cifrar la copia de la nube. */
 export function EncryptionSettings() {
   const cloud = useCloud();
   const s = useSyncState();
@@ -28,6 +40,7 @@ export function EncryptionSettings() {
   const [busy, setBusy] = useState(false);
   if (!cloud || !s || enc.data === undefined) return null;
   const on = !!enc.data;
+  const { copy, Copy, server } = copyName(cloud);
 
   const open = (m: "set" | "off") => {
     setMode(m);
@@ -53,7 +66,7 @@ export function EncryptionSettings() {
         await setSetting(getDb(), ENCRYPTION_KEY, null);
         forgetKey(cloud.account.sub);
       }
-      toast(mode === "set" ? (on ? "Contraseña cambiada" : "Copia de Drive cifrada") : "La copia de Drive ya no se cifra", "success");
+      toast(mode === "set" ? (on ? "Contraseña cambiada" : `${Copy} cifrada`) : `${Copy} ya no se cifra`, "success");
       setMode(null);
       enc.reload();
       void cloud.sync.sync();
@@ -67,13 +80,15 @@ export function EncryptionSettings() {
   return (
     <section className="flex flex-col gap-3" aria-labelledby="h-cifrado">
       <h2 id="h-cifrado" className="text-lg">
-        Cifrado de la copia de Drive
+        Cifrado de la copia
       </h2>
       <Card className="flex flex-col gap-3">
         {on ? (
           <p className="flex items-center gap-2 font-semibold">
-            <ShieldCheck aria-hidden="true" className="size-5 text-success" /> La copia de tu Drive va cifrada
+            <ShieldCheck aria-hidden="true" className="size-5 text-success" /> {copy.charAt(0).toUpperCase() + copy.slice(1)} va cifrada
           </p>
+        ) : server ? (
+          <p>El servidor de la clínica solo guarda copias cifradas. Elige una contraseña: sin ella nadie puede leer la copia, tampoco Cloudflare.</p>
         ) : (
           <p>Cifra la copia de tu Drive con una contraseña: sin ella, nadie puede leerla, ni entrando en tu cuenta de Google.</p>
         )}
@@ -84,22 +99,24 @@ export function EncryptionSettings() {
             <Button variant="secondary" onClick={() => open("set")}>
               Cambiar la contraseña
             </Button>
-            <Button variant="ghost" onClick={() => open("off")}>
-              Dejar de cifrar
-            </Button>
+            {!server && (
+              <Button variant="ghost" onClick={() => open("off")}>
+                Dejar de cifrar
+              </Button>
+            )}
           </>
         ) : (
           <Button icon={<KeyRound aria-hidden="true" className="size-5" />} onClick={() => open("set")}>
-            Cifrar la copia de Drive
+            {server ? "Elegir la contraseña de cifrado" : "Cifrar la copia de Drive"}
           </Button>
         )}
         <p className="text-sm text-text-muted">
-          En tus otros dispositivos te la pedirá una vez. Si la olvidas, lo que haya en tus dispositivos sigue ahí, pero la copia de Drive no se puede
-          abrir: apúntala en un sitio seguro.
+          En tus otros dispositivos te la pedirá una vez. Si la olvidas, lo que haya en tus dispositivos sigue ahí, pero {copy} no se puede abrir:
+          apúntala en un sitio seguro.
         </p>
       </Card>
 
-      <Sheet open={mode !== null} onClose={() => setMode(null)} title={mode === "off" ? "¿Dejar de cifrar la copia?" : on ? "Cambiar la contraseña" : "Cifrar la copia de Drive"}>
+      <Sheet open={mode !== null} onClose={() => setMode(null)} title={mode === "off" ? "¿Dejar de cifrar la copia?" : on ? "Cambiar la contraseña" : server ? "Contraseña de cifrado" : "Cifrar la copia de Drive"}>
         <form className="flex flex-col gap-3" noValidate onSubmit={submit}>
           {mode === "off" ? (
             <p>La copia de tu Drive volverá a guardarse sin cifrar. Seguirá protegida por tu cuenta de Google.</p>
@@ -134,7 +151,7 @@ export function EncryptionSettings() {
   );
 }
 
-/** Con la copia de Drive cifrada y sin su clave en este dispositivo: escribir la contraseña. */
+/** Con la copia de la nube cifrada y sin su clave en este dispositivo: escribir la contraseña. */
 export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
   const cloud = useCloud();
   const toast = useToast();
@@ -144,13 +161,14 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (!cloud) return null;
+  const { copy, Copy, short, server } = copyName(cloud);
 
   return (
     <>
       <Button size={size} icon={size === "md" ? <KeyRound aria-hidden="true" className="size-5" /> : undefined} onClick={() => setOpen(true)}>
         Escribir la contraseña
       </Button>
-      <Sheet open={open} onClose={() => setOpen(false)} title="Contraseña de la copia de Drive">
+      <Sheet open={open} onClose={() => setOpen(false)} title={`Contraseña de ${short}`}>
         <form
           className="flex flex-col gap-3"
           noValidate
@@ -161,7 +179,7 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
               await cloud.sync.unlock(password);
               setOpen(false);
               setPassword("");
-              toast("Copia de Drive abierta", "success");
+              toast(`${Copy} abierta`, "success");
             } catch (err) {
               setError(err instanceof WrongPassword ? "No es la contraseña de esta copia." : errText(err));
             } finally {
@@ -169,7 +187,7 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
             }
           }}
         >
-          <p>La copia de tu Drive está cifrada. Escribe la contraseña con la que la cifraste en otro dispositivo.</p>
+          <p>{copy.charAt(0).toUpperCase() + copy.slice(1)} está cifrada. Escribe la contraseña con la que la cifraste en otro dispositivo.</p>
           <TextField
             label="Contraseña"
             type="password"
@@ -189,10 +207,13 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
           </Button>
         </form>
       </Sheet>
-      <Sheet open={forgot} onClose={() => setForgot(false)} title="¿Sustituir la copia de Drive?">
-        <p>Sin la contraseña, la copia de Drive no se puede abrir. Puedes sustituirla por lo que hay en este dispositivo, sin cifrar.</p>
+      <Sheet open={forgot} onClose={() => setForgot(false)} title={`¿Sustituir ${short}?`}>
+        <p>
+          Sin la contraseña, {copy} no se puede abrir. Puedes sustituirla por lo que hay en este dispositivo
+          {server ? ", cifrado con una contraseña nueva que elegirás después." : ", sin cifrar."}
+        </p>
         <p className="flex items-start gap-2 rounded-md bg-warning-soft p-3 text-sm">
-          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" /> Lo que solo esté en la copia de Drive se pierde. Si otro
+          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" /> Lo que solo esté en {copy} se pierde. Si otro
           dispositivo tuyo tiene la app abierta con tus pacientes, lo que hay en él vuelve a subirse la próxima vez que sincronice.
         </p>
         <Button
@@ -207,7 +228,7 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
               await cloud.sync.replaceRemote();
               setForgot(false);
               setOpen(false);
-              toast("Copia de Drive sustituida", "success");
+              toast(`${Copy} sustituida`, "success");
             } catch (err) {
               toast(errText(err), "danger");
             } finally {
@@ -215,7 +236,7 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
             }
           }}
         >
-          Sustituir la copia de Drive
+          Sustituir {copy}
         </Button>
         <Button variant="secondary" block onClick={() => setForgot(false)}>
           Cancelar

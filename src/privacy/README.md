@@ -2,8 +2,8 @@
 
 Lo que la app pone de su parte para que la clínica cumpla el RGPD, la LOPDGDD y la Ley 41/2002 con las historias
 clínicas. No sustituye lo que tiene que hacer la clínica: registro de actividades de tratamiento, delegado de
-protección de datos (obligatorio en un centro sanitario), contrato con Google si usa la nube y revisión de estos
-textos con su delegado. Nada de esto es asesoramiento legal.
+protección de datos (obligatorio en un centro sanitario), contrato con el proveedor de la nube (Google Workspace, o
+el de Cloudflare si usa su servidor) y revisión de estos textos con su delegado. Nada de esto es asesoramiento legal.
 
 | Qué | Dónde | Archivo |
 | --- | --- | --- |
@@ -12,7 +12,9 @@ textos con su delegado. Nada de esto es asesoramiento legal.
 | Cuándo se entregó, quién firmó (representante legal de menores de 16 años) y sí o no a fotos y vídeos, contacto por WhatsApp o correo, y docencia y estudios | la misma pantalla; la fila «Protección de datos» del resumen de la ficha lo resume (en naranja si falta) | `../pages/PatientPage.tsx`, columna `patients.privacy` (migración 009) |
 | Aviso al borrar un paciente con historia que aún hay que conservar | editar paciente → «Borrar paciente» | `../pages/PatientFormPage.tsx`, `clinicalRecord` y `keepUntil` |
 | Bloqueo de la app con PIN | Ajustes → Bloqueo con PIN | `pin.ts`, `AppLock.tsx`, `LockSettings.tsx` |
-| Cifrado de la copia de Google Drive | Ajustes → Cuenta de Google → Cifrado de la copia de Drive | `../cloud/crypt.ts`, `../cloud/EncryptionParts.tsx` |
+| Cifrado de la copia de la nube | Ajustes → Cuenta de Google → Cifrado de la copia | `../cloud/crypt.ts`, `../cloud/EncryptionParts.tsx` |
+| Servidor de la clínica en Cloudflare: datos en la UE, solo cifrados, contrato de encargado en sus condiciones | `public/cloud.json` (`cloudflareUrl`); casilla del contrato en Ajustes → Clínica | `../../cloudflare/README.md`, `../cloud/remote.ts` |
+| Consentimientos informados (Ley 41/2002): generados con la anamnesis, firma en pantalla o papel, retirada | ficha → Consentimientos | `../consent/README.md` |
 
 Los datos de las funciones están en `../data/privacy.ts`.
 

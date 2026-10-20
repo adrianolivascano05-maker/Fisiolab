@@ -1,4 +1,10 @@
-# Cuenta de Google y copia en Google Drive
+# Cuenta de Google y copia en Google Drive (o en el servidor de la clínica en Cloudflare)
+
+> **Alternativa recomendada para historias clínicas: el servidor de la clínica en Cloudflare** (plan gratuito,
+> base de datos en la Unión Europea, contrato de encargado del tratamiento incluido en sus condiciones y solo copias
+> cifradas). Se monta una vez siguiendo `cloudflare/README.md` y se activa poniendo su dirección en
+> `public/cloud.json` (`"cloudflareUrl"`). Con él, Google queda solo para entrar: la copia de los pacientes ya no
+> va a Drive. Ver «Servidor de la clínica en Cloudflare» al final.
 
 Con la nube activada, cada fisioterapeuta entra en la app con su cuenta de Google. Sus pacientes se guardan en el
 dispositivo, que funciona sin conexión, y en **su** Google Drive, dentro de la carpeta oculta de la app
@@ -58,6 +64,7 @@ de la última cuenta que entró en él.
 | `auth.ts` | entrar con Google con redirección (OAuth 2.0 para apps web de cliente). Google vuelve con un token de una hora que solo sirve para el nombre y el correo, la carpeta oculta de la app en Drive, los archivos que crea la app y su calendario |
 | `account.ts` | la cuenta que ha entrado en el dispositivo. Cada cuenta tiene su base (`fisiolab-u<id>.sqlite3`) |
 | `drive.ts` | la copia en Drive: listar, bajar, subir y borrar, con la API REST v3 |
+| `remote.ts` | dónde vive la copia: Drive o el servidor de Cloudflare, con la misma interfaz para `sync.ts` |
 | `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista, 5 segundos después del último cambio y al salir de la app |
 | `AccountPages.tsx` | la tarjeta de la cuenta en la pantalla principal y la pantalla para pegar el ID de cliente en el dispositivo |
 | `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «Cénit · Citas» que crea la app |
@@ -102,7 +109,7 @@ de la última cuenta que entró en él.
   (su id va en el ajuste sincronizado `drive_folder_id`). El PDF es el informe dibujado tal como se ve, una imagen
   por página A4 (`../clinical/reportPdf.ts` con html-to-image, y `../app/pdf.ts`): el texto no se puede
   seleccionar. Estos archivos no se cifran aunque la copia sí lo esté.
-- **Copia cifrada (opcional).** En Ajustes → Cuenta de Google → Cifrado de la copia de Drive. La base se cifra en el dispositivo antes
+- **Copia cifrada (opcional en Drive, obligatoria en Cloudflare).** En Ajustes → Cuenta de Google → Cifrado de la copia. La base se comprime (gzip) y se cifra en el dispositivo antes
   de subirla, con AES-GCM de 256 bits y una clave sacada de la contraseña con PBKDF2-SHA-256 (600 000 vueltas).
   En Drive solo hay bytes ilegibles sin la contraseña. El archivo empieza por `CENITENC1`, seguido de la sal y el
   vector de inicio. La sal va también en el ajuste sincronizado `drive_encryption`: así todos los dispositivos de
@@ -124,3 +131,20 @@ de Google. En los dos casos conviene activar la verificación en dos pasos. La c
 personales de Google son adecuadas, o si conviene usar cuentas de Google Workspace de la clínica, que tienen
 contrato de encargado del tratamiento. Para historias clínicas ese contrato hace falta (art. 28 del RGPD), y la
 app lo recuerda en Ajustes → Clínica y protección de datos hasta que se marca que existe. Más en `../privacy/README.md`.
+
+## Servidor de la clínica en Cloudflare
+
+Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la sincronización es la misma, pero:
+
+- La copia va al servidor de la clínica (Cloudflare Workers + D1 con jurisdicción `eu`), no a Drive, y la app ya no
+  pide el permiso de la carpeta oculta de Drive (`drive.appdata`).
+- **Solo se guardan copias cifradas**: la primera vez la app pide una contraseña de cifrado («needs-password») y no
+  sube nada hasta tenerla. No se puede «dejar de cifrar». El servidor rechaza lo que no empiece por `CENITENC1`.
+- El servidor comprueba el token de Google de cada petición (que sea de esta app y de un correo de
+  `ALLOWED_EMAILS`) y guarda una copia por cuenta. Al subir dice qué versión sustituye: si otro dispositivo subió
+  entre medias, responde 412 y la app vuelve a bajar, juntar y subir.
+- La CSP (`public/_headers`) deja conectar con `https://*.workers.dev`. Si el servidor va en un dominio propio, hay
+  que añadirlo ahí.
+- Las citas en Google Calendar y los informes en Drive siguen siendo opcionales: con Calendar, mejor la opción de
+  solo iniciales.
+- Pruebas: `e2e/cloud.spec.ts` (NB6) con el servidor simulado de `e2e/fakeGoogle.ts`, y `cloudflare/worker.test.ts`.

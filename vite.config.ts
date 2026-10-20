@@ -80,5 +80,5 @@ export default defineConfig({
   // sqlite-wasm carga su .wasm por URL relativa: no debe pre-empaquetarse.
   optimizeDeps: { exclude: ["@sqlite.org/sqlite-wasm"] },
   worker: { format: "es" },
-  test: { include: ["src/**/*.test.ts"] },
+  test: { include: ["src/**/*.test.ts", "cloudflare/**/*.test.ts"] },
 });

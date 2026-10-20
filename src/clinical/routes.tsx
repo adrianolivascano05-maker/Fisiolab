@@ -12,6 +12,10 @@ const SessionFormPage = lazy(() => pages().then((m) => ({ default: m.SessionForm
 const QuestionnaireFormPage = lazy(() => pages().then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
 const PatientPrivacyPage = lazy(() => import("../privacy/PatientPrivacyPage").then((m) => ({ default: m.PatientPrivacyPage })));
+const consents = () => import("../consent/ConsentPages");
+const ConsentListPage = lazy(() => consents().then((m) => ({ default: m.ConsentListPage })));
+const ConsentNewPage = lazy(() => consents().then((m) => ({ default: m.ConsentNewPage })));
+const ConsentViewPage = lazy(() => consents().then((m) => ({ default: m.ConsentViewPage })));
 const l = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 export const clinicalRoutes = [
@@ -27,4 +31,7 @@ export const clinicalRoutes = [
   { path: "/pacientes/:id/cuestionarios/:qid", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/informe", element: l(<ReportPage />) },
   { path: "/pacientes/:id/proteccion-datos", element: l(<PatientPrivacyPage />) }, // src/privacy
+  { path: "/pacientes/:id/consentimientos", element: l(<ConsentListPage />) }, // src/consent
+  { path: "/pacientes/:id/consentimientos/nuevo", element: l(<ConsentNewPage />) },
+  { path: "/pacientes/:id/consentimientos/:cid", element: l(<ConsentViewPage />) },
 ];

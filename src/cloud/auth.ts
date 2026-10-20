@@ -12,7 +12,17 @@ const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
-export const SCOPES = `openid email profile https://www.googleapis.com/auth/drive.appdata ${DRIVE_FILE_SCOPE} ${CALENDAR_SCOPE}`;
+const APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
+
+/**
+ * Con el servidor de Cloudflare la copia no va a Drive: no se pide la carpeta oculta (CloudGate lo dice al leer la
+ * configuración, antes de ir a Google o de leer su respuesta).
+ */
+let copyInDrive = true;
+export function setCopyInDrive(v: boolean) {
+  copyInDrive = v;
+}
+const scopes = () => `openid email profile ${copyInDrive ? `${APPDATA_SCOPE} ` : ""}${DRIVE_FILE_SCOPE} ${CALENDAR_SCOPE}`;
 
 export type Token = { accessToken: string; expiresAt: number };
 
@@ -64,7 +74,7 @@ export function startLogin(clientId: string, opts: { hint?: string; silent?: boo
     client_id: clientId,
     redirect_uri: redirectUri(),
     response_type: "token",
-    scope: SCOPES,
+    scope: scopes(),
     state,
     include_granted_scopes: "true",
   });
@@ -98,7 +108,7 @@ export function takeRedirectResult(): RedirectResult | null {
   if (!flow || hash.get("state") !== flow.state) return { token: null, error: "state_mismatch", silent: false };
   const accessToken = hash.get("access_token");
   if (!accessToken) return { token: null, error: hash.get("error") ?? "unknown", silent: flow.silent };
-  if (!(hash.get("scope") ?? "").includes("drive.appdata")) return { token: null, error: "drive_scope_denied", silent: flow.silent };
+  if (copyInDrive && !(hash.get("scope") ?? "").includes("drive.appdata")) return { token: null, error: "drive_scope_denied", silent: flow.silent };
   const token = { accessToken, expiresAt: Date.now() + Number(hash.get("expires_in") ?? 3600) * 1000 };
   sessionStorage.setItem(TOKEN_KEY, JSON.stringify(token));
   localStorage.setItem(GRANTED_KEY, JSON.stringify((hash.get("scope") ?? "").split(" ").filter(Boolean)));

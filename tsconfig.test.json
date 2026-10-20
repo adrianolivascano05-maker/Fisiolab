@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "allowJs": true,
     "types": [
       "vite/client",
       "vite-plugin-pwa/react",
@@ -11,7 +12,8 @@
   "include": [
     "src/**/*.test.ts",
     "src/data/testDb.ts",
-    "src/vite-env.d.ts"
+    "src/vite-env.d.ts",
+    "cloudflare/**/*.ts"
   ],
   "exclude": []
 }

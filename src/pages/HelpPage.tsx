@@ -27,6 +27,16 @@ const steps: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    title: "Consentimientos",
+    body: (
+      <>
+        En el Resumen, <b>Consentimientos</b>: la app propone los que necesita según su anamnesis (punción, manipulación, suelo pélvico…), con sus
+        riesgos personales ya escritos si marcas sus <b>precauciones</b> en la anamnesis. Se firman con el dedo en la pantalla o se imprimen, y se
+        pueden retirar.
+      </>
+    ),
+  },
+  {
     title: "Si vuelve por otro problema",
     body: (
       <>

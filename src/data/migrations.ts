@@ -8,6 +8,7 @@ import nextVisit007 from "./migrations/007_next_visit.sql?raw";
 import sync008 from "./migrations/008_sync.sql?raw";
 import privacy009 from "./migrations/009_privacy.sql?raw";
 import episodes010 from "./migrations/010_episodes.sql?raw";
+import consents011 from "./migrations/011_consents.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -21,4 +22,5 @@ export const migrations: Migration[] = [
   { version: 8, sql: sync008 },
   { version: 9, sql: privacy009 },
   { version: 10, sql: episodes010 },
+  { version: 11, sql: consents011 },
 ];

@@ -1,10 +1,18 @@
 // Configuración de la nube: public/cloud.json, que se lee al abrir la app. Con «googleClientId» vacío la app
 // funciona como siempre, solo en el dispositivo y sin cuentas. Con el ID de cliente de Google (src/cloud/README.md),
-// cada fisioterapeuta entra con su cuenta y sus datos se guardan también en su Google Drive.
+// cada fisioterapeuta entra con su cuenta y sus datos se guardan también en su Google Drive o, con «cloudflareUrl»,
+// cifrados en el servidor de la clínica en Cloudflare (cloudflare/README.md).
 // Mientras la app publicada no lleve el ID, se puede pegar en un dispositivo (pantalla «Iniciar sesión con Google»):
 // vale solo para ese dispositivo, y el de cloud.json tiene preferencia.
 
-export type CloudConfig = { googleClientId: string };
+export type CloudConfig = {
+  googleClientId: string;
+  /**
+   * El servidor de la clínica en Cloudflare (cloudflare/README.md). Con él, la copia de los pacientes va ahí,
+   * siempre cifrada, y no a Google Drive: Google queda solo para entrar.
+   */
+  cloudflareUrl?: string;
+};
 
 const KEY = "fisiolab.cloud.config";
 const DEVICE_KEY = "fisiolab.cloud.clientId";
@@ -40,7 +48,7 @@ export async function loadCloudConfig(): Promise<CloudConfig | null> {
       /* la conexión falla aunque el navegador crea que hay: la guardada */
     }
   }
-  if (config?.googleClientId) return config;
+  if (config?.googleClientId) return { ...config, cloudflareUrl: config.cloudflareUrl?.trim() || undefined };
   const onDevice = localStorage.getItem(DEVICE_KEY);
   return onDevice ? { googleClientId: onDevice } : null;
 }

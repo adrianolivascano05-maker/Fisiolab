@@ -1,4 +1,4 @@
-import { Activity, CalendarClock, ClipboardList, FileText, ListChecks, NotebookPen, ShieldAlert, ShieldCheck, Stethoscope, type LucideIcon } from "lucide-react";
+import { Activity, CalendarClock, ClipboardList, FilePen, FileText, ListChecks, NotebookPen, ShieldAlert, ShieldCheck, Stethoscope, type LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
@@ -11,6 +11,9 @@ import { PatientShell } from "../clinical/PatientShell";
 import { LSI_REFERENCE, symmetryRows } from "../clinical/symmetry";
 import { buildTimeline, painSeries, type EventKind } from "../clinical/timeline";
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
+import { consentContext } from "../consent/context";
+import { TEMPLATES } from "../consent/templates";
+import { listConsents } from "../data/consents";
 import { getDb } from "../data/db";
 import { CONSENTS } from "../data/privacy";
 import { getPatient, listTests, listWellness } from "../data/repo";
@@ -46,7 +49,7 @@ export function PatientPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires] = await Promise.all([
+    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed] = await Promise.all([
       getPatient(db, id),
       listTests(db, id),
       listWellness(db, id),
@@ -54,14 +57,19 @@ export function PatientPage() {
       listSessions(db, id),
       listFindings(db, id),
       listQuestionnaires(db, id),
+      listConsents(db, id),
     ]);
-    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires };
+    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed };
   }, [id]);
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Paciente" backTo="/"><Loading /></Page>;
-  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires } = data.data;
+  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
+  // Consentimientos: los firmados vigentes y los que su anamnesis pide por escrito y faltan.
+  const consentCtx = consentContext(patient, anamnesis?.answers ?? {}, tests);
+  const inForce = signed.filter((c) => !c.revokedAt);
+  const missing = TEMPLATES.filter((t) => t.written === "required" && t.suggest(consentCtx) && !inForce.some((c) => c.template === t.id));
 
   const summary = anamnesis ? clinicalSummary(anamnesis.answers) : null;
   const pain = painSeries({ sessions, wellness, anamnesis });
@@ -121,6 +129,20 @@ export function PatientPage() {
           title="Protección de datos"
           subtitle={privacy.informedAt ? [`Informado el ${fmtDate(`${privacy.informedAt}T12:00:00`)}`, ...consents].join(" · ") : "Pendiente: hoja para imprimir y firmar"}
           warn={!privacy.informedAt}
+        />
+        <RowLink
+          to={`/pacientes/${id}/consentimientos`}
+          icon={FilePen}
+          tone={missing.length ? "warning" : "accent"}
+          title="Consentimientos"
+          subtitle={
+            missing.length
+              ? `Falta por escrito: ${missing.map((t) => t.title.toLowerCase()).join(", ")}`
+              : inForce.length
+                ? `${inForce.length === 1 ? "1 firmado" : `${inForce.length} firmados`}`
+                : "Se preparan con su anamnesis"
+          }
+          warn={missing.length > 0}
         />
         <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Imprimir, guardar en PDF o en Drive" />
       </Group>

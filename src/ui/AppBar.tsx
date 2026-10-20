@@ -20,6 +20,7 @@ export function parentLabel(backTo: string | undefined): string {
     if (tab[1] === "test" && tab[2]) return sub[tab[2].slice(1)] ?? "Medición";
     if (!tab[2]) return { anamnesis: "Anamnesis", exploracion: "Exploración", mediciones: "Mediciones", sesiones: "Sesiones", movilidad: "Movilidad", test: "Medición" }[tab[1]!]!;
   }
+  if (/^\/pacientes\/[^/]+\/consentimientos$/.test(path)) return "Consentimientos";
   if (/^\/pacientes\/[^/]+$/.test(path)) return "Ficha";
   return "Atrás";
 }

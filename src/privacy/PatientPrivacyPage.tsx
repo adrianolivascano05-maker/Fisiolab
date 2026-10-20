@@ -48,7 +48,7 @@ export function PatientPrivacyPage() {
   const { patient, clinic, encrypted } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
 
-  const storage: Storage = !cloud ? "local" : encrypted ? "cloud-encrypted" : "cloud";
+  const storage: Storage = !cloud ? "local" : cloud.sync.store.encryptedOnly ? "server" : encrypted ? "cloud-encrypted" : "cloud";
   const years = ageOn(patient.birthDate);
   const minor = years !== null && years < ADULT_CONSENT_AGE;
   const saved = patient.privacy;
@@ -77,7 +77,7 @@ export function PatientPrivacyPage() {
               .
             </Alert>
           )}
-          {cloud && !clinic.googleDpa && (
+          {cloud && !cloud.sync.store.encryptedOnly && !clinic.googleDpa && (
             <Alert tone="warning" title="Falta el contrato con Google">
               Para guardar historias clínicas en Google Drive hace falta un contrato de encargado del tratamiento con Google (cuentas de Google Workspace de la
               clínica). Con una cuenta de Gmail normal no lo hay.

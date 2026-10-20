@@ -5,8 +5,8 @@
 import type { ReactNode } from "react";
 import { CONSENTS, type ClinicInfo, type PatientPrivacy } from "../data/privacy";
 
-/** Dónde se guardan los datos: solo en los dispositivos, o también en Google Drive (cifrados o no). */
-export type Storage = "local" | "cloud" | "cloud-encrypted";
+/** Dónde se guardan los datos: solo en los dispositivos, también en Google Drive (cifrados o no) o, cifrados, en el servidor de la clínica en Cloudflare. */
+export type Storage = "local" | "cloud" | "cloud-encrypted" | "server";
 
 const blank = (text: string) => <span className="text-text-muted">[{text}]</span>;
 const or = (value: string, placeholder: string): ReactNode => value || blank(placeholder);
@@ -61,7 +61,9 @@ export function PrivacyNotice({ clinic, storage, patientName, privacy }: { clini
           Nadie fuera de la clínica, salvo obligación legal o que usted lo pida (por ejemplo, un informe para su médico o su mutua).{" "}
           {storage === "local"
             ? "Se guardan en los dispositivos de la clínica."
-            : `Se guardan en los dispositivos de la clínica y en una copia en Google Drive${storage === "cloud-encrypted" ? ", cifrada con una contraseña que solo tiene la clínica" : ""}. El día y la hora de sus citas, con su nombre o sus iniciales, se apuntan en el calendario de Google del fisioterapeuta. Google es el proveedor de ese almacenamiento y puede tratar datos fuera del Espacio Económico Europeo con las garantías del Marco de Privacidad de Datos UE-EE. UU. y de las cláusulas contractuales tipo de la Comisión Europea.`}
+            : storage === "server"
+              ? "Se guardan en los dispositivos de la clínica y en una copia cifrada, con una contraseña que solo tiene la clínica, en un servidor contratado a Cloudflare (encargado del tratamiento), con la base de datos en la Unión Europea: Cloudflare no puede leerlos. Los fisioterapeutas entran en la app con su cuenta de Google, que no guarda su historia. Si la clínica apunta sus citas en Google Calendar, figuran el día, la hora y sus iniciales."
+              : `Se guardan en los dispositivos de la clínica y en una copia en Google Drive${storage === "cloud-encrypted" ? ", cifrada con una contraseña que solo tiene la clínica" : ""}. El día y la hora de sus citas, con su nombre o sus iniciales, se apuntan en el calendario de Google del fisioterapeuta. Google es el proveedor de ese almacenamiento y puede tratar datos fuera del Espacio Económico Europeo con las garantías del Marco de Privacidad de Datos UE-EE. UU. y de las cláusulas contractuales tipo de la Comisión Europea.`}
         </p>
       </Part>
 

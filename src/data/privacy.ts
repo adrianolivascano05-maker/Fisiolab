@@ -62,14 +62,33 @@ export type ClinicInfo = {
   dpo: string;
   /** Años que se conserva la historia clínica desde la última atención. */
   retentionYears: number;
-  /** Con la nube: hay contrato de encargado del tratamiento con Google (Google Workspace). */
+  /** Con la copia en Google Drive: hay contrato de encargado del tratamiento con Google (Google Workspace). */
   googleDpa: boolean;
+  /** Con el servidor de Cloudflare: se ha revisado su contrato de encargado (DPA) y se guarda una copia. */
+  cloudflareDpa: boolean;
+  /** Para los consentimientos: el fisioterapeuta que informa por defecto, su número de colegiado y la localidad. */
+  professional: string;
+  license: string;
+  city: string;
 };
 
 /** Ley 41/2002, art. 17: como mínimo cinco años desde el alta de cada proceso asistencial. */
 export const MIN_RETENTION_YEARS = 5;
 const CLINIC_KEY = "clinic_privacy";
-export const emptyClinic: ClinicInfo = { name: "", taxId: "", address: "", email: "", phone: "", dpo: "", retentionYears: MIN_RETENTION_YEARS, googleDpa: false };
+export const emptyClinic: ClinicInfo = {
+  name: "",
+  taxId: "",
+  address: "",
+  email: "",
+  phone: "",
+  dpo: "",
+  retentionYears: MIN_RETENTION_YEARS,
+  googleDpa: false,
+  cloudflareDpa: false,
+  professional: "",
+  license: "",
+  city: "",
+};
 
 export async function getClinic(db: Db): Promise<ClinicInfo> {
   return { ...emptyClinic, ...((await getSetting<Partial<ClinicInfo>>(db, CLINIC_KEY)) ?? {}) };
@@ -85,6 +104,9 @@ export async function saveClinic(db: Db, c: ClinicInfo): Promise<void> {
     email: trim(c.email),
     phone: trim(c.phone),
     dpo: trim(c.dpo),
+    professional: trim(c.professional),
+    license: trim(c.license),
+    city: trim(c.city),
     retentionYears: Math.max(MIN_RETENTION_YEARS, Math.round(c.retentionYears) || MIN_RETENTION_YEARS),
   });
 }
@@ -108,6 +130,7 @@ export async function clinicalRecord(db: Db, patientId: string): Promise<{ recor
        union all select count(*), max(performed_at) from questionnaires where patient_id = ?1
        union all select count(*), max(performed_at) from wellness where patient_id = ?1
        union all select count(*), max(updated_at) from anamnesis where patient_id = ?1
+       union all select count(*), max(signed_at) from consents where patient_id = ?1
      )`,
     [patientId],
   );

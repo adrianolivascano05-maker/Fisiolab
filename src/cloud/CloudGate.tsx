@@ -3,18 +3,20 @@
 // Sin la nube activada no hace nada: la app funciona solo en el dispositivo, como siempre.
 import { CloudOff, LogIn, RefreshCw, TriangleAlert } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Link } from "react-router";
 import { configureDb, getDb } from "../data/db";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { LogoMark } from "../ui/Logo";
 import { Sheet } from "../ui/Sheet";
 import { adoptionDone, clearAccount, dbFileFor, getAccount, setAccount, type Account } from "./account";
-import { authErrorText, getToken, revokeToken, silentTriedRecently, startLogin, takeRedirectResult, type RedirectResult } from "./auth";
+import { authErrorText, getToken, revokeToken, setCopyInDrive, silentTriedRecently, startLogin, takeRedirectResult, type RedirectResult } from "./auth";
 import { loadCloudConfig, type CloudConfig } from "./config";
 import { forgetKey } from "./crypt";
 import { KeyPrompt } from "./EncryptionParts";
 import { userInfo } from "./drive";
 import { CalendarSync, type CalendarState } from "./googleCalendar";
+import { cloudflareStore, driveStore } from "./remote";
 import { SyncController, type SyncState } from "./sync";
 
 type Cloud = {
@@ -70,9 +72,9 @@ const home = () => location.assign(import.meta.env.BASE_URL);
 
 /** La cuenta lista para usar, con su sincronización en marcha. `remount`: vuelve a cargar la pantalla. */
 function startCloud(config: CloudConfig, account: Account, remount: () => void): Cloud {
-  const sync = new SyncController(getDb(), account);
+  const sync = new SyncController(getDb(), account, config.cloudflareUrl ? cloudflareStore(config.cloudflareUrl) : driveStore);
   const calendar = new CalendarSync(getDb(), account);
-  // Al acabar cada sincronización con Drive (ya con las citas de los otros dispositivos), al calendario.
+  // Al acabar cada sincronización (ya con las citas de los otros dispositivos), al calendario.
   let last = sync.current.status;
   sync.subscribe((s) => {
     if (last === "syncing" && s.status === "idle") void calendar.run();
@@ -120,6 +122,7 @@ export function CloudGate({ children }: { children: ReactNode }) {
         configureDb(last ? dbFileFor(last) : null);
         return setPhase({ kind: "local" });
       }
+      setCopyInDrive(!config.cloudflareUrl);
       const r = redirectOnce();
       let account = getAccount();
 
@@ -165,7 +168,7 @@ export function CloudGate({ children }: { children: ReactNode }) {
       const cloud = startCloud(config, account, remount);
       if (token) {
         // Al abrir, primero lo que haya en la nube (hasta unos segundos; si tarda, sigue en segundo plano).
-        setPhase({ kind: "wait", text: "Sincronizando con Google Drive…" });
+        setPhase({ kind: "wait", text: config.cloudflareUrl ? "Sincronizando con el servidor de la clínica…" : "Sincronizando con Google Drive…" });
         await Promise.race([cloud.sync.sync(), wait(6000)]);
         if (cloud.sync.current.status !== "syncing") cloud.sync.seenNewData(); // la pantalla aún no se ha abierto
       }
@@ -240,8 +243,10 @@ function LoginScreen({ config, error }: { config: CloudConfig; error: string | n
     <Shell>
       <h1 className="text-xl">Entra con tu cuenta de Google</h1>
       <p>
-        Tus pacientes se guardan en este dispositivo y en tu Google Drive, en una carpeta oculta que solo usa esta app. Así los tienes en cualquier
-        móvil u ordenador donde entres con tu cuenta.
+        {config.cloudflareUrl
+          ? "Tus pacientes se guardan en este dispositivo y, cifrados, en el servidor de la clínica (en la Unión Europea). Google solo sirve para entrar."
+          : "Tus pacientes se guardan en este dispositivo y en tu Google Drive, en una carpeta oculta que solo usa esta app."}{" "}
+        Así los tienes en cualquier móvil u ordenador donde entres con tu cuenta.
       </p>
       <p className="text-sm text-text-muted">Cada fisioterapeuta entra con su cuenta y solo ve sus pacientes.</p>
       {error && (
@@ -326,6 +331,9 @@ const ago = (iso: string) => {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" });
 };
 
+/** «de tu Drive», «del servidor de la clínica». */
+const deWhere = (where: string) => (where.startsWith("el ") ? `del ${where.slice(3)}` : `de ${where}`);
+
 /** Cómo va la sincronización, en una frase. */
 export function syncText(s: SyncState): string {
   switch (s.status) {
@@ -334,13 +342,15 @@ export function syncText(s: SyncState): string {
     case "needs-auth":
       return s.pending ? "Hay cambios sin subir: vuelve a entrar con Google." : "Sin sincronizar: vuelve a entrar con Google.";
     case "needs-key":
-      return "La copia de tu Drive está cifrada: escribe su contraseña para sincronizar.";
+      return `La copia ${deWhere(s.where)} está cifrada: escribe su contraseña para sincronizar.`;
+    case "needs-password":
+      return `${s.where === "tu Drive" ? "Tu Drive" : "El servidor de la clínica"} solo guarda copias cifradas: elige una contraseña de cifrado para sincronizar.`;
     case "offline":
       return s.pending ? "Sin conexión: los cambios se subirán al volver la conexión." : "Sin conexión.";
     case "error":
       return `No se pudo sincronizar: ${s.error}`;
     default:
-      return s.pending ? "Cambios pendientes de subir." : s.lastSyncAt ? `Guardado en tu Drive ${ago(s.lastSyncAt)}.` : "Aún sin sincronizar.";
+      return s.pending ? "Cambios pendientes de subir." : s.lastSyncAt ? `Guardado en ${s.where} ${ago(s.lastSyncAt)}.` : "Aún sin sincronizar.";
   }
 }
 
@@ -370,6 +380,13 @@ export function SyncNotice() {
       </Button>,
     );
   if (s.status === "needs-key") return row(syncText(s), <KeyPrompt size="sm" />);
+  if (s.status === "needs-password")
+    return row(
+      syncText(s),
+      <Link to="/ajustes/cuenta" className="tap inline-flex items-center rounded-md bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover">
+        Elegir contraseña
+      </Link>,
+    );
   if (s.status === "error")
     return row(
       syncText(s),
@@ -425,13 +442,13 @@ export function CloudSettings() {
       <Sheet open={confirm !== null} onClose={() => setConfirm(null)} title={confirm === "wipe" ? "¿Borrar los datos de este dispositivo?" : "¿Cerrar sesión?"}>
         {s.pending && (
           <p className="flex items-start gap-2 rounded-md bg-warning-soft p-3 text-sm text-warning">
-            <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" /> Hay cambios que aún no están en tu Drive. Sincroniza antes, o se
+            <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" /> Hay cambios que aún no están en {s.where}. Sincroniza antes, o se
             {confirm === "wipe" ? " perderán." : " subirán la próxima vez que entres en este dispositivo."}
           </p>
         )}
         <p>
           {confirm === "wipe"
-            ? "Se borran tus pacientes de este dispositivo. La copia de tu Google Drive no se toca: al volver a entrar, vuelven."
+            ? `Se borran tus pacientes de este dispositivo. La copia ${deWhere(s.where)} no se toca: al volver a entrar, vuelven.`
             : "Tus pacientes se quedan en este dispositivo, pero hará falta entrar con tu cuenta para verlos."}
         </p>
         <Button

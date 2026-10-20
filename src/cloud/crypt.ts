@@ -3,7 +3,9 @@
 // solo hay bytes que sin la contraseña no se pueden leer. La copia en el dispositivo no se cifra (la protege el
 // bloqueo del propio dispositivo).
 //
-// Archivo cifrado: «CENITENC1» + sal (16 bytes) + vector de inicio (12 bytes) + datos cifrados.
+// Archivo cifrado: «CENITENC1» + sal (16 bytes) + vector de inicio (12 bytes) + datos cifrados. Lo cifrado es la base
+// comprimida con gzip (ocupa unas ocho veces menos); una copia antigua, sin comprimir, se sigue abriendo (una base de
+// SQLite empieza por «SQLite format 3», no por la marca de gzip).
 // Cada dispositivo guarda la clave (no la contraseña) de cada cuenta para no pedirla cada vez. El ajuste
 // sincronizado ENCRYPTION_KEY lleva la sal: así todos los dispositivos de la cuenta saben si hay que cifrar.
 
@@ -47,9 +49,15 @@ export async function deriveKey(password: string, salt: string): Promise<CryptoK
   );
 }
 
+async function through(bytes: Uint8Array, stream: CompressionStream | DecompressionStream): Promise<Uint8Array> {
+  return new Uint8Array(await new Response(new Blob([bytes as BlobPart]).stream().pipeThrough(stream)).arrayBuffer());
+}
+const isGzip = (b: Uint8Array) => b[0] === 0x1f && b[1] === 0x8b;
+
 export async function encrypt(bytes: Uint8Array, key: CryptoKey, salt: string): Promise<Uint8Array> {
   const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
-  const data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, bytes as BufferSource));
+  const packed = await through(bytes, new CompressionStream("gzip"));
+  const data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, packed as BufferSource));
   const out = new Uint8Array(MAGIC.length + SALT_BYTES + IV_BYTES + data.byteLength);
   out.set(MAGIC, 0);
   out.set(unb64(salt), MAGIC.length);
@@ -60,12 +68,13 @@ export async function encrypt(bytes: Uint8Array, key: CryptoKey, salt: string): 
 
 export async function decrypt(bytes: Uint8Array, key: CryptoKey): Promise<Uint8Array> {
   const start = MAGIC.length + SALT_BYTES;
+  let plain: Uint8Array;
   try {
-    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.slice(start, start + IV_BYTES) }, key, bytes.slice(start + IV_BYTES));
-    return new Uint8Array(plain);
+    plain = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.slice(start, start + IV_BYTES) }, key, bytes.slice(start + IV_BYTES)));
   } catch {
     throw new WrongPassword();
   }
+  return isGzip(plain) ? through(plain, new DecompressionStream("gzip")) : plain;
 }
 
 // ---------- La clave en este dispositivo ----------

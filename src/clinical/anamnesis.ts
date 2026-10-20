@@ -3,6 +3,7 @@
 // rojas. Las respuestas se guardan por id de campo: si se cambia esta lista, lo ya escrito no se pierde (un
 // campo que se quite se sigue viendo en «Otros datos guardados»). Nombre, fecha de nacimiento y sexo están en
 // los datos del paciente.
+import { PRECAUTIONS } from "../consent/precautions";
 import type { AnswerValue, Answers } from "../data/clinical";
 
 type Base = { id: string; label: string; hint?: string };
@@ -85,6 +86,13 @@ export const ANAMNESIS: Section[] = [
       { id: "fisio_previa", label: "Tratamientos de fisioterapia previos", type: "textarea" },
       { id: "medicacion", label: "Medicación actual", type: "textarea" },
       { id: "alergias", label: "Alergias", type: "text" },
+      {
+        id: "precauciones",
+        label: "Precauciones",
+        type: "multi",
+        options: PRECAUTIONS.map((p) => p.label),
+        hint: "Cambian los riesgos de algunos tratamientos: salen en los consentimientos.",
+      },
       { id: "pruebas", label: "Pruebas complementarias (RX, RM, eco…)", type: "textarea" },
     ],
   },

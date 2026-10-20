@@ -1,22 +1,26 @@
-// Sincronización con la copia de Google Drive. La app trabaja siempre con la base del dispositivo (funciona sin
-// conexión); esto la junta con la de la nube:
+// Sincronización con la copia de la nube: Google Drive o el servidor de la clínica en Cloudflare (remote.ts). La
+// app trabaja siempre con la base del dispositivo (funciona sin conexión); esto la junta con la de la nube:
 // - al abrir la app y cada pocos minutos con la app a la vista, para traer lo hecho en otros dispositivos;
 // - cinco segundos después del último cambio, y al salir de la app, para subir lo hecho aquí.
 // Si la nube ha cambiado desde la última vez, se descarga y se junta fila a fila (src/data/syncMerge.ts) antes de
 // subir: nunca se pisa sin más lo que hizo otro dispositivo.
 //
 // Si la cuenta cifra su copia (crypt.ts), se cifra antes de subir y se descifra al bajar. Sin la clave en este
-// dispositivo no se baja ni se sube nada: se pide la contraseña («needs-key»).
+// dispositivo no se baja ni se sube nada: se pide la contraseña («needs-key»). El servidor de Cloudflare solo
+// guarda copias cifradas: sin contraseña de cifrado no se sube nada («needs-password»).
 import { onDbChange, type Db } from "../data/db";
 import { getSetting } from "../data/repo";
 import type { Account } from "./account";
 import { clearToken, getToken } from "./auth";
 import { decrypt, deriveKey, encrypt, ENCRYPTION_KEY, forgetKey, isEncrypted, saltOf, storedKey, storeKey, WrongPassword, type EncryptionSetting, type StoredKey } from "./crypt";
-import { AuthError, createFile, deleteFile, download, listFiles, updateFile } from "./drive";
+import { AuthError } from "./drive";
+import { driveStore, RemoteConflict, type RemoteStore } from "./remote";
 
-export type SyncStatus = "idle" | "syncing" | "offline" | "needs-auth" | "needs-key" | "error";
+export type SyncStatus = "idle" | "syncing" | "offline" | "needs-auth" | "needs-key" | "needs-password" | "error";
 export type SyncState = {
   status: SyncStatus;
+  /** Dónde está la copia de la nube, para los textos («tu Drive», «el servidor de la clínica»). */
+  where: string;
   /** Última vez que la copia del dispositivo y la de la nube quedaron iguales. */
   lastSyncAt: string | null;
   /** Hay cambios hechos aquí que aún no están en la nube. */
@@ -30,10 +34,17 @@ export type SyncState = {
 
 type Meta = { fileId: string; version: string; lastSyncAt: string };
 
-/** Hace falta la contraseña de la copia de Drive (la sal con la que se cifró) para seguir. */
+/** Hace falta la contraseña de la copia (la sal con la que se cifró) para seguir. */
 class NeedsKey extends Error {
   constructor(readonly salt: string) {
-    super("La copia de Google Drive está cifrada.");
+    super("La copia de la nube está cifrada.");
+  }
+}
+
+/** El almacén solo acepta copias cifradas y la cuenta aún no tiene contraseña de cifrado. */
+class NeedsPassword extends Error {
+  constructor() {
+    super("Hace falta una contraseña para cifrar la copia.");
   }
 }
 
@@ -52,8 +63,9 @@ export class SyncController {
   constructor(
     private db: Db,
     private account: Account,
+    readonly store: RemoteStore = driveStore,
   ) {
-    this.state = { status: "idle", lastSyncAt: this.meta()?.lastSyncAt ?? null, pending: false, newData: false, error: null };
+    this.state = { status: "idle", where: store.where, lastSyncAt: this.meta()?.lastSyncAt ?? null, pending: false, newData: false, error: null };
   }
 
   private get metaKey() {
@@ -138,10 +150,12 @@ export class SyncController {
     }
     this.running = (async () => {
       try {
+        // Otra vuelta si han llegado cambios mientras tanto, o si otro dispositivo subió a la vez (con un límite).
+        let rounds = 0;
         do {
           this.again = false;
           await this.once();
-        } while (this.again);
+        } while (this.again && ++rounds < 5);
       } finally {
         this.running = null;
       }
@@ -164,10 +178,10 @@ export class SyncController {
     if (!navigator.onLine) return this.set({ status: "offline" });
     this.set({ status: "syncing", error: null });
     try {
-      const t = token.accessToken;
+      const store = this.store;
       const [s] = await this.db.query<{ changes: number; pushed: number }>("select changes, pushed from sync_state");
       const dirty = s!.changes > s!.pushed;
-      const files = await listFiles(t);
+      const files = await store.list(token);
       const meta = this.meta();
       let pulled = 0;
       let key = await storedKey(this.account.sub);
@@ -175,7 +189,7 @@ export class SyncController {
       if (!files.length) {
         // Primera vez: la copia de este dispositivo es la de la nube.
         const snap = await this.db.snapshot();
-        const f = await createFile(t, await this.seal(snap.bytes, key));
+        const f = await store.create(token, await this.seal(snap.bytes, key));
         await this.markPushed(snap.changes);
         this.saveMeta({ fileId: f.id, version: f.version, lastSyncAt: new Date().toISOString() });
       } else {
@@ -187,7 +201,7 @@ export class SyncController {
           // subieron la primera a la vez: se juntan las dos y se queda una.)
           needUpload = !!extra.length;
           for (const f of files) {
-            const bytes = await this.open(await download(t, f.id), key);
+            const bytes = await this.open(await store.download(token, f), key);
             const r = await this.own(() => this.db.merge(bytes));
             pulled += r.pulled;
             needUpload ||= r.needUpload;
@@ -204,16 +218,21 @@ export class SyncController {
         let version = main!.version;
         if (needUpload) {
           const snap = await this.db.snapshot();
-          version = (await updateFile(t, main!.id, await this.seal(snap.bytes, key))).version;
+          version = (await store.update(token, main!, await this.seal(snap.bytes, key))).version;
           await this.markPushed(snap.changes);
-          for (const f of extra) await deleteFile(t, f.id);
+          for (const f of extra) await store.remove(token, f);
         }
         this.saveMeta({ fileId: main!.id, version, lastSyncAt: new Date().toISOString() });
       }
       await this.refreshPending();
       this.set({ status: "idle", lastSyncAt: this.meta()!.lastSyncAt, newData: this.state.newData || pulled > 0, keySalt: null });
     } catch (e) {
-      if (e instanceof NeedsKey) {
+      if (e instanceof RemoteConflict) {
+        // Otro dispositivo ha subido entre medias: otra vuelta, que baja lo suyo, lo junta y sube.
+        this.again = true;
+      } else if (e instanceof NeedsPassword) {
+        this.set({ status: "needs-password" });
+      } else if (e instanceof NeedsKey) {
         this.set({ status: "needs-key", keySalt: e.salt });
       } else if (e instanceof AuthError) {
         clearToken();
@@ -234,7 +253,10 @@ export class SyncController {
   /** La copia para subir: cifrada si la cuenta cifra (sin la clave, no se sube). */
   private async seal(bytes: Uint8Array, key: StoredKey | null): Promise<Uint8Array> {
     const enc = await this.encryption();
-    if (!enc) return bytes;
+    if (!enc) {
+      if (this.store.encryptedOnly) throw new NeedsPassword();
+      return bytes;
+    }
     if (!key || key.salt !== enc.salt) throw new NeedsKey(enc.salt);
     return encrypt(bytes, key.key, key.salt);
   }
@@ -261,32 +283,32 @@ export class SyncController {
     const salt = this.state.keySalt;
     if (!salt) return;
     const token = getToken();
-    if (!token || !navigator.onLine) throw new Error("Hace falta conexión para comprobar la contraseña con tu Drive.");
+    if (!token || !navigator.onLine) throw new Error(`Hace falta conexión para comprobar la contraseña con ${this.store.where}.`);
     const key = await deriveKey(password, salt);
-    // Se comprueba con la copia de Drive: una clave equivocada cifraría la copia con otra contraseña.
-    const files = await listFiles(token.accessToken);
+    // Se comprueba con la copia de la nube: una clave equivocada cifraría la copia con otra contraseña.
+    const files = await this.store.list(token);
     let checked = false;
     for (const f of files) {
-      const bytes = await download(token.accessToken, f.id);
+      const bytes = await this.store.download(token, f);
       if (isEncrypted(bytes) && saltOf(bytes) === salt) {
         await decrypt(bytes, key); // WrongPassword si no es
         checked = true;
         break;
       }
     }
-    if (!checked) throw new Error("No hay en tu Drive una copia cifrada con la que comprobar la contraseña. Pulsa «He olvidado la contraseña» para sustituirla por la de este dispositivo.");
+    if (!checked) throw new Error(`No hay en ${this.store.where} una copia cifrada con la que comprobar la contraseña. Pulsa «He olvidado la contraseña» para sustituirla por la de este dispositivo.`);
     await storeKey(this.account.sub, salt, key);
     await this.sync();
   }
 
   /**
-   * Contraseña olvidada: borra las copias de Drive y sube la de este dispositivo (sin cifrar, o con la contraseña
-   * nueva si se ha activado otra vez). Lo que solo estuviera en Drive se pierde.
+   * Contraseña olvidada: borra las copias de la nube y sube la de este dispositivo (sin cifrar, o con la contraseña
+   * nueva si se ha activado otra vez). Lo que solo estuviera en la nube se pierde.
    */
   async replaceRemote(): Promise<void> {
     const token = getToken();
     if (!token) throw new Error("Vuelve a entrar con Google.");
-    for (const f of await listFiles(token.accessToken)) await deleteFile(token.accessToken, f.id);
+    for (const f of await this.store.list(token)) await this.store.remove(token, f);
     this.forgetMeta();
     this.set({ keySalt: null });
     await this.sync();
