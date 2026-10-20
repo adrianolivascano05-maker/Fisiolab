@@ -2,6 +2,7 @@
 // permiso para dar de alta la suya (cloudflare/worker.js, /v1/solicitud). El proveedor lo acepta desde su panel.
 import { RefreshCw, Send } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { SUPPORT_EMAIL } from "../app/contact";
 import { fmtDate } from "../app/format";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -71,7 +72,7 @@ export function AccessRequestCards({ me, baseUrl, clientId }: { me: Me; baseUrl:
         </Card>
       ) : request?.status === "rejected" ? (
         <Alert tone="warning" title="Tu solicitud para dar de alta una clínica no se ha aceptado">
-          Si crees que es un error, habla con quien te ofreció la app.
+          Si crees que es un error, escríbenos a {SUPPORT_EMAIL}.
         </Alert>
       ) : (
         <Card>
@@ -98,6 +99,12 @@ export function AccessRequestCards({ me, baseUrl, clientId }: { me: Me; baseUrl:
         </Card>
       )}
       {failure && <Alert tone="danger" title={failure} />}
+      <p className="text-center text-sm text-text-muted">
+        ¿Dudas? Escríbenos a{" "}
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-accent underline underline-offset-2">
+          {SUPPORT_EMAIL}
+        </a>
+      </p>
     </>
   );
 }

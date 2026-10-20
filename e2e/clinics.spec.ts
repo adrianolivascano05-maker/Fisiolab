@@ -564,6 +564,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByRole("region", { name: "Rechazadas" }).getByRole("button", { name: /bruno@clinica\.test/ })).toBeVisible();
     await bruno.getByRole("button", { name: "Volver a comprobar" }).first().click();
     await expect(bruno.getByText("Tu solicitud para dar de alta una clínica no se ha aceptado")).toBeVisible({ timeout: 15_000 });
+    await expect(bruno.getByText("Si crees que es un error, escríbenos a cenitfisiolab@gmail.com.")).toBeVisible();
     await expect(bruno.getByRole("button", { name: "Solicitar acceso" })).toHaveCount(0);
     expect(errors).toEqual([]);
   });

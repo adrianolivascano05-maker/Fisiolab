@@ -142,6 +142,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     await expectAccessible(page);
     await page.getByRole("link", { name: /Cómo se usa/ }).click();
     await expect(page.getByRole("heading", { name: "Cómo se usa" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "cenitfisiolab@gmail.com" })).toHaveAttribute("href", "mailto:cenitfisiolab@gmail.com");
     await expect(page.getByRole("list", { name: "Pasos" }).getByRole("listitem")).toHaveCount(7);
     await expectAccessible(page);
   });

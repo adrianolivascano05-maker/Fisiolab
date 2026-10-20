@@ -2,6 +2,7 @@
 import { BookOpen, Settings, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import { SUPPORT_EMAIL } from "../app/contact";
 import { Page } from "../app/Page";
 import { RECORD_ONLY } from "../clinical/reportParts";
 import { Card } from "../ui/Card";
@@ -149,6 +150,19 @@ export function HelpPage() {
             antes de imprimir la hoja de protección de datos.
           </li>
         </ul>
+      </section>
+
+      <section aria-labelledby="h-contacto" className="flex flex-col gap-2">
+        <h2 id="h-contacto" className="text-lg">
+          Contacto
+        </h2>
+        <p className="text-sm">
+          ¿Dudas, un problema o quieres dar de alta tu clínica? Escribe a{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className={link}>
+            {SUPPORT_EMAIL}
+          </a>
+          .
+        </p>
       </section>
     </Page>
   );
