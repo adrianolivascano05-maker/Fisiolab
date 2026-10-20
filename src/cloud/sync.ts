@@ -5,9 +5,9 @@
 // Si la nube ha cambiado desde la última vez, se descarga y se junta fila a fila (src/data/syncMerge.ts) antes de
 // subir: nunca se pisa sin más lo que hizo otro dispositivo.
 //
-// Si la cuenta cifra su copia (crypt.ts), se cifra antes de subir y se descifra al bajar. Sin la clave en este
-// dispositivo no se baja ni se sube nada: se pide la contraseña («needs-key»). El servidor de Cloudflare solo
-// guarda copias cifradas: sin contraseña de cifrado no se sube nada («needs-password»).
+// La copia va siempre cifrada (crypt.ts): se cifra antes de subir y se descifra al bajar. Sin contraseña de
+// cifrado en la cuenta no se sube nada («needs-password»); con ella pero sin la clave en este dispositivo, no se baja
+// ni se sube nada hasta escribirla («needs-key»). Una copia antigua sin cifrar se sigue pudiendo bajar y juntar.
 import { onDbChange, type Db } from "../data/db";
 import { getSetting } from "../data/repo";
 import type { Account } from "./account";
@@ -41,7 +41,7 @@ class NeedsKey extends Error {
   }
 }
 
-/** El almacén solo acepta copias cifradas y la cuenta aún no tiene contraseña de cifrado. */
+/** La cuenta aún no tiene contraseña de cifrado: no se sube nada sin cifrar. */
 class NeedsPassword extends Error {
   constructor() {
     super("Hace falta una contraseña para cifrar la copia.");
@@ -207,12 +207,11 @@ export class SyncController {
             needUpload ||= r.needUpload;
           }
           if (!needUpload) await this.markPushed(s!.changes);
-          // Si otro dispositivo ha dejado de cifrar, o ha cambiado la contraseña, la clave de aquí ya no vale.
+          // Si otro dispositivo ha cambiado la contraseña, la clave de aquí ya no vale.
           const enc = await this.encryption();
           if (key && (!enc || enc.salt !== key.salt)) {
-            forgetKey(this.account.sub);
+            await forgetKey(this.account.sub);
             key = null;
-            needUpload ||= !enc; // que la copia de Drive quede sin cifrar también
           }
         }
         let version = main!.version;
@@ -250,13 +249,10 @@ export class SyncController {
     return (await getSetting<EncryptionSetting>(this.db, ENCRYPTION_KEY)) ?? null;
   }
 
-  /** La copia para subir: cifrada si la cuenta cifra (sin la clave, no se sube). */
+  /** La copia para subir, cifrada (sin contraseña o sin la clave, no se sube). */
   private async seal(bytes: Uint8Array, key: StoredKey | null): Promise<Uint8Array> {
     const enc = await this.encryption();
-    if (!enc) {
-      if (this.store.encryptedOnly) throw new NeedsPassword();
-      return bytes;
-    }
+    if (!enc) throw new NeedsPassword();
     if (!key || key.salt !== enc.salt) throw new NeedsKey(enc.salt);
     return encrypt(bytes, key.key, key.salt);
   }
@@ -270,7 +266,7 @@ export class SyncController {
       return await decrypt(bytes, key.key);
     } catch (e) {
       // La clave guardada ya no abre la copia (otra contraseña con la misma sal no puede darse, pero por si acaso).
-      if (e instanceof WrongPassword) forgetKey(this.account.sub);
+      if (e instanceof WrongPassword) await forgetKey(this.account.sub);
       throw new NeedsKey(salt);
     }
   }

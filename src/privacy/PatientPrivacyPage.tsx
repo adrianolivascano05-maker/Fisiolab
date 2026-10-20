@@ -10,7 +10,7 @@ import { useAsync } from "../app/useAsync";
 import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
 import { ADULT_CONSENT_AGE, ageOn, clinicComplete, CONSENTS, getClinic, savePatientPrivacy, type PatientPrivacy } from "../data/privacy";
-import { getPatient, getSetting } from "../data/repo";
+import { getPatient } from "../data/repo";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -18,7 +18,6 @@ import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { cx } from "../ui/cx";
 import { PrivacyNotice, type Storage } from "./PrivacyNotice";
-import { ENCRYPTION_KEY } from "../cloud/crypt";
 
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
@@ -28,8 +27,8 @@ export function PatientPrivacyPage() {
   const toast = useToast();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, clinic, encrypted] = await Promise.all([getPatient(db, id), getClinic(db), getSetting(db, ENCRYPTION_KEY)]);
-    return { patient, clinic, encrypted: !!encrypted };
+    const [patient, clinic] = await Promise.all([getPatient(db, id), getClinic(db)]);
+    return { patient, clinic };
   }, [id]);
   const [form, setForm] = useState<PatientPrivacy | null>(null);
   const [saving, setSaving] = useState(false);
@@ -45,10 +44,10 @@ export function PatientPrivacyPage() {
   );
   if (data.error) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={data.error} /></main></>;
   if (!data.data || !form) return <>{bar}<main className="mx-auto max-w-3xl p-4"><Loading /></main></>;
-  const { patient, clinic, encrypted } = data.data;
+  const { patient, clinic } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
 
-  const storage: Storage = !cloud ? "local" : cloud.sync.store.encryptedOnly ? "server" : encrypted ? "cloud-encrypted" : "cloud";
+  const storage: Storage = !cloud ? "local" : cloud.sync.store.kind === "server" ? "server" : "cloud";
   const years = ageOn(patient.birthDate);
   const minor = years !== null && years < ADULT_CONSENT_AGE;
   const saved = patient.privacy;
@@ -77,7 +76,7 @@ export function PatientPrivacyPage() {
               .
             </Alert>
           )}
-          {cloud && !cloud.sync.store.encryptedOnly && !clinic.googleDpa && (
+          {cloud && cloud.sync.store.kind === "drive" && !clinic.googleDpa && (
             <Alert tone="warning" title="Falta el contrato con Google">
               Para guardar historias clínicas en Google Drive hace falta un contrato de encargado del tratamiento con Google (cuentas de Google Workspace de la
               clínica). Con una cuenta de Gmail normal no lo hay.

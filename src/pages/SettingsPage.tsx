@@ -68,7 +68,7 @@ export function SettingsPage() {
           icon={UserRound}
           title={cloud ? cloud.account.name : "Cuenta de Google"}
           subtitle={cloud && sync ? `${cloud.account.email} · ${syncText(sync)}` : "Sin conectar"}
-          warn={!!sync && (sync.status === "needs-auth" || sync.status === "needs-key" || sync.status === "error")}
+          warn={!!sync && (sync.status === "needs-auth" || sync.status === "needs-key" || sync.status === "needs-password" || sync.status === "error")}
         />
         <RowLink
           to="/ajustes/clinica"
@@ -100,8 +100,11 @@ export function SettingsPage() {
           subtitle={install.state === "installed" ? "Instalada en este dispositivo" : "En este y en otros dispositivos"}
         />
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
-        <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Con una plataforma, un encoder o un goniómetro" />
         <RowLink to="/privacidad" icon={ShieldCheck} title="Privacidad" />
+      </Group>
+
+      <Group title="Avanzado">
+        <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
       </Group>
 
       {state.data && (
@@ -194,9 +197,9 @@ export function DataSettingsPage() {
         </h2>
         <p className="text-sm text-text-muted">
           {cloud
-            ? cloud.sync.store.encryptedOnly
+            ? cloud.sync.store.kind === "server"
               ? "Se guardan en este dispositivo y, cada vez que cambian, cifrados en el servidor de la clínica (Cloudflare, en la Unión Europea). La copia de seguridad en archivo es opcional."
-              : "Se guardan en este dispositivo y, cada vez que cambian, en tu Google Drive (una carpeta oculta que solo usa esta app). La copia de seguridad en archivo es opcional."
+              : "Se guardan en este dispositivo y, cada vez que cambian, cifrados en tu Google Drive (una carpeta oculta que solo usa esta app). La copia de seguridad en archivo es opcional."
             : "Todo se guarda solo en este dispositivo. Nada se envía a ningún servidor. Por eso conviene hacer una copia de seguridad cada semana."}
         </p>
         {state.data && !state.data.info.persistent && <Alert tone="warning" title="Este navegador no guarda los datos">Se perderán al cerrar la pestaña.</Alert>}

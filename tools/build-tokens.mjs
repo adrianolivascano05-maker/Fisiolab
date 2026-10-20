@@ -1,15 +1,15 @@
-// Genera src/styles/tokens.css desde replica/design/tokens.json.
+// Genera src/styles/tokens.css desde src/styles/tokens.json.
 // El bloque @theme de Tailwind 4 crea las variables CSS y las clases (bg-surface, text-muted...).
 // Se vacían los valores por defecto de Tailwind para que solo existan los roles del sistema.
 import { readFileSync, writeFileSync } from "node:fs";
 
-const src = new URL("../replica/design/tokens.json", import.meta.url);
+const src = new URL("../src/styles/tokens.json", import.meta.url);
 const out = new URL("../src/styles/tokens.css", import.meta.url);
 const t = JSON.parse(readFileSync(src, "utf8"));
 const px = (n) => `${n}px`;
 
 const lines = [
-  "/* Generado por tools/build-tokens.mjs desde replica/design/tokens.json. No editar a mano. */",
+  "/* Generado por tools/build-tokens.mjs desde src/styles/tokens.json. No editar a mano. */",
   "@theme {",
   "  --color-*: initial;",
   "  --color-white: #ffffff;",

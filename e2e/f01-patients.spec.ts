@@ -60,7 +60,7 @@ test.describe("F01 Dar de alta un paciente", () => {
     await expect(page.getByRole("link", { name: /Jorge Ruiz/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Lucía/ })).toHaveCount(0);
     await page.getByLabel("Buscar paciente").fill("zzz");
-    await expect(page.getByText("Ningún paciente se llama «zzz».")).toBeVisible();
+    await expect(page.getByText("Ningún paciente coincide con «zzz».")).toBeVisible();
   });
 
   test("F01-N1 borrar paciente pide confirmación y lo borra", async ({ page }) => {

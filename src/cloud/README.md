@@ -69,7 +69,7 @@ de la última cuenta que entró en él.
 | `AccountPages.tsx` | la tarjeta de la cuenta en la pantalla principal y la pantalla para pegar el ID de cliente en el dispositivo |
 | `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «Cénit · Citas» que crea la app |
 | `saveToDrive.ts`, `DriveSaveButton.tsx` | guardar el informe en PDF y los resultados en CSV en la carpeta «Cénit · Fisiolab» de Drive |
-| `crypt.ts`, `EncryptionParts.tsx` | cifrado opcional de la copia de Drive con una contraseña, y pedirla en otro dispositivo |
+| `crypt.ts`, `EncryptionParts.tsx` | cifrado obligatorio de la copia con una contraseña, y pedirla en otro dispositivo |
 | `CloudGate.tsx` | pantallas de entrada (y de pasar a la cuenta los datos que había sin cuenta), aviso de sincronización y la sección «Cuenta» de Ajustes |
 | `../data/migrations/008_sync.sql`, `../data/syncMerge.ts` | registro de cambios por fila y fusión de dos copias |
 
@@ -102,23 +102,27 @@ de la última cuenta que entró en él.
   sesión (`cenit` + su id), así que dos dispositivos dejan un solo evento. Una cita cambiada se mueve; una que ya
   no está (otra sesión con otra cita, sesión o paciente borrados) se quita. Las citas pasadas o empezadas no se
   tocan. Si nada ha cambiado, no se pregunta a Google hasta media hora después. En Ajustes → Cuenta de Google → Google Calendar se
-  desactiva o se elige que salgan solo las iniciales del paciente. Con esto activado, al guardar una sesión ya no
+  desactiva o se elige si sale el nombre del paciente o solo sus iniciales (por defecto, las iniciales). Con esto activado, al guardar una sesión ya no
   se ofrece el enlace de Google Calendar ni el .ics.
 - **Informe y resultados en Drive.** «Guardar en mi Drive (PDF)» en el informe y «Guardar los resultados en mi
   Drive (CSV)» en Ajustes los suben a la carpeta «Cénit · Fisiolab» de «Mi unidad», que la app crea la primera vez
   (su id va en el ajuste sincronizado `drive_folder_id`). El PDF es el informe dibujado tal como se ve, una imagen
   por página A4 (`../clinical/reportPdf.ts` con html-to-image, y `../app/pdf.ts`): el texto no se puede
   seleccionar. Estos archivos no se cifran aunque la copia sí lo esté.
-- **Copia cifrada (opcional en Drive, obligatoria en Cloudflare).** En Ajustes → Cuenta de Google → Cifrado de la copia. La base se comprime (gzip) y se cifra en el dispositivo antes
-  de subirla, con AES-GCM de 256 bits y una clave sacada de la contraseña con PBKDF2-SHA-256 (600 000 vueltas).
-  En Drive solo hay bytes ilegibles sin la contraseña. El archivo empieza por `CENITENC1`, seguido de la sal y el
-  vector de inicio. La sal va también en el ajuste sincronizado `drive_encryption`: así todos los dispositivos de
-  la cuenta saben que hay que cifrar. Cada dispositivo guarda la clave, no la contraseña, en su almacenamiento.
+- **Copia siempre cifrada (en Drive y en Cloudflare).** La primera vez la app pide una contraseña de cifrado
+  («needs-password», Ajustes → Cuenta de Google → Cifrado de la copia) y no sube nada hasta tenerla; no se puede
+  dejar de cifrar. La base se comprime (gzip) y se cifra en el dispositivo antes de subirla, con AES-GCM de 256 bits
+  y una clave sacada de la contraseña con PBKDF2-SHA-256 (600 000 vueltas). En la nube solo hay bytes ilegibles sin
+  la contraseña. El archivo empieza por `CENITENC1`, seguido de la sal y el vector de inicio. La sal va también en el
+  ajuste sincronizado `drive_encryption`: así todos los dispositivos de la cuenta saben con qué se cifró. Una copia
+  antigua sin cifrar se sigue pudiendo bajar y juntar; la siguiente subida ya va cifrada.
+  - Cada dispositivo guarda la clave, no la contraseña, en IndexedDB y marcada como no exportable: la app la usa,
+    pero no se puede leer ni copiar (las versiones anteriores la tenían en `localStorage`; se pasa sola).
   - Un dispositivo sin la clave no baja ni sube nada: pide la contraseña («needs-key») y la comprueba con la copia
-    de Drive antes de guardarla.
-  - Cambiar la contraseña o dejar de cifrar en un dispositivo hace que los demás la pidan de nuevo, o que olviden
-    la clave.
-  - Si se olvida la contraseña, se puede sustituir la copia de Drive por la del dispositivo, sin cifrar.
+    antes de guardarla.
+  - Cambiar la contraseña en un dispositivo hace que los demás la pidan de nuevo.
+  - Si se olvida la contraseña, se puede sustituir la copia de la nube por la del dispositivo, cifrada con una
+    contraseña nueva.
   - Cerrar sesión borrando los datos del dispositivo borra también la clave.
 - **Una tabla nueva** en una migración necesita sus tres disparadores (como en la 008) y su línea en `SYNC_TABLES`
   de `syncMerge.ts`. `src/data/sync.test.ts` falla si falta alguno.
@@ -126,8 +130,8 @@ de la última cuenta que entró en él.
 ## Privacidad
 
 Son datos de salud. La copia vive en el Google Drive de cada fisioterapeuta, y Google la trata según las
-condiciones de esa cuenta. Se puede cifrar con una contraseña (arriba). Si no se cifra, la protege solo la cuenta
-de Google. En los dos casos conviene activar la verificación en dos pasos. La clínica debe revisar con su delegado de protección de datos si las cuentas
+condiciones de esa cuenta. Va cifrada con una contraseña que solo tiene la clínica (arriba); aun así conviene activar
+la verificación en dos pasos. La clínica debe revisar con su delegado de protección de datos si las cuentas
 personales de Google son adecuadas, o si conviene usar cuentas de Google Workspace de la clínica, que tienen
 contrato de encargado del tratamiento. Para historias clínicas ese contrato hace falta (art. 28 del RGPD), y la
 app lo recuerda en Ajustes → Clínica y protección de datos hasta que se marca que existe. Más en `../privacy/README.md`.
@@ -138,8 +142,7 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
 
 - La copia va al servidor de la clínica (Cloudflare Workers + D1 con jurisdicción `eu`), no a Drive, y la app ya no
   pide el permiso de la carpeta oculta de Drive (`drive.appdata`).
-- **Solo se guardan copias cifradas**: la primera vez la app pide una contraseña de cifrado («needs-password») y no
-  sube nada hasta tenerla. No se puede «dejar de cifrar». El servidor rechaza lo que no empiece por `CENITENC1`.
+- Como en Drive, solo se suben copias cifradas; además, el servidor rechaza lo que no empiece por `CENITENC1`.
 - El servidor comprueba el token de Google de cada petición (que sea de esta app y de un correo de
   `ALLOWED_EMAILS`) y guarda una copia por cuenta. Al subir dice qué versión sustituye: si otro dispositivo subió
   entre medias, responde 412 y la app vuelve a bajar, juntar y subir.

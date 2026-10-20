@@ -1,6 +1,5 @@
-// Cifrado de la copia de la nube en pantalla (crypt.ts): activarlo, cambiar la contraseña o quitarlo en Ajustes, y
-// pedir la contraseña en un dispositivo que aún no la tiene. El servidor de Cloudflare solo acepta copias cifradas:
-// ahí no se puede dejar de cifrar.
+// Cifrado de la copia de la nube en pantalla (crypt.ts): elegir o cambiar la contraseña en Ajustes, y pedirla en un
+// dispositivo que aún no la tiene. La copia va siempre cifrada, en Drive y en el servidor de la clínica.
 import { KeyRound, ShieldCheck, TriangleAlert } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { useAsync } from "../app/useAsync";
@@ -16,9 +15,9 @@ import { deriveKey, ENCRYPTION_KEY, forgetKey, MIN_PASSWORD, newSalt, storeKey, 
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** «la copia de tu Drive» o «la copia del servidor de la clínica», y si se puede guardar sin cifrar. */
+/** «la copia de tu Drive» o «la copia del servidor de la clínica». */
 function copyName(cloud: NonNullable<ReturnType<typeof useCloud>>) {
-  const server = cloud.sync.store.encryptedOnly;
+  const server = cloud.sync.store.kind === "server";
   return {
     copy: server ? "la copia del servidor de la clínica" : "la copia de tu Drive",
     Copy: server ? "Copia del servidor" : "Copia de Drive",
@@ -33,7 +32,7 @@ export function EncryptionSettings() {
   const s = useSyncState();
   const toast = useToast();
   const enc = useAsync(async () => (await getSetting<EncryptionSetting>(getDb(), ENCRYPTION_KEY)) ?? null, []);
-  const [mode, setMode] = useState<null | "set" | "off">(null);
+  const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [error, setError] = useState<{ field: "password" | "repeat"; text: string } | null>(null);
@@ -42,8 +41,8 @@ export function EncryptionSettings() {
   const on = !!enc.data;
   const { copy, Copy, server } = copyName(cloud);
 
-  const open = (m: "set" | "off") => {
-    setMode(m);
+  const start = () => {
+    setOpen(true);
     setPassword("");
     setRepeat("");
     setError(null);
@@ -52,22 +51,15 @@ export function EncryptionSettings() {
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!cloud) return;
-    if (mode === "set") {
-      if (password.length < MIN_PASSWORD) return setError({ field: "password", text: `Al menos ${MIN_PASSWORD} caracteres.` });
-      if (password !== repeat) return setError({ field: "repeat", text: "No coincide con la contraseña." });
-    }
+    if (password.length < MIN_PASSWORD) return setError({ field: "password", text: `Al menos ${MIN_PASSWORD} caracteres.` });
+    if (password !== repeat) return setError({ field: "repeat", text: "No coincide con la contraseña." });
     setBusy(true);
     try {
-      if (mode === "set") {
-        const salt = newSalt();
-        await storeKey(cloud.account.sub, salt, await deriveKey(password, salt));
-        await setSetting(getDb(), ENCRYPTION_KEY, { salt });
-      } else {
-        await setSetting(getDb(), ENCRYPTION_KEY, null);
-        forgetKey(cloud.account.sub);
-      }
-      toast(mode === "set" ? (on ? "Contraseña cambiada" : `${Copy} cifrada`) : `${Copy} ya no se cifra`, "success");
-      setMode(null);
+      const salt = newSalt();
+      await storeKey(cloud.account.sub, salt, await deriveKey(password, salt));
+      await setSetting(getDb(), ENCRYPTION_KEY, { salt });
+      toast(on ? "Contraseña cambiada" : `${Copy} cifrada`, "success");
+      setOpen(false);
       enc.reload();
       void cloud.sync.sync();
     } catch (err) {
@@ -90,24 +82,17 @@ export function EncryptionSettings() {
         ) : server ? (
           <p>El servidor de la clínica solo guarda copias cifradas. Elige una contraseña: sin ella nadie puede leer la copia, tampoco Cloudflare.</p>
         ) : (
-          <p>Cifra la copia de tu Drive con una contraseña: sin ella, nadie puede leerla, ni entrando en tu cuenta de Google.</p>
+          <p>La copia de tu Drive va siempre cifrada. Elige una contraseña: sin ella nadie puede leerla, ni entrando en tu cuenta de Google. Hasta entonces, no se sube nada.</p>
         )}
         {s.status === "needs-key" ? (
           <KeyPrompt />
         ) : on ? (
-          <>
-            <Button variant="secondary" onClick={() => open("set")}>
-              Cambiar la contraseña
-            </Button>
-            {!server && (
-              <Button variant="ghost" onClick={() => open("off")}>
-                Dejar de cifrar
-              </Button>
-            )}
-          </>
+          <Button variant="secondary" onClick={start}>
+            Cambiar la contraseña
+          </Button>
         ) : (
-          <Button icon={<KeyRound aria-hidden="true" className="size-5" />} onClick={() => open("set")}>
-            {server ? "Elegir la contraseña de cifrado" : "Cifrar la copia de Drive"}
+          <Button icon={<KeyRound aria-hidden="true" className="size-5" />} onClick={start}>
+            Elegir la contraseña de cifrado
           </Button>
         )}
         <p className="text-sm text-text-muted">
@@ -116,34 +101,28 @@ export function EncryptionSettings() {
         </p>
       </Card>
 
-      <Sheet open={mode !== null} onClose={() => setMode(null)} title={mode === "off" ? "¿Dejar de cifrar la copia?" : on ? "Cambiar la contraseña" : server ? "Contraseña de cifrado" : "Cifrar la copia de Drive"}>
+      <Sheet open={open} onClose={() => setOpen(false)} title={on ? "Cambiar la contraseña" : "Contraseña de cifrado"}>
         <form className="flex flex-col gap-3" noValidate onSubmit={submit}>
-          {mode === "off" ? (
-            <p>La copia de tu Drive volverá a guardarse sin cifrar. Seguirá protegida por tu cuenta de Google.</p>
-          ) : (
-            <>
-              <TextField
-                label={on ? "Contraseña nueva" : "Contraseña"}
-                type="password"
-                autoComplete="new-password"
-                hint={`Al menos ${MIN_PASSWORD} caracteres. Mejor una frase que no uses en otro sitio.`}
-                value={password}
-                error={error?.field === "password" ? error.text : undefined}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <TextField
-                label="Repite la contraseña"
-                type="password"
-                autoComplete="new-password"
-                value={repeat}
-                error={error?.field === "repeat" ? error.text : undefined}
-                onChange={(e) => setRepeat(e.target.value)}
-              />
-              {on && <p className="text-sm text-text-muted">Tus otros dispositivos te pedirán la contraseña nueva.</p>}
-            </>
-          )}
-          <Button type="submit" block loading={busy} variant={mode === "off" ? "danger" : "primary"}>
-            {mode === "off" ? "Dejar de cifrar" : on ? "Cambiar la contraseña" : "Cifrar"}
+          <TextField
+            label={on ? "Contraseña nueva" : "Contraseña"}
+            type="password"
+            autoComplete="new-password"
+            hint={`Al menos ${MIN_PASSWORD} caracteres. Mejor una frase que no uses en otro sitio.`}
+            value={password}
+            error={error?.field === "password" ? error.text : undefined}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <TextField
+            label="Repite la contraseña"
+            type="password"
+            autoComplete="new-password"
+            value={repeat}
+            error={error?.field === "repeat" ? error.text : undefined}
+            onChange={(e) => setRepeat(e.target.value)}
+          />
+          {on && <p className="text-sm text-text-muted">Tus otros dispositivos te pedirán la contraseña nueva.</p>}
+          <Button type="submit" block loading={busy}>
+            {on ? "Cambiar la contraseña" : "Cifrar"}
           </Button>
         </form>
       </Sheet>
@@ -161,7 +140,7 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (!cloud) return null;
-  const { copy, Copy, short, server } = copyName(cloud);
+  const { copy, Copy, short } = copyName(cloud);
 
   return (
     <>
@@ -209,8 +188,8 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
       </Sheet>
       <Sheet open={forgot} onClose={() => setForgot(false)} title={`¿Sustituir ${short}?`}>
         <p>
-          Sin la contraseña, {copy} no se puede abrir. Puedes sustituirla por lo que hay en este dispositivo
-          {server ? ", cifrado con una contraseña nueva que elegirás después." : ", sin cifrar."}
+          Sin la contraseña, {copy} no se puede abrir. Puedes sustituirla por lo que hay en este dispositivo, cifrado con una contraseña nueva
+          que elegirás después.
         </p>
         <p className="flex items-start gap-2 rounded-md bg-warning-soft p-3 text-sm">
           <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" /> Lo que solo esté en {copy} se pierde. Si otro
@@ -224,7 +203,7 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
             setBusy(true);
             try {
               await setSetting(getDb(), ENCRYPTION_KEY, null);
-              forgetKey(cloud.account.sub);
+              await forgetKey(cloud.account.sub);
               await cloud.sync.replaceRemote();
               setForgot(false);
               setOpen(false);

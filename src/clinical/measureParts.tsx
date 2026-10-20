@@ -70,8 +70,9 @@ export function TrendTiles({ tests, limit }: { tests: TestSummary[]; limit?: num
         return (
           <li key={tr.title}>
             <Link to={`/tests/${tr.latest.id}`} className="block">
-              <Card className="flex items-center gap-3 hover:border-accent">
-                <span className="flex min-w-0 flex-1 flex-col">
+              {/* Si no cabe en una línea (tarjetas a dos columnas), la gráfica y el valor bajan debajo del nombre. */}
+              <Card className="flex flex-wrap items-center gap-x-3 gap-y-1 hover:border-accent">
+                <span className="flex min-w-36 flex-1 flex-col">
                   <span className="truncate font-semibold">{tr.title}</span>
                   <span className="text-sm text-text-muted">
                     {fmtDate(tr.latest.performedAt)}
@@ -79,7 +80,7 @@ export function TrendTiles({ tests, limit }: { tests: TestSummary[]; limit?: num
                   </span>
                 </span>
                 <Sparkline values={tr.series} />
-                <span className="nums flex flex-col items-end">
+                <span className="nums ml-auto flex shrink-0 flex-col items-end">
                   <span>
                     {tr.value.prefix && <span className="text-sm text-text-muted">{tr.value.prefix} </span>}
                     <span className="text-xl">{tr.value.unit === "°" ? `${tr.value.text}°` : tr.value.text}</span>

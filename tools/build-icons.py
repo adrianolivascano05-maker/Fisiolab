@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
-tokens = json.loads((ROOT / "replica/design/tokens.json").read_text())
+tokens = json.loads((ROOT / "src/styles/tokens.json").read_text())
 import math
 
 ACCENT = tokens["color"]["brand"]

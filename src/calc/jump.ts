@@ -1,4 +1,4 @@
-// Fórmulas de salto. Todas son ciencia publicada (ver replica/architecture.md, tabla de fórmulas).
+// Fórmulas de salto. Todas son ciencia publicada (las referencias, junto a cada fórmula).
 // Entradas y salidas en SI: segundos, metros, kilogramos, newtons, vatios.
 
 export const G = 9.81;

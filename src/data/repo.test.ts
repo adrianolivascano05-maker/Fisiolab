@@ -13,6 +13,7 @@ import {
   saveVideo,
   type PatientInput,
 } from "./repo";
+import { saveAnamnesis } from "./clinical";
 import { createTestDb } from "./testDb";
 import { marksFromFrames } from "../calc/results";
 
@@ -76,6 +77,19 @@ describe("base de datos", () => {
     await createPatient(db, ana);
     await createPatient(db, { ...ana, name: "Jorge Ruiz" });
     expect((await listPatients(db, "jor")).map((p) => p.name)).toEqual(["Jorge Ruiz"]);
+  });
+
+  it("busca sin tildes y también por teléfono, motivo y diagnóstico", async () => {
+    const lucia = await createPatient(db, { ...ana, name: "Lucía Pérez" });
+    await createPatient(db, { ...ana, name: "Jorge Ruiz" });
+    await saveAnamnesis(db, lucia, { telefono: "612 34 56 78", motivo: "Dolor de hombro al nadar", diagnostico_funcional: "Tendinopatía del supraespinoso" });
+    const names = async (q: string) => (await listPatients(db, q)).map((p) => p.name);
+    expect(await names("lucia perez")).toEqual(["Lucía Pérez"]);
+    expect(await names("612345")).toEqual(["Lucía Pérez"]);
+    expect(await names("hombro")).toEqual(["Lucía Pérez"]);
+    expect(await names("tendinopatia")).toEqual(["Lucía Pérez"]);
+    expect(await names("rodilla")).toEqual([]);
+    expect(await names("")).toHaveLength(2);
   });
 
   it("borrar un paciente borra todo lo suyo", async () => {

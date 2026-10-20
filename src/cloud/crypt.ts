@@ -1,13 +1,14 @@
-// Cifrado de la copia de Google Drive con una contraseña (src/cloud/README.md). La base se cifra en el
-// dispositivo antes de subirla (AES-GCM de 256 bits, clave sacada de la contraseña con PBKDF2-SHA-256): en Drive
-// solo hay bytes que sin la contraseña no se pueden leer. La copia en el dispositivo no se cifra (la protege el
-// bloqueo del propio dispositivo).
+// Cifrado de la copia de la nube (Google Drive o el servidor de la clínica) con una contraseña (src/cloud/README.md).
+// La base se cifra en el dispositivo antes de subirla (AES-GCM de 256 bits, clave sacada de la contraseña con
+// PBKDF2-SHA-256): en la nube solo hay bytes que sin la contraseña no se pueden leer. La copia en el dispositivo no se
+// cifra (la protege el bloqueo del propio dispositivo).
 //
 // Archivo cifrado: «CENITENC1» + sal (16 bytes) + vector de inicio (12 bytes) + datos cifrados. Lo cifrado es la base
 // comprimida con gzip (ocupa unas ocho veces menos); una copia antigua, sin comprimir, se sigue abriendo (una base de
 // SQLite empieza por «SQLite format 3», no por la marca de gzip).
-// Cada dispositivo guarda la clave (no la contraseña) de cada cuenta para no pedirla cada vez. El ajuste
-// sincronizado ENCRYPTION_KEY lleva la sal: así todos los dispositivos de la cuenta saben si hay que cifrar.
+// Cada dispositivo guarda la clave (no la contraseña) de cada cuenta para no pedirla cada vez, en IndexedDB y marcada
+// como no exportable: la app puede usarla, pero ni un script ni quien copie los datos del navegador puede leerla. El
+// ajuste sincronizado ENCRYPTION_KEY lleva la sal: así todos los dispositivos de la cuenta saben con qué se cifró.
 
 /** Ajuste sincronizado: { salt } si la copia de Drive va cifrada; null o sin la fila, si no. */
 export const ENCRYPTION_KEY = "drive_encryption";
@@ -44,7 +45,7 @@ export async function deriveKey(password: string, salt: string): Promise<CryptoK
     { name: "PBKDF2", hash: "SHA-256", salt: unb64(salt) as BufferSource, iterations: ITERATIONS },
     base,
     { name: "AES-GCM", length: 256 },
-    true,
+    false,
     ["encrypt", "decrypt"],
   );
 }
@@ -80,23 +81,60 @@ export async function decrypt(bytes: Uint8Array, key: CryptoKey): Promise<Uint8A
 // ---------- La clave en este dispositivo ----------
 
 export type StoredKey = { salt: string; key: CryptoKey };
-const keyName = (sub: string) => `fisiolab.crypt.${sub}`;
+const legacyName = (sub: string) => `fisiolab.crypt.${sub}`;
+
+/** Sin IndexedDB (pruebas en Node), la clave solo vive mientras dure la página. */
+const memory = new Map<string, StoredKey>();
+let keysDb: Promise<IDBDatabase> | null = null;
+
+function openKeys(): Promise<IDBDatabase> {
+  keysDb ??= new Promise((resolve, reject) => {
+    const req = indexedDB.open("fisiolab-claves", 1);
+    req.onupgradeneeded = () => req.result.createObjectStore("claves");
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return keysDb;
+}
+
+async function keysStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const db = await openKeys();
+  return new Promise((resolve, reject) => {
+    const req = run(db.transaction("claves", mode).objectStore("claves"));
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+const hasIdb = () => typeof indexedDB !== "undefined";
 
 export async function storedKey(sub: string): Promise<StoredKey | null> {
   try {
-    const s = JSON.parse(localStorage.getItem(keyName(sub)) ?? "null") as { salt: string; key: string } | null;
-    if (!s) return null;
-    return { salt: s.salt, key: await crypto.subtle.importKey("raw", unb64(s.key) as BufferSource, "AES-GCM", true, ["encrypt", "decrypt"]) };
+    if (!hasIdb()) return memory.get(sub) ?? null;
+    const found = await keysStore<StoredKey | undefined>("readonly", (s) => s.get(sub));
+    if (found) return found;
+    // Versiones anteriores la guardaban exportada en localStorage: se pasa a IndexedDB sin exportar y se borra.
+    const old = JSON.parse(localStorage.getItem(legacyName(sub)) ?? "null") as { salt: string; key: string } | null;
+    if (!old) return null;
+    const key = await crypto.subtle.importKey("raw", unb64(old.key) as BufferSource, "AES-GCM", false, ["encrypt", "decrypt"]);
+    await storeKey(sub, old.salt, key);
+    return { salt: old.salt, key };
   } catch {
     return null;
   }
 }
 
-export async function storeKey(sub: string, salt: string, key: CryptoKey) {
-  const raw = new Uint8Array(await crypto.subtle.exportKey("raw", key));
-  localStorage.setItem(keyName(sub), JSON.stringify({ salt, key: b64(raw) }));
+export async function storeKey(sub: string, salt: string, key: CryptoKey): Promise<void> {
+  if (!hasIdb()) {
+    memory.set(sub, { salt, key });
+    return;
+  }
+  await keysStore("readwrite", (s) => s.put({ salt, key } satisfies StoredKey, sub));
+  localStorage.removeItem(legacyName(sub));
 }
 
-export function forgetKey(sub: string) {
-  localStorage.removeItem(keyName(sub));
+export async function forgetKey(sub: string): Promise<void> {
+  memory.delete(sub);
+  if (typeof localStorage !== "undefined") localStorage.removeItem(legacyName(sub));
+  if (hasIdb()) await keysStore("readwrite", (s) => s.delete(sub));
 }

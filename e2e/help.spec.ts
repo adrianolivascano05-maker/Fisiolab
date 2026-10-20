@@ -19,9 +19,6 @@ test.describe("S25 Ayuda con ilustraciones", () => {
       await expect(phases.first()).toContainText(first);
       await expect(phases.nth(1)).toContainText("Primer fotograma con los dos pies en el aire.");
       await expectAccessible(page);
-      await page.screenshot({ path: `replica/clone-screens/S25-${type.replace(" ", "-")}.png`, fullPage: false });
-      await sheet.evaluate((d) => (d.scrollTop = d.scrollHeight));
-      await page.screenshot({ path: `replica/clone-screens/S25-${type.replace(" ", "-")}-marcar.png`, fullPage: false });
     });
   }
 

@@ -1,14 +1,14 @@
 import { CalendarCheck, CalendarClock, Plus, Search, Users, Zap } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { fmtDate } from "../app/format";
+import { fmtDate, madridDay } from "../app/format";
 import { useCloud } from "../cloud/CloudGate";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { fmtVisit } from "../clinical/calendar";
 import { dueReviews, upcomingVisits } from "../data/clinical";
 import { getDb } from "../data/db";
-import { createPatient, getSetting, listPatients, type PatientSummary } from "../data/repo";
+import { createPatient, getSetting, listPatients, matchesPatient, type PatientSummary } from "../data/repo";
 import { SEED_PREFIX } from "../data/seed";
 import { Alert } from "../ui/Alert";
 import { EmptyState } from "../ui/EmptyState";
@@ -42,7 +42,10 @@ function letter(name: string) {
 /** S01 Pacientes */
 export function PatientsPage() {
   const [search, setSearch] = useState("");
-  const patients = useAsync(() => listPatients(getDb(), search), [search]);
+  // La lista se carga una vez y se filtra aquí: buscar no consulta la base en cada tecla.
+  const all = useAsync(() => listPatients(getDb()), []);
+  const found = useMemo(() => all.data?.filter((p) => matchesPatient(p, search)), [all.data, search]);
+  const patients = { ...all, data: found };
   const info = useAsync(() => getDb().info(), []);
   const lastBackup = useAsync(() => getSetting<string>(getDb(), "last_backup_at"), []);
   const reviews = useAsync(() => dueReviews(getDb(), dayPlus(7)), []);
@@ -104,7 +107,7 @@ export function PatientsPage() {
         <input
           id="patient-search"
           type="search"
-          placeholder="Buscar"
+          placeholder="Buscar por nombre, teléfono o motivo"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="h-11 w-full rounded-lg border border-transparent bg-surface pr-3 pl-10 text-base placeholder:text-text-muted focus:border-border-input"
@@ -133,7 +136,7 @@ export function PatientsPage() {
         <Loading />
       ) : patients.data.length === 0 ? (
         search ? (
-          <p className="py-6 text-center text-text-muted">Ningún paciente se llama «{search}».</p>
+          <p className="py-6 text-center text-text-muted">Ningún paciente coincide con «{search}».</p>
         ) : (
           <EmptyState icon={Users} title="Todavía no hay pacientes">
             Pulsa + arriba para añadir el primero. Con el nombre basta.
@@ -161,9 +164,6 @@ export function PatientsPage() {
     </Page>
   );
 }
-
-/** AAAA-MM-DD de una hora, en Madrid. */
-const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 /** AAAA-MM-DD de hoy más n días, en la hora de Madrid. */
 const dayPlus = (n: number) => new Date(Date.now() + n * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });

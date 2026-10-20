@@ -42,6 +42,34 @@ async function login(page: Page) {
   await enter(page);
 }
 
+const PASSWORD = "frase de la clínica 2026";
+
+/** La copia de la nube va siempre cifrada: la primera vez en la cuenta se elige la contraseña, desde el aviso. */
+async function choosePassword(page: Page) {
+  const notice = page.getByRole("status").filter({ hasText: "va siempre cifrada" });
+  await expect(notice).toBeVisible({ timeout: 15_000 });
+  await notice.getByRole("link", { name: "Elegir contraseña" }).click();
+  await page.getByRole("button", { name: "Elegir la contraseña de cifrado" }).click();
+  const sheet = page.getByRole("dialog", { name: "Contraseña de cifrado" });
+  await sheet.getByLabel("Contraseña", { exact: true }).fill(PASSWORD);
+  await sheet.getByLabel("Repite la contraseña").fill(PASSWORD);
+  await sheet.getByRole("button", { name: "Cifrar", exact: true }).click();
+  await expect(page.getByText(/va cifrada$/)).toBeVisible();
+}
+
+/** En otro dispositivo de la cuenta: escribir la contraseña de la copia y ver lo que trae. */
+async function unlock(page: Page) {
+  await page.getByRole("button", { name: "Escribir la contraseña" }).click();
+  const ask = page.getByRole("dialog", { name: /^Contraseña de la copia/ });
+  await ask.getByLabel("Contraseña").fill(PASSWORD);
+  await ask.getByRole("button", { name: "Abrir la copia" }).click();
+  await page.getByRole("button", { name: "Mostrar" }).click();
+}
+
+/** Espera a que un texto esté en la copia de Drive de la cuenta (descifrada con la contraseña). */
+const inDrive = (google: FakeGoogle, who: keyof typeof users, text: string) =>
+  expect.poll(async () => (await google.drivePlain(who, PASSWORD)).includes(enc(text)), { timeout: 20_000 }).toBe(true);
+
 test.describe("Nube: cuenta de Google y Google Drive", () => {
   test("NB1 dos dispositivos de la misma cuenta comparten pacientes; un compañero no los ve", async ({ page, browser }) => {
     test.slow();
@@ -55,8 +83,11 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expectAccessible(page);
     await page.getByRole("button", { name: "Entrar con Google" }).click();
     await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
+    // Sin contraseña de cifrado no se sube nada.
     await createPatient(page, { name: "Lucía Nube" });
-    await expect.poll(() => google.driveText("ana").includes(enc("Lucía Nube")), { timeout: 15_000 }).toBe(true);
+    await choosePassword(page);
+    await inDrive(google, "ana", "Lucía Nube");
+    expect(google.driveText("ana").includes(enc("Lucía Nube"))).toBe(false);
     await page.goto("./ajustes");
     await expect(page.getByRole("link", { name: /Ana Ruiz.*ana@clinica\.test.*Guardado en tu Drive/ })).toBeVisible();
     await page.goto("./ajustes/cuenta");
@@ -64,15 +95,16 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expect(page.getByText(/Guardado en tu Drive/)).toBeVisible();
     await expectAccessible(page);
 
-    // Tablet de Ana: al entrar ya tiene a Lucía; apunta una sesión.
+    // Tablet de Ana: al entrar escribe la contraseña y ya tiene a Lucía; apunta una sesión.
     const tablet = await device(browser, google, "ana", errors);
     await login(tablet);
+    await unlock(tablet);
     await tablet.getByRole("link", { name: /Lucía Nube/ }).click();
     await add(tablet, "Sesión").click();
     await tablet.getByLabel("Tratamiento").fill("Desde la tablet");
     await tablet.getByRole("button", { name: "Guardar sesión" }).click();
     await expect(tablet.getByText("Desde la tablet")).toBeVisible();
-    await expect.poll(() => google.driveText("ana").includes(enc("Desde la tablet")), { timeout: 15_000 }).toBe(true);
+    await inDrive(google, "ana", "Desde la tablet");
 
     // El móvil, que sigue abierto, la trae al sincronizar y avisa de que hay datos nuevos.
     await page.getByRole("button", { name: "Sincronizar ahora" }).click();
@@ -88,14 +120,15 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expect(colleague.getByText("Todavía no hay pacientes")).toBeVisible();
     await expect(colleague.getByText("Lucía Nube")).toHaveCount(0);
 
-    // La tablet cierra sesión borrando sus datos; al volver a entrar, Lucía vuelve desde Drive.
+    // La tablet cierra sesión borrando sus datos (también la clave); al volver a entrar, Lucía vuelve desde Drive.
     await tablet.goto("./ajustes/cuenta");
     await tablet.getByRole("button", { name: "Cerrar sesión y borrar los datos de este dispositivo" }).click();
     await tablet.getByRole("dialog", { name: "¿Borrar los datos de este dispositivo?" }).getByRole("button", { name: "Borrar y cerrar sesión" }).click();
     await enter(tablet);
+    await unlock(tablet);
     await expect(tablet.getByRole("link", { name: /Lucía Nube/ })).toBeVisible();
     // Borrar en el dispositivo no ha borrado nada en la nube.
-    expect(google.driveText("ana").includes(enc("Desde la tablet"))).toBe(true);
+    expect((await google.drivePlain("ana", PASSWORD)).includes(enc("Desde la tablet"))).toBe(true);
     expect(errors).toEqual([]);
   });
 
@@ -110,7 +143,8 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await expectAccessible(page);
     await page.getByRole("button", { name: "Pasarlos a mi cuenta" }).click();
     await expect(page.getByRole("link", { name: /Previo Local/ })).toBeVisible({ timeout: 15_000 });
-    await expect.poll(() => google.driveText("ana").includes(enc("Previo Local")), { timeout: 15_000 }).toBe(true);
+    await choosePassword(page);
+    await inDrive(google, "ana", "Previo Local");
   });
 
   test("NB4 desde Ajustes: pegar el ID de cliente en el dispositivo y entrar", async ({ page }) => {
@@ -143,7 +177,8 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: /Ajustes/ }).click();
     await expect(page.getByRole("link", { name: /Ana Ruiz/ })).toBeVisible({ timeout: 15_000 });
     await createPatient(page, { name: "Desde el Inicio" });
-    await expect.poll(() => google.driveText("ana").includes(enc("Desde el Inicio")), { timeout: 15_000 }).toBe(true);
+    await choosePassword(page);
+    await inDrive(google, "ana", "Desde el Inicio");
   });
 
   test("NB3 con la sesión de Google cerrada pide volver a entrar, o deja seguir sin conexión", async ({ page }) => {
@@ -152,7 +187,8 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await google.install(page.context(), () => "ana");
     await login(page);
     await createPatient(page, { name: "Sin Sesión" });
-    await expect.poll(() => google.driveText("ana").includes(enc("Sin Sesión")), { timeout: 15_000 }).toBe(true);
+    await choosePassword(page);
+    await inDrive(google, "ana", "Sin Sesión");
 
     // Otra pestaña (sin token) con la sesión de Google cerrada: no puede entrar sin preguntar. (La base solo se
     // abre en una pestaña a la vez: la primera se va a otra página.)
@@ -175,30 +211,37 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     expect(errors).toEqual([]);
   });
 
-  test("NB5 copia de Drive cifrada: otro dispositivo de la cuenta pide la contraseña", async ({ page, browser }) => {
+  test("NB5 copia de Drive cifrada: contraseña corta, otro dispositivo la pide y lo nuevo se sube cifrado", async ({ page, browser }) => {
     test.slow();
     const google = new FakeGoogle(users);
     const errors: string[] = [];
     await google.install(page.context(), () => "ana");
     await login(page);
     await createPatient(page, { name: "Paciente Cifrado" });
-    await expect.poll(() => google.driveText("ana").includes(enc("Paciente Cifrado")), { timeout: 15_000 }).toBe(true);
 
-    await page.goto("./ajustes/cuenta");
-    await page.getByRole("button", { name: "Cifrar la copia de Drive" }).click();
-    const sheet = page.getByRole("dialog", { name: "Cifrar la copia de Drive" });
+    // Sin contraseña no sube nada, y no se puede dejar de cifrar.
+    const notice = page.getByRole("status").filter({ hasText: "La copia de tu Drive va siempre cifrada" });
+    await expect(notice).toBeVisible({ timeout: 15_000 });
+    expect(google.appData("ana")).toHaveLength(0);
+    await notice.getByRole("link", { name: "Elegir contraseña" }).click();
+    await expect(page.getByRole("button", { name: "Dejar de cifrar" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Elegir la contraseña de cifrado" }).click();
+    const sheet = page.getByRole("dialog", { name: "Contraseña de cifrado" });
     await sheet.getByLabel("Contraseña", { exact: true }).fill("corta");
     await sheet.getByLabel("Repite la contraseña").fill("corta");
     await sheet.getByRole("button", { name: "Cifrar", exact: true }).click();
     await expect(sheet.getByText("Al menos 10 caracteres.")).toBeVisible();
-    await sheet.getByLabel("Contraseña", { exact: true }).fill("frase de la clínica 2026");
-    await sheet.getByLabel("Repite la contraseña").fill("frase de la clínica 2026");
+    await sheet.getByLabel("Contraseña", { exact: true }).fill(PASSWORD);
+    await sheet.getByLabel("Repite la contraseña").fill(PASSWORD);
     await sheet.getByRole("button", { name: "Cifrar", exact: true }).click();
     await expect(page.getByText("La copia de tu Drive va cifrada")).toBeVisible();
     await expectAccessible(page);
-    // En Drive ya no se lee nada: solo bytes cifrados.
-    await expect.poll(() => google.driveText("ana").startsWith("CENITENC1"), { timeout: 15_000 }).toBe(true);
+    // En Drive no se lee nada sin la contraseña: solo bytes cifrados.
+    await inDrive(google, "ana", "Paciente Cifrado");
+    expect(google.driveText("ana").startsWith("CENITENC1")).toBe(true);
     expect(google.driveText("ana").includes(enc("Paciente Cifrado"))).toBe(false);
+    // La clave se guarda en el dispositivo sin poder sacarla (ni en localStorage).
+    expect(await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("fisiolab.crypt.")))).toEqual([]);
 
     // La tablet de Ana no tiene la contraseña: entra, pero no ve nada hasta escribirla.
     const tablet = await device(browser, google, "ana", errors);
@@ -210,16 +253,19 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await ask.getByLabel("Contraseña").fill("otra contraseña cualquiera");
     await ask.getByRole("button", { name: "Abrir la copia" }).click();
     await expect(ask.getByText("No es la contraseña de esta copia.")).toBeVisible();
-    await ask.getByLabel("Contraseña").fill("frase de la clínica 2026");
+    await ask.getByLabel("Contraseña").fill(PASSWORD);
     await ask.getByRole("button", { name: "Abrir la copia" }).click();
     await tablet.getByRole("button", { name: "Mostrar" }).click();
     await expect(tablet.getByRole("link", { name: /Paciente Cifrado/ })).toBeVisible();
+    // Al recargar, la tablet recuerda la clave: no vuelve a pedirla.
+    await tablet.reload();
+    await expect(tablet.getByRole("link", { name: /Paciente Cifrado/ })).toBeVisible();
+    await expect(tablet.getByRole("button", { name: "Escribir la contraseña" })).toHaveCount(0);
 
     // Lo que apunta la tablet se sube cifrado y llega al móvil.
-    const before = google.appData("ana")[0]!.version;
     await createPatient(tablet, { name: "Desde la Tablet" });
-    await expect.poll(() => google.appData("ana").length === 1 && google.appData("ana")[0]!.version > before, { timeout: 15_000 }).toBe(true);
-    expect(google.driveText("ana").startsWith("CENITENC1")).toBe(true);
+    await inDrive(google, "ana", "Desde la Tablet");
+    expect(google.appData("ana")).toHaveLength(1);
     await page.getByRole("button", { name: "Sincronizar ahora" }).click();
     await page.getByRole("button", { name: "Mostrar" }).click();
     await page.goto("./");
@@ -240,7 +286,7 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await createPatient(page, { name: "Paciente Servidor" });
 
     // Sin contraseña de cifrado no sube nada: lo pide.
-    const notice = page.getByRole("status").filter({ hasText: "solo guarda copias cifradas" });
+    const notice = page.getByRole("status").filter({ hasText: "va siempre cifrada" });
     await expect(notice).toBeVisible({ timeout: 15_000 });
     expect(google.server.size).toBe(0);
     await notice.getByRole("link", { name: "Elegir contraseña" }).click();

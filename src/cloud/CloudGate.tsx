@@ -74,10 +74,11 @@ const home = () => location.assign(import.meta.env.BASE_URL);
 function startCloud(config: CloudConfig, account: Account, remount: () => void): Cloud {
   const sync = new SyncController(getDb(), account, config.cloudflareUrl ? cloudflareStore(config.cloudflareUrl) : driveStore);
   const calendar = new CalendarSync(getDb(), account);
-  // Al acabar cada sincronización (ya con las citas de los otros dispositivos), al calendario.
+  // Al acabar cada sincronización (ya con las citas de los otros dispositivos), al calendario. También si solo falta
+  // la contraseña de cifrado: lo de la nube ya se ha juntado aquí, solo no se ha podido subir.
   let last = sync.current.status;
   sync.subscribe((s) => {
-    if (last === "syncing" && s.status === "idle") void calendar.run();
+    if (last === "syncing" && (s.status === "idle" || s.status === "needs-password")) void calendar.run();
     last = s.status;
   });
   sync.start();
@@ -93,7 +94,7 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void):
       if (wipe) {
         await getDb().wipe();
         sync.forgetMeta();
-        forgetKey(account.sub);
+        await forgetKey(account.sub);
       }
       await revokeToken();
       clearAccount();
@@ -344,7 +345,7 @@ export function syncText(s: SyncState): string {
     case "needs-key":
       return `La copia ${deWhere(s.where)} está cifrada: escribe su contraseña para sincronizar.`;
     case "needs-password":
-      return `${s.where === "tu Drive" ? "Tu Drive" : "El servidor de la clínica"} solo guarda copias cifradas: elige una contraseña de cifrado para sincronizar.`;
+      return `La copia ${deWhere(s.where)} va siempre cifrada: elige una contraseña de cifrado para sincronizar.`;
     case "offline":
       return s.pending ? "Sin conexión: los cambios se subirán al volver la conexión." : "Sin conexión.";
     case "error":

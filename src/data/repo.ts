@@ -1,4 +1,4 @@
-// Capa de datos: una función por operación (ver replica/architecture.md, sección API).
+// Capa de datos: una función por operación.
 // Las pantallas solo hablan con estas funciones, nunca con SQL.
 import { computeJump, type JumpOutput, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
 import { fvProfile, type FvProfile, type Point } from "../calc/profile";
@@ -9,6 +9,7 @@ import { segments, sprintProfile, validSplits } from "../calc/sprint";
 import { isCodType, type CodType } from "../calc/cod";
 import { summarizeRunning } from "../calc/running";
 import { getExercise, loadVelocityProfile, plausibleVbt, vbtResults, velocitiesFromMarks, type ExerciseId, type LoadVelocityProfile, type RepMark } from "../calc/strength";
+import { fold } from "../app/format";
 import type { Db } from "./db";
 import { inFocus } from "./episodes";
 import { parsePrivacy, type PatientPrivacy } from "./privacy";
@@ -44,7 +45,19 @@ export type PatientSummary = {
   lastAt: string | null;
   /** La siguiente cita que quedó puesta en su última sesión, si aún no ha llegado. */
   nextAt: string | null;
+  /** Lo que se puede buscar además del nombre: teléfono, email, motivos de consulta, diagnósticos y notas. */
+  searchText: string;
 };
+
+/** ¿El paciente coincide con lo buscado? Sin tildes ni mayúsculas; un teléfono, con o sin espacios. */
+export function matchesPatient(p: Pick<PatientSummary, "name" | "searchText">, query: string): boolean {
+  const q = fold(query.trim());
+  if (!q) return true;
+  const text = fold(`${p.name} ${p.searchText}`);
+  if (text.includes(q)) return true;
+  const digits = q.replace(/\D/g, "");
+  return digits.length >= 3 && digits.length >= q.replace(/[\s+()-]/g, "").length && text.replace(/\D/g, "").includes(digits);
+}
 
 type PatientRow = {
   id: string;
@@ -90,14 +103,17 @@ export async function listPatients(db: Db, search = "", now = new Date()): Promi
                union all select max(performed_at) from findings where patient_id = p.id
                union all select max(performed_at) from questionnaires where patient_id = p.id
                union all select max(performed_at) from wellness where patient_id = p.id)) as lastAt,
-            (select s.next_at from sessions s where s.patient_id = p.id order by s.performed_at desc limit 1) as nextAt
+            (select s.next_at from sessions s where s.patient_id = p.id order by s.performed_at desc limit 1) as nextAt,
+            concat_ws(' ', p.notes,
+              (select concat_ws(' ', a.answers ->> '$.telefono', a.answers ->> '$.email', a.answers ->> '$.motivo', a.answers ->> '$.diagnostico_funcional')
+                 from anamnesis a where a.patient_id = p.id),
+              (select group_concat(concat_ws(' ', e.title, e.answers ->> '$.telefono', e.answers ->> '$.motivo', e.answers ->> '$.diagnostico_funcional'), ' ')
+                 from episodes e where e.patient_id = p.id)) as searchText
        from patients p
-      where ? = '' or p.name like '%' || ? || '%'
       order by p.name collate nocase`,
-    [search.trim(), search.trim()],
   );
   const t = now.toISOString();
-  return rows.map((r) => ({ ...r, nextAt: r.nextAt && r.nextAt > t ? r.nextAt : null }));
+  return rows.filter((r) => matchesPatient(r, search)).map((r) => ({ ...r, nextAt: r.nextAt && r.nextAt > t ? r.nextAt : null }));
 }
 
 export async function getPatient(db: Db, id: string): Promise<Patient | null> {

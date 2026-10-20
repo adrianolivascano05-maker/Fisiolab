@@ -17,11 +17,14 @@ const FILE = account ? `/${account}.sqlite3` : LEGACY;
  */
 function acquireTabLock(): Promise<boolean> {
   if (!("locks" in navigator)) return Promise.resolve(true);
+  // Al recargar, la página anterior tarda un momento en soltarla: se espera hasta 3 s antes de decir que está ocupada.
   return new Promise((resolve) => {
-    void navigator.locks.request("fisiolab-db", { ifAvailable: true }, (lock) => {
-      resolve(lock !== null);
-      return lock ? new Promise<void>(() => {}) : undefined;
-    });
+    navigator.locks
+      .request("fisiolab-db", { signal: AbortSignal.timeout(3000) }, () => {
+        resolve(true);
+        return new Promise<void>(() => {});
+      })
+      .catch(() => resolve(false));
   });
 }
 

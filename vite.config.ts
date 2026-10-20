@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
-import tokens from "./replica/design/tokens.json" with { type: "json" };
+import tokens from "./src/styles/tokens.json" with { type: "json" };
 
 // Ruta donde se publica: "/" (Cloudflare, dominio propio) o "/Fisiolab/" (GitHub Pages).
 const base = process.env.BASE_PATH ?? "/";
@@ -67,8 +67,9 @@ export default defineConfig({
       workbox: {
         // Todo lo necesario para abrir sin conexión, incluido el motor SQLite (.wasm) y sus workers.
         globPatterns: ["**/*.{js,css,html,wasm,woff2,png,svg}"],
-        // Fuentes solo en alfabeto latino (el resto no hace falta) y sin el motor de pose, que va aparte (abajo).
-        globIgnores: ["**/{manrope,fraunces}-{cyrillic,cyrillic-ext,greek,vietnamese}-*.woff2", "**/vision_*"],
+        // Fuentes solo en alfabeto latino (el resto no hace falta), sin el motor de pose, que va aparte (abajo), y sin
+        // el worker de ejemplo de sqlite-wasm (la app usa el suyo, src/data/sqlite.worker.ts).
+        globIgnores: ["**/{manrope,fraunces}-{cyrillic,cyrillic-ext,greek,vietnamese}-*.woff2", "**/vision_*", "**/sqlite3-worker1-*"],
         // Motor de pose (src/ai): ≈ 19 MB, se descarga la primera vez que se usa la IA y queda guardado.
         runtimeCaching: [{ urlPattern: /\/assets\/(vision_|pose_landmarker)/, handler: "CacheFirst", options: { cacheName: "ia-pose" } }],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

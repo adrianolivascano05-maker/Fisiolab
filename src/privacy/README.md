@@ -19,7 +19,7 @@ el de Cloudflare si usa su servidor) y revisión de estos textos con su delegado
 Los datos de las funciones están en `../data/privacy.ts`.
 
 - **Texto informativo.** Se rellena con los datos de la clínica y dice dónde se guardan los datos: solo en los
-  dispositivos, o también en Google Drive, cifrados o no. Se imprime (o se guarda en PDF) con las respuestas que
+  dispositivos, o también (cifrados) en Google Drive o en el servidor de la clínica. Se imprime (o se guarda en PDF) con las respuestas que
   ya se hayan apuntado. La hoja firmada se guarda con la historia clínica.
 - **Conservación.** El plazo cuenta desde el último registro clínico del paciente (test, sesión, exploración,
   cuestionario, bienestar o anamnesis), con un mínimo de 5 años (Ley 41/2002, art. 17). Algunas comunidades

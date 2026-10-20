@@ -1,4 +1,4 @@
-// Mejoras sacadas de las reseñas del original (replica/fixes.md).
+// Mejoras sacadas de lo que piden los usuarios de apps de salto en sus reseñas.
 import { createPatient, expect, expectAccessible, markAt, scrubber, startJump, test, video } from "./fixtures";
 
 test.describe("Mejoras por las reseñas", () => {

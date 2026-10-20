@@ -9,6 +9,7 @@ import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
 import { getDb } from "../data/db";
+import { getClinic } from "../data/privacy";
 import { getPatient, listTests, listWellness } from "../data/repo";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { safeName } from "../cloud/saveToDrive";
@@ -67,7 +68,7 @@ export function ReportPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, anamnesis, findings, sessions, tests, wellness, questionnaires] = await Promise.all([
+    const [patient, anamnesis, findings, sessions, tests, wellness, questionnaires, clinic] = await Promise.all([
       getPatient(db, id),
       getAnamnesis(db, id),
       listFindings(db, id),
@@ -75,8 +76,9 @@ export function ReportPage() {
       listTests(db, id),
       listWellness(db, id),
       listQuestionnaires(db, id),
+      getClinic(db),
     ]);
-    return { patient, anamnesis, findings, sessions, tests, wellness, questionnaires };
+    return { patient, anamnesis, findings, sessions, tests, wellness, questionnaires, clinic };
   }, [id]);
   const article = useRef<HTMLElement>(null);
   const [parts, setParts] = useState<Record<Part, boolean>>({ anamnesis: true, exploracion: true, dolor: true, mediciones: true, cuestionarios: true, sesiones: true });
@@ -89,7 +91,7 @@ export function ReportPage() {
   );
   if (data.error) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={data.error} /></main></>;
   if (!data.data) return <>{bar}<main className="mx-auto max-w-3xl p-4"><Loading /></main></>;
-  const { patient, anamnesis, findings, sessions, tests, wellness, questionnaires } = data.data;
+  const { patient, anamnesis, findings, sessions, tests, wellness, questionnaires, clinic } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
 
   const a = anamnesis?.answers ?? {};
@@ -100,7 +102,9 @@ export function ReportPage() {
   const tr = trends(tests);
   const symmetry = symmetryRows(tests);
   const qGroups = questionnaireGroups(questionnaires);
-  const physio = typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "";
+  // El fisioterapeuta de Ajustes → Clínica; las anamnesis antiguas lo llevaban dentro.
+  const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
+  const letterhead = [clinic.taxId && `NIF ${clinic.taxId}`, clinic.address, clinic.phone, clinic.email].filter(Boolean).join(" · ");
   const today = new Date().toISOString();
   // Apartados de la anamnesis con algo escrito (la exploración física va con los tests).
   const sections = ANAMNESIS.filter((s) => s.id !== "exploracion")
@@ -159,15 +163,24 @@ export function ReportPage() {
               </span>
               <span className="text-sm text-text-muted">Historia clínica y evolución · {fmtDate(today)}</span>
             </div>
-            <span className="flex items-center gap-2">
-              <LogoMark size={36} />
-              <span className="flex flex-col leading-none">
+            {clinic.name ? (
+              <span className="flex max-w-[55%] flex-col items-end text-right">
                 <span className="text-lg font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
-                  Cénit
+                  {clinic.name}
                 </span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
+                {letterhead && <span className="text-xs text-text-muted">{letterhead}</span>}
               </span>
-            </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <LogoMark size={36} />
+                <span className="flex flex-col leading-none">
+                  <span className="text-lg font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
+                    Cénit
+                  </span>
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
+                </span>
+              </span>
+            )}
           </header>
 
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 print:grid-cols-2">
@@ -389,6 +402,7 @@ export function ReportPage() {
           <footer className="mt-4 flex flex-wrap justify-between gap-6 border-t border-border pt-4 text-sm">
             <span>
               Firma del fisioterapeuta: <span className="inline-block min-w-48 border-b border-text-muted">{physio}</span>
+              {clinic.license && <span className="block text-text-muted">Nº de colegiado {clinic.license}</span>}
             </span>
             <span>Fecha: {fmtDate(today)}</span>
           </footer>

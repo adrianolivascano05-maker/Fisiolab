@@ -1,6 +1,8 @@
 // Google de mentira para las pruebas de la nube: la pantalla de entrada (vuelve a la app con un token), el nombre
 // y correo de la cuenta, y la carpeta de la app en Drive (en memoria, una por cuenta). Así se prueba todo el ir y
 // venir sin cuentas reales ni red.
+import { webcrypto } from "node:crypto";
+import { gunzipSync } from "node:zlib";
 import type { BrowserContext, Request, Route } from "@playwright/test";
 
 export type FakeUser = { sub: string; email: string; name: string };
@@ -30,6 +32,30 @@ export class FakeGoogle {
   /** La copia de una cuenta, como texto (SQLite guarda el texto tal cual: se puede buscar un nombre). */
   driveText(who: string): string {
     return this.appData(who)[0]?.bytes.toString("latin1") ?? "";
+  }
+  /**
+   * La copia de una cuenta descifrada con la contraseña, como texto ("" si aún no hay o no se puede abrir). Igual que
+   * src/cloud/crypt.ts: «CENITENC1» + sal + vector de inicio + base comprimida y cifrada.
+   */
+  async drivePlain(who: string, password: string): Promise<string> {
+    const bytes = this.appData(who)[0]?.bytes;
+    return bytes ? FakeGoogle.open(bytes, password) : "";
+  }
+  private static keys = new Map<string, Promise<CryptoKey>>();
+  static async open(bytes: Buffer, password: string): Promise<string> {
+    if (bytes.subarray(0, 9).toString("latin1") !== "CENITENC1") return "";
+    const salt = bytes.subarray(9, 25);
+    const id = `${password}|${salt.toString("hex")}`;
+    if (!FakeGoogle.keys.has(id)) {
+      const base = await webcrypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+      FakeGoogle.keys.set(id, webcrypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 600_000 }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]));
+    }
+    try {
+      const plain = await webcrypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(25, 37) }, await FakeGoogle.keys.get(id)!, bytes.subarray(37));
+      return gunzipSync(Buffer.from(plain)).toString("latin1");
+    } catch {
+      return "";
+    }
   }
   /** Las copias de la carpeta oculta de la app. */
   appData(who: string): File[] {

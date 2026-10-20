@@ -100,8 +100,9 @@ export function LockSettings() {
           </>
         )}
         <p className="text-sm text-text-muted">
-          Sirve para que quien coja el dispositivo desbloqueado no vea a tus pacientes. La protección de verdad es el bloqueo del propio dispositivo (PIN o
-          huella), que además cifra sus datos: tenlo siempre activado.
+          Sirve para que quien coja el dispositivo desbloqueado no vea a tus pacientes, pero solo tapa la pantalla: no cifra los datos guardados en el
+          dispositivo, y si alguien borra los datos del navegador, el PIN desaparece con ellos. La protección de verdad es el bloqueo del propio dispositivo
+          (PIN o huella), que además cifra sus datos: tenlo siempre activado.
         </p>
       </Card>
 

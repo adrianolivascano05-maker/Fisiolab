@@ -3,15 +3,15 @@ import { useParams } from "react-router";
 import { Page } from "../app/Page";
 import { CategoryTile } from "../ui/CategoryTile";
 
-export const categories = [
-  { slug: "saltos", icon: Activity, title: "Saltos", detail: "CMJ, SJ, drop jump", phase: 1 },
-  { slug: "fuerza", icon: Dumbbell, title: "Fuerza", detail: "Velocidad de barra, 1RM", phase: 3 },
-  { slug: "sprint", icon: Timer, title: "Sprint", detail: "Tiempos y cambios de dirección", phase: 4 },
-  { slug: "carrera", icon: Footprints, title: "Carrera", detail: "Contacto y frecuencia de paso", phase: 4 },
-  { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello", phase: 3 },
-  { slug: "isquios", icon: Zap, title: "Nórdico", detail: "Ángulo de rotura y fuerza", phase: 3 },
-  { slug: "libre", icon: ScanLine, title: "Medición libre", detail: "Ángulos en vídeo con IA · experimental", phase: 5, to: "medicion-libre" }, // src/free
-  { slug: "bienestar", icon: HeartPulse, title: "Bienestar", detail: "Sueño, fatiga, estrés, dolor, ánimo", phase: 3, to: "bienestar" },
+const categories = [
+  { slug: "saltos", icon: Activity, title: "Saltos", detail: "CMJ, SJ, drop jump" },
+  { slug: "fuerza", icon: Dumbbell, title: "Fuerza", detail: "Velocidad de barra, 1RM" },
+  { slug: "sprint", icon: Timer, title: "Sprint", detail: "Tiempos y cambios de dirección" },
+  { slug: "carrera", icon: Footprints, title: "Carrera", detail: "Contacto y frecuencia de paso" },
+  { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello" },
+  { slug: "isquios", icon: Zap, title: "Nórdico", detail: "Ángulo de rotura y fuerza" },
+  { slug: "libre", icon: ScanLine, title: "Medición libre", detail: "Ángulos en vídeo con IA · experimental", to: "medicion-libre" }, // src/free
+  { slug: "bienestar", icon: HeartPulse, title: "Bienestar", detail: "Sueño, fatiga, estrés, dolor, ánimo", to: "bienestar" },
 ] as const;
 
 /** S04 Selector de test */

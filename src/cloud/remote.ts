@@ -16,8 +16,8 @@ export class RemoteConflict extends Error {
 export interface RemoteStore {
   /** Para los textos: «tu Drive», «el servidor de la clínica». */
   readonly where: string;
-  /** Solo acepta copias cifradas: no se sube nada sin la contraseña de la copia. */
-  readonly encryptedOnly: boolean;
+  /** Qué almacén es, para los textos y avisos (las dos solo reciben copias cifradas, sync.ts). */
+  readonly kind: "drive" | "server";
   /** Las copias que hay (normalmente una), la más reciente primero. */
   list(token: Token): Promise<RemoteCopy[]>;
   download(token: Token, copy: RemoteCopy): Promise<Uint8Array>;
@@ -29,7 +29,7 @@ export interface RemoteStore {
 
 export const driveStore: RemoteStore = {
   where: "tu Drive",
-  encryptedOnly: false,
+  kind: "drive",
   list: async (t) => (await listFiles(t.accessToken)).map((f) => ({ id: f.id, version: f.version })),
   download: (t, c) => download(t.accessToken, c.id),
   create: async (t, bytes) => {
@@ -84,7 +84,7 @@ export function cloudflareStore(baseUrl: string): RemoteStore {
   }
   return {
     where: "el servidor de la clínica",
-    encryptedOnly: true,
+    kind: "server",
     async list(t) {
       // Sin copia aún, { version: null }.
       const { version } = (await (await call(t, "/v1/copia/info")).json()) as { version: string | null };

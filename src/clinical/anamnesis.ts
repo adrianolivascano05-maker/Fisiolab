@@ -53,7 +53,6 @@ export const ANAMNESIS: Section[] = [
       { id: "email", label: "Email", type: "text", inputMode: "email" },
       { id: "direccion", label: "Dirección", type: "text" },
       { id: "derivado_por", label: "Médico / derivado por", type: "text" },
-      { id: "fisioterapeuta", label: "Fisioterapeuta", type: "text", hint: "Quien firma la ficha." },
     ],
   },
   {

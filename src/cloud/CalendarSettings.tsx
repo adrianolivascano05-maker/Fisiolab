@@ -77,8 +77,8 @@ export function CalendarSettings() {
         {settings.enabled && s.status !== "no-permission" && (
           <>
             <SelectField label="En el evento sale" value={settings.names} onChange={(e) => void save({ ...settings, names: e.target.value as Settings["names"] })}>
-              <option value="full">El nombre del paciente</option>
               <option value="initials">Solo sus iniciales</option>
+              <option value="full">El nombre del paciente</option>
             </SelectField>
             <Button variant="secondary" icon={<RefreshCw aria-hidden="true" className="size-5" />} loading={s.status === "working"} onClick={() => void cloud.calendar.run(true)}>
               Apuntar ahora

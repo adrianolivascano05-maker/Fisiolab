@@ -66,7 +66,7 @@ export type ClinicInfo = {
   googleDpa: boolean;
   /** Con el servidor de Cloudflare: se ha revisado su contrato de encargado (DPA) y se guarda una copia. */
   cloudflareDpa: boolean;
-  /** Para los consentimientos: el fisioterapeuta que informa por defecto, su número de colegiado y la localidad. */
+  /** El fisioterapeuta que firma los informes y, por defecto, los consentimientos; su nº de colegiado y la localidad. */
   professional: string;
   license: string;
   city: string;

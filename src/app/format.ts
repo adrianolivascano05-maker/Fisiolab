@@ -20,6 +20,12 @@ export function decimalText(n: number | null): string {
   return n === null ? "" : String(n).replace(".", ",");
 }
 
+/** Sin tildes ni mayúsculas, para buscar texto («Lucía» se encuentra con «lucia»). */
+export const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+/** AAAA-MM-DD de un instante en la hora de Madrid. */
+export const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+
 export function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Madrid" });
 }

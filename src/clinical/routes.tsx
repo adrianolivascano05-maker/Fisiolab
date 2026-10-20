@@ -4,8 +4,9 @@ import { lazy, Suspense } from "react";
 
 const pages = () => import("./ClinicalPages");
 const AnamnesisPage = lazy(() => pages().then((m) => ({ default: m.AnamnesisPage })));
-const ExplorationPage = lazy(() => pages().then((m) => ({ default: m.ExplorationPage })));
-const FindingFormPage = lazy(() => pages().then((m) => ({ default: m.FindingFormPage })));
+const exploration = () => import("./ExplorationPages");
+const ExplorationPage = lazy(() => exploration().then((m) => ({ default: m.ExplorationPage })));
+const FindingFormPage = lazy(() => exploration().then((m) => ({ default: m.FindingFormPage })));
 const MeasurementsPage = lazy(() => pages().then((m) => ({ default: m.MeasurementsPage })));
 const SessionsPage = lazy(() => pages().then((m) => ({ default: m.SessionsPage })));
 const SessionFormPage = lazy(() => pages().then((m) => ({ default: m.SessionFormPage })));

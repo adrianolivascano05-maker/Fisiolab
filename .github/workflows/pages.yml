@@ -38,8 +38,36 @@ jobs:
         with:
           path: dist
 
+  # Las pruebas de pantallas (Playwright) en los dos alojamientos: en la raíz (Cloudflare) y bajo /<repositorio>/
+  # (GitHub Pages). Si alguna falla, no se publica.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        base: ["/", "/${{ github.event.repository.name }}/"]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Pruebas de pantallas bajo ${{ matrix.base }}
+        run: npx playwright test
+        env:
+          E2E_BASE: ${{ matrix.base }}
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-fallos-${{ strategy.job-index }}
+          path: test-results
+          retention-days: 7
+
   deploy:
-    needs: build
+    needs: [build, e2e]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

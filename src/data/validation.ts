@@ -29,7 +29,7 @@ export const kinds: KindInfo[] = [
     digits: 1,
     delta: 2,
     metric: "jump_height_cm",
-    references: ["Plataforma de fuerza", "My Jump Lab", "Células fotoeléctricas (alfombra o barras)"],
+    references: ["Plataforma de fuerza", "Otra app de salto validada", "Células fotoeléctricas (alfombra o barras)"],
     protocol: [
       "Cada salto se mide a la vez con las dos herramientas: graba con Cénit mientras la persona salta sobre la plataforma (o la otra app graba el mismo salto).",
       "20-30 saltos o más, de varias personas y alturas distintas (unos flojos y otros a tope): así se ve si el error cambia con la altura.",

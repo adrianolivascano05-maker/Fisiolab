@@ -3,7 +3,7 @@ import { useState, type ReactNode } from "react";
 import { Alert } from "../ui/Alert";
 import { TabBar, TopBar } from "../ui/AppBar";
 import { Button, IconButton } from "../ui/Button";
-import { Card, MetricCard } from "../ui/Card";
+import { MetricCard } from "../ui/Card";
 import { CategoryTile } from "../ui/CategoryTile";
 import { EmptyState } from "../ui/EmptyState";
 import { NumberField, SelectField, TextField } from "../ui/Field";
@@ -153,14 +153,6 @@ export function DesignPage() {
           </div>
         </Section>
 
-        <Section title="Pendiente de construir con su pantalla">
-          <Card>
-            <p className="text-sm text-text-muted">
-              Gráficas (S09, S10, S14, S22), transportador sobre imagen (S19, S20), inclinómetro (S19) y tabla ordenable
-              (S23). Están especificados en replica/design/components.md y se construyen en /replica-build.
-            </p>
-          </Card>
-        </Section>
       </main>
       <TabBar />
     </>

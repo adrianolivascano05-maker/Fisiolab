@@ -4,22 +4,21 @@ Fecha: 2026-10-17
 
 ## 1. Qué es y dónde está
 
-- **App:** Cénit · Fisiolab (antes «Impulso»; marca en `replica/brand.md`: paleta bosque y oro, Fraunces + Manrope, logo de la «C» con el sol en el cénit). Mide el salto por vídeo a cámara lenta: se marcan fotogramas y la app calcula altura, RSI, fuerza, potencia, etc. Es una versión propia, por funciones, de My Jump Lab (Carlos Balsalobre). No usa nada suyo: ni código, ni nombre, ni logo, ni textos.
+- **App:** Cénit · Fisiolab (antes «Impulso»; marca en el apartado 5: paleta bosque y oro, Fraunces + Manrope, logo de la «C» con el sol en el cénit). Ficha clínica de fisioterapia y medición por vídeo a cámara lenta: se marcan fotogramas y la app calcula altura del salto, RSI, fuerza, potencia, etc. Código, nombre, logo y textos propios.
 - **Uso:** interno en la clínica Fisiolab, en el móvil **Android (Pixel 7 Pro)** del usuario.
 - **Publicada (versión de prueba):** https://adrianolivascano05-maker.github.io/Fisiolab/
 - **Código:** repositorio `adrianolivascano05-maker/Fisiolab` (público). Rama principal y única: `claude/replica-skill-install-zv3ker`. Cada push a esa rama vuelve a publicar la app (GitHub Actions → GitHub Pages).
-- **Método:** las skills «replica» instaladas en `.claude/skills/` (recon → architect → design → build → test → diff → brand → deploy). Todos sus documentos están en `replica/`.
+- **Método:** las skills «replica» instaladas en `.claude/skills/` (recon → architect → design → build → test → diff → brand → deploy). Sus documentos de trabajo se quitaron del repositorio el 2026-10-20 (quedan en el historial de git).
 
 ## 2. Estado actual
 
 | | |
 | --- | --- |
 | Funciones imprescindibles | **13 / 13** |
-| Paridad con My Jump Lab | **91,7 / 100**: fases 1 a 4 completas; quedan los «could» (sprint curvo, deceleración, S-MAS, IA) |
+| Fases | 1 a 4 completas; quedan los «could» (sprint curvo, deceleración, S-MAS) |
 | Pruebas | 100 unitarias (Vitest) + 70 en navegador (Playwright), en los dos modos de alojamiento |
-| Fallos | 7 encontrados, 7 arreglados (`replica/bugs.md`); ninguno abierto |
+| Fallos | los encontrados en las pruebas, arreglados; ninguno abierto |
 | Prueba real | vídeo de Pixel 7 Pro (120 fps guardado a 30): 30,7 cm; el usuario confirmó que la app publicada funciona en su Android |
-| Barrido de marca | limpio (`sweep.py`) |
 
 **Hecho:**
 - Pacientes.
@@ -43,11 +42,10 @@ Fecha: 2026-10-17
 - Marca propia.
 
 **Pendiente:**
-- **Validación** contra My Jump Lab o una plataforma de fuerza: 10-20 saltos medidos a la vez. Hasta entonces, no usar para decisiones clínicas.
+- **Validación** contra una plataforma de fuerza u otra app de salto validada: 10-20 saltos medidos a la vez. Hasta entonces, no usar para decisiones clínicas.
 - Validar el momento del nórdico con un dinamómetro.
 - Comparar la velocidad de barra con un encoder lineal.
 - Probar la movilidad con el sensor de un Android real.
-- `/replica-entrepreneur`: leer reseñas reales del original para mejorar sobre él.
 - Prueba con TalkBack.
 
 **Experimental (se puede quitar):** «Medición libre» (Nueva medición → Medición libre).
@@ -70,7 +68,7 @@ Fecha: 2026-10-17
      - Datos de la clínica en Ajustes.
      - Texto informativo del RGPD para que cada paciente lo firme, con sus consentimientos opcionales: fotos y vídeos, WhatsApp o correo, docencia y estudios.
      - PIN para abrir la app.
-     - Copia de Drive cifrada con contraseña (opcional).
+     - Copia de la nube siempre cifrada con la contraseña de la clínica (la clave, guardada sin poder sacarla del dispositivo).
      - Con la nube y cuentas de Gmail normales falta el contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace. La app lo recuerda.
 4. **El vídeo no se guarda:** se queda en la galería. Solo se guardan las marcas y los resultados, así que, si cambia una fórmula, se recalcula desde las marcas.
 5. **fps de grabación separados de los fps del archivo.**
@@ -155,7 +153,7 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
 ## 5. Marca (texto final)
 
 - **Nombre:** «Cénit» (completo «Cénit · Fisiolab»). Antes «Impulso».
-- **Colores (`replica/design/tokens.json`), paleta «bosque y oro»:**
+- **Colores (`src/styles/tokens.json`), paleta «bosque y oro»:**
   - marca `#0E3B2E` (verde bosque), acción `#1F6F54` (esmeralda), oro `#C9A227` (detalles, nunca texto)
   - fondo `#F2E8D8` (crema), tarjetas `#FBF7F0`, texto `#1B1B1D`, secundario `#57514A`
   - gráficas `#00805A` y `#97700E`; peligro `#A3261C`, aviso `#7A5600`
@@ -181,7 +179,6 @@ src/video/       meta.ts (fps, fps de grabación Android, horas de fotogramas), 
 src/pages/       una pantalla por archivo (S01 PatientsPage … S25 JumpHelp); rutas en src/App.tsx
 src/ui/          componentes del sistema de diseño (FrameScrubber, MetricCard, Sheet, Logo…)
 e2e/             pruebas Playwright por flujo (fixtures.ts con ayudas)
-replica/         recon, arquitectura, diseño, test-plan, bugs, paridad, marca, despliegue
 tools/           build-tokens.mjs, build-icons.py, serve-dist.mjs (sirve el build como el alojamiento)
 ```
 
@@ -194,9 +191,7 @@ npm run e2e            # navegador, en la raíz (cabeceras de Cloudflare)
 npm run e2e:ghpages    # navegador, bajo /Fisiolab/ como GitHub Pages
 npm run build          # tokens + typecheck + build
 python3 tools/build-icons.py
-python3 .claude/skills/replica-design/contrast.py replica/design/tokens.json
-python3 .claude/skills/replica-brand/sweep.py . --config replica/brand.json
-python3 .claude/skills/replica-diff/parity.py replica/features.csv
+python3 .claude/skills/replica-design/contrast.py src/styles/tokens.json
 ```
 
 Convenciones:
@@ -207,9 +202,9 @@ Convenciones:
 
 ## 7. Siguientes pasos recomendados
 
-1. **Validación (herramienta hecha, faltan los datos):** Ajustes → Validación. Pares Impulso–referencia (plataforma, My Jump Lab, encoder, dinamómetro, goniómetro), Bland-Altman, ICC(A,1), error típico, cambio mínimo detectable y lectura en lenguaje claro frente a la diferencia clínica que elijas; «Marcar otra vez a ciegas» en cada resultado (fiabilidad); IA frente a marcas finales (se llena sola); comprobación del sensor del móvil. Falta hacer las sesiones de medida (20-30 pares por medida).
+1. **Validación (herramienta hecha, faltan los datos):** Ajustes → Validación. Pares Cénit–referencia (plataforma, otra app de salto validada, encoder, dinamómetro, goniómetro), Bland-Altman, ICC(A,1), error típico, cambio mínimo detectable y lectura en lenguaje claro frente a la diferencia clínica que elijas; «Marcar otra vez a ciegas» en cada resultado (fiabilidad); IA frente a marcas finales (se llena sola); comprobación del sensor del móvil. Falta hacer las sesiones de medida (20-30 pares por medida).
 2. **IA (hecha):** «Proponer las marcas con IA» en saltos (despegue, aterrizaje, contacto en la caída, inicio del CMJ, series de rebotes) y en fuerza (inicio y fin de cada subida). Motor de pose compartido en `src/ai`. Cada marca se corrige con ‹ › (un fotograma) o ⌖ (al fotograma de pantalla). Probado con vídeos sintéticos: fotograma exacto. Falta probarla con vídeos reales de la clínica.
    Extras pendientes («could»): sprint curvo, deceleración y S-MAS.
 3. **Exploración (hecha):** pestaña con 212 tests diferenciales en 11 articulaciones y 77 patologías (`src/gallery`, módulo quitable). Figuras en 3D generadas por código (paciente y examinador con anatomía humana —piel continua en las articulaciones, manos con dedos, cara y pelo—, esqueleto, examinador colocado sin meterse en el paciente, la camilla ni en sí mismo en ningún fotograma, brazos con mecánica de hombro, escápula, codo y muñeca reales, tomas con los dedos apoyados en la piel, cámara automática con giro limitado; dibujo plano si no hay WebGL); precisión de 145 tests con su fuente (comprobada con buscador; algunas cifras de fuentes secundarias, indicado en cada fila); 67 «sin contrastar», al final de cada patología, para completar cuando se consulten las fuentes originales.
-3. **Reseñas del original (hecho, muestra pequeña):** `replica/fixes.md`. Ya hechas: autoguardado de marcas, «Cómo se ha calculado» en el salto y medición rápida sin ficha. Pendiente: lupa sobre la imagen al marcar y volver a leer las reseñas desde un navegador normal (aquí las tiendas están bloqueadas).
+3. **Mejoras pedidas en reseñas de apps de salto (hecho):** autoguardado de marcas, «Cómo se ha calculado» en el salto y medición rápida sin ficha. Pendiente: lupa sobre la imagen al marcar.
 4. **Confirmar el DRI** en el artículo de Brooks (2026).

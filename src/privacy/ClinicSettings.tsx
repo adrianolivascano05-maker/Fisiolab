@@ -24,7 +24,7 @@ export function ClinicSettings() {
     });
   }, []);
   if (!c) return null;
-  const server = !!cloud?.sync.store.encryptedOnly;
+  const server = cloud?.sync.store.kind === "server";
   const text = (key: "name" | "taxId" | "address" | "email" | "phone" | "dpo" | "professional" | "license" | "city") => ({
     value: c[key],
     onChange: (e: { target: { value: string } }) => setC({ ...c, [key]: e.target.value }),
@@ -84,7 +84,7 @@ export function ClinicSettings() {
             {...text("dpo")}
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <TextField label="Fisioterapeuta (para los consentimientos)" autoComplete="name" hint="Se puede cambiar en cada uno." {...text("professional")} />
+            <TextField label="Fisioterapeuta" autoComplete="name" hint="Firma los informes y, por defecto, los consentimientos." {...text("professional")} />
             <TextField label="Nº de colegiado" autoComplete="off" {...text("license")} />
           </div>
           <TextField label="Localidad" autoComplete="address-level2" hint="Para «En …, a … de …» de los consentimientos." {...text("city")} />
