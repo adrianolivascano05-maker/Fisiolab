@@ -7,6 +7,7 @@ import { createContext, useContext, useEffect, useRef, useState, type FormEvent,
 import { Link } from "react-router";
 import { configureDb, getDb } from "../data/db";
 import { setMember } from "../data/member";
+import { ensureDevice } from "../data/editors";
 import { ensureStaff } from "../data/schedule";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -260,7 +261,11 @@ export function CloudGate({ children }: { children: ReactNode }) {
         if (cloud.sync.current.status !== "syncing") cloud.sync.seenNewData(); // la pantalla aún no se ha abierto
       }
       // En el horario de la clínica, cada persona sale con su nombre de Google.
-      if (clinic) await ensureStaff(getDb(), account.email, account.name, true).catch(() => {});
+      if (clinic) {
+        await ensureStaff(getDb(), account.email, account.name, true).catch(() => {});
+        // «Editado por»: este dispositivo es de esta persona.
+        await ensureDevice(getDb(), account.email, account.name).catch(() => {});
+      }
       setPhase({ kind: "ready", cloud });
     })();
 
@@ -672,6 +677,24 @@ export function SyncNotice() {
       {action}
     </div>
   );
+  if (s.overwritten?.length)
+    return (
+      <div role="status" className="flex flex-col gap-2 rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
+        <span>
+          Otra persona ha cambiado a la vez algo que acababas de guardar; se ha quedado su versión: {s.overwritten.join("; ")}.
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {s.newData && (
+            <Button size="sm" onClick={cloud.showNewData}>
+              Mostrar
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" onClick={() => cloud.sync.seenOverwritten()}>
+            Entendido
+          </Button>
+        </div>
+      </div>
+    );
   if (s.newData)
     return row(
       "Hay datos nuevos de otro dispositivo.",

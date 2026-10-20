@@ -8,7 +8,9 @@ import { fmt } from "../app/format";
 import { Page } from "../app/Page";
 import { rememberPatient } from "../app/recent";
 import { useAsync } from "../app/useAsync";
+import { useCloud } from "../cloud/CloudGate";
 import { nextAppointmentOf } from "../data/appointments";
+import { editText, lastEditOfPatient } from "../data/editors";
 import { getDb } from "../data/db";
 import { ageOn } from "../data/privacy";
 import type { Patient } from "../data/repo";
@@ -23,6 +25,9 @@ import { PatientNav } from "./parts";
 export function PatientShell({ patient, id, tabs = true, children }: { patient: Patient | null | undefined; id: string; tabs?: boolean; children: ReactNode }) {
   useEffect(() => rememberPatient(id), [id]);
   const visit = useAsync(() => nextAppointmentOf(getDb(), id), [id]);
+  // En una clínica, quién tocó la ficha por última vez.
+  const team = !!useCloud()?.clinic;
+  const edit = useAsync(async () => (team ? lastEditOfPatient(getDb(), id) : null), [id, team]);
   const [managing, setManaging] = useState(false);
   // Con Google Calendar conectado la cita ya está en el calendario; si no, el botón para pasarla.
   const autoCalendar = useAutoCalendar();
@@ -58,6 +63,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
             <div className="flex min-w-0 flex-col">
               <h1 className="text-[1.75rem] leading-tight font-bold break-words">{name}</h1>
               {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin más datos"}</p>}
+              {edit.data && <p className="text-xs text-text-muted">Última modificación: {editText(edit.data)}</p>}
             </div>
           </div>
           {patient && <EpisodePicker patientId={id} />}

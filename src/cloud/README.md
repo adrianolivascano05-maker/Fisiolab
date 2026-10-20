@@ -158,6 +158,11 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
   confirma que lo ha guardado (ajuste `recovery_saved`). En el servidor (`/recuperacion`) solo está la clave de la
   copia cerrada con el código. Si se olvida la contraseña y no queda ningún dispositivo con la clave, quien
   administra abre la copia con el código («He olvidado la contraseña») y elige otra contraseña.
+- **«Editado por»** (`../data/editors.ts`, migración 016): cada cambio guarda el dispositivo que lo hizo y cada
+  dispositivo de la clínica dice de quién es (tabla `devices`), así que la ficha y las citas muestran «Última
+  modificación: Ana, hace 5 min». Guardar sin cambiar nada no cuenta (los disparadores de modificación solo apuntan
+  el cambio si cambia alguna columna además de `updated_at`). Si llega de otro dispositivo un cambio que pisa algo
+  guardado aquí hace menos de un cuarto de hora, el aviso de arriba lo dice («se ha quedado su versión»).
 - **Lo de cada persona** (`../data/member.ts`): su Google Calendar, su carpeta de Drive y su nombre y nº de
   colegiado para firmar se guardan en la base de la clínica con su clave (`calendar_id@<sub>`…). Cada cita lleva
   quién la dio (`created_by`, migración 014) y a cada calendario solo van las suyas.

@@ -9,6 +9,7 @@ import { createAppointment, deleteAppointment, STATUS_LABELS, updateAppointment,
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
 import { listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
+import { editText, lastEditOf } from "../data/editors";
 import { memberEmail } from "../data/member";
 import { staffName, useStaff } from "../schedule/useStaff";
 import { Alert } from "../ui/Alert";
@@ -49,6 +50,8 @@ export function AppointmentSheet({
   const [when, setWhen] = useState("");
   const [minutes, setMinutes] = useState(DEFAULT_VISIT_MINUTES);
   const staff = useStaff();
+  const edit = useAsync(async () => (open && appointment && staff.length ? lastEditOf(getDb(), "appointments", appointment.id) : null), [open, appointment?.id, staff.length]);
+  const lastEdit = edit.data;
   const [assignedTo, setAssignedTo] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +115,7 @@ export function AppointmentSheet({
             <span className={appointment.status === "scheduled" ? "" : "font-semibold"}>{STATUS_LABELS[appointment.status]}</span>
             {staff.length > 0 && <> · Con {staffName(staff, appointment.assignedTo)}</>}
           </p>
+          {lastEdit && <p className="text-xs text-text-muted">Última modificación: {editText(lastEdit)}</p>}
           {appointment.status !== "done" && (
             <Link
               to={`/pacientes/${patientId}/sesiones/nueva`}

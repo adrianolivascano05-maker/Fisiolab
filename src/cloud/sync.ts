@@ -10,6 +10,7 @@
 // cifrado en la cuenta no se sube nada («needs-password»); con ella pero sin la clave en este dispositivo, no se baja
 // ni se sube nada hasta escribirla («needs-key»). Una copia antigua sin cifrar se sigue pudiendo bajar y juntar.
 import { onDbChange, type Db } from "../data/db";
+import { describeOverwritten } from "../data/editors";
 import { getSetting } from "../data/repo";
 import type { Account } from "./account";
 import { clearToken, getToken } from "./auth";
@@ -31,6 +32,8 @@ export type SyncState = {
   error: string | null;
   /** Con «needs-key»: la sal de la contraseña que hace falta. */
   keySalt?: string | null;
+  /** Lo que se acababa de cambiar aquí y otro ha cambiado después: se ha quedado lo suyo («Editado por»). */
+  overwritten?: string[];
 };
 
 type Meta = { fileId: string; version: string; lastSyncAt: string };
@@ -104,6 +107,11 @@ export class SyncController {
     this.state = { ...this.state, ...patch };
     this.listeners.forEach((fn) => fn(this.state));
   }
+  /** Ya se ha visto el aviso de cambios pisados. */
+  seenOverwritten() {
+    this.set({ overwritten: [] });
+  }
+
   /** La pantalla ya enseña los datos nuevos. */
   seenNewData() {
     this.set({ newData: false });
@@ -213,6 +221,10 @@ export class SyncController {
             const r = await this.own(() => this.db.merge(bytes));
             pulled += r.pulled;
             needUpload ||= r.needUpload;
+            if (r.overwritten?.length) {
+              const lost = await describeOverwritten(this.db, r.overwritten);
+              if (lost.length) this.set({ overwritten: [...new Set([...(this.state.overwritten ?? []), ...lost])] });
+            }
           }
           if (!needUpload) await this.markPushed(s!.changes);
           // Si otro dispositivo ha cambiado la contraseña, la clave de aquí ya no vale.

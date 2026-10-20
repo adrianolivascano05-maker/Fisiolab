@@ -202,6 +202,10 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await inServer(google, "Paciente de Bruno");
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Paciente de Bruno/ })).toBeVisible();
+    // «Editado por»: en la ficha, quién la cambió por última vez.
+    await page.getByRole("link", { name: /Paciente de Bruno/ }).click();
+    await expect(page.getByText(/^Última modificación: Bruno Gil, hace/)).toBeVisible();
+    await page.goto("./");
 
     // Carla no es del equipo ni puede dar de alta clínicas: no ve nada.
     const carla = await device(browser, google, "carla", errors);

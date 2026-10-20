@@ -32,6 +32,7 @@ export const SYNC_TABLES: { name: string; pk: string[]; unique?: string[][] }[] 
   { name: "consents", pk: ["id"] },
   { name: "validation_pairs", pk: ["id"] },
   { name: "settings", pk: ["key"] },
+  { name: "devices", pk: ["device"] },
 ];
 
 type Change = { tbl: string; pk: string; op: "upsert" | "delete"; at: string; device: string };
@@ -40,6 +41,11 @@ export type MergeResult = {
   pulled: number;
   /** Este dispositivo tiene cambios que la nube no tiene: hay que subir la copia. */
   needUpload: boolean;
+  /**
+   * Filas que se acababan de cambiar aquí (hace menos de un cuarto de hora) y que otro dispositivo ha cambiado después:
+   * se queda lo suyo. Para avisar («Editado por»).
+   */
+  overwritten?: { tbl: string; pk: string; device: string }[];
 };
 
 const NOW = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
@@ -122,9 +128,13 @@ export function mergeInto(local: DB, remote: DB): MergeResult {
   const theirs = new Map(changes(remote).map((c) => [keyOf(c), c]));
   let needUpload = false;
   const wins: Change[] = [];
+  const here = local.selectValue("select device from sync_state") as string;
+  const recent = new Date(Date.now() - 15 * 60_000).toISOString();
+  const overwritten: { tbl: string; pk: string; device: string }[] = [];
   for (const [k, r] of theirs) {
     if (!specs.has(r.tbl)) continue; // una tabla que esta versión no conoce: la copia es más nueva (se avisa antes)
     const l = mine.get(k);
+    if (l && newer(r, l) && l.device === here && r.device !== here && l.op === "upsert" && l.at > recent) overwritten.push({ tbl: r.tbl, pk: r.pk, device: r.device });
     if (!l || newer(r, l)) wins.push(r);
     else if (newer(l, r)) needUpload = true;
   }
@@ -206,5 +216,5 @@ export function mergeInto(local: DB, remote: DB): MergeResult {
   }
 
   local.exec("update sync_state set applying = 0");
-  return { pulled: wins.length, needUpload };
+  return { pulled: wins.length, needUpload, overwritten };
 }

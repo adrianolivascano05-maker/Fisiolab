@@ -30,7 +30,20 @@ describe("registro de cambios", () => {
       expect(triggers, t.name).toHaveLength(3);
       const pk = (await a.query<{ name: string; pk: number }>(`select name, pk from pragma_table_info('${t.name}') where pk > 0 order by pk`)).map((c) => c.name);
       expect(pk, t.name).toEqual(t.pk);
+      // Guardar sin cambiar nada no cuenta (migración 016): el disparador mira todas las columnas menos updated_at.
+      const [update] = await a.query<{ sql: string }>("select sql from sqlite_master where name = ?", [`sync_${t.name}_update`]);
+      const cols = (await a.query<{ name: string }>(`select name from pragma_table_info('${t.name}')`)).map((c) => c.name).filter((c) => c !== "updated_at");
+      for (const c of cols) expect(update!.sql, `${t.name}.${c}`).toContain(`old.${c} is not new.${c}`);
     }
+  });
+
+  it("guardar lo mismo no cuenta como cambio; cambiar algo, sí", async () => {
+    const pid = await createPatient(a, patient("Ana"));
+    const before = (await state(a)).changes;
+    await a.transaction([{ sql: "update patients set name = name, updated_at = ? where id = ?", bind: ["2099-01-01", pid] }]);
+    expect((await state(a)).changes).toBe(before);
+    await a.transaction([{ sql: "update patients set notes = 'otra' where id = ?", bind: [pid] }]);
+    expect((await state(a)).changes).toBe(before + 1);
   });
 
   it("cada alta, cambio o borrado (también en cascada) deja su hora; los ajustes del dispositivo no", async () => {
@@ -55,20 +68,20 @@ describe("juntar dos dispositivos", () => {
     await saveSession(a, pid, session("2026-10-01T10:00:00.000Z"));
     const snap = await a.snapshot();
     expect(snap.changes).toBe(2);
-    expect(await b.merge(snap.bytes)).toEqual({ pulled: 2, needUpload: false });
+    expect(await b.merge(snap.bytes)).toMatchObject({ pulled: 2, needUpload: false });
     expect(await names(b)).toEqual(["Ana"]);
     expect(await b.query("select treatment from sessions")).toEqual([{ treatment: "Ejercicio" }]);
     // Lo que llega de la nube no cuenta como cambio de este dispositivo.
     expect((await state(b)).changes).toBe(0);
-    expect(await b.merge(snap.bytes)).toEqual({ pulled: 0, needUpload: false });
+    expect(await b.merge(snap.bytes)).toMatchObject({ pulled: 0, needUpload: false });
   });
 
   it("cada uno con sus pacientes: al juntar están todos y hay que subir lo que falta en la nube", async () => {
     await createPatient(a, patient("Ana"));
     await createPatient(b, patient("Bruno"));
-    expect(await b.merge((await a.snapshot()).bytes)).toEqual({ pulled: 1, needUpload: true });
+    expect(await b.merge((await a.snapshot()).bytes)).toMatchObject({ pulled: 1, needUpload: true });
     expect(await names(b)).toEqual(["Ana", "Bruno"]);
-    expect(await a.merge((await b.snapshot()).bytes)).toEqual({ pulled: 1, needUpload: false });
+    expect(await a.merge((await b.snapshot()).bytes)).toMatchObject({ pulled: 1, needUpload: false });
     expect(await names(a)).toEqual(["Ana", "Bruno"]);
   });
 
@@ -79,9 +92,9 @@ describe("juntar dos dispositivos", () => {
     await b.transaction([{ sql: "update patients set notes = 'desde B' where id = ?", bind: [pid] }]);
     await stamp(a, "patients", pid, "2030-10-02T10:00:00.000Z");
     await stamp(b, "patients", pid, "2030-10-02T11:00:00.000Z");
-    expect(await a.merge((await b.snapshot()).bytes)).toEqual({ pulled: 1, needUpload: false });
+    expect(await a.merge((await b.snapshot()).bytes)).toMatchObject({ pulled: 1, needUpload: false });
     expect(await a.query("select notes from patients")).toEqual([{ notes: "desde B" }]);
-    expect(await b.merge((await a.snapshot()).bytes)).toEqual({ pulled: 0, needUpload: false });
+    expect(await b.merge((await a.snapshot()).bytes)).toMatchObject({ pulled: 0, needUpload: false });
     expect(await b.query("select notes from patients")).toEqual([{ notes: "desde B" }]);
   });
 
@@ -106,7 +119,7 @@ describe("juntar dos dispositivos", () => {
     await stamp(b, "patients", pid, "2030-10-02T10:00:00.000Z");
     await a.transaction([{ sql: "update patients set notes = 'sigue' where id = ?", bind: [pid] }]);
     await stamp(a, "patients", pid, "2030-10-03T10:00:00.000Z");
-    expect(await b.merge((await a.snapshot()).bytes)).toEqual({ pulled: 1, needUpload: false });
+    expect(await b.merge((await a.snapshot()).bytes)).toMatchObject({ pulled: 1, needUpload: false });
     expect(await b.query("select name, notes from patients")).toEqual([{ name: "Ana", notes: "sigue" }]);
   });
 
