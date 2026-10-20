@@ -20,6 +20,7 @@ export const SYNC_TABLES: { name: string; pk: string[]; unique?: string[][] }[] 
   { name: "anamnesis", pk: ["patient_id"] },
   { name: "findings", pk: ["id"] },
   { name: "sessions", pk: ["id"] },
+  { name: "appointments", pk: ["id"] },
   { name: "questionnaires", pk: ["id"] },
   { name: "consents", pk: ["id"] },
   { name: "validation_pairs", pk: ["id"] },

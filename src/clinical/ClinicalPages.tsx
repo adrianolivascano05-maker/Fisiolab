@@ -19,18 +19,21 @@ import {
   saveAnamnesis,
   saveQuestionnaire,
   saveSession,
+  sessionCount,
   type AnswerValue,
   type Answers,
   type Finding,
   type Questionnaire,
   type Session,
 } from "../data/clinical";
+import { getAppointment } from "../data/appointments";
 import { getDb } from "../data/db";
 import { ALL, currentEpisode, episodeLabel, getFocus, listEpisodes } from "../data/episodes";
 import { getPatient, listTests, listWellness, type Patient } from "../data/repo";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { cx } from "../ui/cx";
 import { EmptyState } from "../ui/EmptyState";
 import { NumberField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
@@ -78,7 +81,7 @@ function FieldInput({ field, value, onChange }: { field: Field; value: AnswerVal
         />
       );
     case "number":
-      return <TextField label={`${field.label} (${field.unit})`} hint={field.hint} inputMode="decimal" value={typeof value === "number" ? String(value).replace(".", ",") : s} onChange={(e) => onChange(e.target.value)} />;
+      return <NumberField label={field.label} unit={field.unit} hint={field.hint} value={typeof value === "number" ? String(value).replace(".", ",") : s} onChange={(e) => onChange(e.target.value)} />;
   }
 }
 
@@ -488,11 +491,11 @@ export function SessionsPage() {
   const autoCalendar = useAutoCalendar();
   const data = useLoad(id, async () => {
     const db = getDb();
-    const [patient, sessions, findings, tests] = await Promise.all([getPatient(db, id), listSessions(db, id), listFindings(db, id), listTests(db, id)]);
-    return { patient, sessions, findings, tests };
+    const [patient, sessions, findings, tests, count] = await Promise.all([getPatient(db, id), listSessions(db, id), listFindings(db, id), listTests(db, id), sessionCount(db, id)]);
+    return { patient, sessions, findings, tests, count };
   });
   if (!data.data) return <Guard state={data} title="Sesiones" back={`/pacientes/${id}`} />;
-  const { patient, sessions, findings, tests } = data.data;
+  const { patient, sessions, findings, tests, count } = data.data;
   const review = sessions[0]?.reviewOn ?? null;
   const today = todayDay();
   // Al guardar una sesión con siguiente cita se ofrece pasarla al calendario (la próxima cita, con su botón, está en la cabecera).
@@ -506,6 +509,7 @@ export function SessionsPage() {
           <NotebookPen aria-hidden="true" className="size-5" /> Nueva sesión
         </Link>
       </div>
+      {count.planned !== null && <SessionMeter done={count.done} planned={count.planned} />}
       {review && (
         <Alert tone={review <= today ? "warning" : "info"} title={review < today ? `Reevaluación pendiente desde el ${dayText(review)}` : review === today ? "Reevaluar hoy" : `Próxima reevaluación: ${dayText(review)}`} />
       )}
@@ -524,6 +528,26 @@ export function SessionsPage() {
         <CalendarSheet open onClose={() => setParams({}, { replace: true })} event={justSavedEvent} title="¿Añadir la cita a tu calendario?" />
       )}
     </PatientShell>
+  );
+}
+
+/** Cuántas sesiones lleva de las previstas (o del bono) en este motivo de consulta. */
+function SessionMeter({ done, planned }: { done: number; planned: number }) {
+  const left = planned - done;
+  return (
+    <Card className="flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="font-semibold">
+          {done} de {planned} sesiones
+        </span>
+        <span className={cx("text-sm", left <= 0 ? "font-semibold text-warning" : "text-text-muted")}>
+          {left > 1 ? `Quedan ${left}` : left === 1 ? "Queda 1" : left === 0 ? "Hechas todas" : `${-left} más de las previstas`}
+        </span>
+      </div>
+      <div role="progressbar" aria-label="Sesiones hechas" aria-valuemin={0} aria-valuemax={planned} aria-valuenow={Math.min(done, planned)} className="h-2 overflow-hidden rounded-pill bg-surface">
+        <div className={cx("h-full rounded-pill", left <= 0 ? "bg-warning" : "bg-accent")} style={{ width: `${Math.min(100, (done / planned) * 100)}%` }} />
+      </div>
+    </Card>
   );
 }
 
@@ -618,9 +642,22 @@ export function SessionFormPage() {
   const autoCalendar = useAutoCalendar();
   const data = useLoad(`${id}|${sid ?? ""}`, async () => {
     const db = getDb();
-    const [patient, session, sessions] = await Promise.all([getPatient(db, id), sid ? getSession(db, sid) : null, listSessions(db, id)]);
-    // La duración de la siguiente cita: la que se usó la última vez.
-    return { patient, session, lastMinutes: sessions.find((s) => s.nextMinutes)?.nextMinutes ?? DEFAULT_VISIT_MINUTES };
+    const [patient, session, sessions, appointment, count] = await Promise.all([
+      getPatient(db, id),
+      sid ? getSession(db, sid) : null,
+      listSessions(db, id),
+      sid ? getAppointment(db, sid) : null,
+      sessionCount(db, id),
+    ]);
+    // La duración de la siguiente cita: la que se usó la última vez. La sesión anterior, para repetir su tratamiento.
+    return {
+      patient,
+      session,
+      appointment,
+      count,
+      previous: sid ? null : (sessions[0] ?? null),
+      lastMinutes: sessions.find((s) => s.nextMinutes)?.nextMinutes ?? DEFAULT_VISIT_MINUTES,
+    };
   });
   const [when, setWhen] = useState(() => localInput(new Date().toISOString()));
   const [pain, setPain] = useState<number | null>(null);
@@ -645,13 +682,16 @@ export function SessionFormPage() {
     setTreatment(s.treatment);
     setPlan(s.plan);
     setReviewOn(s.reviewOn ?? "");
-    setNextAt(s.nextAt ? localInput(s.nextAt) : "");
-    setNextMinutes(s.nextMinutes);
-  }, [data.data?.session]);
+    // La cita que se dio en esta sesión, como está ahora en la agenda (se puede haber movido después).
+    const a = data.data?.appointment;
+    const next = a ? (a.status === "cancelled" ? null : a.startsAt) : s.nextAt;
+    setNextAt(next ? localInput(next) : "");
+    setNextMinutes(a?.minutes ?? s.nextMinutes);
+  }, [data.data?.session, data.data?.appointment]);
 
   const back = `/pacientes/${id}/sesiones`;
   if (!data.data) return <Guard state={data} title="Sesión" back={back} />;
-  const { patient, session, lastMinutes } = data.data;
+  const { patient, session, lastMinutes, previous, count } = data.data;
   if (sid && !session) return <Page title="Sesión" backTo={back}><LoadError error={new Error("Esta sesión no existe.")} /></Page>;
   const minutes = nextMinutes ?? lastMinutes;
 
@@ -693,12 +733,33 @@ export function SessionFormPage() {
 
   return (
     <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back} tabs={false}>
-      <p className="text-text-muted">{patient?.name}</p>
+      <p className="text-text-muted">
+        {patient?.name}
+        {!sid && count.planned !== null && ` · sesión ${count.done + 1} de ${count.planned}`}
+      </p>
+      {!sid && count.planned !== null && count.done >= count.planned && (
+        <Alert tone="warning" title={`Ya lleva las ${count.planned} sesiones previstas`}>
+          Si sigue, cambia el número en su anamnesis (Objetivos → Sesiones previstas).
+        </Alert>
+      )}
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <TextField label="Fecha y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         <PainScale label="Dolor hoy (EVA 0-10)" value={pain} onChange={setPain} />
         <TextArea label="Qué refiere" hint="Cómo ha ido desde la última sesión, qué nota." value={subjective} onChange={setSubjective} />
         <TextArea label="Qué encuentras" hint="Exploración de hoy, cambios." value={objective} onChange={setObjective} />
+        {previous && (previous.treatment || previous.plan) && (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="self-start"
+            onClick={() => {
+              setTreatment(previous.treatment);
+              setPlan(previous.plan);
+            }}
+          >
+            Repetir el tratamiento de la última sesión ({fmtDate(previous.performedAt)})
+          </Button>
+        )}
         <TextArea label="Tratamiento" value={treatment} onChange={setTreatment} rows={4} />
         <TextArea label="Plan y ejercicios para casa" value={plan} onChange={setPlan} />
         <fieldset className="flex flex-col gap-2">

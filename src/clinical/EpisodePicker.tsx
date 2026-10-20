@@ -41,7 +41,8 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
   if (!data.data) return null;
   const { episodes, focus, counts } = data.data;
   const several = episodes.length > 1;
-  const current = episodes.find((e) => e.id === focus);
+  // Con un solo motivo, es ese (aunque no se haya elegido): se puede renombrar o dar por terminado.
+  const current = episodes.find((e) => e.id === focus) ?? (several ? undefined : episodes[0]);
   const label = current ? episodeLabel(current) : several ? "Todos los motivos" : episodeLabel(episodes[0]!);
 
   const close = () => {
@@ -85,6 +86,11 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
       setView("list");
       toast(done, "success");
       bumpData();
+      // Al darlo por terminado, su informe de alta.
+      if (c.closedAt) {
+        close();
+        navigate(`/pacientes/${patientId}/alta`);
+      }
     });
   const remove = (e: Episode) =>
     run(async () => {

@@ -144,7 +144,7 @@ export function PatientPage() {
           }
           warn={missing.length > 0}
         />
-        <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Imprimir, guardar en PDF o en Drive" />
+        <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Completo o de alta; imprimir o guardar en PDF" />
       </Group>
 
       {/* Lo clínico: por qué viene, banderas y dolor. */}

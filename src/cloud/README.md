@@ -97,10 +97,11 @@ de la última cuenta que entró en él.
 - **Permisos de Google.** Además del nombre, el correo y la carpeta oculta (`drive.appdata`), la app pide
   `drive.file` (solo los archivos que crea ella) y `calendar.app.created` (solo el calendario que crea ella). Los
   tres son «no sensibles». Si alguien no acepta uno, lo demás funciona y la app dice qué falta y cómo darlo.
-- **Citas en Google Calendar.** Al acabar cada sincronización con Drive, la siguiente cita de cada paciente (la
-  de su última sesión, si aún no ha llegado) se pone en el calendario «Cénit · Citas». El id del evento sale de la
-  sesión (`cenit` + su id), así que dos dispositivos dejan un solo evento. Una cita cambiada se mueve; una que ya
-  no está (otra sesión con otra cita, sesión o paciente borrados) se quita. Las citas pasadas o empezadas no se
+- **Citas en Google Calendar.** Al acabar cada sincronización, cada cita pendiente que aún no ha llegado (la agenda,
+  `../data/appointments.ts`) se pone en el calendario «Cénit · Citas». El id del evento sale del de
+  la cita (`cenit` + su id; la que se da al guardar una sesión lleva el id de la sesión, como antes de la agenda),
+  así que dos dispositivos dejan un solo evento. Una cita cambiada se mueve; una que ya no está pendiente (atendida,
+  no vino, anulada, borrada, o su paciente borrado) se quita. Las citas pasadas o empezadas no se
   tocan. Si nada ha cambiado, no se pregunta a Google hasta media hora después. En Ajustes → Cuenta de Google → Google Calendar se
   desactiva o se elige si sale el nombre del paciente o solo sus iniciales (por defecto, las iniciales). Con esto activado, al guardar una sesión ya no
   se ofrece el enlace de Google Calendar ni el .ics.

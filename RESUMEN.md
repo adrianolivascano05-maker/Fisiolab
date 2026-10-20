@@ -115,6 +115,9 @@ El usuario pidió una app tan intuitiva como un iPhone, sin listas que le digan 
   - Cabecera común a todas las pestañas: iniciales, nombre, edad, teléfono, peso y estatura, **motivo de consulta**, próxima cita con su botón de calendario, y «Editar». El contacto (teléfono, email, dirección) es del paciente, no de cada anamnesis (migración 012); los datos para saltos van plegados en el alta.
   - Anamnesis en apartados plegables; abiertos al llegar: motivo, antecedentes (con las precauciones), diagnóstico y objetivos (con el plan).
   - Mediciones: arriba, «Pruebas físicas» o «Cuestionarios», cada uno en su pantalla.
+  - Sesiones: cuántas lleva de las previstas (o del bono, en la anamnesis) y «Repetir el tratamiento de la última sesión».
+  - Informe de alta de cada motivo de consulta (se abre al «Dar por terminado»): evolución del primero al último dato, tratamiento y recomendaciones.
+- **Agenda** (migración 013): citas con estado (pendiente, atendida, no vino, anulada); «Dar cita» sin sesión desde la ficha; en Pacientes, «Hoy» con todas las del día y «Próximas citas» de la semana. Google Calendar sigue las citas pendientes.
   - **Motivos de consulta:** un paciente que vuelve por otro problema tiene otro motivo, con su propia anamnesis y sus registros. La ficha enseña los del motivo elegido o todos juntos (`src/clinical/README.md`).
   - Las pestañas se quedan fijas al bajar.
   - En el Resumen: «Añadir» (Sesión, Medición, Exploración, Cuestionario) y una lista con Anamnesis, Protección de datos (en naranja si falta) e Informe. Después, solo lo que tiene datos.

@@ -139,12 +139,16 @@ export const ANAMNESIS: Section[] = [
       { id: "objetivos_largo", label: "Objetivos a largo plazo", type: "textarea" },
       { id: "plan", label: "Plan de intervención propuesto", type: "textarea", rows: 6 },
       { id: "frecuencia_duracion", label: "Frecuencia y duración estimada", type: "text" },
+      { id: "sesiones_previstas", label: "Sesiones previstas (o del bono)", type: "number", unit: "", min: 1, max: 200, hint: "La pestaña Sesiones cuenta las que lleva de estas." },
     ],
   },
   {
     id: "observaciones",
     title: "9. Observaciones",
-    fields: [{ id: "observaciones", label: "Observaciones", type: "textarea", rows: 4 }],
+    fields: [
+      { id: "observaciones", label: "Observaciones", type: "textarea", rows: 4 },
+      { id: "alta_recomendaciones", label: "Recomendaciones al alta", type: "textarea", hint: "Salen en el informe de alta." },
+    ],
   },
 ];
 
@@ -157,7 +161,7 @@ export function answerText(field: Field | undefined, v: AnswerValue): string {
   if (v === null || v === undefined || v === "") return "";
   if (Array.isArray(v)) return v.map((x) => (field?.id === "regiones" ? regionLabel(x) : x)).join(", ");
   if (typeof v === "boolean") return v ? "Sí" : "No";
-  if (field?.type === "number") return `${String(v).replace(".", ",")} ${field.unit}`;
+  if (field?.type === "number") return `${String(v).replace(".", ",")}${field.unit ? ` ${field.unit}` : ""}`;
   if (field?.type === "scale") return `${v}/10`;
   if (field?.type === "date" && typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
     const [y, m, d] = v.split("-");

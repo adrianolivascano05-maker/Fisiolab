@@ -22,7 +22,7 @@ con todo lo suyo (el primero no se borra).
 | Anamnesis | `/pacientes/:id/anamnesis` | la ficha de anamnesis de la clínica, en apartados plegables (abiertos: motivo, antecedentes con las precauciones, diagnóstico y objetivos con el plan). El contacto (teléfono, email, dirección) no va aquí sino en los datos del paciente |
 | Exploración | `/pacientes/:id/exploracion` | tests especiales registrados, con lo que aporta cada resultado (razón de verosimilitud de la galería) y los tests propuestos para la zona |
 | Mediciones | `/pacientes/:id/mediciones` y `/pacientes/:id/cuestionarios` | dos pantallas con un selector arriba: «Pruebas físicas» (análisis, simetría entre lados y lista completa de saltos, fuerza, sprint, carrera, movilidad y nórdico) y «Cuestionarios» |
-| Sesiones | `/pacientes/:id/sesiones` | cada visita: dolor 0-10, qué refiere, qué encuentras, tratamiento, plan y cuándo reevaluar; con lo que se midió ese día |
+| Sesiones | `/pacientes/:id/sesiones` | cada visita: dolor 0-10, qué refiere, qué encuentras, tratamiento, plan y cuándo reevaluar; con lo que se midió ese día. Arriba, cuántas lleva de las previstas (o del bono) si se pusieron en la anamnesis («Sesiones previstas», en Objetivos). Al apuntar una sesión, «Repetir el tratamiento de la última sesión» copia su tratamiento y su plan |
 
 Además:
 
@@ -47,6 +47,15 @@ Además:
   vuelta al deporte; es una ayuda para leer los datos, no un criterio de alta.
 - **Reevaluaciones**: la fecha que se pone en la última sesión. La lista de pacientes muestra «Para reevaluar»
   con las de los próximos 7 días y las atrasadas.
+- **Informe de alta** (`/pacientes/:id/alta`, `DischargePage.tsx`): del motivo de consulta que se ve, las fechas,
+  el número de sesiones, el diagnóstico, la evolución (dolor, cuestionarios y mediciones: primero y último), el
+  tratamiento hecho y las recomendaciones al alta (se guardan en su anamnesis). Se abre al «Dar por terminado» un
+  motivo y desde el informe. Membrete y firma salen de Ajustes → Clínica (`reportParts.tsx`, común con el informe).
+- **Agenda** (migración 013, `../data/appointments.ts`, `AppointmentSheet.tsx`): cada cita es una fila, con su estado
+  (pendiente, atendida, no vino, anulada). Se da desde la cabecera de la ficha («Dar cita», sin sesión) o al guardar
+  una sesión (la siguiente cita, que lleva el id de la sesión). En Pacientes, «Hoy» enseña todas las citas del día;
+  tocando una se apunta la sesión, se marca que no vino, se anula, se cambia o se borra. Al apuntar una sesión, las
+  citas pendientes de ese día quedan atendidas. «Próximas citas» enseña las pendientes de los 7 días siguientes.
 - **Siguiente cita** (migración 007): día, hora y duración al guardar una sesión. Se pasa al calendario del
   fisioterapeuta sin conectar ninguna cuenta (`calendar.ts`, `CalendarButton.tsx`): un enlace que abre Google
   Calendar con el evento escrito (se confirma con «Guardar») o un archivo .ics para el calendario del iPhone y

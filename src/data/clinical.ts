@@ -1,6 +1,7 @@
 // Ficha clínica: anamnesis, sesiones (con la siguiente cita, migración 007), hallazgos de la exploración y
 // cuestionarios (migración 006). Mismo estilo que repo.ts:
 // una función por operación; las pantallas no escriben SQL.
+import { markAttended, nextAppointmentOf, sessionAppointmentSql, upcomingAppointments } from "./appointments";
 import type { Db } from "./db";
 import { currentEpisode, getEpisodeAnswers, inFocus, saveEpisodeAnswers } from "./episodes";
 
@@ -117,6 +118,8 @@ const sessionBind = (s: SessionInput) => [
 export async function saveSession(db: Db, patientId: string, input: SessionInput, id?: string): Promise<string> {
   checkSession(input);
   const t = now();
+  // La siguiente cita va también a la agenda (src/data/appointments.ts), con el id de la sesión.
+  const next = input.nextAt === null ? null : new Date(input.nextAt).toISOString();
   if (id) {
     await db.transaction([
       {
@@ -125,6 +128,7 @@ export async function saveSession(db: Db, patientId: string, input: SessionInput
                where id = ? and patient_id = ?`,
         bind: [...sessionBind(input), t, id, patientId],
       },
+      ...sessionAppointmentSql(id, patientId, next, input.nextMinutes, t),
     ]);
     return id;
   }
@@ -136,7 +140,9 @@ export async function saveSession(db: Db, patientId: string, input: SessionInput
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [...sessionBind(input), nid, patientId, t, t],
     },
+    ...(next ? sessionAppointmentSql(nid, patientId, next, input.nextMinutes, t) : []),
   ]);
+  await markAttended(db, patientId, input.performedAt, nid);
   return nid;
 }
 
@@ -151,8 +157,24 @@ export async function getSession(db: Db, id: string): Promise<Session | null> {
   return row ? toSession(row) : null;
 }
 
+/** Borra la sesión y, si sigue pendiente, la cita que se dio en ella. */
 export async function deleteSession(db: Db, id: string): Promise<void> {
-  await db.transaction([{ sql: "delete from sessions where id = ?", bind: [id] }]);
+  await db.transaction([
+    { sql: "delete from sessions where id = ?", bind: [id] },
+    { sql: "delete from appointments where id = ? and status = 'scheduled'", bind: [id] },
+  ]);
+}
+
+/**
+ * Cuántas sesiones lleva el motivo de consulta que se ve y cuántas tiene previstas («Sesiones previstas (o del bono)»
+ * en su anamnesis; null si no se ha puesto).
+ */
+export async function sessionCount(db: Db, patientId: string): Promise<{ done: number; planned: number | null }> {
+  const episode = await currentEpisode(db, patientId);
+  const [row] = await db.query<{ n: number }>("select count(*) as n from sessions where patient_id = ? and coalesce(episode_id, patient_id) = ?", [patientId, episode]);
+  const v = (await getAnamnesis(db, patientId))?.answers.sesiones_previstas;
+  const planned = typeof v === "number" ? v : typeof v === "string" ? Number(v.replace(",", ".")) : NaN;
+  return { done: row!.n, planned: Number.isInteger(planned) && planned > 0 ? planned : null };
 }
 
 /** La siguiente cita que quedó puesta en la última sesión, si aún no ha pasado. */
@@ -161,25 +183,15 @@ export function nextVisit(sessions: Session[], now = new Date()): Session | null
   return last?.nextAt && Date.parse(last.nextAt) > now.getTime() ? last : null;
 }
 
-/** La siguiente cita de un paciente (la de su última sesión), si aún no ha llegado. */
+/** La próxima cita pendiente de un paciente, si la hay (con la forma de la «siguiente cita» de una sesión). */
 export async function nextVisitOf(db: Db, patientId: string, now = new Date()): Promise<{ id: string; nextAt: string; nextMinutes: number | null } | null> {
-  const [row] = await db.query<{ id: string; nextAt: string | null; nextMinutes: number | null }>(
-    "select id, next_at as nextAt, next_minutes as nextMinutes from sessions where patient_id = ? order by performed_at desc limit 1",
-    [patientId],
-  );
-  return row?.nextAt && row.nextAt > now.toISOString() ? { id: row.id, nextAt: row.nextAt, nextMinutes: row.nextMinutes } : null;
+  const a = await nextAppointmentOf(db, patientId, now);
+  return a ? { id: a.id, nextAt: a.startsAt, nextMinutes: a.minutes } : null;
 }
 
-/** La siguiente cita de cada paciente (la de su última sesión) que aún no ha llegado, para el calendario. */
+/** Todas las citas pendientes que aún no han llegado, para el calendario y la pantalla de inicio. */
 export async function upcomingVisits(db: Db, now = new Date()): Promise<{ id: string; patientId: string; name: string; nextAt: string; nextMinutes: number | null }[]> {
-  return db.query(
-    `select s.id, p.id as patientId, p.name, s.next_at as nextAt, s.next_minutes as nextMinutes
-       from patients p
-       join sessions s on s.id = (select s2.id from sessions s2 where s2.patient_id = p.id order by s2.performed_at desc limit 1)
-      where s.next_at > ?
-      order by s.next_at`,
-    [now.toISOString()],
-  );
+  return (await upcomingAppointments(db, now)).map((a) => ({ id: a.id, patientId: a.patientId, name: a.name, nextAt: a.startsAt, nextMinutes: a.minutes }));
 }
 
 /** Pacientes con una reevaluación pendiente hasta `day` (AAAA-MM-DD): la última fecha que se les puso. */

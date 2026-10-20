@@ -3,23 +3,23 @@
 import { Printer } from "lucide-react";
 import { TopBar } from "../ui/AppBar";
 import { useRef, useState, type ReactNode } from "react";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { fmt, fmtDate, fmtDateShort } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
 import { getDb } from "../data/db";
-import { getClinic } from "../data/privacy";
+import { ageOn, getClinic } from "../data/privacy";
 import { getPatient, listTests, listWellness } from "../data/repo";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { safeName } from "../cloud/saveToDrive";
 import { Button } from "../ui/Button";
-import { LogoMark } from "../ui/Logo";
 import { ANAMNESIS, answerText } from "./anamnesis";
 import { findTest, resultMeaning } from "./galleryLink";
 import { trends } from "./measures";
 import { questionnaireGroups } from "./outcomeParts";
 import { PainChart, resultLabels } from "./parts";
+import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { kindOf, scoreText, type QDetails } from "./questionnaires";
 import { LSI_REFERENCE, symmetryRows } from "./symmetry";
 import { painSeries } from "./timeline";
@@ -35,22 +35,6 @@ const PARTS: { id: Part; label: string }[] = [
   { id: "cuestionarios", label: "Cuestionarios" },
   { id: "sesiones", label: "Sesiones" },
 ];
-
-function age(birthDate: string | null) {
-  if (!birthDate) return null;
-  const b = new Date(birthDate);
-  const n = new Date();
-  return n.getFullYear() - b.getFullYear() - (n < new Date(n.getFullYear(), b.getMonth(), b.getDate()) ? 1 : 0);
-}
-
-function Block({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-2">
-      <h2 className="break-after-avoid border-b-2 border-brand pb-1 text-lg text-brand">{title}</h2>
-      {children}
-    </section>
-  );
-}
 
 /** Tabla ancha: en el móvil se desplaza a los lados, también con el teclado. */
 function Scroll({ label, children }: { label: string; children: ReactNode }) {
@@ -95,7 +79,7 @@ export function ReportPage() {
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
 
   const a = anamnesis?.answers ?? {};
-  const years = age(patient.birthDate);
+  const years = ageOn(patient.birthDate);
   const valued = typeof a.fecha_valoracion === "string" ? a.fecha_valoracion : null;
   const pain = painSeries({ sessions, wellness, anamnesis });
   const current = latestFindings(findings);
@@ -104,7 +88,6 @@ export function ReportPage() {
   const qGroups = questionnaireGroups(questionnaires);
   // El fisioterapeuta de Ajustes → Clínica; las anamnesis antiguas lo llevaban dentro.
   const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
-  const letterhead = [clinic.taxId && `NIF ${clinic.taxId}`, clinic.address, clinic.phone, clinic.email].filter(Boolean).join(" · ");
   const today = new Date().toISOString();
   // Apartados de la anamnesis con algo escrito (la exploración física va con los tests).
   const sections = ANAMNESIS.filter((s) => s.id !== "exploracion")
@@ -142,6 +125,9 @@ export function ReportPage() {
             Imprimir o guardar en PDF
           </Button>
           <p className="text-sm text-text-muted">En el diálogo de impresión, elige «Guardar como PDF» para tenerlo en un archivo.</p>
+          <Link to={`/pacientes/${id}/alta`} className="text-sm font-semibold text-accent">
+            Informe de alta: más corto, con la evolución del motivo de consulta
+          </Link>
           <DriveSaveButton
             label="Guardar en mi Drive (PDF)"
             make={async () => {
@@ -156,32 +142,7 @@ export function ReportPage() {
         </div>
 
         <article ref={article} aria-label="Informe" className="flex flex-col gap-5 rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
-          <header className="flex items-start justify-between gap-4 border-b border-border pb-3">
-            <div className="flex flex-col">
-              <span className="text-xl font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
-                Informe de fisioterapia
-              </span>
-              <span className="text-sm text-text-muted">Historia clínica y evolución · {fmtDate(today)}</span>
-            </div>
-            {clinic.name ? (
-              <span className="flex max-w-[55%] flex-col items-end text-right">
-                <span className="text-lg font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
-                  {clinic.name}
-                </span>
-                {letterhead && <span className="text-xs text-text-muted">{letterhead}</span>}
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                <LogoMark size={36} />
-                <span className="flex flex-col leading-none">
-                  <span className="text-lg font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
-                    Cénit
-                  </span>
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
-                </span>
-              </span>
-            )}
-          </header>
+          <Letterhead clinic={clinic} title="Informe de fisioterapia" subtitle={`Historia clínica y evolución · ${fmtDate(today)}`} />
 
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 print:grid-cols-2">
             {facts.map(([k, v]) => (
@@ -399,13 +360,7 @@ export function ReportPage() {
             </Block>
           )}
 
-          <footer className="mt-4 flex flex-wrap justify-between gap-6 border-t border-border pt-4 text-sm">
-            <span>
-              Firma del fisioterapeuta: <span className="inline-block min-w-48 border-b border-text-muted">{physio}</span>
-              {clinic.license && <span className="block text-text-muted">Nº de colegiado {clinic.license}</span>}
-            </span>
-            <span>Fecha: {fmtDate(today)}</span>
-          </footer>
+          <SignatureLine name={physio} license={clinic.license} date={fmtDate(today)} />
         </article>
       </main>
     </div>

@@ -1,11 +1,13 @@
-import { CalendarCheck, CalendarClock, Plus, Search, Users, Zap } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarX2, CircleCheck, Plus, Search, UserX, Users, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { fmtDate, madridDay } from "../app/format";
 import { useCloud } from "../cloud/CloudGate";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
+import { AppointmentSheet } from "../clinical/AppointmentSheet";
 import { fmtVisit } from "../clinical/calendar";
+import { agenda, STATUS_LABELS, type AgendaItem } from "../data/appointments";
 import { dueReviews, upcomingVisits } from "../data/clinical";
 import { getDb } from "../data/db";
 import { createPatient, getSetting, listPatients, matchesPatient, type PatientSummary } from "../data/repo";
@@ -19,9 +21,12 @@ import { useToast } from "../ui/Toast";
 /** Ficha donde van las mediciones hechas sin elegir paciente. */
 export const QUICK_PATIENT = "Medición rápida";
 
+/** «10:00», en la hora de Madrid. */
+const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+
 /** «Hoy, 10:00», «Mañana, 9:30» o «lun, 26 oct, 10:00». */
 function when(iso: string) {
-  const hour = new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+  const hour = hourOf(iso);
   const day = madridDay(iso);
   return day === dayPlus(0) ? `Hoy, ${hour}` : day === dayPlus(1) ? `Mañana, ${hour}` : fmtVisit(iso);
 }
@@ -49,7 +54,10 @@ export function PatientsPage() {
   const info = useAsync(() => getDb().info(), []);
   const lastBackup = useAsync(() => getSetting<string>(getDb(), "last_backup_at"), []);
   const reviews = useAsync(() => dueReviews(getDb(), dayPlus(7)), []);
-  const visits = useAsync(async () => (await upcomingVisits(getDb())).filter((v) => madridDay(v.nextAt) <= dayPlus(7)), []);
+  // Agenda de hoy (todas sus citas, también las atendidas o anuladas) y las pendientes de los próximos 7 días.
+  const today = useAsync(async () => (await agenda(getDb(), `${dayPlus(-1)}T20:00:00Z`, `${dayPlus(1)}T04:00:00Z`)).filter((a) => madridDay(a.startsAt) === dayPlus(0)), []);
+  const visits = useAsync(async () => (await upcomingVisits(getDb())).filter((v) => madridDay(v.nextAt) > dayPlus(0) && madridDay(v.nextAt) <= dayPlus(7)), []);
+  const [managing, setManaging] = useState<AgendaItem | null>(null);
   const navigate = useNavigate();
   const toast = useToast();
   const [quick, setQuick] = useState(false);
@@ -116,10 +124,30 @@ export function PatientsPage() {
       {/* Con la nube, la copia es automática: no hace falta recordar la de archivo. */}
       {!cloud && !search && <BackupReminder hasRealPatients={own.length > 0} lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)} />}
 
+      {!search && today.data && today.data.length > 0 && (
+        <Group title="Hoy">
+          {today.data.map((a) => {
+            const Icon = a.status === "done" ? CircleCheck : a.status === "no_show" ? UserX : a.status === "cancelled" ? CalendarX2 : CalendarCheck;
+            return (
+              <RowButton
+                key={a.id}
+                icon={Icon}
+                tone={a.status === "no_show" || a.status === "cancelled" ? "warning" : "accent"}
+                title={`${hourOf(a.startsAt)} · ${a.name}`}
+                subtitle={a.status === "scheduled" ? `${a.minutes} min` : STATUS_LABELS[a.status]}
+                onClick={() => setManaging(a)}
+              />
+            );
+          })}
+        </Group>
+      )}
+      {managing && (
+        <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} />
+      )}
       {!search && visits.data && visits.data.length > 0 && (
         <Group title="Próximas citas">
           {visits.data.map((v) => (
-            <PatientRow key={v.patientId} to={`/pacientes/${v.patientId}`} name={v.name} meta={when(v.nextAt)} icon={CalendarCheck} />
+            <PatientRow key={v.id} to={`/pacientes/${v.patientId}`} name={v.name} meta={when(v.nextAt)} icon={CalendarCheck} />
           ))}
         </Group>
       )}
