@@ -79,6 +79,7 @@ pasos son los mismos.
    | `GOOGLE_CLIENT_ID` | el ID de cliente de Google (arriba) |
    | `ALLOWED_EMAILS` | los correos de quien puede dar de alta una clínica, separados por comas: `ana@gmail.com, luis@gmail.com` |
    | `ALLOWED_ORIGINS` | `https://adrianolivascano05-maker.github.io` (para probar con `npm run dev`, añade `,http://localhost:5173`) |
+   | `OPERATOR_EMAILS` | tu correo de Google, si gestionas el servidor para varias clínicas: ves Ajustes → Proveedor en la app |
 
    En `ALLOWED_ORIGINS` va solo el principio de la dirección, sin `/Fisiolab/`. Pulsa **Deploy**. Si
    `ALLOWED_EMAILS` se queda vacía, nadie puede dar de alta una clínica.
@@ -98,10 +99,18 @@ pasos son los mismos.
    }
    ```
 
-**Para dar de alta una clínica nueva,** añade a `ALLOWED_EMAILS` el correo de su responsable (**Settings** →
-**Variables and Secrets**) y pulsa **Deploy**. Esa persona entra en la app, pulsa **Crear la clínica** y desde
-**Ajustes** → **Equipo de la clínica** añade a su equipo. Quitar un correo de `ALLOWED_EMAILS` solo impide dar de
-alta clínicas nuevas: las que ya existen siguen con su equipo.
+**Para dar de alta una clínica nueva,** desde la app, en **Ajustes** → **Proveedor** (con tu correo en
+`OPERATOR_EMAILS`): escribe el correo de su responsable. También vale añadirlo a `ALLOWED_EMAILS`. Esa persona entra
+en la app, pulsa **Crear la clínica** y desde **Ajustes** → **Equipo de la clínica** añade a su equipo. Quitar el
+alta solo impide crear clínicas nuevas: las que ya existen siguen con su equipo.
+
+**Panel del proveedor** (`OPERATOR_EMAILS`): la lista de clínicas con su equipo, el tamaño de su copia y su último
+uso (nunca sus pacientes, que van cifrados), las altas, **suspender o reactivar** una clínica (suspendida, puede bajar
+su copia pero no subir nada) y las **bajas**: quien administra una clínica puede borrarla desde la app tras
+descargar su copia de seguridad y aceptar una declaración de que la conserva; queda 30 días en la papelera (se puede
+recuperar desde la app o desde el panel) y después se borra para siempre. El panel también da el **borrador del
+contrato de encargado del tratamiento**, que solo entrega el servidor a `OPERATOR_EMAILS` (para revisar con un
+abogado).
 
 **Al actualizar el servidor** (si cambia `worker.js` en la app), repite el paso 4 desde **Edit code**. Las
 variables y el enlace se conservan. Si además cambia `schema.sql`, vuelve a ejecutarlo entero en la **Console**
@@ -157,7 +166,7 @@ nada más.
 | Archivo | Qué es |
 | --- | --- |
 | `worker.js` | el servidor. JavaScript sin dependencias, para pegarlo tal cual en el panel |
-| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica) y `parts` (sus trozos, en texto base64) |
+| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica) y `parts` (sus trozos, en texto base64) |
 | `wrangler.toml` | la configuración, solo para instalarlo con Wrangler (siempre con `-c wrangler.toml`) |
 | `worker.test.ts`, `d1shim.ts` | las pruebas (`npx vitest run cloudflare`), con una base D1 simulada sobre SQLite |
 
@@ -172,10 +181,12 @@ Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "
 | Petición | Respuesta |
 | --- | --- |
 | `GET /v1/salud` | `200 { ok: true }`, sin sesión. Si falta algo de la instalación, `500 { ok: false, error }` |
-| `GET /v1/yo` | `200 { email, canCreate, clinics: [{ id, name, role }] }`: las clínicas de quien entra y si puede dar de alta otra |
+| `GET /v1/yo` | `200 { email, canCreate, operator, clinics: [{ id, name, role, suspended? }], deleted: [{ id, name, deletedAt, purgeAfter }] }`: las clínicas de quien entra, las que borró y aún puede recuperar, si puede dar de alta otra y si gestiona el servidor |
 | `POST /v1/clinicas` + `{ name }` | `201 { id, name, role: "admin" }`; solo `ALLOWED_EMAILS` (si no, `403`). Nombre de 1 a 80 caracteres |
 | `PATCH /v1/clinicas/:id` + `{ name }` | `200 { id, name, role }`; solo administradores |
-| `DELETE /v1/clinicas/:id` | `204`: borra la clínica, su equipo y su copia; solo administradores |
+| `DELETE /v1/clinicas/:id` + `{ declaration }` | `200 { purgeAfter }`: la clínica va 30 días a la papelera con la declaración de quien la borra; solo administradores |
+| `POST /v1/clinicas/:id/recuperar` | `200`: la saca de la papelera; solo administradores |
+| `GET /v1/proveedor`, `PUT`/`DELETE /v1/proveedor/altas/:correo`, `POST /v1/proveedor/clinicas/:id/suspender` (`{ suspended }`) y `/recuperar`, `GET /v1/proveedor/contrato` | el panel del proveedor; solo `OPERATOR_EMAILS` |
 | `GET /v1/clinicas/:id/miembros` | `200 { members: [{ email, role, addedAt }] }`; cualquiera del equipo |
 | `PUT /v1/clinicas/:id/miembros/:correo` + `{ role }` | `200 { email, role, addedAt }`: añade o cambia el papel (`admin` o `member`); solo administradores. Como mucho 100 personas |
 | `DELETE /v1/clinicas/:id/miembros/:correo` | `204`; un administrador quita a cualquiera, y cada uno puede quitarse a sí mismo |

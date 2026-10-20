@@ -31,11 +31,23 @@
 //   GET    /v1/clinicas/:id/recuperacion       { blob, updatedAt } (administrador): la clave de la copia cerrada con el
 //                                              código de recuperación de la clínica (sin el código no sirve de nada)
 //   PUT    /v1/clinicas/:id/recuperacion       { blob } → la guarda (administrador)
+//   POST   /v1/clinicas/:id/recuperar          deshace el borrado de la clínica en los 30 días siguientes (administrador)
+//   GET    /v1/proveedor                       quien gestiona el servidor (OPERATOR_EMAILS): las clínicas (nombre,
+//                                              equipo, tamaño, último uso, estado), las altas y las bajas; nunca pacientes
+//   PUT    /v1/proveedor/altas/:correo         da de alta a quien puede crear clínicas (además de ALLOWED_EMAILS)
+//   DELETE /v1/proveedor/altas/:correo         se la quita (las clínicas que ya creó siguen)
+//   POST   /v1/proveedor/clinicas/:id/suspender  { suspended } → suspende (no se sube nada; se puede bajar) o reactiva
+//   POST   /v1/proveedor/clinicas/:id/recuperar  deshace el borrado de una clínica en sus 30 días
+//   GET    /v1/proveedor/contrato              { html }: el borrador del contrato de encargado del tratamiento
 //   /v1/copia y /v1/copia/info                 lo mismo con la copia personal de cada cuenta de ALLOWED_EMAILS
 //                                              (versiones anteriores de la app, sin clínicas)
 // Una clínica tiene siempre al menos un administrador: no se puede quitar ni bajar al último.
+// Borrar una clínica (DELETE /v1/clinicas/:id, con la declaración de quien la borra) la deja 30 días en la papelera:
+// nadie puede usarla, pero se puede recuperar entera; después se borra para siempre (al pasar por /v1/yo o por el
+// panel del proveedor). Una clínica suspendida no puede subir nada, pero sí bajar su copia.
 //
-// Enlace a la base D1: DB. Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS.
+// Enlace a la base D1: DB. Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS y OPERATOR_EMAILS (quien
+// gestiona el servidor: ve el panel del proveedor).
 // Nunca se escribe en el registro el contenido de una petición ni el token.
 
 /**
@@ -58,6 +70,7 @@
  * @property {string} [GOOGLE_CLIENT_ID] el ID de cliente de Google de la app
  * @property {string} [ALLOWED_EMAILS] correos que pueden crear clínicas, separados por comas o espacios (vacío: nadie)
  * @property {string} [ALLOWED_ORIGINS] direcciones de la app, separadas por comas
+ * @property {string} [OPERATOR_EMAILS] correos de quien gestiona el servidor (el panel del proveedor)
  */
 /**
  * Quién ha entrado. `expiresIn`: segundos que le quedan al token (para no guardarlo más tiempo).
@@ -82,6 +95,8 @@ const PART_CHARS = 1_000_000;
 const MAX_CHARS = Math.ceil((50 * 1024 * 1024) / 3) * 4;
 /** Trozos por viaje a D1, al escribir y al leer. */
 const PARTS_PER_TRIP = 4;
+/** Días que una clínica borrada se puede recuperar antes de borrarse para siempre. */
+const DELETE_GRACE_DAYS = 30;
 /** Personas como mucho en el equipo de una clínica. */
 const MAX_MEMBERS = 100;
 /** Tokens comprobados que se recuerdan, y durante cuánto como mucho (segundos). */
@@ -162,14 +177,15 @@ async function route(request, env, deps, originAllowed) {
   if (path === "/v1/copia" || path === "/v1/copia/info") {
     if (!copyMethod(path.slice(3), method)) throw notFound();
     const who = await authenticate(request, env, deps);
-    if (!canCreate(env, who)) throw new HttpError(403, "Esta cuenta de Google no tiene permiso para usar el servidor de la clínica.");
+    if (!(await canCreate(env, database(env), who))) throw new HttpError(403, "Esta cuenta de Google no tiene permiso para usar el servidor de la clínica.");
     return copyRoute(request, database(env), who.sub, path.endsWith("/info"), deps.now);
   }
 
-  if (path === "/v1/yo" && method === "GET") return me(database(env), env, await authenticate(request, env, deps));
+  if (path === "/v1/yo" && method === "GET") return me(database(env), env, await authenticate(request, env, deps), deps.now);
+  if (path === "/v1/proveedor" || path.startsWith("/v1/proveedor/")) return operatorRoute(request, env, deps, path.slice("/v1/proveedor".length));
   if (path === "/v1/clinicas" && method === "POST") {
     const who = await authenticate(request, env, deps);
-    if (!canCreate(env, who)) throw new HttpError(403, "Tu cuenta no puede crear clínicas en este servidor: pide que te den de alta.");
+    if (!(await canCreate(env, database(env), who))) throw new HttpError(403, "Tu cuenta no puede crear clínicas en este servidor: pide que te den de alta.");
     return createClinic(request, database(env), who, deps.now);
   }
 
@@ -183,6 +199,7 @@ async function route(request, env, deps, originAllowed) {
     (rest === "/miembros" && method === "GET") ||
     (member !== null && ["PUT", "DELETE"].includes(method)) ||
     (rest === "/recuperacion" && ["GET", "PUT"].includes(method)) ||
+    (rest === "/recuperar" && method === "POST") ||
     copyMethod(rest, method);
   if (!known) throw notFound();
 
@@ -194,6 +211,19 @@ async function route(request, env, deps, originAllowed) {
   const admin = () => {
     if (role !== "admin") throw new HttpError(403, "Solo quien administra la clínica puede hacerlo.");
   };
+  const status = await clinicStatus(db, id);
+  if (rest === "/recuperar") {
+    admin();
+    if (!status?.deletedAt) return json(200, { restored: false });
+    await db.prepare("UPDATE clinic_status SET deleted_at = NULL, deleted_by = NULL, declaration = NULL, purge_after = NULL WHERE clinic_id = ?").bind(id).run();
+    return json(200, { restored: true });
+  }
+  if (status?.deletedAt) throw new HttpError(410, "Esta clínica está borrada. Quien la administraba puede recuperarla durante 30 días.");
+  // Suspendida: se puede mirar y bajar la copia (la clínica tiene que poder conservar sus historias), pero no cambiar nada.
+  const writes = method !== "GET";
+  if (status?.suspendedAt && writes && rest !== "") {
+    throw new HttpError(423, "La clínica está suspendida: no se guardan cambios en el servidor. Habla con quien os da la app.");
+  }
 
   if (rest === "" && method === "PATCH") {
     admin();
@@ -203,15 +233,21 @@ async function route(request, env, deps, originAllowed) {
   }
   if (rest === "" && method === "DELETE") {
     admin();
-    const owner = clinicOwner(id);
-    await db.batch([
-      db.prepare("DELETE FROM heads WHERE owner = ?").bind(owner),
-      db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner),
-      db.prepare("DELETE FROM members WHERE clinic_id = ?").bind(id),
-      db.prepare("DELETE FROM recovery WHERE clinic_id = ?").bind(id),
-      db.prepare("DELETE FROM clinics WHERE id = ?").bind(id),
-    ]);
-    return new Response(null, { status: 204 });
+    // A la papelera, con la declaración de quien la borra; se borra del todo a los 30 días.
+    const body = await readJson(request);
+    const declaration = typeof body === "object" && body !== null && "declaration" in body && typeof body.declaration === "string" ? body.declaration.trim() : "";
+    if (declaration.length < 20 || declaration.length > 4000) throw new HttpError(400, "Falta la declaración de quien borra la clínica.");
+    const at = new Date(deps.now());
+    const purge = new Date(at.getTime() + DELETE_GRACE_DAYS * 86_400_000);
+    await db
+      .prepare(
+        `INSERT INTO clinic_status (clinic_id, deleted_at, deleted_by, declaration, purge_after) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (clinic_id) DO UPDATE SET deleted_at = excluded.deleted_at, deleted_by = excluded.deleted_by,
+           declaration = excluded.declaration, purge_after = excluded.purge_after`,
+      )
+      .bind(id, at.toISOString(), who.email.trim().toLowerCase(), declaration, purge.toISOString())
+      .run();
+    return json(200, { purgeAfter: purge.toISOString() });
   }
   if (rest === "/recuperacion") {
     admin();
@@ -308,14 +344,66 @@ function normalEmail(email) {
 }
 
 /**
- * Si la cuenta puede crear clínicas (y usar la copia personal): su correo está en ALLOWED_EMAILS.
+ * Si la cuenta puede crear clínicas (y usar la copia personal): su correo está en ALLOWED_EMAILS o el proveedor la
+ * ha dado de alta desde su panel (tabla creators).
  * @param {Env} env
+ * @param {D1Database} db
  * @param {{ email: string }} who
  */
-function canCreate(env, who) {
-  return list(env.ALLOWED_EMAILS)
+async function canCreate(env, db, who) {
+  const email = who.email.trim().toLowerCase();
+  if (inList(env.ALLOWED_EMAILS, email)) return true;
+  return (await db.prepare("SELECT 1 AS ok FROM creators WHERE email = ?").bind(email).first()) !== null;
+}
+
+/**
+ * Si el correo está en una lista de la configuración.
+ * @param {string | undefined} value
+ * @param {string} email
+ */
+const inList = (value, email) =>
+  list(value)
     .map((e) => e.toLowerCase())
-    .includes(who.email.trim().toLowerCase());
+    .includes(email);
+
+/**
+ * El estado de una clínica (suspendida, borrada), o null si nunca ha tenido ninguno.
+ * @param {D1Database} db
+ * @param {string} id
+ */
+async function clinicStatus(db, id) {
+  const row = await db.prepare("SELECT suspended_at, deleted_at FROM clinic_status WHERE clinic_id = ?").bind(id).first();
+  return row ? { suspendedAt: row.suspended_at ? String(row.suspended_at) : null, deletedAt: row.deleted_at ? String(row.deleted_at) : null } : null;
+}
+
+/**
+ * Borra para siempre las clínicas que llevan más de 30 días en la papelera.
+ * @param {D1Database} db
+ * @param {() => number} now
+ */
+async function purgeExpired(db, now) {
+  const { results = [] } = await db
+    .prepare("SELECT clinic_id FROM clinic_status WHERE deleted_at IS NOT NULL AND purge_after < ?")
+    .bind(new Date(now()).toISOString())
+    .all();
+  for (const r of results) await removeClinic(db, String(r.clinic_id));
+}
+
+/**
+ * Borra una clínica del todo: su copia, su equipo, su clave de recuperación y su estado.
+ * @param {D1Database} db
+ * @param {string} id
+ */
+async function removeClinic(db, id) {
+  const owner = clinicOwner(id);
+  await db.batch([
+    db.prepare("DELETE FROM heads WHERE owner = ?").bind(owner),
+    db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner),
+    db.prepare("DELETE FROM members WHERE clinic_id = ?").bind(id),
+    db.prepare("DELETE FROM recovery WHERE clinic_id = ?").bind(id),
+    db.prepare("DELETE FROM clinic_status WHERE clinic_id = ?").bind(id),
+    db.prepare("DELETE FROM clinics WHERE id = ?").bind(id),
+  ]);
 }
 
 /**
@@ -331,20 +419,129 @@ async function roleIn(db, id, email) {
 }
 
 /**
+ * Quién ha entrado: sus clínicas (las suspendidas, marcadas), las que borró y aún puede recuperar, si puede crear
+ * clínicas y si gestiona el servidor.
  * @param {D1Database} db
  * @param {Env} env
  * @param {{ email: string }} who
+ * @param {() => number} now
  */
-async function me(db, env, who) {
+async function me(db, env, who, now) {
+  await purgeExpired(db, now);
   const email = who.email.trim().toLowerCase();
   const { results = [] } = await db
-    .prepare("SELECT c.id, c.name, m.role FROM members m JOIN clinics c ON c.id = m.clinic_id WHERE m.email = ? ORDER BY c.name COLLATE NOCASE, c.id")
+    .prepare(
+      `SELECT c.id, c.name, m.role, s.suspended_at, s.deleted_at, s.purge_after FROM members m JOIN clinics c ON c.id = m.clinic_id
+         LEFT JOIN clinic_status s ON s.clinic_id = c.id WHERE m.email = ? ORDER BY c.name COLLATE NOCASE, c.id`,
+    )
     .bind(email)
     .all();
   return json(200, {
     email,
-    canCreate: canCreate(env, who),
-    clinics: results.map((r) => ({ id: String(r.id), name: String(r.name), role: String(r.role) })),
+    canCreate: await canCreate(env, db, who),
+    operator: inList(env.OPERATOR_EMAILS, email),
+    clinics: results
+      .filter((r) => !r.deleted_at)
+      .map((r) => ({ id: String(r.id), name: String(r.name), role: String(r.role), ...(r.suspended_at ? { suspended: true } : {}) })),
+    deleted: results
+      .filter((r) => r.deleted_at && r.role === "admin")
+      .map((r) => ({ id: String(r.id), name: String(r.name), deletedAt: String(r.deleted_at), purgeAfter: String(r.purge_after) })),
+  });
+}
+
+// ---------- Panel del proveedor ----------
+
+/**
+ * Lo que ve y hace quien gestiona el servidor (OPERATOR_EMAILS). Nunca toca la copia de una clínica: solo sus datos
+ * de servicio (nombre, equipo, tamaño, fechas y estado).
+ * @param {Request} request
+ * @param {Env} env
+ * @param {{ verifyToken: NonNullable<Deps["verifyToken"]>, now: () => number }} deps
+ * @param {string} rest
+ */
+async function operatorRoute(request, env, deps, rest) {
+  const method = request.method;
+  const alta = /^\/altas\/([^/]+)$/.exec(rest);
+  const clinicAction = /^\/clinicas\/([A-Za-z0-9-]{1,64})\/(suspender|recuperar)$/.exec(rest);
+  const known =
+    (rest === "" && method === "GET") ||
+    (rest === "/contrato" && method === "GET") ||
+    (alta !== null && ["PUT", "DELETE"].includes(method)) ||
+    (clinicAction !== null && method === "POST");
+  if (!known) throw notFound();
+  const who = await authenticate(request, env, deps);
+  const email = who.email.trim().toLowerCase();
+  if (!inList(env.OPERATOR_EMAILS, email)) throw new HttpError(403, "Solo quien gestiona el servidor puede verlo.");
+  const db = database(env);
+
+  if (rest === "/contrato") return json(200, { html: CONTRACT_HTML });
+  if (alta) {
+    let target;
+    try {
+      target = normalEmail(decodeURIComponent(/** @type {string} */ (alta[1])));
+    } catch {
+      throw new HttpError(400, "Ese correo no es válido.");
+    }
+    if (method === "PUT") {
+      await db
+        .prepare("INSERT INTO creators (email, added_by, added_at) VALUES (?, ?, ?) ON CONFLICT (email) DO NOTHING")
+        .bind(target, email, new Date(deps.now()).toISOString())
+        .run();
+    } else {
+      await db.prepare("DELETE FROM creators WHERE email = ?").bind(target).run();
+    }
+    return new Response(null, { status: 204 });
+  }
+  if (clinicAction) {
+    const id = /** @type {string} */ (clinicAction[1]);
+    const exists = await db.prepare("SELECT 1 AS ok FROM clinics WHERE id = ?").bind(id).first();
+    if (!exists) throw new HttpError(404, "Esa clínica no existe.");
+    if (clinicAction[2] === "recuperar") {
+      await db.prepare("UPDATE clinic_status SET deleted_at = NULL, deleted_by = NULL, declaration = NULL, purge_after = NULL WHERE clinic_id = ?").bind(id).run();
+      return json(200, { restored: true });
+    }
+    const body = await readJson(request);
+    const suspended = typeof body === "object" && body !== null && "suspended" in body && body.suspended === true;
+    await db
+      .prepare("INSERT INTO clinic_status (clinic_id, suspended_at) VALUES (?, ?) ON CONFLICT (clinic_id) DO UPDATE SET suspended_at = excluded.suspended_at")
+      .bind(id, suspended ? new Date(deps.now()).toISOString() : null)
+      .run();
+    return json(200, { suspended });
+  }
+
+  await purgeExpired(db, deps.now);
+  const { results: clinics = [] } = await db
+    .prepare(
+      `SELECT c.id, c.name, c.created_by, c.created_at,
+              (SELECT count(*) FROM members m WHERE m.clinic_id = c.id) AS members,
+              (SELECT group_concat(m.email, ', ') FROM members m WHERE m.clinic_id = c.id AND m.role = 'admin') AS admins,
+              h.size, h.updated_at, s.suspended_at, s.deleted_at, s.deleted_by, s.declaration, s.purge_after
+         FROM clinics c LEFT JOIN heads h ON h.owner = 'clinic:' || c.id LEFT JOIN clinic_status s ON s.clinic_id = c.id
+        ORDER BY c.name COLLATE NOCASE`,
+    )
+    .all();
+  const { results: creators = [] } = await db.prepare("SELECT email, added_by, added_at FROM creators ORDER BY email").all();
+  const str = (/** @type {unknown} */ v) => (v === null || v === undefined ? null : String(v));
+  return json(200, {
+    clinics: clinics.map((r) => ({
+      id: String(r.id),
+      name: String(r.name),
+      createdBy: String(r.created_by),
+      createdAt: String(r.created_at),
+      members: Number(r.members),
+      admins: str(r.admins)?.split(", ") ?? [],
+      size: r.size === null || r.size === undefined ? 0 : approxBytes(Number(r.size)),
+      lastSync: str(r.updated_at),
+      suspendedAt: str(r.suspended_at),
+      deletedAt: str(r.deleted_at),
+      deletedBy: str(r.deleted_by),
+      declaration: str(r.declaration),
+      purgeAfter: str(r.purge_after),
+    })),
+    creators: [
+      ...list(env.ALLOWED_EMAILS).map((e) => ({ email: e.toLowerCase(), source: "variable" })),
+      ...creators.map((r) => ({ email: String(r.email), source: "panel", addedBy: String(r.added_by), addedAt: String(r.added_at) })),
+    ],
   });
 }
 
@@ -452,7 +649,7 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
+      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }
@@ -783,3 +980,76 @@ function json(status, data, headers = {}) {
     headers: { "Content-Type": "application/json; charset=utf-8", ...headers },
   });
 }
+
+// ---------- Borrador del contrato de encargado del tratamiento ----------
+// Solo lo ve quien gestiona el servidor (GET /v1/proveedor/contrato). Es un BORRADOR para revisar con un abogado o un
+// delegado de protección de datos: no se ha comprobado que cumpla la normativa.
+
+const CONTRACT_HTML = `
+<p><strong>BORRADOR para revisar con un profesional (abogado o delegado de protección de datos). No firmar sin revisarlo.</strong></p>
+<h2>Contrato de encargo del tratamiento de datos personales (artículo 28 del RGPD)</h2>
+<p>En [LOCALIDAD], a [FECHA].</p>
+<h3>Reunidos</h3>
+<p><strong>De una parte</strong>, [NOMBRE O RAZÓN SOCIAL DE LA CLÍNICA], con NIF [NIF], domicilio en [DIRECCIÓN] y representada por [NOMBRE Y CARGO], en adelante <em>el Responsable</em>.</p>
+<p><strong>De otra parte</strong>, [NOMBRE DEL PROVEEDOR], con NIF [NIF], domicilio en [DIRECCIÓN] y correo de contacto [CORREO], en adelante <em>el Encargado</em>, que presta el servicio de la aplicación Cénit · Fisiolab.</p>
+<p>Ambas partes se reconocen capacidad para firmar este contrato y acuerdan las siguientes cláusulas.</p>
+<h3>1. Objeto</h3>
+<p>El Encargado presta al Responsable el servicio de la aplicación Cénit · Fisiolab: una herramienta de registro y organización de la actividad de fisioterapia (fichas de pacientes, anamnesis, sesiones, mediciones, agenda y turnos del equipo). Para ello guarda en un servidor una copia cifrada de los datos de la clínica, que se sincroniza entre los dispositivos de su equipo. La aplicación registra y organiza; las decisiones clínicas son siempre del profesional.</p>
+<h3>2. Duración</h3>
+<p>Este contrato dura lo mismo que la prestación del servicio. Al terminar se aplica la cláusula 10.</p>
+<h3>3. Naturaleza, finalidad y datos tratados</h3>
+<ul>
+<li><strong>Finalidad:</strong> guardar y sincronizar la copia de los datos de la clínica y gestionar el acceso de su equipo.</li>
+<li><strong>Interesados:</strong> pacientes de la clínica y profesionales de su equipo.</li>
+<li><strong>Datos:</strong> identificativos y de contacto de los pacientes; datos de salud (categoría especial, artículo 9 del RGPD): historia clínica, anamnesis, exploración, sesiones, mediciones y cuestionarios; del equipo, nombre y correo electrónico.</li>
+<li><strong>Tratamientos:</strong> conservación y transmisión de una copia cifrada; gestión de cuentas de acceso (correos del equipo).</li>
+</ul>
+<h3>4. Cifrado y acceso a los datos</h3>
+<p>La copia de los datos se cifra en los dispositivos de la clínica (AES-256) con una contraseña que solo conoce la clínica, antes de llegar al servidor. El Encargado no conoce esa contraseña ni la del código de recuperación y no puede leer los datos de los pacientes. El Encargado sí trata, para prestar el servicio, el nombre de la clínica, los correos de su equipo, el tamaño de la copia y las fechas de uso. La clínica custodia su contraseña y su código de recuperación: si los pierde, el Encargado no puede recuperar los datos.</p>
+<h3>5. Obligaciones del Encargado</h3>
+<ol>
+<li>Tratar los datos solo para prestar el servicio y siguiendo las instrucciones documentadas del Responsable, incluidas las de este contrato.</li>
+<li>Garantizar que las personas autorizadas a tratar los datos se han comprometido a respetar su confidencialidad.</li>
+<li>Aplicar las medidas de seguridad del artículo 32 del RGPD descritas en el anexo.</li>
+<li>No recurrir a otro encargado sin autorización del Responsable. El Responsable autoriza a los subencargados del anexo; el Encargado avisará de cualquier cambio con al menos 30 días de antelación para que el Responsable pueda oponerse.</li>
+<li>Asistir al Responsable, en lo que le sea posible, para responder a las solicitudes de ejercicio de derechos de los interesados.</li>
+<li>Notificar al Responsable, sin dilación indebida y a más tardar en 48 horas desde que tenga conocimiento, cualquier violación de la seguridad que afecte a los datos, con la información necesaria para que el Responsable cumpla los artículos 33 y 34 del RGPD.</li>
+<li>Poner a disposición del Responsable la información necesaria para demostrar el cumplimiento de este contrato y permitir las auditorías razonables que este solicite.</li>
+<li>Llevar el registro de actividades de tratamiento como encargado (artículo 30.2 del RGPD).</li>
+</ol>
+<h3>6. Obligaciones del Responsable</h3>
+<ol>
+<li>Ser el responsable del tratamiento: informar a los pacientes, recabar los consentimientos que procedan y atender sus derechos.</li>
+<li>Elegir y custodiar la contraseña de cifrado y el código de recuperación, y dar acceso solo a su equipo.</li>
+<li>Conservar las historias clínicas el plazo que marca la ley (como mínimo cinco años desde el alta de cada proceso asistencial, Ley 41/2002) y guardar copias de seguridad.</li>
+<li>Velar por que su equipo cumpla la normativa y su deber de confidencialidad, y mantener protegidos sus dispositivos.</li>
+</ol>
+<h3>7. Subencargados</h3>
+<p>Se autorizan los subencargados del anexo. El Encargado les impone por contrato las mismas obligaciones de protección de datos.</p>
+<h3>8. Transferencias internacionales</h3>
+<p>La copia cifrada se guarda en una base de datos de Cloudflare con jurisdicción en la Unión Europea. El inicio de sesión con Google puede implicar transferencias a Estados Unidos, amparadas en el Marco de Privacidad de Datos UE-EE. UU. o en cláusulas contractuales tipo, según el contrato de Google.</p>
+<h3>9. Suspensión del servicio</h3>
+<p>Si el servicio se suspende (por ejemplo, por impago), el Responsable puede seguir descargando su copia, pero no guardar cambios en el servidor, hasta su reactivación o la terminación del contrato.</p>
+<h3>10. Fin de la prestación</h3>
+<p>Al terminar el servicio, el Responsable descarga su copia de seguridad y la conserva bajo su responsabilidad. Cuando el Responsable borra su clínica, declara conservar esa copia y el servidor guarda constancia de quién lo hizo, cuándo y con qué declaración. Los datos quedan 30 días en la papelera, durante los cuales el Responsable puede recuperarlos; después el Encargado los suprime de su servidor, salvo obligación legal de conservarlos.</p>
+<h3>11. Responsabilidad</h3>
+<p>Cada parte responde de sus incumplimientos conforme al artículo 82 del RGPD. [LIMITACIONES DE RESPONSABILIDAD, A REVISAR]</p>
+<h3>12. Ley aplicable</h3>
+<p>Este contrato se rige por la ley española y el Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD). [JURISDICCIÓN]</p>
+<h3>Anexo I. Medidas de seguridad</h3>
+<ul>
+<li>Cifrado de la copia en el dispositivo (AES-256-GCM, clave derivada con PBKDF2-SHA-256 de 600 000 iteraciones) antes de enviarla; el servidor rechaza copias sin cifrar.</li>
+<li>Acceso al servidor solo con sesión de Google verificada y solo para el equipo de cada clínica; los permisos del equipo los gestiona su administrador.</li>
+<li>Conexiones cifradas (HTTPS). Registros de peticiones desactivados; nunca se registran el contenido ni los tokens.</li>
+<li>Control de versiones de la copia para que un dispositivo no pise los cambios de otro.</li>
+<li>En los dispositivos: PIN de la aplicación obligatorio en las clínicas y bloqueo por inactividad.</li>
+</ul>
+<h3>Anexo II. Subencargados autorizados</h3>
+<ul>
+<li>Cloudflare, Inc. (y sus filiales): alojamiento del servidor y de la base de datos (jurisdicción UE). Contrato: Cloudflare Customer DPA.</li>
+<li>Google LLC / Google Ireland Ltd.: inicio de sesión con cuenta de Google y, si la clínica lo activa, Google Calendar y Google Drive de cada profesional.</li>
+<li>GitHub, Inc.: publicación de la aplicación web (no trata datos de pacientes).</li>
+</ul>
+<p>Firmado por ambas partes:</p>
+<p>El Responsable: ______________________ &nbsp;&nbsp;&nbsp; El Encargado: ______________________</p>
+`;

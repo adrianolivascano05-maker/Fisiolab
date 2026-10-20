@@ -2,6 +2,7 @@
 // pantalla (cuenta, clínica, bloqueo, copias), como los ajustes del móvil.
 import {
   BookOpenCheck,
+  Briefcase,
   Building2,
   ClipboardCheck,
   Database,
@@ -85,6 +86,12 @@ export function SettingsPage() {
         )}
         <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
       </Group>
+
+      {cloud?.operator && (
+        <Group title="Tu servicio">
+          <RowLink to="/ajustes/proveedor" icon={Briefcase} title="Proveedor" subtitle="Clínicas, altas, bajas y contrato" />
+        </Group>
+      )}
 
       <Group title="Tus datos">
         <RowLink

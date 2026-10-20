@@ -78,7 +78,14 @@ export class FakeGoogle {
    */
   server = new Map<string, { bytes: Buffer; version: string }>();
   /** Las clínicas del servidor simulado, con su equipo (correo → papel). */
-  clinics = new Map<string, { name: string; members: Map<string, "admin" | "member"> }>();
+  clinics = new Map<
+    string,
+    { name: string; members: Map<string, "admin" | "member">; suspended?: boolean; deleted?: { at: string; by: string; declaration: string; purgeAfter: string } }
+  >();
+  /** Quién gestiona el servidor (OPERATOR_EMAILS): las cuentas con estos nombres. */
+  operators: string[] = [];
+  /** Altas hechas desde el panel del proveedor (correos). */
+  altas = new Set<string>();
   /** La clave de recuperación de cada clínica (cerrada con su código). */
   recovery = new Map<string, string>();
   /** Quién puede crear clínicas (ALLOWED_EMAILS): las cuentas con estos nombres; null, todas. */
@@ -145,7 +152,8 @@ export class FakeGoogle {
     const method = req.method();
     const path = new URL(req.url()).pathname;
     const email = user.email.toLowerCase();
-    const canCreate = !this.creators || this.creators.some((who) => this.users[who]!.email === user.email);
+    const canCreate = !this.creators || this.creators.some((who) => this.users[who]!.email === user.email) || this.altas.has(email);
+    const operator = this.operators.some((who) => this.users[who]!.email === user.email);
     const body = <T = { name?: string; role?: "admin" | "member" }>() => JSON.parse(req.postData() ?? "{}") as T;
 
     if (this.oldServer && !path.startsWith("/v1/copia")) return send(404, { error: "Esta dirección no existe." });
@@ -153,8 +161,51 @@ export class FakeGoogle {
       return send(200, {
         email,
         canCreate,
-        clinics: [...this.clinics].filter(([, c]) => c.members.has(email)).map(([id, c]) => ({ id, name: c.name, role: c.members.get(email) })),
+        operator,
+        clinics: [...this.clinics]
+          .filter(([, c]) => c.members.has(email) && !c.deleted)
+          .map(([id, c]) => ({ id, name: c.name, role: c.members.get(email), ...(c.suspended ? { suspended: true } : {}) })),
+        deleted: [...this.clinics]
+          .filter(([, c]) => c.deleted && c.members.get(email) === "admin")
+          .map(([id, c]) => ({ id, name: c.name, deletedAt: c.deleted!.at, purgeAfter: c.deleted!.purgeAfter })),
       });
+    if (path.startsWith("/v1/proveedor")) {
+      if (!operator) return send(403, { error: "Solo quien gestiona el servidor puede verlo." });
+      const rest = path.slice("/v1/proveedor".length);
+      if (rest === "/contrato") return send(200, { html: "<p><strong>BORRADOR para revisar con un profesional.</strong></p><h2>Contrato de encargo del tratamiento</h2>" });
+      const alta = /^\/altas\/(.+)$/.exec(rest);
+      if (alta) {
+        const who = decodeURIComponent(alta[1]!).toLowerCase();
+        if (method === "PUT") this.altas.add(who);
+        else this.altas.delete(who);
+        return send(204);
+      }
+      const act = /^\/clinicas\/([^/]+)\/(suspender|recuperar)$/.exec(rest);
+      if (act) {
+        const c = this.clinics.get(act[1]!)!;
+        if (act[2] === "recuperar") delete c.deleted;
+        else c.suspended = body<{ suspended: boolean }>().suspended;
+        return send(200, {});
+      }
+      return send(200, {
+        clinics: [...this.clinics].map(([id, c]) => ({
+          id,
+          name: c.name,
+          createdBy: [...c.members.keys()][0],
+          createdAt: new Date().toISOString(),
+          members: c.members.size,
+          admins: [...c.members].filter(([, r]) => r === "admin").map(([e]) => e),
+          size: this.server.get(`clinic:${id}`)?.bytes.length ?? 0,
+          lastSync: this.server.has(`clinic:${id}`) ? new Date().toISOString() : null,
+          suspendedAt: c.suspended ? new Date().toISOString() : null,
+          deletedAt: c.deleted?.at ?? null,
+          deletedBy: c.deleted?.by ?? null,
+          declaration: c.deleted?.declaration ?? null,
+          purgeAfter: c.deleted?.purgeAfter ?? null,
+        })),
+        creators: [...this.altas].map((e) => ({ email: e, source: "panel", addedBy: email, addedAt: new Date().toISOString() })),
+      });
+    }
     if (path === "/v1/clinicas" && method === "POST") {
       if (!canCreate) return send(403, { error: "Tu cuenta no puede crear clínicas en este servidor." });
       const id = randomUUID();
@@ -179,6 +230,13 @@ export class FakeGoogle {
       owner = `clinic:${id}`;
       rest = m[2] ?? "";
       const onlyAdmin = () => send(403, { error: "Solo quien administra la clínica puede hacerlo." });
+      if (rest === "/recuperar") {
+        if (!admin) return onlyAdmin();
+        delete clinic.deleted;
+        return send(200, { restored: true });
+      }
+      if (clinic.deleted) return send(410, { error: "Esta clínica está borrada." });
+      if (clinic.suspended && method !== "GET" && rest !== "") return send(423, { error: "La clínica está suspendida: no se guardan cambios en el servidor." });
       const admins = () => [...clinic.members.values()].filter((r) => r === "admin").length;
       if (rest === "" && method === "PATCH") {
         if (!admin) return onlyAdmin();
@@ -187,9 +245,11 @@ export class FakeGoogle {
       }
       if (rest === "" && method === "DELETE") {
         if (!admin) return onlyAdmin();
-        this.clinics.delete(id);
-        this.server.delete(owner);
-        return send(204);
+        const declaration = body<{ declaration?: string }>().declaration ?? "";
+        if (declaration.length < 20) return send(400, { error: "Falta la declaración." });
+        const purgeAfter = new Date(Date.now() + 30 * 86_400_000).toISOString();
+        clinic.deleted = { at: new Date().toISOString(), by: email, declaration, purgeAfter };
+        return send(200, { purgeAfter });
       }
       if (rest === "/recuperacion") {
         if (!admin) return onlyAdmin();

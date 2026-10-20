@@ -16,6 +16,7 @@ const AccountSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) =
 const AsymmetryPage = lazy(() => import("./pages/AsymmetryPage").then((m) => ({ default: m.AsymmetryPage })));
 const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.ClinicSettingsPage })));
 const DataSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.DataSettingsPage })));
+const ProviderPage = lazy(() => import("./cloud/ProviderPage").then((m) => ({ default: m.ProviderPage })));
 const SchedulePage = lazy(() => import("./schedule/SchedulePage").then((m) => ({ default: m.SchedulePage })));
 const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m.TeamPage })));
 const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })));
@@ -89,6 +90,7 @@ const routes = [
   { path: "/ajustes/cuenta", element: l(<AccountSettingsPage />) },
   { path: "/ajustes/clinica", element: l(<ClinicSettingsPage />) },
   { path: "/ajustes/equipo", element: l(<TeamPage />) },
+  { path: "/ajustes/proveedor", element: l(<ProviderPage />) },
   { path: "/agenda", element: l(<SchedulePage />) },
   { path: "/horario", element: <Navigate to="/agenda" replace /> },
   { path: "/ajustes/bloqueo", element: l(<LockSettingsPage />) },

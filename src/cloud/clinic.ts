@@ -10,9 +10,33 @@ import type { Token } from "./auth";
 import { serverCall } from "./remote";
 
 export type Role = "admin" | "member";
-export type Clinic = { id: string; name: string; role: Role };
-/** Quién ha entrado según el servidor: sus clínicas y si puede crear una (su correo está en ALLOWED_EMAILS). */
-export type Me = { email: string; canCreate: boolean; clinics: Clinic[] };
+/** `suspended`: el proveedor la ha suspendido (se puede bajar la copia, no subir). */
+export type Clinic = { id: string; name: string; role: Role; suspended?: boolean };
+/** Una clínica borrada que quien la administraba aún puede recuperar (hasta `purgeAfter`). */
+export type DeletedClinic = { id: string; name: string; deletedAt: string; purgeAfter: string };
+/**
+ * Quién ha entrado según el servidor: sus clínicas, las que borró y aún puede recuperar, si puede crear una y si
+ * gestiona el servidor (el panel del proveedor).
+ */
+export type Me = { email: string; canCreate: boolean; operator?: boolean; clinics: Clinic[]; deleted?: DeletedClinic[] };
+
+/** El panel del proveedor (cloudflare/worker.js, /v1/proveedor). */
+export type OperatorClinic = {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
+  members: number;
+  admins: string[];
+  size: number;
+  lastSync: string | null;
+  suspendedAt: string | null;
+  deletedAt: string | null;
+  deletedBy: string | null;
+  declaration: string | null;
+  purgeAfter: string | null;
+};
+export type Creator = { email: string; source: "variable" | "panel"; addedBy?: string; addedAt?: string };
 export type Member = { email: string; role: Role; addedAt: string };
 
 export const ROLE_LABELS: Record<Role, string> = { admin: "Administra", member: "Equipo" };
@@ -22,6 +46,14 @@ export type ChosenClinic = Clinic & { adopt?: boolean };
 
 const key = (a: Account) => `fisiolab.clinic.${a.sub}`;
 const NOTICE_KEY = "fisiolab.clinic.notice";
+const OPERATOR_KEY = "fisiolab.operator";
+
+/** Si esta cuenta gestiona el servidor (lo último que dijo el servidor): para enseñar «Proveedor» en Ajustes. */
+export const isOperator = (a: Account) => localStorage.getItem(`${OPERATOR_KEY}.${a.sub}`) === "1";
+export function rememberOperator(a: Account, operator: boolean) {
+  if (operator) localStorage.setItem(`${OPERATOR_KEY}.${a.sub}`, "1");
+  else localStorage.removeItem(`${OPERATOR_KEY}.${a.sub}`);
+}
 
 export function chosenClinic(a: Account): ChosenClinic | null {
   try {
@@ -76,8 +108,11 @@ export function clinicApi(baseUrl: string) {
     me: async (t: Token) => (await (await call(t, "/v1/yo")).json()) as Me,
     create: async (t: Token, name: string) => (await (await call(t, "/v1/clinicas", { method: "POST", ...json({ name }) })).json()) as Clinic,
     rename: async (t: Token, id: string, name: string) => (await (await call(t, path(id), { method: "PATCH", ...json({ name }) })).json()) as Clinic,
-    remove: async (t: Token, id: string) => {
-      await call(t, path(id), { method: "DELETE" });
+    /** A la papelera 30 días, con la declaración de quien la borra. Devuelve hasta cuándo se puede recuperar. */
+    remove: async (t: Token, id: string, declaration: string) =>
+      ((await (await call(t, path(id), { method: "DELETE", ...json({ declaration }) })).json()) as { purgeAfter: string }).purgeAfter,
+    restore: async (t: Token, id: string) => {
+      await call(t, path(id, "/recuperar"), { method: "POST" });
     },
     members: async (t: Token, id: string) => ((await (await call(t, path(id, "/miembros"))).json()) as { members: Member[] }).members,
     putMember: async (t: Token, id: string, email: string, role: Role) =>
@@ -89,6 +124,23 @@ export function clinicApi(baseUrl: string) {
     getRecovery: async (t: Token, id: string) => ((await (await call(t, path(id, "/recuperacion"))).json()) as { blob: string | null }).blob,
     putRecovery: async (t: Token, id: string, blob: string) => {
       await call(t, path(id, "/recuperacion"), { method: "PUT", ...json({ blob }) });
+    },
+    /** Panel del proveedor: solo para OPERATOR_EMAILS. */
+    operator: {
+      overview: async (t: Token) => (await (await call(t, "/v1/proveedor")).json()) as { clinics: OperatorClinic[]; creators: Creator[] },
+      contract: async (t: Token) => ((await (await call(t, "/v1/proveedor/contrato")).json()) as { html: string }).html,
+      addCreator: async (t: Token, email: string) => {
+        await call(t, `/v1/proveedor/altas/${encodeURIComponent(email.trim().toLowerCase())}`, { method: "PUT" });
+      },
+      removeCreator: async (t: Token, email: string) => {
+        await call(t, `/v1/proveedor/altas/${encodeURIComponent(email)}`, { method: "DELETE" });
+      },
+      suspend: async (t: Token, id: string, suspended: boolean) => {
+        await call(t, `/v1/proveedor/clinicas/${encodeURIComponent(id)}/suspender`, { method: "POST", ...json({ suspended }) });
+      },
+      restore: async (t: Token, id: string) => {
+        await call(t, `/v1/proveedor/clinicas/${encodeURIComponent(id)}/recuperar`, { method: "POST" });
+      },
     },
   };
 }

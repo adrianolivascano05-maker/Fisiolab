@@ -50,3 +50,21 @@ CREATE TABLE IF NOT EXISTS recovery (
   blob TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+
+-- Quién puede crear clínicas además de ALLOWED_EMAILS: lo da de alta el proveedor desde su panel de la app.
+CREATE TABLE IF NOT EXISTS creators (
+  email TEXT PRIMARY KEY,
+  added_by TEXT NOT NULL,
+  added_at TEXT NOT NULL
+);
+
+-- El estado de cada clínica: suspendida (no sube nada, sí baja) o borrada (papelera de 30 días, con la declaración de
+-- quién la borró). Sin fila, normal.
+CREATE TABLE IF NOT EXISTS clinic_status (
+  clinic_id TEXT PRIMARY KEY,
+  suspended_at TEXT,
+  deleted_at TEXT,
+  deleted_by TEXT,
+  declaration TEXT,
+  purge_after TEXT
+);

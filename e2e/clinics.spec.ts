@@ -408,4 +408,70 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(tablet.getByRole("link", { name: /Paciente Recuperado/ })).toBeVisible();
     expect(errors).toEqual([]);
   });
+
+  test("CL8 proveedor: altas, suspender, contrato; borrar la clínica con copia y declaración, y recuperarla de la papelera", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    google.creators = ["ana"];
+    google.operators = ["ana"];
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Paciente Papelera" });
+    await choosePassword(page);
+    await inServer(google, "Paciente Papelera");
+
+    // El panel del proveedor: da de alta a Carla sin tocar Cloudflare.
+    await page.goto("./ajustes");
+    await page.getByRole("link", { name: /Proveedor/ }).click();
+    await expect(page.getByRole("heading", { name: "Proveedor" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Clínicas" }).getByRole("button", { name: /Fisiolab Centro/ })).toBeVisible();
+    await page.getByLabel("Correo del responsable").fill("carla@otra.test");
+    await page.getByRole("button", { name: "Dar de alta" }).click();
+    await expect(page.getByRole("region", { name: "Pueden crear clínicas" }).getByRole("button", { name: /carla@otra\.test/ })).toBeVisible();
+    await expectAccessible(page);
+    const carla = await device(browser, google, "carla", errors, [/status of 423/]);
+    await enter(carla);
+    await createClinic(carla, "Clínica Carla");
+    await patients(carla);
+
+    // Suspender la clínica de Carla: no sube nada (lo dice), pero sigue funcionando en su dispositivo.
+    await page.reload();
+    await page.getByRole("region", { name: "Clínicas" }).getByRole("button", { name: /Clínica Carla/ }).click();
+    await expect(page.getByRole("region", { name: "Clínicas" }).getByRole("button", { name: /Clínica Carla · suspendida/ })).toBeVisible();
+    await createPatient(carla, { name: "Paciente Suspendido" });
+    await choosePassword(carla).catch(() => {});
+    await carla.goto("./ajustes/cuenta");
+    await carla.getByRole("button", { name: "Sincronizar ahora" }).click();
+    await expect(carla.getByText(/La clínica está suspendida/).first()).toBeVisible({ timeout: 15_000 });
+
+    // El contrato: solo para el proveedor, y en PDF.
+    await page.getByRole("button", { name: "Ver el borrador del contrato" }).click();
+    await expect(page.getByRole("article", { name: "Borrador del contrato" })).toContainText("BORRADOR");
+    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
+    expect(pdf.suggestedFilename()).toBe("Cenit-contrato-encargado-BORRADOR.pdf");
+
+    // Borrar su clínica: primero la copia de seguridad, luego la declaración.
+    await page.goto("./ajustes/equipo");
+    await page.getByRole("button", { name: /Borrar la clínica del servidor/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Borrar una clínica del servidor" });
+    await expect(sheet.getByRole("button", { name: "Borrar «Fisiolab Centro»" })).toBeDisabled();
+    const [backup] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Descargar la copia de seguridad" }).click()]);
+    expect(backup.suggestedFilename()).toMatch(/^Cenit-Fisiolab-Centro-\d{4}-\d{2}-\d{2}\.sqlite3$/);
+    await sheet.getByRole("checkbox", { name: /Declaro que la clínica conserva/ }).check();
+    await expectAccessible(page);
+    await sheet.getByRole("button", { name: "Borrar «Fisiolab Centro»" }).click();
+    await expect(page.getByText(/«Fisiolab Centro» está en la papelera: puedes recuperarla aquí hasta el/)).toBeVisible({ timeout: 15_000 });
+    const [entry] = [...google.clinics.values()].filter((c) => c.name === "Fisiolab Centro");
+    expect(entry!.deleted).toMatchObject({ by: "ana@clinica.test", declaration: expect.stringContaining("Declaro que la clínica conserva") });
+
+    // Recuperarla de la papelera: vuelve entera.
+    await page.getByRole("button", { name: "Recuperar «Fisiolab Centro»" }).click();
+    await page.getByRole("list", { name: "Tus clínicas" }).getByRole("button", { name: /Fisiolab Centro/ }).click();
+    await patients(page);
+    await expect(page.getByRole("button", { name: "Escribir la contraseña" }).or(page.getByRole("link", { name: /Paciente Papelera/ }))).toBeVisible({ timeout: 15_000 });
+    expect(errors).toEqual([]);
+  });
 });

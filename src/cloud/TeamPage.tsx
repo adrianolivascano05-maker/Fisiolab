@@ -1,6 +1,6 @@
 // Ajustes → Equipo de la clínica (clinic.ts): quién forma parte de ella y, para quien la administra, añadir y quitar
 // gente, cambiar el nombre o borrarla del servidor. También cambiar de clínica o salir de ella en este dispositivo.
-import { Building2, LogOut, Pencil, Repeat, ShieldCheck, Trash, UserPlus, UserRound } from "lucide-react";
+import { Building2, Download, LogOut, Pencil, Repeat, ShieldCheck, Trash, UserPlus, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router";
 import { Page } from "../app/Page";
@@ -8,14 +8,14 @@ import { useAsync } from "../app/useAsync";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import { TextField } from "../ui/Field";
+import { SelectField, TextField } from "../ui/Field";
 import { Group, Row, RowButton } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { getDb } from "../data/db";
 import { ensureStaff, removeStaff } from "../data/schedule";
 import { getToken } from "./auth";
-import { ROLE_LABELS, type Member, type Role } from "./clinic";
+import { chooseClinic, ROLE_LABELS, type Member, type Role } from "./clinic";
 import { useCloud } from "./CloudGate";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -247,26 +247,127 @@ export function TeamPage() {
         </Button>
       </Sheet>
 
-      <Sheet open={confirm === "delete"} onClose={() => setConfirm(null)} title={`¿Borrar ${clinic.name} del servidor?`}>
-        <p>Se borran del servidor la clínica, su equipo y la copia de sus pacientes, para todos. Cada dispositivo borra sus datos al abrir la app.</p>
-        <p className="flex items-start gap-2 rounded-md bg-warning-soft p-3 text-sm">
-          Antes, guarda una copia de seguridad (Ajustes → Copias de seguridad y exportar): la historia clínica hay que conservarla los años que marca la
-          ley.
-        </p>
-        <Button
-          variant="danger"
-          block
-          loading={busy}
-          onClick={async () => {
-            if (await run((t) => api.remove(t, clinic.id))) await cloud.leaveClinic(`Has borrado «${clinic.name}» del servidor y de este dispositivo.`);
+      {confirm === "delete" && <DeleteClinicSheet onClose={() => setConfirm(null)} />}
+    </Page>
+  );
+}
+
+/** Lo que declara quien borra la clínica (queda guardado en el servidor con su correo y la fecha). */
+export const DELETE_DECLARATION =
+  "Declaro que la clínica conserva una copia de seguridad de sus historias clínicas y se responsabiliza de custodiarlas durante el plazo que marca la ley. Entiendo que la clínica, su equipo y su copia se borrarán del servidor y que solo podrán recuperarse durante los 30 días siguientes.";
+
+/**
+ * Borrar una clínica del servidor: elegir cuál (si se administran varias), descargar antes su copia de seguridad y
+ * aceptar la declaración. Va 30 días a la papelera, desde donde se puede recuperar.
+ */
+function DeleteClinicSheet({ onClose }: { onClose: () => void }) {
+  const cloud = useCloud();
+  const toast = useToast();
+  const [chosen, setChosen] = useState(cloud?.clinic?.id ?? "");
+  const [downloaded, setDownloaded] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const mine = useAsync(async () => {
+    const token = getToken();
+    if (!cloud?.clinics || !token) return [];
+    return (await cloud.clinics.me(token)).clinics.filter((c) => c.role === "admin");
+  }, []);
+  if (!cloud?.clinic || !cloud.clinics) return null;
+  const current = cloud.clinic;
+  const target = (mine.data ?? []).find((c) => c.id === chosen) ?? current;
+  const other = target.id !== current.id;
+  const day = new Date().toISOString().slice(0, 10);
+  return (
+    <Sheet open onClose={onClose} title="Borrar una clínica del servidor">
+      {(mine.data?.length ?? 0) > 1 && (
+        <SelectField
+          label="Clínica que quieres borrar"
+          value={chosen}
+          onChange={(e) => {
+            setChosen(e.target.value);
+            setDownloaded(false);
+            setAgreed(false);
           }}
         >
-          Borrar la clínica
-        </Button>
-        <Button variant="secondary" block onClick={() => setConfirm(null)}>
-          Cancelar
-        </Button>
-      </Sheet>
-    </Page>
+          {mine.data!.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
+      {other ? (
+        <>
+          <p>Para borrar «{target.name}», entra en ella: así descargas antes su copia de seguridad.</p>
+          <Button
+            block
+            onClick={() => {
+              chooseClinic(cloud.account, target);
+              location.assign(`${import.meta.env.BASE_URL}ajustes/equipo`);
+            }}
+          >
+            Entrar en «{target.name}»
+          </Button>
+        </>
+      ) : (
+        <>
+          <p>
+            Se borran del servidor «{current.name}», su equipo y la copia de sus pacientes, para todos. Durante 30 días queda en la papelera y se puede
+            recuperar entera desde la pantalla de elegir clínica; después, se borra para siempre.
+          </p>
+          <ol className="flex list-decimal flex-col gap-3 pl-5">
+            <li className="flex flex-col gap-2">
+              <span>Descarga la copia de seguridad y guárdala fuera de este dispositivo: la historia clínica hay que conservarla los años que marca la ley.</span>
+              <Button
+                variant={downloaded ? "secondary" : "primary"}
+                icon={<Download aria-hidden="true" className="size-5" />}
+                onClick={async () => {
+                  const bytes = await getDb().exportBytes();
+                  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/vnd.sqlite3" }));
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `Cenit-${current.name.replace(/[^\p{L}\p{N}]+/gu, "-")}-${day}.sqlite3`;
+                  a.click();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  setDownloaded(true);
+                }}
+              >
+                {downloaded ? "Copia descargada" : "Descargar la copia de seguridad"}
+              </Button>
+            </li>
+            <li>
+              <label className="flex min-h-11 items-start gap-3">
+                <input type="checkbox" className="mt-1 size-5 shrink-0 accent-accent" checked={agreed} disabled={!downloaded} onChange={(e) => setAgreed(e.target.checked)} />
+                <span className="text-sm">{DELETE_DECLARATION}</span>
+              </label>
+            </li>
+          </ol>
+          <Button
+            variant="danger"
+            block
+            loading={busy}
+            disabled={!downloaded || !agreed}
+            onClick={async () => {
+              const token = getToken();
+              if (!token) return cloud.reconnect();
+              setBusy(true);
+              try {
+                const until = await cloud.clinics!.remove(token, current.id, `${DELETE_DECLARATION} — ${cloud.account.email}`);
+                const date = new Date(until).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+                await cloud.leaveClinic(`«${current.name}» está en la papelera: puedes recuperarla aquí hasta el ${date}.`);
+              } catch (e) {
+                toast(errText(e), "danger");
+                setBusy(false);
+              }
+            }}
+          >
+            Borrar «{current.name}»
+          </Button>
+        </>
+      )}
+      <Button variant="secondary" block onClick={onClose}>
+        Cancelar
+      </Button>
+    </Sheet>
   );
 }

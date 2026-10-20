@@ -25,6 +25,8 @@ import {
   clinicDbFile,
   clinicScope,
   forgetClinic,
+  isOperator,
+  rememberOperator,
   ROLE_LABELS,
   setClinicNotice,
   takeClinicNotice,
@@ -48,6 +50,8 @@ export type Cloud = {
   clinic: Clinic | null;
   /** Lo que se pide al servidor sobre clínicas y equipo; null con Google Drive. */
   clinics: ClinicApi | null;
+  /** Quien ha entrado gestiona el servidor: ve Ajustes → Proveedor. */
+  operator: boolean;
   /** Ir a la pantalla de elegir clínica (los datos de esta se quedan en el dispositivo). */
   switchClinic: () => Promise<void>;
   /** La clínica ha cambiado de nombre, o quien ha entrado de papel: se recuerda y se vuelve a pintar la pantalla. */
@@ -79,9 +83,10 @@ async function refreshClinic(cloud: Cloud, token: Token) {
   } catch {
     return; // sin conexión o el servidor no responde: ya se mirará la próxima vez
   }
+  rememberOperator(cloud.account, !!me.operator);
   const now = me.clinics.find((c) => c.id === current.id);
   if (!now) return cloud.leaveClinic(`Ya no formas parte de «${current.name}»: sus pacientes se han borrado de este dispositivo.`);
-  if (now.name !== current.name || now.role !== current.role) cloud.updateClinic(now);
+  if (now.name !== current.name || now.role !== current.role || !!now.suspended !== !!current.suspended) cloud.updateClinic(now);
 }
 
 /** La cuenta y la sincronización, o null si la app funciona sin nube. */
@@ -145,8 +150,9 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void, 
   const cloud: Cloud = {
     config,
     account,
-    clinic: clinic && { id: clinic.id, name: clinic.name, role: clinic.role },
+    clinic: clinic && { id: clinic.id, name: clinic.name, role: clinic.role, suspended: clinic.suspended },
     clinics: config.cloudflareUrl ? clinicApi(config.cloudflareUrl) : null,
+    operator: !!config.cloudflareUrl && isOperator(account),
     switchClinic: async () => {
       if (sync.current.pending) await sync.sync();
       sync.stop();
@@ -299,9 +305,10 @@ export function CloudGate({ children }: { children: ReactNode }) {
         if (e instanceof ServerError && e.status === 404) return "old-server";
         error = navigator.onLine ? errText(e) : "Sin conexión: para elegir la clínica la primera vez hace falta internet.";
       }
+      if (me) rememberOperator(account, !!me.operator);
       const notice = takeClinicNotice();
       // Lo normal en un equipo: una sola clínica y nada que llevar a ella. Se entra sin preguntar.
-      if (me && !me.canCreate && me.clinics.length === 1 && n === 0 && !notice) {
+      if (me && !me.canCreate && me.clinics.length === 1 && n === 0 && !notice && !me.deleted?.length) {
         chooseClinic(account, me.clinics[0]!);
         return location.reload();
       }
@@ -623,6 +630,39 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
                 </Button>
               </Card>
             )
+          )}
+          {!!me.deleted?.length && (
+            <section aria-labelledby="h-borradas" className="flex flex-col gap-2">
+              <h2 id="h-borradas" className="font-semibold">
+                Clínicas borradas
+              </h2>
+              {me.deleted.map((d) => (
+                <Card key={d.id} className="flex flex-col gap-2">
+                  <p>
+                    <span className="font-semibold">{d.name}</span>: en la papelera. Se borra para siempre el{" "}
+                    {new Date(d.purgeAfter).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    loading={busy}
+                    onClick={async () => {
+                      const token = getToken();
+                      if (!token) return startLogin(config.googleClientId, { hint: account.email });
+                      setBusy(true);
+                      try {
+                        await clinicApi(config.cloudflareUrl!).restore(token, d.id);
+                        location.reload();
+                      } catch (err) {
+                        setFailure(errText(err));
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Recuperar «{d.name}»
+                  </Button>
+                </Card>
+              ))}
+            </section>
           )}
           {failure && <Alert tone="danger" title={failure} />}
         </>
