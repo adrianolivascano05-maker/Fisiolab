@@ -403,7 +403,7 @@ describe("clínicas", () => {
   type Clinic = { id: string; name: string; role: string; suspended?: boolean };
   const send = (method: string, path: string, token: string, data?: unknown) =>
     call(method, path, { token, body: data === undefined ? undefined : JSON.stringify(data) });
-  type Me = { email: string; canCreate: boolean; operator: boolean; clinics: Clinic[]; deleted: { id: string; name: string; purgeAfter: string }[] };
+  type Me = { email: string; canCreate: boolean; operator: boolean; clinics: Clinic[]; deleted: { id: string; name: string; purgeAfter: string }[]; request: { clinic: string; status: string; createdAt: string } | null };
   const me = async (token: string, over?: Record<string, unknown>, now?: () => number) =>
     (await (await handle(request("GET", "/v1/yo", { token }), env(over), { verifyToken, now })).json()) as Me;
   async function clinic(token = "tok-ana", name = "Fisiolab Centro") {
@@ -419,7 +419,7 @@ describe("clínicas", () => {
     call("PUT", `/v1/clinicas/${id}/copia`, { token, body, headers: precondition });
 
   it("quien está en ALLOWED_EMAILS crea su clínica y queda de administrador; los demás, no", async () => {
-    expect(await me("tok-eva")).toEqual({ email: "eva@clinica.es", canCreate: false, operator: false, clinics: [], deleted: [] });
+    expect(await me("tok-eva")).toEqual({ email: "eva@clinica.es", canCreate: false, operator: false, clinics: [], deleted: [], request: null });
     expect((await send("POST", "/v1/clinicas", "tok-eva", { name: "La mía" })).status).toBe(403);
     expect((await send("POST", "/v1/clinicas", "tok-ana", { name: "  " })).status).toBe(400);
     expect((await send("POST", "/v1/clinicas", "tok-ana", { name: "x".repeat(81) })).status).toBe(400);
@@ -427,7 +427,7 @@ describe("clínicas", () => {
 
     const c = await clinic("tok-ana", "  Fisiolab   Centro ");
     expect(c).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), name: "Fisiolab Centro", role: "admin" });
-    expect(await me("tok-ana")).toEqual({ email: "ana@clinica.es", canCreate: true, operator: false, clinics: [c], deleted: [] });
+    expect(await me("tok-ana")).toEqual({ email: "ana@clinica.es", canCreate: true, operator: false, clinics: [c], deleted: [], request: null });
     expect(await members(c.id)).toEqual(["ana@clinica.es:admin"]);
     expect((await call("GET", "/v1/yo")).status).toBe(401);
   });
@@ -435,7 +435,7 @@ describe("clínicas", () => {
   it("el administrador añade a su equipo por correo, sin tocar ALLOWED_EMAILS", async () => {
     const c = await clinic();
     expect((await send("PUT", `/v1/clinicas/${c.id}/miembros/${encodeURIComponent("Eva@Clinica.es ")}`, "tok-ana", { role: "member" })).status).toBe(200);
-    expect(await me("tok-eva")).toEqual({ email: "eva@clinica.es", canCreate: false, operator: false, clinics: [{ ...c, role: "member" }], deleted: [] });
+    expect(await me("tok-eva")).toEqual({ email: "eva@clinica.es", canCreate: false, operator: false, clinics: [{ ...c, role: "member" }], deleted: [], request: null });
     expect(await members(c.id, "tok-eva")).toEqual(["ana@clinica.es:admin", "eva@clinica.es:member"]);
     // Un miembro no añade ni quita a nadie, ni cambia el nombre, ni borra la clínica.
     expect((await send("PUT", `/v1/clinicas/${c.id}/miembros/luis@clinica.es`, "tok-eva", { role: "member" })).status).toBe(403);
@@ -554,6 +554,55 @@ describe("clínicas", () => {
     expect((await call("GET", "/v1/proveedor/contrato", { token: "tok-eva" }, op)).status).toBe(403);
     expect((await opCall("DELETE", "/v1/proveedor/altas/eva@clinica.es")).status).toBe(204);
     expect((await me("tok-eva")).canCreate).toBe(false);
+  });
+
+  it("solicitudes de acceso: cualquiera con Google lo pide; el proveedor acepta o rechaza", async () => {
+    const op = { OPERATOR_EMAILS: "luis@clinica.es" };
+    const opCall = (method: string, path: string, data?: unknown) =>
+      handle(request(method, path, { token: "tok-luis", body: data === undefined ? undefined : JSON.stringify(data) }), env(op), { verifyToken });
+    type Req = { clinic: string; status: string; createdAt: string };
+    // Sin nombre de clínica no; quien ya puede crear clínicas no lo necesita.
+    expect((await send("POST", "/v1/solicitud", "tok-eva", { clinic: "  " })).status).toBe(400);
+    expect((await send("POST", "/v1/solicitud", "tok-ana", { clinic: "La de Ana" })).status).toBe(409);
+    const res = await send("POST", "/v1/solicitud", "tok-eva", { clinic: "  Fisio   Eva ", note: "Somos 4 en Sevilla" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ clinic: "Fisio Eva", status: "pending" });
+    expect((await me("tok-eva")).request).toMatchObject({ clinic: "Fisio Eva", status: "pending" } satisfies Partial<Req>);
+    // Cambiar lo pedido mientras está pendiente.
+    await send("POST", "/v1/solicitud", "tok-eva", { clinic: "Fisio Eva Sevilla" });
+    expect((await me("tok-eva")).request).toMatchObject({ clinic: "Fisio Eva Sevilla" });
+    // El proveedor la ve (y cuántas hay pendientes); nadie más.
+    expect((await me("tok-luis", op)) as unknown).toMatchObject({ pendingRequests: 1 });
+    expect((await me("tok-eva", op)) as unknown).not.toHaveProperty("pendingRequests");
+    const panel = (await (await opCall("GET", "/v1/proveedor")).json()) as { requests: (Req & { email: string; note: string })[] };
+    expect(panel.requests).toEqual([expect.objectContaining({ email: "eva@clinica.es", clinic: "Fisio Eva Sevilla", note: "", status: "pending" })]);
+    expect((await call("POST", "/v1/proveedor/solicitudes/eva@clinica.es", { token: "tok-ana", body: "{}" }, op)).status).toBe(403);
+    // Aceptada: ya puede crear su clínica y la solicitud desaparece.
+    expect((await opCall("POST", "/v1/proveedor/solicitudes/eva@clinica.es", { accept: true })).status).toBe(200);
+    expect(await me("tok-eva")).toMatchObject({ canCreate: true, request: null });
+    expect((await opCall("POST", "/v1/proveedor/solicitudes/eva@clinica.es", { accept: true })).status).toBe(404);
+
+    // Rechazada: no se puede volver a pedir hasta que el proveedor la borre.
+    await send("POST", "/v1/solicitud", "tok-intrusa", { clinic: "Otra" });
+    await opCall("POST", "/v1/proveedor/solicitudes/intrusa@otra.es", { accept: false });
+    expect((await me("tok-intrusa")).request).toMatchObject({ status: "rejected" });
+    expect((await send("POST", "/v1/solicitud", "tok-intrusa", { clinic: "Otra más" })).status).toBe(409);
+    expect((await call("DELETE", "/v1/solicitud", { token: "tok-intrusa" })).status).toBe(204);
+    expect((await me("tok-intrusa")).request).toMatchObject({ status: "rejected" });
+    expect((await opCall("DELETE", "/v1/proveedor/solicitudes/intrusa@otra.es")).status).toBe(204);
+    expect((await send("POST", "/v1/solicitud", "tok-intrusa", { clinic: "Otra más" })).status).toBe(200);
+    // Retirarla uno mismo; darle de alta a mano también la cierra.
+    expect((await call("DELETE", "/v1/solicitud", { token: "tok-intrusa" })).status).toBe(204);
+    expect((await me("tok-intrusa")).request).toBeNull();
+    await send("POST", "/v1/solicitud", "tok-intrusa", { clinic: "Otra más" });
+    await opCall("PUT", "/v1/proveedor/altas/intrusa@otra.es");
+    expect(await me("tok-intrusa")).toMatchObject({ canCreate: true, request: null });
+  });
+
+  it("como mucho 200 solicitudes pendientes a la vez", async () => {
+    for (let i = 0; i < 200; i++)
+      await db.prepare("INSERT INTO access_requests (email, clinic, note, status, created_at) VALUES (?, 'x', '', 'pending', '2026-01-01')").bind(`p${i}@x.es`).run();
+    expect((await send("POST", "/v1/solicitud", "tok-eva", { clinic: "Una más" })).status).toBe(429);
   });
 
   it("la clave de recuperación: la guarda y la lee solo quien administra; se va con la clínica", async () => {

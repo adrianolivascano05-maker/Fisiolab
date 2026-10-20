@@ -115,8 +115,10 @@ abogado).
 **Al actualizar el servidor** (si cambia `worker.js` en la app), repite el paso 4 desde **Edit code**. Las
 variables y el enlace se conservan. Si además cambia `schema.sql`, vuelve a ejecutarlo entero en la **Console**
 de la base (paso 3): crea las tablas que falten y no borra nada. Así se pasó, en octubre de 2026, a la versión
-con clínicas (tablas `clinics` y `members`) y después a la sincronización por cambios (tablas `deltas` y
-`delta_base`; ejecuta el SQL **antes** de pegar el `worker.js` nuevo).
+con clínicas (tablas `clinics` y `members`), después a la sincronización por cambios (tablas `deltas` y
+`delta_base`) y a las solicitudes de acceso (`access_requests`). Ejecuta el SQL **antes** de pegar el `worker.js`
+nuevo. La consola junta en una línea lo que se pega: si dice «No SQL statements detected», pega solo las sentencias
+`CREATE`, sin las líneas de comentario (las que empiezan por `--`).
 
 ## Otra forma: con Wrangler (terminal)
 
@@ -170,7 +172,7 @@ nada más.
 | Archivo | Qué es |
 | --- | --- |
 | `worker.js` | el servidor. JavaScript sin dependencias, para pegarlo tal cual en el panel |
-| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica), `parts` (sus trozos, en texto base64), `deltas` (los lotes de cambios cifrados, numerados) y `delta_base` (hasta qué lote lleva la copia entera, y su época) |
+| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica), `parts` (sus trozos, en texto base64), `deltas` (los lotes de cambios cifrados, numerados), `delta_base` (hasta qué lote lleva la copia entera, y su época) y `access_requests` (las solicitudes de acceso: quién pide dar de alta qué clínica) |
 | `wrangler.toml` | la configuración, solo para instalarlo con Wrangler (siempre con `-c wrangler.toml`) |
 | `worker.test.ts`, `d1shim.ts` | las pruebas (`npx vitest run cloudflare`), con una base D1 simulada sobre SQLite |
 
@@ -186,6 +188,8 @@ Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "
 | --- | --- |
 | `GET /v1/salud` | `200 { ok: true }`, sin sesión. Si falta algo de la instalación, `500 { ok: false, error }` |
 | `GET /v1/yo` | `200 { email, canCreate, operator, clinics: [{ id, name, role, suspended? }], deleted: [{ id, name, deletedAt, purgeAfter }] }`: las clínicas de quien entra, las que borró y aún puede recuperar, si puede dar de alta otra y si gestiona el servidor |
+| `POST /v1/solicitud` + `{ clinic, note }` | `200 { clinic, status: "pending", createdAt }`: cualquier cuenta de Google pide permiso para dar de alta su clínica (una por correo; como mucho 200 pendientes, si no `429`). Si ya puede, `409`; si se le rechazó, `409` hasta que el proveedor la borre. `DELETE` la retira. `GET /v1/yo` dice `request` (la suya) y, al proveedor, `pendingRequests` |
+| `POST /v1/proveedor/solicitudes/:correo` + `{ accept }` | acepta (pasa a `creators`) o rechaza; `DELETE` la borra (podrá volver a pedirlo). Solo `OPERATOR_EMAILS` |
 | `POST /v1/clinicas` + `{ name }` | `201 { id, name, role: "admin" }`; solo `ALLOWED_EMAILS` (si no, `403`). Nombre de 1 a 80 caracteres |
 | `PATCH /v1/clinicas/:id` + `{ name }` | `200 { id, name, role }`; solo administradores |
 | `DELETE /v1/clinicas/:id` + `{ declaration }` | `200 { purgeAfter }`: la clínica va 30 días a la papelera con la declaración de quien la borra; solo administradores |

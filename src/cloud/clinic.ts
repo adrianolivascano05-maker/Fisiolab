@@ -18,7 +18,20 @@ export type DeletedClinic = { id: string; name: string; deletedAt: string; purge
  * Quién ha entrado según el servidor: sus clínicas, las que borró y aún puede recuperar, si puede crear una y si
  * gestiona el servidor (el panel del proveedor).
  */
-export type Me = { email: string; canCreate: boolean; operator?: boolean; clinics: Clinic[]; deleted?: DeletedClinic[] };
+export type Me = {
+  email: string;
+  canCreate: boolean;
+  operator?: boolean;
+  clinics: Clinic[];
+  deleted?: DeletedClinic[];
+  /** Su solicitud para dar de alta una clínica, si la ha hecho y aún no se ha aceptado. */
+  request?: AccessRequest | null;
+  /** Solo para el proveedor: solicitudes por atender. */
+  pendingRequests?: number;
+};
+/** Una solicitud de acceso: el nombre de la clínica que quiere dar de alta y si está pendiente o se rechazó. */
+export type AccessRequest = { clinic: string; status: "pending" | "rejected"; createdAt: string };
+export type OperatorRequest = AccessRequest & { email: string; note: string; answeredAt: string | null };
 
 /** El panel del proveedor (cloudflare/worker.js, /v1/proveedor). */
 export type OperatorClinic = {
@@ -106,6 +119,12 @@ export function clinicApi(baseUrl: string) {
   const call = (t: Token, p: string, init?: RequestInit) => serverCall(baseUrl, t, p, init);
   return {
     me: async (t: Token) => (await (await call(t, "/v1/yo")).json()) as Me,
+    /** Pedir al proveedor permiso para dar de alta una clínica, y retirar la petición. */
+    requestAccess: async (t: Token, clinic: string, note: string) =>
+      (await (await call(t, "/v1/solicitud", { method: "POST", ...json({ clinic, note }) })).json()) as AccessRequest,
+    withdrawRequest: async (t: Token) => {
+      await call(t, "/v1/solicitud", { method: "DELETE" });
+    },
     create: async (t: Token, name: string) => (await (await call(t, "/v1/clinicas", { method: "POST", ...json({ name }) })).json()) as Clinic,
     rename: async (t: Token, id: string, name: string) => (await (await call(t, path(id), { method: "PATCH", ...json({ name }) })).json()) as Clinic,
     /** A la papelera 30 días, con la declaración de quien la borra. Devuelve hasta cuándo se puede recuperar. */
@@ -127,7 +146,15 @@ export function clinicApi(baseUrl: string) {
     },
     /** Panel del proveedor: solo para OPERATOR_EMAILS. */
     operator: {
-      overview: async (t: Token) => (await (await call(t, "/v1/proveedor")).json()) as { clinics: OperatorClinic[]; creators: Creator[] },
+      overview: async (t: Token) =>
+        (await (await call(t, "/v1/proveedor")).json()) as { clinics: OperatorClinic[]; creators: Creator[]; requests?: OperatorRequest[] },
+      /** Aceptar (podrá dar de alta su clínica) o rechazar una solicitud; o borrarla (podrá volver a pedirlo). */
+      answer: async (t: Token, email: string, accept: boolean) => {
+        await call(t, `/v1/proveedor/solicitudes/${encodeURIComponent(email)}`, { method: "POST", ...json({ accept }) });
+      },
+      dropRequest: async (t: Token, email: string) => {
+        await call(t, `/v1/proveedor/solicitudes/${encodeURIComponent(email)}`, { method: "DELETE" });
+      },
       contract: async (t: Token) => ((await (await call(t, "/v1/proveedor/contrato")).json()) as { html: string }).html,
       addCreator: async (t: Token, email: string) => {
         await call(t, `/v1/proveedor/altas/${encodeURIComponent(email.trim().toLowerCase())}`, { method: "PUT" });

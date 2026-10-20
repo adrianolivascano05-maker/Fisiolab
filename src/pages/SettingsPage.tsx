@@ -22,6 +22,7 @@ import { useInstall } from "../app/pwa";
 import { useAsync } from "../app/useAsync";
 import { AccountCard } from "../cloud/AccountPages";
 import { CalendarSettings } from "../cloud/CalendarSettings";
+import { getToken } from "../cloud/auth";
 import { ROLE_LABELS } from "../cloud/clinic";
 import { CloudSettings, syncText, useCloud, useSyncState } from "../cloud/CloudGate";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
@@ -54,6 +55,11 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 /** S24 Ajustes: el menú. */
 export function SettingsPage() {
   const cloud = useCloud();
+  // El proveedor ve cuántas solicitudes de acceso tiene por atender.
+  const pendingRequests = useAsync(async () => {
+    const token = getToken();
+    return cloud?.operator && cloud.clinics && token ? ((await cloud.clinics.me(token)).pendingRequests ?? 0) : 0;
+  }, [cloud?.operator]);
   const sync = useSyncState();
   const install = useInstall();
   const state = useAsync(async () => {
@@ -89,7 +95,16 @@ export function SettingsPage() {
 
       {cloud?.operator && (
         <Group title="Tu servicio">
-          <RowLink to="/ajustes/proveedor" icon={Briefcase} title="Proveedor" subtitle="Clínicas, altas, bajas y contrato" />
+          <RowLink
+            to="/ajustes/proveedor"
+            icon={Briefcase}
+            title="Proveedor"
+            subtitle={
+              pendingRequests.data
+                ? `${pendingRequests.data === 1 ? "1 solicitud de acceso" : `${pendingRequests.data} solicitudes de acceso`} por atender`
+                : "Solicitudes, clínicas, altas, bajas y contrato"
+            }
+          />
         </Group>
       )}
 

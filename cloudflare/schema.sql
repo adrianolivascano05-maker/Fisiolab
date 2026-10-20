@@ -85,3 +85,14 @@ CREATE TABLE IF NOT EXISTS delta_base (
   epoch TEXT NOT NULL,
   seq INTEGER NOT NULL
 );
+
+-- Solicitudes de acceso: quien entra con Google sin permiso para dar de alta una clínica puede pedirlo desde la app;
+-- el proveedor la acepta (pasa a creators) o la rechaza desde su panel. Una por correo.
+CREATE TABLE IF NOT EXISTS access_requests (
+  email TEXT PRIMARY KEY,
+  clinic TEXT NOT NULL,
+  note TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'rejected')),
+  created_at TEXT NOT NULL,
+  answered_at TEXT
+);

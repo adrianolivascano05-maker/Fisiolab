@@ -166,6 +166,10 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
   copia entera con la nueva; los demás dispositivos piden la nueva al encontrar un lote suyo. Lo que un dispositivo
   subió con la anterior en el último día lo vuelve a subir con la nueva cuando se escribe (`recent` en `sync.ts`), y
   los demás saltan los lotes de una contraseña anterior (`oldSalts`).
+- **Solicitudes de acceso** (`AccessRequest.tsx`). Con el proyecto de Google en producción puede entrar cualquier
+  cuenta, pero sin clínica no ve nada. Quien entra sin clínica puede pedir al proveedor dar de alta la suya
+  (`/v1/solicitud`); el proveedor la acepta o la rechaza en Ajustes → Proveedor (la fila dice cuántas hay por
+  atender). Aceptada, la cuenta pasa a poder crear clínicas, igual que un alta hecha a mano.
 - **Se trabaja en una clínica** (`clinic.ts`). La primera vez en cada dispositivo, la cuenta elige su clínica o,
   si su correo está en `ALLOWED_EMAILS`, la da de alta y queda como administradora. Quien la administra añade al
   equipo por correo en Ajustes → Equipo de la clínica. Con una sola clínica y nada que llevar a ella, se entra

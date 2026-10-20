@@ -16,6 +16,8 @@
 //   OPTIONS *              permiso CORS para la app (preflight)
 //   GET    /v1/salud       { ok: true } sin sesión: para comprobar la instalación
 //   GET    /v1/yo          { email, canCreate, clinics: [{ id, name, role }] }: las clínicas de quien entra
+//   POST   /v1/solicitud   { clinic, note } → pide permiso para dar de alta una clínica (cualquier cuenta de Google)
+//   DELETE /v1/solicitud   retira la solicitud pendiente
 //   POST   /v1/clinicas    { name } → crea una clínica (solo ALLOWED_EMAILS); quien la crea, administrador
 //   PATCH  /v1/clinicas/:id                    { name } → cambia el nombre (administrador)
 //   DELETE /v1/clinicas/:id                    borra la clínica, su equipo y su copia (administrador)
@@ -44,6 +46,8 @@
 //   POST   /v1/proveedor/clinicas/:id/suspender  { suspended } → suspende (no se sube nada; se puede bajar) o reactiva
 //   POST   /v1/proveedor/clinicas/:id/recuperar  deshace el borrado de una clínica en sus 30 días
 //   GET    /v1/proveedor/contrato              { html }: el borrador del contrato de encargado del tratamiento
+//   POST   /v1/proveedor/solicitudes/:correo   { accept } → acepta (puede dar de alta su clínica) o rechaza una solicitud
+//   DELETE /v1/proveedor/solicitudes/:correo   la borra (podrá volver a pedirlo)
 //   /v1/copia y /v1/copia/info                 lo mismo con la copia personal de cada cuenta de ALLOWED_EMAILS
 //                                              (versiones anteriores de la app, sin clínicas)
 // Una clínica tiene siempre al menos un administrador: no se puede quitar ni bajar al último.
@@ -110,6 +114,8 @@ const DELTAS_PER_TRIP = 100;
 const DELTA_TRIP_CHARS = 3_000_000;
 /** Días que una clínica borrada se puede recuperar antes de borrarse para siempre. */
 const DELETE_GRACE_DAYS = 30;
+/** Solicitudes de acceso pendientes como mucho (para que nadie llene la base pidiendo sin parar). */
+const MAX_PENDING_REQUESTS = 200;
 /** Personas como mucho en el equipo de una clínica. */
 const MAX_MEMBERS = 100;
 /** Tokens comprobados que se recuerdan, y durante cuánto como mucho (segundos). */
@@ -195,6 +201,7 @@ async function route(request, env, deps, originAllowed) {
   }
 
   if (path === "/v1/yo" && method === "GET") return me(database(env), env, await authenticate(request, env, deps), deps.now);
+  if (path === "/v1/solicitud" && ["POST", "DELETE"].includes(method)) return accessRequest(request, env, await authenticate(request, env, deps), deps.now);
   if (path === "/v1/proveedor" || path.startsWith("/v1/proveedor/")) return operatorRoute(request, env, deps, path.slice("/v1/proveedor".length));
   if (path === "/v1/clinicas" && method === "POST") {
     const who = await authenticate(request, env, deps);
@@ -562,10 +569,15 @@ async function me(db, env, who, now) {
     )
     .bind(email)
     .all();
+  const operator = inList(env.OPERATOR_EMAILS, email);
+  const req = await db.prepare("SELECT clinic, status, created_at FROM access_requests WHERE email = ?").bind(email).first();
+  const pending = operator ? await db.prepare("SELECT count(*) AS n FROM access_requests WHERE status = 'pending'").first() : null;
   return json(200, {
     email,
     canCreate: await canCreate(env, db, who),
-    operator: inList(env.OPERATOR_EMAILS, email),
+    operator,
+    request: req ? { clinic: String(req.clinic), status: String(req.status), createdAt: String(req.created_at) } : null,
+    ...(operator ? { pendingRequests: Number(pending?.n ?? 0) } : {}),
     clinics: results
       .filter((r) => !r.deleted_at)
       .map((r) => ({ id: String(r.id), name: String(r.name), role: String(r.role), ...(r.suspended_at ? { suspended: true } : {}) })),
@@ -573,6 +585,49 @@ async function me(db, env, who, now) {
       .filter((r) => r.deleted_at && r.role === "admin")
       .map((r) => ({ id: String(r.id), name: String(r.name), deletedAt: String(r.deleted_at), purgeAfter: String(r.purge_after) })),
   });
+}
+
+/**
+ * Pedir permiso para dar de alta una clínica (POST) o retirar la petición (DELETE). Cualquier cuenta de Google que
+ * entre puede pedirlo; lo decide el proveedor desde su panel. Una solicitud por correo; si se rechazó, no se puede
+ * repetir hasta que el proveedor la borre.
+ * @param {Request} request
+ * @param {Env} env
+ * @param {Identity} who
+ * @param {() => number} now
+ */
+async function accessRequest(request, env, who, now) {
+  const db = database(env);
+  const email = normalEmail(who.email);
+  if (request.method === "DELETE") {
+    await db.prepare("DELETE FROM access_requests WHERE email = ? AND status = 'pending'").bind(email).run();
+    return new Response(null, { status: 204 });
+  }
+  if (await canCreate(env, db, who)) throw new HttpError(409, "Tu cuenta ya puede dar de alta su clínica.");
+  const body = await readJson(request);
+  const field = (/** @type {string} */ k, /** @type {number} */ max) => {
+    const v = typeof body === "object" && body !== null && k in body ? /** @type {Record<string, unknown>} */ (body)[k] : "";
+    return typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "";
+  };
+  const clinic = field("clinic", 80);
+  const note = field("note", 500);
+  if (!clinic) throw new HttpError(400, "Escribe el nombre de la clínica.");
+  const existing = await db.prepare("SELECT status FROM access_requests WHERE email = ?").bind(email).first();
+  if (existing?.status === "rejected") throw new HttpError(409, "Tu solicitud no se ha aceptado. Si crees que es un error, habla con quien te ofreció la app.");
+  if (!existing) {
+    const pending = await db.prepare("SELECT count(*) AS n FROM access_requests WHERE status = 'pending'").first();
+    if (Number(pending?.n) >= MAX_PENDING_REQUESTS) throw new HttpError(429, "Ahora mismo hay demasiadas solicitudes. Inténtalo más tarde.");
+  }
+  const at = new Date(now()).toISOString();
+  await db
+    .prepare(
+      `INSERT INTO access_requests (email, clinic, note, status, created_at) VALUES (?, ?, ?, 'pending', ?)
+       ON CONFLICT (email) DO UPDATE SET clinic = excluded.clinic, note = excluded.note`,
+    )
+    .bind(email, clinic, note, at)
+    .run();
+  const row = await db.prepare("SELECT created_at FROM access_requests WHERE email = ?").bind(email).first();
+  return json(200, { clinic, status: "pending", createdAt: String(row?.created_at ?? at) });
 }
 
 // ---------- Panel del proveedor ----------
@@ -589,7 +644,9 @@ async function operatorRoute(request, env, deps, rest) {
   const method = request.method;
   const alta = /^\/altas\/([^/]+)$/.exec(rest);
   const clinicAction = /^\/clinicas\/([A-Za-z0-9-]{1,64})\/(suspender|recuperar)$/.exec(rest);
+  const answer = /^\/solicitudes\/([^/]+)$/.exec(rest);
   const known =
+    (answer !== null && ["POST", "DELETE"].includes(method)) ||
     (rest === "" && method === "GET") ||
     (rest === "/contrato" && method === "GET") ||
     (alta !== null && ["PUT", "DELETE"].includes(method)) ||
@@ -601,6 +658,32 @@ async function operatorRoute(request, env, deps, rest) {
   const db = database(env);
 
   if (rest === "/contrato") return json(200, { html: CONTRACT_HTML });
+  if (answer) {
+    let target;
+    try {
+      target = normalEmail(decodeURIComponent(/** @type {string} */ (answer[1])));
+    } catch {
+      throw new HttpError(400, "Ese correo no es válido.");
+    }
+    if (method === "DELETE") {
+      await db.prepare("DELETE FROM access_requests WHERE email = ?").bind(target).run();
+      return new Response(null, { status: 204 });
+    }
+    const body = await readJson(request);
+    const accept = typeof body === "object" && body !== null && "accept" in body && body.accept === true;
+    const at = new Date(deps.now()).toISOString();
+    const exists = await db.prepare("SELECT 1 AS ok FROM access_requests WHERE email = ?").bind(target).first();
+    if (!exists) throw new HttpError(404, "Esa solicitud ya no está.");
+    if (accept) {
+      await db.batch([
+        db.prepare("INSERT INTO creators (email, added_by, added_at) VALUES (?, ?, ?) ON CONFLICT (email) DO NOTHING").bind(target, email, at),
+        db.prepare("DELETE FROM access_requests WHERE email = ?").bind(target),
+      ]);
+    } else {
+      await db.prepare("UPDATE access_requests SET status = 'rejected', answered_at = ? WHERE email = ?").bind(at, target).run();
+    }
+    return json(200, { accepted: accept });
+  }
   if (alta) {
     let target;
     try {
@@ -609,10 +692,11 @@ async function operatorRoute(request, env, deps, rest) {
       throw new HttpError(400, "Ese correo no es válido.");
     }
     if (method === "PUT") {
-      await db
-        .prepare("INSERT INTO creators (email, added_by, added_at) VALUES (?, ?, ?) ON CONFLICT (email) DO NOTHING")
-        .bind(target, email, new Date(deps.now()).toISOString())
-        .run();
+      // Si lo había pedido, su solicitud ya está atendida.
+      await db.batch([
+        db.prepare("INSERT INTO creators (email, added_by, added_at) VALUES (?, ?, ?) ON CONFLICT (email) DO NOTHING").bind(target, email, new Date(deps.now()).toISOString()),
+        db.prepare("DELETE FROM access_requests WHERE email = ?").bind(target),
+      ]);
     } else {
       await db.prepare("DELETE FROM creators WHERE email = ?").bind(target).run();
     }
@@ -648,6 +732,9 @@ async function operatorRoute(request, env, deps, rest) {
     )
     .all();
   const { results: creators = [] } = await db.prepare("SELECT email, added_by, added_at FROM creators ORDER BY email").all();
+  const { results: requests = [] } = await db
+    .prepare("SELECT email, clinic, note, status, created_at, answered_at FROM access_requests ORDER BY status = 'pending' DESC, created_at")
+    .all();
   const str = (/** @type {unknown} */ v) => (v === null || v === undefined ? null : String(v));
   return json(200, {
     clinics: clinics.map((r) => ({
@@ -664,6 +751,14 @@ async function operatorRoute(request, env, deps, rest) {
       deletedBy: str(r.deleted_by),
       declaration: str(r.declaration),
       purgeAfter: str(r.purge_after),
+    })),
+    requests: requests.map((r) => ({
+      email: String(r.email),
+      clinic: String(r.clinic),
+      note: String(r.note),
+      status: String(r.status),
+      createdAt: String(r.created_at),
+      answeredAt: str(r.answered_at),
     })),
     creators: [
       ...list(env.ALLOWED_EMAILS).map((e) => ({ email: e.toLowerCase(), source: "variable" })),
@@ -776,7 +871,7 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
+      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }

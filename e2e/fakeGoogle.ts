@@ -86,6 +86,8 @@ export class FakeGoogle {
   operators: string[] = [];
   /** Altas hechas desde el panel del proveedor (correos). */
   altas = new Set<string>();
+  /** Solicitudes de acceso (correo → lo pedido). */
+  requests = new Map<string, { clinic: string; note: string; status: "pending" | "rejected"; createdAt: string; answeredAt: string | null }>();
   /** La clave de recuperación de cada clínica (cerrada con su código). */
   recovery = new Map<string, string>();
   /** Quién puede crear clínicas (ALLOWED_EMAILS): las cuentas con estos nombres; null, todas. */
@@ -172,11 +174,28 @@ export class FakeGoogle {
     const body = <T = { name?: string; role?: "admin" | "member" }>() => JSON.parse(req.postData() ?? "{}") as T;
 
     if (this.oldServer && !path.startsWith("/v1/copia")) return send(404, { error: "Esta dirección no existe." });
+    if (path === "/v1/solicitud") {
+      if (method === "DELETE") {
+        if (this.requests.get(email)?.status === "pending") this.requests.delete(email);
+        return send(204);
+      }
+      if (canCreate) return send(409, { error: "Tu cuenta ya puede dar de alta su clínica." });
+      const b = body<{ clinic?: string; note?: string }>();
+      const clinic = (b.clinic ?? "").replace(/\s+/g, " ").trim();
+      if (!clinic) return send(400, { error: "Escribe el nombre de la clínica." });
+      const prev = this.requests.get(email);
+      if (prev?.status === "rejected") return send(409, { error: "Tu solicitud no se ha aceptado." });
+      const r = { clinic, note: (b.note ?? "").trim(), status: "pending" as const, createdAt: prev?.createdAt ?? new Date().toISOString(), answeredAt: null };
+      this.requests.set(email, r);
+      return send(200, { clinic, status: "pending", createdAt: r.createdAt });
+    }
     if (path === "/v1/yo")
       return send(200, {
         email,
         canCreate,
         operator,
+        request: this.requests.has(email) ? { clinic: this.requests.get(email)!.clinic, status: this.requests.get(email)!.status, createdAt: this.requests.get(email)!.createdAt } : null,
+        ...(operator ? { pendingRequests: [...this.requests.values()].filter((r) => r.status === "pending").length } : {}),
         clinics: [...this.clinics]
           .filter(([, c]) => c.members.has(email) && !c.deleted)
           .map(([id, c]) => ({ id, name: c.name, role: c.members.get(email), ...(c.suspended ? { suspended: true } : {}) })),
@@ -191,9 +210,25 @@ export class FakeGoogle {
       const alta = /^\/altas\/(.+)$/.exec(rest);
       if (alta) {
         const who = decodeURIComponent(alta[1]!).toLowerCase();
-        if (method === "PUT") this.altas.add(who);
-        else this.altas.delete(who);
+        if (method === "PUT") {
+          this.altas.add(who);
+          this.requests.delete(who);
+        } else this.altas.delete(who);
         return send(204);
+      }
+      const answer = /^\/solicitudes\/(.+)$/.exec(rest);
+      if (answer) {
+        const who = decodeURIComponent(answer[1]!).toLowerCase();
+        const r = this.requests.get(who);
+        if (method === "DELETE" || !r) {
+          this.requests.delete(who);
+          return send(r ? 204 : 404);
+        }
+        if (body<{ accept: boolean }>().accept) {
+          this.altas.add(who);
+          this.requests.delete(who);
+        } else Object.assign(r, { status: "rejected", answeredAt: new Date().toISOString() });
+        return send(200, {});
       }
       const act = /^\/clinicas\/([^/]+)\/(suspender|recuperar)$/.exec(rest);
       if (act) {
@@ -218,6 +253,7 @@ export class FakeGoogle {
           declaration: c.deleted?.declaration ?? null,
           purgeAfter: c.deleted?.purgeAfter ?? null,
         })),
+        requests: [...this.requests].map(([e, r]) => ({ email: e, ...r })),
         creators: [...this.altas].map((e) => ({ email: e, source: "panel", addedBy: email, addedAt: new Date().toISOString() })),
       });
     }

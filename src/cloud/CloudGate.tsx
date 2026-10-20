@@ -15,6 +15,7 @@ import { Card } from "../ui/Card";
 import { TextField } from "../ui/Field";
 import { LogoMark } from "../ui/Logo";
 import { Sheet } from "../ui/Sheet";
+import { AccessRequestCards } from "./AccessRequest";
 import { adoptionDone, clearAccount, dbFileFor, getAccount, setAccount, type Account } from "./account";
 import { authErrorText, clearToken, getToken, revokeToken, setCopyInDrive, silentTriedRecently, startLogin, takeRedirectResult, type RedirectResult, type Token } from "./auth";
 import {
@@ -619,17 +620,7 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
               </form>
             </Card>
           ) : (
-            me.clinics.length === 0 && (
-              <Card className="flex flex-col gap-3">
-                <p>
-                  Tu cuenta (<span className="font-semibold">{me.email}</span>) aún no está en ninguna clínica.
-                </p>
-                <p className="text-sm text-text-muted">Pide a quien administra la tuya que te añada con este correo y vuelve a comprobarlo.</p>
-                <Button icon={<RefreshCw aria-hidden="true" className="size-5" />} onClick={() => location.reload()}>
-                  Volver a comprobar
-                </Button>
-              </Card>
-            )
+            me.clinics.length === 0 && <AccessRequestCards me={me} baseUrl={config.cloudflareUrl!} clientId={config.googleClientId} />
           )}
           {!!me.deleted?.length && (
             <section aria-labelledby="h-borradas" className="flex flex-col gap-2">

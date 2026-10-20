@@ -1,8 +1,9 @@
-// Ajustes → Proveedor: solo para quien gestiona el servidor (OPERATOR_EMAILS en cloudflare/worker.js). Sus clínicas
+// Ajustes → Proveedor: solo para quien gestiona el servidor (OPERATOR_EMAILS en cloudflare/worker.js). Las
+// solicitudes de quien quiere dar de alta su clínica (aceptar o rechazar), sus clínicas
 // con lo que sabe el servidor de cada una (nunca sus pacientes: van cifrados), dar de alta a quien puede crear
 // clínicas sin entrar en Cloudflare, suspender o reactivar, las bajas con su declaración (y recuperarlas en sus 30
 // días) y el borrador del contrato de encargado del tratamiento, que solo entrega el servidor a esta cuenta.
-import { Download, FileText, PauseCircle, PlayCircle, RotateCcw, Trash, UserPlus } from "lucide-react";
+import { Check, Download, FileText, PauseCircle, PlayCircle, RotateCcw, Trash, UserPlus, X } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { Navigate } from "react-router";
 import { fmtDateTime } from "../app/format";
@@ -66,6 +67,9 @@ export function ProviderPage() {
   const active = clinics.filter((c) => !c.deletedAt);
   const deleted = clinics.filter((c) => c.deletedAt);
   const people = active.reduce((n, c) => n + c.members, 0);
+  const requests = data.data?.requests ?? [];
+  const pending = requests.filter((r) => r.status === "pending");
+  const rejected = requests.filter((r) => r.status === "rejected");
 
   return (
     <Page title="Proveedor" backTo="/ajustes">
@@ -74,6 +78,54 @@ export function ProviderPage() {
         la contraseña de la clínica.
       </p>
       {data.error && <Alert tone="warning" title={data.error.message} />}
+
+      <section aria-labelledby="h-solicitudes" className="flex flex-col gap-2">
+        <h2 id="h-solicitudes" className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase">
+          Solicitudes de acceso
+        </h2>
+        {data.data && !pending.length && <p className="px-1 text-sm text-text-muted">No hay solicitudes pendientes.</p>}
+        {pending.map((r) => (
+          <Card key={r.email} className="flex flex-col gap-2">
+            <p className="font-semibold">{r.clinic}</p>
+            <p className="text-sm">
+              {r.email} · lo pidió el {day(r.createdAt)}
+            </p>
+            {r.note && <blockquote className="border-l-4 border-border pl-3 text-sm text-text-muted">{r.note}</blockquote>}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                loading={busy === `ok:${r.email}`}
+                icon={<Check aria-hidden="true" className="size-5" />}
+                onClick={() => void run(`ok:${r.email}`, (t) => api.answer(t, r.email, true), `${r.email} ya puede dar de alta «${r.clinic}»`)}
+              >
+                Aceptar
+              </Button>
+              <Button
+                variant="secondary"
+                loading={busy === `no:${r.email}`}
+                icon={<X aria-hidden="true" className="size-5" />}
+                onClick={() => void run(`no:${r.email}`, (t) => api.answer(t, r.email, false), `Solicitud de ${r.email} rechazada`)}
+              >
+                Rechazar
+              </Button>
+            </div>
+          </Card>
+        ))}
+        {rejected.length > 0 && (
+          <Group title="Rechazadas" footer="No pueden volver a pedirlo. Toca una para borrarla y que pueda pedirlo otra vez.">
+            {rejected.map((r) => (
+              <RowButton
+                key={r.email}
+                icon={Trash}
+                tone="danger"
+                title={`${r.email} · ${r.clinic}`}
+                subtitle={`Rechazada${r.answeredAt ? ` el ${day(r.answeredAt)}` : ""} · tocar para borrarla`}
+                busy={busy === `rm:${r.email}`}
+                onClick={() => void run(`rm:${r.email}`, (t) => api.dropRequest(t, r.email), `${r.email} puede volver a pedirlo`)}
+              />
+            ))}
+          </Group>
+        )}
+      </section>
 
       <Group title="Resumen" footer={data.data ? undefined : "Cargando…"}>
         <Row title={`${active.length === 1 ? "1 clínica" : `${active.length} clínicas`}`} subtitle={`${people === 1 ? "1 persona" : `${people} personas`} en sus equipos`} />

@@ -514,6 +514,60 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     expect(errors).toEqual([]);
   });
 
+  test("CL11 solicitud de acceso: Carla lo pide desde la app y Ana, la proveedora, lo acepta; a Bruno se le rechaza", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    google.creators = ["ana"];
+    google.operators = ["ana"];
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+
+    // Carla entra con Google sin permiso: lo pide.
+    const carla = await device(browser, google, "carla", errors);
+    await enter(carla);
+    await expect(carla.getByRole("heading", { name: "¿Quieres usar Cénit en tu clínica?" })).toBeVisible({ timeout: 15_000 });
+    await carla.getByRole("button", { name: "Solicitar acceso" }).click();
+    await expect(carla.getByText("Escribe el nombre de la clínica.")).toBeVisible();
+    await carla.getByLabel("Nombre de la clínica").fill("Clínica Carla");
+    await carla.getByLabel("Mensaje (opcional)").fill("Somos tres en Zaragoza");
+    await carla.getByRole("button", { name: "Solicitar acceso" }).click();
+    await expect(carla.getByRole("status").getByText(/Has pedido dar de alta «Clínica Carla»/)).toBeVisible();
+    await expectAccessible(carla);
+
+    // Ana lo ve en Ajustes y lo acepta desde su panel.
+    await page.goto("./ajustes");
+    await expect(page.getByRole("link", { name: /Proveedor.*1 solicitud de acceso por atender/ })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("link", { name: /Proveedor/ }).click();
+    const requests = page.getByRole("region", { name: "Solicitudes de acceso" });
+    await expect(requests.getByText("Somos tres en Zaragoza")).toBeVisible();
+    await expectAccessible(page);
+    await requests.getByRole("button", { name: "Aceptar" }).click();
+    await expect(requests.getByText("No hay solicitudes pendientes.")).toBeVisible();
+
+    // Carla ya puede dar de alta su clínica.
+    await carla.getByRole("button", { name: "Volver a comprobar" }).first().click();
+    await expect(carla.getByRole("heading", { name: "Da de alta tu clínica" })).toBeVisible({ timeout: 15_000 });
+    await createClinic(carla, "Clínica Carla");
+    await patients(carla);
+
+    // Bruno también lo pide; Ana lo rechaza y él lo ve al volver a comprobar.
+    const bruno = await device(browser, google, "bruno", errors);
+    await enter(bruno);
+    await bruno.getByLabel("Nombre de la clínica").fill("Otra Clínica");
+    await bruno.getByRole("button", { name: "Solicitar acceso" }).click();
+    await expect(bruno.getByRole("heading", { name: "Solicitud enviada" })).toBeVisible();
+    await page.reload();
+    await requests.getByRole("button", { name: "Rechazar" }).click();
+    await expect(page.getByRole("region", { name: "Rechazadas" }).getByRole("button", { name: /bruno@clinica\.test/ })).toBeVisible();
+    await bruno.getByRole("button", { name: "Volver a comprobar" }).first().click();
+    await expect(bruno.getByText("Tu solicitud para dar de alta una clínica no se ha aceptado")).toBeVisible({ timeout: 15_000 });
+    await expect(bruno.getByRole("button", { name: "Solicitar acceso" })).toHaveCount(0);
+    expect(errors).toEqual([]);
+  });
+
   test("CL8 proveedor: altas, suspender, contrato; borrar la clínica con copia y declaración, y recuperarla de la papelera", async ({ page, browser }) => {
     test.slow();
     const google = new FakeGoogle(users);
