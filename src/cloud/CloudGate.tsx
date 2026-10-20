@@ -555,10 +555,36 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
               ))}
             </ul>
           )}
-          {me.canCreate ? (
+          {me.canCreate && me.clinics.length > 0 ? (
+            // Con clínica ya, dar de alta otra queda plegado: así nadie crea una segunda sin querer en otro dispositivo.
+            <details className="rounded-lg border border-border bg-bg p-4">
+              <summary className="cursor-pointer font-semibold">Dar de alta otra clínica distinta</summary>
+              <div className="mt-3">
+              <form className="flex flex-col gap-3" noValidate onSubmit={create}>
+                {!me.clinics.length && <h2 className="font-semibold">Da de alta tu clínica</h2>}
+                <p className="text-sm text-text-muted">
+                  La administrarás tú: después añades a tu equipo con su correo de Google. Solo vosotros veréis sus pacientes.
+                </p>
+                <TextField
+                  label="Nombre de la clínica"
+                  autoComplete="organization"
+                  value={name}
+                  error={nameError ?? undefined}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setNameError(null);
+                  }}
+                />
+                <Button type="submit" loading={busy} icon={<Plus aria-hidden="true" className="size-5" />}>
+                  Crear la clínica
+                </Button>
+              </form>
+              </div>
+            </details>
+          ) : me.canCreate ? (
             <Card>
               <form className="flex flex-col gap-3" noValidate onSubmit={create}>
-                <h2 className="font-semibold">{me.clinics.length ? "O da de alta otra clínica" : "Da de alta tu clínica"}</h2>
+                {!me.clinics.length && <h2 className="font-semibold">Da de alta tu clínica</h2>}
                 <p className="text-sm text-text-muted">
                   La administrarás tú: después añades a tu equipo con su correo de Google. Solo vosotros veréis sus pacientes.
                 </p>
