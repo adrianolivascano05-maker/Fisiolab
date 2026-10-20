@@ -3,6 +3,7 @@ import { CalendarCheck, CalendarX, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fmtDateTime } from "../app/format";
 import { getDb } from "../data/db";
+import { CALENDAR_SCOPE, hasGranted, wantCalendar } from "./auth";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { SelectField } from "../ui/Field";
@@ -58,7 +59,15 @@ export function CalendarSettings() {
             type="checkbox"
             className="mt-1 size-5 shrink-0 accent-accent"
             checked={settings.enabled}
-            onChange={(e) => void save({ ...settings, enabled: e.target.checked })}
+            onChange={async (e) => {
+              const enabled = e.target.checked;
+              await save({ ...settings, enabled });
+              // El permiso del calendario se pide ahora, al activarlo: se va a Google y se vuelve aquí.
+              if (enabled && !hasGranted(CALENDAR_SCOPE)) {
+                wantCalendar(true);
+                cloud.reconnect();
+              }
+            }}
           />
           <span>Apuntar solas las citas en mi Google Calendar</span>
         </label>
@@ -70,8 +79,15 @@ export function CalendarSettings() {
           )}
           {statusText(s)}
         </p>
-        {s.status === "no-permission" && (
-          <Button onClick={cloud.reconnect}>Volver a entrar y dar el permiso</Button>
+        {s.status === "no-permission" && settings.enabled && (
+          <Button
+            onClick={() => {
+              wantCalendar(true);
+              cloud.reconnect();
+            }}
+          >
+            Dar el permiso de Google Calendar
+          </Button>
         )}
         {settings.enabled && s.status !== "no-permission" && (
           <>

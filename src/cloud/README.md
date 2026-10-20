@@ -96,8 +96,10 @@ de la última cuenta que entró en él.
 - **Copias de más de 4,5 MB** se suben con la subida reanudable de Drive. Las pruebas usan un Google simulado
   (`e2e/fakeGoogle.ts`) y no llegan a ese tamaño.
 - **Permisos de Google.** Además del nombre, el correo y la carpeta oculta (`drive.appdata`), la app pide
-  `drive.file` (solo los archivos que crea ella) y `calendar.app.created` (solo el calendario que crea ella). Los
-  tres son «no sensibles». Si alguien no acepta uno, lo demás funciona y la app dice qué falta y cómo darlo.
+  `drive.file` (solo los archivos que crea ella). `calendar.app.created` (solo el calendario que crea ella) se pide
+  solo a quien activa «Apuntar solas las citas en mi Google Calendar» en Ajustes (`wantCalendar`): así entrar no pide
+  nada que Google trate como sensible y no hace falta verificar la app para pasar de 100 usuarios. Si alguien no
+  acepta uno, lo demás funciona y la app dice qué falta y cómo darlo.
 - **Citas en Google Calendar.** Al acabar cada sincronización, cada cita pendiente que aún no ha llegado (la agenda,
   `../data/appointments.ts`) se pone en el calendario «Cénit · Citas». El id del evento sale del de
   la cita (`cenit` + su id; la que se da al guardar una sesión lleva el id de la sesión, como antes de la agenda),

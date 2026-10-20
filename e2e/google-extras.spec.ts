@@ -19,6 +19,12 @@ test.describe("Google Calendar y archivos en Drive", () => {
     const google = new FakeGoogle(users);
     await google.install(page.context(), () => "ana");
     await login(page);
+    // El permiso del calendario no se pide al entrar: se activa en Ajustes y entonces se va a Google a darlo.
+    await page.goto("./ajustes/cuenta");
+    await expect(page.getByText("Las citas no se apuntan solas.")).toBeVisible();
+    await page.getByLabel("Apuntar solas las citas en mi Google Calendar").check();
+    await expect(page.getByRole("status").filter({ hasText: /^(Las citas se apuntarán|La próxima cita|Las próximas citas)/ })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("Apuntar solas las citas en mi Google Calendar")).toBeChecked();
     const url = await createPatient(page, { name: "Lucía Cita" });
     const pid = url.split("/").pop()!;
 
@@ -95,7 +101,9 @@ test.describe("Google Calendar y archivos en Drive", () => {
     await google.install(page.context(), () => "ana");
     await login(page);
     await page.goto("./ajustes/cuenta");
-    await expect(page.getByText("Falta el permiso de Google Calendar.")).toBeVisible();
+    await page.getByLabel("Apuntar solas las citas en mi Google Calendar").check();
+    await expect(page.getByText("Falta el permiso de Google Calendar.")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Dar el permiso de Google Calendar" })).toBeVisible();
     await page.goto("./ajustes/datos");
     await page.getByRole("button", { name: "Guardar los resultados en mi Drive (CSV)" }).click();
     await expect(page.getByRole("alert").getByText(/Falta el permiso para guardar archivos en tu Drive/)).toBeVisible();

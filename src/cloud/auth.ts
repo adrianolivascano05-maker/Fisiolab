@@ -2,8 +2,9 @@
 // manda a Google con su ID de cliente y Google vuelve a la app con un token de una hora en la dirección
 // (#access_token=…). El token da acceso al nombre y el correo de quien entra, a la carpeta oculta de la app en su
 // Drive (drive.appdata, la copia de la base), a los archivos que crea la app en su Drive (drive.file: informes) y
-// al calendario que crea la app en su Google Calendar (calendar.app.created: citas). Los tres son permisos «no
-// sensibles» de Google. No hay contraseñas ni secretos en la app.
+// al calendario que crea la app en su Google Calendar (calendar.app.created: citas). El del calendario solo se pide a
+// quien activa «Apuntar las citas en mi Google Calendar» (wantCalendar): así entrar no pide nada que Google considere
+// sensible y no hace falta verificar la app para pasar de 100 usuarios. No hay contraseñas ni secretos en la app.
 //
 // Volver a entrar cuando el token caduca no pide nada si la sesión de Google sigue abierta (prompt=none):
 // es un ir y volver de un segundo al abrir la app.
@@ -22,7 +23,14 @@ let copyInDrive = true;
 export function setCopyInDrive(v: boolean) {
   copyInDrive = v;
 }
-const scopes = () => `openid email profile ${copyInDrive ? `${APPDATA_SCOPE} ` : ""}${DRIVE_FILE_SCOPE} ${CALENDAR_SCOPE}`;
+const CALENDAR_WANTED = "fisiolab.oauth.calendar";
+/** Pedir también el permiso del calendario al ir a Google (al activar el calendario en Ajustes). */
+export function wantCalendar(v: boolean) {
+  if (v) localStorage.setItem(CALENDAR_WANTED, "1");
+  else localStorage.removeItem(CALENDAR_WANTED);
+}
+const calendarWanted = () => localStorage.getItem(CALENDAR_WANTED) === "1" || hasGranted(CALENDAR_SCOPE);
+const scopes = () => `openid email profile ${copyInDrive ? `${APPDATA_SCOPE} ` : ""}${DRIVE_FILE_SCOPE}${calendarWanted() ? ` ${CALENDAR_SCOPE}` : ""}`;
 
 export type Token = { accessToken: string; expiresAt: number };
 

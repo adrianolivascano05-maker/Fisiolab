@@ -23,11 +23,13 @@ const TZ = "Europe/Madrid";
 export const CALENDAR_SETTINGS = "calendar_auto";
 const CALENDAR_ID = "calendar_id";
 export type CalendarSettings = { enabled: boolean; names: EventNames };
-// Por defecto, solo las iniciales: el nombre completo de un paciente no tiene por qué estar en Google.
-export const defaultCalendarSettings: CalendarSettings = { enabled: true, names: "initials" };
+// Por defecto, solo las iniciales: el nombre completo de un paciente no tiene por qué estar en Google. Y desactivado
+// salvo para quien ya dio el permiso (el permiso se pide al activarlo: auth.ts, wantCalendar).
+export const defaultCalendarSettings: CalendarSettings = { enabled: false, names: "initials" };
 
 export async function getCalendarSettings(db: Db): Promise<CalendarSettings> {
-  return { ...defaultCalendarSettings, ...((await getSetting<Partial<CalendarSettings>>(db, memberKey(CALENDAR_SETTINGS))) ?? {}) };
+  const saved = (await getSetting<Partial<CalendarSettings>>(db, memberKey(CALENDAR_SETTINGS))) ?? {};
+  return { ...defaultCalendarSettings, enabled: hasGranted(CALENDAR_SCOPE), ...saved };
 }
 
 export async function saveCalendarSettings(db: Db, settings: CalendarSettings): Promise<void> {
