@@ -24,7 +24,10 @@ export function AccountCard() {
         </span>
         <Link to="/ajustes/cuenta" className="flex min-w-0 flex-1 flex-col hover:underline">
           <span className="truncate text-sm font-semibold">{cloud.account.name}</span>
-          <span className="truncate text-xs text-text-muted">{syncText(s)}</span>
+          <span className="truncate text-xs text-text-muted">
+            {cloud.clinic ? `${cloud.clinic.name} · ` : ""}
+            {syncText(s)}
+          </span>
         </Link>
         {s.status === "needs-auth" && (
           <Button size="sm" onClick={cloud.reconnect}>

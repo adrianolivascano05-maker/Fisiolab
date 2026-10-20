@@ -2,6 +2,7 @@
 // registra de cada paciente (información entregada y consentimientos opcionales) y cuánto hay que conservar su
 // historia clínica. Mismo estilo que repo.ts: las pantallas no escriben SQL.
 import type { Db } from "./db";
+import { member, memberKey } from "./member";
 import { getSetting, setSetting } from "./repo";
 
 /** Consentimientos opcionales: lo que no es la asistencia en sí. */
@@ -75,6 +76,9 @@ export type ClinicInfo = {
 /** Ley 41/2002, art. 17: como mínimo cinco años desde el alta de cada proceso asistencial. */
 export const MIN_RETENTION_YEARS = 5;
 const CLINIC_KEY = "clinic_privacy";
+/** En una clínica con equipo, el nombre y el nº de colegiado son de cada fisioterapeuta (memberKey). */
+export const PROFESSIONAL_KEY = "professional";
+type Professional = Pick<ClinicInfo, "professional" | "license">;
 export const emptyClinic: ClinicInfo = {
   name: "",
   taxId: "",
@@ -91,11 +95,18 @@ export const emptyClinic: ClinicInfo = {
 };
 
 export async function getClinic(db: Db): Promise<ClinicInfo> {
-  return { ...emptyClinic, ...((await getSetting<Partial<ClinicInfo>>(db, CLINIC_KEY)) ?? {}) };
+  const clinic = { ...emptyClinic, ...((await getSetting<Partial<ClinicInfo>>(db, CLINIC_KEY)) ?? {}) };
+  if (!member()) return clinic;
+  const mine = await getSetting<Partial<Professional>>(db, memberKey(PROFESSIONAL_KEY));
+  return { ...clinic, professional: mine?.professional ?? "", license: mine?.license ?? "" };
 }
 
 export async function saveClinic(db: Db, c: ClinicInfo): Promise<void> {
   const trim = (s: string) => s.trim();
+  if (member()) {
+    await setSetting(db, memberKey(PROFESSIONAL_KEY), { professional: trim(c.professional), license: trim(c.license) } satisfies Professional);
+    c = { ...c, professional: "", license: "" };
+  }
   await setSetting(db, CLINIC_KEY, {
     ...c,
     name: trim(c.name),

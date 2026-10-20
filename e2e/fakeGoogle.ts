@@ -1,7 +1,7 @@
 // Google de mentira para las pruebas de la nube: la pantalla de entrada (vuelve a la app con un token), el nombre
 // y correo de la cuenta, y la carpeta de la app en Drive (en memoria, una por cuenta). Así se prueba todo el ir y
 // venir sin cuentas reales ni red.
-import { webcrypto } from "node:crypto";
+import { randomUUID, webcrypto } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import type { BrowserContext, Request, Route } from "@playwright/test";
 
@@ -72,9 +72,24 @@ export class FakeGoogle {
   /** Para buscar un texto con tildes dentro de la copia. */
   static enc = (s: string) => Buffer.from(s, "utf8").toString("latin1");
 
-  /** Copias en el servidor de Cloudflare simulado, por `sub`, ya decodificadas (solo con `server` en install). */
+  /**
+   * Copias en el servidor de Cloudflare simulado, ya decodificadas (solo con `server` en install): las de cada clínica
+   * con «clinic:<id>» y las personales de antes con el `sub` de la cuenta.
+   */
   server = new Map<string, { bytes: Buffer; version: string }>();
+  /** Las clínicas del servidor simulado, con su equipo (correo → papel). */
+  clinics = new Map<string, { name: string; members: Map<string, "admin" | "member"> }>();
+  /** Quién puede crear clínicas (ALLOWED_EMAILS): las cuentas con estos nombres; null, todas. */
+  creators: string[] | null = null;
+  /** El servidor de antes de las clínicas: solo la copia de cada cuenta (/v1/copia). */
+  oldServer = false;
   static SERVER = "https://cenit-datos.pruebas.workers.dev";
+
+  /** La copia de una clínica, buscada por su nombre. */
+  clinicCopy(name: string) {
+    const id = [...this.clinics].find(([, c]) => c.name === name)?.[0];
+    return id ? this.server.get(`clinic:${id}`) : undefined;
+  }
 
   /**
    * Simula Google en este contexto. `who`: la cuenta que elegiría la persona en Google. `publish`: la app publicada
@@ -111,40 +126,108 @@ export class FakeGoogle {
     return route.fulfill({ status: 302, headers: { location: back.href } });
   }
 
-  /** El servidor de Cloudflare: una copia por cuenta, con versión, y solo cifrada. */
+  /** El servidor de Cloudflare, con las reglas de cloudflare/worker.js: clínicas, su equipo y sus copias, solo cifradas. */
   private async worker(route: Route) {
     const req = route.request();
     const headers = {
       "access-control-allow-origin": req.headers()["origin"] ?? "*",
-      "access-control-allow-methods": "GET, PUT, DELETE, OPTIONS",
+      "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       "access-control-allow-headers": "authorization, content-type, if-match, if-none-match",
       "access-control-expose-headers": "etag",
       "cache-control": "no-store",
     };
-    if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers });
+    const send = (status: number, json?: unknown) => route.fulfill(json === undefined ? { status, headers } : { status, headers, json });
+    if (req.method() === "OPTIONS") return send(204);
     const user = this.user(req);
-    if (!user) return route.fulfill({ status: 401, headers, json: { error: "Sesión caducada." } });
+    if (!user) return send(401, { error: "Sesión caducada." });
+    const method = req.method();
     const path = new URL(req.url()).pathname;
-    const mine = this.server.get(user.sub);
+    const email = user.email.toLowerCase();
+    const canCreate = !this.creators || this.creators.some((who) => this.users[who]!.email === user.email);
+    const body = () => JSON.parse(req.postData() ?? "{}") as { name?: string; role?: "admin" | "member" };
+
+    if (this.oldServer && !path.startsWith("/v1/copia")) return send(404, { error: "Esta dirección no existe." });
+    if (path === "/v1/yo")
+      return send(200, {
+        email,
+        canCreate,
+        clinics: [...this.clinics].filter(([, c]) => c.members.has(email)).map(([id, c]) => ({ id, name: c.name, role: c.members.get(email) })),
+      });
+    if (path === "/v1/clinicas" && method === "POST") {
+      if (!canCreate) return send(403, { error: "Tu cuenta no puede crear clínicas en este servidor." });
+      const id = randomUUID();
+      this.clinics.set(id, { name: body().name!.trim(), members: new Map([[email, "admin"]]) });
+      return send(201, { id, name: this.clinics.get(id)!.name, role: "admin" });
+    }
+
+    let owner: string;
+    let rest: string;
+    let admin = false;
+    if (path.startsWith("/v1/copia")) {
+      if (!canCreate) return send(403, { error: "Esta cuenta de Google no tiene permiso." });
+      owner = user.sub;
+      rest = path.slice(3);
+    } else {
+      const m = /^\/v1\/clinicas\/([^/]+)(\/.*)?$/.exec(path);
+      const clinic = m ? this.clinics.get(m[1]!) : undefined;
+      const role = clinic?.members.get(email);
+      if (!m || !clinic || !role) return send(403, { error: "Tu cuenta no forma parte de esta clínica." });
+      const id = m[1]!;
+      admin = role === "admin";
+      owner = `clinic:${id}`;
+      rest = m[2] ?? "";
+      const onlyAdmin = () => send(403, { error: "Solo quien administra la clínica puede hacerlo." });
+      const admins = () => [...clinic.members.values()].filter((r) => r === "admin").length;
+      if (rest === "" && method === "PATCH") {
+        if (!admin) return onlyAdmin();
+        clinic.name = body().name!.trim();
+        return send(200, { id, name: clinic.name, role });
+      }
+      if (rest === "" && method === "DELETE") {
+        if (!admin) return onlyAdmin();
+        this.clinics.delete(id);
+        this.server.delete(owner);
+        return send(204);
+      }
+      if (rest === "/miembros") return send(200, { members: [...clinic.members].map(([e, r]) => ({ email: e, role: r, addedAt: new Date().toISOString() })) });
+      const mm = /^\/miembros\/(.+)$/.exec(rest);
+      if (mm) {
+        const who = decodeURIComponent(mm[1]!).trim().toLowerCase();
+        if (method === "PUT") {
+          if (!admin) return onlyAdmin();
+          const r = body().role!;
+          if (clinic.members.get(who) === "admin" && r === "member" && admins() === 1) return send(409, { error: "La clínica tiene que tener al menos un administrador." });
+          clinic.members.set(who, r);
+          return send(200, { email: who, role: r, addedAt: new Date().toISOString() });
+        }
+        if (who !== email && !admin) return onlyAdmin();
+        if (clinic.members.get(who) === "admin" && admins() === 1) return send(409, { error: "La clínica tiene que tener al menos un administrador." });
+        clinic.members.delete(who);
+        return send(204);
+      }
+    }
+
+    const mine = this.server.get(owner);
     const meta = (c: { bytes: Buffer; version: string }) => ({ version: c.version, size: c.bytes.length, updatedAt: new Date().toISOString() });
-    if (path === "/v1/copia/info") return route.fulfill({ status: 200, headers, json: mine ? meta(mine) : { version: null, size: 0, updatedAt: null } });
-    if (path !== "/v1/copia") return route.fulfill({ status: 404, headers, json: { error: "No existe." } });
-    if (req.method() === "GET")
+    if (rest === "/copia/info") return send(200, mine ? meta(mine) : { version: null, size: 0, updatedAt: null });
+    if (rest !== "/copia") return send(404, { error: "No existe." });
+    if (method === "GET")
       return mine
         ? route.fulfill({ status: 200, headers: { ...headers, etag: `"${mine.version}"`, "content-type": "text/plain; charset=utf-8" }, body: mine.bytes.toString("base64") })
-        : route.fulfill({ status: 404, headers, json: { error: "Sin copia." } });
-    if (req.method() === "DELETE") {
-      this.server.delete(user.sub);
-      return route.fulfill({ status: 204, headers });
+        : send(404, { error: "Sin copia." });
+    if (method === "DELETE") {
+      if (owner !== user.sub && !admin) return send(403, { error: "Solo quien administra la clínica puede borrar su copia." });
+      this.server.delete(owner);
+      return send(204);
     }
     // Como el servidor de verdad: la copia llega en base64 y tiene que estar cifrada.
-    const body = Buffer.from(req.postData() ?? "", "base64");
-    if (!body.subarray(0, 9).equals(Buffer.from("CENITENC1"))) return route.fulfill({ status: 415, headers, json: { error: "Solo se guardan copias cifradas." } });
+    const data = Buffer.from(req.postData() ?? "", "base64");
+    if (!data.subarray(0, 9).equals(Buffer.from("CENITENC1"))) return send(415, { error: "Solo se guardan copias cifradas." });
     const ifMatch = (req.headers()["if-match"] ?? "").replace(/"/g, "");
     const create = req.headers()["if-none-match"] === "*";
-    if ((create && mine) || (!create && mine?.version !== ifMatch)) return route.fulfill({ status: 412, headers, json: { error: "La copia ha cambiado.", version: mine?.version ?? null } });
-    const copy = { bytes: body, version: `v${this.next++}` };
-    this.server.set(user.sub, copy);
+    if ((create && mine) || (!create && mine?.version !== ifMatch)) return send(412, { error: "La copia ha cambiado.", version: mine?.version ?? null });
+    const copy = { bytes: data, version: `v${this.next++}` };
+    this.server.set(owner, copy);
     return route.fulfill({ status: 200, headers: { ...headers, etag: `"${copy.version}"` }, json: meta(copy) });
   }
 

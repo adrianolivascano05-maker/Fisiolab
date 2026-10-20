@@ -64,45 +64,58 @@ function toBase64(bytes: Uint8Array): string {
 }
 const fromBase64 = (text: string) => Uint8Array.from(atob(text.trim()), (c) => c.charCodeAt(0));
 
-/** El servidor de la clínica en Cloudflare (cloudflare/worker.js): una copia por cuenta, con versión. */
-export function cloudflareStore(baseUrl: string): RemoteStore {
-  const base = baseUrl.replace(/\/+$/, "");
-  const ID = "copia";
-  async function call(t: Token, path: string, init: RequestInit = {}, ok: number[] = []): Promise<Response> {
-    const res = await fetch(`${base}${path}`, { ...init, headers: { ...init.headers, Authorization: `Bearer ${t.accessToken}` }, cache: "no-store" });
-    if (res.ok || ok.includes(res.status)) return res;
-    let detail = "";
-    try {
-      detail = ((await res.json()) as { error?: string }).error ?? "";
-    } catch {
-      /* sin detalle */
-    }
-    if (res.status === 401) throw new AuthError("La sesión de Google ha caducado.");
-    if (res.status === 403) throw new ServerError(detail || "Tu cuenta no está autorizada en el servidor de la clínica.", 403);
-    if (res.status === 412) throw new RemoteConflict();
-    throw new ServerError(`El servidor de la clínica respondió ${res.status}${detail ? `: ${detail}` : ""}`, res.status);
+/**
+ * Una petición al servidor de Cloudflare con la sesión de Google. AuthError si ha caducado, RemoteConflict si la copia
+ * ha cambiado (412) y ServerError con el mensaje del servidor en lo demás. `ok`: otros estados que no son error.
+ */
+export async function serverCall(baseUrl: string, t: Token, path: string, init: RequestInit = {}, ok: number[] = []): Promise<Response> {
+  const res = await fetch(`${baseUrl.replace(/\/+$/, "")}${path}`, {
+    ...init,
+    headers: { ...init.headers, Authorization: `Bearer ${t.accessToken}` },
+    cache: "no-store",
+  });
+  if (res.ok || ok.includes(res.status)) return res;
+  let detail = "";
+  try {
+    detail = ((await res.json()) as { error?: string }).error ?? "";
+  } catch {
+    /* sin detalle */
   }
+  if (res.status === 401) throw new AuthError("La sesión de Google ha caducado.");
+  if (res.status === 403) throw new ServerError(detail || "Tu cuenta no está autorizada en el servidor de la clínica.", 403);
+  if (res.status === 412) throw new RemoteConflict();
+  throw new ServerError(detail || `El servidor de la clínica respondió ${res.status}.`, res.status);
+}
+
+/**
+ * El servidor de la clínica en Cloudflare (cloudflare/worker.js): la copia de la clínica `clinicId`, que comparte
+ * todo su equipo (src/cloud/clinic.ts), con versión. Sin clínica, la copia de la cuenta (versiones anteriores).
+ */
+export function cloudflareStore(baseUrl: string, clinicId?: string): RemoteStore {
+  const path = clinicId ? `/v1/clinicas/${encodeURIComponent(clinicId)}/copia` : "/v1/copia";
+  const ID = "copia";
+  const call = (t: Token, sub: string, init?: RequestInit) => serverCall(baseUrl, t, path + sub, init);
   return {
     where: "el servidor de la clínica",
     kind: "server",
     async list(t) {
       // Sin copia aún, { version: null }.
-      const { version } = (await (await call(t, "/v1/copia/info")).json()) as { version: string | null };
+      const { version } = (await (await call(t, "/info")).json()) as { version: string | null };
       return version ? [{ id: ID, version }] : [];
     },
     async download(t) {
-      return fromBase64(await (await call(t, "/v1/copia")).text());
+      return fromBase64(await (await call(t, "")).text());
     },
     async create(t, bytes) {
-      const res = await call(t, "/v1/copia", { method: "PUT", headers: { "If-None-Match": "*", "Content-Type": "text/plain" }, body: toBase64(bytes) });
+      const res = await call(t, "", { method: "PUT", headers: { "If-None-Match": "*", "Content-Type": "text/plain" }, body: toBase64(bytes) });
       return { id: ID, version: ((await res.json()) as { version: string }).version };
     },
     async update(t, c, bytes) {
-      const res = await call(t, "/v1/copia", { method: "PUT", headers: { "If-Match": `"${c.version}"`, "Content-Type": "text/plain" }, body: toBase64(bytes) });
+      const res = await call(t, "", { method: "PUT", headers: { "If-Match": `"${c.version}"`, "Content-Type": "text/plain" }, body: toBase64(bytes) });
       return { id: ID, version: ((await res.json()) as { version: string }).version };
     },
     async remove(t) {
-      await call(t, "/v1/copia", { method: "DELETE" });
+      await call(t, "", { method: "DELETE" });
     },
   };
 }

@@ -40,8 +40,9 @@ export function ClinicSettings() {
       </p>
       {cloud && server && !c.cloudflareDpa && (
         <Alert tone="warning" title="Contrato con Cloudflare">
-          Cloudflare actúa como encargado del tratamiento: su contrato (DPA) forma parte de sus condiciones. Descarga la versión vigente, guárdala con tu
-          registro de actividades y revísala con tu delegado de protección de datos; después, márcalo abajo.
+          Cloudflare actúa como encargado del tratamiento: su contrato (DPA) forma parte de sus condiciones. Si el servidor lo gestiona otra persona o
+          empresa (quien os da la app), ella también es encargada: firmad con ella un contrato de encargado del tratamiento. Guarda los contratos con tu
+          registro de actividades y revísalos con tu delegado de protección de datos; después, márcalo abajo.
         </Alert>
       )}
       {cloud && !server && !c.googleDpa && (
@@ -84,7 +85,16 @@ export function ClinicSettings() {
             {...text("dpo")}
           />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <TextField label="Fisioterapeuta" autoComplete="name" hint="Firma los informes y, por defecto, los consentimientos." {...text("professional")} />
+            <TextField
+              label="Fisioterapeuta"
+              autoComplete="name"
+              hint={
+                cloud?.clinic
+                  ? "Tú: firma tus informes y consentimientos. Cada persona del equipo pone los suyos."
+                  : "Firma los informes y, por defecto, los consentimientos."
+              }
+              {...text("professional")}
+            />
             <TextField label="Nº de colegiado" autoComplete="off" {...text("license")} />
           </div>
           <TextField label="Localidad" autoComplete="address-level2" hint="Para «En …, a … de …» de los consentimientos." {...text("city")} />
@@ -105,7 +115,7 @@ export function ClinicSettings() {
           {cloud && server && (
             <label className="flex min-h-11 items-start gap-3">
               <input type="checkbox" className="mt-1 size-5 shrink-0 accent-accent" checked={c.cloudflareDpa} onChange={(e) => setC({ ...c, cloudflareDpa: e.target.checked })} />
-              <span>Hemos revisado y guardado el contrato de encargado del tratamiento de Cloudflare (DPA)</span>
+              <span>Tenemos revisados y guardados los contratos de encargado del tratamiento del servidor (Cloudflare y, si es otro, quien lo gestiona)</span>
             </label>
           )}
           <Button type="submit" loading={saving}>

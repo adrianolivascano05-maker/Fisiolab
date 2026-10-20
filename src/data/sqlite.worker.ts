@@ -5,10 +5,13 @@ import { Engine, type Storage } from "./engine";
 import { migrations } from "./migrations";
 import type { Request } from "./protocol";
 
-// Sin cuentas, la base de siempre. Con cuenta (src/cloud), la suya: el nombre llega como nombre del worker.
+// Sin cuentas, la base de siempre. Con cuenta (src/cloud), la suya o la de su clínica: el nombre llega como nombre
+// del worker, con lo que hay que hacer al abrirla (db.ts, configureDb): «adopt», pasarle lo que había sin cuenta;
+// «from=<base>|member=<sub>», llevar a la base nueva de una clínica los pacientes de la base de esa cuenta.
 const LEGACY = "/fisiolab.sqlite3";
-const [account, flag] = (self.name || "").split("|");
+const [account, ...flags] = (self.name || "").split("|");
 const FILE = account ? `/${account}.sqlite3` : LEGACY;
+const flag = (name: string) => flags.find((f) => f === name || f.startsWith(`${name}=`))?.slice(name.length + 1);
 
 /**
  * Solo una pestaña puede tener abierta la base en OPFS. Se reserva con un Web Lock que dura lo
@@ -30,20 +33,24 @@ function acquireTabLock(): Promise<boolean> {
 
 async function start(): Promise<Engine | "locked"> {
   if (!(await acquireTabLock())) return "locked";
+  let adoptFrom: { bytes: Uint8Array; member: string; done: () => void } | null = null;
   const sqlite3 = await sqlite3InitModule();
   let storage: Storage;
   try {
     const pool = await sqlite3.installOpfsSAHPoolVfs({ name: "fisiolab-pool" });
     // Cada base ocupa dos huecos (el archivo y su diario): sitio para varias cuentas en el mismo dispositivo.
     if (pool.getCapacity() - pool.getFileCount() < 4) await pool.addCapacity(4);
+    const files: string[] = pool.getFileNames();
     // Primera vez con cuenta en este dispositivo: los datos que había sin cuenta pasan a ser suyos.
-    if (flag === "adopt" && FILE !== LEGACY) {
-      const files: string[] = pool.getFileNames();
-      if (!files.includes(FILE) && files.includes(LEGACY)) {
-        await pool.importDb(FILE, pool.exportFile(LEGACY));
-        pool.unlink(LEGACY);
-      }
+    if (flag("adopt") !== undefined && FILE !== LEGACY && !files.includes(FILE) && files.includes(LEGACY)) {
+      await pool.importDb(FILE, pool.exportFile(LEGACY));
+      pool.unlink(LEGACY);
     }
+    // Primera vez en una clínica: se llevan a ella los pacientes de la cuenta (como al adoptar los de sin cuenta, la
+    // base de la cuenta se borra cuando ya están en la de la clínica).
+    const from = flag("from") && `/${flag("from")}.sqlite3`;
+    const member = flag("member");
+    if (from && member && !files.includes(FILE) && files.includes(from)) adoptFrom = { bytes: pool.exportFile(from), member, done: () => pool.unlink(from) };
     storage = {
       persistent: true,
       open: () => new pool.OpfsSAHPoolDb(FILE),
@@ -54,7 +61,17 @@ async function start(): Promise<Engine | "locked"> {
   } catch {
     storage = { persistent: false, open: () => new sqlite3.oo1.DB(":memory:", "c") };
   }
-  return new Engine(sqlite3, storage, migrations);
+  const engine = new Engine(sqlite3, storage, migrations);
+  if (adoptFrom) {
+    try {
+      await engine.handle({ op: "merge", bytes: adoptFrom.bytes, member: adoptFrom.member });
+      adoptFrom.done();
+    } catch (err) {
+      // Los pacientes siguen en la base de la cuenta: la clínica se abre igual.
+      console.error("No se pudieron llevar los pacientes a la clínica:", err instanceof Error ? err.message : err);
+    }
+  }
+  return engine;
 }
 
 const ready = start();

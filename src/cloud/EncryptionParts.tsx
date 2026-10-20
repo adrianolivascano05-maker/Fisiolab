@@ -40,6 +40,9 @@ export function EncryptionSettings() {
   if (!cloud || !s || enc.data === undefined) return null;
   const on = !!enc.data;
   const { copy, Copy, server } = copyName(cloud);
+  // En una clínica, la contraseña es de todo el equipo: la elige (y la cambia) quien la administra.
+  const clinic = cloud.clinic;
+  const mayChange = !clinic || clinic.role === "admin" || !on;
 
   const start = () => {
     setOpen(true);
@@ -56,7 +59,7 @@ export function EncryptionSettings() {
     setBusy(true);
     try {
       const salt = newSalt();
-      await storeKey(cloud.account.sub, salt, await deriveKey(password, salt));
+      await storeKey(cloud.sync.scope, salt, await deriveKey(password, salt));
       await setSetting(getDb(), ENCRYPTION_KEY, { salt });
       toast(on ? "Contraseña cambiada" : `${Copy} cifrada`, "success");
       setOpen(false);
@@ -86,6 +89,8 @@ export function EncryptionSettings() {
         )}
         {s.status === "needs-key" ? (
           <KeyPrompt />
+        ) : !mayChange ? (
+          <p className="text-sm">La contraseña de la clínica la cambia quien la administra.</p>
         ) : on ? (
           <Button variant="secondary" onClick={start}>
             Cambiar la contraseña
@@ -96,8 +101,9 @@ export function EncryptionSettings() {
           </Button>
         )}
         <p className="text-sm text-text-muted">
-          En tus otros dispositivos te la pedirá una vez. Si la olvidas, lo que haya en tus dispositivos sigue ahí, pero {copy} no se puede abrir:
-          apúntala en un sitio seguro.
+          {clinic
+            ? `Es la contraseña de «${clinic.name}»: a cada persona del equipo se le pide una vez en cada dispositivo. Dásela en persona, nunca por correo ni por mensaje. Si la olvidáis, lo que haya en los dispositivos sigue ahí, pero ${copy} no se puede abrir: guardadla en un sitio seguro.`
+            : `En tus otros dispositivos te la pedirá una vez. Si la olvidas, lo que haya en tus dispositivos sigue ahí, pero ${copy} no se puede abrir: apúntala en un sitio seguro.`}
         </p>
       </Card>
 
@@ -120,7 +126,11 @@ export function EncryptionSettings() {
             error={error?.field === "repeat" ? error.text : undefined}
             onChange={(e) => setRepeat(e.target.value)}
           />
-          {on && <p className="text-sm text-text-muted">Tus otros dispositivos te pedirán la contraseña nueva.</p>}
+          {on && (
+            <p className="text-sm text-text-muted">
+              {clinic ? "A todo el equipo se le pedirá la contraseña nueva: dásela en persona." : "Tus otros dispositivos te pedirán la contraseña nueva."}
+            </p>
+          )}
           <Button type="submit" block loading={busy}>
             {on ? "Cambiar la contraseña" : "Cifrar"}
           </Button>
@@ -141,6 +151,9 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
   const [busy, setBusy] = useState(false);
   if (!cloud) return null;
   const { copy, Copy, short } = copyName(cloud);
+  const clinic = cloud.clinic;
+  // En una clínica, solo quien la administra puede sustituir la copia de todos.
+  const mayReplace = !clinic || clinic.role === "admin";
 
   return (
     <>
@@ -166,7 +179,10 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
             }
           }}
         >
-          <p>{copy.charAt(0).toUpperCase() + copy.slice(1)} está cifrada. Escribe la contraseña con la que la cifraste en otro dispositivo.</p>
+          <p>
+            {copy.charAt(0).toUpperCase() + copy.slice(1)} está cifrada.{" "}
+            {clinic ? `Escribe la contraseña de «${clinic.name}» (te la da quien la administra).` : "Escribe la contraseña con la que la cifraste en otro dispositivo."}
+          </p>
           <TextField
             label="Contraseña"
             type="password"
@@ -186,7 +202,13 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
           </Button>
         </form>
       </Sheet>
-      <Sheet open={forgot} onClose={() => setForgot(false)} title={`¿Sustituir ${short}?`}>
+      <Sheet open={forgot && !mayReplace} onClose={() => setForgot(false)} title="Contraseña de la clínica">
+        <p>Pídesela a quien administra «{clinic?.name}»: es la misma para todo el equipo.</p>
+        <Button variant="secondary" block onClick={() => setForgot(false)}>
+          Entendido
+        </Button>
+      </Sheet>
+      <Sheet open={forgot && mayReplace} onClose={() => setForgot(false)} title={`¿Sustituir ${short}?`}>
         <p>
           Sin la contraseña, {copy} no se puede abrir. Puedes sustituirla por lo que hay en este dispositivo, cifrado con una contraseña nueva
           que elegirás después.
@@ -203,7 +225,7 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
             setBusy(true);
             try {
               await setSetting(getDb(), ENCRYPTION_KEY, null);
-              await forgetKey(cloud.account.sub);
+              await forgetKey(cloud.sync.scope);
               await cloud.sync.replaceRemote();
               setForgot(false);
               setOpen(false);

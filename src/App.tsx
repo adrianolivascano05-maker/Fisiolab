@@ -16,6 +16,7 @@ const AccountSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) =
 const AsymmetryPage = lazy(() => import("./pages/AsymmetryPage").then((m) => ({ default: m.AsymmetryPage })));
 const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.ClinicSettingsPage })));
 const DataSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.DataSettingsPage })));
+const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m.TeamPage })));
 const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })));
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const HelpPage = lazy(() => import("./pages/HelpPage").then((m) => ({ default: m.HelpPage })));
@@ -86,6 +87,7 @@ const routes = [
   { path: "/ajustes", element: l(<SettingsPage />) }, // S24
   { path: "/ajustes/cuenta", element: l(<AccountSettingsPage />) },
   { path: "/ajustes/clinica", element: l(<ClinicSettingsPage />) },
+  { path: "/ajustes/equipo", element: l(<TeamPage />) },
   { path: "/ajustes/bloqueo", element: l(<LockSettingsPage />) },
   { path: "/ajustes/datos", element: l(<DataSettingsPage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa

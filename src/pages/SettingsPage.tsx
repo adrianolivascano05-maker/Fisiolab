@@ -11,6 +11,7 @@ import {
   MonitorSmartphone,
   ShieldCheck,
   UserRound,
+  UsersRound,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
@@ -20,6 +21,7 @@ import { useInstall } from "../app/pwa";
 import { useAsync } from "../app/useAsync";
 import { AccountCard } from "../cloud/AccountPages";
 import { CalendarSettings } from "../cloud/CalendarSettings";
+import { ROLE_LABELS } from "../cloud/clinic";
 import { CloudSettings, syncText, useCloud, useSyncState } from "../cloud/CloudGate";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
@@ -78,6 +80,9 @@ export function SettingsPage() {
           warn={!!clinic && !clinicComplete(clinic)}
           tone={clinic && !clinicComplete(clinic) ? "warning" : "accent"}
         />
+        {cloud?.clinic && (
+          <RowLink to="/ajustes/equipo" icon={UsersRound} title="Equipo de la clínica" subtitle={`${cloud.clinic.name} · ${ROLE_LABELS[cloud.clinic.role]}`} />
+        )}
         <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
       </Group>
 

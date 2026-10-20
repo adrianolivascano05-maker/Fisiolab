@@ -63,6 +63,7 @@ de la última cuenta que entró en él.
 | `config.ts` | lee `public/cloud.json` al abrir la app (sin conexión, la última que leyó); si no trae ID, el pegado en el dispositivo |
 | `auth.ts` | entrar con Google con redirección (OAuth 2.0 para apps web de cliente). Google vuelve con un token de una hora que solo sirve para el nombre y el correo, la carpeta oculta de la app en Drive, los archivos que crea la app y su calendario |
 | `account.ts` | la cuenta que ha entrado en el dispositivo. Cada cuenta tiene su base (`fisiolab-u<id>.sqlite3`) |
+| `clinic.ts`, `TeamPage.tsx` | con el servidor de Cloudflare: la clínica en la que se trabaja (su base, `fisiolab-u<id>-c<clínica>.sqlite3`), lo que se pide al servidor sobre clínicas y equipo, y la pantalla Ajustes → Equipo de la clínica |
 | `drive.ts` | la copia en Drive: listar, bajar, subir y borrar, con la API REST v3 |
 | `remote.ts` | dónde vive la copia: Drive o el servidor de Cloudflare, con la misma interfaz para `sync.ts` |
 | `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista, 5 segundos después del último cambio y al salir de la app |
@@ -70,7 +71,7 @@ de la última cuenta que entró en él.
 | `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «Cénit · Citas» que crea la app |
 | `saveToDrive.ts`, `DriveSaveButton.tsx` | guardar el informe en PDF y los resultados en CSV en la carpeta «Cénit · Fisiolab» de Drive |
 | `crypt.ts`, `EncryptionParts.tsx` | cifrado obligatorio de la copia con una contraseña, y pedirla en otro dispositivo |
-| `CloudGate.tsx` | pantallas de entrada (y de pasar a la cuenta los datos que había sin cuenta), aviso de sincronización y la sección «Cuenta» de Ajustes |
+| `CloudGate.tsx` | pantallas de entrada (de pasar a la cuenta los datos que había sin cuenta y, con el servidor, de elegir o dar de alta la clínica), aviso de sincronización y la sección «Cuenta» de Ajustes |
 | `../data/migrations/008_sync.sql`, `../data/syncMerge.ts` | registro de cambios por fila y fusión de dos copias |
 
 - **Al abrir la app**, si el token ha caducado, la app va a Google y vuelve sola en un segundo, si la sesión de
@@ -144,11 +145,30 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
 - La copia va al servidor de la clínica (Cloudflare Workers + D1 con jurisdicción `eu`), no a Drive, y la app ya no
   pide el permiso de la carpeta oculta de Drive (`drive.appdata`).
 - Como en Drive, solo se suben copias cifradas; además, el servidor rechaza lo que no empiece por `CENITENC1`.
-- El servidor comprueba el token de Google de cada petición (que sea de esta app y de un correo de
-  `ALLOWED_EMAILS`) y guarda una copia por cuenta. Al subir dice qué versión sustituye: si otro dispositivo subió
-  entre medias, responde 412 y la app vuelve a bajar, juntar y subir.
+- **Se trabaja en una clínica** (`clinic.ts`). La primera vez en cada dispositivo, la cuenta elige su clínica o,
+  si su correo está en `ALLOWED_EMAILS`, la da de alta y queda como administradora. Quien la administra añade al
+  equipo por correo en Ajustes → Equipo de la clínica. Con una sola clínica y nada que llevar a ella, se entra
+  directo. Cada clínica tiene en el dispositivo su base, su clave de cifrado y su sincronización.
+- **Una base y una copia por clínica, compartidas por el equipo.** La copia va cifrada con la contraseña de la
+  clínica, que elige (y cambia) quien la administra y se da en persona al equipo: ni Cloudflare ni quien gestiona
+  el servidor pueden leerla. Si alguien la olvida, no puede sustituir la copia de todos: se la pide a quien la
+  administra.
+- **Lo de cada persona** (`../data/member.ts`): su Google Calendar, su carpeta de Drive y su nombre y nº de
+  colegiado para firmar se guardan en la base de la clínica con su clave (`calendar_id@<sub>`…). Cada cita lleva
+  quién la dio (`created_by`, migración 014) y a cada calendario solo van las suyas.
+- **Llevar los pacientes de la cuenta a la clínica.** Si en el dispositivo hay pacientes de la cuenta, al entrar
+  por primera vez en la clínica se pregunta si se llevan. El worker de SQLite abre la base nueva de la clínica y
+  le junta la de la cuenta (`syncMerge.ts`, `prepareForClinic`): lo de la persona pasa a su nombre, la contraseña
+  de la cuenta no se lleva y, en los demás ajustes, ganan los que ya tenga la clínica. La base de la cuenta no se
+  toca.
+- **Al quitar a alguien del equipo** el servidor deja de darle la copia y, la próxima vez que abre la app con
+  conexión, se borran de su dispositivo los datos de la clínica.
+- El servidor comprueba el token de Google de cada petición (que sea de esta app) y que la cuenta sea del equipo
+  de la clínica. Al subir dice qué versión sustituye: si otro dispositivo subió entre medias, responde 412 y la app
+  vuelve a bajar, juntar y subir.
 - La CSP (`public/_headers`) deja conectar con `https://*.workers.dev`. Si el servidor va en un dominio propio, hay
   que añadirlo ahí.
 - Las citas en Google Calendar y los informes en Drive siguen siendo opcionales: con Calendar, mejor la opción de
   solo iniciales.
-- Pruebas: `e2e/cloud.spec.ts` (NB6) con el servidor simulado de `e2e/fakeGoogle.ts`, y `cloudflare/worker.test.ts`.
+- Pruebas: `e2e/clinics.spec.ts` con el servidor simulado de `e2e/fakeGoogle.ts`, `src/data/clinicMember.test.ts` y
+  `cloudflare/worker.test.ts`.

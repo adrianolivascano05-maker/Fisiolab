@@ -75,3 +75,12 @@ export function RowButton({ onClick, busy, ...props }: RowProps & { onClick: () 
     </li>
   );
 }
+
+/** Fila que solo informa. */
+export function Row(props: RowProps) {
+  return (
+    <li className={rowClass.replace(" hover:bg-surface", "")}>
+      <Body {...props} chevron={false} />
+    </li>
+  );
+}

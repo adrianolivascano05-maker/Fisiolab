@@ -1,8 +1,9 @@
 # Servidor de datos de la clínica en Cloudflare
 
 Es otra forma de guardar en la nube la copia de los pacientes. En lugar de ir al Google Drive de cada
-fisioterapeuta, va a un servidor pequeño de la clínica en Cloudflare. Se monta una vez, con el plan gratuito y
-sin programar.
+fisioterapeuta, va a un servidor pequeño en Cloudflare. Se monta una vez, con el plan gratuito y sin programar, y
+sirve para varias clínicas: cada una con su equipo y sus pacientes, sin que las demás (ni quien gestiona el
+servidor) puedan verlos.
 
 ## Qué es y por qué
 
@@ -16,16 +17,25 @@ sin programar.
   antes de enviarla. Cloudflare no tiene esa contraseña y solo recibe bytes que sin ella no se pueden leer. El
   servidor rechaza cualquier copia sin cifrar. La otra cara: si se pierde la contraseña, Cloudflare tampoco puede
   recuperar la copia (la de cada dispositivo sigue intacta).
-- **Qué más ve Cloudflare:** el tamaño y la fecha de cada copia y el número de cuenta de Google de quien la sube
-  (no el correo). No guarda los tokens de Google, y los registros de peticiones se dejan desactivados (paso 7).
+- **Qué más ve Cloudflare:** lo mismo que quien gestiona el servidor (nombres de clínica, correos de cada equipo,
+  tamaño y fecha de cada copia). No guarda los tokens de Google, y los registros de peticiones se dejan
+  desactivados (paso 7).
 - **Contrato de encargado del tratamiento (DPA).** El de Cloudflare forma parte de sus condiciones de autoservicio:
   se acepta al crear la cuenta. Conviene descargar la versión vigente
   (<https://www.cloudflare.com/cloudflare-customer-dpa/>; si la página cambia, busca «Cloudflare Customer DPA»),
   guardarla con la documentación de protección de datos de la clínica y comprobar con vuestro delegado de
   protección de datos que encaja con lo que necesitáis. Esta guía no es asesoramiento legal ni garantiza que el
   montaje cumpla la normativa: eso lo decide la clínica con su delegado.
-- **Quién puede usarlo:** solo los correos de Google que pongas en la lista `ALLOWED_EMAILS`. Cada cuenta ve solo
-  su copia.
+- **Clínicas con equipo.** Quien está en la lista `ALLOWED_EMAILS` puede dar de alta una clínica en la app y queda
+  como su administrador. Después, él mismo añade a su equipo por correo de Google, desde la app (**Ajustes** →
+  **Equipo de la clínica**): no hace falta tocar Cloudflare. Todo el equipo comparte los pacientes de la clínica;
+  nadie de fuera del equipo puede bajar su copia. Al quitar a alguien, deja de poder bajarla y los pacientes se
+  borran de sus dispositivos la próxima vez que abra la app con conexión.
+- **Quien gestiona el servidor tampoco ve a los pacientes.** Cada clínica cifra su copia con su propia contraseña,
+  que se da en persona a su equipo y nunca pasa por el servidor. Quien gestiona Cloudflare (por ejemplo, quien
+  da la app a varias clínicas) ve los nombres de las clínicas, los correos de cada equipo y el tamaño y la fecha
+  de cada copia; los pacientes, no. Sí controla la app y el servidor, así que para cada clínica es su encargado
+  del tratamiento y conviene firmar con ella un contrato de encargado.
 
 ## Antes de empezar
 
@@ -33,7 +43,8 @@ Ten a mano:
 
 - El **ID de cliente de Google** de la app. Es el `googleClientId` de `public/cloud.json` (ahora,
   `1084216324372-0mrfdeckqcfu8p2t1tjsosdebs7g2tmb.apps.googleusercontent.com`).
-- Los **correos de Google** de los fisioterapeutas que van a usar la app.
+- El **correo de Google** del responsable de cada clínica que vaya a usar el servidor (el resto del equipo lo
+  añade él desde la app).
 - Los archivos **`schema.sql`** y **`worker.js`** de esta carpeta. En GitHub, abre cada uno, pulsa **Raw** y copia
   todo el texto.
 
@@ -66,11 +77,11 @@ pasos son los mismos.
    | Nombre | Valor |
    | --- | --- |
    | `GOOGLE_CLIENT_ID` | el ID de cliente de Google (arriba) |
-   | `ALLOWED_EMAILS` | los correos de los fisioterapeutas, separados por comas: `ana@gmail.com, luis@gmail.com` |
+   | `ALLOWED_EMAILS` | los correos de quien puede dar de alta una clínica, separados por comas: `ana@gmail.com, luis@gmail.com` |
    | `ALLOWED_ORIGINS` | `https://adrianolivascano05-maker.github.io` (para probar con `npm run dev`, añade `,http://localhost:5173`) |
 
    En `ALLOWED_ORIGINS` va solo el principio de la dirección, sin `/Fisiolab/`. Pulsa **Deploy**. Si
-   `ALLOWED_EMAILS` se queda vacía, no puede entrar nadie.
+   `ALLOWED_EMAILS` se queda vacía, nadie puede dar de alta una clínica.
 7. **Sin registros.** En el Worker, **Settings** → **Observability**: si **Workers Logs** está activado,
    desactívalo. El servidor nunca escribe en el registro una copia ni un token, pero así tampoco queda
    constancia de cada petición.
@@ -87,11 +98,15 @@ pasos son los mismos.
    }
    ```
 
-**Para añadir o quitar a alguien,** cambia `ALLOWED_EMAILS` (**Settings** → **Variables and Secrets**) y pulsa
-**Deploy**. Quitar un correo impide entrar, pero no borra la copia que esa persona tuviera.
+**Para dar de alta una clínica nueva,** añade a `ALLOWED_EMAILS` el correo de su responsable (**Settings** →
+**Variables and Secrets**) y pulsa **Deploy**. Esa persona entra en la app, pulsa **Crear la clínica** y desde
+**Ajustes** → **Equipo de la clínica** añade a su equipo. Quitar un correo de `ALLOWED_EMAILS` solo impide dar de
+alta clínicas nuevas: las que ya existen siguen con su equipo.
 
 **Al actualizar el servidor** (si cambia `worker.js` en la app), repite el paso 4 desde **Edit code**. Las
-variables y el enlace se conservan.
+variables y el enlace se conservan. Si además cambia `schema.sql`, vuelve a ejecutarlo entero en la **Console**
+de la base (paso 3): crea las tablas que falten y no borra nada. Así se pasó, en octubre de 2026, a la versión
+con clínicas (tablas `clinics` y `members`).
 
 ## Otra forma: con Wrangler (terminal)
 
@@ -142,20 +157,35 @@ nada más.
 | Archivo | Qué es |
 | --- | --- |
 | `worker.js` | el servidor. JavaScript sin dependencias, para pegarlo tal cual en el panel |
-| `schema.sql` | las dos tablas de la base: `heads` (la copia vigente de cada cuenta) y `parts` (sus trozos, en texto base64) |
+| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `heads` (la copia vigente de cada clínica) y `parts` (sus trozos, en texto base64) |
 | `wrangler.toml` | la configuración, solo para instalarlo con Wrangler (siempre con `-c wrangler.toml`) |
 | `worker.test.ts`, `d1shim.ts` | las pruebas (`npx vitest run cloudflare`), con una base D1 simulada sobre SQLite |
 
 ## Para quien mantenga la app
 
 Todas las rutas, salvo `/v1/salud`, piden `Authorization: Bearer <token de acceso de Google>`. El token debe ser
-del ID de cliente `GOOGLE_CLIENT_ID` y de un correo verificado que esté en `ALLOWED_EMAILS`. La copia de cada
-cuenta va por su `sub` de Google. Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON
-`{ "error": "…" }` en español.
+del ID de cliente `GOOGLE_CLIENT_ID` y de un correo verificado. Lo que puede hacer cada cuenta depende de la ruta:
+dar de alta clínicas, si su correo está en `ALLOWED_EMAILS`; usar una clínica, si es de su equipo (tabla
+`members`, por correo en minúsculas). La copia de cada clínica va en `heads`/`parts` con `owner = "clinic:<id>"`.
+Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "error": "…" }` en español.
 
 | Petición | Respuesta |
 | --- | --- |
 | `GET /v1/salud` | `200 { ok: true }`, sin sesión. Si falta algo de la instalación, `500 { ok: false, error }` |
+| `GET /v1/yo` | `200 { email, canCreate, clinics: [{ id, name, role }] }`: las clínicas de quien entra y si puede dar de alta otra |
+| `POST /v1/clinicas` + `{ name }` | `201 { id, name, role: "admin" }`; solo `ALLOWED_EMAILS` (si no, `403`). Nombre de 1 a 80 caracteres |
+| `PATCH /v1/clinicas/:id` + `{ name }` | `200 { id, name, role }`; solo administradores |
+| `DELETE /v1/clinicas/:id` | `204`: borra la clínica, su equipo y su copia; solo administradores |
+| `GET /v1/clinicas/:id/miembros` | `200 { members: [{ email, role, addedAt }] }`; cualquiera del equipo |
+| `PUT /v1/clinicas/:id/miembros/:correo` + `{ role }` | `200 { email, role, addedAt }`: añade o cambia el papel (`admin` o `member`); solo administradores. Como mucho 100 personas |
+| `DELETE /v1/clinicas/:id/miembros/:correo` | `204`; un administrador quita a cualquiera, y cada uno puede quitarse a sí mismo |
+| `GET`, `PUT`, `DELETE /v1/clinicas/:id/copia` y `GET /v1/clinicas/:id/copia/info` | la copia de la clínica, como las de abajo; borrarla, solo administradores |
+
+Las rutas de la copia (aquí con `/v1/copia`, la copia personal de versiones anteriores de la app, solo para
+`ALLOWED_EMAILS`; con clínica, igual bajo `/v1/clinicas/:id`):
+
+| Petición | Respuesta |
+| --- | --- |
 | `GET /v1/copia/info` | `200 { version, size, updatedAt }`, con `size` en bytes aproximados (`Math.floor(caracteres * 3 / 4)`); sin copia, `200 { version: null, size: 0, updatedAt: null }` |
 | `GET /v1/copia` | `200` con la copia en base64 (`text/plain; charset=utf-8`) y `ETag: "<version>"`; sin copia, `404` |
 | `PUT /v1/copia` + `If-None-Match: *` | crea la copia (cuerpo: la copia cifrada en base64 estándar, con relleno, y `Content-Type: text/plain`): `200 { version, size, updatedAt }` y `ETag`. Si ya hay una, `412 { error, version }` |
@@ -165,8 +195,11 @@ cuenta va por su `sub` de Google. Todas las respuestas llevan `Cache-Control: no
 Más respuestas de error:
 
 - `401`: falta la sesión o no es válida.
-- `403`: el correo no está en la lista, o la consulta previa de CORS (`OPTIONS`) viene de un origen que no está
-  en `ALLOWED_ORIGINS`.
+- `400`: un nombre, correo o papel que no vale, o un cuerpo que no es JSON.
+- `403`: la cuenta no es del equipo de esa clínica (también si la clínica no existe), no la administra, no está
+  en `ALLOWED_EMAILS` para dar de alta clínicas, o la consulta previa de CORS (`OPTIONS`) viene de un origen que no
+  está en `ALLOWED_ORIGINS`.
+- `409`: se quitaría o bajaría de papel al último administrador de la clínica, o el equipo ya tiene 100 personas.
 - `413`: la copia pasa de 50 MB: más de 69 905 068 caracteres de base64.
 - `415`: la copia no empieza por `Q0VOSVRFTkMx` (`CENITENC1` en base64), es decir, no está cifrada.
 - `428`: un `PUT` sin `If-Match` ni `If-None-Match: *`.

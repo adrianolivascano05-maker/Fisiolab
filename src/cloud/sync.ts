@@ -60,16 +60,21 @@ export class SyncController {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stops: (() => void)[] = [];
 
+  /**
+   * `scope`: de quién son la base y la copia, para guardar en este dispositivo la clave de cifrado y por dónde va la
+   * sincronización: la cuenta o, en una clínica, la cuenta en esa clínica (src/cloud/clinic.ts).
+   */
   constructor(
     private db: Db,
-    private account: Account,
+    account: Account,
     readonly store: RemoteStore = driveStore,
+    readonly scope: string = account.sub,
   ) {
     this.state = { status: "idle", where: store.where, lastSyncAt: this.meta()?.lastSyncAt ?? null, pending: false, newData: false, error: null };
   }
 
   private get metaKey() {
-    return `fisiolab.sync.${this.account.sub}`;
+    return `fisiolab.sync.${this.scope}`;
   }
   private meta(): Meta | null {
     try {
@@ -184,7 +189,7 @@ export class SyncController {
       const files = await store.list(token);
       const meta = this.meta();
       let pulled = 0;
-      let key = await storedKey(this.account.sub);
+      let key = await storedKey(this.scope);
 
       if (!files.length) {
         // Primera vez: la copia de este dispositivo es la de la nube.
@@ -210,7 +215,7 @@ export class SyncController {
           // Si otro dispositivo ha cambiado la contraseña, la clave de aquí ya no vale.
           const enc = await this.encryption();
           if (key && (!enc || enc.salt !== key.salt)) {
-            await forgetKey(this.account.sub);
+            await forgetKey(this.scope);
             key = null;
           }
         }
@@ -266,7 +271,7 @@ export class SyncController {
       return await decrypt(bytes, key.key);
     } catch (e) {
       // La clave guardada ya no abre la copia (otra contraseña con la misma sal no puede darse, pero por si acaso).
-      if (e instanceof WrongPassword) await forgetKey(this.account.sub);
+      if (e instanceof WrongPassword) await forgetKey(this.scope);
       throw new NeedsKey(salt);
     }
   }
@@ -293,7 +298,7 @@ export class SyncController {
       }
     }
     if (!checked) throw new Error(`No hay en ${this.store.where} una copia cifrada con la que comprobar la contraseña. Pulsa «He olvidado la contraseña» para sustituirla por la de este dispositivo.`);
-    await storeKey(this.account.sub, salt, key);
+    await storeKey(this.scope, salt, key);
     await this.sync();
   }
 

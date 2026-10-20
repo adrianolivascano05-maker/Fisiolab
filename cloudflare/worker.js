@@ -1,6 +1,11 @@
 // @ts-check
-// Servidor de datos de Cénit en Cloudflare (Workers + D1). Guarda la copia CIFRADA de la base de cada
-// fisioterapeuta; Google solo sirve para saber quién es. Cómo instalarlo: README.md de esta carpeta.
+// Servidor de datos de Cénit en Cloudflare (Workers + D1). Guarda la copia CIFRADA de la base de cada clínica;
+// Google solo sirve para saber quién es. Cómo instalarlo: README.md de esta carpeta.
+//
+// Clínicas: quien está en ALLOWED_EMAILS puede crear una clínica y queda como su administrador; el administrador
+// añade a su equipo por correo (sin tocar Cloudflare). Todos los de una clínica comparten su copia, que va cifrada
+// con la contraseña de la clínica: el servidor (y quien lo gestiona) solo ve nombres de clínica, correos y bytes
+// ilegibles, nunca un paciente.
 //
 // La copia viaja y se guarda como texto base64 (la app la codifica y la decodifica): así el servidor nunca
 // convierte bytes, que en D1 cuesta mucho tiempo de proceso.
@@ -10,11 +15,22 @@
 // Rutas:
 //   OPTIONS *              permiso CORS para la app (preflight)
 //   GET    /v1/salud       { ok: true } sin sesión: para comprobar la instalación
-//   GET    /v1/copia/info  { version, size, updatedAt }; size, en bytes aproximados
-//                          (si aún no hay copia: { version: null, size: 0, updatedAt: null })
-//   GET    /v1/copia       la copia en base64 (text/plain), con ETag: "<versión>" (404 si no hay)
-//   PUT    /v1/copia       guarda una copia en base64: If-None-Match: * (crear) o If-Match: <versión> (sustituir)
-//   DELETE /v1/copia       borra la copia (204, también si no había)
+//   GET    /v1/yo          { email, canCreate, clinics: [{ id, name, role }] }: las clínicas de quien entra
+//   POST   /v1/clinicas    { name } → crea una clínica (solo ALLOWED_EMAILS); quien la crea, administrador
+//   PATCH  /v1/clinicas/:id                    { name } → cambia el nombre (administrador)
+//   DELETE /v1/clinicas/:id                    borra la clínica, su equipo y su copia (administrador)
+//   GET    /v1/clinicas/:id/miembros           { members: [{ email, role, addedAt }] } (cualquiera del equipo)
+//   PUT    /v1/clinicas/:id/miembros/:correo   { role: "admin" | "member" } → añade o cambia (administrador)
+//   DELETE /v1/clinicas/:id/miembros/:correo   quita a alguien (administrador, o uno mismo para salir)
+//   GET    /v1/clinicas/:id/copia/info         { version, size, updatedAt }; size, en bytes aproximados
+//                                              (si aún no hay copia: { version: null, size: 0, updatedAt: null })
+//   GET    /v1/clinicas/:id/copia              la copia en base64 (text/plain), con ETag: "<versión>" (404 si no hay)
+//   PUT    /v1/clinicas/:id/copia              guarda una copia en base64: If-None-Match: * (crear) o
+//                                              If-Match: <versión> (sustituir)
+//   DELETE /v1/clinicas/:id/copia              borra la copia (administrador; 204, también si no había)
+//   /v1/copia y /v1/copia/info                 lo mismo con la copia personal de cada cuenta de ALLOWED_EMAILS
+//                                              (versiones anteriores de la app, sin clínicas)
+// Una clínica tiene siempre al menos un administrador: no se puede quitar ni bajar al último.
 //
 // Enlace a la base D1: DB. Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS.
 // Nunca se escribe en el registro el contenido de una petición ni el token.
@@ -37,7 +53,7 @@
  * @typedef {object} Env
  * @property {D1Database} DB
  * @property {string} [GOOGLE_CLIENT_ID] el ID de cliente de Google de la app
- * @property {string} [ALLOWED_EMAILS] correos que pueden entrar, separados por comas o espacios (vacío: nadie)
+ * @property {string} [ALLOWED_EMAILS] correos que pueden crear clínicas, separados por comas o espacios (vacío: nadie)
  * @property {string} [ALLOWED_ORIGINS] direcciones de la app, separadas por comas
  */
 /**
@@ -63,6 +79,8 @@ const PART_CHARS = 1_000_000;
 const MAX_CHARS = Math.ceil((50 * 1024 * 1024) / 3) * 4;
 /** Trozos por viaje a D1, al escribir y al leer. */
 const PARTS_PER_TRIP = 4;
+/** Personas como mucho en el equipo de una clínica. */
+const MAX_MEMBERS = 100;
 /** Tokens comprobados que se recuerdan, y durante cuánto como mucho (segundos). */
 const CACHE_ENTRIES = 200;
 const CACHE_SECONDS = 300;
@@ -137,34 +155,271 @@ async function route(request, env, deps, originAllowed) {
   }
   if (path === "/v1/salud" && method === "GET") return health(env);
 
-  const copyRoute = path === "/v1/copia" && ["GET", "PUT", "DELETE"].includes(method);
-  const infoRoute = path === "/v1/copia/info" && method === "GET";
-  if (!copyRoute && !infoRoute) throw new HttpError(404, "Esta dirección no existe.");
+  // La copia personal (versiones anteriores de la app): solo las cuentas de ALLOWED_EMAILS.
+  if (path === "/v1/copia" || path === "/v1/copia/info") {
+    if (!copyMethod(path.slice(3), method)) throw notFound();
+    const who = await authenticate(request, env, deps);
+    if (!canCreate(env, who)) throw new HttpError(403, "Esta cuenta de Google no tiene permiso para usar el servidor de la clínica.");
+    return copyRoute(request, database(env), who.sub, path.endsWith("/info"), deps.now);
+  }
 
-  const { sub } = await authenticate(request, env, deps);
+  if (path === "/v1/yo" && method === "GET") return me(database(env), env, await authenticate(request, env, deps));
+  if (path === "/v1/clinicas" && method === "POST") {
+    const who = await authenticate(request, env, deps);
+    if (!canCreate(env, who)) throw new HttpError(403, "Tu cuenta no puede crear clínicas en este servidor: pide que te den de alta.");
+    return createClinic(request, database(env), who, deps.now);
+  }
+
+  const m = /^\/v1\/clinicas\/([A-Za-z0-9-]{1,64})(\/.*)?$/.exec(path);
+  if (!m) throw notFound();
+  const id = /** @type {string} */ (m[1]);
+  const rest = m[2] ?? "";
+  const member = /^\/miembros\/([^/]+)$/.exec(rest);
+  const known =
+    (rest === "" && ["PATCH", "DELETE"].includes(method)) ||
+    (rest === "/miembros" && method === "GET") ||
+    (member !== null && ["PUT", "DELETE"].includes(method)) ||
+    copyMethod(rest, method);
+  if (!known) throw notFound();
+
+  const who = await authenticate(request, env, deps);
+  const db = database(env);
+  // Quien no es del equipo no sabe ni si la clínica existe.
+  const role = await roleIn(db, id, who.email);
+  if (!role) throw new HttpError(403, "Tu cuenta no forma parte de esta clínica.");
+  const admin = () => {
+    if (role !== "admin") throw new HttpError(403, "Solo quien administra la clínica puede hacerlo.");
+  };
+
+  if (rest === "" && method === "PATCH") {
+    admin();
+    const name = clinicName(await readJson(request));
+    await db.prepare("UPDATE clinics SET name = ? WHERE id = ?").bind(name, id).run();
+    return json(200, { id, name, role });
+  }
+  if (rest === "" && method === "DELETE") {
+    admin();
+    const owner = clinicOwner(id);
+    await db.batch([
+      db.prepare("DELETE FROM heads WHERE owner = ?").bind(owner),
+      db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner),
+      db.prepare("DELETE FROM members WHERE clinic_id = ?").bind(id),
+      db.prepare("DELETE FROM clinics WHERE id = ?").bind(id),
+    ]);
+    return new Response(null, { status: 204 });
+  }
+  if (rest === "/miembros") {
+    const { results = [] } = await db
+      .prepare("SELECT email, role, added_at FROM members WHERE clinic_id = ? ORDER BY role = 'admin' DESC, email")
+      .bind(id)
+      .all();
+    return json(200, { members: results.map((r) => ({ email: String(r.email), role: String(r.role), addedAt: String(r.added_at) })) });
+  }
+  if (member) {
+    let email;
+    try {
+      email = normalEmail(decodeURIComponent(/** @type {string} */ (member[1])));
+    } catch {
+      throw new HttpError(400, "Ese correo no es válido.");
+    }
+    if (method === "PUT") {
+      admin();
+      return putMember(request, db, id, email, who, deps.now);
+    }
+    if (email !== normalEmail(who.email)) admin();
+    return removeMember(db, id, email);
+  }
+  // La copia de la clínica: todo el equipo la baja y la sube; borrarla, solo quien administra.
+  if (method === "DELETE") admin();
+  return copyRoute(request, db, clinicOwner(id), rest.endsWith("/info"), deps.now);
+}
+
+/** Las rutas de una copia: «/copia» con GET, PUT o DELETE y «/copia/info» con GET. */
+const copyMethod = (/** @type {string} */ p, /** @type {string} */ method) =>
+  (p === "/copia" && ["GET", "PUT", "DELETE"].includes(method)) || (p === "/copia/info" && method === "GET");
+
+const notFound = () => new HttpError(404, "Esta dirección no existe.");
+
+/** @param {Env} env */
+function database(env) {
   if (!env.DB) throw new HttpError(500, "Falta el enlace «DB» con la base de datos D1.");
-  const db = env.DB;
+  return env.DB;
+}
 
-  if (infoRoute) {
-    const head = await getHead(db, sub);
+/**
+ * Leer, guardar o borrar una copia (la de una clínica o la personal).
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {string} owner
+ * @param {boolean} info solo cuánto ocupa y su versión
+ * @param {() => number} now
+ */
+async function copyRoute(request, db, owner, info, now) {
+  if (info) {
+    const head = await getHead(db, owner);
     return json(200, head ? { version: head.version, size: approxBytes(head.chars), updatedAt: head.updatedAt } : { version: null, size: 0, updatedAt: null });
   }
-  if (method === "GET") {
-    const copy = await readCopy(db, sub);
+  if (request.method === "GET") {
+    const copy = await readCopy(db, owner);
     if (!copy) throw new HttpError(404, "Aún no hay ninguna copia guardada.");
     return new Response(copy.text, {
       status: 200,
       headers: { "Content-Type": "text/plain; charset=utf-8", ETag: `"${copy.head.version}"` },
     });
   }
-  if (method === "PUT") return writeCopy(request, db, sub, deps.now);
+  if (request.method === "PUT") return writeCopy(request, db, owner, now);
 
-  // DELETE: la copia vigente y cualquier trozo que quede de esta cuenta.
-  await db.batch([
-    db.prepare("DELETE FROM heads WHERE owner = ?").bind(sub),
-    db.prepare("DELETE FROM parts WHERE owner = ?").bind(sub),
-  ]);
+  // DELETE: la copia vigente y cualquier trozo que quede.
+  await db.batch([db.prepare("DELETE FROM heads WHERE owner = ?").bind(owner), db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner)]);
   return new Response(null, { status: 204 });
+}
+
+// ---------- Clínicas y equipo ----------
+
+/** La copia de una clínica se guarda en heads/parts con este «owner» (los de la copia personal son números). */
+const clinicOwner = (/** @type {string} */ id) => `clinic:${id}`;
+
+/** @param {string} email */
+function normalEmail(email) {
+  const e = email.trim().toLowerCase();
+  if (e.length > 254 || !/^[^\s@/]+@[^\s@/]+\.[^\s@/]+$/.test(e)) throw new HttpError(400, "Ese correo no es válido.");
+  return e;
+}
+
+/**
+ * Si la cuenta puede crear clínicas (y usar la copia personal): su correo está en ALLOWED_EMAILS.
+ * @param {Env} env
+ * @param {{ email: string }} who
+ */
+function canCreate(env, who) {
+  return list(env.ALLOWED_EMAILS)
+    .map((e) => e.toLowerCase())
+    .includes(who.email.trim().toLowerCase());
+}
+
+/**
+ * El papel de un correo en una clínica, o null si no es del equipo (o la clínica no existe).
+ * @param {D1Database} db
+ * @param {string} id
+ * @param {string} email
+ * @returns {Promise<"admin" | "member" | null>}
+ */
+async function roleIn(db, id, email) {
+  const row = await db.prepare("SELECT role FROM members WHERE clinic_id = ? AND email = ?").bind(id, email.trim().toLowerCase()).first();
+  return row ? (row.role === "admin" ? "admin" : "member") : null;
+}
+
+/**
+ * @param {D1Database} db
+ * @param {Env} env
+ * @param {{ email: string }} who
+ */
+async function me(db, env, who) {
+  const email = who.email.trim().toLowerCase();
+  const { results = [] } = await db
+    .prepare("SELECT c.id, c.name, m.role FROM members m JOIN clinics c ON c.id = m.clinic_id WHERE m.email = ? ORDER BY c.name COLLATE NOCASE, c.id")
+    .bind(email)
+    .all();
+  return json(200, {
+    email,
+    canCreate: canCreate(env, who),
+    clinics: results.map((r) => ({ id: String(r.id), name: String(r.name), role: String(r.role) })),
+  });
+}
+
+/** @param {unknown} body */
+function clinicName(body) {
+  const name = typeof body === "object" && body !== null && "name" in body && typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
+  if (!name || name.length > 80) throw new HttpError(400, "El nombre de la clínica tiene que tener entre 1 y 80 caracteres.");
+  return name;
+}
+
+/**
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {{ email: string }} who
+ * @param {() => number} now
+ */
+async function createClinic(request, db, who, now) {
+  const name = clinicName(await readJson(request));
+  const id = crypto.randomUUID();
+  const email = who.email.trim().toLowerCase();
+  const at = new Date(now()).toISOString();
+  await db.batch([
+    db.prepare("INSERT INTO clinics (id, name, created_by, created_at) VALUES (?, ?, ?, ?)").bind(id, name, email, at),
+    db.prepare("INSERT INTO members (clinic_id, email, role, added_by, added_at) VALUES (?, ?, 'admin', ?, ?)").bind(id, email, email, at),
+  ]);
+  return json(201, { id, name, role: "admin" });
+}
+
+/**
+ * Añade a alguien al equipo o le cambia el papel. Al último administrador no se le puede quitar.
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {string} id
+ * @param {string} email
+ * @param {{ email: string }} who
+ * @param {() => number} now
+ */
+async function putMember(request, db, id, email, who, now) {
+  const body = await readJson(request);
+  const role = typeof body === "object" && body !== null && "role" in body ? body.role : undefined;
+  if (role !== "admin" && role !== "member") throw new HttpError(400, "El papel tiene que ser «admin» o «member».");
+  const current = await roleIn(db, id, email);
+  if (!current) {
+    const row = await db.prepare("SELECT count(*) AS n FROM members WHERE clinic_id = ?").bind(id).first();
+    if (Number(row?.n) >= MAX_MEMBERS) throw new HttpError(409, `El equipo ya tiene ${MAX_MEMBERS} personas, el máximo.`);
+  }
+  const at = new Date(now()).toISOString();
+  const result = await db
+    .prepare(
+      `INSERT INTO members (clinic_id, email, role, added_by, added_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (clinic_id, email) DO UPDATE SET role = excluded.role
+       WHERE excluded.role = 'admin' OR members.role <> 'admin'
+          OR (SELECT count(*) FROM members WHERE clinic_id = excluded.clinic_id AND role = 'admin') > 1`,
+    )
+    .bind(id, email, role, who.email.trim().toLowerCase(), at)
+    .run();
+  if (current === "admin" && role === "member" && result.meta?.changes !== 1) throw lastAdmin();
+  const row = await db.prepare("SELECT email, role, added_at FROM members WHERE clinic_id = ? AND email = ?").bind(id, email).first();
+  return json(200, { email, role: String(row?.role), addedAt: String(row?.added_at) });
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} id
+ * @param {string} email
+ */
+async function removeMember(db, id, email) {
+  const current = await roleIn(db, id, email);
+  if (!current) return new Response(null, { status: 204 });
+  const result = await db
+    .prepare(
+      `DELETE FROM members WHERE clinic_id = ? AND email = ?
+         AND (role <> 'admin' OR (SELECT count(*) FROM members WHERE clinic_id = ? AND role = 'admin') > 1)`,
+    )
+    .bind(id, email, id)
+    .run();
+  if (result.meta?.changes !== 1) throw lastAdmin();
+  return new Response(null, { status: 204 });
+}
+
+const lastAdmin = () => new HttpError(409, "La clínica tiene que tener al menos un administrador: nombra antes a otro.");
+
+/**
+ * El cuerpo JSON de una petición (pequeño: un nombre, un papel).
+ * @param {Request} request
+ * @returns {Promise<unknown>}
+ */
+async function readJson(request) {
+  if (Number(request.headers.get("Content-Length")) > 10_000) throw new HttpError(413, "La petición es demasiado grande.");
+  const text = await request.text();
+  if (text.length > 10_000) throw new HttpError(413, "La petición es demasiado grande.");
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new HttpError(400, "La petición no es JSON válido.");
+  }
 }
 
 // ---------- Comprobación de la instalación ----------
@@ -176,13 +431,13 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch([env.DB.prepare("SELECT 1 FROM heads LIMIT 0"), env.DB.prepare("SELECT 1 FROM parts LIMIT 0")]);
+      await env.DB.batch(["heads", "parts", "clinics", "members"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }
   }
   if (!(env.GOOGLE_CLIENT_ID ?? "").trim()) problems.push("Falta la variable GOOGLE_CLIENT_ID.");
-  if (!list(env.ALLOWED_EMAILS).length) problems.push("Falta la variable ALLOWED_EMAILS: sin correos no puede entrar nadie.");
+  if (!list(env.ALLOWED_EMAILS).length) problems.push("Falta la variable ALLOWED_EMAILS: sin correos nadie puede crear una clínica.");
   if (!list(env.ALLOWED_ORIGINS).length) problems.push("Falta la variable ALLOWED_ORIGINS: la app no podrá conectarse.");
   if (problems.length) return json(500, { ok: false, error: problems.join(" ") });
   return json(200, { ok: true });
@@ -197,7 +452,8 @@ async function health(env) {
 const tokenCache = new Map();
 
 /**
- * Quién hace la petición: 401 sin token o con uno que no vale, 403 si su correo no está en ALLOWED_EMAILS.
+ * Quién hace la petición: 401 sin token o con uno que no vale. Lo que puede hacer lo decide cada ruta (ALLOWED_EMAILS
+ * para crear clínicas, el equipo de cada clínica para su copia).
  * @param {Request} request
  * @param {Env} env
  * @param {{ verifyToken: NonNullable<Deps["verifyToken"]>, now: () => number }} deps
@@ -231,12 +487,6 @@ async function authenticate(request, env, deps) {
     expiresIn = Math.min(Number.isFinite(id.expiresIn) ? Number(id.expiresIn) : CACHE_SECONDS, CACHE_SECONDS);
     who = { sub: id.sub, email: id.email, until: now + expiresIn * 1000 };
   }
-
-  // Se mira también con el token recordado: la lista manda siempre.
-  const allowed = list(env.ALLOWED_EMAILS).map((e) => e.toLowerCase());
-  if (!allowed.includes(who.email.trim().toLowerCase())) {
-    throw new HttpError(403, "Esta cuenta de Google no tiene permiso para usar el servidor de la clínica.");
-  }
   if (expiresIn !== undefined && expiresIn > 0) remember(key, who, now);
   return who;
 }
@@ -260,7 +510,7 @@ function remember(key, value, now) {
 
 /**
  * Comprueba con Google un token de acceso: que sea de esta app (GOOGLE_CLIENT_ID) y que el correo esté verificado.
- * La lista de correos se mira después, en authenticate.
+ * Lo que puede hacer esa cuenta se mira después, en cada ruta.
  * @param {string} token
  * @param {Env} env
  * @returns {Promise<Identity>}
@@ -495,7 +745,7 @@ function corsHeaders(request, env) {
     "Access-Control-Allow-Origin": origin,
     Vary: "Origin",
     "Access-Control-Allow-Headers": "Authorization, Content-Type, If-Match, If-None-Match",
-    "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
     "Access-Control-Expose-Headers": "ETag",
     "Access-Control-Max-Age": "86400",
   };

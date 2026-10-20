@@ -1,7 +1,7 @@
 // Núcleo de la base de datos: abre, migra y atiende peticiones. Lo usan el worker del navegador
 // y los tests en Node, así que no sabe nada de mensajes ni de OPFS.
 import type { Bind, Info, Request, Snapshot, Statement } from "./protocol";
-import { mergeInto, wipeAll, type MergeResult } from "./syncMerge";
+import { mergeInto, prepareForClinic, wipeAll, type MergeResult } from "./syncMerge";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- la API de sqlite-wasm no está tipada al detalle */
 type Sqlite3 = any;
@@ -77,7 +77,7 @@ export class Engine {
       case "snapshot":
         return this.snapshot();
       case "merge":
-        return this.merge(req.bytes);
+        return this.merge(req.bytes, req.member);
       case "wipe":
         this.db.transaction(() => wipeAll(this.db));
         return null;
@@ -91,14 +91,18 @@ export class Engine {
     };
   }
 
-  /** Junta la copia de la nube con esta base (src/data/syncMerge.ts). Si algo falla, la base queda como estaba. */
-  private merge(bytes: Uint8Array): MergeResult {
+  /**
+   * Junta la copia de la nube con esta base (src/data/syncMerge.ts). Si algo falla, la base queda como estaba.
+   * `member`: es la base de la cuenta de esa persona, que se lleva a la base de su clínica (prepareForClinic).
+   */
+  private merge(bytes: Uint8Array, member?: string): MergeResult {
     const remote = this.openBytes(bytes);
     try {
       if (remote.selectValue("pragma integrity_check") !== "ok") throw new Error("La copia de la nube está dañada.");
       const version = remote.selectValue("pragma user_version") as number;
       if (version > this.latestVersion) throw new Error("La copia de la nube es de una versión más nueva de la app: actualiza la app en este dispositivo.");
       this.migrate(remote);
+      if (member) remote.transaction(() => prepareForClinic(remote, member));
       let result: MergeResult = { pulled: 0, needUpload: false };
       this.db.transaction(() => {
         result = mergeInto(this.db, remote);

@@ -6,6 +6,7 @@
 import { visitEvent, end, type CalendarEvent, type EventNames } from "../clinical/calendar";
 import { upcomingVisits } from "../data/clinical";
 import type { Db } from "../data/db";
+import { member, memberKey } from "../data/member";
 import { getSetting, setSetting } from "../data/repo";
 import type { Account } from "./account";
 import { getToken, hasGranted, CALENDAR_SCOPE } from "./auth";
@@ -15,7 +16,10 @@ const API = "https://www.googleapis.com/calendar/v3";
 export const CALENDAR_NAME = "Cénit · Citas";
 const TZ = "Europe/Madrid";
 
-/** Ajustes sincronizados: si se apuntan las citas y cómo sale el paciente; y el id del calendario de la app. */
+/**
+ * Ajustes sincronizados: si se apuntan las citas y cómo sale el paciente; y el id del calendario de la app. En una
+ * clínica, de cada persona (memberKey): cada una tiene su calendario y en él solo van las citas que da ella.
+ */
 export const CALENDAR_SETTINGS = "calendar_auto";
 const CALENDAR_ID = "calendar_id";
 export type CalendarSettings = { enabled: boolean; names: EventNames };
@@ -23,7 +27,11 @@ export type CalendarSettings = { enabled: boolean; names: EventNames };
 export const defaultCalendarSettings: CalendarSettings = { enabled: true, names: "initials" };
 
 export async function getCalendarSettings(db: Db): Promise<CalendarSettings> {
-  return { ...defaultCalendarSettings, ...((await getSetting<Partial<CalendarSettings>>(db, CALENDAR_SETTINGS)) ?? {}) };
+  return { ...defaultCalendarSettings, ...((await getSetting<Partial<CalendarSettings>>(db, memberKey(CALENDAR_SETTINGS))) ?? {}) };
+}
+
+export async function saveCalendarSettings(db: Db, settings: CalendarSettings): Promise<void> {
+  await setSetting(db, memberKey(CALENDAR_SETTINGS), settings);
 }
 
 // ---------- API de Google Calendar ----------
@@ -206,13 +214,13 @@ export class CalendarSync {
     const token = getToken();
     if (!token || !navigator.onLine) return;
     const now = new Date();
-    const visits = await upcomingVisits(this.db, now);
+    const visits = await upcomingVisits(this.db, now, member());
     const wanted = new Map<string, CalendarEvent>();
     for (const v of visits) {
       const e = visitEvent(v, { id: v.patientId, name: v.name }, settings.names);
       if (e) wanted.set(eventId(v.id), e);
     }
-    const calId = await getSetting<string>(this.db, CALENDAR_ID);
+    const calId = await getSetting<string>(this.db, memberKey(CALENDAR_ID));
     const sig = JSON.stringify([calId, [...wanted]]);
     const memo = this.memo();
     if (!force && memo?.sig === sig && now.getTime() - Date.parse(memo.at) < RECHECK_MS) return this.set({ status: "idle", upcoming: wanted.size });
@@ -220,7 +228,7 @@ export class CalendarSync {
     this.set({ status: "working", error: null });
     try {
       const cal = await ensureCalendar(token.accessToken, calId);
-      if (cal !== calId) await setSetting(this.db, CALENDAR_ID, cal);
+      if (cal !== calId) await setSetting(this.db, memberKey(CALENDAR_ID), cal);
       await syncEvents(token.accessToken, cal, wanted, now);
       const at = new Date().toISOString();
       localStorage.setItem(this.memoKey, JSON.stringify({ sig: JSON.stringify([cal, [...wanted]]), at }));

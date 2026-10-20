@@ -190,8 +190,12 @@ export async function nextVisitOf(db: Db, patientId: string, now = new Date()): 
 }
 
 /** Todas las citas pendientes que aún no han llegado, para el calendario y la pantalla de inicio. */
-export async function upcomingVisits(db: Db, now = new Date()): Promise<{ id: string; patientId: string; name: string; nextAt: string; nextMinutes: number | null }[]> {
-  return (await upcomingAppointments(db, now)).map((a) => ({ id: a.id, patientId: a.patientId, name: a.name, nextAt: a.startsAt, nextMinutes: a.minutes }));
+export async function upcomingVisits(
+  db: Db,
+  now = new Date(),
+  by: string | null = null,
+): Promise<{ id: string; patientId: string; name: string; nextAt: string; nextMinutes: number | null }[]> {
+  return (await upcomingAppointments(db, now, by)).map((a) => ({ id: a.id, patientId: a.patientId, name: a.name, nextAt: a.startsAt, nextMinutes: a.minutes }));
 }
 
 /** Pacientes con una reevaluación pendiente hasta `day` (AAAA-MM-DD): la última fecha que se les puso. */

@@ -10,7 +10,7 @@ export type Request =
   | { op: "info" }
   /** Sincronización: la copia y cuántos cambios lleva (a la vez), y juntar con la copia de la nube. */
   | { op: "snapshot" }
-  | { op: "merge"; bytes: Uint8Array }
+  | { op: "merge"; bytes: Uint8Array; member?: string }
   /** Vacía la base sin que cuente como borrado (cerrar sesión borrando los datos del dispositivo). */
   | { op: "wipe" };
 

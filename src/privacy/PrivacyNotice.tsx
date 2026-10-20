@@ -62,7 +62,7 @@ export function PrivacyNotice({ clinic, storage, patientName, privacy }: { clini
           {storage === "local"
             ? "Se guardan en los dispositivos de la clínica."
             : storage === "server"
-              ? "Se guardan en los dispositivos de la clínica y en una copia cifrada, con una contraseña que solo tiene la clínica, en un servidor contratado a Cloudflare (encargado del tratamiento), con la base de datos en la Unión Europea: Cloudflare no puede leerlos. Los fisioterapeutas entran en la app con su cuenta de Google, que no guarda su historia. Si la clínica apunta sus citas en Google Calendar, figuran el día, la hora y sus iniciales."
+              ? "Se guardan en los dispositivos de la clínica y en una copia cifrada, con una contraseña que solo tiene la clínica, en un servidor de Cloudflare (encargado del tratamiento), con la base de datos en la Unión Europea: ni Cloudflare ni quien gestiona el servidor pueden leerlos. Solo acceden los profesionales de la clínica, que entran en la app con su cuenta de Google, que no guarda su historia. Si la clínica apunta sus citas en Google Calendar, figuran el día, la hora y sus iniciales."
               : `Se guardan en los dispositivos de la clínica y en una copia en Google Drive, cifrada con una contraseña que solo tiene la clínica. El día y la hora de sus citas, con sus iniciales, se apuntan en el calendario de Google del fisioterapeuta. Google es el proveedor de ese almacenamiento y puede tratar datos fuera del Espacio Económico Europeo con las garantías del Marco de Privacidad de Datos UE-EE. UU. y de las cláusulas contractuales tipo de la Comisión Europea.`}
         </p>
       </Part>

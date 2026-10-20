@@ -2,8 +2,13 @@
 // (también los borrados), según el registro que dejan los disparadores de la migración 008. Trabaja sobre dos
 // bases abiertas de SQLite WASM; el motor (engine.ts) la llama dentro de una transacción.
 
+import { MEMBER_SETTINGS } from "./member";
+
 /* eslint-disable @typescript-eslint/no-explicit-any -- la API de sqlite-wasm no está tipada al detalle */
 type DB = any;
+
+/** El ajuste con la sal de la contraseña de cifrado (src/cloud/crypt.ts, ENCRYPTION_KEY). */
+const ENCRYPTION_SETTING = "drive_encryption";
 
 /** Tablas que se sincronizan, de padres a hijos. `unique`: otras claves únicas además de la primaria. */
 export const SYNC_TABLES: { name: string; pk: string[]; unique?: string[][] }[] = [
@@ -72,6 +77,37 @@ export function wipeAll(db: DB) {
   for (const t of [...SYNC_TABLES].reverse()) db.exec(`delete from ${t.name}`);
   db.exec("delete from sync_changes");
   db.exec("update sync_state set applying = 0, changes = 0, pushed = 0");
+}
+
+/**
+ * Deja la base de una cuenta lista para juntarla con la de una clínica (al llevar a ella los pacientes del
+ * dispositivo). Sin registrar cambios nuevos: cada fila conserva la hora de su último cambio.
+ * - Lo que es de cada persona pasa a ser de `sub`: su calendario, su carpeta de Drive, su nombre y nº de colegiado
+ *   y las citas que ha dado (src/data/member.ts).
+ * - La contraseña de cifrado de la cuenta no vale para la clínica, que tiene la suya: fuera.
+ * - Los demás ajustes, como si fueran de siempre: si la clínica ya tiene los suyos, ganan los de la clínica.
+ */
+export function prepareForClinic(db: DB, sub: string) {
+  const keys = MEMBER_SETTINGS.map(() => "?").join(", ");
+  db.exec("update sync_state set applying = 1");
+  db.exec({ sql: "delete from settings where key = ?", bind: [ENCRYPTION_SETTING] });
+  db.exec({ sql: "delete from sync_changes where tbl = 'settings' and pk = ?", bind: [ENCRYPTION_SETTING] });
+  db.exec({ sql: `update settings set key = key || '@' || ? where key in (${keys})`, bind: [sub, ...MEMBER_SETTINGS] });
+  db.exec({ sql: `update sync_changes set pk = pk || '@' || ? where tbl = 'settings' and pk in (${keys})`, bind: [sub, ...MEMBER_SETTINGS] });
+  db.exec({
+    sql: `insert into settings (key, value)
+          select ?, json_object('professional', coalesce(json_extract(value, '$.professional'), ''), 'license', coalesce(json_extract(value, '$.license'), ''))
+            from settings where key = 'clinic_privacy'`,
+    bind: [`professional@${sub}`],
+  });
+  db.exec({
+    sql: "insert into sync_changes (tbl, pk, op, at, device) select 'settings', ?, op, at, device from sync_changes where tbl = 'settings' and pk = 'clinic_privacy' and op = 'upsert'",
+    bind: [`professional@${sub}`],
+  });
+  db.exec("update settings set value = json_set(value, '$.professional', '', '$.license', '') where key = 'clinic_privacy'");
+  db.exec("update sync_changes set at = '1970-01-01T00:00:00.000Z' where tbl = 'settings' and pk not like '%@%'");
+  db.exec({ sql: "update appointments set created_by = ? where created_by is null", bind: [sub] });
+  db.exec("update sync_state set applying = 0");
 }
 
 /**

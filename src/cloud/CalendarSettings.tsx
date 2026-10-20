@@ -3,12 +3,11 @@ import { CalendarCheck, CalendarX, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fmtDateTime } from "../app/format";
 import { getDb } from "../data/db";
-import { setSetting } from "../data/repo";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { SelectField } from "../ui/Field";
 import { useCalendarState, useCloud } from "./CloudGate";
-import { CALENDAR_NAME, CALENDAR_SETTINGS, getCalendarSettings, type CalendarSettings as Settings, type CalendarState } from "./googleCalendar";
+import { CALENDAR_NAME, getCalendarSettings, saveCalendarSettings, type CalendarSettings as Settings, type CalendarState } from "./googleCalendar";
 
 /** Con la cuenta de Google: si las citas se apuntan solas (y no hace falta ofrecer el enlace o el .ics). */
 export function useAutoCalendar(): boolean {
@@ -44,7 +43,7 @@ export function CalendarSettings() {
 
   const save = async (next: Settings) => {
     setSettings(next);
-    await setSetting(getDb(), CALENDAR_SETTINGS, next);
+    await saveCalendarSettings(getDb(), next);
     void cloud.calendar.run();
   };
 

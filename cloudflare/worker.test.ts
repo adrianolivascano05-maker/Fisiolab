@@ -13,6 +13,7 @@ const USERS: Record<string, User> = {
   "tok-ana": { sub: "111", email: "ana@clinica.es" },
   "tok-luis": { sub: "222", email: "Luis@Clinica.es" },
   "tok-intrusa": { sub: "333", email: "intrusa@otra.es" },
+  "tok-eva": { sub: "444", email: "eva@clinica.es" },
 };
 
 let db: D1Shim;
@@ -99,8 +100,8 @@ describe("salud", () => {
     expect(body.error).toContain("ALLOWED_EMAILS");
   });
 
-  it("avisa si faltan las tablas", async () => {
-    db.db.exec("DROP TABLE parts");
+  it("avisa si faltan las tablas (también las de clínicas, de una versión anterior)", async () => {
+    db.db.exec("DROP TABLE members");
     const body = (await (await call("GET", "/v1/salud")).json()) as { error: string };
     expect(body.error).toContain("schema.sql");
   });
@@ -146,7 +147,7 @@ describe("CORS", () => {
     expect(pre.headers.get("Access-Control-Allow-Origin")).toBe(APP);
     expect(pre.headers.get("Vary")).toBe("Origin");
     expect(pre.headers.get("Access-Control-Allow-Headers")).toBe("Authorization, Content-Type, If-Match, If-None-Match");
-    expect(pre.headers.get("Access-Control-Allow-Methods")).toBe("GET, PUT, DELETE, OPTIONS");
+    expect(pre.headers.get("Access-Control-Allow-Methods")).toBe("GET, POST, PUT, PATCH, DELETE, OPTIONS");
     expect(pre.headers.get("Access-Control-Max-Age")).toBe("86400");
     expect(verifyToken).not.toHaveBeenCalled();
 
@@ -395,5 +396,113 @@ describe("comprobación con Google", () => {
   it("si Google no responde, 503 (no es culpa de la sesión)", async () => {
     google(500, {});
     expect((await info("g-caida")).status).toBe(503);
+  });
+});
+
+describe("clínicas", () => {
+  type Clinic = { id: string; name: string; role: string };
+  const send = (method: string, path: string, token: string, data?: unknown) =>
+    call(method, path, { token, body: data === undefined ? undefined : JSON.stringify(data) });
+  const me = async (token: string) => (await (await call("GET", "/v1/yo", { token })).json()) as { email: string; canCreate: boolean; clinics: Clinic[] };
+  async function clinic(token = "tok-ana", name = "Fisiolab Centro") {
+    const res = await send("POST", "/v1/clinicas", token, { name });
+    expect(res.status).toBe(201);
+    return (await res.json()) as Clinic;
+  }
+  const members = async (id: string, token = "tok-ana") =>
+    ((await (await call("GET", `/v1/clinicas/${id}/miembros`, { token })).json()) as { members: { email: string; role: string }[] }).members.map(
+      (m) => `${m.email}:${m.role}`,
+    );
+  const putClinic = (id: string, token: string, body: string, precondition: Record<string, string>) =>
+    call("PUT", `/v1/clinicas/${id}/copia`, { token, body, headers: precondition });
+
+  it("quien está en ALLOWED_EMAILS crea su clínica y queda de administrador; los demás, no", async () => {
+    expect(await me("tok-eva")).toEqual({ email: "eva@clinica.es", canCreate: false, clinics: [] });
+    expect((await send("POST", "/v1/clinicas", "tok-eva", { name: "La mía" })).status).toBe(403);
+    expect((await send("POST", "/v1/clinicas", "tok-ana", { name: "  " })).status).toBe(400);
+    expect((await send("POST", "/v1/clinicas", "tok-ana", { name: "x".repeat(81) })).status).toBe(400);
+    expect((await call("POST", "/v1/clinicas", { token: "tok-ana", body: "{no es json" })).status).toBe(400);
+
+    const c = await clinic("tok-ana", "  Fisiolab   Centro ");
+    expect(c).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), name: "Fisiolab Centro", role: "admin" });
+    expect(await me("tok-ana")).toEqual({ email: "ana@clinica.es", canCreate: true, clinics: [c] });
+    expect(await members(c.id)).toEqual(["ana@clinica.es:admin"]);
+    expect((await call("GET", "/v1/yo")).status).toBe(401);
+  });
+
+  it("el administrador añade a su equipo por correo, sin tocar ALLOWED_EMAILS", async () => {
+    const c = await clinic();
+    expect((await send("PUT", `/v1/clinicas/${c.id}/miembros/${encodeURIComponent("Eva@Clinica.es ")}`, "tok-ana", { role: "member" })).status).toBe(200);
+    expect(await me("tok-eva")).toEqual({ email: "eva@clinica.es", canCreate: false, clinics: [{ ...c, role: "member" }] });
+    expect(await members(c.id, "tok-eva")).toEqual(["ana@clinica.es:admin", "eva@clinica.es:member"]);
+    // Un miembro no añade ni quita a nadie, ni cambia el nombre, ni borra la clínica.
+    expect((await send("PUT", `/v1/clinicas/${c.id}/miembros/luis@clinica.es`, "tok-eva", { role: "member" })).status).toBe(403);
+    expect((await call("DELETE", `/v1/clinicas/${c.id}/miembros/ana@clinica.es`, { token: "tok-eva" })).status).toBe(403);
+    expect((await send("PATCH", `/v1/clinicas/${c.id}`, "tok-eva", { name: "Otra" })).status).toBe(403);
+    expect((await call("DELETE", `/v1/clinicas/${c.id}`, { token: "tok-eva" })).status).toBe(403);
+    // Datos que no valen.
+    expect((await send("PUT", `/v1/clinicas/${c.id}/miembros/no-es-correo`, "tok-ana", { role: "member" })).status).toBe(400);
+    expect((await send("PUT", `/v1/clinicas/${c.id}/miembros/luis@clinica.es`, "tok-ana", { role: "jefe" })).status).toBe(400);
+    expect((await send("PATCH", `/v1/clinicas/${c.id}`, "tok-ana", { name: "Fisiolab Norte" })).status).toBe(200);
+    expect((await me("tok-eva")).clinics[0]!.name).toBe("Fisiolab Norte");
+  });
+
+  it("siempre queda un administrador; uno mismo puede salir", async () => {
+    const c = await clinic();
+    const path = (email: string) => `/v1/clinicas/${c.id}/miembros/${email}`;
+    expect((await send("PUT", path("ana@clinica.es"), "tok-ana", { role: "member" })).status).toBe(409);
+    expect((await call("DELETE", path("ana@clinica.es"), { token: "tok-ana" })).status).toBe(409);
+    await send("PUT", path("eva@clinica.es"), "tok-ana", { role: "admin" });
+    expect((await send("PUT", path("ana@clinica.es"), "tok-ana", { role: "member" })).status).toBe(200);
+    expect(await members(c.id)).toEqual(["eva@clinica.es:admin", "ana@clinica.es:member"]);
+    // Ana ya no administra: no puede volver a subirse, pero sí salir.
+    expect((await send("PUT", path("ana@clinica.es"), "tok-ana", { role: "admin" })).status).toBe(403);
+    expect((await call("DELETE", path("ana@clinica.es"), { token: "tok-ana" })).status).toBe(204);
+    expect((await me("tok-ana")).clinics).toEqual([]);
+    expect((await call("GET", `/v1/clinicas/${c.id}/copia/info`, { token: "tok-ana" })).status).toBe(403);
+    // Quitar a quien no está: nada que hacer.
+    expect((await call("DELETE", path("nadie@clinica.es"), { token: "tok-eva" })).status).toBe(204);
+  });
+
+  it("el equipo comparte la copia de la clínica; nadie de fuera la ve, tampoco quien gestiona el servidor", async () => {
+    const c = await clinic();
+    await send("PUT", `/v1/clinicas/${c.id}/miembros/eva@clinica.es`, "tok-ana", { role: "member" });
+    const v1 = ((await (await putClinic(c.id, "tok-ana", encrypted(3000, 1), { "If-None-Match": "*" })).json()) as { version: string }).version;
+    // Eva la baja y sube su cambio sobre esa versión.
+    expect(await (await call("GET", `/v1/clinicas/${c.id}/copia`, { token: "tok-eva" })).text()).toBe(encrypted(3000, 1));
+    expect((await putClinic(c.id, "tok-eva", encrypted(3000, 2), { "If-Match": v1 })).status).toBe(200);
+    expect((await putClinic(c.id, "tok-ana", encrypted(3000, 3), { "If-Match": v1 })).status).toBe(412);
+    // Luis (en ALLOWED_EMAILS, pero no del equipo) e intrusos: ni la copia ni la lista.
+    for (const token of ["tok-luis", "tok-intrusa"]) {
+      expect((await call("GET", `/v1/clinicas/${c.id}/copia`, { token })).status).toBe(403);
+      expect((await call("GET", `/v1/clinicas/${c.id}/miembros`, { token })).status).toBe(403);
+      expect((await putClinic(c.id, token, encrypted(10), { "If-None-Match": "*" })).status).toBe(403);
+    }
+    // Una clínica que no existe responde igual que una ajena.
+    expect((await call("GET", "/v1/clinicas/no-existe/copia/info", { token: "tok-ana" })).status).toBe(403);
+    expect((await call("GET", `/v1/clinicas/${c.id}/otra`, { token: "tok-ana" })).status).toBe(404);
+    // La copia de la clínica no es la personal de nadie.
+    expect(await (await call("GET", "/v1/copia/info", { token: "tok-ana" })).json()).toEqual({ version: null, size: 0, updatedAt: null });
+    // Sin cifrar, tampoco aquí.
+    const plain = Buffer.from("SQLite format 3\u0000").toString("base64");
+    expect((await putClinic(c.id, "tok-eva", plain, { "If-Match": "x" })).status).toBe(415);
+  });
+
+  it("borrar la copia o la clínica entera es cosa del administrador", async () => {
+    const c = await clinic();
+    await send("PUT", `/v1/clinicas/${c.id}/miembros/eva@clinica.es`, "tok-ana", { role: "member" });
+    await putClinic(c.id, "tok-ana", encrypted(1_200_000), { "If-None-Match": "*" });
+    expect((await call("DELETE", `/v1/clinicas/${c.id}/copia`, { token: "tok-eva" })).status).toBe(403);
+    expect(await count("SELECT count(*) AS n FROM parts")).toBe(2);
+    expect((await call("DELETE", `/v1/clinicas/${c.id}`, { token: "tok-ana" })).status).toBe(204);
+    expect(await count("SELECT count(*) AS n FROM parts")).toBe(0);
+    expect(await count("SELECT count(*) AS n FROM members")).toBe(0);
+    expect(await count("SELECT count(*) AS n FROM clinics")).toBe(0);
+    expect((await me("tok-eva")).clinics).toEqual([]);
+  });
+
+  it("la copia personal de antes sigue solo para ALLOWED_EMAILS", async () => {
+    expect((await call("GET", "/v1/copia/info", { token: "tok-eva" })).status).toBe(403);
+    expect((await call("GET", "/v1/copia/info", { token: "tok-ana" })).status).toBe(200);
   });
 });

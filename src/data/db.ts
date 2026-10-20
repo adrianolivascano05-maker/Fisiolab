@@ -8,9 +8,12 @@ export interface Db {
   exportBytes(): Promise<Uint8Array>;
   importBytes(bytes: Uint8Array): Promise<void>;
   info(): Promise<Info>;
-  /** Sincronización (src/cloud): la copia con su número de cambios, y juntarla con la de la nube. */
+  /**
+   * Sincronización (src/cloud): la copia con su número de cambios, y juntarla con la de la nube. `member`: es la base
+   * de la cuenta de esa persona, que se lleva a la de su clínica (syncMerge.ts, prepareForClinic).
+   */
   snapshot(): Promise<Snapshot>;
-  merge(bytes: Uint8Array): Promise<MergeResult>;
+  merge(bytes: Uint8Array, member?: string): Promise<MergeResult>;
   wipe(): Promise<void>;
 }
 
@@ -26,7 +29,7 @@ export function dbFromHandler(handle: (req: Request) => Promise<unknown>): Db {
     },
     info: () => handle({ op: "info" }) as Promise<Info>,
     snapshot: () => handle({ op: "snapshot" }) as Promise<Snapshot>,
-    merge: (bytes) => handle({ op: "merge", bytes }) as Promise<MergeResult>,
+    merge: (bytes, member) => handle({ op: "merge", bytes, member }) as Promise<MergeResult>,
     wipe: async () => {
       await handle({ op: "wipe" });
     },
@@ -34,14 +37,20 @@ export function dbFromHandler(handle: (req: Request) => Promise<unknown>): Db {
 }
 
 let shared: Db | null = null;
-let file: { name: string; adopt: boolean } | null = null;
+
+/**
+ * La base que se abre: `name`, el archivo (sin «.sqlite3»). `adopt`: pasarle lo que había sin cuenta. `from` y
+ * `member`: es la base nueva de una clínica y se le llevan los pacientes de la base `from` de esa persona.
+ */
+export type DbFile = { name: string; adopt?: boolean; from?: string; member?: string };
+let file: DbFile | null = null;
 const listeners = new Set<() => void>();
 
 /**
  * Qué base abrir: la de la cuenta con la que se ha entrado (src/cloud/account.ts) o, sin cuentas, la de siempre.
  * Antes de la primera llamada a getDb.
  */
-export function configureDb(f: { name: string; adopt: boolean } | null) {
+export function configureDb(f: DbFile | null) {
   if (shared) throw new Error("La base ya está abierta.");
   file = f;
 }
@@ -55,8 +64,9 @@ export function onDbChange(fn: () => void): () => void {
 /** La base de la app (un único worker para toda la sesión). */
 export function getDb(): Db {
   if (shared) return shared;
-  // El nombre del worker le dice qué archivo abrir («|adopt»: pasarle los datos que había sin cuenta).
-  const worker = new Worker(new URL("./sqlite.worker.ts", import.meta.url), { type: "module", name: file ? `${file.name}${file.adopt ? "|adopt" : ""}` : "" });
+  // El nombre del worker le dice qué archivo abrir y qué hacer al abrirlo (sqlite.worker.ts).
+  const name = file ? [file.name, file.adopt && "adopt", file.from && file.member && `from=${file.from}|member=${file.member}`].filter(Boolean).join("|") : "";
+  const worker = new Worker(new URL("./sqlite.worker.ts", import.meta.url), { type: "module", name });
   let next = 0;
   const pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
   worker.onmessage = (e: MessageEvent<{ id: number; result?: unknown; error?: string }>) => {
