@@ -11,7 +11,9 @@ import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useCloud, useSyncState } from "./CloudGate";
-import { deriveKey, ENCRYPTION_KEY, forgetKey, MIN_PASSWORD, newSalt, storeKey, WrongPassword, type EncryptionSetting } from "./crypt";
+import { deriveKeyBytes, ENCRYPTION_KEY, forgetKey, MIN_PASSWORD, newSalt, storeKey, WrongPassword, type EncryptionSetting } from "./crypt";
+import { createRecovery } from "./recovery";
+import { RecoverWithCode, RecoveryKit, RecoveryReminder } from "./RecoveryParts";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -37,6 +39,7 @@ export function EncryptionSettings() {
   const [repeat, setRepeat] = useState("");
   const [error, setError] = useState<{ field: "password" | "repeat"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [kit, setKit] = useState<{ code: string; salt: string } | null>(null);
   if (!cloud || !s || enc.data === undefined) return null;
   const on = !!enc.data;
   const { copy, Copy, server } = copyName(cloud);
@@ -59,12 +62,21 @@ export function EncryptionSettings() {
     setBusy(true);
     try {
       const salt = newSalt();
-      await storeKey(cloud.sync.scope, salt, await deriveKey(password, salt));
+      const { key, raw } = await deriveKeyBytes(password, salt);
+      await storeKey(cloud.sync.scope, salt, key);
       await setSetting(getDb(), ENCRYPTION_KEY, { salt });
       toast(on ? "Contraseña cambiada" : `${Copy} cifrada`, "success");
       setOpen(false);
       enc.reload();
       void cloud.sync.sync();
+      // En una clínica, quien la administra recibe su código de recuperación para esta contraseña.
+      if (clinic?.role === "admin") {
+        try {
+          setKit({ code: await createRecovery(cloud, raw, salt), salt });
+        } catch (err) {
+          toast(`No se pudo crear el código de recuperación: ${errText(err)}`, "danger");
+        }
+      }
     } catch (err) {
       toast(errText(err), "danger");
     } finally {
@@ -87,6 +99,7 @@ export function EncryptionSettings() {
         ) : (
           <p>La copia de tu Drive va siempre cifrada. Elige una contraseña: sin ella nadie puede leerla, ni entrando en tu cuenta de Google. Hasta entonces, no se sube nada.</p>
         )}
+        {on && s.status !== "needs-key" && <RecoveryReminder />}
         {s.status === "needs-key" ? (
           <KeyPrompt />
         ) : !mayChange ? (
@@ -107,6 +120,7 @@ export function EncryptionSettings() {
         </p>
       </Card>
 
+      {kit && <RecoveryKit code={kit.code} salt={kit.salt} onClose={() => setKit(null)} />}
       <Sheet open={open} onClose={() => setOpen(false)} title={on ? "Cambiar la contraseña" : "Contraseña de cifrado"}>
         <form className="flex flex-col gap-3" noValidate onSubmit={submit}>
           <TextField
@@ -208,7 +222,19 @@ export function KeyPrompt({ size = "md" }: { size?: "sm" | "md" }) {
           Entendido
         </Button>
       </Sheet>
-      <Sheet open={forgot && mayReplace} onClose={() => setForgot(false)} title={`¿Sustituir ${short}?`}>
+      <Sheet open={forgot && mayReplace} onClose={() => setForgot(false)} title={clinic ? "Contraseña olvidada" : `¿Sustituir ${short}?`}>
+        {clinic && (
+          <>
+            <p>Si tienes el kit de recuperación de la clínica, escribe su código: la copia se abre sin la contraseña y no se pierde nada.</p>
+            <RecoverWithCode
+              onDone={() => {
+                setForgot(false);
+                setOpen(false);
+              }}
+            />
+            <p className="border-t border-border pt-3 font-semibold">Sin el código</p>
+          </>
+        )}
         <p>
           Sin la contraseña, {copy} no se puede abrir. Puedes sustituirla por lo que hay en este dispositivo, cifrado con una contraseña nueva
           que elegirás después.

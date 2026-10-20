@@ -85,6 +85,11 @@ export function clinicApi(baseUrl: string) {
     removeMember: async (t: Token, id: string, email: string) => {
       await call(t, path(id, `/miembros/${encodeURIComponent(email)}`), { method: "DELETE" });
     },
+    /** La clave de la copia cerrada con el código de recuperación (crypt.ts), o null si aún no hay. */
+    getRecovery: async (t: Token, id: string) => ((await (await call(t, path(id, "/recuperacion"))).json()) as { blob: string | null }).blob,
+    putRecovery: async (t: Token, id: string, blob: string) => {
+      await call(t, path(id, "/recuperacion"), { method: "PUT", ...json({ blob }) });
+    },
   };
 }
 export type ClinicApi = ReturnType<typeof clinicApi>;

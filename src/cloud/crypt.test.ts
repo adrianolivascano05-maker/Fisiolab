@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decrypt, deriveKey, encrypt, isEncrypted, newSalt, saltOf, WrongPassword } from "./crypt";
+import { decrypt, deriveKey, deriveKeyBytes, encrypt, isEncrypted, newRecoveryCode, newSalt, openWithCode, saltOf, sealForRecovery, WrongPassword } from "./crypt";
 
 describe("cifrado de la copia de Drive", () => {
   const bytes = new TextEncoder().encode("SQLite format 3\u0000 Lucía Pérez, rodilla derecha");
@@ -45,5 +45,26 @@ describe("cifrado de la copia de Drive", () => {
     const head = enc.slice(0, 9 + 16);
     const old = new Uint8Array([...head, ...iv, ...raw]);
     expect(await decrypt(old, key)).toEqual(bytes);
+  });
+});
+
+describe("código de recuperación", () => {
+  const bytes = new TextEncoder().encode("SQLite format 3\u0000 historia clínica");
+
+  it("abre la copia sin la contraseña, escrito como sea; con otro código no", async () => {
+    const salt = newSalt();
+    const { key, raw } = await deriveKeyBytes("contraseña olvidada", salt);
+    const enc = await encrypt(bytes, key, salt);
+    // La misma clave que la de siempre: los demás dispositivos la siguen abriendo con la contraseña.
+    expect(await decrypt(enc, await deriveKey("contraseña olvidada", salt))).toEqual(bytes);
+    const code = newRecoveryCode();
+    expect(code).toMatch(/^[0-9A-HJKMNP-TV-Z]{5}(-[0-9A-HJKMNP-TV-Z]{5}){3}$/);
+    const blob = await sealForRecovery(raw, salt, code);
+    expect(blob).not.toContain(code);
+    const typed = code.toLowerCase().replace(/-/g, " ").replace(/0/g, "o");
+    const back = await openWithCode(blob, typed);
+    expect(back.salt).toBe(salt);
+    expect(await decrypt(enc, back.key)).toEqual(bytes);
+    await expect(openWithCode(blob, newRecoveryCode())).rejects.toBeInstanceOf(WrongPassword);
   });
 });

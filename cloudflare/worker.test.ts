@@ -501,6 +501,20 @@ describe("clínicas", () => {
     expect((await me("tok-eva")).clinics).toEqual([]);
   });
 
+  it("la clave de recuperación: la guarda y la lee solo quien administra; se va con la clínica", async () => {
+    const c = await clinic();
+    await send("PUT", `/v1/clinicas/${c.id}/miembros/eva@clinica.es`, "tok-ana", { role: "member" });
+    const path = `/v1/clinicas/${c.id}/recuperacion`;
+    expect(await (await call("GET", path, { token: "tok-ana" })).json()).toEqual({ blob: null, updatedAt: null });
+    expect((await send("PUT", path, "tok-ana", { blob: "" })).status).toBe(400);
+    expect((await send("PUT", path, "tok-ana", { blob: '{"v":1}' })).status).toBe(200);
+    expect(((await (await call("GET", path, { token: "tok-ana" })).json()) as { blob: string }).blob).toBe('{"v":1}');
+    expect((await call("GET", path, { token: "tok-eva" })).status).toBe(403);
+    expect((await send("PUT", path, "tok-eva", { blob: "x" })).status).toBe(403);
+    await call("DELETE", `/v1/clinicas/${c.id}`, { token: "tok-ana" });
+    expect(await count("SELECT count(*) AS n FROM recovery")).toBe(0);
+  });
+
   it("la copia personal de antes sigue solo para ALLOWED_EMAILS", async () => {
     expect((await call("GET", "/v1/copia/info", { token: "tok-eva" })).status).toBe(403);
     expect((await call("GET", "/v1/copia/info", { token: "tok-ana" })).status).toBe(200);

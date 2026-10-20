@@ -42,3 +42,11 @@ CREATE TABLE IF NOT EXISTS members (
   PRIMARY KEY (clinic_id, email)
 );
 CREATE INDEX IF NOT EXISTS members_by_email ON members (email);
+
+-- La clave de la copia de cada clínica cerrada con su código de recuperación (src/cloud/crypt.ts). Sin el código,
+-- que solo tiene la clínica en su kit impreso, no sirve para nada.
+CREATE TABLE IF NOT EXISTS recovery (
+  clinic_id TEXT PRIMARY KEY,
+  blob TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);

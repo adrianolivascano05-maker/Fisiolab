@@ -40,7 +40,7 @@ import { CalendarSync, type CalendarState } from "./googleCalendar";
 import { cloudflareStore, driveStore, ServerError } from "./remote";
 import { SyncController, type SyncState } from "./sync";
 
-type Cloud = {
+export type Cloud = {
   config: CloudConfig;
   account: Account;
   /** La clínica en la que se trabaja (con el servidor de Cloudflare); null con Google Drive. */

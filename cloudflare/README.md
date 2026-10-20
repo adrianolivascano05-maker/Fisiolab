@@ -157,7 +157,7 @@ nada más.
 | Archivo | Qué es |
 | --- | --- |
 | `worker.js` | el servidor. JavaScript sin dependencias, para pegarlo tal cual en el panel |
-| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `heads` (la copia vigente de cada clínica) y `parts` (sus trozos, en texto base64) |
+| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica) y `parts` (sus trozos, en texto base64) |
 | `wrangler.toml` | la configuración, solo para instalarlo con Wrangler (siempre con `-c wrangler.toml`) |
 | `worker.test.ts`, `d1shim.ts` | las pruebas (`npx vitest run cloudflare`), con una base D1 simulada sobre SQLite |
 
@@ -179,6 +179,7 @@ Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "
 | `GET /v1/clinicas/:id/miembros` | `200 { members: [{ email, role, addedAt }] }`; cualquiera del equipo |
 | `PUT /v1/clinicas/:id/miembros/:correo` + `{ role }` | `200 { email, role, addedAt }`: añade o cambia el papel (`admin` o `member`); solo administradores. Como mucho 100 personas |
 | `DELETE /v1/clinicas/:id/miembros/:correo` | `204`; un administrador quita a cualquiera, y cada uno puede quitarse a sí mismo |
+| `GET`, `PUT /v1/clinicas/:id/recuperacion` | `{ blob, updatedAt }` / `{ blob }`: la clave de la copia cerrada con el código de recuperación de la clínica (sin el código no sirve); solo administradores |
 | `GET`, `PUT`, `DELETE /v1/clinicas/:id/copia` y `GET /v1/clinicas/:id/copia/info` | la copia de la clínica, como las de abajo; borrarla, solo administradores |
 
 Las rutas de la copia (aquí con `/v1/copia`, la copia personal de versiones anteriores de la app, solo para

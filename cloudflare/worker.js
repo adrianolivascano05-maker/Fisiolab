@@ -28,6 +28,9 @@
 //   PUT    /v1/clinicas/:id/copia              guarda una copia en base64: If-None-Match: * (crear) o
 //                                              If-Match: <versión> (sustituir)
 //   DELETE /v1/clinicas/:id/copia              borra la copia (administrador; 204, también si no había)
+//   GET    /v1/clinicas/:id/recuperacion       { blob, updatedAt } (administrador): la clave de la copia cerrada con el
+//                                              código de recuperación de la clínica (sin el código no sirve de nada)
+//   PUT    /v1/clinicas/:id/recuperacion       { blob } → la guarda (administrador)
 //   /v1/copia y /v1/copia/info                 lo mismo con la copia personal de cada cuenta de ALLOWED_EMAILS
 //                                              (versiones anteriores de la app, sin clínicas)
 // Una clínica tiene siempre al menos un administrador: no se puede quitar ni bajar al último.
@@ -179,6 +182,7 @@ async function route(request, env, deps, originAllowed) {
     (rest === "" && ["PATCH", "DELETE"].includes(method)) ||
     (rest === "/miembros" && method === "GET") ||
     (member !== null && ["PUT", "DELETE"].includes(method)) ||
+    (rest === "/recuperacion" && ["GET", "PUT"].includes(method)) ||
     copyMethod(rest, method);
   if (!known) throw notFound();
 
@@ -204,9 +208,26 @@ async function route(request, env, deps, originAllowed) {
       db.prepare("DELETE FROM heads WHERE owner = ?").bind(owner),
       db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner),
       db.prepare("DELETE FROM members WHERE clinic_id = ?").bind(id),
+      db.prepare("DELETE FROM recovery WHERE clinic_id = ?").bind(id),
       db.prepare("DELETE FROM clinics WHERE id = ?").bind(id),
     ]);
     return new Response(null, { status: 204 });
+  }
+  if (rest === "/recuperacion") {
+    admin();
+    if (method === "GET") {
+      const row = await db.prepare("SELECT blob, updated_at FROM recovery WHERE clinic_id = ?").bind(id).first();
+      return json(200, { blob: row ? String(row.blob) : null, updatedAt: row ? String(row.updated_at) : null });
+    }
+    const body = await readJson(request);
+    const blob = typeof body === "object" && body !== null && "blob" in body && typeof body.blob === "string" ? body.blob : "";
+    if (!blob || blob.length > 4000) throw new HttpError(400, "Falta la clave de recuperación.");
+    const at = new Date(deps.now()).toISOString();
+    await db
+      .prepare("INSERT INTO recovery (clinic_id, blob, updated_at) VALUES (?, ?, ?) ON CONFLICT (clinic_id) DO UPDATE SET blob = excluded.blob, updated_at = excluded.updated_at")
+      .bind(id, blob, at)
+      .run();
+    return json(200, { updatedAt: at });
   }
   if (rest === "/miembros") {
     const { results = [] } = await db
@@ -431,7 +452,7 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch(["heads", "parts", "clinics", "members"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
+      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }

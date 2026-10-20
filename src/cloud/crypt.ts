@@ -138,3 +138,64 @@ export async function forgetKey(sub: string): Promise<void> {
   if (typeof localStorage !== "undefined") localStorage.removeItem(legacyName(sub));
   if (hasIdb()) await keysStore("readwrite", (s) => s.delete(sub));
 }
+
+// ---------- Código de recuperación (clínicas) ----------
+// La clave de la copia se puede abrir también con un código de recuperación que solo tiene la clínica (impreso en
+// su «kit de recuperación»). En el servidor se guarda la clave cerrada con ese código: sin él no sirve de nada,
+// tampoco a quien gestiona el servidor. Con él, quien administra la clínica recupera la copia aunque haya perdido la
+// contraseña y todos los dispositivos.
+
+/** Letras y números sin los que se confunden (Crockford: sin I, L, O ni U). */
+const CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+
+/** Un código nuevo: 20 caracteres (100 bits) en cuatro grupos, «7K2M9-…». */
+export function newRecoveryCode(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(20));
+  const chars = Array.from(bytes, (b) => CODE_ALPHABET[b % 32]).join("");
+  return chars.match(/.{5}/g)!.join("-");
+}
+
+/** El código tal como lo escriba la persona: sin espacios ni guiones, en mayúsculas, O → 0, I/L → 1. */
+export const normalCode = (code: string) =>
+  code
+    .toUpperCase()
+    .replace(/[\s-]/g, "")
+    .replace(/O/g, "0")
+    .replace(/[IL]/g, "1");
+
+/** La clave de la contraseña como bytes (para cerrarla con el código) y lista para usar. Igual que deriveKey. */
+export async function deriveKeyBytes(password: string, salt: string): Promise<{ key: CryptoKey; raw: Uint8Array }> {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const raw = new Uint8Array(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: unb64(salt) as BufferSource, iterations: ITERATIONS }, base, 256));
+  const key = await crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return { key, raw };
+}
+
+async function codeKey(code: string, rsalt: Uint8Array): Promise<CryptoKey> {
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(normalCode(code)), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt: rsalt as BufferSource, iterations: ITERATIONS }, base, { name: "AES-GCM", length: 256 }, false, [
+    "encrypt",
+    "decrypt",
+  ]);
+}
+
+/** La clave de la copia (de la sal `salt`) cerrada con el código: lo que se guarda en el servidor. */
+export async function sealForRecovery(raw: Uint8Array, salt: string, code: string): Promise<string> {
+  const rsalt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await codeKey(code, rsalt), raw as BufferSource));
+  return JSON.stringify({ v: 1, salt, rsalt: b64(rsalt), iv: b64(iv), key: b64(sealed) });
+}
+
+/** Abre con el código lo guardado en el servidor: la clave de la copia y su sal. WrongPassword si el código no vale. */
+export async function openWithCode(blob: string, code: string): Promise<StoredKey> {
+  const r = JSON.parse(blob) as { v: number; salt: string; rsalt: string; iv: string; key: string };
+  let raw: Uint8Array;
+  try {
+    raw = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(r.iv) as BufferSource }, await codeKey(code, unb64(r.rsalt)), unb64(r.key) as BufferSource));
+  } catch {
+    throw new WrongPassword();
+  }
+  const key = await crypto.subtle.importKey("raw", raw as BufferSource, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return { salt: r.salt, key };
+}

@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { fmtDate, madridDay } from "../app/format";
 import { useCloud } from "../cloud/CloudGate";
+import { RecoveryReminder } from "../cloud/RecoveryParts";
 import { LoadError, Loading, Page } from "../app/Page";
 import { isIos, isStandalone } from "../app/pwa";
 import { useAsync } from "../app/useAsync";
@@ -121,6 +122,8 @@ export function PatientsPage() {
           className="h-11 w-full rounded-lg border border-transparent bg-surface pr-3 pl-10 text-base placeholder:text-text-muted focus:border-border-input"
         />
       </div>
+      {/* A quien administra una clínica, hasta que guarde el código de recuperación. */}
+      {!search && cloud?.clinic && <RecoveryReminder />}
       {/* En iPhone, Safari puede borrar los datos de una web que no se abre en unos días; instalada, no. */}
       {isIos() && !isStandalone() && (
         <Alert tone="warning" title="Instala la app en este iPhone">

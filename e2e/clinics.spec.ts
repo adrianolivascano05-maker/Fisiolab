@@ -73,6 +73,15 @@ async function choosePassword(page: Page) {
   await sheet.getByLabel("Repite la contraseña").fill(PASSWORD);
   await sheet.getByRole("button", { name: "Cifrar", exact: true }).click();
   await expect(page.getByText("La copia del servidor de la clínica va cifrada")).toBeVisible();
+  // Quien administra recibe el kit de recuperación: hay que confirmar que se ha guardado.
+  const kit = page.getByRole("dialog", { name: "Kit de recuperación de la clínica" });
+  if (await kit.isVisible().catch(() => false)) {
+    const code = (await kit.getByTestId("recovery-code").textContent())!;
+    await kit.getByLabel(/He guardado el código/).check();
+    await kit.getByRole("button", { name: "Hecho" }).click();
+    return code;
+  }
+  return null;
 }
 
 /** En un dispositivo nuevo: escribir la contraseña de la clínica y ver lo que trae. */
@@ -344,5 +353,55 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 15_000 });
     await patients(page);
     await expect(page.getByRole("link", { name: /Paciente Bloqueo/ })).toBeVisible();
+  });
+
+  test("CL7 contraseña olvidada: quien administra recupera la copia con el código del kit en un dispositivo nuevo", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Paciente Recuperado" });
+    await expect(page.getByRole("dialog", { name: "Kit de recuperación de la clínica" })).toBeHidden();
+    const notice = page.getByRole("status").filter({ hasText: "va siempre cifrada" });
+    await notice.getByRole("link", { name: "Elegir contraseña" }).click();
+    await page.getByRole("button", { name: "Elegir la contraseña de cifrado" }).click();
+    const sheet = page.getByRole("dialog", { name: "Contraseña de cifrado" });
+    await sheet.getByLabel("Contraseña", { exact: true }).fill(PASSWORD);
+    await sheet.getByLabel("Repite la contraseña").fill(PASSWORD);
+    await sheet.getByRole("button", { name: "Cifrar", exact: true }).click();
+    const kit = page.getByRole("dialog", { name: "Kit de recuperación de la clínica" });
+    await expect(kit).toBeVisible();
+    await expectAccessible(page);
+    const code = (await kit.getByTestId("recovery-code").textContent())!;
+    expect(code).toMatch(/^[0-9A-Z]{5}(-[0-9A-Z]{5}){3}$/);
+    expect(google.recovery.size).toBe(1);
+    expect([...google.recovery.values()][0]).not.toContain(code);
+    await expect(kit.getByRole("button", { name: "Hecho" })).toBeDisabled();
+    // Sin confirmar que está guardado, se le recuerda.
+    await page.keyboard.press("Escape");
+    await page.goto("./");
+    await expect(page.getByRole("status").filter({ hasText: "Guarda el código de recuperación de la clínica" })).toBeVisible();
+    await inServer(google, "Paciente Recuperado");
+
+    // Otro dispositivo de Ana, sin la contraseña: la recupera con el código (escrito en minúsculas y con espacios).
+    const tablet = await device(browser, google, "ana", errors);
+    await enter(tablet);
+    await tablet.getByRole("list", { name: "Tus clínicas" }).getByRole("button", { name: /Fisiolab Centro/ }).click();
+    await patients(tablet);
+    await tablet.getByRole("button", { name: "Escribir la contraseña" }).click();
+    await tablet.getByRole("button", { name: "He olvidado la contraseña" }).click();
+    const forgot = tablet.getByRole("dialog", { name: "Contraseña olvidada" });
+    await forgot.getByLabel("Código de recuperación").fill("AAAAA-BBBBB-CCCCC-DDDDD");
+    await forgot.getByRole("button", { name: "Recuperar con el código" }).click();
+    await expect(forgot.getByText("No es el código de recuperación de esta clínica.")).toBeVisible();
+    await forgot.getByLabel("Código de recuperación").fill(code.toLowerCase().replace(/-/g, " "));
+    await forgot.getByRole("button", { name: "Recuperar con el código" }).click();
+    await expect(forgot).toBeHidden();
+    await tablet.getByRole("button", { name: "Mostrar" }).click();
+    await expect(tablet.getByRole("link", { name: /Paciente Recuperado/ })).toBeVisible();
+    expect(errors).toEqual([]);
   });
 });

@@ -79,6 +79,8 @@ export class FakeGoogle {
   server = new Map<string, { bytes: Buffer; version: string }>();
   /** Las clínicas del servidor simulado, con su equipo (correo → papel). */
   clinics = new Map<string, { name: string; members: Map<string, "admin" | "member"> }>();
+  /** La clave de recuperación de cada clínica (cerrada con su código). */
+  recovery = new Map<string, string>();
   /** Quién puede crear clínicas (ALLOWED_EMAILS): las cuentas con estos nombres; null, todas. */
   creators: string[] | null = null;
   /** El servidor de antes de las clínicas: solo la copia de cada cuenta (/v1/copia). */
@@ -144,7 +146,7 @@ export class FakeGoogle {
     const path = new URL(req.url()).pathname;
     const email = user.email.toLowerCase();
     const canCreate = !this.creators || this.creators.some((who) => this.users[who]!.email === user.email);
-    const body = () => JSON.parse(req.postData() ?? "{}") as { name?: string; role?: "admin" | "member" };
+    const body = <T = { name?: string; role?: "admin" | "member" }>() => JSON.parse(req.postData() ?? "{}") as T;
 
     if (this.oldServer && !path.startsWith("/v1/copia")) return send(404, { error: "Esta dirección no existe." });
     if (path === "/v1/yo")
@@ -188,6 +190,12 @@ export class FakeGoogle {
         this.clinics.delete(id);
         this.server.delete(owner);
         return send(204);
+      }
+      if (rest === "/recuperacion") {
+        if (!admin) return onlyAdmin();
+        if (method === "GET") return send(200, { blob: this.recovery.get(id) ?? null, updatedAt: null });
+        this.recovery.set(id, body<{ blob: string }>().blob);
+        return send(200, { updatedAt: new Date().toISOString() });
       }
       if (rest === "/miembros") return send(200, { members: [...clinic.members].map(([e, r]) => ({ email: e, role: r, addedAt: new Date().toISOString() })) });
       const mm = /^\/miembros\/(.+)$/.exec(rest);

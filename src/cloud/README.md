@@ -153,6 +153,11 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
   clínica, que elige (y cambia) quien la administra y se da en persona al equipo: ni Cloudflare ni quien gestiona
   el servidor pueden leerla. Si alguien la olvida, no puede sustituir la copia de todos: se la pide a quien la
   administra.
+- **Código de recuperación** (`recovery.ts`, `RecoveryParts.tsx`): al elegir o cambiar la contraseña de la clínica,
+  quien la administra recibe un código (20 caracteres) y su kit en PDF para imprimir; la app se lo recuerda hasta que
+  confirma que lo ha guardado (ajuste `recovery_saved`). En el servidor (`/recuperacion`) solo está la clave de la
+  copia cerrada con el código. Si se olvida la contraseña y no queda ningún dispositivo con la clave, quien
+  administra abre la copia con el código («He olvidado la contraseña») y elige otra contraseña.
 - **Lo de cada persona** (`../data/member.ts`): su Google Calendar, su carpeta de Drive y su nombre y nº de
   colegiado para firmar se guardan en la base de la clínica con su clave (`calendar_id@<sub>`…). Cada cita lleva
   quién la dio (`created_by`, migración 014) y a cada calendario solo van las suyas.
