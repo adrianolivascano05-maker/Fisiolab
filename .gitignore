@@ -4,3 +4,4 @@ src/styles/tokens.css
 test-results/
 *.tsbuildinfo
 playwright-report/
+node_modules
