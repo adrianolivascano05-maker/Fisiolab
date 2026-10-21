@@ -348,8 +348,10 @@ test.describe("Mejoras frente a la competencia", () => {
     await page.getByText("5. Hábitos y estilo de vida").click();
     await page.getByLabel("Horas sentado al día").fill("8");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByText("Anamnesis guardada")).toBeVisible();
     await expect(page.getByText("Al esfuerzo")).toBeVisible();
-    await page.goto(page.url().replace(/\/anamnesis$/, "/informe"));
+    await tab(page, "Resumen").click();
+    await page.getByRole("link", { name: /^Informe/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Escapes de orina");
     await expect(report).toContainText("Horas sentado al día");
