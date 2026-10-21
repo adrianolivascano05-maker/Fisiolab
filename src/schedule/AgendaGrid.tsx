@@ -1,8 +1,9 @@
 // La rejilla de la agenda, como Google Calendar: las horas a la izquierda y una columna por día (o, en el día de una
 // clínica, por persona). Cada cita es un bloque que se arrastra para moverla: arriba y abajo cambia la hora (cada 15
 // minutos), a otra columna cambia el día o la persona. Con el ratón basta arrastrar; en el móvil, mantener pulsada la
-// cita un momento y moverla. Tocar un hueco vacío da una cita a esa hora. Los turnos se ven de fondo.
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
+// cita un momento y moverla. Tocar un hueco vacío da una cita a esa hora. Los turnos se ven de fondo. Con dos dedos
+// se cambia la vista: juntándolos se ven más días; separándolos, menos. Tocar el nombre de un día lo abre solo.
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TouchList } from "react";
 import type { AgendaItem } from "../data/appointments";
 import { staffColor, type Shift, type Staff } from "../data/schedule";
 import { STATUS_LABELS } from "../data/appointments";
@@ -40,10 +41,12 @@ export function AgendaGrid({
   onMove,
   onSlot,
   onShift,
+  onHeader,
+  onZoom,
 }: {
   columns: Column[];
   /** Lo que sale arriba de cada columna. */
-  header: (c: Column) => { title: string; subtitle?: string; color?: string; today?: boolean };
+  header: (c: Column) => { title: string; subtitle?: string; color?: string; today?: boolean; label?: string };
   appointments: AgendaItem[];
   shifts: Shift[];
   staff: Staff[];
@@ -56,8 +59,15 @@ export function AgendaGrid({
   onSlot: (column: Column, minutes: number) => void;
   /** Turno pulsado (solo si se puede cambiar). */
   onShift?: (s: Shift) => void;
+  /** Cabecera de una columna pulsada (para abrir ese día). */
+  onHeader?: (c: Column) => void;
+  /** Pellizco con dos dedos: +1 para ver más días, −1 para menos. */
+  onZoom?: (by: 1 | -1) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
+  /** Distancia entre los dos dedos al empezar el pellizco. */
+  const pinch = useRef<number | null>(null);
+  const fingers = (t: TouchList) => Math.hypot(t[0]!.clientX - t[1]!.clientX, t[0]!.clientY - t[1]!.clientY);
   const cols = useRef<(HTMLDivElement | null)[]>([]);
   const drag = useRef<Drag | null>(null);
   const justDragged = useRef(false);
@@ -161,25 +171,50 @@ export function AgendaGrid({
   }
 
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  const minWidth = columns.length > 3 ? 92 : 140;
+  // La semana entera cabe en la pantalla del móvil (sin desplazarse a los lados); 3 días o el equipo, más anchos.
+  const minWidth = columns.length >= 7 ? 40 : columns.length > 3 ? 92 : 140;
 
   return (
     <div
       ref={scroller}
-      className="relative max-h-[calc(100dvh-var(--layout-header)-var(--layout-tabbar)-13rem)] min-h-[24rem] overflow-auto rounded-lg border border-border bg-bg"
+      className="relative max-h-[calc(100dvh-var(--layout-header)-var(--layout-tabbar)-13rem)] min-h-[24rem] touch-pan-x touch-pan-y overflow-auto rounded-lg border border-border bg-bg"
+      onTouchStart={(e) => {
+        pinch.current = onZoom && e.touches.length === 2 ? fingers(e.touches) : null;
+      }}
+      onTouchMove={(e) => {
+        if (pinch.current === null || e.touches.length !== 2) return;
+        const ratio = fingers(e.touches) / pinch.current;
+        if (ratio < 0.7 || ratio > 1.4) {
+          onZoom?.(ratio < 1 ? 1 : -1);
+          pinch.current = null;
+        }
+      }}
+      onTouchEnd={() => {
+        pinch.current = null;
+      }}
     >
       <div className="grid" style={{ gridTemplateColumns: `3rem repeat(${columns.length}, minmax(${minWidth}px, 1fr))` }}>
         {/* Cabecera: fija arriba al desplazar. */}
         <div className="sticky top-0 left-0 z-30 border-b border-border bg-bg" />
         {columns.map((c) => {
           const h = header(c);
-          return (
-            <div key={c.key} className="sticky top-0 z-20 flex flex-col items-center justify-center border-b border-l border-border bg-bg px-1 py-1.5 text-center">
+          const inner = (
+            <>
               <span className={cx("flex items-center gap-1.5 text-sm leading-tight", h.today ? "font-bold text-brand" : "font-semibold")}>
                 {h.color && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: h.color }} />}
                 {h.title}
               </span>
-              {h.subtitle && <span className="text-xs text-text-muted">{h.subtitle}</span>}
+              {h.subtitle && <span className={cx("text-xs", h.today ? "font-bold text-brand" : "text-text-muted")}>{h.subtitle}</span>}
+            </>
+          );
+          const cell = "sticky top-0 z-20 flex flex-col items-center justify-center border-b border-l border-border bg-bg px-1 py-1.5 text-center";
+          return onHeader ? (
+            <button key={c.key} type="button" aria-label={h.label ?? h.title} className={cx(cell, "hover:bg-surface")} onClick={() => onHeader(c)}>
+              {inner}
+            </button>
+          ) : (
+            <div key={c.key} className={cell}>
+              {inner}
             </div>
           );
         })}

@@ -301,4 +301,20 @@ test.describe("Agenda y seguimiento", () => {
     await page.getByRole("button", { name: "Este año" }).click();
     await expect(tiles.getByText("Sesiones").locator("..")).toContainText("4");
   });
+  test("AG9 de semana a día con un toque: la semana cabe en el móvil y tocar un día lo abre solo", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await createPatient(page, { name: "Vera Vista" });
+    await giveAppointment(page, "Vera Vista", "2026-10-22T10:00");
+    await page.goto("./agenda");
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Semana" }).click();
+    await expect(page.getByRole("heading", { name: /19 oct – 25 oct 2026/ })).toBeVisible();
+    // Los siete días se ven sin desplazarse a los lados.
+    const grid = page.getByRole("button", { name: "Ver solo el domingo, 25 de octubre" });
+    await expect(grid).toBeInViewport();
+    await page.getByRole("button", { name: "Ver solo el jueves, 22 de octubre" }).click();
+    await expect(page.getByRole("heading", { name: "Jueves, 22 de octubre" })).toBeVisible();
+    await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: /Vera Vista, 10:00/ })).toBeVisible();
+    await expectAccessible(page);
+  });
 });

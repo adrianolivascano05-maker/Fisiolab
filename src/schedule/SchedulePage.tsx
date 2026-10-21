@@ -162,7 +162,21 @@ export function SchedulePage() {
       const p = staff.find((s) => s.email === c.person);
       return { title: c.person === null ? "Sin asignar" : `${p?.name ?? c.person}${c.person === me ? " (tú)" : ""}`, color: c.person ? staffColor(p) : undefined };
     }
-    return { title: cap(fmt(c.day, { weekday: "short" })), subtitle: fmt(c.day, { day: "numeric" }), today: c.day === today };
+    return {
+      title: cap(fmt(c.day, { weekday: "short" })),
+      subtitle: fmt(c.day, { day: "numeric" }),
+      today: c.day === today,
+      label: span > 1 ? `Ver solo el ${fmt(c.day, { weekday: "long", day: "numeric", month: "long" })}` : undefined,
+    };
+  };
+  /** Pellizco en la rejilla: juntando los dedos se ven más días (día → 3 días → semana); separándolos, menos. */
+  const zoom = (by: 1 | -1) => {
+    const i = VIEWS.findIndex((v) => v.id === view) + by;
+    const next = VIEWS[i];
+    if (!next) return;
+    // Al acercar, se queda en el día de hoy si está a la vista; si no, en el primero.
+    if (by < 0) setAnchor(firstDay);
+    setView(next.id);
   };
 
   return (
@@ -311,8 +325,18 @@ export function SchedulePage() {
         onMove={(m) => void onMove(m)}
         onSlot={(c, minutes) => setCreating({ kind: "appointment", start: atMinutes(c.day, minutes), person: c.person })}
         onShift={team ? (s) => (admin || s.staffEmail === me) && setEditingShift(s) : undefined}
+        onHeader={
+          span > 1 && !byPerson
+            ? (c) => {
+                setAnchor(c.day);
+                setView("day");
+              }
+            : undefined
+        }
+        onZoom={zoom}
       />
       <p className="text-sm text-text-muted">
+        Para ver más o menos días, junta o separa dos dedos sobre la agenda (o elige Día, 3 días o Semana); toca un día de la semana para verlo solo.
         Arrastra una cita para moverla (en el móvil, mantenla pulsada un momento); tócala para atenderla, anularla o moverla una hora, un día o una
         semana. Toca un hueco para dar una cita{team ? " (o, desde ahí, poner un turno)" : ""}. Para ir a otra fecha, tócala arriba.
       </p>
