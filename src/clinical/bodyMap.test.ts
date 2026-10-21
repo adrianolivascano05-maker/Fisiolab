@@ -63,8 +63,10 @@ describe("mapa corporal", () => {
   });
 
   it("propone las articulaciones de los tests y el lado", () => {
-    expect(regionsOf(parseMarks(["hombro_d:dolor:", "brazo_d:dolor:", "lumbar:rigidez:"]))).toEqual({ regions: ["hombro", "lumbar"], side: "Derecho" });
-    expect(regionsOf(parseMarks(["rodilla_d:dolor:", "rodilla_i:dolor:"]))).toEqual({ regions: ["rodilla"], side: "Los dos" });
-    expect(regionsOf(parseMarks(["abdomen:dolor:"]))).toEqual({ regions: [], side: null });
+    expect(regionsOf(parseMarks(["hombro_d:dolor:4", "brazo_d:dolor:", "lumbar:rigidez:7"]))).toEqual({ regions: ["hombro", "lumbar"], side: "Derecho", maxIntensity: 7 });
+    expect(regionsOf(parseMarks(["rodilla_d:dolor:", "rodilla_i:dolor:"]))).toEqual({ regions: ["rodilla"], side: "Los dos", maxIntensity: null });
+    // Hombro derecho y rodilla izquierda: «Los dos» confundiría; el lado de cada una queda en el mapa.
+    expect(regionsOf(parseMarks(["hombro_d:dolor:", "rodilla_i:dolor:"])).side).toBeNull();
+    expect(regionsOf(parseMarks(["abdomen:dolor:"]))).toEqual({ regions: [], side: null, maxIntensity: null });
   });
 });

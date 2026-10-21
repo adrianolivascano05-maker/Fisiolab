@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "./db";
-import { addStarterExercises, deleteExercise, listExercises, listPlans, planText, saveExercise, savePlan, STARTER_EXERCISES } from "./exercises";
+import { addStarterExercises, cleanVideo, deleteExercise, deleteTemplate, listExercises, listPlans, listTemplates, planText, saveExercise, savePlan, saveTemplate, STARTER_EXERCISES } from "./exercises";
 import { createPatient, deletePatient } from "./repo";
 import { createTestDb } from "./testDb";
 
@@ -44,5 +44,32 @@ describe("ejercicios para casa", () => {
     expect(
       planText({ items: [{ title: "Puente", dose: "3 × 10", instructions: "Sube la cadera." }, { title: "Caminar", dose: "", instructions: "" }], note: "Sin dolor." }, "Elena Ruiz", "Fisiolab"),
     ).toBe("Hola, Elena. Tus ejercicios para casa (Fisiolab):\n\n1. Puente — 3 × 10\nSube la cadera.\n\n2. Caminar\n\nSin dolor.");
+  });
+
+  it("vídeo de cada ejercicio: enlaces web, en la hoja y en el texto", async () => {
+    expect(cleanVideo(" youtu.be/abc ")).toBe("https://youtu.be/abc");
+    expect(cleanVideo("")).toBe("");
+    expect(() => cleanVideo("no es un enlace")).toThrow(/dirección web/);
+    const eid = await saveExercise(db, { title: "Puente", region: "lumbar", dose: "", instructions: "", video: "https://www.youtube.com/watch?v=x" });
+    expect((await listExercises(db)).find((e) => e.id === eid)?.video).toBe("https://www.youtube.com/watch?v=x");
+    const pid = await createPatient(db, patient("Eva Gil"));
+    await savePlan(db, pid, { items: [{ title: "Puente", dose: "", instructions: "", video: "youtu.be/x" }], note: "" });
+    const [plan] = await listPlans(db, pid);
+    expect(plan!.items[0]!.video).toBe("https://youtu.be/x");
+    expect(planText(plan!, "Eva Gil", "")).toContain("Vídeo: https://youtu.be/x");
+  });
+
+  it("plantillas de hojas: guardar con nombre, cambiar la del mismo nombre y borrar", async () => {
+    await saveTemplate(db, "Lumbalgia, fase 1", { items: [{ title: "Gato-camello", dose: "10", instructions: "" }], note: "Sin dolor." });
+    await saveTemplate(db, "lumbalgia, FASE 1", { items: [{ title: "Puente", dose: "3 × 10", instructions: "" }], note: "" });
+    await saveTemplate(db, "Hombro", { items: [{ title: "Péndulo", dose: "", instructions: "" }], note: "" });
+    const all = await listTemplates(db);
+    expect(all.map((t) => [t.title, t.items.map((i) => i.title)])).toEqual([
+      ["Hombro", ["Péndulo"]],
+      ["lumbalgia, FASE 1", ["Puente"]],
+    ]);
+    await expect(saveTemplate(db, " ", { items: [{ title: "X", dose: "", instructions: "" }], note: "" })).rejects.toThrow(/nombre/);
+    await deleteTemplate(db, all[0]!.id);
+    expect((await listTemplates(db)).map((t) => t.title)).toEqual(["lumbalgia, FASE 1"]);
   });
 });

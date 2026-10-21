@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createAppointment, updateAppointment } from "./appointments";
+import { addPayment, createPack } from "./billing";
 import { saveSession } from "./clinical";
 import { createPatient } from "./repo";
 import { clinicStats, monthStarts } from "./stats";
@@ -24,9 +25,12 @@ describe("la clínica en números", () => {
     await updateAppointment(db, done, { status: "done" });
     await updateAppointment(db, missed, { status: "no_show" });
     await updateAppointment(db, off, { status: "cancelled" });
+    await createPack(db, ana, { title: "Bono 5", sessions: 5, priceCents: 18000, boughtOn: "2026-10-01", expiresOn: null, note: "" }, "bizum");
+    await addPayment(db, luis, { amountCents: 4000, method: "efectivo", paidOn: "2026-10-31", concept: "" });
+    await addPayment(db, luis, { amountCents: 4000, method: "efectivo", paidOn: "2026-11-01", concept: "" }); // fuera
 
     const s = await clinicStats(db, { from: "2026-10-01T00:00:00.000Z", to: "2026-11-01T00:00:00.000Z" });
-    expect(s).toMatchObject({ sessions: 3, patientsSeen: 2, discharges: 0, appointments: { done: 1, noShow: 1, cancelled: 1, scheduled: 1 }, noShowRate: 0.5 });
+    expect(s).toMatchObject({ sessions: 3, patientsSeen: 2, discharges: 0, appointments: { done: 1, noShow: 1, cancelled: 1, scheduled: 1 }, noShowRate: 0.5, collectedCents: 22000, packsSold: 1 });
     expect(s.byPerson).toEqual([
       { email: "bruno@x.es", done: 1, noShow: 1, cancelled: 0 },
       { email: null, done: 0, noShow: 0, cancelled: 1 },

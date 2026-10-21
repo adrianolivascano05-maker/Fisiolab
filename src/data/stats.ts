@@ -6,7 +6,7 @@ export type Period = { from: string; to: string };
 
 export type ClinicStats = {
   sessions: number;
-  /** Pacientes con alguna sesión en el periodo. */
+  /** Pacientes con alguna sesión o cita atendida en el periodo. */
   patientsSeen: number;
   newPatients: number;
   appointments: { done: number; noShow: number; cancelled: number; scheduled: number };
@@ -18,8 +18,12 @@ export type ClinicStats = {
   byPerson: { email: string | null; done: number; noShow: number; cancelled: number }[];
   /** Sesiones por mes, de los 12 meses que acaban en el periodo (AAAA-MM). */
   monthly: { month: string; sessions: number }[];
+  /** Lo cobrado (céntimos) y los bonos vendidos en el periodo (src/data/billing.ts). */
+  collectedCents: number;
+  packsSold: number;
 };
 
+const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const one = async (db: Db, sql: string, bind: (string | number)[]) => Number((await db.query<{ n: number }>(sql, bind))[0]?.n ?? 0);
 
 /** Los primeros días de `count` meses seguidos que acaban en el mes de `end` (AAAA-MM-01, hora local). */
@@ -29,7 +33,14 @@ export function monthStarts(end: Date, count: number): Date[] {
 
 export async function clinicStats(db: Db, p: Period): Promise<ClinicStats> {
   const sessions = await one(db, "select count(*) as n from sessions where performed_at >= ? and performed_at < ?", [p.from, p.to]);
-  const patientsSeen = await one(db, "select count(distinct patient_id) as n from sessions where performed_at >= ? and performed_at < ?", [p.from, p.to]);
+  // Atendidos: con una sesión apuntada o con una cita marcada como atendida (aunque no se escribiera la sesión).
+  const patientsSeen = await one(
+    db,
+    `select count(distinct patient_id) as n from (
+       select patient_id from sessions where performed_at >= ?1 and performed_at < ?2
+       union select patient_id from appointments where status = 'done' and starts_at >= ?1 and starts_at < ?2)`,
+    [p.from, p.to],
+  );
   const newPatients = await one(db, "select count(*) as n from patients where created_at >= ? and created_at < ?", [p.from, p.to]);
   const discharges = await one(db, "select count(*) as n from episodes where closed_at >= ? and closed_at < ?", [p.from, p.to]);
   const rows = await db.query<{ status: string; assigned_to: string | null; n: number }>(
@@ -57,6 +68,10 @@ export async function clinicStats(db: Db, p: Period): Promise<ClinicStats> {
       sessions: await one(db, "select count(*) as n from sessions where performed_at >= ? and performed_at < ?", [from.toISOString(), to.toISOString()]),
     });
   }
+  // Los cobros y los bonos van por día (AAAA-MM-DD), no por instante.
+  const [fromDay, toDay] = [madridDay(p.from), madridDay(p.to)];
+  const collectedCents = await one(db, "select coalesce(sum(amount_cents), 0) as n from payments where paid_on >= ? and paid_on < ?", [fromDay, toDay]);
+  const packsSold = await one(db, "select count(*) as n from packs where bought_on >= ? and bought_on < ?", [fromDay, toDay]);
   return {
     sessions,
     patientsSeen,
@@ -66,5 +81,7 @@ export async function clinicStats(db: Db, p: Period): Promise<ClinicStats> {
     discharges,
     byPerson: [...people.values()].filter((x) => x.done + x.noShow + x.cancelled > 0).sort((a, b) => b.done - a.done),
     monthly,
+    collectedCents,
+    packsSold,
   };
 }

@@ -27,13 +27,14 @@ const money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR
 /** 4050 → «40,50 €». */
 export const euros = (cents: number) => money.format(cents / 100);
 
-/** «40», «40,5», «40,50 €», «1.234,56» o «40.5» → céntimos; null si no es una cantidad. */
+/** «40», «40,5», «40,50 €», «1.234,56», «40.5» o «,50» → céntimos; null si no es una cantidad. */
 export function parseEuros(text: string): number | null {
   let t = text.replace(/[€\s]/g, "");
   if (!t) return null;
   // Con coma, la coma es el decimal y los puntos son de miles; sin coma, un punto con 1 o 2 cifras detrás es decimal.
   if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");
-  else if (!/^\d+\.\d{1,2}$/.test(t)) t = t.replace(/\./g, "");
+  else if (!/^\d*\.\d{1,2}$/.test(t)) t = t.replace(/\./g, "");
+  if (t.startsWith(".")) t = `0${t}`;
   if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
   return Math.round(Number(t) * 100);
 }
@@ -41,17 +42,74 @@ export function parseEuros(text: string): number | null {
 // ---------- Precios ----------
 
 export const PRICING_KEY = "billing_pricing";
-/** El precio de la sesión suelta y desde qué día cuenta (AAAA-MM-DD). */
-export type Pricing = { sessionCents: number | null; since: string | null };
+/** Un precio de la sesión suelta desde un día (AAAA-MM-DD); null: desde ese día las sueltas no cuentan. */
+export type PricePeriod = { since: string; cents: number | null };
+/**
+ * El precio de ahora, el primer día con precio y la historia de precios. Cambiar el precio no cambia lo de antes: cada
+ * sesión suelta vale el precio del día en que se hizo.
+ */
+export type Pricing = { sessionCents: number | null; since: string | null; periods: PricePeriod[] };
+/** Lo guardado: la historia (`periods`) o, de la primera versión, un solo precio con su día. */
+type StoredPricing = { periods?: PricePeriod[]; sessionCents?: number | null; since?: string | null };
 
-export async function getPricing(db: Db): Promise<Pricing> {
-  return (await getSetting<Pricing>(db, PRICING_KEY)) ?? { sessionCents: null, since: null };
+export function pricingOf(stored: StoredPricing | null): Pricing {
+  const periods = [...(stored?.periods ?? (stored?.since && stored.sessionCents != null ? [{ since: stored.since, cents: stored.sessionCents }] : []))].sort((a, b) =>
+    a.since.localeCompare(b.since),
+  );
+  return { sessionCents: periods.at(-1)?.cents ?? null, since: periods.find((p) => p.cents !== null)?.since ?? null, periods };
 }
 
-export async function setPricing(db: Db, p: Pricing): Promise<void> {
-  if (p.sessionCents !== null && !(Number.isInteger(p.sessionCents) && p.sessionCents >= 0)) throw new RangeError("El precio no es válido.");
-  if (p.since !== null && !DAY.test(p.since)) throw new RangeError("La fecha no es válida.");
-  await setSetting(db, PRICING_KEY, p);
+/** Lo que vale una sesión suelta de ese día (null: no cuenta para cobrar). */
+export function priceOn(p: Pricing, day: string): number | null {
+  let price: number | null = null;
+  for (const x of p.periods) if (x.since <= day) price = x.cents;
+  return price;
+}
+
+export async function getPricing(db: Db): Promise<Pricing> {
+  return pricingOf(await getSetting<StoredPricing>(db, PRICING_KEY));
+}
+
+/** El precio de la sesión suelta desde `day` (hoy); null, sin precio desde ese día. Lo de antes se queda como estaba. */
+export async function setSessionPrice(db: Db, cents: number | null, day: string): Promise<void> {
+  if (cents !== null && !(Number.isInteger(cents) && cents >= 0)) throw new RangeError("El precio no es válido.");
+  if (!DAY.test(day)) throw new RangeError("La fecha no es válida.");
+  const now = await getPricing(db);
+  const before = now.periods.filter((x) => x.since < day);
+  // Igual que el que ya valía: nada que cambiar. Sin precio nunca: tampoco.
+  if ((before.at(-1)?.cents ?? null) === cents) {
+    if (before.length !== now.periods.length) await setSetting(db, PRICING_KEY, { periods: before });
+    return;
+  }
+  await setSetting(db, PRICING_KEY, { periods: [...before, { since: day, cents }] });
+}
+
+/** Los bonos que vende la clínica, para venderlos con un toque. `months`: caducan a los N meses de la compra. */
+export type PackPreset = { id: string; title: string; sessions: number; priceCents: number | null; months: number | null };
+export const PACK_PRESETS_KEY = "billing_pack_presets";
+
+export async function getPackPresets(db: Db): Promise<PackPreset[]> {
+  return (await getSetting<PackPreset[]>(db, PACK_PRESETS_KEY)) ?? [];
+}
+
+export async function setPackPresets(db: Db, presets: PackPreset[]): Promise<void> {
+  for (const p of presets) {
+    if (!p.title.trim()) throw new RangeError("Ponle un nombre al bono.");
+    if (!(Number.isInteger(p.sessions) && p.sessions >= 1 && p.sessions <= 200)) throw new RangeError("Un bono tiene de 1 a 200 sesiones.");
+    if (p.priceCents !== null && !(Number.isInteger(p.priceCents) && p.priceCents >= 0)) throw new RangeError("El precio no es válido.");
+    if (p.months !== null && !(Number.isInteger(p.months) && p.months >= 1 && p.months <= 60)) throw new RangeError("La caducidad va de 1 a 60 meses.");
+  }
+  await setSetting(db, PACK_PRESETS_KEY, presets.map((p) => ({ ...p, title: p.title.trim() })));
+}
+
+/** El día en que caduca un bono comprado `day` que dura `months` meses (el día anterior del mismo día del mes). */
+export function expiryOf(day: string, months: number): string {
+  const [y, m, d] = day.split("-").map(Number) as [number, number, number];
+  // Sin pasarse de mes: un bono del 31 de enero a un mes caduca el 28 o 29 de febrero.
+  const last = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
+  const end = new Date(Date.UTC(y, m - 1 + months, Math.min(d, last)));
+  end.setUTCDate(end.getUTCDate() - 1);
+  return end.toISOString().slice(0, 10);
 }
 
 // ---------- Bonos ----------
@@ -104,6 +162,7 @@ export async function createPack(db: Db, patientId: string, p: PackInput, paid?:
 
 export async function updatePack(db: Db, id: string, p: PackInput): Promise<void> {
   checkPack(p);
+  if (!(await db.query("select 1 from packs where id = ?", [id])).length) throw new RangeError("Este bono ya no existe: se ha borrado en otro dispositivo.");
   await db.transaction([
     {
       sql: "update packs set title = ?, sessions = ?, price_cents = ?, bought_on = ?, expires_on = ?, note = ?, updated_at = ? where id = ?",
@@ -173,26 +232,33 @@ export type Account = {
 
 /** Reparte las sesiones (con su instante) entre los bonos y las sueltas. Puro: sin base de datos. */
 export function allocate(packs: Pack[], sessions: { id: string; performedAt: string }[], pricing: Pricing, today: string) {
-  const ordered = [...packs].sort((a, b) => a.boughtOn.localeCompare(b.boughtOn) || a.id.localeCompare(b.id));
+  // Entre los bonos que pueden pagar una sesión, primero el que antes caduca (para no perder sesiones pagadas) y, si no
+  // caducan, el más antiguo.
+  const ordered = [...packs].sort(
+    (a, b) => (a.expiresOn ?? "9999").localeCompare(b.expiresOn ?? "9999") || a.boughtOn.localeCompare(b.boughtOn) || a.id.localeCompare(b.id),
+  );
   const used = new Map(ordered.map((p) => [p.id, 0]));
   const bySession = new Map<string, string | null>();
   let loose = 0;
-  for (const s of [...sessions].sort((a, b) => a.performedAt.localeCompare(b.performedAt))) {
+  let looseCents = 0;
+  for (const s of [...sessions].sort((a, b) => a.performedAt.localeCompare(b.performedAt) || a.id.localeCompare(b.id))) {
     const day = madridDay(s.performedAt);
     const pack = ordered.find((p) => p.boughtOn <= day && (p.expiresOn === null || day <= p.expiresOn) && used.get(p.id)! < p.sessions);
+    const price = pack ? null : priceOn(pricing, day);
     if (pack) {
       used.set(pack.id, used.get(pack.id)! + 1);
       bySession.set(s.id, pack.id);
-    } else if (pricing.sessionCents !== null && pricing.since !== null && day >= pricing.since) {
+    } else if (price !== null) {
       loose++;
+      looseCents += price;
       bySession.set(s.id, null);
     }
   }
-  const states: PackState[] = ordered.map((p) => {
+  const states: PackState[] = [...ordered].sort((a, b) => a.boughtOn.localeCompare(b.boughtOn) || a.id.localeCompare(b.id)).map((p) => {
     const u = used.get(p.id)!;
     return { ...p, used: u, left: p.sessions - u, expired: p.expiresOn !== null && p.expiresOn < today };
   });
-  return { packs: states, bySession, loose: { count: loose, cents: loose * (pricing.sessionCents ?? 0) } };
+  return { packs: states, bySession, loose: { count: loose, cents: looseCents } };
 }
 
 export async function listPacks(db: Db, patientId: string): Promise<Pack[]> {
@@ -214,6 +280,82 @@ export async function patientAccount(db: Db, patientId: string, today: string): 
   const chargedCents = a.packs.reduce((n, p) => n + (p.priceCents ?? 0), 0) + a.loose.cents;
   const paidCents = payments.reduce((n, p) => n + p.amountCents, 0);
   return { ...a, payments, chargedCents, paidCents, balanceCents: chargedCents - paidCents };
+}
+
+/** Qué pasa con una sesión nueva en ese instante: la gasta un bono (y cuántas le quedan después), es suelta (y lo que vale) o no cuenta. */
+export type SessionCharge = { kind: "pack"; title: string; leftAfter: number } | { kind: "loose"; cents: number } | { kind: "none" };
+
+export async function nextSessionCharge(db: Db, patientId: string, performedAt: string, today: string): Promise<SessionCharge> {
+  const [packs, sessions, pricing] = await Promise.all([
+    listPacks(db, patientId),
+    db.query<{ id: string; performed_at: string }>("select id, performed_at from sessions where patient_id = ?", [patientId]),
+    getPricing(db),
+  ]);
+  const NEW = "\u0000nueva";
+  const a = allocate(packs, [...sessions.map((s) => ({ id: s.id, performedAt: s.performed_at })), { id: NEW, performedAt }], pricing, today);
+  const by = a.bySession.get(NEW);
+  if (by === undefined) return { kind: "none" };
+  if (by === null) return { kind: "loose", cents: priceOn(pricing, madridDay(performedAt)) ?? 0 };
+  const p = a.packs.find((x) => x.id === by)!;
+  return { kind: "pack", title: p.title, leftAfter: p.left };
+}
+
+export function chargeText(c: SessionCharge): string | null {
+  if (c.kind === "pack") return c.leftAfter === 0 ? `Es la última sesión de «${c.title}»` : `Del «${c.title}»: le quedarán ${c.leftAfter}`;
+  if (c.kind === "loose") return `Sesión suelta: ${euros(c.cents)}`;
+  return null;
+}
+
+export async function getPayment(db: Db, id: string): Promise<Payment | null> {
+  const [r] = await db.query<PaymentRow>("select * from payments where id = ?", [id]);
+  return r ? toPayment(r) : null;
+}
+
+/** Los cobros entre dos días (AAAA-MM-DD, el segundo sin incluir) con el nombre del paciente: para la gestoría. */
+export async function paymentsBetween(db: Db, from: string, to: string): Promise<(Payment & { name: string })[]> {
+  const rows = await db.query<PaymentRow & { name: string }>(
+    "select y.*, p.name from payments y join patients p on p.id = y.patient_id where y.paid_on >= ? and y.paid_on < ? order by y.paid_on, y.created_at",
+    [from, to],
+  );
+  return rows.map((r) => ({ ...toPayment(r), name: r.name }));
+}
+
+// ---------- Cantidades en letra (para el justificante de pago) ----------
+
+const UNITS = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
+const TENS = ["", "", "", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];
+const HUNDREDS = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"];
+
+function below1000(n: number): string {
+  if (n === 100) return "cien";
+  const h = Math.floor(n / 100);
+  const r = n % 100;
+  const rest = r < 30 ? UNITS[r]! : `${TENS[Math.floor(r / 10)]}${r % 10 ? ` y ${UNITS[r % 10]}` : ""}`;
+  return [HUNDREDS[h], rest].filter(Boolean).join(" ");
+}
+
+/** Un número entero en letra (hasta 999 999 999), con «un» delante de un sustantivo masculino: «veintiún», «un mil» no. */
+export function numberInWords(n: number): string {
+  if (n === 0) return "cero";
+  const millions = Math.floor(n / 1_000_000);
+  const thousands = Math.floor((n % 1_000_000) / 1000);
+  const rest = n % 1000;
+  const parts: string[] = [];
+  if (millions) parts.push(millions === 1 ? "un millón" : `${apocope(below1000(millions))} millones`);
+  if (thousands) parts.push(thousands === 1 ? "mil" : `${apocope(below1000(thousands))} mil`);
+  if (rest) parts.push(below1000(rest));
+  return parts.join(" ");
+}
+/** «veintiuno» → «veintiún», «uno» → «un» delante de «mil», «millones» o «euros». */
+const apocope = (t: string) => t.replace(/veintiuno$/, "veintiún").replace(/(^| )uno$/, "$1un");
+
+/** 4050 → «cuarenta euros con cincuenta céntimos». */
+export function eurosInWords(cents: number): string {
+  const e = Math.floor(cents / 100);
+  const c = cents % 100;
+  const euroPart = e === 1 ? "un euro" : `${apocope(numberInWords(e))} euros`;
+  if (!c) return euroPart;
+  return `${euroPart} con ${c === 1 ? "un céntimo" : `${apocope(numberInWords(c))} céntimos`}`;
 }
 
 /** Para la ficha: el bono que se está gastando (o el último) y lo pendiente, en una línea. */

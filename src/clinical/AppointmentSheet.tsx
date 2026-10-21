@@ -1,14 +1,18 @@
 // Dar, cambiar o cerrar una cita (src/data/appointments.ts): desde la cabecera de la ficha (la próxima cita o «Dar
 // cita») y desde la agenda de hoy en Pacientes. Al cambiar algo se recargan las pantallas (y, con la cuenta de
 // Google, el calendario se pone al día solo). En una clínica, también con quién es (el horario, src/schedule).
-import { CalendarClock, CalendarX2, FileCheck, Hourglass, NotebookPen, Pencil, RotateCcw, Trash, UserPlus, UserX } from "lucide-react";
-import { useEffect, useState } from "react";
+import { CalendarClock, CalendarX2, ChevronDown, FileCheck, Hourglass, Mail, MessageCircle, NotebookPen, Pencil, Phone, RotateCcw, Trash, UserPlus, UserX, Wallet } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
-import { clashes, createWeekly, deleteAppointment, markConfirmed, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
+import { madridDay } from "../app/format";
+import { getClinic } from "../data/privacy";
+import { DEFAULT_TEMPLATE, mailtoUrl, REMINDER_TEMPLATE_KEY, reminderText, waPhone, whatsappUrl } from "../schedule/reminders";
+import { clashes, createWeekly, deleteAppointment, markConfirmed, markReminded, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
 import { useAsync } from "../app/useAsync";
+import { accountLine, addPayment, euros, getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
-import { createPatient, listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
+import { createPatient, getPatient, getSetting, listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
 import { editText, lastEditOf } from "../data/editors";
 import { memberEmail } from "../data/member";
 import { listWaitlist } from "../data/waitlist";
@@ -19,7 +23,8 @@ import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { DEFAULT_VISIT_MINUTES, fmtVisit } from "./calendar";
-import { localInput } from "./pageKit";
+import { PaymentForm } from "./billingForms";
+import { localInput, todayDay } from "./pageKit";
 import { Chips } from "./parts";
 
 const DURATIONS = ["30", "45", "60", "90"];
@@ -60,15 +65,59 @@ export function AppointmentSheet({
   const lastEdit = edit.data;
   const [assignedTo, setAssignedTo] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  /** Su cuenta (bono y pendiente, para cobrar aquí mismo) y cómo recordarle la cita (teléfono, correo, permiso, mensaje). */
+  const extra = useAsync(async () => {
+    if (!open || !appointment) return null;
+    const db = getDb();
+    const [a, pricing, patient, clinic, template] = await Promise.all([
+      patientAccount(db, appointment.patientId, todayDay()),
+      getPricing(db),
+      getPatient(db, appointment.patientId),
+      getClinic(db),
+      getSetting<string>(db, REMINDER_TEMPLATE_KEY),
+    ]);
+    return {
+      a,
+      pricing,
+      phone: patient?.phone ?? "",
+      wa: waPhone(patient?.phone ?? ""),
+      email: patient?.email ?? "",
+      contact: patient?.privacy.consents?.contact ?? null,
+      reminder: reminderText(template ?? DEFAULT_TEMPLATE, {
+        name: patient?.name ?? "",
+        startsAt: appointment.startsAt,
+        clinic: clinic.name,
+        professional: staff.length && appointment.assignedTo ? staffName(staff, appointment.assignedTo) : null,
+      }),
+    };
+  }, [open, appointment?.id, appointment?.startsAt]);
+  const [paying, setPaying] = useState(false);
+  /** Anular o borrar: primero se pregunta. */
+  const [confirming, setConfirming] = useState<"cancel" | "delete" | null>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (confirming) confirmRef.current?.focus();
+  }, [confirming]);
+  /** Antes del día de la cita («future»), el día o después sin marcar («now»), o ya marcada. */
+  const phase = !appointment || appointment.status !== "scheduled" ? "marked" : madridDay(appointment.startsAt) > madridDay(new Date().toISOString()) ? "future" : "now";
   const [error, setError] = useState<string | null>(null);
   const [repeat, setRepeat] = useState(1);
   /** Citas que ya hay a esa hora: se avisa antes de dar la cita. */
   const [clash, setClash] = useState<AgendaItem[] | null>(null);
   /** Al anular o borrar una cita futura con gente en la lista de espera: el hueco, para ofrecérselo. */
-  const [freed, setFreed] = useState<{ startsAt: string; minutes: number; assignedTo: string | null; waiting: number } | null>(null);
+  const [freed, setFreed] = useState<{ startsAt: string; minutes: number; assignedTo: string | null; waiting: number; patientId: string } | null>(null);
   useEffect(() => {
-    if (open) setFreed(null);
+    if (open) {
+      setFreed(null);
+      setPaying(false);
+      setConfirming(null);
+    }
   }, [open]);
+  /** El panel del hueco libre sustituye a los botones: el foco, a su acción principal. */
+  const offerRef = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (freed) offerRef.current?.focus();
+  }, [freed]);
 
   // Cada vez que se abre: con los datos de la cita, o vacía para dar una nueva.
   useEffect(() => {
@@ -138,7 +187,7 @@ export function AppointmentSheet({
       bumpData();
       const forWhom = staff.length && a.assignedTo ? a.assignedTo : undefined;
       const waiting = Date.parse(a.startsAt) > Date.now() ? (await listWaitlist(getDb(), forWhom)).filter((w) => w.patientId !== a.patientId).length : 0;
-      if (waiting) setFreed({ startsAt: a.startsAt, minutes: a.minutes, assignedTo: a.assignedTo ?? null, waiting });
+      if (waiting) setFreed({ startsAt: a.startsAt, minutes: a.minutes, assignedTo: a.assignedTo ?? null, waiting, patientId: a.patientId });
       else onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -163,7 +212,8 @@ export function AppointmentSheet({
             Se ha quedado libre el hueco del {fmtVisit(freed.startsAt)}. ¿Se lo ofreces?
           </Alert>
           <Link
-            to={`/agenda/espera?${new URLSearchParams({ hueco: freed.startsAt, min: String(freed.minutes), ...(freed.assignedTo ? { con: freed.assignedTo } : {}) })}`}
+            ref={offerRef}
+            to={`/agenda/espera?${new URLSearchParams({ hueco: freed.startsAt, min: String(freed.minutes), sin: freed.patientId, ...(freed.assignedTo ? { con: freed.assignedTo } : {}) })}`}
             onClick={onClose}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover"
           >
@@ -180,16 +230,52 @@ export function AppointmentSheet({
             <span className={appointment.status === "scheduled" ? "" : "font-semibold"}>{STATUS_LABELS[appointment.status]}</span>
             {staff.length > 0 && <> · Con {staffName(staff, appointment.assignedTo)}</>}
           </p>
-          {appointment.status === "scheduled" && (
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+          {appointment.status === "scheduled" && (appointment.confirmedAt || appointment.remindedAt) && (
+            <p className="text-sm">
               {appointment.confirmedAt ? (
                 <span className="rounded-full bg-success-soft px-2 py-0.5 font-semibold text-success">Confirmada</span>
-              ) : appointment.remindedAt ? (
-                <span className="rounded-full bg-accent-soft px-2 py-0.5">Recordada el {fmtVisit(appointment.remindedAt)}</span>
-              ) : null}
+              ) : (
+                <span className="rounded-full bg-accent-soft px-2 py-0.5">Recordada el {fmtVisit(appointment.remindedAt!)}</span>
+              )}
+            </p>
+          )}
+          {lastEdit && <p className="text-xs text-text-muted">Última modificación: {editText(lastEdit)}</p>}
+
+          {/* Antes del día de la cita: recordarla. El día de la cita (o después, sin marcar): atenderla. */}
+          {phase === "future" && extra.data && (
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap gap-2">
+                {extra.data.contact !== false && extra.data.wa && (
+                  <a
+                    href={whatsappUrl(extra.data.wa, extra.data.reminder)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-hover"
+                    onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData())}
+                  >
+                    <MessageCircle aria-hidden="true" className="size-5" /> Recordar por WhatsApp
+                  </a>
+                )}
+                {extra.data.contact !== false && extra.data.email && (
+                  <a
+                    href={mailtoUrl(extra.data.email, "Recordatorio de tu cita", extra.data.reminder)}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
+                    onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData())}
+                  >
+                    <Mail aria-hidden="true" className="size-5" /> Correo
+                  </a>
+                )}
+                {extra.data.phone && (
+                  <a href={`tel:${extra.data.phone.replace(/\s+/g, "")}`} className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface">
+                    <Phone aria-hidden="true" className="size-5" /> Llamar
+                  </a>
+                )}
+              </div>
+              {extra.data.contact === false && <p className="text-sm text-text-muted">No acepta WhatsApp ni correo.</p>}
               <Button
                 size="sm"
                 variant="ghost"
+                className="self-start"
                 loading={busy}
                 onClick={() => void run(() => markConfirmed(getDb(), appointment.id, !appointment.confirmedAt), appointment.confirmedAt ? "Confirmación quitada" : "Anotado: confirmada")}
               >
@@ -197,50 +283,54 @@ export function AppointmentSheet({
               </Button>
             </div>
           )}
-          {lastEdit && <p className="text-xs text-text-muted">Última modificación: {editText(lastEdit)}</p>}
-          {appointment.status !== "done" && (
-            <Link
-              to={`/pacientes/${patientId}/sesiones/nueva`}
-              onClick={onClose}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover"
-            >
-              <NotebookPen aria-hidden="true" className="size-5" /> Atender: apuntar la sesión
-            </Link>
-          )}
-          {appointment.status === "scheduled" ? (
-            <div className="grid grid-cols-2 gap-2">
-              <Button variant="secondary" loading={busy} icon={<UserX aria-hidden="true" className="size-5" />} onClick={() => void setStatus("no_show", "Anotado: no vino")}>
+          {phase === "now" && (
+            <div className="grid grid-cols-[2fr_1fr] gap-2">
+              <Link
+                to={`/pacientes/${patientId}/sesiones/nueva`}
+                onClick={onClose}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 text-center font-semibold text-on-accent hover:bg-accent-hover"
+              >
+                <NotebookPen aria-hidden="true" className="size-5 shrink-0" /> Atender: apuntar la sesión
+              </Link>
+              <Button variant="secondary" size="lg" loading={busy} icon={<UserX aria-hidden="true" className="size-5" />} onClick={() => void setStatus("no_show", "Anotado: no vino")}>
                 No vino
               </Button>
-              <Button variant="secondary" loading={busy} icon={<CalendarX2 aria-hidden="true" className="size-5" />} onClick={() => void release(() => updateAppointment(getDb(), appointment.id, { status: "cancelled" }), "Cita anulada")}>
-                Anular
-              </Button>
             </div>
-          ) : (
-            <Button variant="secondary" loading={busy} icon={<RotateCcw aria-hidden="true" className="size-5" />} onClick={() => void setStatus("scheduled", "Cita pendiente otra vez")}>
-              Volver a pendiente
-            </Button>
           )}
-          <div role="group" aria-label="Mover la cita" className="grid grid-cols-2 gap-2">
-            {(
-              [
-                [-60, "1 h antes"],
-                [60, "1 h después"],
-                [-24 * 60, "1 día antes"],
-                [24 * 60, "1 día después"],
-                [-7 * 24 * 60, "1 semana antes"],
-                [7 * 24 * 60, "1 semana después"],
-              ] as const
-            ).map(([m, text]) => (
-              <Button key={text} size="sm" variant="secondary" loading={busy} onClick={() => void nudge(m, text)}>
-                {text}
-              </Button>
-            ))}
-          </div>
-          <Button variant="secondary" icon={<Pencil aria-hidden="true" className="size-5" />} onClick={() => setEditing(true)}>
-            Cambiar el día o la hora
-          </Button>
-          {appointment.status !== "cancelled" && appointment.status !== "no_show" && (
+
+          {extra.data && (
+            <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm">
+                  <span className="font-semibold">Cuenta: </span>
+                  {accountLine(extra.data.a) ?? "al día"}
+                </p>
+                {!paying && (
+                  <Button size="sm" variant="secondary" icon={<Wallet aria-hidden="true" className="size-4" />} onClick={() => setPaying(true)}>
+                    Cobrar
+                  </Button>
+                )}
+              </div>
+              {paying && (
+                <PaymentForm
+                  today={todayDay()}
+                  suggested={extra.data.a.balanceCents > 0 ? extra.data.a.balanceCents : extra.data.pricing.sessionCents}
+                  concept="Sesión de fisioterapia"
+                  submitLabel="Cobrar"
+                  onSave={async (input) => {
+                    await addPayment(getDb(), appointment.patientId, input);
+                    setPaying(false);
+                    toast(`Cobrado: ${euros(input.amountCents)}`, "success");
+                    bumpData();
+                    extra.reload();
+                  }}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Solo de una cita que ya ha empezado: el justificante dice que ha asistido. */}
+          {(appointment.status === "done" || (appointment.status === "scheduled" && Date.parse(appointment.startsAt) <= Date.now())) && (
             <Link
               to={`/pacientes/${patientId}/justificante?cita=${appointment.id}`}
               onClick={onClose}
@@ -249,9 +339,77 @@ export function AppointmentSheet({
               <FileCheck aria-hidden="true" className="size-5" /> Justificante de asistencia
             </Link>
           )}
-          <Button variant="ghost" className="text-danger" loading={busy} icon={<Trash aria-hidden="true" className="size-5" />} onClick={() => void release(() => deleteAppointment(getDb(), appointment.id), "Cita borrada")}>
-            Borrar la cita
-          </Button>
+          {appointment.status === "scheduled" ? (
+            <details className="group rounded-md border border-border">
+              <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 px-3 font-semibold [&::-webkit-details-marker]:hidden">
+                Mover o cambiar la cita
+                <ChevronDown aria-hidden="true" className="size-5 transition-transform group-open:rotate-180" />
+              </summary>
+              <div className="flex flex-col gap-2 px-3 pb-3">
+                <div role="group" aria-label="Mover la cita" className="grid grid-cols-2 gap-2">
+                  {(
+                    [
+                      [-60, "1 h antes"],
+                      [60, "1 h después"],
+                      [-24 * 60, "1 día antes"],
+                      [24 * 60, "1 día después"],
+                      [-7 * 24 * 60, "1 semana antes"],
+                      [7 * 24 * 60, "1 semana después"],
+                    ] as const
+                  ).map(([m, text]) => (
+                    <Button key={text} size="sm" variant="secondary" loading={busy} onClick={() => void nudge(m, text)}>
+                      {text}
+                    </Button>
+                  ))}
+                </div>
+                <Button variant="secondary" icon={<Pencil aria-hidden="true" className="size-5" />} onClick={() => setEditing(true)}>
+                  Cambiar el día o la hora
+                </Button>
+              </div>
+            </details>
+          ) : (
+            <Button variant="secondary" loading={busy} icon={<RotateCcw aria-hidden="true" className="size-5" />} onClick={() => void setStatus("scheduled", "Cita pendiente otra vez")}>
+              Volver a pendiente
+            </Button>
+          )}
+
+          {/* Anular o borrar, con confirmación: anular la deja en la agenda (tachada); borrar la quita. */}
+          {confirming ? (
+            <div role="group" aria-label={confirming === "cancel" ? "Confirmar la anulación" : "Confirmar el borrado"} className="flex flex-col gap-2 rounded-md border border-danger p-3">
+              <p className="text-sm font-semibold">
+                {confirming === "cancel" ? "¿Anular la cita? Se queda en la agenda como anulada." : "¿Borrar la cita? Desaparece de la agenda."}
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  ref={confirmRef}
+                  variant="danger"
+                  loading={busy}
+                  onClick={() =>
+                    void release(
+                      () => (confirming === "cancel" ? updateAppointment(getDb(), appointment.id, { status: "cancelled" }) : deleteAppointment(getDb(), appointment.id)),
+                      confirming === "cancel" ? "Cita anulada" : "Cita borrada",
+                    )
+                  }
+                >
+                  {confirming === "cancel" ? "Sí, anular" : "Sí, borrar"}
+                </Button>
+                <Button variant="secondary" onClick={() => setConfirming(null)}>
+                  No
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {appointment.status === "scheduled" && (
+                <Button variant="secondary" icon={<CalendarX2 aria-hidden="true" className="size-5" />} onClick={() => setConfirming("cancel")}>
+                  Anular
+                </Button>
+              )}
+              <Button variant="ghost" className="text-danger" icon={<Trash aria-hidden="true" className="size-5" />} onClick={() => setConfirming("delete")}>
+                Borrar la cita
+              </Button>
+            </div>
+          )}
         </>
       ) : (
         <form
@@ -357,12 +515,26 @@ export function PatientPicker({ picked, onPick }: { picked: { id: string; name: 
         </Button>
       </div>
     );
+  const exact = found.some((p) => p.name.trim().toLowerCase() === q.trim().toLowerCase());
   return (
     <div className="flex flex-col gap-2">
       <TextField label="Paciente" placeholder="Busca por nombre o teléfono" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} />
-      {q.trim() && !found.some((p) => p.name.trim().toLowerCase() === q.trim().toLowerCase()) && (
+      {/* Primero los que ya existen (con su teléfono, por si hay dos con el mismo nombre); crear uno nuevo, al final. */}
+      <ul aria-label="Pacientes" className="flex flex-col divide-y divide-border rounded-md border border-border">
+        {found.map((p) => (
+          <li key={p.id}>
+            <button type="button" className="tap flex w-full items-baseline justify-between gap-3 px-3 text-left hover:bg-surface" onClick={() => onPick({ id: p.id, name: p.name })}>
+              <span className="font-semibold">{p.name}</span>
+              {p.phone && <span className="text-sm text-text-muted">{p.phone}</span>}
+            </button>
+          </li>
+        ))}
+        {all.data && !found.length && <li className="px-3 py-2 text-sm text-text-muted">Ningún paciente con ese nombre.</li>}
+      </ul>
+      {q.trim() && !exact && (
         <Button
-          variant="secondary"
+          variant="ghost"
+          className="self-start"
           loading={adding}
           icon={<UserPlus aria-hidden="true" className="size-5" />}
           onClick={async () => {
@@ -376,19 +548,9 @@ export function PatientPicker({ picked, onPick }: { picked: { id: string; name: 
             }
           }}
         >
-          Paciente nuevo: «{q.trim()}»
+          {found.length ? `No es ninguno: crear «${q.trim()}»` : `Paciente nuevo: «${q.trim()}»`}
         </Button>
       )}
-      <ul aria-label="Pacientes" className="flex flex-col divide-y divide-border rounded-md border border-border">
-        {found.map((p) => (
-          <li key={p.id}>
-            <button type="button" className="tap w-full px-3 text-left hover:bg-surface" onClick={() => onPick({ id: p.id, name: p.name })}>
-              {p.name}
-            </button>
-          </li>
-        ))}
-        {all.data && !found.length && <li className="px-3 py-2 text-sm text-text-muted">Ningún paciente con ese nombre.</li>}
-      </ul>
       {!q.trim() && <p className="text-sm text-text-muted">¿Es nuevo? Escribe su nombre y créalo aquí mismo; el resto de su ficha, cuando venga.</p>}
     </div>
   );

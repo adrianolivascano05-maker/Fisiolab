@@ -1,33 +1,13 @@
 // Usar la app en otros dispositivos: el enlace (copiar o compartir), un código QR para abrirla desde otro móvil o
 // la tablet, y cómo instalarla en cada sistema. Es una web instalable: no hay que pasar por ninguna tienda.
-import qrcode from "qrcode-generator";
 import { Check, Copy, Share2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Page } from "../app/Page";
 import { InstallSteps, useInstall } from "../app/pwa";
 import { useCloud } from "../cloud/CloudGate";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-
-/** Código QR en SVG, negro sobre blanco (con su margen) para que lo lea cualquier cámara. */
-function QrCode({ text, label }: { text: string; label: string }) {
-  const { size, path } = useMemo(() => {
-    const qr = qrcode(0, "M");
-    qr.addData(text);
-    qr.make();
-    const n = qr.getModuleCount();
-    const quiet = 4;
-    let d = "";
-    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + quiet},${r + quiet}h1v1h-1z`;
-    return { size: n + 2 * quiet, path: d };
-  }, [text]);
-  return (
-    <svg viewBox={`0 0 ${size} ${size}`} role="img" aria-label={label} shapeRendering="crispEdges" className="size-52 rounded-md">
-      <rect width={size} height={size} fill="#FFFFFF" />
-      <path d={path} fill="#000000" />
-    </svg>
-  );
-}
+import { QrCode } from "../ui/QrCode";
 
 const devices: { title: string; steps: string[] }[] = [
   {

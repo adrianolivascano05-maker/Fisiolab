@@ -13,6 +13,7 @@ export function parentLabel(backTo: string | undefined): string {
   if (path === "/") return "Pacientes";
   if (path === "/ajustes") return "Ajustes";
   if (path === "/validacion") return "Validación";
+  if (path === "/agenda") return "Agenda";
   if (path.startsWith("/exploracion")) return "Guía";
   const tab = /^\/pacientes\/[^/]+\/(anamnesis|exploracion|mediciones|sesiones|movilidad|test)(\/[^/]+)?$/.exec(path);
   if (tab) {
@@ -21,6 +22,7 @@ export function parentLabel(backTo: string | undefined): string {
     if (!tab[2]) return { anamnesis: "Anamnesis", exploracion: "Exploración", mediciones: "Mediciones", sesiones: "Sesiones", movilidad: "Movilidad", test: "Medición" }[tab[1]!]!;
   }
   if (/^\/pacientes\/[^/]+\/consentimientos$/.test(path)) return "Consentimientos";
+  if (/^\/pacientes\/[^/]+\/cobros$/.test(path)) return "Cobros";
   if (/^\/pacientes\/[^/]+$/.test(path)) return "Ficha";
   return "Atrás";
 }

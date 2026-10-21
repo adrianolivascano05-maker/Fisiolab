@@ -1,16 +1,17 @@
 // Agenda → Recordatorios: las citas de un día (mañana, por defecto) con su mensaje listo para enviar por WhatsApp o por
 // correo desde este dispositivo, sin servicios de pago. Se apunta quién se ha recordado y quién ha confirmado.
 // Respeta el permiso de contacto de cada paciente (src/data/privacy.ts, «WhatsApp, SMS o correo»).
-import { CircleCheck, Mail, MessageCircle, Pencil } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { CircleCheck, Mail, MessageCircle, Pencil, Phone } from "lucide-react";
+import { useMemo, useState } from "react";
 import { bumpData, useDataVersion } from "../app/dataVersion";
 import { Page } from "../app/Page";
+import { Link } from "react-router";
 import { useAsync } from "../app/useAsync";
 import { addDays, todayDay } from "../clinical/pageKit";
 import { useCloud } from "../cloud/CloudGate";
 import { markConfirmed, markReminded, remindersBetween, type ReminderItem } from "../data/appointments";
 import { getDb } from "../data/db";
-import { getClinic } from "../data/privacy";
+import { getClinic, setContactConsent } from "../data/privacy";
 import { getSetting, setSetting } from "../data/repo";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -36,6 +37,8 @@ export function RemindersPage() {
   const [who, setWho] = useState("");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  /** Para enseñar el mensaje como le llega: mañana a las 10:00. */
+  const sample = new Date(`${addDays(today, 1)}T10:00:00`).toISOString();
   const data = useAsync(async () => {
     const db = getDb();
     const from = new Date(`${day}T00:00:00`).toISOString();
@@ -46,11 +49,11 @@ export function RemindersPage() {
       clinic: (await getClinic(db)).name,
     };
   }, [day, version]);
-  useEffect(() => setDraft(data.data?.template ?? DEFAULT_TEMPLATE), [data.data?.template]);
 
   const items = useMemo(() => (data.data?.items ?? []).filter((a) => !who || (who === "-" ? !a.assignedTo : a.assignedTo === who)), [data.data, who]);
   const reminded = items.filter((a) => a.remindedAt).length;
   const confirmed = items.filter((a) => a.confirmedAt).length;
+  const unknown = new Set(items.filter((a) => a.contact === null).map((a) => a.patientId)).size;
   const text = (a: ReminderItem) =>
     reminderText(data.data?.template ?? DEFAULT_TEMPLATE, {
       name: a.name,
@@ -117,19 +120,46 @@ export function RemindersPage() {
               : "No hay citas pendientes ese día."}
           </p>
         )}
+        {unknown > 0 && (
+          <Alert tone="warning" title={`${plural(unknown, "paciente", "pacientes")} sin permiso de contacto apuntado`}>
+            Pregúntales si aceptan que les escribáis por WhatsApp o correo y apúntalo en su tarjeta (queda en su ficha, en Protección de datos).
+          </Alert>
+        )}
         {items.map((a) => (
-          <ReminderRow key={a.id} a={a} text={text(a)} withWhom={team ? staffName(staff, a.assignedTo) : null} onSent={() => void sent(a)} onConfirm={async (yes) => {
-            await markConfirmed(getDb(), a.id, yes);
-            bumpData();
-            toast(yes ? `${a.name}: confirmada` : `${a.name}: sin confirmar`, "success");
-          }} />
+          <ReminderRow
+            key={a.id}
+            a={a}
+            text={text(a)}
+            withWhom={team ? staffName(staff, a.assignedTo) : null}
+            onSent={() => void sent(a)}
+            onConfirm={async (yes) => {
+              await markConfirmed(getDb(), a.id, yes);
+              bumpData();
+              toast(yes ? `${a.name}: confirmada` : `${a.name}: sin confirmar`, "success");
+            }}
+            onConsent={async (yes) => {
+              await setContactConsent(getDb(), a.patientId, yes);
+              bumpData();
+              toast(yes ? `${a.name}: acepta WhatsApp y correo` : `${a.name}: no acepta WhatsApp ni correo`, "success");
+            }}
+          />
         ))}
       </section>
 
       <Card className="flex flex-col gap-2">
         <h2 className="font-semibold">El mensaje</h2>
-        <p className="text-sm whitespace-pre-line text-text-muted">{data.data?.template ?? DEFAULT_TEMPLATE}</p>
-        <Button variant="secondary" icon={<Pencil aria-hidden="true" className="size-5" />} onClick={() => setEditing(true)}>
+        <p className="text-sm whitespace-pre-line text-text-muted">
+          {reminderText(data.data?.template ?? DEFAULT_TEMPLATE, { name: "Ana Ruiz", startsAt: sample, clinic: data.data?.clinic ?? "", professional: team ? (staff[0]?.name ?? null) : null })}
+        </p>
+        <Button
+          variant="secondary"
+          icon={<Pencil aria-hidden="true" className="size-5" />}
+          onClick={() => {
+            // Se empieza siempre por el mensaje guardado (lo escrito y no guardado no se queda).
+            setDraft(data.data?.template ?? DEFAULT_TEMPLATE);
+            setEditing(true);
+          }}
+        >
           Cambiar el mensaje
         </Button>
       </Card>
@@ -157,6 +187,19 @@ export function RemindersPage() {
           <p className="text-sm text-text-muted">
             Se sustituyen solas: {TEMPLATE_WORDS.join(", ")} (el nombre de pila, el día, la hora, la clínica y, en un equipo, «con» quién es).
           </p>
+          <div className="flex flex-col gap-1 rounded-md bg-surface p-3">
+            <span className="text-xs font-semibold text-text-muted uppercase">Así le llega</span>
+            <p className="text-sm whitespace-pre-line">{reminderText(draft, { name: "Ana Ruiz", startsAt: sample, clinic: data.data?.clinic ?? "", professional: team ? (staff[0]?.name ?? null) : null })}</p>
+          </div>
+          {!data.data?.clinic && (
+            <p className="text-sm text-warning">
+              Falta el nombre de la clínica (sale «la clínica»):{" "}
+              <Link to="/ajustes/clinica" className="font-semibold underline">
+                ponlo en Ajustes → Clínica
+              </Link>
+              .
+            </p>
+          )}
           <Button type="submit" block>
             Guardar el mensaje
           </Button>
@@ -169,7 +212,21 @@ export function RemindersPage() {
   );
 }
 
-function ReminderRow({ a, text, withWhom, onSent, onConfirm }: { a: ReminderItem; text: string; withWhom: string | null; onSent: () => void; onConfirm: (yes: boolean) => void }) {
+function ReminderRow({
+  a,
+  text,
+  withWhom,
+  onSent,
+  onConfirm,
+  onConsent,
+}: {
+  a: ReminderItem;
+  text: string;
+  withWhom: string | null;
+  onSent: () => void;
+  onConfirm: (yes: boolean) => void;
+  onConsent: (yes: boolean) => void;
+}) {
   const phone = waPhone(a.phone);
   const refused = a.contact === false;
   const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
@@ -209,13 +266,26 @@ function ReminderRow({ a, text, withWhom, onSent, onConfirm }: { a: ReminderItem
           {!phone && !a.email && <p className="text-sm text-text-muted">Sin teléfono móvil ni correo en su ficha.</p>}
         </div>
       )}
-      <Button size="sm" variant={a.confirmedAt ? "ghost" : "secondary"} icon={<CircleCheck aria-hidden="true" className="size-4" />} onClick={() => onConfirm(!a.confirmedAt)}>
-        {a.confirmedAt ? "Quitar la confirmación" : "Ha confirmado que viene"}
-      </Button>
-      {a.contact === null && !refused && (
-        <Alert tone="warning" title="Pregúntale si acepta que le escribáis por WhatsApp o correo">
-          Se apunta en su ficha, en Protección de datos.
-        </Alert>
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" variant={a.confirmedAt ? "ghost" : "secondary"} icon={<CircleCheck aria-hidden="true" className="size-4" />} onClick={() => onConfirm(!a.confirmedAt)}>
+          {a.confirmedAt ? "Quitar la confirmación" : "Ha confirmado que viene"}
+        </Button>
+        {!a.remindedAt && !a.confirmedAt && (
+          <Button size="sm" variant="ghost" icon={<Phone aria-hidden="true" className="size-4" />} onClick={onSent}>
+            Recordada por teléfono
+          </Button>
+        )}
+      </div>
+      {a.contact === null && (
+        <div role="group" aria-label={`Permiso de contacto de ${a.name}`} className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-text-muted">¿Acepta WhatsApp o correo?</span>
+          <Button size="sm" variant="secondary" onClick={() => onConsent(true)}>
+            Sí, acepta
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => onConsent(false)}>
+            No
+          </Button>
+        </div>
       )}
     </Card>
   );

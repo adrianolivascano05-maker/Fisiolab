@@ -32,25 +32,29 @@ test.describe("Mejoras frente a la competencia", () => {
     const back = map.getByRole("group", { name: "De espaldas" });
     await front.getByRole("checkbox", { name: "Hombro derecho" }).click();
     await expect(front.getByRole("checkbox", { name: "Hombro derecho" })).toBeChecked();
-    // De espaldas el hombro derecho es el mismo: sale marcado también.
+    // Un dibujo cada vez, grande; de espaldas el hombro derecho es el mismo: sale marcado también.
+    await map.getByRole("group", { name: "Vista" }).getByRole("button", { name: /De espaldas/ }).click();
     await expect(back.getByRole("checkbox", { name: "Hombro derecho" })).toBeChecked();
-    await map.getByLabel("Al tocar una zona, marcar").getByText("Hormigueo o adormecimiento").click();
+    await map.getByLabel("Al tocar una zona, marcar").getByText("Hormigueo").click();
     await back.getByRole("checkbox", { name: "Lumbar" }).press("Space");
     await map.getByLabel("Intensidad en: Hombro derecho").selectOption("6");
-    await map.getByLabel("Añadir una zona de la lista").selectOption({ label: "Rodilla izquierda" });
+    await map.getByLabel("Zona de la lista").selectOption({ label: "Rodilla izquierda" });
+    await map.getByRole("button", { name: "Añadir", exact: true }).click();
     await map.getByLabel("Qué tiene en: Rodilla izquierda").selectOption("dolor");
     await expect(map.getByRole("list", { name: "Zonas marcadas" }).getByRole("listitem")).toHaveCount(3);
     await expectAccessible(page);
 
-    // Lo marcado propone la zona y el lado para los tests.
+    // Lo marcado propone la zona y la intensidad (EVA); el lado no, porque hay zonas de los dos (cada una lleva el suyo).
     await page.getByRole("button", { name: "Añadir a Zona y Lado" }).click();
+    await expect(page.getByText("Añadido: zona Hombro, Lumbar, Rodilla y intensidad 6/10 (la más alta)")).toBeVisible();
     const zona = page.getByRole("group", { name: "Zona", exact: true });
     for (const r of ["Hombro", "Lumbar", "Rodilla"]) await expect(zona.getByRole("checkbox", { name: r, exact: true })).toBeChecked();
-    await expect(page.getByRole("group", { name: "Lado", exact: true }).getByRole("radio", { name: "Los dos" })).toBeChecked();
+    await expect(page.getByRole("group", { name: "Lado", exact: true }).getByRole("radio", { name: "Los dos" })).not.toBeChecked();
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
 
     const text = "Hombro derecho: dolor 6/10; Lumbar: hormigueo; Rodilla izquierda: dolor";
     await expect(page.getByText(text)).toBeVisible();
+    await expect(page.getByText("6/10", { exact: true })).toBeVisible();
     await expect(page.getByRole("img", { name: `De frente: ${text}` })).toBeVisible();
     await expectAccessible(page);
     await tab(page, "Resumen").click();
@@ -114,9 +118,9 @@ test.describe("Mejoras frente a la competencia", () => {
     const sheet = page.getByRole("dialog", { name: "Añadir a la lista de espera" });
     await sheet.getByLabel("Paciente", { exact: true }).fill("Dana");
     await sheet.getByRole("button", { name: "Dana Espera" }).click();
-    await sheet.getByLabel("Cuándo le viene bien (opcional)").fill("Por las mañanas");
+    await sheet.getByLabel("Nota (opcional)").fill("Por las mañanas");
     await sheet.getByRole("button", { name: "Añadir a la lista" }).click();
-    await expect(page.getByRole("group", { name: "Dana Espera" })).toContainText("Le viene bien: Por las mañanas");
+    await expect(page.getByRole("group", { name: "Dana Espera" })).toContainText("Por las mañanas");
     await expectAccessible(page);
 
     // Carlos anula su cita de mañana: la hoja ofrece el hueco.
@@ -125,6 +129,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await page.getByRole("button", { name: /Próxima cita/ }).click();
     const cita = page.getByRole("dialog", { name: "Cita de Carlos Cita" });
     await cita.getByRole("button", { name: "Anular" }).click();
+    await cita.getByRole("button", { name: "Sí, anular" }).click();
     const freed = page.getByRole("dialog", { name: "Hueco libre" });
     await expect(freed.getByText("Hay 1 paciente en la lista de espera")).toBeVisible();
     await expectAccessible(page);
@@ -159,7 +164,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await lib.getByRole("button", { name: "Añadir 2 ejercicios" }).click();
     await page.getByRole("button", { name: "Escribir uno" }).click();
     await page.getByLabel("Ejercicio 3").fill("Caminar");
-    await page.getByLabel("Dosis").nth(2).fill("30 minutos al día");
+    await page.getByLabel("Dosis").fill("30 minutos al día");
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar la hoja" }).click();
 
@@ -171,5 +176,156 @@ test.describe("Mejoras frente a la competencia", () => {
     await expectAccessible(page);
     const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
     expect(pdf.suggestedFilename()).toBe("Ejercicios Elena Ejercicios 2026-10-20.pdf");
+  });
+
+  test("MJ5 cobrar en el momento: bonos de la clínica, la sesión gasta el bono, cobrar desde la cita, justificante de pago y Excel", async ({ page }) => {
+    await page.goto("./ajustes/cobros");
+    await page.getByLabel("Precio de la sesión suelta").fill("40");
+    await page.getByRole("button", { name: "Guardar el precio" }).click();
+    await expect(page.getByText(/Sesión suelta: 40,00/)).toBeVisible();
+    await page.getByRole("button", { name: "Añadir un bono" }).click();
+    const preset = page.getByRole("dialog", { name: "Nuevo bono de la clínica" });
+    await preset.getByLabel("Sesiones").fill("5");
+    await preset.getByLabel("Precio").fill("180");
+    await preset.getByLabel("Caduca a los (opcional)").fill("3");
+    await preset.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByRole("list", { name: "Bonos de la clínica" })).toContainText(/5 sesiones · 180,00\s€ · caduca a los 3 meses/);
+    await expectAccessible(page);
+
+    await importData(page, "Nombre;Teléfono\r\nPablo Pago;600 333 444\r\nQuique Suelto;600 444 555\r\n", "Paciente;Fecha;Hora\r\nQuique Suelto;20/10/2026;09:00\r\n");
+    await page.goto("./");
+    await page.getByRole("link", { name: /Pablo Pago/ }).first().click();
+    const url = page.url();
+    await page.getByRole("link", { name: /Bonos y cobros/ }).click();
+    await page.getByRole("button", { name: "Vender un bono" }).click();
+    const sell = page.getByRole("dialog", { name: "Vender un bono" });
+    await expect(sell.getByRole("radio", { name: /Bono 5 sesiones · 180,00/ })).toBeChecked();
+    await expect(sell.getByLabel("Caduca (opcional)")).toHaveValue("2027-01-19");
+    await sell.getByLabel("¿Lo ha pagado ya?").selectOption({ label: "Sí, tarjeta" });
+    await sell.getByRole("button", { name: "Guardar el bono" }).click();
+    await expect(page.getByRole("group", { name: "Bono 5 sesiones" })).toContainText("caduca el 19 ene 2027");
+
+    // Al apuntar la sesión ya se ve qué la paga.
+    await page.goto(`${url}/sesiones/nueva`);
+    await expect(page.getByText("Del «Bono 5 sesiones»: le quedarán 4")).toBeVisible();
+    await page.getByRole("button", { name: "Guardar sesión" }).click();
+    await expect(page.getByText("Sesión registrada · quedan 4 del bono")).toBeVisible();
+
+    // El justificante del cobro: la cantidad en letra, la forma de pago y que no es una factura.
+    await page.goto(`${url}/cobros`);
+    await page.getByRole("link", { name: /Justificante del cobro de 180,00/ }).click();
+    const receipt = page.getByRole("article", { name: "Justificante de pago" });
+    await expect(receipt).toContainText(/ha recibido de Pablo Pago la cantidad de 180,00\s€ \(ciento ochenta euros\)/);
+    await expect(receipt).toContainText("Forma de pago: tarjeta.");
+    await expect(receipt).toContainText("no es una factura");
+    await expectAccessible(page);
+    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
+    expect(pdf.suggestedFilename()).toBe("Justificante de pago Pablo Pago 2026-10-20.pdf");
+
+    // Cobrar desde la cita de hoy (sesión suelta).
+    await page.goto("./");
+    await page.getByRole("region", { name: "Hoy" }).getByRole("button", { name: /Quique Suelto/ }).click();
+    const cita = page.getByRole("dialog", { name: "Cita de Quique Suelto" });
+    // Importada ya pasada, entra como atendida: el justificante, sí; «Atender», no.
+    await expect(cita.getByRole("link", { name: "Justificante de asistencia" })).toBeVisible();
+    await cita.getByRole("button", { name: "Cobrar" }).click();
+    await expect(cita.getByLabel("Cantidad")).toHaveValue("40");
+    await cita.getByText("Bizum").click();
+    await cita.getByRole("button", { name: "Cobrar" }).click();
+    await expect(page.getByText(/Cobrado: 40,00/)).toBeVisible();
+    await expect(cita.getByText(/Cuenta: .*a cuenta 40,00/)).toBeVisible();
+
+    // Para la gestoría: los cobros del mes en Excel.
+    await page.goto("./ajustes/cobros");
+    await expect(page.getByText(/Cobrado en octubre/).locator("..")).toContainText("220,00");
+    const [xlsx] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en Excel" }).click()]);
+    expect(xlsx.suggestedFilename()).toBe("Cobros 2026-10.xlsx");
+  });
+
+  test("MJ6 lista de espera con horario: desde la ficha, a quién le encaja el hueco y a quién se le ofreció", async ({ page }) => {
+    await importData(
+      page,
+      "Nombre;Teléfono\r\nCarlos Cita;600 111 222\r\nDana Tarde;611 222 333\r\nElsa Manana;622 333 444\r\n",
+      "Paciente;Fecha;Hora\r\nCarlos Cita;21/10/2026;10:00\r\n",
+    );
+    // Desde la ficha de Dana: se abre ya con ella.
+    await page.goto("./");
+    await page.getByRole("link", { name: /Dana Tarde/ }).first().click();
+    await page.getByRole("link", { name: /Lista de espera/ }).click();
+    const add = page.getByRole("dialog", { name: "Añadir a la lista de espera" });
+    await expect(add.getByText("Paciente: Dana Tarde")).toBeVisible();
+    await add.getByText("Tardes", { exact: true }).click();
+    await add.getByRole("button", { name: "Añadir a la lista" }).click();
+    await expect(page.getByRole("group", { name: "Dana Tarde" })).toContainText("Tardes");
+    // Elsa: mañanas de miércoles.
+    await page.getByRole("button", { name: "Añadir a la lista" }).click();
+    await add.getByLabel("Paciente", { exact: true }).fill("Elsa");
+    await add.getByRole("button", { name: /Elsa Manana/ }).click();
+    await add.getByText("Mañanas", { exact: true }).click();
+    await add.getByLabel("miércoles").check({ force: true });
+    await add.getByRole("button", { name: "Añadir a la lista" }).click();
+    await expect(page.getByRole("group", { name: "Elsa Manana" })).toContainText("Mañanas, miércoles");
+    await expectAccessible(page);
+
+    // Carlos anula el miércoles a las 10:00: primero sale Elsa, a quien le encaja.
+    await page.goto("./");
+    await page.getByRole("link", { name: /Carlos Cita/ }).first().click();
+    await page.getByRole("button", { name: /Próxima cita/ }).click();
+    const cita = page.getByRole("dialog", { name: "Cita de Carlos Cita" });
+    await cita.getByRole("button", { name: "Anular" }).click();
+    await cita.getByRole("button", { name: "Sí, anular" }).click();
+    await page.getByRole("dialog", { name: "Hueco libre" }).getByRole("link", { name: "Ofrecer el hueco" }).click();
+    const list = page.getByRole("list", { name: "Lista de espera" });
+    await expect(list.getByRole("group")).toHaveCount(2);
+    await expect(list.getByRole("group").first()).toHaveAccessibleName("Elsa Manana");
+    await expect(page.getByRole("group", { name: "Elsa Manana" })).toContainText("Le encaja este hueco");
+    await expect(page.getByRole("group", { name: "Dana Tarde" })).toContainText("No es su horario");
+    const wa = page.getByRole("group", { name: "Elsa Manana" }).getByRole("link", { name: "Ofrecer por WhatsApp" });
+    await wa.evaluate((el) => el.addEventListener("click", (e) => e.preventDefault()));
+    await wa.click();
+    await expect(page.getByRole("group", { name: "Elsa Manana" })).toContainText("Ofrecido el");
+    await page.getByRole("group", { name: "Elsa Manana" }).getByRole("button", { name: "Darle la cita" }).click();
+    await expect(page.getByText(/Cita dada a Elsa Manana/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Elsa Manana\s*,\s*10:00/ })).toBeVisible();
+  });
+
+  test("MJ7 ejercicios: vídeo con código QR, plantilla y la misma hoja para otro paciente", async ({ page }) => {
+    await page.goto("./ajustes/ejercicios");
+    await page.getByRole("button", { name: "Nuevo ejercicio" }).click();
+    const ex = page.getByRole("dialog", { name: "Nuevo ejercicio" });
+    await ex.getByLabel("Nombre").fill("Sentadilla en pared");
+    await ex.getByLabel("Zona").selectOption({ label: "Rodilla" });
+    await ex.getByLabel("Dosis").fill("3 × 30 s");
+    await ex.getByLabel("Vídeo (enlace, opcional)").fill("youtu.be/abc123");
+    await ex.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByRole("heading", { name: "Rodilla" })).toBeVisible();
+
+    await importData(page, "Nombre;Teléfono\r\nFede Fase;633 444 555\r\nGala Igual;644 555 666\r\n");
+    await page.goto("./");
+    await page.getByRole("link", { name: /Fede Fase/ }).first().click();
+    await page.getByRole("link", { name: /Ejercicios para casa/ }).click();
+    await page.getByRole("button", { name: "Añadir de la biblioteca" }).click();
+    const lib = page.getByRole("dialog", { name: "Biblioteca de ejercicios" });
+    await lib.getByLabel("Buscar un ejercicio").fill("pared");
+    await lib.getByText("Sentadilla en pared").click();
+    await lib.getByRole("button", { name: "Añadir 1 ejercicio" }).click();
+    await page.getByRole("button", { name: "Guardar la hoja" }).click();
+    const doc = page.getByRole("article", { name: "Hoja de ejercicios" });
+    await expect(doc.getByRole("img", { name: "Código QR del vídeo de Sentadilla en pared" })).toBeVisible();
+    await expect(doc.getByRole("link", { name: "Ver el vídeo" })).toHaveAttribute("href", "https://youtu.be/abc123");
+    await expect(page.getByRole("link", { name: "Enviar por WhatsApp" })).toHaveAttribute("href", /V%C3%ADdeo%3A%20https%3A%2F%2Fyoutu\.be%2Fabc123/);
+    await page.getByRole("button", { name: "Guardar como plantilla" }).click();
+    await page.getByRole("dialog", { name: "Guardar como plantilla" }).getByLabel("Nombre de la plantilla").fill("Rodilla, fase 1");
+    await page.getByRole("dialog", { name: "Guardar como plantilla" }).getByRole("button", { name: "Guardar la plantilla" }).click();
+    await expect(page.getByText(/Plantilla «Rodilla, fase 1» guardada/)).toBeVisible();
+
+    await page.goto("./");
+    await page.getByRole("link", { name: /Gala Igual/ }).first().click();
+    await page.getByRole("link", { name: /Ejercicios para casa/ }).click();
+    await page.getByRole("button", { name: "Usar una plantilla" }).click();
+    await page.getByRole("dialog", { name: "Plantillas" }).getByRole("button", { name: /^Rodilla, fase 1/ }).click();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar la hoja" }).click();
+    await expect(page.getByRole("article", { name: "Hoja de ejercicios" })).toContainText("Sentadilla en pared3 × 30 s");
   });
 });

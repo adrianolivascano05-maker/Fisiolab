@@ -1,15 +1,17 @@
-// Ejercicios para casa (migración 021). La biblioteca de la clínica (exercises) y las hojas de cada paciente
-// (exercise_plans). La hoja copia el texto de cada ejercicio al guardarse: cambiar la biblioteca no cambia lo que ya se
-// le dio a nadie. La biblioteca empieza vacía; se pueden añadir unos ejemplos para editarlos.
+// Ejercicios para casa (migraciones 021 y 023). La biblioteca de la clínica (exercises, con un enlace a un vídeo si se
+// quiere) y las hojas de cada paciente (exercise_plans). La hoja copia el texto de cada ejercicio al guardarse: cambiar
+// la biblioteca no cambia lo que ya se le dio a nadie. La biblioteca empieza vacía; se pueden añadir unos ejemplos para
+// editarlos. Las plantillas (una hoja con nombre: «Lumbalgia, fase 1») se guardan en un ajuste de la clínica.
 import type { Db } from "./db";
+import { getSetting, setSetting } from "./repo";
 
 const newId = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
 
-export type ExerciseInput = { title: string; region: string; dose: string; instructions: string };
+export type ExerciseInput = { title: string; region: string; dose: string; instructions: string; video?: string };
 export type Exercise = ExerciseInput & { id: string };
 /** Un ejercicio dentro de una hoja (copiado). */
-export type PlanItem = { title: string; dose: string; instructions: string };
+export type PlanItem = { title: string; dose: string; instructions: string; video?: string };
 export type PlanInput = { items: PlanItem[]; note: string };
 export type Plan = PlanInput & { id: string; patientId: string; createdAt: string; updatedAt: string };
 
@@ -36,8 +38,22 @@ export const STARTER_EXERCISES: ExerciseInput[] = [
 
 // ---------- Biblioteca ----------
 
-type ExerciseRow = { id: string; title: string; region: string; dose: string; instructions: string };
-const toExercise = (r: ExerciseRow): Exercise => ({ id: r.id, title: r.title, region: r.region, dose: r.dose, instructions: r.instructions });
+type ExerciseRow = { id: string; title: string; region: string; dose: string; instructions: string; video: string | null };
+const toExercise = (r: ExerciseRow): Exercise => ({ id: r.id, title: r.title, region: r.region, dose: r.dose, instructions: r.instructions, video: r.video ?? "" });
+
+/** Un enlace de vídeo válido (http o https), o vacío. */
+export function cleanVideo(v: string | undefined): string {
+  const t = (v ?? "").trim();
+  if (!t) return "";
+  const url = /^https?:\/\//i.test(t) ? t : `https://${t}`;
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes(".")) throw new Error();
+    return u.toString();
+  } catch {
+    throw new RangeError("El enlace del vídeo no es una dirección web.");
+  }
+}
 
 export async function listExercises(db: Db): Promise<Exercise[]> {
   return (await db.query<ExerciseRow>("select * from exercises order by title collate nocase")).map(toExercise);
@@ -50,13 +66,13 @@ function checkExercise(e: ExerciseInput) {
 export async function saveExercise(db: Db, e: ExerciseInput, id?: string): Promise<string> {
   checkExercise(e);
   const t = now();
-  const bind = [e.title.trim(), e.region, e.dose.trim(), e.instructions.trim()];
+  const bind = [e.title.trim(), e.region, e.dose.trim(), e.instructions.trim(), cleanVideo(e.video)];
   if (id) {
-    await db.transaction([{ sql: "update exercises set title = ?, region = ?, dose = ?, instructions = ?, updated_at = ? where id = ?", bind: [...bind, t, id] }]);
+    await db.transaction([{ sql: "update exercises set title = ?, region = ?, dose = ?, instructions = ?, video = ?, updated_at = ? where id = ?", bind: [...bind, t, id] }]);
     return id;
   }
   const nid = newId();
-  await db.transaction([{ sql: "insert into exercises (title, region, dose, instructions, id, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?)", bind: [...bind, nid, t, t] }]);
+  await db.transaction([{ sql: "insert into exercises (title, region, dose, instructions, video, id, created_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?)", bind: [...bind, nid, t, t] }]);
   return nid;
 }
 
@@ -89,7 +105,7 @@ function toPlan(r: PlanRow): Plan {
     if (Array.isArray(raw))
       items = raw
         .filter((x): x is Record<string, unknown> => !!x && typeof x === "object")
-        .map((x) => ({ title: String(x.title ?? ""), dose: String(x.dose ?? ""), instructions: String(x.instructions ?? "") }));
+        .map((x) => ({ title: String(x.title ?? ""), dose: String(x.dose ?? ""), instructions: String(x.instructions ?? ""), video: String(x.video ?? "") }));
   } catch {
     /* una hoja dañada se ve vacía */
   }
@@ -107,7 +123,9 @@ export async function getPlan(db: Db, id: string): Promise<Plan | null> {
 }
 
 const clean = (p: PlanInput) => {
-  const items = p.items.map((i) => ({ title: i.title.trim(), dose: i.dose.trim(), instructions: i.instructions.trim() })).filter((i) => i.title);
+  const items = p.items
+    .map((i) => ({ title: i.title.trim(), dose: i.dose.trim(), instructions: i.instructions.trim(), ...(i.video?.trim() ? { video: cleanVideo(i.video) } : {}) }))
+    .filter((i) => i.title);
   if (!items.length) throw new RangeError("Añade al menos un ejercicio.");
   return { items: JSON.stringify(items), note: p.note.trim() };
 };
@@ -116,6 +134,7 @@ export async function savePlan(db: Db, patientId: string, p: PlanInput, id?: str
   const c = clean(p);
   const t = now();
   if (id) {
+    if (!(await db.query("select 1 from exercise_plans where id = ? and patient_id = ?", [id, patientId])).length) throw new RangeError("Esta hoja ya no existe: se ha borrado en otro dispositivo.");
     await db.transaction([{ sql: "update exercise_plans set items = ?, note = ?, updated_at = ? where id = ? and patient_id = ?", bind: [c.items, c.note, t, id, patientId] }]);
     return id;
   }
@@ -135,8 +154,34 @@ export function planText(p: PlanInput, patientName: string, clinic: string): str
   p.items.forEach((i, n) => {
     lines.push(`${n + 1}. ${i.title}${i.dose ? ` — ${i.dose}` : ""}`);
     if (i.instructions) lines.push(i.instructions);
+    if (i.video) lines.push(`Vídeo: ${i.video}`);
     lines.push("");
   });
   if (p.note.trim()) lines.push(p.note.trim());
   return lines.join("\n").trim();
+}
+
+// ---------- Plantillas ----------
+
+/** Una hoja con nombre para darla a otros pacientes («Lumbalgia, fase 1»). Ajuste de la clínica (se sincroniza). */
+export type PlanTemplate = PlanInput & { id: string; title: string };
+export const PLAN_TEMPLATES_KEY = "exercise_templates";
+
+export async function listTemplates(db: Db): Promise<PlanTemplate[]> {
+  return ((await getSetting<PlanTemplate[]>(db, PLAN_TEMPLATES_KEY)) ?? []).sort((a, b) => a.title.localeCompare(b.title, "es"));
+}
+
+/** Guarda la hoja como plantilla; con el mismo nombre, la cambia. */
+export async function saveTemplate(db: Db, title: string, p: PlanInput): Promise<void> {
+  const name = title.trim();
+  if (!name) throw new RangeError("Ponle un nombre a la plantilla.");
+  const c = clean(p);
+  const all = await listTemplates(db);
+  const same = all.find((t) => t.title.toLowerCase() === name.toLowerCase());
+  const tpl: PlanTemplate = { id: same?.id ?? newId(), title: name, items: JSON.parse(c.items) as PlanItem[], note: c.note };
+  await setSetting(db, PLAN_TEMPLATES_KEY, [...all.filter((t) => t.id !== tpl.id), tpl]);
+}
+
+export async function deleteTemplate(db: Db, id: string): Promise<void> {
+  await setSetting(db, PLAN_TEMPLATES_KEY, (await listTemplates(db)).filter((t) => t.id !== id));
 }

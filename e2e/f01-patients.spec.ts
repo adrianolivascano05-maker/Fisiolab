@@ -8,7 +8,7 @@ test.describe("F01 Dar de alta un paciente", () => {
     await createPatient(page, { name: "Ana Martín López", mass: "62,5", pushOff: "38" });
     await expect(page.getByText("62,5 kg", { exact: true })).toBeVisible();
     // El contacto va en la ficha (no en cada anamnesis) y sale en la cabecera.
-    await page.getByRole("link", { name: "Editar", exact: true }).click();
+    await page.getByRole("link", { name: "Editar datos", exact: true }).click();
     await expect(page.getByLabel("Distancia de empuje")).toHaveValue("38");
     await page.getByLabel("Teléfono").fill("612 34 56 78");
     await page.getByLabel("Email").fill("ana@");
@@ -61,7 +61,7 @@ test.describe("F01 Dar de alta un paciente", () => {
   test("F01-E5 editar y buscar", async ({ page }) => {
     await createPatient(page, { name: "Jorge Ruiz" });
     await createPatient(page, { name: "Lucía Herrero" });
-    await page.getByRole("link", { name: "Editar", exact: true }).click();
+    await page.getByRole("link", { name: "Editar datos", exact: true }).click();
     await page.getByLabel("Peso").fill("58.5");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect(page.getByText("58,5 kg")).toBeVisible();
@@ -75,7 +75,7 @@ test.describe("F01 Dar de alta un paciente", () => {
 
   test("F01-N1 borrar paciente pide confirmación y lo borra", async ({ page }) => {
     await createPatient(page, { name: "Para borrar" });
-    await page.getByRole("link", { name: "Editar", exact: true }).click();
+    await page.getByRole("link", { name: "Editar datos", exact: true }).click();
     await page.getByRole("button", { name: "Borrar paciente" }).click();
     const dialog = page.getByRole("dialog", { name: "¿Borrar este paciente?" });
     await expect(dialog).toBeVisible();

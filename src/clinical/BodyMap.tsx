@@ -2,7 +2,7 @@
 // toca la zona en el dibujo, de frente o de espaldas; debajo sale cada zona marcada para cambiarle el síntoma y la
 // intensidad. Las zonas pequeñas también se añaden desde una lista. En la ficha y en el informe, el dibujo se lee.
 import { X } from "lucide-react";
-import { useId, useState, type KeyboardEvent, type SVGProps } from "react";
+import { useId, useRef, useState, type KeyboardEvent, type SVGProps } from "react";
 import { cx } from "../ui/cx";
 import { formatMarks, MAP_HEIGHT, marksText, parseMarks, sortMarks, SYMPTOMS, zoneLabel, ZONES, type Mark, type Shape, type Symptom } from "./bodyMap";
 
@@ -18,23 +18,30 @@ function ShapeEl({ s, ...rest }: { s: Shape } & SVGProps<SVGElement>) {
   );
 }
 
-/** Los dos dibujos. Con `onToggle`, cada zona es una casilla que se marca tocándola (o con espacio o intro). */
-export function BodyFigures({ marks, onToggle, className }: { marks: Mark[]; onToggle?: (zone: string) => void; className?: string }) {
+const center = (s: Shape) => (s.kind === "ellipse" ? { x: s.cx, y: s.cy } : { x: s.x + s.w / 2, y: s.y + s.h / 2 });
+const VIEWS = [
+  { id: "front", label: "De frente", left: "Dcha.", right: "Izda." },
+  { id: "back", label: "De espaldas", left: "Izda.", right: "Dcha." },
+] as const;
+type View = (typeof VIEWS)[number]["id"];
+
+/**
+ * Los dibujos: los dos (para leer) o uno (`view`, para marcar, más grande). Con `onToggle`, cada zona es una casilla que
+ * se marca tocándola (o con espacio o intro). La intensidad sale escrita en la zona.
+ */
+export function BodyFigures({ marks, onToggle, view, className }: { marks: Mark[]; onToggle?: (zone: string) => void; view?: View; className?: string }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
   const byZone = new Map(marks.map((m) => [m.zone, m]));
-  const views = [
-    { id: "front", label: "De frente", left: "D", right: "I" },
-    { id: "back", label: "De espaldas", left: "I", right: "D" },
-  ] as const;
+  const views = VIEWS.filter((v) => !view || v.id === view);
   return (
-    <div className={cx("grid grid-cols-2 gap-3 [print-color-adjust:exact]", className)}>
-      {views.map((view) => (
-        <figure key={view.id} className="flex flex-col items-center gap-1">
+    <div className={cx("grid gap-3 [print-color-adjust:exact]", views.length === 2 ? "grid-cols-2" : "grid-cols-1", className)}>
+      {views.map((v) => (
+        <figure key={v.id} className="flex min-w-0 flex-col items-center gap-1">
           <svg
             viewBox={`0 0 200 ${MAP_HEIGHT}`}
             role={onToggle ? "group" : "img"}
-            aria-label={onToggle ? view.label : `${view.label}: ${marks.length ? marksText(formatMarks(marks)) : "nada marcado"}`}
-            className="h-auto w-full max-w-[240px] touch-manipulation select-none"
+            aria-label={onToggle ? v.label : `${v.label}: ${marks.length ? marksText(formatMarks(marks)) : "nada marcado"}`}
+            className={cx("h-auto w-full touch-manipulation select-none", views.length === 1 ? "max-w-[340px]" : "max-w-[240px]")}
           >
             <defs>
               {/* Además del color, una trama: el hormigueo con puntos y la rigidez con rayas (no solo color). */}
@@ -45,16 +52,18 @@ export function BodyFigures({ marks, onToggle, className }: { marks: Mark[]; onT
                 <rect width="2" height="6" className="fill-white" />
               </pattern>
             </defs>
-            <text x="8" y="18" className="fill-text-muted text-[14px] font-semibold" aria-hidden="true">
-              {view.left}
+            {/* El lado del paciente, junto a los hombros. */}
+            <text x="2" y="66" className="fill-text-muted text-[12px] font-semibold" aria-hidden="true">
+              {v.left}
             </text>
-            <text x="192" y="18" textAnchor="end" className="fill-text-muted text-[14px] font-semibold" aria-hidden="true">
-              {view.right}
+            <text x="198" y="66" textAnchor="end" className="fill-text-muted text-[12px] font-semibold" aria-hidden="true">
+              {v.right}
             </text>
-            {ZONES.filter((z) => z[view.id]).map((z) => {
-              const s = z[view.id]!;
+            {ZONES.filter((z) => z[v.id]).map((z) => {
+              const s = z[v.id]!;
               const m = byZone.get(z.id);
               const pattern = m?.symptom === "hormigueo" ? "dots" : m?.symptom === "rigidez" ? "lines" : null;
+              const c = center(s);
               const interactive = onToggle
                 ? {
                     role: "checkbox",
@@ -71,24 +80,36 @@ export function BodyFigures({ marks, onToggle, className }: { marks: Mark[]; onT
                   }
                 : { "aria-hidden": true };
               return (
-                <g key={z.id} {...interactive} className={cx("outline-none", onToggle && "group cursor-pointer")}>
-                  <title>{m ? `${z.label}: ${SYMPTOMS.find((x) => x.id === m.symptom)!.short}` : z.label}</title>
+                <g key={z.id} {...interactive} className={cx("outline-none", onToggle && "group/zona cursor-pointer")}>
+                  <title>{m ? `${z.label}: ${SYMPTOMS.find((x) => x.id === m.symptom)!.short}${m.intensity !== null ? ` ${m.intensity}/10` : ""}` : z.label}</title>
                   <ShapeEl
                     s={s}
                     strokeWidth={1.5}
                     className={cx(
                       "stroke-border-input transition-colors",
                       m ? FILL[m.symptom] : "fill-surface",
-                      onToggle && !m && "group-hover:fill-accent-soft",
-                      onToggle && "group-focus-visible:stroke-focus group-focus-visible:[stroke-width:4]",
+                      onToggle && !m && "group-hover/zona:fill-accent-soft",
+                      // Grupo con nombre: la ficha plegable de la anamnesis también es un «group» y lo pintaba todo al pasar por encima.
+                      onToggle && "group-focus-visible/zona:stroke-focus group-focus-visible/zona:[stroke-width:4]",
                     )}
                   />
                   {pattern && <ShapeEl s={s} fill={`url(#${uid}-${pattern})`} pointerEvents="none" />}
+                  {m && m.intensity !== null && (
+                    <text
+                      x={c.x}
+                      y={c.y + 4.5}
+                      textAnchor="middle"
+                      pointerEvents="none"
+                      className="fill-white stroke-text text-[13px] font-bold [paint-order:stroke] [stroke-width:3px]"
+                    >
+                      {m.intensity}
+                    </text>
+                  )}
                 </g>
               );
             })}
           </svg>
-          <figcaption className="text-sm text-text-muted">{view.label}</figcaption>
+          <figcaption className="text-sm text-text-muted">{v.label}</figcaption>
         </figure>
       ))}
     </div>
@@ -118,6 +139,10 @@ export function BodyMapInput({ label, hint, value, onChange }: { label: string; 
   const toggle = (zone: string) => save(marks.some((m) => m.zone === zone) ? marks.filter((m) => m.zone !== zone) : [...marks, { zone, symptom, intensity: null }]);
   const update = (zone: string, patch: Partial<Mark>) => save(marks.map((m) => (m.zone === zone ? { ...m, ...patch } : m)));
   const free = ZONES.filter((z) => !marks.some((m) => m.zone === z.id));
+  const [pick, setPick] = useState("");
+  const [view, setView] = useState<View>("front");
+  /** Al quitar una zona de la lista, el foco va a la lista de zonas (el botón que tenía desaparece). */
+  const pickRef = useRef<HTMLSelectElement>(null);
 
   return (
     // min-w-0: un fieldset no se estrecha por debajo de su contenido y las listas desplegables lo ensanchaban.
@@ -142,8 +167,22 @@ export function BodyMapInput({ label, hint, value, onChange }: { label: string; 
           </label>
         ))}
       </div>
-      <BodyFigures marks={marks} onToggle={toggle} />
-      <p className="text-xs text-text-muted">D y I: lado derecho e izquierdo del paciente. Toca otra vez una zona para quitarla.</p>
+      <div role="group" aria-label="Vista" className="grid grid-cols-2 gap-1 rounded-lg bg-surface p-1">
+        {VIEWS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            aria-pressed={view === v.id}
+            className={cx("min-h-11 rounded-md text-sm font-semibold", view === v.id ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text")}
+            onClick={() => setView(v.id)}
+          >
+            {v.label}
+            {marks.some((m) => ZONES.find((z) => z.id === m.zone)?.[v.id]) ? ` · ${marks.filter((m) => ZONES.find((z) => z.id === m.zone)?.[v.id]).length}` : ""}
+          </button>
+        ))}
+      </div>
+      <BodyFigures marks={marks} onToggle={toggle} view={view} />
+      <p className="text-xs text-text-muted">Dcha. e Izda.: lado derecho e izquierdo del paciente. Toca otra vez una zona para quitarla. Hormigueo incluye el adormecimiento.</p>
 
       {marks.length > 0 && (
         <ul aria-label="Zonas marcadas" className="flex flex-col gap-2">
@@ -158,7 +197,10 @@ export function BodyMapInput({ label, hint, value, onChange }: { label: string; 
                     type="button"
                     aria-label={`Quitar ${zone}`}
                     className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface hover:text-text"
-                    onClick={() => toggle(m.zone)}
+                    onClick={() => {
+                      toggle(m.zone);
+                      pickRef.current?.focus();
+                    }}
                   >
                     <X aria-hidden="true" className="size-5" />
                   </button>
@@ -190,21 +232,29 @@ export function BodyMapInput({ label, hint, value, onChange }: { label: string; 
           })}
         </ul>
       )}
-      <select
-        aria-label="Añadir una zona de la lista"
-        className={control}
-        value=""
-        onChange={(e) => {
-          if (e.target.value) save([...marks, { zone: e.target.value, symptom, intensity: null }]);
-        }}
-      >
-        <option value="">Añadir una zona de la lista…</option>
-        {free.map((z) => (
-          <option key={z.id} value={z.id}>
-            {z.label}
-          </option>
-        ))}
-      </select>
+      {/* Elegir y luego «Añadir»: con el teclado, moverse por la lista no marca nada. */}
+      <div className="flex gap-2">
+        <select ref={pickRef} aria-label="Zona de la lista" className={cx(control, "min-w-0 flex-1")} value={pick} onChange={(e) => setPick(e.target.value)}>
+          <option value="">Otra zona de la lista…</option>
+          {free.map((z) => (
+            <option key={z.id} value={z.id}>
+              {z.label}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={!pick}
+          className="h-11 shrink-0 rounded-md border border-border-input bg-bg px-4 text-sm font-semibold hover:bg-surface disabled:opacity-50"
+          onClick={() => {
+            if (!pick) return;
+            save([...marks, { zone: pick, symptom, intensity: null }]);
+            setPick("");
+          }}
+        >
+          Añadir
+        </button>
+      </div>
     </fieldset>
   );
 }

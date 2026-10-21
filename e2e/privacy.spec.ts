@@ -47,7 +47,7 @@ test.describe("Protección de datos", () => {
     await expect(page.getByText("Terapia manual")).toBeVisible();
     await page.goto("./");
     await page.getByRole("link", { name: /Con Historia/ }).click();
-    await page.getByRole("link", { name: "Editar", exact: true }).click();
+    await page.getByRole("link", { name: "Editar datos", exact: true }).click();
     await page.getByRole("button", { name: "Borrar paciente" }).click();
     const dialog = page.getByRole("dialog", { name: "¿Borrar este paciente?" });
     await expect(dialog.getByText(/Hay que conservar su historia clínica hasta el/)).toBeVisible();

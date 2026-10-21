@@ -9,7 +9,9 @@ import { isIos, isStandalone } from "../app/pwa";
 import { useAsync } from "../app/useAsync";
 import { AppointmentSheet } from "../clinical/AppointmentSheet";
 import { fmtVisit } from "../clinical/calendar";
+import { useDataVersion } from "../app/dataVersion";
 import { agenda, STATUS_LABELS, type AgendaItem } from "../data/appointments";
+import { euros, pendingAccounts } from "../data/billing";
 import { dueReviews, upcomingVisits } from "../data/clinical";
 import { getDb } from "../data/db";
 import { createPatient, getSetting, listPatients, matchesPatient, QUICK_PATIENT, type PatientSummary } from "../data/repo";
@@ -57,6 +59,9 @@ export function PatientsPage() {
   const reviews = useAsync(() => dueReviews(getDb(), dayPlus(7)), []);
   // Agenda de hoy (todas sus citas, también las atendidas o anuladas) y las pendientes de los próximos 7 días.
   const today = useAsync(async () => (await agenda(getDb(), `${dayPlus(-1)}T20:00:00Z`, `${dayPlus(1)}T04:00:00Z`)).filter((a) => madridDay(a.startsAt) === dayPlus(0)), []);
+  const version = useDataVersion();
+  /** Lo que debe cada paciente de hoy, para verlo al llegar (Bonos y cobros). */
+  const owes = useAsync(async () => new Map((await pendingAccounts(getDb(), dayPlus(0))).map((d) => [d.patientId, d.balanceCents])), [version]);
   const visits = useAsync(async () => (await upcomingVisits(getDb())).filter((v) => madridDay(v.nextAt) > dayPlus(0) && madridDay(v.nextAt) <= dayPlus(7)), []);
   const [managing, setManaging] = useState<AgendaItem | null>(null);
   const navigate = useNavigate();
@@ -146,7 +151,7 @@ export function PatientsPage() {
                 icon={Icon}
                 tone={a.status === "no_show" || a.status === "cancelled" ? "warning" : "accent"}
                 title={`${hourOf(a.startsAt)} · ${a.name}`}
-                subtitle={a.status === "scheduled" ? `${a.minutes} min` : STATUS_LABELS[a.status]}
+                subtitle={[a.status === "scheduled" ? `${a.minutes} min` : STATUS_LABELS[a.status], owes.data?.get(a.patientId) && `debe ${euros(owes.data.get(a.patientId)!)}`].filter(Boolean).join(" · ")}
                 onClick={() => setManaging(a)}
               />
             );

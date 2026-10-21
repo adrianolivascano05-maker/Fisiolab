@@ -51,6 +51,8 @@ export type PatientSummary = {
   nextAt: string | null;
   /** Lo que se puede buscar además del nombre: teléfono, email, motivos de consulta, diagnósticos y notas. */
   searchText: string;
+  /** Para distinguir a dos con el mismo nombre al elegir. */
+  phone: string;
 };
 
 /** ¿El paciente coincide con lo buscado? Sin tildes ni mayúsculas; un teléfono, con o sin espacios. */
@@ -103,7 +105,7 @@ function toPatient(r: PatientRow): Patient {
 
 export async function listPatients(db: Db, search = "", now = new Date()): Promise<PatientSummary[]> {
   const rows = await db.query<PatientSummary>(
-    `select p.id, p.name,
+    `select p.id, p.name, coalesce(p.phone, '') as phone,
             (select count(*) from tests t where t.patient_id = p.id) as testCount,
             (select max(t.performed_at) from tests t where t.patient_id = p.id) as lastTestAt,
             (select t.type from tests t where t.patient_id = p.id order by t.performed_at desc limit 1) as lastTestType,

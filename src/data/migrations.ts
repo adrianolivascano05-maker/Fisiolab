@@ -19,6 +19,8 @@ import reminders018 from "./migrations/018_reminders.sql?raw";
 import billing019 from "./migrations/019_billing.sql?raw";
 import waitlist020 from "./migrations/020_waitlist.sql?raw";
 import exercises021 from "./migrations/021_exercises.sql?raw";
+import waitlistPrefs022 from "./migrations/022_waitlist_prefs.sql?raw";
+import exerciseVideo023 from "./migrations/023_exercise_video.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -43,4 +45,6 @@ export const migrations: Migration[] = [
   { version: 19, sql: billing019 },
   { version: 20, sql: waitlist020 },
   { version: 21, sql: exercises021 },
+  { version: 22, sql: waitlistPrefs022 },
+  { version: 23, sql: exerciseVideo023 },
 ];

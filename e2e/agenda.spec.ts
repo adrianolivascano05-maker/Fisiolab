@@ -55,6 +55,7 @@ test.describe("Agenda y seguimiento", () => {
     await giveAppointment(page, "Clara Cambia", "2026-10-22T09:00");
     await page.getByRole("button", { name: /Próxima cita/ }).click();
     const sheet = page.getByRole("dialog", { name: "Cita de Clara Cambia" });
+    await sheet.getByText("Mover o cambiar la cita").click();
     await sheet.getByRole("button", { name: "Cambiar el día o la hora" }).click();
     const edit = page.getByRole("dialog", { name: "Cambiar la cita" });
     await edit.getByLabel("Día y hora").fill("2026-10-23T17:15");
@@ -65,6 +66,7 @@ test.describe("Agenda y seguimiento", () => {
     await page.getByRole("link", { name: /Clara Cambia/ }).first().click();
     await page.getByRole("button", { name: /Próxima cita/ }).click();
     await page.getByRole("dialog", { name: "Cita de Clara Cambia" }).getByRole("button", { name: "Anular" }).click();
+    await page.getByRole("dialog", { name: "Cita de Clara Cambia" }).getByRole("button", { name: "Sí, anular" }).click();
     await expect(page.getByRole("button", { name: "Dar cita" })).toBeVisible();
   });
 
@@ -139,6 +141,7 @@ test.describe("Agenda y seguimiento", () => {
 
     // Moverla una semana desde su hoja.
     await page.getByRole("button", { name: /^Eva Mueve\s*,\s*12:00–12:45/ }).click();
+    await page.getByRole("dialog", { name: "Cita de Eva Mueve" }).getByText("Mover o cambiar la cita").click();
     await page.getByRole("dialog", { name: "Cita de Eva Mueve" }).getByRole("group", { name: "Mover la cita" }).getByRole("button", { name: "1 semana después" }).click();
     await expect(page.getByRole("button", { name: /Eva Mueve/ })).toHaveCount(0);
     await page.getByRole("button", { name: "Día siguiente" }).click();
@@ -293,7 +296,7 @@ test.describe("Agenda y seguimiento", () => {
     await expect(tiles.getByText("Sesiones").locator("..")).toContainText("3");
     await expect(tiles.getByText("Pacientes atendidos").locator("..")).toContainText("2");
     await expect(tiles.getByText("Ausencias").locator("..")).toContainText("25 %");
-    await expect(page.getByRole("img", { name: "Sesiones por mes en el último año; este mes, 3" })).toBeVisible();
+    await expect(page.getByRole("img", { name: "Sesiones por mes; este mes, 3" })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Este año" }).click();
     await expect(tiles.getByText("Sesiones").locator("..")).toContainText("4");

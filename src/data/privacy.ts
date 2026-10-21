@@ -50,6 +50,14 @@ export async function savePatientPrivacy(db: Db, patientId: string, p: PatientPr
   await db.transaction([{ sql: "update patients set privacy = ?, updated_at = ? where id = ?", bind: [JSON.stringify(clean), t, patientId] }]);
 }
 
+/** Apunta si acepta que se le escriba por WhatsApp, SMS o correo (lo demás de su protección de datos no cambia). */
+export async function setContactConsent(db: Db, patientId: string, yes: boolean): Promise<void> {
+  const [row] = await db.query<{ privacy: string | null }>("select privacy from patients where id = ?", [patientId]);
+  if (!row) throw new RangeError("Este paciente no existe.");
+  const p = parsePrivacy(row.privacy);
+  await savePatientPrivacy(db, patientId, { ...p, consents: { ...p.consents, contact: yes } });
+}
+
 // ---------- La clínica ----------
 
 /** Datos del responsable del tratamiento para el texto informativo. Se guardan en la base (van a la nube). */

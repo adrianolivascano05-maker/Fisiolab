@@ -1,4 +1,4 @@
-import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, Dumbbell, ShieldAlert, ShieldCheck, Stethoscope, Wallet, type LucideIcon } from "lucide-react";
+import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, Dumbbell, Hourglass, ShieldAlert, ShieldCheck, Stethoscope, Wallet, type LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
@@ -12,6 +12,7 @@ import { LSI_REFERENCE, symmetryRows } from "../clinical/symmetry";
 import { buildTimeline, painSeries, type EventKind } from "../clinical/timeline";
 import { accountLine, patientAccount } from "../data/billing";
 import { listPlans } from "../data/exercises";
+import { listWaitlist, preferText } from "../data/waitlist";
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
@@ -52,7 +53,7 @@ export function PatientPage() {
   const data = useAsync(async () => {
     const db = getDb();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans] = await Promise.all([
+    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waitlist] = await Promise.all([
       getPatient(db, id),
       listTests(db, id),
       listWellness(db, id),
@@ -63,13 +64,14 @@ export function PatientPage() {
       listConsents(db, id),
       patientAccount(db, id, today),
       listPlans(db, id),
+      listWaitlist(db),
     ]);
-    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans };
+    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waiting: waitlist.find((w) => w.patientId === id) ?? null };
   }, [id]);
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Paciente" backTo="/"><Loading /></Page>;
-  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans } = data.data;
+  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waiting } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   // Consentimientos: los firmados vigentes y los que su anamnesis pide por escrito y faltan.
   const consentCtx = consentContext(patient, anamnesis?.answers ?? {});
@@ -120,6 +122,40 @@ export function PatientPage() {
         </Link>
       )}
 
+      {summary && (summary.reason || summary.regions.length > 0 || summary.redFlags.length > 0) && (
+      <section aria-labelledby="clinico" className="flex flex-col gap-2">
+        <h2 id="clinico" className="text-lg">
+          Motivo de consulta
+        </h2>
+        {summary.reason || summary.regions.length ? (
+          <Link to={`/pacientes/${id}/anamnesis`} className="block">
+            <Card className="flex flex-col gap-1.5 hover:border-accent">
+              {summary.reason && <p className="font-semibold">{summary.reason}</p>}
+              {(summary.regions.length > 0 || summary.side) && (
+                <p className="flex flex-wrap gap-1.5">
+                  {summary.regions.map((r) => (
+                    <span key={r} className="rounded-pill bg-accent-soft px-2.5 py-0.5 text-sm font-semibold text-accent">
+                      {regionLabel(r)}
+                    </span>
+                  ))}
+                  {summary.side && summary.side !== "No aplica" && <span className="rounded-pill bg-surface px-2.5 py-0.5 text-sm">{summary.side}</span>}
+                </p>
+              )}
+              {summary.location && <p className="text-sm text-text-muted">Localización: {summary.location}</p>}
+              {summary.painMap && <p className="text-sm text-text-muted">Mapa del dolor: {summary.painMap}</p>}
+              {summary.diagnosis && <p className="text-sm">Diagnóstico fisioterápico: {summary.diagnosis}</p>}
+              {summary.goal && <p className="text-sm text-text-muted">Objetivo: {summary.goal}</p>}
+            </Card>
+          </Link>
+        ) : null}
+        {summary.redFlags.length > 0 && (
+          <Alert tone="danger" title={`Banderas rojas: ${summary.redFlags.length}`}>
+            {summary.redFlags.join(" · ")}. Valora derivar.
+          </Alert>
+        )}
+      </section>
+      )}
+
       <Group>
         <RowLink
           to={`/pacientes/${id}/anamnesis`}
@@ -157,6 +193,8 @@ export function PatientPage() {
           title="Ejercicios para casa"
           subtitle={plans.length ? `Hoja del ${fmtDate(plans[0]!.updatedAt)} · ${plans[0]!.items.length === 1 ? "1 ejercicio" : `${plans[0]!.items.length} ejercicios`}` : "Hoja para imprimir o enviar por WhatsApp"}
         />
+      </Group>
+      <Group title="Cobros y agenda">
         <RowLink
           to={`/pacientes/${id}/cobros`}
           icon={Wallet}
@@ -164,42 +202,15 @@ export function PatientPage() {
           title="Bonos y cobros"
           subtitle={accountLine(account) ?? "Vender un bono o apuntar un cobro"}
         />
+        <RowLink
+          to={waiting ? "/agenda/espera" : `/agenda/espera?paciente=${id}`}
+          icon={Hourglass}
+          title="Lista de espera"
+          subtitle={waiting ? `En la lista: ${preferText(waiting).toLowerCase()}` : "Avisarle si se libera un hueco antes"}
+        />
       </Group>
 
       {/* Lo clínico: por qué viene, banderas y dolor. */}
-      {summary && (summary.reason || summary.regions.length > 0 || summary.redFlags.length > 0) && (
-      <section aria-labelledby="clinico" className="flex flex-col gap-2">
-        <h2 id="clinico" className="text-lg">
-          Motivo de consulta
-        </h2>
-        {summary.reason || summary.regions.length ? (
-          <Link to={`/pacientes/${id}/anamnesis`} className="block">
-            <Card className="flex flex-col gap-1.5 hover:border-accent">
-              {summary.reason && <p className="font-semibold">{summary.reason}</p>}
-              {(summary.regions.length > 0 || summary.side) && (
-                <p className="flex flex-wrap gap-1.5">
-                  {summary.regions.map((r) => (
-                    <span key={r} className="rounded-pill bg-accent-soft px-2.5 py-0.5 text-sm font-semibold text-accent">
-                      {regionLabel(r)}
-                    </span>
-                  ))}
-                  {summary.side && summary.side !== "No aplica" && <span className="rounded-pill bg-surface px-2.5 py-0.5 text-sm">{summary.side}</span>}
-                </p>
-              )}
-              {summary.location && <p className="text-sm text-text-muted">Localización: {summary.location}</p>}
-              {summary.painMap && <p className="text-sm text-text-muted">Mapa del dolor: {summary.painMap}</p>}
-              {summary.diagnosis && <p className="text-sm">Diagnóstico fisioterápico: {summary.diagnosis}</p>}
-              {summary.goal && <p className="text-sm text-text-muted">Objetivo: {summary.goal}</p>}
-            </Card>
-          </Link>
-        ) : null}
-        {summary.redFlags.length > 0 && (
-          <Alert tone="danger" title={`Banderas rojas: ${summary.redFlags.length}`}>
-            {summary.redFlags.join(" · ")}. Valora derivar.
-          </Alert>
-        )}
-      </section>
-      )}
 
       {(pain.length > 0 || (review && review > today)) && (
       <section aria-labelledby="dolor" className="flex flex-col gap-2">

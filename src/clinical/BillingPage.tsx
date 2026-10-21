@@ -1,26 +1,27 @@
 // Ficha → Bonos y cobros (src/data/billing.ts): lo que el paciente tiene pendiente, sus bonos (cuántas sesiones le
 // quedan) y lo que ha pagado. Vender un bono y apuntar un cobro, en una hoja. No son facturas.
-import { Plus, Trash, Wallet } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { FileText, Pencil, Plus, RotateCw, Trash, Wallet } from "lucide-react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { addPayment, createPack, deletePack, deletePayment, euros, getPricing, methodLabel, METHODS, parseEuros, patientAccount, type Method, type PackState, type Payment } from "../data/billing";
+import { addPayment, createPack, deletePack, deletePayment, euros, getPackPresets, getPricing, methodLabel, patientAccount, updatePack, type PackState, type Payment } from "../data/billing";
 import { getDb } from "../data/db";
 import { getPatient } from "../data/repo";
-import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
-import { NumberField, SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { PackForm, PaymentForm } from "./billingForms";
 import { todayDay } from "./pageKit";
 
 const day = (d: string) => fmtDate(`${d}T12:00:00`);
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** Cuántos meses duraba un bono (para renovarlo igual); null si no caducaba. */
+const monthsOf = (p: PackState) => (p.expiresOn ? Math.max(1, Math.round((Date.parse(p.expiresOn) - Date.parse(p.boughtOn)) / (30.44 * 86_400_000))) : null);
 
 export function BillingPage() {
   const { id = "" } = useParams();
@@ -29,15 +30,18 @@ export function BillingPage() {
   const today = todayDay();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, account, pricing] = await Promise.all([getPatient(db, id), patientAccount(db, id, today), getPricing(db)]);
-    return { patient, account, pricing };
+    const [patient, account, pricing, presets] = await Promise.all([getPatient(db, id), patientAccount(db, id, today), getPricing(db), getPackPresets(db)]);
+    return { patient, account, pricing, presets };
   }, [id, version, today]);
   const [sheet, setSheet] = useState<"pack" | "payment" | null>(null);
+  /** El bono que se cambia (corregir un dato) o el que se renueva (uno igual desde hoy). */
+  const [editing, setEditing] = useState<PackState | null>(null);
+  const [renewing, setRenewing] = useState<PackState | null>(null);
   const [dropping, setDropping] = useState<{ kind: "pack"; item: PackState } | { kind: "payment"; item: Payment } | null>(null);
 
   if (data.error) return <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}><Loading /></Page>;
-  const { patient, account: a, pricing } = data.data;
+  const { patient, account: a, pricing, presets } = data.data;
   if (!patient) return <Page title="Bonos y cobros" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const packsCents = a.packs.reduce((n, p) => n + (p.priceCents ?? 0), 0);
 
@@ -69,6 +73,11 @@ export function BillingPage() {
               .filter(Boolean)
               .join(" · ")}
           </p>
+        )}
+        {a.balanceCents > 0 && (
+          <Button className="mt-1 self-start" icon={<Wallet aria-hidden="true" className="size-5" />} onClick={() => setSheet("payment")}>
+            Cobrar {euros(a.balanceCents)}
+          </Button>
         )}
       </Card>
       {pricing.sessionCents === null && (
@@ -104,9 +113,19 @@ export function BillingPage() {
               {p.expiresOn ? ` · caduca el ${day(p.expiresOn)}` : ""}
               {p.note ? ` · ${p.note}` : ""}
             </p>
-            <Button size="sm" variant="ghost" className="self-start text-danger" icon={<Trash aria-hidden="true" className="size-4" />} onClick={() => setDropping({ kind: "pack", item: p })}>
-              Borrar el bono
-            </Button>
+            <div className="flex flex-wrap gap-1">
+              {(p.left <= 1 || p.expired) && (
+                <Button size="sm" variant="secondary" icon={<RotateCw aria-hidden="true" className="size-4" />} onClick={() => setRenewing(p)}>
+                  Renovar
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" icon={<Pencil aria-hidden="true" className="size-4" />} onClick={() => setEditing(p)}>
+                Cambiar
+              </Button>
+              <Button size="sm" variant="ghost" className="text-danger" icon={<Trash aria-hidden="true" className="size-4" />} onClick={() => setDropping({ kind: "pack", item: p })}>
+                Borrar
+              </Button>
+            </div>
           </Card>
         ))}
         <Button variant="secondary" icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setSheet("pack")}>
@@ -131,6 +150,13 @@ export function BillingPage() {
                     {p.concept ? ` · ${p.concept}` : ""}
                   </p>
                 </div>
+                <Link
+                  to={`/pacientes/${id}/recibo/${p.id}`}
+                  aria-label={`Justificante del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
+                  className="inline-flex size-11 items-center justify-center rounded-md text-text-muted hover:bg-surface hover:text-text"
+                >
+                  <FileText aria-hidden="true" className="size-5" />
+                </Link>
                 <button
                   type="button"
                   aria-label={`Borrar el cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
@@ -149,16 +175,34 @@ export function BillingPage() {
       </section>
       <p className="text-sm text-text-muted">Es un registro de lo cobrado para llevar las cuentas de la consulta. No sustituye a las facturas.</p>
 
-      <Sheet open={sheet === "pack"} onClose={() => setSheet(null)} title="Vender un bono">
-        {sheet === "pack" && (
+      <Sheet open={sheet === "pack" || !!renewing} onClose={() => (setSheet(null), setRenewing(null))} title={renewing ? `Renovar «${renewing.title}»` : "Vender un bono"}>
+        {(sheet === "pack" || renewing) && (
           <PackForm
             today={today}
             sessionCents={pricing.sessionCents}
+            // Renovar: el mismo bono, desde hoy (con su precio y su duración).
+            presets={renewing ? [{ id: "renovar", title: renewing.title, sessions: renewing.sessions, priceCents: renewing.priceCents, months: monthsOf(renewing) }, ...presets] : presets}
             onSave={async (input, paid) => {
               await createPack(getDb(), id, input, paid);
               setSheet(null);
+              setRenewing(null);
               bumpData();
-              toast(paid ? "Bono vendido y cobrado" : "Bono vendido", "success");
+              toast(paid && input.priceCents ? "Bono vendido y cobrado" : "Bono vendido", "success");
+            }}
+          />
+        )}
+      </Sheet>
+      <Sheet open={!!editing} onClose={() => setEditing(null)} title="Cambiar el bono">
+        {editing && (
+          <PackForm
+            today={today}
+            sessionCents={pricing.sessionCents}
+            initial={editing}
+            onSave={async (input) => {
+              await updatePack(getDb(), editing.id, input);
+              setEditing(null);
+              bumpData();
+              toast("Bono cambiado", "success");
             }}
           />
         )}
@@ -193,100 +237,5 @@ export function BillingPage() {
         </Button>
       </Sheet>
     </Page>
-  );
-}
-
-function useSubmit(run: () => Promise<void>) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      await run();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setBusy(false);
-    }
-  };
-  return { busy, error, submit };
-}
-
-const centsText = (c: number | null) => (c === null ? "" : (c / 100).toFixed(2).replace(".", ",").replace(/,00$/, ""));
-
-function PackForm({ today, sessionCents, onSave }: { today: string; sessionCents: number | null; onSave: (input: Parameters<typeof createPack>[2], paid: Method | null) => Promise<void> }) {
-  const [sessions, setSessions] = useState("10");
-  const [title, setTitle] = useState<string | null>(null);
-  /** Sin tocar, el precio es el de las sesiones sueltas por el número de sesiones. */
-  const [typedPrice, setPrice] = useState<string | null>(null);
-  const [boughtOn, setBoughtOn] = useState(today);
-  const [expiresOn, setExpiresOn] = useState("");
-  const [paid, setPaid] = useState<Method | "">("");
-  const n = Number(sessions);
-  const name = title ?? `Bono ${Number.isInteger(n) && n > 0 ? n : "de"} sesiones`;
-  const price = typedPrice ?? (sessionCents && Number.isInteger(n) && n > 0 ? centsText(sessionCents * n) : "");
-  const { busy, error, submit } = useSubmit(async () => {
-    const cents = price.trim() ? parseEuros(price) : null;
-    if (price.trim() && cents === null) throw new RangeError("El precio no es una cantidad: por ejemplo, 350 o 350,50.");
-    await onSave({ title: name, sessions: n, priceCents: cents, boughtOn, expiresOn: expiresOn || null, note: "" }, paid || null);
-  });
-  return (
-    <form className="flex flex-col gap-3" onSubmit={submit} noValidate>
-      <NumberField label="Sesiones" unit="" value={sessions} inputMode="numeric" onChange={(e) => setSessions(e.target.value)} />
-      <TextField label="Nombre" value={name} onChange={(e) => setTitle(e.target.value)} />
-      <NumberField label="Precio" unit="€" value={price} onChange={(e) => setPrice(e.target.value)} hint={sessionCents ? `${euros(sessionCents)} por sesión suelta.` : undefined} />
-      <TextField label="Día de compra" type="date" value={boughtOn} onChange={(e) => setBoughtOn(e.target.value)} hint="Las sesiones desde este día gastan el bono." />
-      <TextField label="Caduca (opcional)" type="date" value={expiresOn} onChange={(e) => setExpiresOn(e.target.value)} />
-      <SelectField label="¿Lo ha pagado ya?" value={paid} onChange={(e) => setPaid(e.target.value as Method | "")}>
-        <option value="">Todavía no</option>
-        {METHODS.map((m) => (
-          <option key={m.id} value={m.id}>
-            Sí, {m.label.toLowerCase()}
-          </option>
-        ))}
-      </SelectField>
-      {error && <Alert tone="danger" title={error} />}
-      <Button type="submit" block loading={busy}>
-        Guardar el bono
-      </Button>
-    </form>
-  );
-}
-
-function PaymentForm({ today, suggested, onSave }: { today: string; suggested: number | null; onSave: (input: Parameters<typeof addPayment>[2]) => Promise<void> }) {
-  const [amount, setAmount] = useState(centsText(suggested));
-  const [method, setMethod] = useState<Method>("efectivo");
-  const [paidOn, setPaidOn] = useState(today);
-  const [concept, setConcept] = useState("");
-  const { busy, error, submit } = useSubmit(async () => {
-    const cents = parseEuros(amount);
-    if (cents === null || cents <= 0) throw new RangeError("Pon cuánto se ha cobrado: por ejemplo, 40 o 40,50.");
-    await onSave({ amountCents: cents, method, paidOn, concept });
-  });
-  return (
-    <form className="flex flex-col gap-3" onSubmit={submit} noValidate>
-      <NumberField label="Cantidad" unit="€" value={amount} onChange={(e) => setAmount(e.target.value)} />
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-semibold">Forma de pago</legend>
-        <div className="flex flex-wrap gap-2">
-          {METHODS.map((m) => (
-            <label key={m.id} className="relative">
-              <input type="radio" name="metodo" checked={method === m.id} onChange={() => setMethod(m.id)} className="peer sr-only" />
-              <span className="inline-flex min-h-11 items-center rounded-pill border border-border-input bg-bg px-3 text-sm peer-checked:border-accent peer-checked:bg-accent-soft peer-checked:font-semibold peer-checked:text-accent peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus">
-                {m.label}
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <TextField label="Día" type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} />
-      <TextField label="Concepto (opcional)" value={concept} onChange={(e) => setConcept(e.target.value)} placeholder="Sesión, bono…" />
-      {error && <Alert tone="danger" title={error} />}
-      <Button type="submit" block loading={busy}>
-        Guardar el cobro
-      </Button>
-    </form>
   );
 }

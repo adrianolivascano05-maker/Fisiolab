@@ -207,11 +207,27 @@ export function sessionAppointmentSql(sessionId: string, patientId: string, next
   return [
     {
       sql: `insert into appointments (id, patient_id, starts_at, minutes, status, created_by, assigned_to, created_at, updated_at) values (?, ?, ?, ?, 'scheduled', ?, ?, ?, ?)
-            on conflict (id) do update set starts_at = excluded.starts_at, minutes = excluded.minutes, status = 'scheduled', updated_at = excluded.updated_at
+            on conflict (id) do update set starts_at = excluded.starts_at, minutes = excluded.minutes, status = 'scheduled', updated_at = excluded.updated_at,
+              -- Otra hora: el recordatorio y la confirmación eran de la de antes (como al moverla en la agenda).
+              reminded_at = case when appointments.starts_at <> excluded.starts_at then null else appointments.reminded_at end,
+              confirmed_at = case when appointments.starts_at <> excluded.starts_at then null else appointments.confirmed_at end
             where appointments.starts_at <> excluded.starts_at or appointments.minutes <> excluded.minutes`,
       bind: [sessionId, patientId, nextAt, minutes, member(), memberEmail(), t, t],
     },
   ];
+}
+
+/**
+ * La última visita que ya ha empezado, para el justificante: su cita (atendida o aún sin marcar) o, si es más reciente,
+ * su última sesión apuntada (45 minutos). null si no ha venido nunca.
+ */
+export async function lastVisitOf(db: Db, patientId: string, at = new Date()): Promise<{ startsAt: string; minutes: number; appointmentId: string | null } | null> {
+  const now = at.toISOString();
+  const [a] = await db.query<Row>("select * from appointments where patient_id = ? and status in ('done', 'scheduled') and starts_at <= ? order by starts_at desc limit 1", [patientId, now]);
+  const [s] = await db.query<{ performed_at: string }>("select performed_at from sessions where patient_id = ? and performed_at <= ? order by performed_at desc limit 1", [patientId, now]);
+  // Una sesión de otro día, más reciente que la última cita: esa es la visita.
+  if (s && (!a || (madridDay(s.performed_at) > madridDay(a.starts_at) && s.performed_at > a.starts_at))) return { startsAt: s.performed_at, minutes: 45, appointmentId: null };
+  return a ? { startsAt: a.starts_at, minutes: a.minutes, appointmentId: a.id } : null;
 }
 
 /** Al apuntar una sesión: sus citas pendientes de ese mismo día (en Madrid) pasan a atendidas. */

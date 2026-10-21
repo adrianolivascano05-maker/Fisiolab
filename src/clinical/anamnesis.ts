@@ -60,12 +60,12 @@ export const ANAMNESIS: Section[] = [
     title: "2. Motivo de consulta",
     fields: [
       { id: "motivo", label: "Motivo principal", type: "textarea", rows: 4 },
+      { id: "mapa_dolor", label: "Mapa del dolor", type: "bodymap", hint: "Toca en el dibujo dónde le duele o lo nota. Rellena solo la Zona y el Lado de abajo." },
       { id: "regiones", label: "Zona", type: "multi", options: BODY_REGIONS.map((r) => r.id), hint: "Para proponerte los tests de exploración de la zona." },
       { id: "lado", label: "Lado", type: "choice", options: ["Derecho", "Izquierdo", "Los dos", "No aplica"] },
       { id: "fecha_inicio", label: "Fecha de inicio", type: "text", hint: "Una fecha o «hace 3 semanas»." },
       { id: "forma_inicio", label: "Forma de inicio", type: "choice", options: ["Súbito", "Progresivo"] },
       { id: "localizacion", label: "Localización del dolor/síntoma", type: "text" },
-      { id: "mapa_dolor", label: "Mapa del dolor", type: "bodymap", hint: "Toca en el dibujo dónde le duele o lo nota, de frente o de espaldas." },
       { id: "tipo_dolor", label: "Tipo de dolor", type: "text" },
       { id: "eva", label: "Intensidad (EVA 0-10)", type: "scale" },
       { id: "agravantes", label: "Factores agravantes", type: "textarea" },

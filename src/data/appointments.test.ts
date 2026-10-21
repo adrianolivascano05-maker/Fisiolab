@@ -1,6 +1,6 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { agenda, clashes, createAppointment, createWeekly, getAppointment, nextAppointmentOf, updateAppointment, upcomingAppointments } from "./appointments";
+import { agenda, clashes, createAppointment, createWeekly, getAppointment, lastVisitOf, markConfirmed, markReminded, nextAppointmentOf, updateAppointment, upcomingAppointments } from "./appointments";
 import { deleteSession, nextVisitOf, saveSession, upcomingVisits } from "./clinical";
 import { dbFromHandler, type Db } from "./db";
 import { Engine } from "./engine";
@@ -41,6 +41,27 @@ describe("citas", () => {
     await saveSession(db, pid, session("2026-10-19T10:00:00.000Z", "2026-10-24T09:30:00.000Z"), sid);
     await deleteSession(db, sid);
     expect(await getAppointment(db, sid)).toBeNull();
+  });
+
+  it("mover la siguiente cita desde la sesión quita el «recordada» y el «confirmada» (eran de la otra hora)", async () => {
+    const sid = await saveSession(db, pid, session("2026-10-19T10:00:00.000Z", "2026-10-27T10:00:00.000Z"));
+    await markReminded(db, sid);
+    await markConfirmed(db, sid, true);
+    await saveSession(db, pid, { ...session("2026-10-19T10:00:00.000Z", "2026-10-27T10:00:00.000Z"), treatment: "Otro" }, sid);
+    expect(await getAppointment(db, sid)).toMatchObject({ remindedAt: expect.any(String), confirmedAt: expect.any(String) });
+    await saveSession(db, pid, session("2026-10-19T10:00:00.000Z", "2026-10-29T10:00:00.000Z"), sid);
+    expect(await getAppointment(db, sid)).toMatchObject({ remindedAt: null, confirmedAt: null });
+  });
+
+  it("la última visita, para el justificante: la cita que ya empezó o una sesión más reciente; nunca una futura", async () => {
+    expect(await lastVisitOf(db, pid, NOW)).toBeNull();
+    const a = await createAppointment(db, pid, { startsAt: "2026-10-15T08:00:00.000Z", minutes: 60 });
+    await createAppointment(db, pid, { startsAt: "2026-10-22T08:00:00.000Z", minutes: 45 }); // futura
+    expect(await lastVisitOf(db, pid, NOW)).toEqual({ startsAt: "2026-10-15T08:00:00.000Z", minutes: 60, appointmentId: a });
+    await saveSession(db, pid, session("2026-10-15T08:05:00.000Z")); // la del mismo día: manda la cita
+    expect((await lastVisitOf(db, pid, NOW))?.appointmentId).toBe(a);
+    await saveSession(db, pid, session("2026-10-19T16:00:00.000Z"));
+    expect(await lastVisitOf(db, pid, NOW)).toEqual({ startsAt: "2026-10-19T16:00:00.000Z", minutes: 45, appointmentId: null });
   });
 
   it("guardar la sesión sin cambiar la cita no la vuelve a dejar pendiente", async () => {

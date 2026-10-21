@@ -1,7 +1,7 @@
 // Lo común a todas las pantallas de la ficha de un paciente: «‹ Pacientes» y «Editar» arriba, su cabecera (iniciales,
 // nombre, datos, el motivo de consulta que se está viendo y la próxima cita, o «Dar cita») y las pestañas, que se
 // quedan fijas arriba al bajar.
-import { CalendarCheck, CalendarPlus } from "lucide-react";
+import { CalendarCheck, CalendarPlus, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { fmt } from "../app/format";
@@ -9,7 +9,9 @@ import { Page } from "../app/Page";
 import { rememberPatient } from "../app/recent";
 import { useAsync } from "../app/useAsync";
 import { useCloud } from "../cloud/CloudGate";
+import { useDataVersion } from "../app/dataVersion";
 import { nextAppointmentOf } from "../data/appointments";
+import { euros, patientAccount } from "../data/billing";
 import { editText, lastEditOfPatient } from "../data/editors";
 import { getDb } from "../data/db";
 import { ageOn } from "../data/privacy";
@@ -29,6 +31,11 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
   const team = !!useCloud()?.clinic;
   const edit = useAsync(async () => (team ? lastEditOfPatient(getDb(), id) : null), [id, team]);
   const [managing, setManaging] = useState(false);
+  const version = useDataVersion();
+  const owes = useAsync(async () => {
+    const a = await patientAccount(getDb(), id, new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }));
+    return a.balanceCents > 0 ? a.balanceCents : 0;
+  }, [id, version]);
   // Con Google Calendar conectado la cita ya está en el calendario; si no, el botón para pasarla.
   const autoCalendar = useAutoCalendar();
   const event = visit.data && patient ? visitEvent({ id: visit.data.id, nextAt: visit.data.startsAt, nextMinutes: visit.data.minutes }, patient) : null;
@@ -50,7 +57,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
       action={
         patient && (
           <Link to={`/pacientes/${id}/editar`} className="tap inline-flex items-center rounded-md px-2 font-semibold text-accent hover:bg-surface">
-            Editar
+            Editar datos
           </Link>
         )
       }
@@ -66,6 +73,15 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
               {edit.data && <p className="text-xs text-text-muted">Última modificación: {editText(edit.data)}</p>}
             </div>
           </div>
+          {/* Lo que debe, a la vista al llegar (Bonos y cobros). */}
+          {owes.data ? (
+            <Link
+              to={`/pacientes/${id}/cobros`}
+              className="inline-flex min-h-9 items-center gap-2 self-start rounded-pill border border-warning bg-warning-soft px-3 text-sm font-semibold hover:border-accent"
+            >
+              <Wallet aria-hidden="true" className="size-4" /> Pendiente de cobro: {euros(owes.data)}
+            </Link>
+          ) : null}
           {patient && <EpisodePicker patientId={id} />}
           {visit.data ? (
             <div className="flex flex-wrap items-center gap-x-2">

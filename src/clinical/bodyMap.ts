@@ -3,10 +3,11 @@
 // espaldas, a la derecha. Lo marcado se guarda en la respuesta del campo como «zona:síntoma:intensidad» (la
 // intensidad, de 0 a 10, puede faltar), una entrada por zona.
 
+/** Hormigueo incluye el adormecimiento (parestesias). */
 export type Symptom = "dolor" | "hormigueo" | "rigidez";
 export const SYMPTOMS: { id: Symptom; label: string; short: string }[] = [
   { id: "dolor", label: "Dolor", short: "dolor" },
-  { id: "hormigueo", label: "Hormigueo o adormecimiento", short: "hormigueo" },
+  { id: "hormigueo", label: "Hormigueo", short: "hormigueo" },
   { id: "rigidez", label: "Rigidez", short: "rigidez" },
 ];
 const symptomIds = new Set<string>(SYMPTOMS.map((s) => s.id));
@@ -97,7 +98,7 @@ export function marksText(value: unknown): string {
 }
 
 /** Las articulaciones de la galería de tests y el lado que salen de lo marcado (para proponer los tests). */
-export function regionsOf(marks: Mark[]): { regions: string[]; side: "Derecho" | "Izquierdo" | "Los dos" | null } {
+export function regionsOf(marks: Mark[]): { regions: string[]; side: "Derecho" | "Izquierdo" | "Los dos" | null; maxIntensity: number | null } {
   const regions: string[] = [];
   const sides = new Set<"d" | "i">();
   for (const m of marks) {
@@ -105,6 +106,9 @@ export function regionsOf(marks: Mark[]): { regions: string[]; side: "Derecho" |
     if (z?.region && !regions.includes(z.region)) regions.push(z.region);
     if (z?.side) sides.add(z.side);
   }
-  const side = sides.size === 2 ? "Los dos" : sides.has("d") ? "Derecho" : sides.has("i") ? "Izquierdo" : null;
-  return { regions, side };
+  // Con zonas de los dos lados no se propone lado: cada zona ya lleva el suyo en el mapa (salvo que sea la misma de los dos).
+  const both = sides.size === 2 && new Set(marks.map((m) => zoneById.get(m.zone)?.region).filter(Boolean)).size === 1;
+  const side = sides.size === 2 ? (both ? "Los dos" : null) : sides.has("d") ? "Derecho" : sides.has("i") ? "Izquierdo" : null;
+  const top = Math.max(-1, ...marks.map((m) => m.intensity ?? -1));
+  return { regions, side, maxIntensity: top >= 0 ? top : null };
 }

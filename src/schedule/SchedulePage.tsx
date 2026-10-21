@@ -4,7 +4,7 @@
 // equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
 // compartida: cada compañero ve los cambios de los demás en su dispositivo, solo.
 import { BellRing, CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Hourglass, Plus, Undo2 } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { bumpData } from "../app/dataVersion";
 import { Page } from "../app/Page";
@@ -62,7 +62,9 @@ export function SchedulePage() {
   const admin = cloud?.clinic?.role === "admin";
   const today = todayDay();
   const [view, setView] = useState<View>(savedView);
-  const [anchor, setAnchor] = useState(today);
+  // ?dia=AAAA-MM-DD: abrir en ese día (al dar una cita desde la lista de espera, la nueva se ve al llegar).
+  const [params] = useSearchParams();
+  const [anchor, setAnchor] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? params.get("dia")! : today));
   const [who, setWho] = useState("");
   const [creating, setCreating] = useState<Creating | null>(null);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
@@ -226,11 +228,12 @@ export function SchedulePage() {
         <Button icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setCreating({ kind: "appointment", start: atMinutes(firstDay, 10 * 60) })}>
           Nueva cita
         </Button>
+        {/* En el móvil, solo el icono y su número (el nombre lo lee el lector de pantalla): todo en una fila. */}
         <Link
           to="/agenda/recordatorios"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface sm:px-4"
         >
-          <BellRing aria-hidden="true" className="size-5 text-accent" /> Recordatorios
+          <BellRing aria-hidden="true" className="size-5 text-accent" /> <span className="sr-only sm:not-sr-only">Recordatorios</span>
           {!!toRemind.data && (
             <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
               {toRemind.data}
@@ -240,9 +243,9 @@ export function SchedulePage() {
         </Link>
         <Link
           to="/agenda/espera"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface sm:px-4"
         >
-          <Hourglass aria-hidden="true" className="size-5 text-accent" /> Lista de espera
+          <Hourglass aria-hidden="true" className="size-5 text-accent" /> <span className="sr-only sm:not-sr-only">Lista de espera</span>
           {!!waiting.data && (
             <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
               {waiting.data}

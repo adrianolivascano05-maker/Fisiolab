@@ -1,6 +1,6 @@
 // Pantallas de la ficha clínica: anamnesis, mediciones (con cuestionarios y simetría) y sesiones. La exploración
 // (tests especiales) está en ExplorationPages.tsx, para no cargar la Guía de tests al abrir las demás.
-import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Trash } from "lucide-react";
+import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Trash, Wallet } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { decimalText, fmt, fmtDate, fmtDateTime, parseDecimal, testTitle } from "../app/format";
@@ -34,13 +34,16 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
+import { addPayment, chargeText, euros, nextSessionCharge, type Method } from "../data/billing";
 import { EmptyState } from "../ui/EmptyState";
 import { NumberField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
 import { ANAMNESIS, ALL_FIELDS, answerText, answeredCount, clinicalSummary, orphanAnswers, regionLabel, type Field } from "./anamnesis";
-import { BodyFigures, BodyMapInput } from "./BodyMap";
+import { BodyFigures, BodyMapInput, BodyMapLegend } from "./BodyMap";
+import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
 import { parseMarks, regionsOf } from "./bodyMap";
 import { AnalysisNav, TestList } from "./measureParts";
 import { mainValue, trends } from "./measures";
@@ -89,19 +92,25 @@ function FieldInput({ field, value, onChange }: { field: Field; value: AnswerVal
   }
 }
 
-/** Lo marcado en el mapa del dolor propone la zona y el lado (para los tests de exploración), si faltan. */
-function MapSuggestion({ draft, onApply }: { draft: Answers; onApply: (regions: string[], side: string | null) => void }) {
-  const { regions, side } = regionsOf(parseMarks(draft.mapa_dolor));
+/** Lo marcado en el mapa del dolor propone la zona, el lado y la intensidad (EVA), si faltan. */
+function MapSuggestion({ draft, onApply }: { draft: Answers; onApply: (patch: Answers, text: string) => void }) {
+  const { regions, side, maxIntensity } = regionsOf(parseMarks(draft.mapa_dolor));
   const have = Array.isArray(draft.regiones) ? draft.regiones : [];
   const missing = regions.filter((r) => !have.includes(r));
   const newSide = side && !draft.lado ? side : null;
-  if (!missing.length && !newSide) return null;
+  const eva = maxIntensity !== null && typeof draft.eva !== "number" ? maxIntensity : null;
+  if (!missing.length && !newSide && eva === null) return null;
+  const parts = [missing.length > 0 && `zona ${missing.map(regionLabel).join(", ")}`, newSide && `lado ${newSide.toLowerCase()}`, eva !== null && `intensidad ${eva}/10 (la más alta)`].filter(Boolean);
+  const text = parts.join(", ").replace(/, ([^,]*)$/, " y $1");
   return (
     <div className="flex flex-col gap-2 rounded-md bg-accent-soft p-3">
-      <p className="text-sm">
-        Por lo marcado: {[missing.length > 0 && `zona ${missing.map(regionLabel).join(", ")}`, newSide && `lado ${newSide.toLowerCase()}`].filter(Boolean).join(" y ")}. Así la app te propone sus tests.
-      </p>
-      <Button size="sm" variant="secondary" className="self-start" onClick={() => onApply([...have, ...missing], newSide)}>
+      <p className="text-sm">Por lo marcado: {text}. Así la app te propone sus tests.</p>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="self-start"
+        onClick={() => onApply({ regiones: [...have, ...missing], ...(newSide ? { lado: newSide } : {}), ...(eva !== null ? { eva } : {}) }, text)}
+      >
         Añadir a Zona y Lado
       </Button>
     </div>
@@ -320,7 +329,13 @@ export function AnamnesisPage() {
                     <Fragment key={f.id}>
                       <FieldInput field={f} value={draft[f.id]} onChange={set(f.id)} />
                       {f.type === "bodymap" && (
-                        <MapSuggestion draft={draft} onApply={(regiones, lado) => setDraft((d) => ({ ...(d ?? {}), regiones, ...(lado ? { lado } : {}) }))} />
+                        <MapSuggestion
+                          draft={draft}
+                          onApply={(patch, text) => {
+                            setDraft((d) => ({ ...(d ?? {}), ...patch }));
+                            toast(`Añadido: ${text}`, "success");
+                          }}
+                        />
                       )}
                     </Fragment>
                   ))}
@@ -363,7 +378,7 @@ export function AnamnesisPage() {
           </p>
         </div>
         <Button variant="secondary" icon={<Pencil aria-hidden="true" className="size-4" />} onClick={startEdit}>
-          Editar
+          Editar anamnesis
         </Button>
       </div>
       {red.length > 0 && (
@@ -383,8 +398,9 @@ export function AnamnesisPage() {
                   <div key={f.id} className="flex flex-col">
                     <dt className="text-sm text-text-muted">{f.label}</dt>
                     {f.type === "bodymap" && (
-                      <dd>
-                        <BodyFigures marks={parseMarks(a[f.id])} className="max-w-md py-1" />
+                      <dd className="flex flex-col gap-1 py-1">
+                        <BodyFigures marks={parseMarks(a[f.id])} className="max-w-md" />
+                        <BodyMapLegend />
                       </dd>
                     )}
                     <dd className="whitespace-pre-line">{answerText(f, a[f.id] ?? null)}</dd>
@@ -704,6 +720,14 @@ export function SessionFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  /** Una sesión nueva: si la paga un bono o es suelta (y cobrarla al guardar). */
+  const charge = useAsync(async () => {
+    if (sid) return null;
+    const at = new Date(when);
+    return Number.isNaN(at.getTime()) ? null : nextSessionCharge(getDb(), id, at.toISOString(), todayDay());
+  }, [id, sid, when]);
+  const [payNow, setPayNow] = useState(false);
+  const [payMethod, setPayMethod] = useState<Method>(lastMethod);
 
   useEffect(() => {
     const s = data.data?.session;
@@ -740,7 +764,13 @@ export function SessionFormPage() {
         { performedAt: new Date(when).toISOString(), pain, subjective, objective, treatment, plan, reviewOn: reviewOn || null, nextAt: next, nextMinutes: next ? minutes : null },
         sid,
       );
-      toast(sid ? "Sesión guardada" : "Sesión registrada", "success");
+      const c = charge.data;
+      if (!sid && payNow && c?.kind === "loose" && c.cents > 0) {
+        rememberMethod(payMethod);
+        await addPayment(getDb(), id, { amountCents: c.cents, method: payMethod, paidOn: when.slice(0, 10), concept: "Sesión de fisioterapia" });
+      }
+      const extra = !sid && c ? (c.kind === "pack" ? (c.leftAfter ? ` · quedan ${c.leftAfter} del bono` : " · bono gastado") : c.kind === "loose" && payNow ? ` · cobrada ${euros(c.cents)}` : "") : "";
+      toast(sid ? "Sesión guardada" : `Sesión registrada${extra}`, "success");
       // Cita nueva o cambiada: se ofrece pasarla al calendario.
       const changed = next !== null && (next !== session?.nextAt || minutes !== session?.nextMinutes);
       navigate(changed ? `${back}?calendario=${saved}` : back, { replace: true });
@@ -775,6 +805,32 @@ export function SessionFormPage() {
           Si sigue, cambia el número en su anamnesis (Objetivos → Sesiones previstas).
         </Alert>
       )}
+      {charge.data && charge.data.kind !== "none" && (
+        <div className={cx("flex flex-col gap-2 rounded-md p-3", charge.data.kind === "pack" && charge.data.leftAfter === 0 ? "bg-warning-soft" : "bg-surface")}>
+          <p className="text-sm font-semibold">
+            <Wallet aria-hidden="true" className="mr-1 inline size-4 align-[-2px]" />
+            {chargeText(charge.data)}
+            {charge.data.kind === "pack" && charge.data.leftAfter === 0 && (
+              <>
+                {" "}
+                ·{" "}
+                <Link to={`/pacientes/${id}/cobros`} className="text-accent underline">
+                  ofrécele renovarlo
+                </Link>
+              </>
+            )}
+          </p>
+          {charge.data.kind === "loose" && charge.data.cents > 0 && (
+            <>
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="checkbox" className="size-5 accent-accent" checked={payNow} onChange={(e) => setPayNow(e.target.checked)} />
+                Cobrada ahora
+              </label>
+              {payNow && <MethodPicker value={payMethod} onChange={setPayMethod} name="pago-sesion" />}
+            </>
+          )}
+        </div>
+      )}
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <TextField label="Fecha y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         <PainScale label="Dolor hoy (EVA 0-10)" value={pain} onChange={setPain} />
@@ -795,6 +851,9 @@ export function SessionFormPage() {
         )}
         <TextArea label="Tratamiento" value={treatment} onChange={setTreatment} rows={4} />
         <TextArea label="Plan y ejercicios para casa" value={plan} onChange={setPlan} />
+        <Link to={`/pacientes/${id}/ejercicios`} className="-mt-2 self-start text-sm font-semibold text-accent underline">
+          Su hoja de ejercicios para casa (para imprimir o enviar)
+        </Link>
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-semibold">Siguiente cita</legend>
           <div className="flex flex-wrap gap-2">

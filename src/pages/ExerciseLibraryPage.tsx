@@ -7,7 +7,7 @@ import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { BODY_REGIONS, regionLabel } from "../clinical/anamnesis";
 import { TextArea } from "../clinical/parts";
-import { addStarterExercises, deleteExercise, listExercises, saveExercise, type Exercise, type ExerciseInput } from "../data/exercises";
+import { addStarterExercises, deleteExercise, listExercises, saveExercise, STARTER_EXERCISES, type Exercise, type ExerciseInput } from "../data/exercises";
 import { getDb } from "../data/db";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -15,7 +15,12 @@ import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 
-const EMPTY: ExerciseInput = { title: "", region: "", dose: "", instructions: "" };
+const EMPTY: ExerciseInput = {
+  title: "",
+  region: "",
+  dose: "",
+  instructions: "",
+};
 
 export function ExerciseLibraryPage() {
   const toast = useToast();
@@ -24,26 +29,31 @@ export function ExerciseLibraryPage() {
   const [editing, setEditing] = useState<(ExerciseInput & { id?: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const list = data.data ?? [];
+  const allStarters = STARTER_EXERCISES.every((x) => list.some((e) => e.title.toLowerCase() === x.title.toLowerCase()));
   const groups = [...BODY_REGIONS, { id: "", label: "Otros" }].map((r) => ({ r, items: list.filter((e) => e.region === r.id) })).filter((g) => g.items.length);
 
   return (
-    <Page title="Biblioteca de ejercicios" backTo="/ajustes">
-      <p className="text-sm text-text-muted">Los ejercicios de la clínica para las hojas de ejercicios para casa de cada paciente (en su ficha). Los ve todo el equipo.</p>
+    <Page title="Ejercicios" backTo="/ajustes">
+      <p className="text-sm text-text-muted">
+        Los ejercicios de la clínica para las hojas de ejercicios para casa de cada paciente (en su ficha). Los ve todo el equipo.
+      </p>
       <div className="flex flex-wrap gap-2">
         <Button icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => (setEditing({ ...EMPTY }), setError(null))}>
           Nuevo ejercicio
         </Button>
-        <Button
-          variant="secondary"
-          icon={<Sparkles aria-hidden="true" className="size-5" />}
-          onClick={async () => {
-            const n = await addStarterExercises(getDb());
-            bumpData();
-            toast(n ? `${n} ejemplos añadidos: revísalos y adáptalos` : "Ya tienes todos los ejemplos", "success");
-          }}
-        >
-          Añadir ejemplos para empezar
-        </Button>
+        {!allStarters && (
+          <Button
+            variant="secondary"
+            icon={<Sparkles aria-hidden="true" className="size-5" />}
+            onClick={async () => {
+              const n = await addStarterExercises(getDb());
+              bumpData();
+              toast(n ? `${n} ejemplos añadidos: revísalos y adáptalos` : "Ya tienes todos los ejemplos", "success");
+            }}
+          >
+            Añadir ejemplos para empezar
+          </Button>
+        )}
       </div>
       {data.data && !list.length && <p className="text-sm text-text-muted">Todavía no hay ejercicios.</p>}
       {groups.map(({ r, items }) => (
@@ -54,7 +64,11 @@ export function ExerciseLibraryPage() {
           <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
             {items.map((e) => (
               <li key={e.id}>
-                <button type="button" className="flex min-h-14 w-full flex-col items-start px-3 py-2 text-left hover:bg-surface" onClick={() => (setEditing(e), setError(null))}>
+                <button
+                  type="button"
+                  className="flex min-h-14 w-full flex-col items-start px-3 py-2 text-left hover:bg-surface"
+                  onClick={() => (setEditing(e), setError(null))}
+                >
                   <span className="font-semibold">{e.title}</span>
                   {e.dose && <span className="text-sm text-text-muted">{e.dose}</span>}
                 </button>
@@ -90,8 +104,21 @@ export function ExerciseLibraryPage() {
                 </option>
               ))}
             </SelectField>
-            <TextField label="Dosis" value={editing.dose} placeholder="3 series de 10, una vez al día" onChange={(e) => setEditing({ ...editing, dose: e.target.value })} />
+            <TextField
+              label="Dosis"
+              value={editing.dose}
+              placeholder="3 series de 10, una vez al día"
+              onChange={(e) => setEditing({ ...editing, dose: e.target.value })}
+            />
             <TextArea label="Cómo se hace" value={editing.instructions} rows={4} onChange={(v) => setEditing({ ...editing, instructions: v })} />
+            <TextField
+              label="Vídeo (enlace, opcional)"
+              inputMode="url"
+              value={editing.video ?? ""}
+              placeholder="https://…"
+              onChange={(e) => setEditing({ ...editing, video: e.target.value })}
+              hint="Un vídeo tuyo o de confianza (YouTube, la web de la clínica…). En la hoja sale con su código QR."
+            />
             {error && <Alert tone="danger" title={error} />}
             <Button type="submit" block>
               Guardar

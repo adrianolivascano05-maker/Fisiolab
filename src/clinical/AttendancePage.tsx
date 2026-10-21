@@ -3,17 +3,18 @@
 // escriben aquí y no se guardan. Se imprime, se guarda en PDF o va a Drive.
 import { Download, Printer } from "lucide-react";
 import { useRef, useState } from "react";
-import { useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { safeName } from "../cloud/saveToDrive";
-import { getAppointment } from "../data/appointments";
+import { getAppointment, lastVisitOf } from "../data/appointments";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
 import { getPatient } from "../data/repo";
 import { TopBar } from "../ui/AppBar";
+import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
@@ -30,8 +31,14 @@ export function AttendancePage() {
   const appointmentId = params.get("cita");
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, clinic, appointment] = await Promise.all([getPatient(db, id), getClinic(db), appointmentId ? getAppointment(db, appointmentId) : null]);
-    return { patient, clinic, appointment };
+    // Sin cita elegida, la última visita (nunca «ahora»: el justificante dice que ha asistido).
+    const [patient, clinic, appointment, last] = await Promise.all([
+      getPatient(db, id),
+      getClinic(db),
+      appointmentId ? getAppointment(db, appointmentId) : null,
+      appointmentId ? null : lastVisitOf(db, id),
+    ]);
+    return { patient, clinic, appointment: appointment ? { startsAt: appointment.startsAt, minutes: appointment.minutes } : last };
   }, [id, appointmentId]);
   const [when, setWhen] = useState<string | null>(null);
   const [minutes, setMinutes] = useState<string | null>(null);
@@ -50,10 +57,15 @@ export function AttendancePage() {
   const { patient, clinic, appointment } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
 
-  const start = new Date(when ?? (appointment ? localInput(appointment.startsAt) : localInput(new Date().toISOString())));
-  const length = Number(minutes ?? appointment?.minutes ?? 45) || 45;
+  const start = new Date(when ?? (appointment ? localInput(appointment.startsAt) : ""));
+  // Lo escrito tal cual (se puede borrar para escribir otro); para el texto, entre 5 y 480 minutos.
+  const minutesText = minutes ?? String(appointment?.minutes ?? 45);
+  const typed = Number(minutesText);
+  const length = Number.isFinite(typed) && typed >= 5 ? Math.min(480, Math.round(typed)) : (appointment?.minutes ?? 45);
   const end = new Date(start.getTime() + length * 60_000);
   const valid = !Number.isNaN(start.getTime());
+  /** Una hora que aún no ha llegado: no se puede justificar una asistencia. */
+  const future = valid && start.getTime() > Date.now();
   const physio = clinic.professional;
   const fileName = safeName(`Justificante ${patient.name} ${valid ? start.toISOString().slice(0, 10) : ""}.pdf`);
 
@@ -69,16 +81,36 @@ export function AttendancePage() {
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
         <form className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden" onSubmit={(e) => e.preventDefault()}>
           <TextField label="Día y hora de la consulta" type="datetime-local" value={valid ? localInput(start.toISOString()) : ""} onChange={(e) => setWhen(e.target.value)} />
-          <TextField label="Duración (minutos)" type="number" inputMode="numeric" min={5} max={480} value={String(length)} onChange={(e) => setMinutes(e.target.value)} />
+          <TextField
+            label="Duración (minutos)"
+            type="number"
+            inputMode="numeric"
+            min={5}
+            max={480}
+            value={minutesText}
+            onChange={(e) => setMinutes(e.target.value)}
+            error={minutesText && length !== typed ? `Entre 5 y 480 minutos: sale ${length}.` : undefined}
+          />
           <TextField label="DNI o NIE del paciente (opcional)" value={idDoc} onChange={(e) => setIdDoc(e.target.value)} hint="Sale en el justificante; no se guarda." />
           <TextField label="Para qué es (opcional)" value={purpose} onChange={(e) => setPurpose(e.target.value)} hint="Por ejemplo: «a petición del interesado, para presentar en su empresa»." />
-          {!physio && <p className="text-sm text-warning">Falta tu nombre y nº de colegiado: rellénalos en Ajustes → Clínica para que salgan en la firma.</p>}
-          <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
+          {!appointment && !when && <Alert tone="info" title="No consta ninguna visita">Pon el día y la hora de la consulta.</Alert>}
+          {future && <Alert tone="warning" title="Esa hora aún no ha llegado">El justificante dice que ha asistido: hazlo cuando haya venido.</Alert>}
+          {!physio && (
+            <p className="text-sm text-warning">
+              Falta tu nombre y nº de colegiado:{" "}
+              <Link to="/ajustes/clinica" className="font-semibold underline">
+                rellénalos en Ajustes → Clínica
+              </Link>{" "}
+              para que salgan en la firma.
+            </p>
+          )}
+          <Button size="lg" disabled={!valid || future} icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
             Imprimir
           </Button>
           <Button
             variant="secondary"
             loading={busy}
+            disabled={!valid || future}
             icon={<Download aria-hidden="true" className="size-5" />}
             onClick={async () => {
               setBusy(true);

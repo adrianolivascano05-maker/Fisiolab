@@ -5,6 +5,7 @@ import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
+import { euros } from "../data/billing";
 import { clinicStats, type ClinicStats } from "../data/stats";
 import { staffName, useStaff } from "../schedule/useStaff";
 import { Card } from "../ui/Card";
@@ -28,6 +29,8 @@ function range(id: PeriodId, now = new Date()) {
 
 const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)} %`);
 const monthShort = (ym: string) => new Date(`${ym}-15T12:00:00`).toLocaleDateString("es-ES", { month: "short" }).replace(".", "");
+const monthLong = (ym: string) => new Date(`${ym}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
+const thisMonth = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }).slice(0, 7);
 
 export function StatsPage() {
   const cloud = useCloud();
@@ -56,12 +59,14 @@ export function StatsPage() {
       {s && (
         <>
           <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <Tile label="Sesiones" value={String(s.sessions)} />
+            <Tile label="Sesiones apuntadas" value={String(s.sessions)} />
+            <Tile label="Citas atendidas" value={String(s.appointments.done)} />
             <Tile label="Pacientes atendidos" value={String(s.patientsSeen)} />
             <Tile label="Pacientes nuevos" value={String(s.newPatients)} />
             <Tile label="Ausencias" value={pct(s.noShowRate)} detail={`${s.appointments.noShow} de ${s.appointments.done + s.appointments.noShow} citas`} warn={(s.noShowRate ?? 0) >= 0.1} />
             <Tile label="Citas anuladas" value={String(s.appointments.cancelled)} />
             <Tile label="Altas" value={String(s.discharges)} detail="Motivos de consulta terminados" />
+            <Tile label="Cobrado" value={euros(s.collectedCents)} detail={s.packsSold ? `${s.packsSold === 1 ? "1 bono vendido" : `${s.packsSold} bonos vendidos`}` : "En Ajustes → Precios y cobros"} />
           </dl>
           {s.appointments.scheduled > 0 && (
             <p className="text-sm text-text-muted">
@@ -121,34 +126,42 @@ function Tile({ label, value, detail, warn }: { label: string; value: string; de
   );
 }
 
-/** Sesiones de cada mes, los últimos 12: barras finas, la del mes actual rotulada. */
+/** Sesiones de cada mes, los 12 que acaban en el periodo: barras finas con su número; resaltado el mes en curso. */
 function MonthlyChart({ monthly }: { monthly: ClinicStats["monthly"] }) {
   const max = Math.max(1, ...monthly.map((m) => m.sessions));
   const W = 600;
-  const H = 180;
-  const top = 24;
-  const bottom = 26;
+  const H = 220;
+  const top = 30;
+  const bottom = 34;
   const step = W / monthly.length;
-  const bar = Math.min(28, step - 8);
+  const bar = Math.min(30, step - 10);
   const y = (v: number) => top + (H - top - bottom) * (1 - v / max);
-  const last = monthly.at(-1)!;
+  const now = thisMonth();
+  const current = monthly.findIndex((m) => m.month === now);
+  const mark = current >= 0 ? current : monthly.length - 1;
+  const marked = monthly[mark]!;
   return (
     <Card className="flex flex-col gap-2">
       <h2 className="font-semibold">Sesiones por mes</h2>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`Sesiones por mes en el último año; este mes, ${last.sessions}`} className="h-auto w-full">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        role="img"
+        aria-label={`Sesiones por mes; ${current >= 0 ? "este mes" : `en ${monthLong(marked.month)}`}, ${marked.sessions}`}
+        className="h-auto w-full"
+      >
         <line x1={0} x2={W} y1={H - bottom} y2={H - bottom} className="stroke-border" strokeWidth={1} />
         {monthly.map((m, i) => {
           const x = i * step + (step - bar) / 2;
           const h = H - bottom - y(m.sessions);
           return (
             <g key={m.month}>
-              <title>{`${monthShort(m.month)}: ${m.sessions} sesiones`}</title>
-              {m.sessions > 0 && <rect x={x} y={y(m.sessions)} width={bar} height={Math.max(2, h)} rx={4} className={i === monthly.length - 1 ? "fill-accent" : "fill-accent/40"} />}
-              <text x={x + bar / 2} y={H - 8} textAnchor="middle" className="fill-text-muted text-[11px]">
+              <title>{`${monthLong(m.month)}: ${m.sessions} sesiones`}</title>
+              {m.sessions > 0 && <rect x={x} y={y(m.sessions)} width={bar} height={Math.max(2, h)} rx={4} className={i === mark ? "fill-accent" : "fill-accent/40"} />}
+              <text x={x + bar / 2} y={H - 10} textAnchor="middle" className={cx("text-[17px]", i === mark ? "fill-text font-semibold" : "fill-text-muted")}>
                 {monthShort(m.month)}
               </text>
-              {i === monthly.length - 1 && (
-                <text x={x + bar / 2} y={y(m.sessions) - 6} textAnchor="middle" className="fill-text text-[12px] font-semibold">
+              {m.sessions > 0 && (
+                <text x={x + bar / 2} y={y(m.sessions) - 7} textAnchor="middle" className={cx("text-[16px]", i === mark ? "fill-text font-semibold" : "fill-text-muted")}>
                   {m.sessions}
                 </text>
               )}
@@ -162,7 +175,7 @@ function MonthlyChart({ monthly }: { monthly: ClinicStats["monthly"] }) {
           <tbody>
             {monthly.map((m) => (
               <tr key={m.month} className="border-t border-border">
-                <td className="p-1">{m.month}</td>
+                <td className="p-1 first-letter:uppercase">{monthLong(m.month)}</td>
                 <td className="p-1 text-right">{m.sessions}</td>
               </tr>
             ))}
