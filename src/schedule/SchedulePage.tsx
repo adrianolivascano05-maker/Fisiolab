@@ -335,9 +335,11 @@ export function SchedulePage() {
             : undefined
         }
         onZoom={zoom}
+        onSwipe={step}
       />
       <p className="text-sm text-text-muted">
-        Para ver más o menos días, junta o separa dos dedos sobre la agenda (o elige Día, 3 días o Semana); toca un día de la semana para verlo solo.
+        Para pasar de semana, desliza la fila de los días a un lado. Para ver más o menos días, junta o separa dos dedos sobre la agenda (o elige Día, 3
+        días o Semana); toca un día de la semana para verlo solo.
         Arrastra una cita para moverla (en el móvil, mantenla pulsada un momento); tócala para atenderla, anularla o moverla una hora, un día o una
         semana. Toca un hueco para dar una cita{team ? " (o, desde ahí, poner un turno)" : ""}. Para ir a otra fecha, tócala arriba.
       </p>

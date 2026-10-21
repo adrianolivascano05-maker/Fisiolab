@@ -360,5 +360,37 @@ test.describe("Agenda y seguimiento", () => {
       await pinch(friday, 160, 40);
       await expect(page.getByRole("heading", { name: /19 oct – 25 oct 2026/ })).toBeVisible();
     });
+
+    test("AG11 deslizar la fila de los días a un lado pasa de semana", async ({ page }) => {
+      await page.goto("./agenda");
+      await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Semana" }).click();
+      await expect(page.getByRole("heading", { name: /19 oct – 25 oct 2026/ })).toBeVisible();
+      /** Un dedo que va de `from` a `to` (x) sobre la fila de los días. */
+      const swipe = async (from: number, to: number) => {
+        const box = (await page.getByRole("button", { name: /ver solo este día$/ }).first().boundingBox())!;
+        await page.evaluate(
+          ({ y, from, to }) => {
+            const el = document.elementFromPoint(from, y)!;
+            const fire = (type: string, x: number) => {
+              const t = [new Touch({ identifier: 1, target: el, clientX: x, clientY: y })];
+              el.dispatchEvent(new TouchEvent(type, { touches: type === "touchend" ? [] : t, changedTouches: t, bubbles: true, cancelable: true }));
+            };
+            fire("touchstart", from);
+            fire("touchmove", (from + to) / 2);
+            fire("touchmove", to);
+            fire("touchend", to);
+          },
+          { y: box.y + box.height / 2, from, to },
+        );
+      };
+      await swipe(300, 100);
+      await expect(page.getByRole("heading", { name: /26 oct – 1 nov 2026/ })).toBeVisible();
+      await swipe(100, 300);
+      await swipe(100, 300);
+      await expect(page.getByRole("heading", { name: /12 oct – 18 oct 2026/ })).toBeVisible();
+      // Un movimiento corto no cambia de semana.
+      await swipe(200, 220);
+      await expect(page.getByRole("heading", { name: /12 oct – 18 oct 2026/ })).toBeVisible();
+    });
   });
 });

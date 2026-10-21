@@ -3,7 +3,8 @@
 // minutos), a otra columna cambia el día o la persona. Con el ratón basta arrastrar; en el móvil, mantener pulsada la
 // cita un momento y moverla. Tocar un hueco vacío da una cita a esa hora. Los turnos se ven de fondo. Con dos dedos
 // se cambia la vista: juntándolos se ven más días; separándolos, menos, centrando el día que queda entre los dedos.
-// Tocar el nombre de un día lo abre solo.
+// Tocar el nombre de un día lo abre solo; deslizar la fila de los días a un lado pasa a la semana (o los días)
+// siguiente o anterior.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TouchList } from "react";
 import type { AgendaItem } from "../data/appointments";
 import { staffColor, type Shift, type Staff } from "../data/schedule";
@@ -44,6 +45,7 @@ export function AgendaGrid({
   onShift,
   onHeader,
   onZoom,
+  onSwipe,
 }: {
   columns: Column[];
   /** Lo que sale arriba de cada columna. */
@@ -64,10 +66,17 @@ export function AgendaGrid({
   onHeader?: (c: Column) => void;
   /** Pellizco con dos dedos: +1 para ver más días, −1 para menos; con la columna que queda entre los dedos. */
   onZoom?: (by: 1 | -1, column: Column | undefined) => void;
+  /** Deslizar la fila de los días: +1 a lo siguiente (dedo a la izquierda), −1 a lo anterior. */
+  onSwipe?: (dir: 1 | -1) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   /** Al empezar el pellizco: la distancia entre los dos dedos y la columna que queda entre ellos. */
   const pinch = useRef<{ dist: number; col: number } | null>(null);
+  /** Deslizar la fila de los días: dónde empezó y si va de lado (h) o hacia abajo (v). */
+  const swipe = useRef<{ x0: number; y0: number; dir: "h" | "v" | null } | null>(null);
+  const swiped = useRef(false);
+  /** Lo que se ha movido la agenda con el dedo (px); null cuando no se desliza. */
+  const [slide, setSlide] = useState<number | null>(null);
   const fingers = (t: TouchList) => Math.hypot(t[0]!.clientX - t[1]!.clientX, t[0]!.clientY - t[1]!.clientY);
   const cols = useRef<(HTMLDivElement | null)[]>([]);
   const drag = useRef<Drag | null>(null);
@@ -180,10 +189,14 @@ export function AgendaGrid({
       ref={scroller}
       className="relative max-h-[calc(100dvh-var(--layout-header)-var(--layout-tabbar)-13rem)] min-h-[24rem] touch-pan-x touch-pan-y overflow-auto rounded-lg border border-border bg-bg"
       onTouchStart={(e) => {
+        const t = e.touches[0]!;
+        swipe.current = onSwipe && e.touches.length === 1 && (e.target as Element).closest?.("[data-agenda-head]") ? { x0: t.clientX, y0: t.clientY, dir: null } : null;
         if (!onZoom || e.touches.length !== 2) {
           pinch.current = null;
           return;
         }
+        swipe.current = null;
+        setSlide(null);
         // Con dos dedos no se arrastra ninguna cita: es un pellizco.
         const d = drag.current;
         if (d && !d.active) {
@@ -193,6 +206,14 @@ export function AgendaGrid({
         pinch.current = { dist: fingers(e.touches), col: columnAt((e.touches[0]!.clientX + e.touches[1]!.clientX) / 2) };
       }}
       onTouchMove={(e) => {
+        const sw = swipe.current;
+        if (sw && e.touches.length === 1) {
+          const dx = e.touches[0]!.clientX - sw.x0;
+          const dy = e.touches[0]!.clientY - sw.y0;
+          if (!sw.dir && Math.max(Math.abs(dx), Math.abs(dy)) > 8) sw.dir = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+          if (sw.dir === "h") setSlide(dx);
+          return;
+        }
         const p = pinch.current;
         if (!p || e.touches.length !== 2) return;
         const ratio = fingers(e.touches) / p.dist;
@@ -201,11 +222,31 @@ export function AgendaGrid({
           pinch.current = null;
         }
       }}
-      onTouchEnd={() => {
+      onTouchEnd={(e) => {
         pinch.current = null;
+        const sw = swipe.current;
+        swipe.current = null;
+        if (sw?.dir !== "h") return;
+        const dx = (e.changedTouches[0]?.clientX ?? sw.x0) - sw.x0;
+        // Al soltar, la agenda vuelve a su sitio; si el dedo recorrió bastante, ya con la semana de al lado.
+        swiped.current = true;
+        setTimeout(() => (swiped.current = false), 0);
+        setSlide(null);
+        if (Math.abs(dx) > 60) onSwipe?.(dx < 0 ? 1 : -1);
+      }}
+      onTouchCancel={() => {
+        swipe.current = null;
+        pinch.current = null;
+        setSlide(null);
       }}
     >
-      <div className="grid" style={{ gridTemplateColumns: `3rem repeat(${columns.length}, minmax(${minWidth}px, 1fr))` }}>
+      <div
+        className="grid"
+        style={{
+          gridTemplateColumns: `3rem repeat(${columns.length}, minmax(${minWidth}px, 1fr))`,
+          ...(slide !== null ? { transform: `translateX(${slide}px)`, opacity: Math.max(0.4, 1 - Math.abs(slide) / 400) } : {}),
+        }}
+      >
         {/* Cabecera: fija arriba al desplazar. */}
         <div className="sticky top-0 left-0 z-30 border-b border-border bg-bg" />
         {columns.map((c) => {
@@ -219,14 +260,18 @@ export function AgendaGrid({
               {h.subtitle && <span className={cx("text-xs", h.today ? "font-bold text-brand" : "text-text-muted")}>{h.subtitle}</span>}
             </>
           );
-          const cell = "sticky top-0 z-20 flex flex-col items-center justify-center border-b border-l border-border bg-bg px-1 py-1.5 text-center";
+          // touch-pan-y: deslizar de lado sobre los días no desplaza la agenda, pasa de semana.
+          const cell = cx(
+            "sticky top-0 z-20 flex flex-col items-center justify-center border-b border-l border-border bg-bg px-1 py-1.5 text-center",
+            onSwipe && "touch-pan-y",
+          );
           return onHeader ? (
-            <button key={c.key} type="button" className={cx(cell, "hover:bg-surface")} onClick={() => onHeader(c)}>
+            <button key={c.key} type="button" data-agenda-head className={cx(cell, "hover:bg-surface")} onClick={() => !swiped.current && onHeader(c)}>
               {inner}
               <span className="sr-only">, ver solo este día</span>
             </button>
           ) : (
-            <div key={c.key} className={cell}>
+            <div key={c.key} data-agenda-head className={cell}>
               {inner}
             </div>
           );
