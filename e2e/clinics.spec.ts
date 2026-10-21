@@ -618,8 +618,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("button", { name: /Borrar la clínica del servidor/ }).click();
     const sheet = page.getByRole("dialog", { name: "Borrar una clínica del servidor" });
     await expect(sheet.getByRole("button", { name: "Borrar «Fisiolab Centro»" })).toBeDisabled();
-    const [backup] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Descargar la copia de seguridad" }).click()]);
-    expect(backup.suggestedFilename()).toMatch(/^Cenit-Fisiolab-Centro-\d{4}-\d{2}-\d{2}\.sqlite3$/);
+    const [backup] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Descargar todos los datos" }).click()]);
+    expect(backup.suggestedFilename()).toMatch(/^Cenit-Fisiolab-Centro-\d{4}-\d{2}-\d{2}\.zip$/);
     await sheet.getByRole("checkbox", { name: /Declaro que la clínica conserva/ }).check();
     await expectAccessible(page);
     await sheet.getByRole("button", { name: "Borrar «Fisiolab Centro»" }).click();

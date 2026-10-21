@@ -29,6 +29,7 @@ import { CloudSettings, syncText, useCloud, useSyncState } from "../cloud/CloudG
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { getDb } from "../data/db";
+import { FullExportButton } from "../export/FullExportButton";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
 import { hasSeed, loadSeed, removeSeed } from "../data/seed";
@@ -235,6 +236,14 @@ export function DataSettingsPage() {
           <p className="text-sm text-text-muted">El navegador todavía no protege los datos de esta app. Instalarla lo soluciona en la mayoría de móviles.</p>
         )}
         <Card className="flex flex-col gap-3">
+          <h3 className="font-semibold">Todos tus datos, para leer sin la app</h3>
+          <p className="text-sm text-text-muted">
+            Un archivo .zip con la historia clínica de cada paciente (se abre en cualquier navegador y se imprime), un Excel con todo y la copia de
+            seguridad. Es lo que te llevas si un día dejas Cénit.
+          </p>
+          <FullExportButton name={cloud?.clinic?.name ?? "Fisiolab"} />
+        </Card>
+        <Card className="flex flex-col gap-3">
           <p className="text-sm">Última copia: {state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}</p>
           <Button
             icon={<Download aria-hidden="true" className="size-5" />}
@@ -266,11 +275,14 @@ export function DataSettingsPage() {
 
       <section className="flex flex-col gap-3" aria-labelledby="h-traer">
         <h2 id="h-traer" className="text-lg">
-          Traer pacientes de otro programa
+          Traer datos de otro programa
         </h2>
-        <p className="text-sm text-text-muted">Desde un Excel o un CSV exportado de tu programa anterior. Antes de importar ves qué va a pasar, y se puede deshacer.</p>
+        <p className="text-sm text-text-muted">
+          Pacientes, citas e historial de sesiones, desde un Excel o un CSV exportado de tu programa anterior. Antes de importar ves qué va a pasar, y se
+          puede deshacer.
+        </p>
         <Group>
-          <RowLink to="/ajustes/importar" icon={FileSpreadsheet} title="Importar pacientes" subtitle="Excel (.xlsx) o CSV" />
+          <RowLink to="/ajustes/importar" icon={FileSpreadsheet} title="Importar datos" subtitle="Pacientes, citas e historial · Excel o CSV" />
         </Group>
       </section>
 

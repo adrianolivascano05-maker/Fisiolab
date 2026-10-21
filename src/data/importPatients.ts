@@ -116,7 +116,7 @@ export function guessFields(headers: string[]): Field[] {
 // ---------- Cada valor ----------
 
 /** «12/03/1985», «12-3-85», «1985-03-12» o un número de serie de Excel → «1985-03-12». null si no es una fecha que valga. */
-export function parseDate(value: string, today = new Date()): string | null {
+export function parseDate(value: string, today = new Date(), { future = false } = {}): string | null {
   const v = value.trim();
   if (!v) return null;
   let y: number, m: number, d: number;
@@ -133,7 +133,7 @@ export function parseDate(value: string, today = new Date()): string | null {
   } else return null;
   const date = new Date(Date.UTC(y, m - 1, d));
   if (date.getUTCFullYear() !== y || date.getUTCMonth() !== m - 1 || date.getUTCDate() !== d) return null;
-  if (y < 1900 || date.getTime() > today.getTime()) return null;
+  if (y < 1900 || (!future && date.getTime() > today.getTime())) return null;
   return date.toISOString().slice(0, 10);
 }
 
@@ -236,7 +236,8 @@ export function planImport(table: string[][], fields: Field[], { headerRow = tru
 
 /** La última importación, para poder deshacerla (ajuste sincronizado: se ve en todos los dispositivos). */
 export const LAST_IMPORT = "last_import";
-export type LastImport = { at: string; file: string; ids: string[] };
+/** `ids`: los pacientes creados; `appointments` y `sessions`, las citas y sesiones (importRecords.ts). */
+export type LastImport = { at: string; file: string; ids: string[]; appointments?: string[]; sessions?: string[] };
 
 /** Crea los pacientes de una vez (por tandas). Devuelve sus ids y apunta la importación para poder deshacerla. */
 export async function importPatients(db: Db, inputs: PatientInput[], file: string): Promise<string[]> {
@@ -256,15 +257,24 @@ export async function importPatients(db: Db, inputs: PatientInput[], file: strin
   return ids;
 }
 
-/** Deshace la última importación: borra los pacientes que creó y siguen ahí (con lo que se les haya añadido). Cuántos. */
+/**
+ * Deshace la última importación: borra lo que creó y sigue ahí (pacientes, con lo que se les haya añadido; citas;
+ * sesiones). Cuántas cosas.
+ */
 export async function undoLastImport(db: Db): Promise<number> {
   const last = await getSetting<LastImport>(db, LAST_IMPORT);
   if (!last) return 0;
   const ids = JSON.stringify(last.ids);
-  const [row] = await db.query<{ n: number }>("select count(*) as n from patients where id in (select value from json_each(?))", [ids]);
+  const appointments = JSON.stringify(last.appointments ?? []);
+  const sessions = JSON.stringify(last.sessions ?? []);
+  const count = async (table: string, list: string) =>
+    (await db.query<{ n: number }>(`select count(*) as n from ${table} where id in (select value from json_each(?))`, [list]))[0]?.n ?? 0;
+  const total = (await count("patients", ids)) + (await count("appointments", appointments)) + (await count("sessions", sessions));
   await db.transaction([
+    { sql: "delete from appointments where id in (select value from json_each(?))", bind: [appointments] },
+    { sql: "delete from sessions where id in (select value from json_each(?))", bind: [sessions] },
     { sql: "delete from patients where id in (select value from json_each(?))", bind: [ids] },
     { sql: "delete from settings where key = ?", bind: [LAST_IMPORT] },
   ]);
-  return row?.n ?? 0;
+  return total;
 }

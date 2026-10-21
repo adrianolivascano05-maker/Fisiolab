@@ -1,6 +1,6 @@
 // Ajustes → Equipo de la clínica (clinic.ts): quién forma parte de ella y, para quien la administra, añadir y quitar
 // gente, cambiar el nombre o borrarla del servidor. También cambiar de clínica o salir de ella en este dispositivo.
-import { Building2, Download, LogOut, Pencil, Repeat, ShieldCheck, Trash, UserPlus, UserRound } from "lucide-react";
+import { Building2, LogOut, Pencil, Repeat, ShieldCheck, Trash, UserPlus, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router";
 import { Page } from "../app/Page";
@@ -14,6 +14,7 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { getDb } from "../data/db";
 import { ensureStaff, removeStaff } from "../data/schedule";
+import { FullExportButton } from "../export/FullExportButton";
 import { getToken } from "./auth";
 import { chooseClinic, ROLE_LABELS, type Member, type Role } from "./clinic";
 import { useCloud } from "./CloudGate";
@@ -276,7 +277,6 @@ function DeleteClinicSheet({ onClose }: { onClose: () => void }) {
   const current = cloud.clinic;
   const target = (mine.data ?? []).find((c) => c.id === chosen) ?? current;
   const other = target.id !== current.id;
-  const day = new Date().toISOString().slice(0, 10);
   return (
     <Sheet open onClose={onClose} title="Borrar una clínica del servidor">
       {(mine.data?.length ?? 0) > 1 && (
@@ -317,23 +317,11 @@ function DeleteClinicSheet({ onClose }: { onClose: () => void }) {
           </p>
           <ol className="flex list-decimal flex-col gap-3 pl-5">
             <li className="flex flex-col gap-2">
-              <span>Descarga la copia de seguridad y guárdala fuera de este dispositivo: la historia clínica hay que conservarla los años que marca la ley.</span>
-              <Button
-                variant={downloaded ? "secondary" : "primary"}
-                icon={<Download aria-hidden="true" className="size-5" />}
-                onClick={async () => {
-                  const bytes = await getDb().exportBytes();
-                  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/vnd.sqlite3" }));
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `Cenit-${current.name.replace(/[^\p{L}\p{N}]+/gu, "-")}-${day}.sqlite3`;
-                  a.click();
-                  setTimeout(() => URL.revokeObjectURL(url), 1000);
-                  setDownloaded(true);
-                }}
-              >
-                {downloaded ? "Copia descargada" : "Descargar la copia de seguridad"}
-              </Button>
+              <span>
+                Descarga todos sus datos y guárdalos fuera de este dispositivo: la historia clínica de cada paciente (para leer o imprimir), un Excel
+                con todo y la copia de seguridad. La historia clínica hay que conservarla los años que marca la ley.
+              </span>
+              <FullExportButton name={current.name} label="Descargar todos los datos" doneLabel="Datos descargados" onDone={() => setDownloaded(true)} />
             </li>
             <li>
               <label className="flex min-h-11 items-start gap-3">

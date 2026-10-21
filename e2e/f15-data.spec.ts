@@ -15,6 +15,19 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     expect(text).toMatch(/Ejemplo · Marcos Vidal;[^;]+;rom_ankle;Tobillo · flexión dorsal en carga \(lunge\);derecha;Inclinómetro del móvil;0;;;;wall_distance_cm;9,5;cm/);
   });
 
+  test("F15-H4 descargar todo: historias legibles, Excel y copia en un .zip", async ({ page }) => {
+    await loadSeed(page);
+    await page.goto("./ajustes/datos");
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar todo (historias, Excel y copia)" }).click()]);
+    expect(dl.suggestedFilename()).toMatch(/^Cenit-Fisiolab-\d{4}-\d{2}-\d{2}\.zip$/);
+    const bytes = readFileSync((await dl.path())!);
+    expect(bytes.subarray(0, 2).toString("latin1")).toBe("PK");
+    const names = bytes.toString("latin1");
+    for (const f of ["LEEME.txt", "Indice de pacientes.html", "Todos los datos.xlsx", "Copia de Cenit.sqlite3", "Historias clinicas/"]) expect(names, f).toContain(f);
+    await expect(page.getByText(/Descargado: 3 pacientes con toda su historia/)).toBeVisible();
+    await expectAccessible(page);
+  });
+
   test("F15-H2 copia de seguridad y restauración", async ({ page }) => {
     await createPatient(page, { name: "Antes de la copia" });
     await page.goto("./ajustes/datos");
@@ -46,10 +59,10 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
   test("F15-H3 traer pacientes de otro programa (CSV de Excel): se revisa, se importa y se puede deshacer", async ({ page }) => {
     await page.goto("./");
     await page.getByRole("link", { name: "Trae tus pacientes desde Excel" }).click();
-    await expect(page.getByRole("heading", { name: "Traer pacientes" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Traer datos" })).toBeVisible();
     await createPatient(page, { name: "Luis Pérez" });
     await page.goto("./ajustes/datos");
-    await page.getByRole("link", { name: /Importar pacientes/ }).click();
+    await page.getByRole("link", { name: /Importar datos/ }).click();
     // Un CSV como los de Excel en español: punto y coma y Windows-1252 (tildes en un byte).
     const csv = "Nombre;Apellidos;F. Nac.;Sexo;Móvil;Población;DNI\r\nAna;Ruiz López;12/03/1985;M;612345678;Sevilla;12345678Z\r\nLuis;Pérez;;H;;;\r\nMarta;Gil;31/02/1990;F;699000111;;\r\n";
     await page.getByLabel("Elegir el archivo de pacientes").setInputFiles({ name: "pacientes.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "latin1") });
@@ -63,7 +76,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await expect(summary.getByRole("cell", { name: "Ana Ruiz López" })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Importar 2 pacientes" }).click();
-    await expect(page.getByText("2 pacientes importados").first()).toBeVisible();
+    await expect(page.getByText("2 pacientes importados")).toBeVisible();
 
     await page.goto("./");
     await page.getByRole("link", { name: /Ana Ruiz López/ }).click();
@@ -75,11 +88,42 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     // Deshacer: se van los importados; Luis, que ya estaba, se queda.
     await page.goto("./ajustes/importar");
     await page.getByRole("button", { name: "Deshacer la última importación" }).click();
-    await page.getByRole("dialog").getByRole("button", { name: "Borrar los pacientes importados" }).click();
-    await expect(page.getByText("Importación deshecha: 2 pacientes borrados")).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "Borrar lo importado" }).click();
+    await expect(page.getByText("Importación deshecha: 2 registros borrados")).toBeVisible();
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Ana Ruiz López|Marta Gil/ })).toHaveCount(0);
     await expect(page.getByRole("link", { name: /Luis Pérez/ })).toBeVisible();
+  });
+
+  test("F15-H5 traer citas e historial de sesiones de otro programa, unidos a sus pacientes", async ({ page }) => {
+    await createPatient(page, { name: "Ana Ruiz" });
+    await page.goto("./ajustes/importar");
+    // Citas: una que viene y una de un paciente que aún no está (se crea con su nombre).
+    await page.getByRole("radio", { name: /Citas/ }).click();
+    const citas = "Paciente;Fecha;Hora inicio;Hora fin;Estado\r\nAna Ruiz;27/10/2026;10:00;10:30;\r\nPedro Nuevo;28/10/2026;17:00;;\r\n";
+    await page.getByLabel("Elegir el archivo de citas").setInputFiles({ name: "citas.csv", mimeType: "text/csv", buffer: Buffer.from(citas, "utf8") });
+    const summary = page.getByRole("region", { name: "Qué va a pasar" });
+    await expect(summary.getByText("Se importan 2 citas")).toBeVisible();
+    await expect(summary.getByText(/1 paciente no está en Cénit \(Pedro Nuevo\): se crean con su nombre/)).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Importar 2 citas" }).click();
+    await expect(page.getByText("2 citas importadas y 1 paciente nuevo")).toBeVisible();
+    await page.getByRole("link", { name: "Ver la agenda" }).click();
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Semana" }).click();
+    await page.getByRole("button", { name: "Semana siguiente" }).click();
+    await expect(page.getByRole("button", { name: /^Ana Ruiz\s*,\s*10:00–10:30/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Pedro Nuevo\s*,\s*17:00–17:45/ })).toBeVisible();
+
+    // Historial: las notas de cada visita, en la ficha de Ana.
+    await page.goto("./ajustes/importar");
+    await page.getByRole("radio", { name: /Historial de sesiones/ }).click();
+    const historial = "Nombre;Fecha;EVA;Evolución\r\nAna Ruiz;01/09/2026 09:00;6;Dolor lumbar al agacharse, mejora con calor\r\n";
+    await page.getByLabel("Elegir el archivo de historial de sesiones").setInputFiles({ name: "historial.xlsx.csv", mimeType: "text/csv", buffer: Buffer.from(historial, "utf8") });
+    await page.getByRole("button", { name: "Importar 1 sesión" }).click();
+    await expect(page.getByText("1 sesión importada")).toBeVisible();
+    await page.goto("./");
+    await page.getByRole("list", { name: "Pacientes" }).getByRole("link", { name: /Ana Ruiz/ }).click();
+    await expect(page.getByText(/Dolor lumbar al agacharse/).first()).toBeVisible();
   });
 
   test("F15-E1 cargar ejemplo no se duplica aunque se pulse rápido", async ({ page }) => {

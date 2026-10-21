@@ -40,6 +40,21 @@ async function read(zip: Uint8Array, e: Entry): Promise<string> {
   return new TextDecoder().decode(await new Response(stream).arrayBuffer());
 }
 
+/** Todos los archivos de un zip, descomprimidos. */
+export async function readZip(bytes: Uint8Array): Promise<Map<string, Uint8Array>> {
+  const out = new Map<string, Uint8Array>();
+  for (const e of entries(bytes).values()) {
+    const local = e.offset;
+    const start = local + 30 + u16(bytes, local + 26) + u16(bytes, local + 28);
+    const data = bytes.subarray(start, start + e.size);
+    out.set(
+      e.name,
+      e.method === 0 ? data.slice() : new Uint8Array(await new Response(new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer()),
+    );
+  }
+  return out;
+}
+
 const unescapeXml = (s: string) =>
   s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_, e: string) => {
     if (e[0] === "#") return String.fromCodePoint(e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10));
