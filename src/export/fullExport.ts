@@ -13,7 +13,8 @@ import { getExercise } from "../calc/strength";
 import { getMovement, movementLabel } from "../calc/rom";
 import { wellnessItems } from "../calc/wellness";
 import { metricLabels, sideLabels, testTitle } from "../app/format";
-import { ANAMNESIS, answerText, getField, orphanAnswers, regionLabel } from "../clinical/anamnesis";
+import { ANAMNESIS, answerText, getField, orphanAnswers, regionLabel, withCustom, type Section } from "../clinical/anamnesis";
+import { getCustomFields } from "../data/customFields";
 import { displayName, kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { Db } from "../data/db";
@@ -56,6 +57,8 @@ export type Collected = {
   clinic: ClinicInfo;
   schema: number;
   tables: Record<string, R[]>;
+  /** La ficha de anamnesis de la clínica, con sus campos propios. */
+  template?: Section[];
 };
 
 /** Las tablas que se exportan (las de la clínica; no los ajustes del dispositivo ni los de cada persona). */
@@ -64,7 +67,7 @@ const EXPORT_TABLES = SYNC_TABLES.map((t) => t.name).filter((t) => !["settings",
 export async function collect(db: Db): Promise<Collected> {
   const tables: Record<string, R[]> = {};
   for (const t of EXPORT_TABLES) tables[t] = await db.query<R>(`select * from ${t}`);
-  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables };
+  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: withCustom(await getCustomFields(db)) };
 }
 
 // ---------- Lo de cada paciente ----------
@@ -93,14 +96,14 @@ const episodeName = (eps: Episode[], id: unknown) => {
 };
 
 /** Las respuestas de una anamnesis, por apartados y con sus nombres: [apartado, campo, respuesta]. */
-export function anamnesisRows(a: Answers): [string, string, string][] {
+export function anamnesisRows(a: Answers, template: Section[] = ANAMNESIS): [string, string, string][] {
   const out: [string, string, string][] = [];
-  for (const section of ANAMNESIS)
+  for (const section of template)
     for (const f of section.fields) {
       const text = answerText(f, a[f.id] as AnswerValue);
       if (text) out.push([section.title, f.label, text]);
     }
-  for (const [k, v] of orphanAnswers(a)) out.push(["Otros datos guardados", getField(k)?.label ?? k, answerText(getField(k), v as AnswerValue)]);
+  for (const [k, v] of orphanAnswers(a, template)) out.push(["Otros datos guardados", getField(k)?.label ?? k, answerText(getField(k), v as AnswerValue)]);
   return out;
 }
 
@@ -147,7 +150,7 @@ export function buildSheets(c: Collected): Sheet[] {
     {
       name: "Anamnesis",
       header: ["Paciente", "Motivo de consulta", "Apartado", "Pregunta", "Respuesta"],
-      rows: T.patients!.flatMap((p) => epsOf(s(p.id)).flatMap((e) => anamnesisRows(e.answers).map(([sec, label, text]) => [s(p.name), e.title, sec, label, text]))),
+      rows: T.patients!.flatMap((p) => epsOf(s(p.id)).flatMap((e) => anamnesisRows(e.answers, c.template).map(([sec, label, text]) => [s(p.name), e.title, sec, label, text]))),
     },
     {
       name: "Sesiones",
@@ -306,7 +309,7 @@ export function patientHtml(c: Collected, p: R, exportedAt = new Date()): string
     .join("")}</dl>`);
 
   for (const e of eps) {
-    const rows = anamnesisRows(e.answers);
+    const rows = anamnesisRows(e.answers, c.template);
     const closed = e.closedAt ? ` · terminado el ${day(e.closedAt)}` : "";
     parts.push(`<h2>${eps.length > 1 ? `Motivo de consulta: ${h(e.title)}` : "Anamnesis"}</h2>${e.startedAt ? `<p class="muted">Desde el ${h(day(e.startedAt))}${h(closed)}</p>` : ""}`);
     if (!rows.length) parts.push(`<p class="muted">Sin anamnesis registrada.</p>`);

@@ -41,7 +41,8 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
-import { ANAMNESIS, ALL_FIELDS, answerText, answeredCount, clinicalSummary, orphanAnswers, regionLabel, type Field } from "./anamnesis";
+import { answerText, answeredCount, clinicalSummary, orphanAnswers, regionLabel, type Field, type Section } from "./anamnesis";
+import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyFigures, BodyMapInput, BodyMapLegend } from "./BodyMap";
 import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
 import { parseMarks, regionsOf } from "./bodyMap";
@@ -144,7 +145,7 @@ function PatientBasics({ patient }: { patient: Patient }) {
 /** Apartados que se ven abiertos al llegar: lo que más se consulta (motivo, precauciones, diagnóstico y plan). */
 const OPEN_FIRST = new Set(["motivo", "antecedentes", "diagnostico", "objetivos"]);
 /** Campos con respuesta en un apartado (sin contar la fecha, que se pone sola). */
-const filled = (section: (typeof ANAMNESIS)[number], a: Answers) => answeredCount(a, section.fields.filter((f) => f.id !== "fecha_valoracion"));
+const filled = (section: Section, a: Answers) => answeredCount(a, section.fields.filter((f) => f.id !== "fecha_valoracion"));
 
 /** Un apartado de la anamnesis que se pliega: el título, cuántos campos tiene rellenos y el contenido. */
 function Fold({ id, title, count, open, children }: { id: string; title: string; count: string; open: boolean; children: ReactNode }) {
@@ -230,6 +231,8 @@ export function AnamnesisPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoStarted = useRef(false);
+  const sections = useAnamnesisSections();
+  const allFields = sections.flatMap((x) => x.fields);
 
   // Sin anamnesis todavía: se empieza directamente a rellenar, con la fecha de hoy (solo al entrar). Recién creado un
   // motivo de consulta, en cuanto llega su anamnesis (la que ya trae los datos personales).
@@ -287,7 +290,7 @@ export function AnamnesisPage() {
         {/* Índice: la ficha es larga; cada apartado a un toque. */}
         <nav aria-label="Apartados de la anamnesis">
           <ul className="flex flex-wrap gap-2">
-            {ANAMNESIS.map((section) => (
+            {sections.map((section) => (
               <li key={section.id}>
                 <a
                   href={`#anamnesis-${section.id}`}
@@ -306,7 +309,7 @@ export function AnamnesisPage() {
           </ul>
         </nav>
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-          {ANAMNESIS.map((section) => {
+          {sections.map((section) => {
             const n = filled(section, draft);
             return (
               <Fold
@@ -362,9 +365,9 @@ export function AnamnesisPage() {
 
   if (!anamnesis) return <PatientShell patient={patient} id={id}><Loading /></PatientShell>;
   const a = anamnesis.answers;
-  const done = answeredCount(a);
+  const done = answeredCount(a, allFields);
   const valued = typeof a.fecha_valoracion === "string" ? a.fecha_valoracion : null;
-  const orphans = orphanAnswers(a);
+  const orphans = orphanAnswers(a, sections);
   const red = clinicalSummary(a).redFlags;
   return (
     <PatientShell patient={patient} id={id}>
@@ -374,7 +377,7 @@ export function AnamnesisPage() {
           {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
           <p className="text-sm text-text-muted">
             {valued ? `Valoración del ${dayText(valued)}` : `Rellenada el ${fmtDate(anamnesis.createdAt)}`}
-            {anamnesis.updatedAt !== anamnesis.createdAt && ` · actualizada el ${fmtDate(anamnesis.updatedAt)}`} · {done} de {ALL_FIELDS.length} campos
+            {anamnesis.updatedAt !== anamnesis.createdAt && ` · actualizada el ${fmtDate(anamnesis.updatedAt)}`} · {done} de {allFields.length} campos
           </p>
         </div>
         <Button variant="secondary" icon={<Pencil aria-hidden="true" className="size-4" />} onClick={startEdit}>
@@ -386,7 +389,7 @@ export function AnamnesisPage() {
           {red.join(" · ")}. Valora derivar.
         </Alert>
       )}
-      {ANAMNESIS.map((section) => {
+      {sections.map((section) => {
         const rows = section.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");
         const n = filled(section, a);
         return (

@@ -15,10 +15,12 @@ import { cx } from "../ui/cx";
 import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { getCustomFields } from "../data/customFields";
 import { ANAMNESIS } from "./anamnesis";
 
 /** Lo que no cambia de un motivo a otro (datos personales, antecedentes, hábitos): pasa a la anamnesis nueva. */
-const KEEP = new Set(ANAMNESIS.filter((s) => ["datos", "antecedentes", "familiares", "habitos"].includes(s.id)).flatMap((s) => s.fields.map((f) => f.id)));
+const KEEP_SECTIONS = ["datos", "antecedentes", "familiares", "habitos"];
+const KEEP = new Set(ANAMNESIS.filter((s) => KEEP_SECTIONS.includes(s.id)).flatMap((s) => s.fields.map((f) => f.id)));
 KEEP.delete("fecha_valoracion");
 
 const today = () => new Date().toISOString().slice(0, 10);
@@ -71,7 +73,9 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
     run(async () => {
       const db = getDb();
       const prev = (await getAnamnesis(db, patientId))?.answers ?? {};
-      const answers: Answers = Object.fromEntries(Object.entries(prev).filter(([k]) => KEEP.has(k)));
+      // También las preguntas propias de la clínica de esos mismos apartados.
+      const custom = new Set((await getCustomFields(db)).filter((f) => KEEP_SECTIONS.includes(f.section)).map((f) => f.id));
+      const answers: Answers = Object.fromEntries(Object.entries(prev).filter(([k]) => KEEP.has(k) || custom.has(k)));
       answers.fecha_valoracion = day;
       answers.motivo = title.trim();
       const id = await createEpisode(db, patientId, { title, startedAt: new Date(`${day}T12:00:00`).toISOString(), answers });

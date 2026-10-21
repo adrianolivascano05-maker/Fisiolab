@@ -17,6 +17,7 @@ const AsymmetryPage = lazy(() => import("./pages/AsymmetryPage").then((m) => ({ 
 const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.ClinicSettingsPage })));
 const DataSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.DataSettingsPage })));
 const StatsPage = lazy(() => import("./pages/StatsPage").then((m) => ({ default: m.StatsPage })));
+const CustomFieldsPage = lazy(() => import("./pages/CustomFieldsPage").then((m) => ({ default: m.CustomFieldsPage })));
 const ExerciseLibraryPage = lazy(() => import("./pages/ExerciseLibraryPage").then((m) => ({ default: m.ExerciseLibraryPage })));
 const ClinicBillingPage = lazy(() => import("./pages/ClinicBillingPage").then((m) => ({ default: m.ClinicBillingPage })));
 const ImportPatientsPage = lazy(() => import("./pages/ImportPatientsPage").then((m) => ({ default: m.ImportPatientsPage })));
@@ -107,6 +108,7 @@ const routes = [
   { path: "/ajustes/estadisticas", element: l(<StatsPage />) },
   { path: "/ajustes/cobros", element: l(<ClinicBillingPage />) },
   { path: "/ajustes/ejercicios", element: l(<ExerciseLibraryPage />) },
+  { path: "/ajustes/anamnesis", element: l(<CustomFieldsPage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa
   { path: "/privacidad", element: l(<PrivacyPage />) },
   { path: "/cuenta", element: l(<SignInSetupPage />) }, // Iniciar sesión con Google (sin el ID de cliente publicado)

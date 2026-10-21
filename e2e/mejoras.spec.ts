@@ -328,4 +328,30 @@ test.describe("Mejoras frente a la competencia", () => {
     await page.getByRole("button", { name: "Guardar la hoja" }).click();
     await expect(page.getByRole("article", { name: "Hoja de ejercicios" })).toContainText("Sentadilla en pared3 × 30 s");
   });
+
+  test("MJ8 anamnesis de la clínica: preguntas propias y un paquete por especialidad, en la ficha y el informe", async ({ page }) => {
+    await page.goto("./ajustes");
+    await page.getByRole("link", { name: /Anamnesis de la clínica/ }).click();
+    await page.getByRole("button", { name: "Suelo pélvico" }).click();
+    await expect(page.getByText(/Suelo pélvico: \d preguntas añadidas/)).toBeVisible();
+    await page.getByRole("button", { name: "Añadir una pregunta" }).click();
+    const q = page.getByRole("dialog", { name: "Nueva pregunta" });
+    await q.getByLabel("Apartado").selectOption({ label: "5. Hábitos y estilo de vida" });
+    await q.getByLabel("Pregunta").fill("Horas sentado al día");
+    await q.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByRole("list", { name: "Preguntas propias: Hábitos y estilo de vida" })).toContainText("Horas sentado al día");
+    await expectAccessible(page);
+
+    await createPatient(page, { name: "Nora Propia" });
+    await tab(page, "Anamnesis").click();
+    await page.locator("fieldset", { hasText: "Escapes de orina" }).getByText("Al esfuerzo").click();
+    await page.getByText("5. Hábitos y estilo de vida").click();
+    await page.getByLabel("Horas sentado al día").fill("8");
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByText("Al esfuerzo")).toBeVisible();
+    await page.goto(page.url().replace(/\/anamnesis$/, "/informe"));
+    const report = page.getByRole("article", { name: "Informe" });
+    await expect(report).toContainText("Escapes de orina");
+    await expect(report).toContainText("Horas sentado al día");
+  });
 });

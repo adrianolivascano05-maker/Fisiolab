@@ -5,6 +5,7 @@
 // los datos del paciente.
 import { PRECAUTIONS } from "../consent/precautions";
 import type { AnswerValue, Answers } from "../data/clinical";
+import type { CustomField } from "../data/customFields";
 import { marksText } from "./bodyMap";
 
 type Base = { id: string; label: string; hint?: string };
@@ -160,6 +161,22 @@ export const ALL_FIELDS = ANAMNESIS.flatMap((s) => s.fields);
 const fieldById = new Map(ALL_FIELDS.map((f) => [f.id, f]));
 export const getField = (id: string) => fieldById.get(id);
 
+/** La ficha de la clínica: la de siempre con sus campos propios al final de cada apartado (src/data/customFields.ts). */
+export function withCustom(custom: CustomField[]): Section[] {
+  if (!custom.length) return ANAMNESIS;
+  return ANAMNESIS.map((s) => ({
+    ...s,
+    fields: [
+      ...s.fields,
+      ...custom
+        .filter((c) => c.section === s.id && !fieldById.has(c.id))
+        .map((c): Field => (c.type === "choice" || c.type === "multi" ? { id: c.id, label: c.label, type: c.type, options: c.options ?? [] } : { id: c.id, label: c.label, type: c.type })),
+    ],
+  }));
+}
+/** Un campo de la ficha (con los propios), por su id. */
+export const fieldIn = (sections: Section[], id: string) => sections.flatMap((s) => s.fields).find((f) => f.id === id);
+
 /** Texto de una respuesta para leerla (en la ficha, el resumen y el informe). */
 export function answerText(field: Field | undefined, v: AnswerValue): string {
   if (v === null || v === undefined || v === "") return "";
@@ -202,6 +219,7 @@ export function answeredCount(a: Answers, fields = ALL_FIELDS): number {
 }
 
 /** Respuestas guardadas de campos que ya no están en la plantilla (no se pierden). */
-export function orphanAnswers(a: Answers): [string, AnswerValue][] {
-  return Object.entries(a).filter(([k, v]) => !fieldById.has(k) && answered(v));
+export function orphanAnswers(a: Answers, sections: Section[] = ANAMNESIS): [string, AnswerValue][] {
+  const ids = new Set(sections.flatMap((s) => s.fields.map((f) => f.id)));
+  return Object.entries(a).filter(([k, v]) => !ids.has(k) && answered(v));
 }

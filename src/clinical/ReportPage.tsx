@@ -14,7 +14,8 @@ import { getPatient, listTests, listWellness } from "../data/repo";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { safeName } from "../cloud/saveToDrive";
 import { Button } from "../ui/Button";
-import { ANAMNESIS, answerText } from "./anamnesis";
+import { answerText } from "./anamnesis";
+import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyFigures, BodyMapLegend } from "./BodyMap";
 import { parseMarks } from "./bodyMap";
 import { findTest, resultMeaning } from "./galleryLink";
@@ -67,6 +68,7 @@ export function ReportPage() {
     return { patient, anamnesis, findings, sessions, tests, wellness, questionnaires, clinic };
   }, [id]);
   const article = useRef<HTMLElement>(null);
+  const template = useAnamnesisSections();
   const [parts, setParts] = useState<Record<Part, boolean>>({ anamnesis: true, exploracion: true, dolor: true, mediciones: true, cuestionarios: true, sesiones: true });
 
   const back = `/pacientes/${id}`;
@@ -92,10 +94,10 @@ export function ReportPage() {
   const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
   const today = new Date().toISOString();
   // Apartados de la anamnesis con algo escrito (la exploración física va con los tests).
-  const sections = ANAMNESIS.filter((s) => s.id !== "exploracion")
+  const sections = template.filter((s) => s.id !== "exploracion")
     .map((s) => ({ s, rows: s.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "" && !["fecha_valoracion", "fisioterapeuta"].includes(f.id)) }))
     .filter((x) => x.rows.length);
-  const examText = ANAMNESIS.find((s) => s.id === "exploracion")!.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");
+  const examText = template.find((s) => s.id === "exploracion")!.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");
   const facts: [string, string][] = [
     ["Paciente", patient.name],
     ["Edad", years !== null ? `${years} años` : "—"],
