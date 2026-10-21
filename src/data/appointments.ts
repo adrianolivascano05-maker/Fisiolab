@@ -8,13 +8,33 @@ import { member, memberEmail } from "./member";
 
 export type AppointmentStatus = "scheduled" | "done" | "no_show" | "cancelled";
 /** `assignedTo`: con quién es (correo del equipo de la clínica); null, con quien la dio o sin clínica. */
-export type Appointment = { id: string; patientId: string; startsAt: string; minutes: number; status: AppointmentStatus; assignedTo: string | null };
+export type Appointment = {
+  id: string;
+  patientId: string;
+  startsAt: string;
+  minutes: number;
+  status: AppointmentStatus;
+  assignedTo: string | null;
+  /** Cuándo se le recordó y cuándo confirmó que viene (migración 018). Se borran al mover la cita. */
+  remindedAt?: string | null;
+  confirmedAt?: string | null;
+};
 /** Una cita con el nombre de su paciente, para la agenda. */
 export type AgendaItem = Appointment & { name: string };
 
 export const STATUS_LABELS: Record<AppointmentStatus, string> = { scheduled: "Pendiente", done: "Atendida", no_show: "No vino", cancelled: "Anulada" };
 
-type Row = { id: string; patient_id: string; starts_at: string; minutes: number; status: AppointmentStatus; assigned_to: string | null; name?: string };
+type Row = {
+  id: string;
+  patient_id: string;
+  starts_at: string;
+  minutes: number;
+  status: AppointmentStatus;
+  assigned_to: string | null;
+  reminded_at?: string | null;
+  confirmed_at?: string | null;
+  name?: string;
+};
 const toAppointment = (r: Row): Appointment => ({
   id: r.id,
   patientId: r.patient_id,
@@ -22,6 +42,8 @@ const toAppointment = (r: Row): Appointment => ({
   minutes: r.minutes,
   status: r.status,
   assignedTo: r.assigned_to,
+  remindedAt: r.reminded_at ?? null,
+  confirmedAt: r.confirmed_at ?? null,
 });
 const now = () => new Date().toISOString();
 
@@ -58,12 +80,46 @@ export async function updateAppointment(
   const moved = startsAt !== current.startsAt;
   const status = change.status ?? (moved ? "scheduled" : current.status);
   const assignedTo = change.assignedTo === undefined ? current.assignedTo : change.assignedTo;
+  // Otro día u otra hora: el recordatorio y la confirmación eran de la cita de antes.
+  const reset = moved ? ", reminded_at = null, confirmed_at = null" : "";
   await db.transaction([
     {
-      sql: "update appointments set starts_at = ?, minutes = ?, status = ?, assigned_to = ?, updated_at = ? where id = ?",
+      sql: `update appointments set starts_at = ?, minutes = ?, status = ?, assigned_to = ?, updated_at = ?${reset} where id = ?`,
       bind: [startsAt, minutes, status, assignedTo, now(), id],
     },
   ]);
+}
+
+/** Se le ha recordado la cita (por WhatsApp o correo). */
+export async function markReminded(db: Db, id: string): Promise<void> {
+  await db.transaction([{ sql: "update appointments set reminded_at = ?, updated_at = ? where id = ?", bind: [now(), now(), id] }]);
+}
+
+/** El paciente ha confirmado que viene (o se deshace). */
+export async function markConfirmed(db: Db, id: string, confirmed: boolean): Promise<void> {
+  await db.transaction([{ sql: "update appointments set confirmed_at = ?, updated_at = ? where id = ?", bind: [confirmed ? now() : null, now(), id] }]);
+}
+
+/** Una cita para recordar: con el teléfono, el correo y el permiso de contacto del paciente. */
+export type ReminderItem = AgendaItem & { phone: string; email: string; contact: boolean | null };
+
+/** Las citas pendientes entre dos instantes, con lo necesario para recordárselas al paciente. */
+export async function remindersBetween(db: Db, from: string, to: string): Promise<ReminderItem[]> {
+  const rows = await db.query<Row & { phone: string; email: string; privacy: string }>(
+    `select a.*, p.name, p.phone, p.email, p.privacy from appointments a join patients p on p.id = a.patient_id
+      where a.starts_at >= ? and a.starts_at < ? and a.status = 'scheduled' order by a.starts_at, p.name collate nocase`,
+    [from, to],
+  );
+  return rows.map((r) => {
+    let contact: boolean | null = null;
+    try {
+      const v = (JSON.parse(r.privacy || "{}") as { consents?: { contact?: boolean } }).consents?.contact;
+      contact = typeof v === "boolean" ? v : null;
+    } catch {
+      /* sin datos de privacidad */
+    }
+    return { ...toAppointment(r), name: r.name!, phone: r.phone ?? "", email: r.email ?? "", contact };
+  });
 }
 
 export async function deleteAppointment(db: Db, id: string): Promise<void> {

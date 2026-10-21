@@ -4,6 +4,7 @@ import {
   BookOpenCheck,
   Briefcase,
   Building2,
+  ChartColumn,
   ClipboardCheck,
   Database,
   Download,
@@ -93,6 +94,7 @@ export function SettingsPage() {
           <RowLink to="/ajustes/equipo" icon={UsersRound} title="Equipo de la clínica" subtitle={`${cloud.clinic.name} · ${ROLE_LABELS[cloud.clinic.role]}`} />
         )}
         <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
+        <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
       </Group>
 
       {cloud?.operator && (

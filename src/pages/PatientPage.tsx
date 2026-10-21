@@ -1,4 +1,4 @@
-import { Activity, CalendarClock, ClipboardList, FilePen, FileText, ListChecks, NotebookPen, ShieldAlert, ShieldCheck, Stethoscope, type LucideIcon } from "lucide-react";
+import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, ShieldAlert, ShieldCheck, Stethoscope, type LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
@@ -145,6 +145,7 @@ export function PatientPage() {
           warn={missing.length > 0}
         />
         <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Completo o de alta; imprimir o guardar en PDF" />
+        <RowLink to={`/pacientes/${id}/justificante`} icon={FileCheck} title="Justificante de asistencia" subtitle="Para su trabajo o su centro de estudios" />
       </Group>
 
       {/* Lo clínico: por qué viene, banderas y dolor. */}

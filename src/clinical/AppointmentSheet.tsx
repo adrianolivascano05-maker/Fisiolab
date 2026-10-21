@@ -1,11 +1,11 @@
 // Dar, cambiar o cerrar una cita (src/data/appointments.ts): desde la cabecera de la ficha (la próxima cita o «Dar
 // cita») y desde la agenda de hoy en Pacientes. Al cambiar algo se recargan las pantallas (y, con la cuenta de
 // Google, el calendario se pone al día solo). En una clínica, también con quién es (el horario, src/schedule).
-import { CalendarClock, CalendarX2, NotebookPen, Pencil, RotateCcw, Trash, UserPlus, UserX } from "lucide-react";
+import { CalendarClock, CalendarX2, FileCheck, NotebookPen, Pencil, RotateCcw, Trash, UserPlus, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
-import { clashes, createWeekly, deleteAppointment, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
+import { clashes, createWeekly, deleteAppointment, markConfirmed, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
 import { createPatient, listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
@@ -139,6 +139,23 @@ export function AppointmentSheet({
             <span className={appointment.status === "scheduled" ? "" : "font-semibold"}>{STATUS_LABELS[appointment.status]}</span>
             {staff.length > 0 && <> · Con {staffName(staff, appointment.assignedTo)}</>}
           </p>
+          {appointment.status === "scheduled" && (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {appointment.confirmedAt ? (
+                <span className="rounded-full bg-success-soft px-2 py-0.5 font-semibold text-success">Confirmada</span>
+              ) : appointment.remindedAt ? (
+                <span className="rounded-full bg-accent-soft px-2 py-0.5">Recordada el {fmtVisit(appointment.remindedAt)}</span>
+              ) : null}
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={busy}
+                onClick={() => void run(() => markConfirmed(getDb(), appointment.id, !appointment.confirmedAt), appointment.confirmedAt ? "Confirmación quitada" : "Anotado: confirmada")}
+              >
+                {appointment.confirmedAt ? "Quitar la confirmación" : "Ha confirmado que viene"}
+              </Button>
+            </div>
+          )}
           {lastEdit && <p className="text-xs text-text-muted">Última modificación: {editText(lastEdit)}</p>}
           {appointment.status !== "done" && (
             <Link
@@ -182,6 +199,15 @@ export function AppointmentSheet({
           <Button variant="secondary" icon={<Pencil aria-hidden="true" className="size-5" />} onClick={() => setEditing(true)}>
             Cambiar el día o la hora
           </Button>
+          {appointment.status !== "cancelled" && appointment.status !== "no_show" && (
+            <Link
+              to={`/pacientes/${patientId}/justificante?cita=${appointment.id}`}
+              onClick={onClose}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-5 font-semibold hover:bg-surface"
+            >
+              <FileCheck aria-hidden="true" className="size-5" /> Justificante de asistencia
+            </Link>
+          )}
           <Button variant="ghost" className="text-danger" loading={busy} icon={<Trash aria-hidden="true" className="size-5" />} onClick={() => void run(() => deleteAppointment(getDb(), appointment.id), "Cita borrada")}>
             Borrar la cita
           </Button>

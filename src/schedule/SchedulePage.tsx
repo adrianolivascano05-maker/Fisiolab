@@ -3,7 +3,8 @@
 // de persona) y se puede deshacer; tocar un hueco da una cita o pone un turno. Sirve igual a quien trabaja solo (sin
 // equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
 // compartida: cada compañero ve los cambios de los demás en su dispositivo, solo.
-import { CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Plus, Undo2 } from "lucide-react";
+import { BellRing, CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Plus, Undo2 } from "lucide-react";
+import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { bumpData } from "../app/dataVersion";
 import { Page } from "../app/Page";
@@ -12,7 +13,7 @@ import { AppointmentSheet } from "../clinical/AppointmentSheet";
 import { fmtVisit } from "../clinical/calendar";
 import { addDays, localInput, todayDay } from "../clinical/pageKit";
 import { useCloud, useSyncState } from "../cloud/CloudGate";
-import { agenda, updateAppointment, type AgendaItem } from "../data/appointments";
+import { agenda, remindersBetween, updateAppointment, type AgendaItem } from "../data/appointments";
 import { getDb } from "../data/db";
 import { copyWeekForward, shiftsBetween, staffColor, type Shift } from "../data/schedule";
 import { Button, IconButton } from "../ui/Button";
@@ -74,6 +75,15 @@ export function SchedulePage() {
   const from = new Date(`${days[0]}T00:00:00`).toISOString();
   const to = new Date(`${addDays(days.at(-1)!, 1)}T00:00:00`).toISOString();
   const data = useAsync(async () => ({ shifts: await shiftsBetween(getDb(), from, to), appointments: await agenda(getDb(), from, to) }), [from, to]);
+  // Las citas de mañana que aún no se han recordado.
+  const tomorrow = addDays(today, 1);
+  const toRemind = useAsync(
+    async () =>
+      (await remindersBetween(getDb(), new Date(`${tomorrow}T00:00:00`).toISOString(), new Date(`${addDays(tomorrow, 1)}T00:00:00`).toISOString())).filter(
+        (a) => !a.remindedAt && !a.confirmedAt,
+      ).length,
+    [tomorrow, data.data],
+  );
 
   useEffect(() => {
     try {
@@ -214,6 +224,18 @@ export function SchedulePage() {
         <Button icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setCreating({ kind: "appointment", start: atMinutes(firstDay, 10 * 60) })}>
           Nueva cita
         </Button>
+        <Link
+          to="/agenda/recordatorios"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
+        >
+          <BellRing aria-hidden="true" className="size-5 text-accent" /> Recordatorios
+          {!!toRemind.data && (
+            <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
+              {toRemind.data}
+              <span className="sr-only"> de mañana sin recordar</span>
+            </span>
+          )}
+        </Link>
         {team && (
           <Button variant="secondary" icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={() => setCreating({ kind: "shift", start: atMinutes(firstDay, 9 * 60) })}>
             Añadir turno

@@ -192,4 +192,110 @@ test.describe("Agenda y seguimiento", () => {
     await sheet.getByRole("button", { name: "Darla igualmente" }).click();
     await expect(page.getByRole("button", { name: /^Otro Paciente\s*,\s*10:15–11:00/ })).toBeVisible();
   });
+
+  test("AG6 recordatorios: las citas de mañana con su WhatsApp listo; recordada, confirmada y el mensaje de la clínica", async ({ page }) => {
+    // Pacientes y citas desde un CSV (lo más rápido para la prueba).
+    await page.goto("./ajustes/importar");
+    await page.getByLabel("Elegir el archivo de pacientes").setInputFiles({
+      name: "p.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("Nombre;Teléfono;Correo\r\nAna Ruiz;612 345 678;\r\nLuis Correo;;luis@correo.test\r\n", "utf8"),
+    });
+    await page.getByRole("button", { name: "Importar 2 pacientes" }).click();
+    await page.getByRole("radio", { name: /Citas/ }).click();
+    await page.getByLabel("Elegir el archivo de citas").setInputFiles({
+      name: "c.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("Paciente;Fecha;Hora\r\nAna Ruiz;21/10/2026;10:00\r\nLuis Correo;21/10/2026;11:30\r\n", "utf8"),
+    });
+    await page.getByRole("button", { name: "Importar 2 citas" }).click();
+    await expect(page.getByText("2 citas importadas")).toBeVisible();
+
+    await page.goto("./agenda");
+    await page.getByRole("link", { name: /Recordatorios\s*2 de mañana sin recordar/ }).click();
+    await expect(page.getByRole("heading", { name: /miércoles, 21 de octubre/i })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "2 citas pendientes" })).toContainText("0 recordadas");
+    const ana = page.getByRole("group", { name: "10:00 · Ana Ruiz" });
+    const wa = ana.getByRole("link", { name: "WhatsApp" });
+    await expect(wa).toHaveAttribute("href", /^https:\/\/wa\.me\/34612345678\?text=Hola%2C%20Ana\.%20Te%20recordamos/);
+    await expect(ana.getByText("Sin permiso de contacto registrado")).toBeVisible();
+    await expectAccessible(page);
+    // Al tocar WhatsApp (aquí sin abrirlo), queda recordada.
+    await wa.evaluate((el) => el.addEventListener("click", (e) => e.preventDefault()));
+    await wa.click();
+    await expect(ana.getByText(/Recordada a las/)).toBeVisible();
+    const luis = page.getByRole("group", { name: "11:30 · Luis Correo" });
+    await expect(luis.getByRole("link", { name: "Correo" })).toHaveAttribute("href", /^mailto:luis@correo\.test\?subject=Recordatorio/);
+    await luis.getByRole("button", { name: "Ha confirmado que viene" }).click();
+    await expect(luis.getByText("Confirmada")).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "2 citas pendientes" })).toContainText("1 recordada · 1 confirmada");
+
+    // El mensaje es de la clínica: se cambia una vez.
+    await page.getByRole("button", { name: "Cambiar el mensaje" }).click();
+    await page.getByRole("dialog").getByLabel("Texto").fill("Cita el {dia} a las {hora}, {nombre}");
+    await page.getByRole("dialog").getByRole("button", { name: "Guardar el mensaje" }).click();
+    await expect(wa).toHaveAttribute("href", /text=Cita%20el%20mi%C3%A9rcoles%2C%2021%20de%20octubre%20a%20las%2010%3A00%2C%20Ana$/);
+
+    // En la agenda, la cita dice que está confirmada.
+    await page.goto("./agenda");
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Semana" }).click();
+    await page.getByRole("button", { name: /^Luis Correo\s*,\s*11:30/ }).click();
+    await expect(page.getByRole("dialog", { name: "Cita de Luis Correo" }).getByText("Confirmada")).toBeVisible();
+  });
+
+  test("AG7 justificante de asistencia desde la cita: día, hora, DNI y para qué, listo para imprimir o PDF", async ({ page }) => {
+    await page.goto("./ajustes/clinica");
+    await page.getByLabel("Clínica (nombre o razón social)").fill("Fisiolab Centro");
+    await page.getByLabel("Fisioterapeuta", { exact: true }).fill("Ana Ruiz");
+    await page.getByLabel("Nº de colegiado").fill("1234");
+    await page.getByLabel("Localidad").fill("Sevilla");
+    await page.getByRole("button", { name: "Guardar los datos de la clínica" }).click();
+    await expect(page.getByText(/guardad/i).first()).toBeVisible();
+    await createPatient(page, { name: "Eva Justifica" });
+    await giveAppointment(page, "Eva Justifica", "2026-10-20T09:00");
+    await page.goto("./agenda");
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    await page.getByRole("button", { name: /^Eva Justifica\s*,\s*09:00/ }).click();
+    await page.getByRole("dialog", { name: "Cita de Eva Justifica" }).getByRole("link", { name: "Justificante de asistencia" }).click();
+    await page.getByLabel("DNI o NIE del paciente (opcional)").fill("12345678Z");
+    await page.getByLabel("Para qué es (opcional)").fill("a petición de la interesada, para presentar en su empresa");
+    const doc = page.getByRole("article", { name: "Justificante de asistencia" });
+    await expect(doc).toContainText("Ana Ruiz, fisioterapeuta con nº de colegiado 1234 de Fisiolab Centro, hace constar que Eva Justifica, con DNI/NIE 12345678Z, ha asistido a consulta de fisioterapia el martes, 20 de octubre de 2026, de 09:00 a 09:45.");
+    await expect(doc).toContainText("Se expide a petición de la interesada, para presentar en su empresa.");
+    await expect(doc).toContainText("se firma en Sevilla");
+    await expectAccessible(page);
+    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
+    expect(pdf.suggestedFilename()).toMatch(/^Justificante Eva Justifica 2026-10-20\.pdf$/);
+  });
+
+  test("AG8 la clínica en números: sesiones, ausencias y la gráfica de cada mes", async ({ page }) => {
+    await page.goto("./ajustes/importar");
+    await page.getByRole("radio", { name: /Historial de sesiones/ }).click();
+    await page.getByLabel("Elegir el archivo de historial de sesiones").setInputFiles({
+      name: "h.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("Paciente;Fecha\r\nAna Ruiz;02/10/2026 09:00\r\nAna Ruiz;09/10/2026 09:00\r\nLuis Gil;05/10/2026 10:00\r\nLuis Gil;05/09/2026 10:00\r\n", "utf8"),
+    });
+    await page.getByRole("button", { name: "Importar 4 sesiones" }).click();
+    await page.getByRole("radio", { name: /Citas/ }).click();
+    await page.getByLabel("Elegir el archivo de citas").setInputFiles({
+      name: "c.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("Paciente;Fecha;Estado\r\nAna Ruiz;02/10/2026 09:00;atendida\r\nLuis Gil;06/10/2026 10:00;no vino\r\nLuis Gil;07/10/2026 10:00;atendida\r\nLuis Gil;08/10/2026 10:00;atendida\r\n", "utf8"),
+    });
+    await page.getByRole("button", { name: "Importar 4 citas" }).click();
+    await expect(page.getByText("4 citas importadas")).toBeVisible();
+
+    await page.goto("./ajustes");
+    await page.getByRole("link", { name: /La clínica en números/ }).click();
+    await expect(page.getByRole("heading", { name: "La clínica en números" })).toBeVisible();
+    const tiles = page.locator("dl").first();
+    await expect(tiles.getByText("Sesiones").locator("..")).toContainText("3");
+    await expect(tiles.getByText("Pacientes atendidos").locator("..")).toContainText("2");
+    await expect(tiles.getByText("Ausencias").locator("..")).toContainText("25 %");
+    await expect(page.getByRole("img", { name: "Sesiones por mes en el último año; este mes, 3" })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Este año" }).click();
+    await expect(tiles.getByText("Sesiones").locator("..")).toContainText("4");
+  });
 });

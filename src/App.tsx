@@ -16,9 +16,11 @@ const AccountSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) =
 const AsymmetryPage = lazy(() => import("./pages/AsymmetryPage").then((m) => ({ default: m.AsymmetryPage })));
 const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.ClinicSettingsPage })));
 const DataSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.DataSettingsPage })));
+const StatsPage = lazy(() => import("./pages/StatsPage").then((m) => ({ default: m.StatsPage })));
 const ImportPatientsPage = lazy(() => import("./pages/ImportPatientsPage").then((m) => ({ default: m.ImportPatientsPage })));
 const ProviderPage = lazy(() => import("./cloud/ProviderPage").then((m) => ({ default: m.ProviderPage })));
 const SchedulePage = lazy(() => import("./schedule/SchedulePage").then((m) => ({ default: m.SchedulePage })));
+const RemindersPage = lazy(() => import("./schedule/RemindersPage").then((m) => ({ default: m.RemindersPage })));
 const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m.TeamPage })));
 const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })));
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
@@ -93,10 +95,12 @@ const routes = [
   { path: "/ajustes/equipo", element: l(<TeamPage />) },
   { path: "/ajustes/proveedor", element: l(<ProviderPage />) },
   { path: "/agenda", element: l(<SchedulePage />) },
+  { path: "/agenda/recordatorios", element: l(<RemindersPage />) },
   { path: "/horario", element: <Navigate to="/agenda" replace /> },
   { path: "/ajustes/bloqueo", element: l(<LockSettingsPage />) },
   { path: "/ajustes/datos", element: l(<DataSettingsPage />) },
   { path: "/ajustes/importar", element: l(<ImportPatientsPage />) },
+  { path: "/ajustes/estadisticas", element: l(<StatsPage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa
   { path: "/privacidad", element: l(<PrivacyPage />) },
   { path: "/cuenta", element: l(<SignInSetupPage />) }, // Iniciar sesión con Google (sin el ID de cliente publicado)
