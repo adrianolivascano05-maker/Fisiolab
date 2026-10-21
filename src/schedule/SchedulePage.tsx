@@ -166,7 +166,6 @@ export function SchedulePage() {
       title: cap(fmt(c.day, { weekday: "short" })),
       subtitle: fmt(c.day, { day: "numeric" }),
       today: c.day === today,
-      label: span > 1 ? `Ver solo el ${fmt(c.day, { weekday: "long", day: "numeric", month: "long" })}` : undefined,
     };
   };
   /** Pellizco en la rejilla: juntando los dedos se ven más días (día → 3 días → semana); separándolos, menos. */

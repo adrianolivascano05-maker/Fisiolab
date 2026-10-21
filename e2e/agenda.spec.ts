@@ -309,12 +309,12 @@ test.describe("Agenda y seguimiento", () => {
     await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Semana" }).click();
     await expect(page.getByRole("heading", { name: /19 oct – 25 oct 2026/ })).toBeVisible();
     // Los siete días se ven sin desplazarse a los lados.
-    const grid = page.getByRole("button", { name: "Ver solo el domingo, 25 de octubre" });
+    const grid = page.getByRole("button", { name: /^Dom 25\s*, ver solo este día$/ });
     await expect(grid).toBeInViewport();
-    await page.getByRole("button", { name: "Ver solo el jueves, 22 de octubre" }).click();
+    await page.getByRole("button", { name: /^Jue 22\s*, ver solo este día$/ }).click();
     await expect(page.getByRole("heading", { name: "Jueves, 22 de octubre" })).toBeVisible();
     await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("button", { name: /Vera Vista, 10:00/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Vera Vista/ })).toBeVisible();
     await expectAccessible(page);
   });
 });

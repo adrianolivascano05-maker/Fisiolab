@@ -46,7 +46,7 @@ export function AgendaGrid({
 }: {
   columns: Column[];
   /** Lo que sale arriba de cada columna. */
-  header: (c: Column) => { title: string; subtitle?: string; color?: string; today?: boolean; label?: string };
+  header: (c: Column) => { title: string; subtitle?: string; color?: string; today?: boolean };
   appointments: AgendaItem[];
   shifts: Shift[];
   staff: Staff[];
@@ -209,8 +209,9 @@ export function AgendaGrid({
           );
           const cell = "sticky top-0 z-20 flex flex-col items-center justify-center border-b border-l border-border bg-bg px-1 py-1.5 text-center";
           return onHeader ? (
-            <button key={c.key} type="button" aria-label={h.label ?? h.title} className={cx(cell, "hover:bg-surface")} onClick={() => onHeader(c)}>
+            <button key={c.key} type="button" className={cx(cell, "hover:bg-surface")} onClick={() => onHeader(c)}>
               {inner}
+              <span className="sr-only">, ver solo este día</span>
             </button>
           ) : (
             <div key={c.key} className={cell}>
