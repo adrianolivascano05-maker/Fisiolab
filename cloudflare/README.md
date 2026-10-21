@@ -121,6 +121,23 @@ con clínicas (tablas `clinics` y `members`), después a la sincronización por 
 nuevo. La consola junta en una línea lo que se pega: si dice «No SQL statements detected», pega solo las sentencias
 `CREATE`, sin las líneas de comentario (las que empiezan por `--`).
 
+## La app en Cloudflare Pages (para los enlaces de los pacientes)
+
+La app se publica también en Cloudflare Pages, gratis, con un nombre de la clínica (`cenitfisiolab.pages.dev`): ahí
+abren los pacientes los formularios que se les mandan, en vez de en la dirección de GitHub. Una vez:
+
+1. **Workers & Pages** → **Create** → **Pages** → **Connect to Git** → elige el repositorio de la app (Cloudflare
+   pide permiso en GitHub la primera vez).
+2. Nombre del proyecto: `cenitfisiolab`. **Production branch**: `publicado-cloudflare` (la deja ahí el
+   flujo de GitHub cuando pasan todas las pruebas). **Framework preset**: None. **Build command**:
+   `npm run build`. **Build output directory**: `dist`. **Save and Deploy**.
+3. En el proyecto, **Settings** → **Builds & deployments** → **Preview deployments**: **None** (así solo se
+   publica lo probado).
+4. En el Worker del servidor, añade la dirección nueva a `ALLOWED_ORIGINS` (separada por una coma):
+   `https://cenitfisiolab.pages.dev`.
+5. En `public/cloud.json`, `"formsUrl": "https://cenitfisiolab.pages.dev/"`: los enlaces de los formularios van ahí
+   aunque se creen desde la app de siempre.
+
 ## Otra forma: con Wrangler (terminal)
 
 Para quien prefiera la terminal. Necesita Node.js y se hace desde esta carpeta (`cloudflare/`). Todos los comandos

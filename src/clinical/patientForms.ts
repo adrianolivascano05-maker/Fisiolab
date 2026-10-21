@@ -6,6 +6,7 @@
 import type { AnswerValue, Answers } from "../data/clinical";
 import { saveQuestionnaire } from "../data/clinical";
 import type { Db } from "../data/db";
+import { cachedCloudConfig } from "../cloud/config";
 import { ALL_FIELDS, type Field, type Section } from "./anamnesis";
 import { formResult } from "./FormFill";
 import { formFor, type Answers as FormAnswers } from "./forms";
@@ -142,9 +143,15 @@ export async function unseal<T>(blob: string, key: string): Promise<T> {
 
 // ---------- El enlace y el mensaje ----------
 
-/** La dirección que abre el paciente: la de la app, con el id y la clave (que no sale del móvil). */
-export function formLink(id: string, key: string, origin = location.origin): string {
-  return `${origin}${import.meta.env.BASE_URL}formulario/${id}#${key}`;
+/** Dónde se abren los formularios: «formsUrl» de cloud.json o, sin él, esta misma app. Acaba en «/». */
+function formsBase(): string {
+  const url = cachedCloudConfig()?.formsUrl?.trim();
+  return url ? url.replace(/\/*$/, "/") : `${location.origin}${import.meta.env.BASE_URL}`;
+}
+
+/** La dirección que abre el paciente, con el id y la clave (que no sale del móvil). */
+export function formLink(id: string, key: string, base = formsBase()): string {
+  return `${base}formulario/${id}#${key}`;
 }
 
 /** El mensaje de WhatsApp o del correo. */

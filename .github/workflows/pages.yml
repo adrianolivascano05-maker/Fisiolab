@@ -1,5 +1,8 @@
-# Publica la app en GitHub Pages en cada push a la rama principal del repositorio.
-# Requiere una sola vez: Settings → Pages → Source: «GitHub Actions».
+# Publica la app en GitHub Pages en cada push a la rama principal del repositorio y, con las mismas pruebas pasadas,
+# deja ese mismo commit en la rama «publicado-cloudflare», de la que Cloudflare Pages publica la app en la raíz
+# (cenitfisiolab.pages.dev: ahí abren los pacientes sus formularios).
+# Requiere una sola vez: Settings → Pages → Source: «GitHub Actions»; y en Cloudflare, el proyecto de Pages unido al
+# repositorio con esa rama de producción (cloudflare/README.md, «La app en Cloudflare Pages»).
 name: Publicar en GitHub Pages
 
 on:
@@ -75,3 +78,13 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  # Cloudflare Pages publica lo que llega a esta rama (solo si han pasado todas las pruebas).
+  cloudflare:
+    needs: [build, e2e]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - run: git push --force origin HEAD:refs/heads/publicado-cloudflare

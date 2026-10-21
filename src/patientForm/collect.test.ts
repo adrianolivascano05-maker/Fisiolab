@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANAMNESIS, withCustom } from "../clinical/anamnesis";
-import { ANAMNESIS_KIND, formMessage, mergeAnamnesis, newFormId, newFormKey, patientSections, seal, unseal } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, formLink, formMessage, mergeAnamnesis, newFormId, newFormKey, patientSections, seal, unseal } from "../clinical/patientForms";
 import { getAnamnesis, listQuestionnaires, saveAnamnesis } from "../data/clinical";
 import { addSentForm, cancelSentForm, formStatus, getSentForm } from "../data/patientForms";
 import { createPatient } from "../data/repo";
@@ -106,6 +106,10 @@ describe("formularios para el paciente", () => {
     expect(await getAnamnesis(db, pid)).toBeNull();
     expect(await listQuestionnaires(db, pid)).toEqual([]);
     expect(formStatus((await getSentForm(db, c.id))!)).toBe("cancelled");
+  });
+
+  it("el enlace va a la dirección de los formularios, con la clave después de «#»", () => {
+    expect(formLink("abc", "k1", "https://cenitfisiolab.pages.dev/")).toBe("https://cenitfisiolab.pages.dev/formulario/abc#k1");
   });
 
   it("el mensaje dice quién lo pide, qué es y hasta cuándo vale", () => {

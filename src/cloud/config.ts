@@ -12,6 +12,11 @@ export type CloudConfig = {
    * siempre cifrada, y no a Google Drive: Google queda solo para entrar.
    */
   cloudflareUrl?: string;
+  /**
+   * Dónde abren los pacientes sus formularios (src/clinical/patientForms.ts), p. ej. «https://cenitfisiolab.pages.dev/»:
+   * la app publicada también ahí, con un nombre de la clínica. Sin él, la dirección de la app en que se crea el enlace.
+   */
+  formsUrl?: string;
 };
 
 const KEY = "fisiolab.cloud.config";
