@@ -984,10 +984,10 @@ async function clinicForms(request, db, clinicId, formId, who, now) {
  */
 async function publicForm(request, db, id, answer, now) {
   if (request.method !== (answer ? "POST" : "GET")) throw notFound();
-  await purgeForms(db, now);
+  // Sin limpiar aquí: lo hace el equipo al recoger (una petición sin sesión no debe poder hacer trabajar a la base).
   const gone = () => new HttpError(404, "Este enlace ya no vale: ha caducado o la clínica lo ha anulado. Pide otro a tu fisioterapeuta.");
   const row = await db.prepare("SELECT clinic_id, expires_at, request, answered_at FROM patient_forms WHERE id = ?").bind(id).first();
-  if (!row) throw gone();
+  if (!row || (row.answered_at === null && Date.parse(String(row.expires_at)) < now())) throw gone();
   const status = await clinicStatus(db, String(row.clinic_id));
   if (status?.deletedAt) throw gone();
   if (!answer) return json(200, { request: String(row.request), expiresAt: String(row.expires_at), answered: row.answered_at !== null });

@@ -16,8 +16,8 @@ import { Sheet } from "../ui/Sheet";
 import { checkPasskey } from "./passkey";
 import { checkPin, clearLock, failCount, getLock, isPin, lastActiveAt, lockedOnOpen, markActive, MAX_FAILS, setLockScope, setPin, unlockedOtherwise, waitUntil } from "./pin";
 
-type LockApi = { lockNow: () => void; required: boolean };
-const LockContext = createContext<LockApi>({ lockNow: () => {}, required: false });
+type LockApi = { lockNow: () => void; required: boolean; /** La pantalla del PIN tapa la app. */ locked: boolean };
+const LockContext = createContext<LockApi>({ lockNow: () => {}, required: false, locked: false });
 export const useAppLock = () => useContext(LockContext);
 
 /** En una clínica (servidor de Cloudflare y clínica elegida) el PIN es obligatorio. */
@@ -95,6 +95,7 @@ export function AppLock({ children }: { children: ReactNode }) {
       setLocked(true);
     },
     required,
+    locked: locked || needsPin,
   };
   const covered = locked || needsPin;
   return (

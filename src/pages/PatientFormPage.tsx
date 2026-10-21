@@ -3,6 +3,9 @@ import { useNavigate, useParams } from "react-router";
 import { decimalText, fmtDate, parseDecimal } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { getDb } from "../data/db";
+import { formStatus, listSentForms } from "../data/patientForms";
+import { getToken } from "../cloud/auth";
+import { useCloud } from "../cloud/CloudGate";
 import { clinicalRecord, getClinic, keepUntil } from "../data/privacy";
 import { createPatient, deletePatient, getPatient, updatePatient, type PatientInput, type Sex } from "../data/repo";
 import { SEED_PREFIX } from "../data/seed";
@@ -72,6 +75,7 @@ export function PatientFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const cloud = useCloud();
   const [form, setForm] = useState<Form | null>(id ? null : empty);
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [errors, setErrors] = useState<Errors>({});
@@ -145,6 +149,12 @@ export function PatientFormPage() {
 
   async function remove() {
     if (!id) return;
+    // Sus enlaces de formularios sin responder dejan de valer (si no se puede ahora, caducan solos).
+    const token = getToken();
+    if (token && cloud?.clinic && cloud.clinics) {
+      for (const f of (await listSentForms(getDb(), id)).filter((x) => formStatus(x) === "pending"))
+        await cloud.clinics.forms.remove(token, cloud.clinic.id, f.id).catch(() => {});
+    }
     await deletePatient(getDb(), id);
     toast("Paciente borrado", "success");
     navigate("/", { replace: true });

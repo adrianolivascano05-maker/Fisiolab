@@ -754,6 +754,9 @@ describe("clínicas", () => {
     const later = () => t + 2 * 86_400_000;
     const res = await handle(request("POST", `/v1/formularios/${fid}/respuesta`, { body: JSON.stringify({ response: "UkVTUA==" }) }), env(), { verifyToken, now: later });
     expect(res.status).toBe(404);
+    expect((await handle(request("GET", `/v1/formularios/${fid}`), env(), { verifyToken, now: later })).status).toBe(404);
+    // Lo borra el equipo al mirar (una petición sin sesión no hace trabajar a la base).
+    await handle(request("GET", `/v1/clinicas/${c.id}/formularios`, { token: "tok-ana" }), env(), { verifyToken, now: later });
     expect(await count("SELECT count(*) AS n FROM patient_forms")).toBe(0);
   });
 

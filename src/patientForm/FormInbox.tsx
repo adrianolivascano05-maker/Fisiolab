@@ -7,6 +7,7 @@ import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
+import { useAppLock } from "../privacy/AppLock";
 import { useToast } from "../ui/Toast";
 import { collectAnswered } from "./collect";
 
@@ -53,7 +54,9 @@ export function FormInbox() {
   // La última versión (con la ficha de la clínica al día), sin volver a poner los temporizadores a cada cambio.
   const latest = useRef(collect);
   latest.current = collect;
-  const active = !!cloud?.clinic;
+  // Con la app bloqueada no se recoge (los avisos llevan el nombre del paciente y se verían sobre el PIN).
+  const { locked } = useAppLock();
+  const active = !!cloud?.clinic && !locked;
   useEffect(() => {
     if (!active) return;
     const run = () => {

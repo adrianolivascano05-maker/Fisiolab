@@ -178,6 +178,8 @@ export function AnamnesisPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoStarted = useRef(false);
+  /** Lo que había al empezar a editar: al guardar solo se escribe lo que se ha cambiado aquí (lo que llegue mientras tanto, p. ej. del paciente, se queda). */
+  const base = useRef<Answers>({});
   const sections = useAnamnesisSections();
   const allFields = sections.flatMap((x) => x.fields);
 
@@ -187,11 +189,13 @@ export function AnamnesisPage() {
     if (!data.data) return;
     if (editEpisode && data.data.current === editEpisode) {
       autoStarted.current = true;
+      base.current = { ...(data.data.anamnesis?.answers ?? {}) };
       setDraft({ ...(data.data.anamnesis?.answers ?? {}) });
       setEditing(true);
       navigate(".", { replace: true, state: null });
     } else if (!data.data.anamnesis && !autoStarted.current) {
       autoStarted.current = true;
+      base.current = {};
       setDraft({ fecha_valoracion: todayDay() });
       setEditing(true);
     }
@@ -204,6 +208,7 @@ export function AnamnesisPage() {
 
   const set = (fid: string) => (v: AnswerValue) => setDraft((d) => ({ ...(d ?? {}), [fid]: v }));
   const startEdit = () => {
+    base.current = { ...(anamnesis?.answers ?? {}) };
     setDraft({ ...(anamnesis?.answers ?? {}) });
     setEditing(true);
     setError(null);
@@ -214,7 +219,15 @@ export function AnamnesisPage() {
     setSaving(true);
     setError(null);
     try {
-      await saveAnamnesis(getDb(), id, draft);
+      // Sobre lo que hay ahora, solo los campos cambiados aquí: lo que haya llegado mientras (las respuestas del
+      // paciente, otro dispositivo) no se pisa.
+      const db = getDb();
+      const now = (await getAnamnesis(db, id))?.answers ?? {};
+      const merged: Answers = { ...now };
+      for (const k of new Set([...Object.keys(base.current), ...Object.keys(draft)])) {
+        if (JSON.stringify(draft[k] ?? null) !== JSON.stringify(base.current[k] ?? null)) merged[k] = draft[k] ?? null;
+      }
+      await saveAnamnesis(db, id, merged);
       toast("Anamnesis guardada", "success");
       setEditing(false);
       setDraft(null);
@@ -234,9 +247,6 @@ export function AnamnesisPage() {
         <h2 className="text-xl">{anamnesis ? "Editar anamnesis" : "Anamnesis"}</h2>
         {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
         <p className="text-sm text-text-muted">Ficha de anamnesis de fisioterapia: historia clínica y valoración inicial. Rellena lo que necesites; todo se puede completar más tarde.</p>
-        <Link to={`/pacientes/${id}/formularios?enviar=anamnesis`} className="inline-flex items-center gap-1.5 self-start text-sm font-semibold text-accent">
-          <Send aria-hidden="true" className="size-4" /> Que el paciente rellene su parte desde el móvil
-        </Link>
         {/* Índice: la ficha es larga; cada apartado a un toque. */}
         <nav aria-label="Apartados de la anamnesis">
           <ul className="flex flex-wrap gap-2">

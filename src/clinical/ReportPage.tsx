@@ -91,7 +91,11 @@ export function ReportPage() {
   const symmetry = symmetryRows(tests);
   const qGroups = questionnaireGroups(questionnaires);
   // El último mapa del dolor, dibujado (la lista viene de más reciente a más antiguo).
-  const lastMap = questionnaires.find((q) => q.kind === "mapa_dolor");
+  const lastQMap = questionnaires.find((q) => q.kind === "mapa_dolor");
+  // Si no hay ninguno, el que se marcó en la anamnesis antes de que fuera un cuestionario.
+  const oldMap = anamnesis?.answers.mapa_dolor;
+  const lastMap = lastQMap ? { at: lastQMap.performedAt, marks: (lastQMap.details as QDetails).marks } : null;
+  const oldMapMarks = !lastQMap && Array.isArray(oldMap) && oldMap.length ? oldMap : null;
   // El fisioterapeuta de Ajustes → Clínica; las anamnesis antiguas lo llevaban dentro.
   const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
   const today = new Date().toISOString();
@@ -177,6 +181,14 @@ export function ReportPage() {
                     </dl>
                   </div>
                 ))
+              )}
+              {oldMapMarks && (
+                <div className="flex break-inside-avoid flex-col gap-1">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mapa del dolor</h3>
+                  <BodyFigures marks={parseMarks(oldMapMarks)} className="max-w-md" />
+                  <BodyMapLegend />
+                  <p className="text-sm">{marksText(oldMapMarks)}</p>
+                </div>
               )}
             </Block>
           )}
@@ -339,8 +351,8 @@ export function ReportPage() {
               </Scroll>
               {lastMap && (
                 <div className="flex break-inside-avoid flex-col gap-1">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mapa del dolor del {fmtDateShort(lastMap.performedAt)}</h3>
-                  <BodyFigures marks={parseMarks((lastMap.details as QDetails).marks)} className="max-w-md" />
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mapa del dolor del {fmtDateShort(lastMap.at)}</h3>
+                  <BodyFigures marks={parseMarks(lastMap.marks)} className="max-w-md" />
                   <BodyMapLegend />
                 </div>
               )}

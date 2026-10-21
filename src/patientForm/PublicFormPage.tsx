@@ -17,6 +17,14 @@ import { Logo } from "../ui/Logo";
 type Phase = { kind: "loading" } | { kind: "error"; text: string } | { kind: "form"; request: FormRequest } | { kind: "answered" } | { kind: "sent" };
 
 const draftKey = (id: string) => `cenit.formulario.${id}`;
+/** Lo escrito en el móvil se borra en cuanto ya no hace falta (puede ser un móvil compartido). */
+const dropDraft = (id: string) => {
+  try {
+    localStorage.removeItem(draftKey(id));
+  } catch {
+    /* nada */
+  }
+};
 
 /** El id del formulario en la dirección y la clave, después de «#». */
 function fromUrl() {
@@ -64,7 +72,10 @@ export function PublicFormPage() {
         const res = await fetch(`${base}/v1/formularios/${id}`, { cache: "no-store" });
         if (!res.ok) throw new Error((await errorText(res)) || "No se ha podido abrir el formulario.");
         const r = (await res.json()) as { request: string; answered: boolean };
-        if (r.answered) return setPhase({ kind: "answered" });
+        if (r.answered) {
+          dropDraft(id);
+          return setPhase({ kind: "answered" });
+        }
         let request: FormRequest;
         try {
           request = await unseal<FormRequest>(r.request, key);
@@ -107,13 +118,12 @@ export function PublicFormPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ response: await seal({ v: 1, answers }, key) }),
       });
-      if (res.status === 409) return setPhase({ kind: "answered" });
-      if (!res.ok) throw new Error((await errorText(res)) || "No se ha podido enviar. Prueba otra vez.");
-      try {
-        localStorage.removeItem(draftKey(id));
-      } catch {
-        /* nada */
+      if (res.status === 409) {
+        dropDraft(id);
+        return setPhase({ kind: "answered" });
       }
+      if (!res.ok) throw new Error((await errorText(res)) || "No se ha podido enviar. Prueba otra vez.");
+      dropDraft(id);
       setPhase({ kind: "sent" });
       window.scrollTo({ top: 0 });
     } catch (err) {

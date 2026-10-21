@@ -112,6 +112,40 @@ describe("formularios para el paciente", () => {
     expect(formLink("abc", "k1", "https://cenitfisiolab.pages.dev/")).toBe("https://cenitfisiolab.pages.dev/formulario/abc#k1");
   });
 
+  it("dos dispositivos que recogen lo mismo a la vez guardan el mismo registro; lo desconocido se tira a la semana", async () => {
+    const a = await createTestDb();
+    const pid = await createPatient(a, patient("Doble Recogida"));
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(a, { id: f.id, patientId: pid, episodeId: pid, kind: "gad7", key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString() });
+    const response = await seal({ v: 1, answers: { i1: 1, i2: 1, i3: 1, i4: 1, i5: 1, i6: 1, i7: 1 } }, f.key);
+    const at = new Date().toISOString();
+    // Los dos ven la respuesta antes de que el otro la borre.
+    const both: FormsApi = { answered: async () => [{ id: f.id, response, answeredAt: at }], remove: async () => {} };
+    await collectAnswered(a, both, ANAMNESIS);
+    const first = (await listQuestionnaires(a, pid)).map((q) => q.id);
+    await a.transaction([{ sql: "update patient_forms set imported_at = null where id = ?", bind: [f.id] }]);
+    await collectAnswered(a, both, ANAMNESIS);
+    expect((await listQuestionnaires(a, pid)).map((q) => q.id)).toEqual(first);
+    // Unas respuestas de un envío que aquí no está: se dejan unos días y después se tiran.
+    const { api, removed } = server([
+      { id: "reciente-000000000000000", response: "QUJD", answeredAt: at },
+      { id: "antigua-0000000000000000", response: "QUJD", answeredAt: new Date(Date.now() - 8 * 86_400_000).toISOString() },
+    ]);
+    await collectAnswered(a, api, ANAMNESIS);
+    expect(removed).toEqual(["antigua-0000000000000000"]);
+  });
+
+  it("de la anamnesis se guarda solo lo que se le preguntó, limpio", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Datos Raros"));
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: ANAMNESIS_KIND, key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString() });
+    const response = await seal({ v: 1, answers: { motivo: { toString: "x" }, alergias: "Polen", raro: "x".repeat(10) } }, f.key);
+    const { api } = server([{ id: f.id, response, answeredAt: new Date().toISOString() }]);
+    await collectAnswered(db, api, ANAMNESIS);
+    expect((await getSentForm(db, f.id))!.answers).toEqual({ alergias: "Polen" });
+  });
+
   it("el mensaje dice quién lo pide, qué es y hasta cuándo vale", () => {
     const text = formMessage({ name: "Nora", clinic: "Fisiolab", kind: "gad7", url: "https://x/formulario/abc#k", expiresAt: "2026-11-04T10:00:00Z" });
     expect(text).toContain("Hola Nora: desde Fisiolab te pedimos que rellenes el cuestionario «GAD-7 (ansiedad)»");

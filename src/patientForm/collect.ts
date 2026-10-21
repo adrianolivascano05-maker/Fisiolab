@@ -8,6 +8,9 @@ import { getSentForm, markImported } from "../data/patientForms";
 import type { Section } from "../clinical/anamnesis";
 import { ANAMNESIS_KIND, cleanFormAnswers, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse } from "../clinical/patientForms";
 
+/** Días que se guardan en el servidor unas respuestas de un envío que este dispositivo no conoce. */
+const ORPHAN_DAYS = 7;
+
 export type FormsApi = {
   answered: () => Promise<{ id: string; response: string; answeredAt: string }[]>;
   remove: (formId: string) => Promise<void>;
@@ -27,7 +30,12 @@ export async function collectAnswered(db: Db, api: FormsApi, template: Section[]
   const out: Collected[] = [];
   for (const f of await api.answered()) {
     const sent = await getSentForm(db, f.id);
-    if (!sent) continue;
+    if (!sent) {
+      // De un envío que aquí no está: de un compañero cuya copia aún no ha llegado, o de un paciente borrado. Pasada
+      // una semana se descarta, para que no se acumulen y tapen las demás.
+      if (Date.parse(f.answeredAt) < Date.now() - ORPHAN_DAYS * 86_400_000) await api.remove(f.id);
+      continue;
+    }
     if (sent.importedAt || sent.cancelledAt) {
       await api.remove(f.id);
       continue;
@@ -50,10 +58,10 @@ export async function collectAnswered(db: Db, api: FormsApi, template: Section[]
       const m = mergeAnamnesis(current, incoming, template);
       if (m.filled.length) await saveAnamnesisOf(db, sent.patientId, episode, m.merged);
       skipped = m.skipped;
-      await markImported(db, f.id, { answeredAt: f.answeredAt, answers: incoming, skipped });
+      await markImported(db, f.id, { answeredAt: f.answeredAt, answers: m.clean, skipped });
     } else {
       const answers = cleanFormAnswers(sent.kind, incoming);
-      incomplete = (await saveAnsweredQuestionnaire(db, sent.patientId, episode, sent.kind, answers, f.answeredAt)) === 0;
+      incomplete = (await saveAnsweredQuestionnaire(db, sent.patientId, episode, sent.kind, answers, f.answeredAt, f.id)) === 0;
       await markImported(db, f.id, { answeredAt: f.answeredAt, answers, skipped: [] });
     }
     await api.remove(f.id);

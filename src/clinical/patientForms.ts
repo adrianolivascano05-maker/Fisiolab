@@ -4,7 +4,6 @@
 // recogerlas (src/patientForm/FormInbox.tsx), se rellena lo que estaba vacío en la anamnesis o se guarda el
 // cuestionario con su nota. El servidor (cloudflare/worker.js) solo ve bytes ilegibles.
 import type { AnswerValue, Answers } from "../data/clinical";
-import { saveQuestionnaire } from "../data/clinical";
 import type { Db } from "../data/db";
 import { cachedCloudConfig } from "../cloud/config";
 import { ALL_FIELDS, type Field, type Section } from "./anamnesis";
@@ -188,13 +187,20 @@ function cleanValue(f: Field, v: unknown): AnswerValue {
  * Pone en la anamnesis lo que ha contestado el paciente: solo en los campos que se le preguntan y que estaban vacíos.
  * Lo que ya tenía escrito el fisioterapeuta no se toca: esos campos van en `skipped` (lo que contestó se puede ver).
  */
-export function mergeAnamnesis(current: Answers, incoming: Record<string, unknown>, sections: Section[]): { merged: Answers; filled: string[]; skipped: string[] } {
+export function mergeAnamnesis(
+  current: Answers,
+  incoming: Record<string, unknown>,
+  sections: Section[],
+): { merged: Answers; filled: string[]; skipped: string[]; clean: Answers } {
   const merged: Answers = { ...current };
+  /** Lo que contestó, solo de lo que se le preguntó y limpio (lo que se guarda para verlo). */
+  const clean: Answers = {};
   const done: string[] = [];
   const skipped: string[] = [];
   for (const f of patientSections(sections).flatMap((s) => s.fields)) {
     const v = cleanValue(f, incoming[f.id]);
     if (!filled(v)) continue;
+    clean[f.id] = v;
     if (filled(current[f.id])) {
       if (JSON.stringify(current[f.id]) !== JSON.stringify(v)) skipped.push(f.id);
       continue;
@@ -202,7 +208,7 @@ export function mergeAnamnesis(current: Answers, incoming: Record<string, unknow
     merged[f.id] = v;
     done.push(f.id);
   }
-  return { merged, filled: done, skipped };
+  return { merged, filled: done, skipped, clean };
 }
 
 /** Las respuestas de un cuestionario, solo las de sus ítems y con valores de sus opciones o rangos. */
@@ -223,22 +229,36 @@ export function cleanFormAnswers(kind: string, incoming: Record<string, unknown>
  * Guarda un cuestionario contestado por el paciente con su nota (KOOS y HOOS, una por subescala, como en la ficha).
  * Devuelve cuántos registros ha guardado; 0 si las respuestas no bastan para la nota.
  */
-export async function saveAnsweredQuestionnaire(db: Db, patientId: string, episodeId: string, kind: string, answers: FormAnswers, performedAt: string): Promise<number> {
+export async function saveAnsweredQuestionnaire(
+  db: Db,
+  patientId: string,
+  episodeId: string,
+  kind: string,
+  answers: FormAnswers,
+  performedAt: string,
+  formId: string,
+): Promise<number> {
   const form = formFor(kind);
   const k = getKind(kind);
   if (!form || !k) return 0;
   const result = formResult(form, answers);
   if ("missing" in result) return 0;
   const notes = "Lo rellenó el paciente desde su móvil.";
-  const ids: string[] = [];
+  const rows: { score: number; details: Record<string, unknown> }[] = [];
   if (k.subscales) {
-    const group = crypto.randomUUID();
-    for (const sub of result.ok.subscores ?? []) ids.push(await saveQuestionnaire(db, patientId, { kind, performedAt, score: sub.score, details: { subscale: sub.name, answers, group }, notes }));
+    for (const sub of result.ok.subscores ?? []) rows.push({ score: sub.score, details: { subscale: sub.name, answers, group: formId } });
   } else if (result.ok.score !== null) {
-    const details = { answers, ...(result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(result.ok.text ? { text: result.ok.text } : {}) };
-    ids.push(await saveQuestionnaire(db, patientId, { kind, performedAt, score: result.ok.score, details, notes }));
+    rows.push({ score: result.ok.score, details: { answers, ...(result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(result.ok.text ? { text: result.ok.text } : {}) } });
   }
-  // Al motivo de consulta al que se mandó (no al que se esté viendo al recogerlo).
-  if (ids.length) await db.transaction(ids.map((id) => ({ sql: "update questionnaires set episode_id = ? where id = ?", bind: [episodeId === patientId ? null : episodeId, id] })));
-  return ids.length;
+  // El id sale del formulario: si dos dispositivos recogen las mismas respuestas a la vez, es el mismo registro (no
+  // dos), y la sincronización los junta. Va al motivo de consulta al que se mandó.
+  const t = new Date().toISOString();
+  await db.transaction(
+    rows.map((r, i) => ({
+      sql: `insert or ignore into questionnaires (id, patient_id, kind, performed_at, score, details, notes, episode_id, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      bind: [`${formId}-${i}`, patientId, kind, performedAt, r.score, JSON.stringify(r.details), notes, episodeId, t, t],
+    })),
+  );
+  return rows.length;
 }
