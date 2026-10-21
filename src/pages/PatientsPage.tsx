@@ -214,8 +214,13 @@ export function PatientsPage() {
   );
 }
 
-/** AAAA-MM-DD de hoy más n días, en la hora de Madrid. */
-const dayPlus = (n: number) => new Date(Date.now() + n * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+/** AAAA-MM-DD de hoy más n días, en la hora de Madrid. Se suman días de calendario, no horas: la semana del cambio
+ * de hora, sumar 7×24 h cerca de medianoche caía en el día anterior. */
+const dayPlus = (n: number) => {
+  const d = new Date(`${new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" })}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
 
 /** Reevaluaciones de hoy, atrasadas y de los próximos 7 días (la última fecha que se puso en cada paciente). */
 function Reviews({ items }: { items: { patientId: string; name: string; reviewOn: string }[] }) {
