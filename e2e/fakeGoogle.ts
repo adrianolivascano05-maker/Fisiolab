@@ -100,6 +100,8 @@ export class FakeGoogle {
   deltas = new Map<string, { seq: number; data: Buffer }[]>();
   deltaBase = new Map<string, { epoch: string; seq: number }>();
   static SERVER = "https://cenit-datos.pruebas.workers.dev";
+  /** Formularios para el paciente (como cloudflare/worker.js): cifrados; el paciente los abre y responde sin sesión. */
+  forms = new Map<string, { clinic: string; request: string; expiresAt: string; response?: string; answeredAt?: string }>();
 
   /** La copia de una clínica, buscada por su nombre. */
   clinicCopy(name: string) {
@@ -164,6 +166,17 @@ export class FakeGoogle {
     };
     const send = (status: number, json?: unknown) => route.fulfill(json === undefined ? { status, headers } : { status, headers, json });
     if (req.method() === "OPTIONS") return send(204);
+    // Lo que abre el paciente con su enlace: sin sesión.
+    const pub = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})(\/respuesta)?$/.exec(new URL(req.url()).pathname);
+    if (pub) {
+      const f = this.forms.get(pub[1]!);
+      if (!f || this.clinics.get(f.clinic)?.deleted) return send(404, { error: "Este enlace ya no vale: ha caducado o la clínica lo ha anulado. Pide otro a tu fisioterapeuta." });
+      if (!pub[2]) return send(200, { request: f.request, expiresAt: f.expiresAt, answered: !!f.answeredAt });
+      if (f.answeredAt) return send(409, { error: "Este formulario ya se envió." });
+      f.response = (JSON.parse(req.postData() ?? "{}") as { response: string }).response;
+      f.answeredAt = new Date().toISOString();
+      return send(200, { ok: true });
+    }
     const user = this.user(req);
     if (!user) return send(401, { error: "Sesión caducada." });
     const method = req.method();
@@ -289,6 +302,23 @@ export class FakeGoogle {
       if (clinic.deleted) return send(410, { error: "Esta clínica está borrada." });
       if (clinic.suspended && method !== "GET" && rest !== "") return send(423, { error: "La clínica está suspendida: no se guardan cambios en el servidor." });
       const admins = () => [...clinic.members.values()].filter((r) => r === "admin").length;
+      if (rest === "/formularios" && method === "POST") {
+        const b = body<{ id: string; request: string; expiresAt: string }>();
+        this.forms.set(b.id, { clinic: id, request: b.request, expiresAt: b.expiresAt });
+        return send(201, { id: b.id });
+      }
+      if (rest === "/formularios" && method === "GET")
+        return send(200, {
+          forms: [...this.forms].filter(([, f]) => f.clinic === id && f.response).map(([fid, f]) => ({ id: fid, response: f.response, answeredAt: f.answeredAt })),
+        });
+      const formId = /^\/formularios\/([^/]+)$/.exec(rest);
+      if (formId && method === "DELETE") {
+        // Recogido: queda que se respondió, sin nada cifrado; anulado sin responder: se borra.
+        const f = this.forms.get(formId[1]!);
+        if (f?.answeredAt) Object.assign(f, { request: "", response: undefined });
+        else this.forms.delete(formId[1]!);
+        return send(204);
+      }
       if (rest === "" && method === "PATCH") {
         if (!admin) return onlyAdmin();
         clinic.name = body().name!.trim();

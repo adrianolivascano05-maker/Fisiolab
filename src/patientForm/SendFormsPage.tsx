@@ -1,0 +1,356 @@
+// Ficha → Formularios para el paciente: mandarle su parte de la anamnesis o un cuestionario para que lo rellene desde
+// su móvil, ver en qué está cada uno y volver a mandar el enlace. Las respuestas llegan solas (FormInbox.tsx); aquí
+// también se pueden buscar a mano. ?enviar=anamnesis (o el id de un cuestionario) abre la hoja con eso elegido.
+import { Copy, Mail, MessageCircle, RefreshCw, Send, Share2, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router";
+import { bumpData, useDataVersion } from "../app/dataVersion";
+import { fmtDate } from "../app/format";
+import { LoadError, Loading, Page } from "../app/Page";
+import { useAsync } from "../app/useAsync";
+import { answerText } from "../clinical/anamnesis";
+import {
+  ANAMNESIS_KIND,
+  FORM_DAYS,
+  formLink,
+  formMessage,
+  formTitle,
+  newFormId,
+  newFormKey,
+  patientSections,
+  SENDABLE,
+  seal,
+  type FormRequest,
+} from "../clinical/patientForms";
+import { useAnamnesisSections } from "../clinical/useAnamnesis";
+import { getToken } from "../cloud/auth";
+import { useCloud } from "../cloud/CloudGate";
+import { getDb } from "../data/db";
+import { currentEpisode } from "../data/episodes";
+import { addSentForm, cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
+import { getClinic } from "../data/privacy";
+import { getPatient, type Patient } from "../data/repo";
+import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
+import { Alert } from "../ui/Alert";
+import { Button } from "../ui/Button";
+import { Card } from "../ui/Card";
+import { cx } from "../ui/cx";
+import { SelectField } from "../ui/Field";
+import { Sheet } from "../ui/Sheet";
+import { useToast } from "../ui/Toast";
+import { useCollectForms } from "./FormInbox";
+
+const firstName = (p: Patient) => p.name.trim().split(/\s+/)[0] ?? "";
+const STATUS: Record<ReturnType<typeof formStatus>, { label: string; tone: string }> = {
+  pending: { label: "Esperando respuesta", tone: "bg-warning-soft" },
+  done: { label: "Rellenado", tone: "bg-success-soft text-success" },
+  expired: { label: "Caducado sin responder", tone: "bg-surface text-text-muted" },
+  cancelled: { label: "Anulado", tone: "bg-surface text-text-muted" },
+};
+
+export function SendFormsPage() {
+  const { id = "" } = useParams();
+  const [params, setParams] = useSearchParams();
+  const cloud = useCloud();
+  const toast = useToast();
+  const version = useDataVersion();
+  const sections = useAnamnesisSections();
+  const collect = useCollectForms();
+  const data = useAsync(async () => {
+    const db = getDb();
+    const [patient, forms, clinic] = await Promise.all([getPatient(db, id), listSentForms(db, id), getClinic(db)]);
+    return { patient, forms, clinicName: clinic.name || cloud?.clinic?.name || "" };
+  }, [id, version]);
+  const [choosing, setChoosing] = useState<string | null>(params.get("enviar"));
+  const [sharing, setSharing] = useState<SentForm | null>(null);
+  const [cancelling, setCancelling] = useState<SentForm | null>(null);
+  const [looking, setLooking] = useState(false);
+  const back = `/pacientes/${id}`;
+
+  if (data.error) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={data.error} /></Page>;
+  if (!data.data) return <Page title="Formularios para el paciente" backTo={back}><Loading /></Page>;
+  const { patient, forms, clinicName } = data.data;
+  if (!patient) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={new Error("Este paciente no existe.")} /></Page>;
+  const online = !!(cloud?.clinic && cloud.clinics);
+  const closeChooser = () => {
+    setChoosing(null);
+    if (params.has("enviar")) setParams({}, { replace: true });
+  };
+
+  return (
+    <Page title="Formularios para el paciente" backTo={back} backLabel={patient.name}>
+      <p className="text-text-muted">
+        Mándale a {patient.name} su parte de la anamnesis o un cuestionario para que lo rellene desde su móvil, sin cuenta ni app. Lo que conteste se pone solo en
+        su ficha: en la anamnesis, solo donde no hayas escrito nada.
+      </p>
+      {!online ? (
+        <Alert tone="info" title="Hace falta el servidor de la clínica">
+          Para mandar formularios tienes que trabajar en una clínica con el servidor de Cénit (Ajustes → Cuenta).
+        </Alert>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          <Button icon={<Send aria-hidden="true" className="size-5" />} onClick={() => setChoosing(ANAMNESIS_KIND)}>
+            Enviar un formulario
+          </Button>
+          <Button
+            variant="secondary"
+            loading={looking}
+            icon={<RefreshCw aria-hidden="true" className="size-5" />}
+            onClick={async () => {
+              setLooking(true);
+              const n = await collect();
+              setLooking(false);
+              if (n === 0) toast("No hay respuestas nuevas");
+              else if (n === null) toast("No se ha podido mirar: comprueba la conexión o vuelve a entrar con Google (Ajustes → Cuenta)", "danger");
+            }}
+          >
+            Buscar respuestas
+          </Button>
+        </div>
+      )}
+
+      {forms.length > 0 ? (
+        <ul aria-label="Formularios enviados" className="flex flex-col gap-2">
+          {forms.map((f) => (
+            <SentRow key={f.id} f={f} patientId={id} sectionsTemplate={sections} onShare={() => setSharing(f)} onCancel={() => setCancelling(f)} />
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-text-muted">Todavía no le has mandado ninguno.</p>
+      )}
+
+      <Sheet open={choosing !== null} onClose={closeChooser} title="Enviar un formulario">
+        {choosing !== null && (
+          <ChooseForm
+            initial={choosing}
+            onCreate={async (kind) => {
+              const token = getToken();
+              if (!token || !cloud?.clinic || !cloud.clinics) throw new Error("Tu sesión de Google ha caducado: vuelve a entrar en Ajustes → Cuenta y prueba otra vez.");
+              const db = getDb();
+              const formId = newFormId();
+              const key = newFormKey();
+              const expiresAt = new Date(Date.now() + FORM_DAYS * 86_400_000).toISOString();
+              const request: FormRequest = {
+                v: 1,
+                clinic: clinicName,
+                name: firstName(patient),
+                kind,
+                ...(kind === ANAMNESIS_KIND ? { sections: patientSections(sections) } : {}),
+                expiresAt,
+              };
+              await cloud.clinics.forms.create(token, cloud.clinic.id, { id: formId, request: await seal(request, key), expiresAt });
+              await addSentForm(db, { id: formId, patientId: id, episodeId: await currentEpisode(db, id), kind, key, expiresAt });
+              bumpData();
+              closeChooser();
+              setSharing({ id: formId, patientId: id, episodeId: id, kind, key, expiresAt, sentAt: new Date().toISOString(), answeredAt: null, importedAt: null, cancelledAt: null, answers: null, skipped: [] });
+            }}
+          />
+        )}
+      </Sheet>
+
+      <Sheet open={!!sharing} onClose={() => setSharing(null)} title="Mandar el enlace">
+        {sharing && <ShareForm f={sharing} patient={patient} clinicName={clinicName} />}
+      </Sheet>
+
+      <Sheet open={!!cancelling} onClose={() => setCancelling(null)} title="¿Anular el enlace?">
+        <p>El enlace dejará de valer: si {firstName(patient)} lo abre, verá que ya no vale. Puedes mandarle otro cuando quieras.</p>
+        <Button
+          variant="danger"
+          block
+          onClick={async () => {
+            const f = cancelling!;
+            const token = getToken();
+            try {
+              if (token && cloud?.clinic && cloud.clinics) await cloud.clinics.forms.remove(token, cloud.clinic.id, f.id);
+            } catch {
+              /* sin conexión: caduca solo; aquí queda anulado */
+            }
+            await cancelSentForm(getDb(), f.id);
+            bumpData();
+            setCancelling(null);
+            toast("Enlace anulado");
+          }}
+        >
+          Sí, anular
+        </Button>
+        <Button variant="secondary" block onClick={() => setCancelling(null)}>
+          No
+        </Button>
+      </Sheet>
+    </Page>
+  );
+}
+
+function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: string) => Promise<void> }) {
+  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || SENDABLE.some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+          await onCreate(kind);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : String(err));
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      <SelectField label="Qué le mandas" value={kind} onChange={(e) => setKind(e.target.value)}>
+        <option value={ANAMNESIS_KIND}>Su parte de la anamnesis</option>
+        <optgroup label="Cuestionarios">
+          {SENDABLE.map((k) => (
+            <option key={k.id} value={k.id}>
+              {k.name}
+            </option>
+          ))}
+        </optgroup>
+      </SelectField>
+      <p className="text-sm text-text-muted">
+        {kind === ANAMNESIS_KIND
+          ? "Sus datos, lo que le pasa, su salud, su familia y su día a día, con preguntas dichas para el paciente (y las propias de tu clínica). La zona, el lado, las banderas rojas, las precauciones, la exploración y el plan son tuyos."
+          : "El cuestionario entero, con sus instrucciones. Al recibirlo, se guarda en sus cuestionarios con la nota calculada."}{" "}
+        El enlace vale {FORM_DAYS} días.
+      </p>
+      {error && <Alert tone="danger" title={error} />}
+      <Button type="submit" block loading={busy} icon={<Send aria-hidden="true" className="size-5" />}>
+        Crear el enlace
+      </Button>
+    </form>
+  );
+}
+
+/** El mensaje con el enlace y por dónde mandarlo. */
+function ShareForm({ f, patient, clinicName }: { f: SentForm; patient: Patient; clinicName: string }) {
+  const toast = useToast();
+  const url = formLink(f.id, f.key);
+  const text = formMessage({ name: firstName(patient), clinic: clinicName, kind: f.kind, url, expiresAt: f.expiresAt });
+  const phone = waPhone(patient.phone);
+  const consent = patient.privacy.consents?.contact;
+  const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
+  const [canShare, setCanShare] = useState(false);
+  useEffect(() => setCanShare(typeof navigator.share === "function"), []);
+  return (
+    <div className="flex flex-col gap-3">
+      {consent === false && (
+        <Alert tone="warning" title="No acepta WhatsApp ni correo">
+          Dale el enlace en persona (por ejemplo, que lo abra con su móvil en la consulta) o pregúntale si ahora acepta.
+        </Alert>
+      )}
+      {consent === undefined && <p className="text-sm text-text-muted">No tiene apuntado si acepta que se le escriba por WhatsApp o correo.</p>}
+      <pre className="whitespace-pre-wrap rounded-md bg-surface p-3 font-sans text-sm break-words">{text}</pre>
+      <div className="flex flex-wrap gap-2">
+        {phone && consent !== false && (
+          <a href={whatsappUrl(phone, text)} target="_blank" rel="noopener noreferrer" className={cx(link, "bg-accent text-on-accent hover:bg-accent-hover")}>
+            <MessageCircle aria-hidden="true" className="size-5" /> WhatsApp
+          </a>
+        )}
+        {patient.email && consent !== false && (
+          <a href={mailtoUrl(patient.email, `${clinicName || "Tu clínica"}: un formulario para ti`, text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
+            <Mail aria-hidden="true" className="size-5" /> Correo
+          </a>
+        )}
+        {canShare && (
+          <Button variant="secondary" icon={<Share2 aria-hidden="true" className="size-5" />} onClick={() => void navigator.share({ text }).catch(() => {})}>
+            Compartir
+          </Button>
+        )}
+        <Button
+          variant="secondary"
+          icon={<Copy aria-hidden="true" className="size-5" />}
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(url);
+              toast("Enlace copiado", "success");
+            } catch {
+              toast("No se ha podido copiar: mantén pulsado el enlace de arriba", "danger");
+            }
+          }}
+        >
+          Copiar el enlace
+        </Button>
+      </div>
+      {!phone && !patient.email && <p className="text-sm text-text-muted">No tiene móvil ni correo en su ficha: copia el enlace y dáselo como prefieras.</p>}
+    </div>
+  );
+}
+
+function SentRow({
+  f,
+  patientId,
+  sectionsTemplate,
+  onShare,
+  onCancel,
+}: {
+  f: SentForm;
+  patientId: string;
+  sectionsTemplate: ReturnType<typeof useAnamnesisSections>;
+  onShare: () => void;
+  onCancel: () => void;
+}) {
+  const status = formStatus(f);
+  const s = STATUS[status];
+  const fields = f.kind === ANAMNESIS_KIND ? patientSections(sectionsTemplate).flatMap((x) => x.fields) : [];
+  const answered = fields.filter((fl) => answerText(fl, (f.answers?.[fl.id] ?? null) as never) !== "");
+  return (
+    <li>
+      <Card className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="font-semibold">{formTitle(f.kind)}</p>
+          <span className={cx("rounded-full px-2 py-0.5 text-xs font-semibold", s.tone)}>
+            {s.label}
+            {status === "done" && f.answeredAt ? ` el ${fmtDate(f.answeredAt)}` : ""}
+          </span>
+        </div>
+        <p className="text-sm text-text-muted">
+          Enviado el {fmtDate(f.sentAt)}
+          {status === "pending" && ` · vale hasta el ${fmtDate(f.expiresAt)}`}
+        </p>
+        {status === "pending" && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" icon={<Send aria-hidden="true" className="size-4" />} onClick={onShare}>
+              Volver a mandar el enlace
+            </Button>
+            <Button size="sm" variant="ghost" icon={<X aria-hidden="true" className="size-4" />} onClick={onCancel}>
+              Anular
+            </Button>
+          </div>
+        )}
+        {status === "done" && f.kind !== ANAMNESIS_KIND && (
+          <Link to={`/pacientes/${patientId}/cuestionarios`} className="self-start text-sm font-semibold text-accent">
+            Ver en sus cuestionarios
+          </Link>
+        )}
+        {status === "done" && f.kind === ANAMNESIS_KIND && (
+          <>
+            {f.skipped.length > 0 && (
+              <p className="text-sm">
+                {f.skipped.length === 1 ? "1 respuesta no se ha puesto" : `${f.skipped.length} respuestas no se han puesto`} en la anamnesis porque ya tenías algo escrito:
+                míralas abajo.
+              </p>
+            )}
+            <details>
+              <summary className="cursor-pointer text-sm font-semibold text-accent">Ver lo que contestó</summary>
+              <dl className="mt-2 flex flex-col gap-2">
+                {answered.map((fl) => (
+                  <div key={fl.id} className="flex flex-col">
+                    <dt className="text-sm text-text-muted">
+                      {fl.label}
+                      {f.skipped.includes(fl.id) && <span className="font-semibold text-warning"> · no se puso (ya había algo escrito)</span>}
+                    </dt>
+                    <dd className="whitespace-pre-line">{answerText(fl, (f.answers?.[fl.id] ?? null) as never)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </details>
+          </>
+        )}
+      </Card>
+    </li>
+  );
+}

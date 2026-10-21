@@ -634,4 +634,95 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByRole("button", { name: "Escribir la contraseña" }).or(page.getByRole("link", { name: /Paciente Papelera/ }))).toBeVisible({ timeout: 15_000 });
     expect(errors).toEqual([]);
   });
+  test("CL12 formularios para el paciente: la anamnesis y un cuestionario por enlace; lo rellena sin cuenta y llega solo a su ficha", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Nora Enlace" });
+    await page.getByRole("link", { name: /Formularios para el paciente/ }).click();
+    await expect(page.getByText("Todavía no le has mandado ninguno.")).toBeVisible();
+    await expectAccessible(page);
+
+    /** Crea el enlace en la hoja y lo devuelve (está en el mensaje). */
+    const createLink = async () => {
+      await page.getByRole("dialog", { name: "Enviar un formulario" }).getByRole("button", { name: "Crear el enlace" }).click();
+      const share = page.getByRole("dialog", { name: "Mandar el enlace" });
+      await expect(share.getByText(/^Hola Nora: desde Fisiolab Centro te pedimos que rellenes/)).toBeVisible();
+      const text = (await share.locator("pre").textContent())!;
+      await share.getByRole("button", { name: "Cerrar" }).click();
+      return /https?:\/\/\S+\/formulario\/[A-Za-z0-9_-]+#[A-Za-z0-9_-]+/.exec(text)![0];
+    };
+    /** El móvil del paciente: sin cuenta, solo el enlace. */
+    const patientPhone = async () => {
+      const { viewport, locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
+      const ctx = await browser.newContext({ viewport, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
+      await google.install(ctx, () => "carla", { server: true });
+      const phone = await ctx.newPage();
+      phone.on("pageerror", (e) => errors.push(`paciente: ${e.message}`));
+      return phone;
+    };
+
+    // Su parte de la anamnesis.
+    await page.getByRole("button", { name: "Enviar un formulario" }).click();
+    await expect(page.getByRole("dialog", { name: "Enviar un formulario" }).getByLabel("Qué le mandas")).toHaveValue("anamnesis");
+    const anamnesisLink = await createLink();
+    await expect(page.getByRole("list", { name: "Formularios enviados" })).toContainText("Esperando respuesta");
+
+    const phone = await patientPhone();
+    await phone.goto(anamnesisLink);
+    await expect(phone.getByRole("heading", { name: "Hola, Nora" })).toBeVisible({ timeout: 15_000 });
+    await expect(phone.getByText("Fisiolab Centro te pide que rellenes unas preguntas sobre tu salud")).toBeVisible();
+    // Lo del fisioterapeuta no se le pregunta.
+    await expect(phone.getByText("Banderas rojas")).toHaveCount(0);
+    await phone.getByLabel("¿Por qué vienes? Cuéntanos qué te pasa").fill("Me duele la rodilla al bajar escaleras");
+    await phone.getByLabel("¿Tienes alguna alergia?").fill("Ninguna");
+    await expectAccessible(phone);
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
+    // Si vuelve a abrir el enlace, ve que ya lo envió.
+    await phone.reload();
+    await expect(phone.getByText("Este formulario ya se envió")).toBeVisible();
+
+    // Llega a su ficha.
+    await page.getByRole("button", { name: "Buscar respuestas" }).click();
+    await expect(page.getByText("Nora Enlace ha rellenado: Anamnesis (su parte)")).toBeVisible();
+    await expect(page.getByRole("list", { name: "Formularios enviados" })).toContainText("Rellenado");
+    await page.getByRole("link", { name: "Nora Enlace" }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Anamnesis" }).click();
+    await expect(page.getByRole("definition").filter({ hasText: "Me duele la rodilla al bajar escaleras" })).toBeVisible();
+    await expect(page.getByRole("definition").filter({ hasText: "Ninguna" })).toBeVisible();
+
+    // Un cuestionario desde su pantalla: llega con la nota calculada.
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
+    await page.getByRole("navigation", { name: "Añadir" }).getByRole("link", { name: "Cuestionario" }).click();
+    await page.getByRole("button", { name: /GAD-7/ }).click();
+    await page.getByRole("link", { name: "Que lo rellene en su móvil" }).click();
+    await expect(page.getByRole("dialog", { name: "Enviar un formulario" }).getByLabel("Qué le mandas")).toHaveValue("gad7");
+    const gadLink = await createLink();
+    await phone.goto(gadLink);
+    const qs = phone.getByRole("group").filter({ hasText: "Casi todos los días" });
+    await expect(qs).toHaveCount(7, { timeout: 15_000 });
+    for (let i = 0; i < 6; i++) await qs.nth(i).getByText("Varios días", { exact: true }).click();
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByRole("alert")).toContainText("Contéstalas para poder enviarlo");
+    await qs.nth(6).getByText("Varios días", { exact: true }).click();
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
+    await page.getByRole("button", { name: "Buscar respuestas" }).click();
+    await expect(page.getByText("Nora Enlace ha rellenado: GAD-7 (ansiedad)")).toBeVisible();
+    await page.getByRole("link", { name: "Ver en sus cuestionarios" }).first().click();
+    const list = page.getByRole("list", { name: "Cuestionarios" });
+    await expect(list).toContainText("GAD-7");
+    await expect(list).toContainText("7/21");
+    // En el servidor no queda nada que leer: solo que ya se respondió.
+    expect([...google.forms.values()].every((f) => !f.response && !f.request)).toBe(true);
+    await phone.goto(anamnesisLink);
+    await expect(phone.getByText("Este formulario ya se envió")).toBeVisible();
+    await phone.context().close();
+    expect(errors).toEqual([]);
+  });
 });

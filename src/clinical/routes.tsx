@@ -23,10 +23,12 @@ const consents = () => import("../consent/ConsentPages");
 const ConsentListPage = lazy(() => consents().then((m) => ({ default: m.ConsentListPage })));
 const ConsentNewPage = lazy(() => consents().then((m) => ({ default: m.ConsentNewPage })));
 const ConsentViewPage = lazy(() => consents().then((m) => ({ default: m.ConsentViewPage })));
+const SendFormsPage = lazy(() => import("../patientForm/SendFormsPage").then((m) => ({ default: m.SendFormsPage })));
 const l = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 export const clinicalRoutes = [
   { path: "/pacientes/:id/anamnesis", element: l(<AnamnesisPage />) },
+  { path: "/pacientes/:id/formularios", element: l(<SendFormsPage />) },
   { path: "/pacientes/:id/exploracion", element: l(<ExplorationPage />) },
   { path: "/pacientes/:id/exploracion/nuevo", element: l(<FindingFormPage />) },
   { path: "/pacientes/:id/exploracion/:fid", element: l(<FindingFormPage />) },

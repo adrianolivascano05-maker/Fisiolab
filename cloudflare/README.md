@@ -116,7 +116,8 @@ abogado).
 variables y el enlace se conservan. Si además cambia `schema.sql`, vuelve a ejecutarlo entero en la **Console**
 de la base (paso 3): crea las tablas que falten y no borra nada. Así se pasó, en octubre de 2026, a la versión
 con clínicas (tablas `clinics` y `members`), después a la sincronización por cambios (tablas `deltas` y
-`delta_base`) y a las solicitudes de acceso (`access_requests`). Ejecuta el SQL **antes** de pegar el `worker.js`
+`delta_base`), a las solicitudes de acceso (`access_requests`) y a los formularios para el paciente
+(`patient_forms`). Ejecuta el SQL **antes** de pegar el `worker.js`
 nuevo. La consola junta en una línea lo que se pega: si dice «No SQL statements detected», pega solo las sentencias
 `CREATE`, sin las líneas de comentario (las que empiezan por `--`).
 
@@ -172,13 +173,14 @@ nada más.
 | Archivo | Qué es |
 | --- | --- |
 | `worker.js` | el servidor. JavaScript sin dependencias, para pegarlo tal cual en el panel |
-| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica), `parts` (sus trozos, en texto base64), `deltas` (los lotes de cambios cifrados, numerados), `delta_base` (hasta qué lote lleva la copia entera, y su época) y `access_requests` (las solicitudes de acceso: quién pide dar de alta qué clínica) |
+| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica), `parts` (sus trozos, en texto base64), `deltas` (los lotes de cambios cifrados, numerados), `delta_base` (hasta qué lote lleva la copia entera, y su época) `access_requests` (las solicitudes de acceso: quién pide dar de alta qué clínica) y `patient_forms` (los formularios para el paciente y sus respuestas, cifrados con la clave del enlace) |
 | `wrangler.toml` | la configuración, solo para instalarlo con Wrangler (siempre con `-c wrangler.toml`) |
 | `worker.test.ts`, `d1shim.ts` | las pruebas (`npx vitest run cloudflare`), con una base D1 simulada sobre SQLite |
 
 ## Para quien mantenga la app
 
-Todas las rutas, salvo `/v1/salud`, piden `Authorization: Bearer <token de acceso de Google>`. El token debe ser
+Todas las rutas, salvo `/v1/salud` y las dos de `/v1/formularios/:fid` (las abre el paciente), piden
+`Authorization: Bearer <token de acceso de Google>`. El token debe ser
 del ID de cliente `GOOGLE_CLIENT_ID` y de un correo verificado. Lo que puede hacer cada cuenta depende de la ruta:
 dar de alta clínicas, si su correo está en `ALLOWED_EMAILS`; usar una clínica, si es de su equipo (tabla
 `members`, por correo en minúsculas). La copia de cada clínica va en `heads`/`parts` con `owner = "clinic:<id>"`.
@@ -205,6 +207,11 @@ Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "
 | `POST /v1/clinicas/:id/copia/cambios?v=2` | un lote cifrado en base64 (como mucho 1 000 000 caracteres): `200 { seq }`. Sin copia por cambios aún, `409` |
 | `GET /v1/clinicas/:id/copia/cambios?v=2&desde=N` | `200 { epoch, base, deltas: [{ seq, data }], more }`: los lotes después de `N`, por tandas de 100 (o 3 millones de caracteres). Si `N` es menor que `base`, sin lotes: hay que bajar la copia entera |
 | las rutas de la copia sin `?v=2`, con la clínica ya por cambios | `426 { error }`: una versión anterior de la app tiene que actualizarse |
+| `POST /v1/clinicas/:id/formularios` + `{ id, request, expiresAt }` | `201 { id }`: un formulario para el paciente, cifrado en el dispositivo con una clave que solo va en el enlace (`id` de 22 a 64 caracteres al azar; caduca en 30 días como mucho; 500 sin recoger por clínica). Cualquiera del equipo |
+| `GET /v1/clinicas/:id/formularios` | `200 { forms: [{ id, response, answeredAt }] }`: los ya contestados (de 50 en 50). Cualquiera del equipo |
+| `DELETE /v1/clinicas/:id/formularios/:fid` | `204`: recogido o anulado; se borra. Cualquiera del equipo |
+| `GET /v1/formularios/:fid` | `200 { request, expiresAt, answered }`, **sin sesión**: lo abre el paciente con su enlace. Caducado, anulado o de una clínica borrada: `404` |
+| `POST /v1/formularios/:fid/respuesta` + `{ response }` | `200`, **sin sesión**: las respuestas cifradas, una sola vez (después, `409`). Los que caducan sin responder se borran; las respuestas que nadie recoge, a los 60 días |
 
 Las rutas de la copia (aquí con `/v1/copia`, la copia personal de versiones anteriores de la app, solo para
 `ALLOWED_EMAILS`; con clínica, igual bajo `/v1/clinicas/:id`):

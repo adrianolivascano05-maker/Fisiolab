@@ -1,6 +1,6 @@
 // Pantallas de la ficha clínica: anamnesis, mediciones (con cuestionarios y simetría) y sesiones. La exploración
 // (tests especiales) está en ExplorationPages.tsx, para no cargar la Guía de tests al abrir las demás.
-import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Trash, Wallet } from "lucide-react";
+import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Send, Trash, Wallet } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { decimalText, fmt, fmtDate, fmtDateTime, parseDecimal, testTitle } from "../app/format";
@@ -41,7 +41,7 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
-import { answerText, answeredCount, clinicalSummary, orphanAnswers, orphanText, regionLabel, type Field, type Section } from "./anamnesis";
+import { answerText, answeredCount, clinicalSummary, orphanAnswers, orphanText, type Section } from "./anamnesis";
 import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyMapInput } from "./BodyMap";
 import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
@@ -50,6 +50,7 @@ import { AnalysisNav, TestList } from "./measureParts";
 import { mainValue, trends } from "./measures";
 import { QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
 import { Chips, NumberScale, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
+import { FieldInput } from "./FieldInput";
 import { byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, type Better, type QDetails } from "./questionnaires";
 import { LSI_REFERENCE, symmetryRows } from "./symmetry";
 import { madridDay } from "./timeline";
@@ -57,39 +58,12 @@ import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PatientShell } from "./PatientShell";
 import { formFor, type Answers as FormAnswers } from "./forms";
 import { FormFill, formResult } from "./FormFill";
+import { SENDABLE } from "./patientForms";
 import { addDays, dayText, Guard, localInput, primaryLink, sexLabels, todayDay, useLoad } from "./pageKit";
 import { ageOn } from "../data/privacy";
 
 // ---------- Anamnesis ----------
 
-function FieldInput({ field, value, onChange }: { field: Field; value: AnswerValue | undefined; onChange: (v: AnswerValue) => void }) {
-  const s = typeof value === "string" ? value : "";
-  switch (field.type) {
-    case "text":
-      return <TextField label={field.label} hint={field.hint} value={s} inputMode={field.inputMode} onChange={(e) => onChange(e.target.value)} />;
-    case "date":
-      return <TextField label={field.label} hint={field.hint} type="date" value={s} onChange={(e) => onChange(e.target.value)} />;
-    case "textarea":
-      return <TextArea label={field.label} hint={field.hint} value={s} rows={field.rows ?? 3} onChange={onChange} />;
-    case "scale":
-      return <PainScale label={field.label} hint={field.hint} value={typeof value === "number" ? value : null} onChange={onChange} />;
-    case "choice":
-    case "multi":
-      return (
-        <Chips
-          label={field.label}
-          hint={field.hint}
-          options={field.options}
-          multiple={field.type === "multi"}
-          value={Array.isArray(value) ? value : typeof value === "string" && value ? [value] : []}
-          onChange={(v) => onChange(field.type === "multi" ? v : (v[0] ?? null))}
-          render={field.id === "regiones" ? regionLabel : undefined}
-        />
-      );
-    case "number":
-      return <NumberField label={field.label} unit={field.unit} hint={field.hint} value={typeof value === "number" ? String(value).replace(".", ",") : s} onChange={(e) => onChange(e.target.value)} />;
-  }
-}
 
 /** Nombre, edad, sexo y contacto vienen de los datos del paciente (se editan allí). */
 function PatientBasics({ patient }: { patient: Patient }) {
@@ -260,6 +234,9 @@ export function AnamnesisPage() {
         <h2 className="text-xl">{anamnesis ? "Editar anamnesis" : "Anamnesis"}</h2>
         {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
         <p className="text-sm text-text-muted">Ficha de anamnesis de fisioterapia: historia clínica y valoración inicial. Rellena lo que necesites; todo se puede completar más tarde.</p>
+        <Link to={`/pacientes/${id}/formularios?enviar=anamnesis`} className="inline-flex items-center gap-1.5 self-start text-sm font-semibold text-accent">
+          <Send aria-hidden="true" className="size-4" /> Que el paciente rellene su parte desde el móvil
+        </Link>
         {/* Índice: la ficha es larga; cada apartado a un toque. */}
         <nav aria-label="Apartados de la anamnesis">
           <ul className="flex flex-wrap gap-2">
@@ -346,6 +323,9 @@ export function AnamnesisPage() {
           Editar anamnesis
         </Button>
       </div>
+      <Link to={`/pacientes/${id}/formularios?enviar=anamnesis`} className="inline-flex items-center gap-1.5 self-start text-sm font-semibold text-accent">
+        <Send aria-hidden="true" className="size-4" /> Mandar al paciente su parte para que la rellene
+      </Link>
       {red.length > 0 && (
         <Alert tone="danger" title={`Banderas rojas: ${red.length}`}>
           {red.join(" · ")}. Valora derivar.
@@ -1119,9 +1099,19 @@ export function QuestionnaireFormPage() {
           </p>
         )}
         {!qid && (
-          <Button variant="secondary" size="sm" className="self-start" onClick={() => setParams({}, { replace: true })}>
-            Cambiar de cuestionario
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setParams({}, { replace: true })}>
+              Cambiar de cuestionario
+            </Button>
+            {SENDABLE.some((x) => x.id === kind) && (
+              <Link
+                to={`/pacientes/${id}/formularios?enviar=${kind}`}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg px-3 text-sm font-semibold hover:bg-surface"
+              >
+                <Send aria-hidden="true" className="size-4" /> Que lo rellene en su móvil
+              </Link>
+            )}
+          </div>
         )}
       </Card>
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>

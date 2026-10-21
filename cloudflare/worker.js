@@ -48,6 +48,13 @@
 //   GET    /v1/proveedor/contrato              { html }: el borrador del contrato de encargado del tratamiento
 //   POST   /v1/proveedor/solicitudes/:correo   { accept } → acepta (puede dar de alta su clínica) o rechaza una solicitud
 //   DELETE /v1/proveedor/solicitudes/:correo   la borra (podrá volver a pedirlo)
+//   Formularios para el paciente (anamnesis o cuestionarios que rellena desde su móvil con un enlace):
+//   POST   /v1/clinicas/:id/formularios        { id, request, expiresAt } → deja el formulario cifrado (equipo)
+//   GET    /v1/clinicas/:id/formularios        { forms: [{ id, response, answeredAt }] }: los ya respondidos (equipo)
+//   DELETE /v1/clinicas/:id/formularios/:fid   recogido (se borran las respuestas y el formulario; queda que ya se
+//                                              respondió) o anulado (se borra entero) (equipo; 204 aunque no estuviera)
+//   GET    /v1/formularios/:fid                { request, expiresAt, answered } SIN sesión: lo abre el paciente
+//   POST   /v1/formularios/:fid/respuesta      { response } SIN sesión: sus respuestas, cifradas, una sola vez
 //   /v1/copia y /v1/copia/info                 lo mismo con la copia personal de cada cuenta de ALLOWED_EMAILS
 //                                              (versiones anteriores de la app, sin clínicas)
 // Una clínica tiene siempre al menos un administrador: no se puede quitar ni bajar al último.
@@ -118,6 +125,18 @@ const DELETE_GRACE_DAYS = 30;
 const MAX_PENDING_REQUESTS = 200;
 /** Personas como mucho en el equipo de una clínica. */
 const MAX_MEMBERS = 100;
+
+// Formularios para el paciente: la app los cifra con una clave que va solo en el enlace (después de «#», que el
+// navegador no manda al servidor), así que aquí no hay más que bytes ilegibles. El id lo pone la app al azar.
+const FORM_ID = /^[A-Za-z0-9_-]{22,64}$/;
+/** Caracteres del formulario cifrado y de las respuestas cifradas (base64). */
+const MAX_FORM_CHARS = 200_000;
+const MAX_ANSWER_CHARS = 400_000;
+/** Un enlace vale como mucho estos días; las respuestas que nadie recoge se borran a los 60. */
+const MAX_FORM_DAYS = 30;
+const KEEP_ANSWERS_DAYS = 60;
+/** Formularios sin recoger a la vez en una clínica. */
+const MAX_OPEN_FORMS = 500;
 /** Tokens comprobados que se recuerdan, y durante cuánto como mucho (segundos). */
 const CACHE_ENTRIES = 200;
 const CACHE_SECONDS = 300;
@@ -192,6 +211,10 @@ async function route(request, env, deps, originAllowed) {
   }
   if (path === "/v1/salud" && method === "GET") return health(env);
 
+  // Lo que abre el paciente con su enlace: sin sesión (no tiene cuenta), con el id del formulario.
+  const pub = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})(\/respuesta)?$/.exec(path);
+  if (pub) return publicForm(request, database(env), /** @type {string} */ (pub[1]), pub[2] !== undefined, deps.now);
+
   // La copia personal (versiones anteriores de la app): solo las cuentas de ALLOWED_EMAILS.
   if (path === "/v1/copia" || path === "/v1/copia/info") {
     if (!copyMethod(path.slice(3), method)) throw notFound();
@@ -214,6 +237,7 @@ async function route(request, env, deps, originAllowed) {
   const id = /** @type {string} */ (m[1]);
   const rest = m[2] ?? "";
   const member = /^\/miembros\/([^/]+)$/.exec(rest);
+  const form = /^\/formularios\/([A-Za-z0-9_-]{22,64})$/.exec(rest);
   const known =
     (rest === "" && ["PATCH", "DELETE"].includes(method)) ||
     (rest === "/miembros" && method === "GET") ||
@@ -221,7 +245,9 @@ async function route(request, env, deps, originAllowed) {
     (rest === "/recuperacion" && ["GET", "PUT"].includes(method)) ||
     (rest === "/recuperar" && method === "POST") ||
     copyMethod(rest, method) ||
-    (rest === "/copia/cambios" && ["GET", "POST"].includes(method));
+    (rest === "/copia/cambios" && ["GET", "POST"].includes(method)) ||
+    (rest === "/formularios" && ["GET", "POST"].includes(method)) ||
+    (form !== null && method === "DELETE");
   if (!known) throw notFound();
 
   const who = await authenticate(request, env, deps);
@@ -307,6 +333,7 @@ async function route(request, env, deps, originAllowed) {
     if (email !== normalEmail(who.email)) admin();
     return removeMember(db, id, email);
   }
+  if (rest === "/formularios" || form) return clinicForms(request, db, id, form?.[1] ?? null, who, deps.now);
   // La copia de la clínica: todo el equipo la baja y la sube; borrarla, solo quien administra.
   if (method === "DELETE") admin();
   return clinicCopy(request, db, clinicOwner(id), rest, deps.now);
@@ -534,6 +561,7 @@ async function removeClinic(db, id) {
     db.prepare("DELETE FROM delta_base WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM members WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM recovery WHERE clinic_id = ?").bind(id),
+    db.prepare("DELETE FROM patient_forms WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM clinic_status WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM clinics WHERE id = ?").bind(id),
   ]);
@@ -862,6 +890,120 @@ async function readJson(request) {
   }
 }
 
+// ---------- Formularios para el paciente ----------
+
+/**
+ * El cuerpo JSON de una petición, hasta `max` caracteres.
+ * @param {Request} request
+ * @param {number} max
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function readBigJson(request, max) {
+  const tooBig = () => new HttpError(413, "La petición es demasiado grande.");
+  if (Number(request.headers.get("Content-Length")) > max + 1000) throw tooBig();
+  const text = await request.text();
+  if (text.length > max + 1000) throw tooBig();
+  try {
+    const body = JSON.parse(text);
+    if (typeof body === "object" && body !== null) return body;
+  } catch {
+    /* abajo */
+  }
+  throw new HttpError(400, "La petición no es JSON válido.");
+}
+
+/** Texto base64 (lo cifrado), de 1 a `max` caracteres. */
+const isBase64 = (/** @type {unknown} */ v, /** @type {number} */ max) => typeof v === "string" && v.length > 0 && v.length <= max && /^[A-Za-z0-9+/]+={0,2}$/.test(v);
+
+/**
+ * Borra los formularios caducados sin responder, los ya recogidos al caducar y las respuestas que nadie ha recogido en
+ * 60 días.
+ * @param {D1Database} db
+ * @param {() => number} now
+ */
+async function purgeForms(db, now) {
+  const at = now();
+  await db
+    .prepare("DELETE FROM patient_forms WHERE ((answered_at IS NULL OR response IS NULL) AND expires_at < ?) OR (answered_at IS NOT NULL AND answered_at < ?)")
+    .bind(new Date(at).toISOString(), new Date(at - KEEP_ANSWERS_DAYS * 86_400_000).toISOString())
+    .run();
+}
+
+/**
+ * El equipo deja un formulario, recoge las respuestas o lo borra.
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {string} clinicId
+ * @param {string | null} formId
+ * @param {{ email: string }} who
+ * @param {() => number} now
+ */
+async function clinicForms(request, db, clinicId, formId, who, now) {
+  if (formId) {
+    // Recogido: se borra lo cifrado, pero se recuerda que se respondió (si el paciente vuelve a abrir el enlace, lo ve).
+    // Anulado sin responder: se borra entero.
+    await db.batch([
+      db.prepare("UPDATE patient_forms SET request = '', response = NULL WHERE clinic_id = ? AND id = ? AND answered_at IS NOT NULL").bind(clinicId, formId),
+      db.prepare("DELETE FROM patient_forms WHERE clinic_id = ? AND id = ? AND answered_at IS NULL").bind(clinicId, formId),
+    ]);
+    return new Response(null, { status: 204 });
+  }
+  await purgeForms(db, now);
+  if (request.method === "GET") {
+    const { results = [] } = await db
+      .prepare("SELECT id, response, answered_at FROM patient_forms WHERE clinic_id = ? AND response IS NOT NULL ORDER BY answered_at LIMIT 50")
+      .bind(clinicId)
+      .all();
+    return json(200, { forms: results.map((r) => ({ id: String(r.id), response: String(r.response), answeredAt: String(r.answered_at) })) });
+  }
+  const body = await readBigJson(request, MAX_FORM_CHARS);
+  const id = typeof body.id === "string" ? body.id : "";
+  if (!FORM_ID.test(id)) throw new HttpError(400, "El formulario no tiene un id válido.");
+  if (!isBase64(body.request, MAX_FORM_CHARS)) throw new HttpError(400, "Falta el formulario cifrado, o es demasiado grande.");
+  const expires = typeof body.expiresAt === "string" ? Date.parse(body.expiresAt) : NaN;
+  if (!(expires > now() && expires <= now() + MAX_FORM_DAYS * 86_400_000)) throw new HttpError(400, `El enlace tiene que caducar en ${MAX_FORM_DAYS} días como mucho.`);
+  const open = await db.prepare("SELECT COUNT(*) AS n FROM patient_forms WHERE clinic_id = ? AND (answered_at IS NULL OR response IS NOT NULL)").bind(clinicId).first();
+  if (Number(open?.n) >= MAX_OPEN_FORMS) throw new HttpError(429, "La clínica tiene demasiados formularios sin recoger. Abre la app para recoger las respuestas.");
+  const exists = await db.prepare("SELECT 1 FROM patient_forms WHERE id = ?").bind(id).first();
+  if (exists) throw new HttpError(409, "Ese formulario ya existe.");
+  await db
+    .prepare("INSERT INTO patient_forms (id, clinic_id, created_by, created_at, expires_at, request) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(id, clinicId, normalEmail(who.email), new Date(now()).toISOString(), new Date(expires).toISOString(), body.request)
+    .run();
+  return json(201, { id });
+}
+
+/**
+ * El paciente abre su formulario (GET) o manda sus respuestas (POST …/respuesta), sin sesión: el id largo y al azar
+ * hace de llave, y lo que hay dentro solo se lee con la clave del enlace.
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {string} id
+ * @param {boolean} answer
+ * @param {() => number} now
+ */
+async function publicForm(request, db, id, answer, now) {
+  if (request.method !== (answer ? "POST" : "GET")) throw notFound();
+  await purgeForms(db, now);
+  const gone = () => new HttpError(404, "Este enlace ya no vale: ha caducado o la clínica lo ha anulado. Pide otro a tu fisioterapeuta.");
+  const row = await db.prepare("SELECT clinic_id, expires_at, request, answered_at FROM patient_forms WHERE id = ?").bind(id).first();
+  if (!row) throw gone();
+  const status = await clinicStatus(db, String(row.clinic_id));
+  if (status?.deletedAt) throw gone();
+  if (!answer) return json(200, { request: String(row.request), expiresAt: String(row.expires_at), answered: row.answered_at !== null });
+  if (row.answered_at !== null) throw new HttpError(409, "Este formulario ya se envió. Si quieres cambiar algo, díselo a tu fisioterapeuta.");
+  if (Date.parse(String(row.expires_at)) < now()) throw gone();
+  if (status?.suspendedAt) throw new HttpError(423, "Ahora mismo la clínica no puede recibir formularios. Inténtalo más tarde o díselo a tu fisioterapeuta.");
+  const body = await readBigJson(request, MAX_ANSWER_CHARS);
+  if (!isBase64(body.response, MAX_ANSWER_CHARS)) throw new HttpError(400, "Faltan las respuestas, o son demasiado largas.");
+  const { meta } = await db
+    .prepare("UPDATE patient_forms SET response = ?, answered_at = ? WHERE id = ? AND answered_at IS NULL")
+    .bind(body.response, new Date(now()).toISOString(), id)
+    .run();
+  if (!meta?.changes) throw new HttpError(409, "Este formulario ya se envió. Si quieres cambiar algo, díselo a tu fisioterapeuta.");
+  return json(200, { ok: true });
+}
+
 // ---------- Comprobación de la instalación ----------
 
 /** @param {Env} env */
@@ -871,7 +1013,7 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
+      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests", "patient_forms"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }

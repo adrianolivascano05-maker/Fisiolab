@@ -68,6 +68,8 @@ const EXPORT_TABLES = SYNC_TABLES.map((t) => t.name).filter((t) => !["settings",
 export async function collect(db: Db): Promise<Collected> {
   const tables: Record<string, R[]> = {};
   for (const t of EXPORT_TABLES) tables[t] = await db.query<R>(`select * from ${t}`);
+  // La clave de cada enlace de formulario no sale de la app: lo que contestó el paciente, sí.
+  tables.patient_forms = (tables.patient_forms ?? []).map(({ form_key: _, ...r }) => r);
   return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: withCustom(await getCustomFields(db)) };
 }
 

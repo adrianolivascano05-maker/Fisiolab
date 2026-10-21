@@ -1,4 +1,4 @@
-import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, Dumbbell, Hourglass, ShieldAlert, ShieldCheck, Stethoscope, Wallet, type LucideIcon } from "lucide-react";
+import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, Dumbbell, Hourglass, Send, ShieldAlert, ShieldCheck, Stethoscope, Wallet, type LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
@@ -13,6 +13,8 @@ import { buildTimeline, painSeries, type EventKind } from "../clinical/timeline"
 import { accountLine, patientAccount } from "../data/billing";
 import { listPlans } from "../data/exercises";
 import { listWaitlist, preferText } from "../data/waitlist";
+import { formStatus, listSentForms } from "../data/patientForms";
+import { formTitle } from "../clinical/patientForms";
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
@@ -47,13 +49,22 @@ const kindStyle: Record<EventKind, { dot: string; label: string }> = {
   anamnesis: { dot: "bg-text-muted", label: "Anamnesis" },
 };
 
+/** En qué están los formularios que se le han mandado. */
+function formsLine(forms: Awaited<ReturnType<typeof listSentForms>>): string {
+  const pending = forms.filter((f) => formStatus(f) === "pending").length;
+  if (pending) return pending === 1 ? "1 esperando respuesta" : `${pending} esperando respuesta`;
+  const done = forms.find((f) => formStatus(f) === "done");
+  if (done) return `Rellenó «${formTitle(done.kind)}» el ${fmtDate(done.answeredAt ?? done.importedAt!)}`;
+  return "Que rellene su anamnesis o un cuestionario desde el móvil";
+}
+
 /** S02 Ficha del paciente: resumen clínico y de mediciones de un vistazo. */
 export function PatientPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waitlist] = await Promise.all([
+    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waitlist, sentForms] = await Promise.all([
       getPatient(db, id),
       listTests(db, id),
       listWellness(db, id),
@@ -65,13 +76,14 @@ export function PatientPage() {
       patientAccount(db, id, today),
       listPlans(db, id),
       listWaitlist(db),
+      listSentForms(db, id),
     ]);
-    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waiting: waitlist.find((w) => w.patientId === id) ?? null };
+    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waiting: waitlist.find((w) => w.patientId === id) ?? null, sentForms };
   }, [id]);
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Paciente" backTo="/"><Loading /></Page>;
-  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waiting } = data.data;
+  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waiting, sentForms } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   // Consentimientos: los firmados vigentes y los que su anamnesis pide por escrito y faltan.
   const consentCtx = consentContext(patient, anamnesis?.answers ?? {});
@@ -161,6 +173,12 @@ export function PatientPage() {
           icon={ClipboardList}
           title="Anamnesis"
           subtitle={anamnesis ? `Actualizada el ${fmtDate(anamnesis.updatedAt)}` : "Sin rellenar"}
+        />
+        <RowLink
+          to={`/pacientes/${id}/formularios`}
+          icon={Send}
+          title="Formularios para el paciente"
+          subtitle={formsLine(sentForms)}
         />
         <RowLink
           to={`/pacientes/${id}/proteccion-datos`}

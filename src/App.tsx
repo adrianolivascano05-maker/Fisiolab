@@ -9,6 +9,7 @@ import { freeRoutes } from "./free/routes"; // Ángulos en vídeo con IA, desde 
 import { galleryRoutes } from "./gallery/routes"; // Galería de tests (src/gallery/README.md)
 import { clinicalRoutes } from "./clinical/routes"; // Ficha clínica: anamnesis, exploración, mediciones y sesiones
 import { PatientsPage } from "./pages/PatientsPage";
+import { FormInbox } from "./patientForm/FormInbox"; // Respuestas de los pacientes a sus formularios (src/clinical/patientForms.ts)
 
 // Al abrir la app solo se carga la lista de pacientes; cada pantalla se carga al entrar en ella (el service worker
 // ya las tiene guardadas, así que es inmediato también sin conexión).
@@ -55,6 +56,8 @@ const TestPickerPage = lazy(() => import("./pages/TestPickerPage").then((m) => (
 const ValidationPage = lazy(() => import("./pages/ValidationPage").then((m) => ({ default: m.ValidationPage })));
 const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default: m.VideoPage })));
 const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
+// Lo que abre el paciente con su enlace: sin la base, sin PIN y sin cuenta.
+const PublicFormPage = lazy(() => import("./patientForm/PublicFormPage").then((m) => ({ default: m.PublicFormPage })));
 const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 // En GitHub Pages la app vive en /Fisiolab/; en la raíz del dominio, en /.
@@ -124,11 +127,24 @@ function Router() {
   return <RouterProvider router={router} />;
 }
 
+/** El enlace de un formulario para el paciente (…/formulario/<id>#<clave>). */
+const isPublicForm = () => location.pathname.startsWith(`${BASENAME === "/" ? "" : BASENAME}/formulario/`);
+
 export function App() {
+  const [publicForm] = useState(isPublicForm);
   useEffect(() => {
     // Pide al navegador que no borre los datos de la app por falta de espacio o por inactividad.
-    void navigator.storage?.persist?.();
-  }, []);
+    if (!publicForm) void navigator.storage?.persist?.();
+  }, [publicForm]);
+  if (publicForm) {
+    return (
+      <ToastProvider>
+        <Suspense fallback={null}>
+          <PublicFormPage />
+        </Suspense>
+      </ToastProvider>
+    );
+  }
   return (
     <ToastProvider>
       {/* El PIN va por fuera: sale al instante y la app carga por detrás mientras se teclea. */}
@@ -136,6 +152,7 @@ export function App() {
         <CloudGate>
           <DbGate>
             <Router />
+            <FormInbox />
           </DbGate>
         </CloudGate>
       </AppLock>

@@ -73,7 +73,8 @@ const steps: { title: string; body: ReactNode }[] = [
         También en el Resumen: <b>Bonos y cobros</b> (vende un bono de sesiones, que se gasta solo al apuntar cada sesión, y apunta lo que te paga;
         el precio de la sesión, en Ajustes → Precios y cobros) y <b>Ejercicios para casa</b> (su hoja, desde la biblioteca de la clínica, para
         imprimir o enviar por WhatsApp). En Cuestionarios, el <b>mapa del dolor</b>: toca en el dibujo dónde le duele. Tus propias preguntas en la
-        anamnesis, en Ajustes → Anamnesis de la clínica.
+        anamnesis, en Ajustes → Anamnesis de la clínica. Con el servidor de la clínica, en <b>Formularios para el paciente</b> le mandas por WhatsApp su
+        parte de la anamnesis o un cuestionario: lo rellena en su móvil, sin cuenta, y llega solo a su ficha.
       </>
     ),
   },

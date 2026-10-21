@@ -74,6 +74,7 @@ const WHAT: Record<string, string> = {
   payments: "un cobro",
   waitlist: "la lista de espera",
   exercise_plans: "una hoja de ejercicios",
+  patient_forms: "un formulario para el paciente",
 };
 
 /**

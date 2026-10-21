@@ -706,6 +706,57 @@ describe("clínicas", () => {
     expect((await call("GET", `${base}/cambios?v=2&desde=0`, { token: "tok-ana" })).status).toBe(200);
   });
 
+  it("formularios para el paciente: el equipo los deja, el paciente responde sin sesión una vez y el equipo recoge", async () => {
+    const c = await clinic();
+    const fid = "f".repeat(10) + "Abc_123-xyz789";
+    const expiresAt = new Date(Date.now() + 14 * 86_400_000).toISOString();
+    const pub = (method: string, path: string, data?: unknown) => call(method, path, { body: data === undefined ? undefined : JSON.stringify(data) });
+    // Solo el equipo deja formularios, con id largo, cifrado y caducidad de 30 días como mucho.
+    expect((await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-eva", { id: fid, request: "QUJD", expiresAt })).status).toBe(403);
+    expect((await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", { id: "corto", request: "QUJD", expiresAt })).status).toBe(400);
+    expect((await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", { id: fid, request: "no es base64!", expiresAt })).status).toBe(400);
+    const late = new Date(Date.now() + 40 * 86_400_000).toISOString();
+    expect((await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", { id: fid, request: "QUJD", expiresAt: late })).status).toBe(400);
+    expect((await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", { id: fid, request: "QUJD", expiresAt })).status).toBe(201);
+    expect((await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", { id: fid, request: "QUJD", expiresAt })).status).toBe(409);
+
+    // El paciente lo abre sin cuenta; aún no hay nada que recoger.
+    expect(await (await pub("GET", `/v1/formularios/${fid}`)).json()).toEqual({ request: "QUJD", expiresAt, answered: false });
+    expect((await pub("GET", `/v1/formularios/${"x".repeat(30)}`)).status).toBe(404);
+    expect(((await (await send("GET", `/v1/clinicas/${c.id}/formularios`, "tok-ana")).json()) as { forms: unknown[] }).forms).toEqual([]);
+    // Responde una sola vez.
+    expect((await pub("POST", `/v1/formularios/${fid}/respuesta`, { response: "" })).status).toBe(400);
+    expect((await pub("POST", `/v1/formularios/${fid}/respuesta`, { response: "UkVTUA==" })).status).toBe(200);
+    expect((await pub("POST", `/v1/formularios/${fid}/respuesta`, { response: "T1RSQQ==" })).status).toBe(409);
+    expect(((await (await pub("GET", `/v1/formularios/${fid}`)).json()) as { answered: boolean }).answered).toBe(true);
+
+    // El equipo recoge la respuesta y la borra; quien no es del equipo, no.
+    expect((await send("GET", `/v1/clinicas/${c.id}/formularios`, "tok-eva")).status).toBe(403);
+    const { forms } = (await (await send("GET", `/v1/clinicas/${c.id}/formularios`, "tok-ana")).json()) as { forms: { id: string; response: string }[] };
+    expect(forms).toEqual([{ id: fid, response: "UkVTUA==", answeredAt: expect.any(String) }]);
+    expect((await send("DELETE", `/v1/clinicas/${c.id}/formularios/${fid}`, "tok-ana")).status).toBe(204);
+    // Recogido: ya no hay nada cifrado, pero el paciente ve que lo envió.
+    expect(await (await pub("GET", `/v1/formularios/${fid}`)).json()).toEqual({ request: "", expiresAt, answered: true });
+    expect(((await (await send("GET", `/v1/clinicas/${c.id}/formularios`, "tok-ana")).json()) as { forms: unknown[] }).forms).toEqual([]);
+    expect(await count("SELECT count(*) AS n FROM patient_forms WHERE response IS NOT NULL OR request <> ''")).toBe(0);
+    // Uno sin responder que se anula desaparece.
+    const other = "h".repeat(30);
+    await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", { id: other, request: "QUJD", expiresAt });
+    expect((await send("DELETE", `/v1/clinicas/${c.id}/formularios/${other}`, "tok-ana")).status).toBe(204);
+    expect((await pub("GET", `/v1/formularios/${other}`)).status).toBe(404);
+  });
+
+  it("formularios: los caducados sin responder se borran y ya no se pueden responder", async () => {
+    const c = await clinic();
+    const fid = "g".repeat(30);
+    const t = Date.now();
+    await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", { id: fid, request: "QUJD", expiresAt: new Date(t + 86_400_000).toISOString() });
+    const later = () => t + 2 * 86_400_000;
+    const res = await handle(request("POST", `/v1/formularios/${fid}/respuesta`, { body: JSON.stringify({ response: "UkVTUA==" }) }), env(), { verifyToken, now: later });
+    expect(res.status).toBe(404);
+    expect(await count("SELECT count(*) AS n FROM patient_forms")).toBe(0);
+  });
+
   it("la copia personal de antes sigue solo para ALLOWED_EMAILS", async () => {
     expect((await call("GET", "/v1/copia/info", { token: "tok-eva" })).status).toBe(403);
     expect((await call("GET", "/v1/copia/info", { token: "tok-ana" })).status).toBe(200);

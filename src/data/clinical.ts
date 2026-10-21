@@ -17,7 +17,11 @@ export type Anamnesis = { answers: Answers; createdAt: string; updatedAt: string
 
 /** La anamnesis del motivo de consulta que se está viendo (src/data/episodes.ts). */
 export async function getAnamnesis(db: Db, patientId: string): Promise<Anamnesis | null> {
-  const episode = await currentEpisode(db, patientId);
+  return getAnamnesisOf(db, patientId, await currentEpisode(db, patientId));
+}
+
+/** La anamnesis de un motivo de consulta concreto; con el id del paciente, la del primero. */
+export async function getAnamnesisOf(db: Db, patientId: string, episode: string): Promise<Anamnesis | null> {
   if (episode !== patientId) {
     const a = await getEpisodeAnswers(db, episode);
     return a && Object.keys(a.answers).length ? a : null;
@@ -31,10 +35,14 @@ export async function getAnamnesis(db: Db, patientId: string): Promise<Anamnesis
 
 /** Guarda la anamnesis entera. Quita las respuestas vacías para que «relleno» quiera decir algo. */
 export async function saveAnamnesis(db: Db, patientId: string, answers: Answers): Promise<void> {
+  return saveAnamnesisOf(db, patientId, await currentEpisode(db, patientId), answers);
+}
+
+/** Guarda la anamnesis de un motivo de consulta concreto (con el id del paciente, la del primero). */
+export async function saveAnamnesisOf(db: Db, patientId: string, episode: string, answers: Answers): Promise<void> {
   const clean = Object.fromEntries(
     Object.entries(answers).filter(([, v]) => v !== null && v !== "" && !(Array.isArray(v) && v.length === 0) && !(typeof v === "number" && Number.isNaN(v))),
   );
-  const episode = await currentEpisode(db, patientId);
   if (episode !== patientId) return saveEpisodeAnswers(db, episode, clean);
   const t = now();
   await db.transaction([

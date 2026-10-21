@@ -96,3 +96,19 @@ CREATE TABLE IF NOT EXISTS access_requests (
   created_at TEXT NOT NULL,
   answered_at TEXT
 );
+
+-- Formularios para el paciente: la clínica manda un enlace (su parte de la anamnesis o un cuestionario) y el paciente
+-- lo rellena en su móvil, sin cuenta. El formulario («request») y las respuestas («response») llegan cifrados con una
+-- clave que solo está en el enlace: aquí no se puede leer nada. Los que caducan sin responder se borran; las
+-- respuestas, en cuanto la app las recoge (o a los 60 días si nadie lo hace).
+CREATE TABLE IF NOT EXISTS patient_forms (
+  id TEXT PRIMARY KEY,
+  clinic_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  request TEXT NOT NULL,
+  response TEXT,
+  answered_at TEXT
+);
+CREATE INDEX IF NOT EXISTS patient_forms_by_clinic ON patient_forms (clinic_id, answered_at);

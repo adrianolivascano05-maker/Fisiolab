@@ -7,7 +7,7 @@
 import type { DbFile } from "../data/db";
 import { dbFileFor, type Account } from "./account";
 import type { Token } from "./auth";
-import { serverCall } from "./remote";
+import { serverCall, ServerError } from "./remote";
 
 export type Role = "admin" | "member";
 /** `suspended`: el proveedor la ha suspendido (se puede bajar la copia, no subir). */
@@ -143,6 +143,25 @@ export function clinicApi(baseUrl: string) {
     getRecovery: async (t: Token, id: string) => ((await (await call(t, path(id, "/recuperacion"))).json()) as { blob: string | null }).blob,
     putRecovery: async (t: Token, id: string, blob: string) => {
       await call(t, path(id, "/recuperacion"), { method: "PUT", ...json({ blob }) });
+    },
+    /** Formularios para el paciente (src/clinical/patientForms.ts): van y vuelven cifrados con la clave del enlace. */
+    forms: {
+      create: async (t: Token, id: string, form: { id: string; request: string; expiresAt: string }) => {
+        try {
+          await call(t, path(id, "/formularios"), { method: "POST", ...json(form) });
+        } catch (e) {
+          // Un servidor de antes de los formularios no conoce la ruta.
+          if (e instanceof ServerError && e.status === 404)
+            throw new ServerError("El servidor de la clínica aún no tiene los formularios: hay que actualizarlo (cloudflare/README.md, «Al actualizar el servidor»).", 404);
+          throw e;
+        }
+      },
+      /** Los que el paciente ya ha contestado y nadie ha recogido. */
+      answered: async (t: Token, id: string) =>
+        ((await (await call(t, path(id, "/formularios"))).json()) as { forms: { id: string; response: string; answeredAt: string }[] }).forms,
+      remove: async (t: Token, id: string, formId: string) => {
+        await call(t, path(id, `/formularios/${encodeURIComponent(formId)}`), { method: "DELETE" });
+      },
     },
     /** Panel del proveedor: solo para OPERATOR_EMAILS. */
     operator: {
