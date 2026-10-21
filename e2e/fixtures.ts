@@ -50,6 +50,10 @@ export { expect };
 
 /** Escaneo de accesibilidad (WCAG 2.1 A/AA) de lo que se ve ahora. */
 export async function expectAccessible(page: Page) {
+  // Sin transiciones a medias: un texto que aparece o se va (el título de la barra al desplazar) tiene poco contraste
+  // mientras se funde, y el escaneo lo cogería según el momento.
+  // Las que no acaban nunca (un indicador de carga) no se esperan.
+  await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity));
   const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   const summary = r.violations.map((v) => `${v.id}: ${v.help} → ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`);
   expect(summary).toEqual([]);
