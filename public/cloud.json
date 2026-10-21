@@ -1,4 +1,5 @@
 {
   "googleClientId": "1084216324372-0mrfdeckqcfu8p2t1tjsosdebs7g2tmb.apps.googleusercontent.com",
-  "cloudflareUrl": "https://cenit-datos.adrianolivascano05.workers.dev"
+  "cloudflareUrl": "https://cenit-datos.adrianolivascano05.workers.dev",
+  "formsUrl": "https://cenitfisiolab.pages.dev/"
 }
