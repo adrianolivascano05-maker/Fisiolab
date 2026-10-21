@@ -2,7 +2,7 @@
 // otro programa. Es lo que se entrega al darse de baja (y lo que la clínica puede descargar cuando quiera):
 // - «Historias clinicas/»: la historia clínica de cada paciente en una página (HTML) que se abre con cualquier
 //   navegador y se imprime o se guarda en PDF: datos, motivos de consulta con su anamnesis, sesiones, exploración,
-//   mediciones, cuestionarios, bienestar, consentimientos (con sus firmas) y citas.
+//   mediciones, cuestionarios, bienestar, consentimientos (con sus firmas), citas, bonos y cobros.
 // - «Indice de pacientes.html»: la lista, con un enlace a cada historia.
 // - «Todos los datos.xlsx»: una pestaña por tipo de dato, en columnas legibles (para Excel o para otro programa).
 // - «Datos para otro programa (JSON).json»: las tablas tal cual, para quien programe una migración.
@@ -13,12 +13,13 @@ import { getExercise } from "../calc/strength";
 import { getMovement, movementLabel } from "../calc/rom";
 import { wellnessItems } from "../calc/wellness";
 import { metricLabels, sideLabels, testTitle } from "../app/format";
-import { ANAMNESIS, answerText, getField, orphanAnswers } from "../clinical/anamnesis";
+import { ANAMNESIS, answerText, getField, orphanAnswers, regionLabel } from "../clinical/anamnesis";
 import { displayName, kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { Db } from "../data/db";
 import { STATUS_LABELS, type AppointmentStatus } from "../data/appointments";
 import { getClinic, type ClinicInfo } from "../data/privacy";
+import { euros, methodLabel } from "../data/billing";
 import { SYNC_TABLES } from "../data/syncMerge";
 import { escapeXml, writeXlsx, zip, type Cell, type Sheet, type ZipFile } from "./files";
 
@@ -47,6 +48,8 @@ export function when(iso: unknown): string {
   return d.toLocaleString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).replace(",", "");
 }
 const day = (iso: unknown) => when(iso).slice(0, 10);
+/** Céntimos a euros, como número para la hoja de cálculo. */
+const cents = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v) / 100);
 
 /** Todo lo de la base, de una vez. */
 export type Collected = {
@@ -207,6 +210,38 @@ export function buildSheets(c: Collected): Sheet[] {
         .map((r) => [pn(r), when(r.starts_at), n(r.minutes), STATUS_LABELS[r.status as AppointmentStatus] ?? s(r.status), r.assigned_to ? (staff.get(s(r.assigned_to)) ?? s(r.assigned_to)) : ""]),
     },
   ];
+  if (T.packs!.length)
+    sheets.push({
+      name: "Bonos",
+      header: ["Paciente", "Bono", "Sesiones", "Precio (€)", "Comprado el", "Caduca el", "Nota"],
+      rows: [...T.packs!].sort(byDate("bought_on")).map((r) => [pn(r), s(r.title), n(r.sessions), cents(r.price_cents), day(r.bought_on), day(r.expires_on), s(r.note)]),
+    });
+  if (T.payments!.length)
+    sheets.push({
+      name: "Cobros",
+      header: ["Paciente", "Día", "Cantidad (€)", "Forma de pago", "Concepto"],
+      rows: [...T.payments!].sort(byDate("paid_on")).map((r) => [pn(r), day(r.paid_on), cents(r.amount_cents), methodLabel(s(r.method)), s(r.concept)]),
+    });
+  if (T.exercise_plans!.length)
+    sheets.push({
+      name: "Ejercicios para casa",
+      header: ["Paciente", "Hoja del", "Ejercicio", "Dosis", "Cómo se hace", "Indicaciones"],
+      rows: [...T.exercise_plans!]
+        .sort(byDate("created_at"))
+        .flatMap((r) => json<{ title: string; dose: string; instructions: string }[]>(r.items, []).map((i) => [pn(r), when(r.updated_at), s(i.title), s(i.dose), s(i.instructions), s(r.note)])),
+    });
+  if (T.waitlist!.length)
+    sheets.push({
+      name: "Lista de espera",
+      header: ["Paciente", "Desde", "Le viene bien", "Con quién"],
+      rows: [...T.waitlist!].sort((a, b) => s(a.created_at).localeCompare(s(b.created_at))).map((r) => [pn(r), when(r.created_at), s(r.note), r.assigned_to ? (staff.get(s(r.assigned_to)) ?? s(r.assigned_to)) : ""]),
+    });
+  if (T.exercises!.length)
+    sheets.push({
+      name: "Biblioteca de ejercicios",
+      header: ["Ejercicio", "Zona", "Dosis", "Cómo se hace"],
+      rows: [...T.exercises!].sort((a, b) => s(a.title).localeCompare(s(b.title), "es")).map((r) => [s(r.title), r.region ? regionLabel(s(r.region)) : "", s(r.dose), s(r.instructions)]),
+    });
   if (T.shifts!.length)
     sheets.push({
       name: "Turnos del equipo",
@@ -373,6 +408,34 @@ export function patientHtml(c: Collected, p: R, exportedAt = new Date()): string
       )}`,
     );
 
+  const plans = mine("exercise_plans").sort((a, b) => s(a.created_at).localeCompare(s(b.created_at)));
+  if (plans.length) {
+    parts.push(`<h2>Ejercicios para casa</h2>`);
+    for (const r of plans)
+      parts.push(
+        `<div class="card"><h3>Hoja del ${h(when(r.updated_at))}</h3><ol>${json<{ title: string; dose: string; instructions: string }[]>(r.items, [])
+          .map((i) => `<li><strong>${h(i.title)}</strong>${i.dose ? ` — ${h(i.dose)}` : ""}${i.instructions ? `<br>${h(i.instructions)}` : ""}</li>`)
+          .join("")}</ol>${r.note ? `<p class="muted">${h(r.note)}</p>` : ""}</div>`,
+      );
+  }
+
+  const packs = mine("packs").sort((a, b) => s(a.bought_on).localeCompare(s(b.bought_on)));
+  const payments = mine("payments").sort((a, b) => s(a.paid_on).localeCompare(s(b.paid_on)));
+  if (packs.length)
+    parts.push(
+      `<h2>Bonos</h2>${table(
+        ["Bono", "Sesiones", "Precio", "Comprado el", "Caduca el"],
+        packs.map((r) => [s(r.title), s(r.sessions), r.price_cents === null ? "" : euros(Number(r.price_cents)), day(r.bought_on), day(r.expires_on)]),
+      )}`,
+    );
+  if (payments.length)
+    parts.push(
+      `<h2>Cobros</h2>${table(
+        ["Día", "Cantidad", "Forma de pago", "Concepto"],
+        payments.map((r) => [day(r.paid_on), euros(Number(r.amount_cents)), methodLabel(s(r.method)), s(r.concept)]),
+      )}`,
+    );
+
   parts.push(`<footer>${h(clinicLine)} · Exportado de Cénit · ${h(when(exportedAt.toISOString()))}</footer>`);
   return page(`Historia clínica · ${s(p.name)}`, parts.join(""));
 }
@@ -417,7 +480,7 @@ Qué hay en esta carpeta:
 
 2. «Historias clinicas»: una página por paciente con todo lo registrado: datos, motivos de consulta
    con su anamnesis, sesiones, exploración, mediciones, cuestionarios, bienestar, consentimientos
-   (con las firmas) y citas. Se lee en cualquier navegador y se imprime o se guarda en PDF desde él
+   (con las firmas), citas, bonos y cobros. Se lee en cualquier navegador y se imprime o se guarda en PDF desde él
    (Imprimir > Guardar como PDF).
 
 3. «Todos los datos.xlsx»: una pestaña por tipo de dato (pacientes, sesiones, anamnesis, citas…),

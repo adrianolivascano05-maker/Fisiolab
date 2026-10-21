@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createAppointment } from "../data/appointments";
+import { createPack } from "../data/billing";
 import { saveAnamnesis, saveFinding, saveSession } from "../data/clinical";
 import { saveSignedConsent } from "../data/consents";
 import { createPatient } from "../data/repo";
@@ -31,6 +32,7 @@ describe("exportación completa", () => {
     await saveSession(db, pid, { performedAt: "2026-10-01T09:00:00.000Z", pain: 5, subjective: "Mejor que ayer", objective: "Flexión limitada", treatment: "Terapia manual y ejercicio", plan: "Puente de glúteo 3x10", reviewOn: null, nextAt: null, nextMinutes: null });
     await saveFinding(db, pid, { galleryTest: "slr", testName: "Lasègue", region: "lumbar", performedAt: "2026-10-01T09:10:00.000Z", side: "left", result: "positive", notes: "a 45°" });
     await createAppointment(db, pid, { startsAt: "2026-11-02T10:00:00.000Z", minutes: 45 });
+    await createPack(db, pid, { title: "Bono 10 sesiones", sessions: 10, priceCents: 35000, boughtOn: "2026-10-01", expiresOn: null, note: "" }, "bizum");
     await saveSignedConsent(
       db,
       pid,
@@ -67,14 +69,14 @@ describe("exportación completa", () => {
 
     // La historia de Lucía: todo lo registrado, legible.
     const html = text(files.get("Historias clinicas/Lucía Pérez.html"));
-    for (const t of ["Dolor lumbar al levantarse", "6/10", "Lumbar", "Mejor que ayer", "Terapia manual y ejercicio", "Puente de glúteo 3x10", "Lasègue", "Positivo", "Alérgica al látex", "Dolor leve transitorio", "Firma del paciente", "<img", "02/11/2026 11:00", "Pendiente"])
+    for (const t of ["Dolor lumbar al levantarse", "6/10", "Lumbar", "Mejor que ayer", "Terapia manual y ejercicio", "Puente de glúteo 3x10", "Lasègue", "Positivo", "Alérgica al látex", "Dolor leve transitorio", "Firma del paciente", "<img", "02/11/2026 11:00", "Pendiente", "Bono 10 sesiones", "Bizum"])
       expect(html, t).toContain(t);
     expect(text(files.get("Indice de pacientes.html"))).toContain("Historias%20clinicas/Luc%C3%ADa%20P%C3%A9rez.html");
 
     // El Excel: una pestaña por tipo de dato.
     const xlsx = await readZip(files.get("Todos los datos.xlsx")!);
     const workbook = text(xlsx.get("xl/workbook.xml"));
-    for (const sheet of ["Pacientes", "Motivos de consulta", "Anamnesis", "Sesiones", "Exploración", "Mediciones", "Cuestionarios", "Bienestar", "Consentimientos", "Citas"])
+    for (const sheet of ["Pacientes", "Motivos de consulta", "Anamnesis", "Sesiones", "Exploración", "Mediciones", "Cuestionarios", "Bienestar", "Consentimientos", "Citas", "Bonos", "Cobros"])
       expect(workbook, sheet).toContain(`name="${sheet}"`);
     const pacientes = await readTable(files.get("Todos los datos.xlsx")!, "x.xlsx");
     expect(pacientes[0]).toEqual(["Código", "Nombre", "Fecha de nacimiento", "Sexo", "Teléfono", "Correo", "Dirección", "Peso (kg)", "Altura (cm)", "Notas", "Alta en Cénit", "Última modificación"]);

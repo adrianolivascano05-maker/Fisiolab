@@ -1,4 +1,4 @@
-import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, ShieldAlert, ShieldCheck, Stethoscope, type LucideIcon } from "lucide-react";
+import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, Dumbbell, ShieldAlert, ShieldCheck, Stethoscope, Wallet, type LucideIcon } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
@@ -10,6 +10,8 @@ import { PainChart, ResultBadge, sideShort } from "../clinical/parts";
 import { PatientShell } from "../clinical/PatientShell";
 import { LSI_REFERENCE, symmetryRows } from "../clinical/symmetry";
 import { buildTimeline, painSeries, type EventKind } from "../clinical/timeline";
+import { accountLine, patientAccount } from "../data/billing";
+import { listPlans } from "../data/exercises";
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
@@ -49,7 +51,8 @@ export function PatientPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed] = await Promise.all([
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans] = await Promise.all([
       getPatient(db, id),
       listTests(db, id),
       listWellness(db, id),
@@ -58,13 +61,15 @@ export function PatientPage() {
       listFindings(db, id),
       listQuestionnaires(db, id),
       listConsents(db, id),
+      patientAccount(db, id, today),
+      listPlans(db, id),
     ]);
-    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed };
+    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans };
   }, [id]);
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Paciente" backTo="/"><Loading /></Page>;
-  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed } = data.data;
+  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   // Consentimientos: los firmados vigentes y los que su anamnesis pide por escrito y faltan.
   const consentCtx = consentContext(patient, anamnesis?.answers ?? {});
@@ -146,6 +151,19 @@ export function PatientPage() {
         />
         <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Completo o de alta; imprimir o guardar en PDF" />
         <RowLink to={`/pacientes/${id}/justificante`} icon={FileCheck} title="Justificante de asistencia" subtitle="Para su trabajo o su centro de estudios" />
+        <RowLink
+          to={`/pacientes/${id}/ejercicios`}
+          icon={Dumbbell}
+          title="Ejercicios para casa"
+          subtitle={plans.length ? `Hoja del ${fmtDate(plans[0]!.updatedAt)} · ${plans[0]!.items.length === 1 ? "1 ejercicio" : `${plans[0]!.items.length} ejercicios`}` : "Hoja para imprimir o enviar por WhatsApp"}
+        />
+        <RowLink
+          to={`/pacientes/${id}/cobros`}
+          icon={Wallet}
+          tone={account.balanceCents > 0 ? "warning" : "accent"}
+          title="Bonos y cobros"
+          subtitle={accountLine(account) ?? "Vender un bono o apuntar un cobro"}
+        />
       </Group>
 
       {/* Lo clínico: por qué viene, banderas y dolor. */}
@@ -169,6 +187,7 @@ export function PatientPage() {
                 </p>
               )}
               {summary.location && <p className="text-sm text-text-muted">Localización: {summary.location}</p>}
+              {summary.painMap && <p className="text-sm text-text-muted">Mapa del dolor: {summary.painMap}</p>}
               {summary.diagnosis && <p className="text-sm">Diagnóstico fisioterápico: {summary.diagnosis}</p>}
               {summary.goal && <p className="text-sm text-text-muted">Objetivo: {summary.goal}</p>}
             </Card>

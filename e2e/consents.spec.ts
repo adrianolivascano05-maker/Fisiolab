@@ -20,7 +20,7 @@ test.describe("Consentimientos", () => {
     await createPatient(page, { name: "Marta Consentimiento" });
     await tab(page, "Anamnesis").click();
     await page.getByLabel("Motivo principal").fill("Dolor cervical");
-    await page.getByText("Cervical", { exact: true }).click();
+    await page.getByRole("group", { name: "Zona", exact: true }).getByText("Cervical", { exact: true }).click();
     await page.getByLabel("Enfermedades previas").fill("Diabetes tipo 2");
     await page.getByText("Toma anticoagulantes o antiagregantes").click();
     await page.getByLabel("Plan de intervención propuesto").fill("Punción seca en trapecio superior y ejercicio");

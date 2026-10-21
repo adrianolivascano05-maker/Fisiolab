@@ -16,6 +16,9 @@ import schedule015 from "./migrations/015_schedule.sql?raw";
 import editors016 from "./migrations/016_editors.sql?raw";
 import deltas017 from "./migrations/017_deltas.sql?raw";
 import reminders018 from "./migrations/018_reminders.sql?raw";
+import billing019 from "./migrations/019_billing.sql?raw";
+import waitlist020 from "./migrations/020_waitlist.sql?raw";
+import exercises021 from "./migrations/021_exercises.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -37,4 +40,7 @@ export const migrations: Migration[] = [
   { version: 16, sql: editors016 },
   { version: 17, sql: deltas017 },
   { version: 18, sql: reminders018 },
+  { version: 19, sql: billing019 },
+  { version: 20, sql: waitlist020 },
+  { version: 21, sql: exercises021 },
 ];

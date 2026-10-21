@@ -19,7 +19,7 @@ export async function ensureDevice(db: Db, email: string, name: string): Promise
 }
 
 /** Tablas de un paciente con su columna patient_id (además de patients y anamnesis, cuya clave es el paciente). */
-export const PATIENT_TABLES = ["episodes", "tests", "wellness", "findings", "sessions", "appointments", "questionnaires", "consents"];
+export const PATIENT_TABLES = ["episodes", "tests", "wellness", "findings", "sessions", "appointments", "questionnaires", "consents", "packs", "payments", "waitlist", "exercise_plans"];
 
 type Row = { at: string; device: string; email: string | null; name: string | null; here: string };
 
@@ -70,6 +70,10 @@ const WHAT: Record<string, string> = {
   consents: "un consentimiento",
   tests: "una medición",
   wellness: "un registro de bienestar",
+  packs: "un bono",
+  payments: "un cobro",
+  waitlist: "la lista de espera",
+  exercise_plans: "una hoja de ejercicios",
 };
 
 /**

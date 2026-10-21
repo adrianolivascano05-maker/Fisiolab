@@ -15,6 +15,8 @@ import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { safeName } from "../cloud/saveToDrive";
 import { Button } from "../ui/Button";
 import { ANAMNESIS, answerText } from "./anamnesis";
+import { BodyFigures } from "./BodyMap";
+import { parseMarks } from "./bodyMap";
 import { findTest, resultMeaning } from "./galleryLink";
 import { trends } from "./measures";
 import { questionnaireGroups } from "./outcomeParts";
@@ -165,7 +167,10 @@ export function ReportPage() {
                       {rows.map((f) => (
                         <div key={f.id} className="grid grid-cols-[minmax(0,13rem)_1fr] gap-3">
                           <dt className="text-text-muted">{f.label}</dt>
-                          <dd className="whitespace-pre-line">{answerText(f, a[f.id] ?? null)}</dd>
+                          <dd className="flex flex-col gap-1 whitespace-pre-line">
+                            {f.type === "bodymap" && <BodyFigures marks={parseMarks(a[f.id])} className="max-w-sm" />}
+                            {answerText(f, a[f.id] ?? null)}
+                          </dd>
                         </div>
                       ))}
                     </dl>

@@ -1,7 +1,7 @@
 // Pantallas de la ficha clínica: anamnesis, mediciones (con cuestionarios y simetría) y sesiones. La exploración
 // (tests especiales) está en ExplorationPages.tsx, para no cargar la Guía de tests al abrir las demás.
 import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Trash } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { decimalText, fmt, fmtDate, fmtDateTime, parseDecimal, testTitle } from "../app/format";
 import { bumpData } from "../app/dataVersion";
@@ -40,6 +40,8 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
 import { ANAMNESIS, ALL_FIELDS, answerText, answeredCount, clinicalSummary, orphanAnswers, regionLabel, type Field } from "./anamnesis";
+import { BodyFigures, BodyMapInput } from "./BodyMap";
+import { parseMarks, regionsOf } from "./bodyMap";
 import { AnalysisNav, TestList } from "./measureParts";
 import { mainValue, trends } from "./measures";
 import { QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
@@ -82,7 +84,28 @@ function FieldInput({ field, value, onChange }: { field: Field; value: AnswerVal
       );
     case "number":
       return <NumberField label={field.label} unit={field.unit} hint={field.hint} value={typeof value === "number" ? String(value).replace(".", ",") : s} onChange={(e) => onChange(e.target.value)} />;
+    case "bodymap":
+      return <BodyMapInput label={field.label} hint={field.hint} value={value} onChange={onChange} />;
   }
+}
+
+/** Lo marcado en el mapa del dolor propone la zona y el lado (para los tests de exploración), si faltan. */
+function MapSuggestion({ draft, onApply }: { draft: Answers; onApply: (regions: string[], side: string | null) => void }) {
+  const { regions, side } = regionsOf(parseMarks(draft.mapa_dolor));
+  const have = Array.isArray(draft.regiones) ? draft.regiones : [];
+  const missing = regions.filter((r) => !have.includes(r));
+  const newSide = side && !draft.lado ? side : null;
+  if (!missing.length && !newSide) return null;
+  return (
+    <div className="flex flex-col gap-2 rounded-md bg-accent-soft p-3">
+      <p className="text-sm">
+        Por lo marcado: {[missing.length > 0 && `zona ${missing.map(regionLabel).join(", ")}`, newSide && `lado ${newSide.toLowerCase()}`].filter(Boolean).join(" y ")}. Así la app te propone sus tests.
+      </p>
+      <Button size="sm" variant="secondary" className="self-start" onClick={() => onApply([...have, ...missing], newSide)}>
+        Añadir a Zona y Lado
+      </Button>
+    </div>
+  );
 }
 
 /** Nombre, edad, sexo y contacto vienen de los datos del paciente (se editan allí). */
@@ -294,7 +317,12 @@ export function AnamnesisPage() {
                     </div>
                   )}
                   {section.fields.map((f) => (
-                    <FieldInput key={f.id} field={f} value={draft[f.id]} onChange={set(f.id)} />
+                    <Fragment key={f.id}>
+                      <FieldInput field={f} value={draft[f.id]} onChange={set(f.id)} />
+                      {f.type === "bodymap" && (
+                        <MapSuggestion draft={draft} onApply={(regiones, lado) => setDraft((d) => ({ ...(d ?? {}), regiones, ...(lado ? { lado } : {}) }))} />
+                      )}
+                    </Fragment>
                   ))}
                   {section.id === "exploracion" && <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />}
                 </div>
@@ -354,6 +382,11 @@ export function AnamnesisPage() {
                 {rows.map((f) => (
                   <div key={f.id} className="flex flex-col">
                     <dt className="text-sm text-text-muted">{f.label}</dt>
+                    {f.type === "bodymap" && (
+                      <dd>
+                        <BodyFigures marks={parseMarks(a[f.id])} className="max-w-md py-1" />
+                      </dd>
+                    )}
                     <dd className="whitespace-pre-line">{answerText(f, a[f.id] ?? null)}</dd>
                   </div>
                 ))}

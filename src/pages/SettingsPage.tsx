@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   Database,
   Download,
+  Dumbbell,
   FileSpreadsheet,
   FileUp,
   Lock,
@@ -15,6 +16,7 @@ import {
   ShieldCheck,
   UserRound,
   UsersRound,
+  Wallet,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
@@ -95,6 +97,8 @@ export function SettingsPage() {
         )}
         <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
         <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
+        <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, lo cobrado y lo pendiente" />
+        <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />
       </Group>
 
       {cloud?.operator && (

@@ -5,6 +5,7 @@
 // los datos del paciente.
 import { PRECAUTIONS } from "../consent/precautions";
 import type { AnswerValue, Answers } from "../data/clinical";
+import { marksText } from "./bodyMap";
 
 type Base = { id: string; label: string; hint?: string };
 export type Field =
@@ -12,7 +13,9 @@ export type Field =
   | (Base & { type: "number"; unit: string; min: number; max: number })
   /** Escala 0-10 (EVA). */
   | (Base & { type: "scale" })
-  | (Base & { type: "choice" | "multi"; options: string[] });
+  | (Base & { type: "choice" | "multi"; options: string[] })
+  /** Mapa del dolor: zonas del dibujo con síntoma e intensidad (src/clinical/bodyMap.ts). */
+  | (Base & { type: "bodymap" });
 export type Section = { id: string; title: string; fields: Field[] };
 
 /** Articulaciones (los mismos ids que la galería de tests, para proponer los tests de la zona). */
@@ -62,6 +65,7 @@ export const ANAMNESIS: Section[] = [
       { id: "fecha_inicio", label: "Fecha de inicio", type: "text", hint: "Una fecha o «hace 3 semanas»." },
       { id: "forma_inicio", label: "Forma de inicio", type: "choice", options: ["Súbito", "Progresivo"] },
       { id: "localizacion", label: "Localización del dolor/síntoma", type: "text" },
+      { id: "mapa_dolor", label: "Mapa del dolor", type: "bodymap", hint: "Toca en el dibujo dónde le duele o lo nota, de frente o de espaldas." },
       { id: "tipo_dolor", label: "Tipo de dolor", type: "text" },
       { id: "eva", label: "Intensidad (EVA 0-10)", type: "scale" },
       { id: "agravantes", label: "Factores agravantes", type: "textarea" },
@@ -159,6 +163,7 @@ export const getField = (id: string) => fieldById.get(id);
 /** Texto de una respuesta para leerla (en la ficha, el resumen y el informe). */
 export function answerText(field: Field | undefined, v: AnswerValue): string {
   if (v === null || v === undefined || v === "") return "";
+  if (field?.type === "bodymap") return marksText(v);
   if (Array.isArray(v)) return v.map((x) => (field?.id === "regiones" ? regionLabel(x) : x)).join(", ");
   if (typeof v === "boolean") return v ? "Sí" : "No";
   if (field?.type === "number") return `${String(v).replace(".", ",")}${field.unit ? ` ${field.unit}` : ""}`;
@@ -180,6 +185,7 @@ export function clinicalSummary(a: Answers) {
     regions: list(a, "regiones"),
     side: str(a, "lado"),
     location: str(a, "localizacion"),
+    painMap: marksText(a.mapa_dolor),
     referral: str(a, "derivado_por"),
     diagnosis: str(a, "diagnostico_funcional"),
     painNow: typeof a.eva === "number" ? a.eva : null,

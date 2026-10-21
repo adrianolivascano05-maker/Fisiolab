@@ -61,13 +61,13 @@ En el segundo estudio, la peor calidad percibida está en **la parte clínica** 
 
 | # | Qué | Tamaño | Evidencia |
 | --- | --- | --- | --- |
-| 1 | **Recordatorios en un toque**: lista de citas de mañana con su mensaje listo para WhatsApp o email (sin servicios de pago); confirmar, anular o pedir cambio; permiso del paciente para WhatsApp | S-M | Lo tienen todos; Clinic Cloud lo hace a mano igualmente |
-| 2 | **Justificante de asistencia** y documentos rutinarios en PDF desde la cita o la sesión | S | 87,1 % |
-| 3 | **Panel de la clínica**: sesiones, pacientes nuevos y activos, ausencias y anulaciones, por profesional | S-M | Doctoralia, FisioTools |
-| 4 | **Mapa corporal** en la anamnesis: tocar zonas (delante y detrás), intensidad, en el informe | M | 74,3 % |
-| 5 | **Bonos de sesiones y cobros** (sin facturas aún): bono de N sesiones, se descuenta al atender, lo pendiente | M | 79,8 %, Clinic Cloud y Doctoralia |
-| 6 | **Lista de espera**: al anular una cita, quién quería ese hueco | S | Doctoralia (plan VIP) |
-| 7 | **Hoja de ejercicios** para casa: plantillas por zona, enviar por WhatsApp o PDF | M-L | 74,3 % (plantillas de ejercicios), Physitrack |
+| 1 | ✅ **Recordatorios en un toque**: lista de citas de mañana con su mensaje listo para WhatsApp o email (sin servicios de pago); confirmar, anular o pedir cambio; permiso del paciente para WhatsApp | S-M | Lo tienen todos; Clinic Cloud lo hace a mano igualmente |
+| 2 | ✅ **Justificante de asistencia** y documentos rutinarios en PDF desde la cita o la sesión | S | 87,1 % |
+| 3 | ✅ **Panel de la clínica**: sesiones, pacientes nuevos y activos, ausencias y anulaciones, por profesional | S-M | Doctoralia, FisioTools |
+| 4 | ✅ **Mapa corporal** en la anamnesis: tocar zonas (delante y detrás), intensidad, en el informe | M | 74,3 % |
+| 5 | ✅ **Bonos de sesiones y cobros** (sin facturas aún): bono de N sesiones, se descuenta al atender, lo pendiente | M | 79,8 %, Clinic Cloud y Doctoralia |
+| 6 | ✅ **Lista de espera**: al anular una cita, quién quería ese hueco | S | Doctoralia (plan VIP) |
+| 7 | ✅ **Hoja de ejercicios** para casa: plantillas por zona, enviar por WhatsApp o PDF | M-L | 74,3 % (plantillas de ejercicios), Physitrack |
 | 8 | Facturación con Verifactu | L | 79,8 %; requiere asesoría (requisitos del software de facturación) |
 | 9 | Reserva online / portal del paciente | L | 65,5 %; choca con el cifrado: diseño aparte |
 

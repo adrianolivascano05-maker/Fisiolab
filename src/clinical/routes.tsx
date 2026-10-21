@@ -14,6 +14,8 @@ const QuestionnairesPage = lazy(() => pages().then((m) => ({ default: m.Question
 const QuestionnaireFormPage = lazy(() => pages().then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
 const AttendancePage = lazy(() => import("./AttendancePage").then((m) => ({ default: m.AttendancePage })));
+const ExercisesPage = lazy(() => import("./ExercisesPage").then((m) => ({ default: m.ExercisesPage })));
+const BillingPage = lazy(() => import("./BillingPage").then((m) => ({ default: m.BillingPage })));
 const DischargePage = lazy(() => import("./DischargePage").then((m) => ({ default: m.DischargePage })));
 const PatientPrivacyPage = lazy(() => import("../privacy/PatientPrivacyPage").then((m) => ({ default: m.PatientPrivacyPage })));
 const consents = () => import("../consent/ConsentPages");
@@ -37,6 +39,8 @@ export const clinicalRoutes = [
   { path: "/pacientes/:id/informe", element: l(<ReportPage />) },
   { path: "/pacientes/:id/justificante", element: l(<AttendancePage />) },
   { path: "/pacientes/:id/alta", element: l(<DischargePage />) },
+  { path: "/pacientes/:id/cobros", element: l(<BillingPage />) },
+  { path: "/pacientes/:id/ejercicios", element: l(<ExercisesPage />) },
   { path: "/pacientes/:id/proteccion-datos", element: l(<PatientPrivacyPage />) }, // src/privacy
   { path: "/pacientes/:id/consentimientos", element: l(<ConsentListPage />) }, // src/consent
   { path: "/pacientes/:id/consentimientos/nuevo", element: l(<ConsentNewPage />) },

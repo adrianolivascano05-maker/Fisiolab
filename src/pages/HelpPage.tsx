@@ -1,5 +1,5 @@
 // «Cómo se usa»: cómo está organizada la app y dónde está cada cosa.
-import { BookOpen, Settings, Users } from "lucide-react";
+import { BookOpen, CalendarDays, Settings, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { SUPPORT_EMAIL } from "../app/contact";
@@ -67,6 +67,25 @@ const steps: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    title: "Bonos, cobros y ejercicios para casa",
+    body: (
+      <>
+        También en el Resumen: <b>Bonos y cobros</b> (vende un bono de sesiones, que se gasta solo al apuntar cada sesión, y apunta lo que te paga;
+        el precio de la sesión, en Ajustes → Precios y cobros) y <b>Ejercicios para casa</b> (su hoja, desde la biblioteca de la clínica, para
+        imprimir o enviar por WhatsApp). En la anamnesis, el <b>mapa del dolor</b>: toca en el dibujo dónde le duele.
+      </>
+    ),
+  },
+  {
+    title: "La agenda",
+    body: (
+      <>
+        Toca un hueco para dar una cita. <b>Recordatorios</b> prepara el WhatsApp o el correo de las citas de mañana. Si alguien quiere venir antes,
+        apúntalo en la <b>Lista de espera</b>: al anular una cita, la app te ofrece su hueco.
+      </>
+    ),
+  },
+  {
     title: "Pasar de una sección a otra",
     body: (
       <>
@@ -80,6 +99,7 @@ const steps: { title: string; body: ReactNode }[] = [
 
 const places: { icon: typeof Users; name: string; text: string }[] = [
   { icon: Users, name: "Pacientes", text: "tus pacientes, sus próximas citas y las reevaluaciones pendientes." },
+  { icon: CalendarDays, name: "Agenda", text: "las citas del día o de la semana, los recordatorios y la lista de espera." },
   { icon: BookOpen, name: "Guía de tests", text: "212 tests de exploración por articulación. Desde un test, «Registrar el resultado» lo apunta en el paciente que estabas viendo." },
   { icon: Settings, name: "Ajustes", text: "tu cuenta, los datos de la clínica, el PIN, las copias y la instalación. Un punto rojo avisa si falta algo." },
 ];

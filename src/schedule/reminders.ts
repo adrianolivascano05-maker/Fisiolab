@@ -32,6 +32,11 @@ export function reminderText(template: string, v: ReminderVars): string {
     .replace(/ en la clínica la clínica/g, " en la clínica");
 }
 
+/** El mensaje para ofrecer un hueco que se ha quedado libre a quien está en la lista de espera. */
+export function offerText(v: ReminderVars): string {
+  return `Hola, ${firstName(v.name)}. Se ha quedado libre un hueco de fisioterapia${v.professional ? ` con ${v.professional}` : ""} en ${v.clinic.trim() || "la clínica"} el ${dayText(v.startsAt)} a las ${hourText(v.startsAt)}. ¿Te viene bien? Responde a este mensaje y te lo guardamos.`;
+}
+
 /**
  * El teléfono para WhatsApp: solo cifras y con el prefijo del país. Un móvil o fijo español de 9 cifras lleva el 34;
  * «+44…» o «0044…» se quedan con el suyo. null si no parece un teléfono.

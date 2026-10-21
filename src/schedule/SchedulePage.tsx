@@ -3,7 +3,7 @@
 // de persona) y se puede deshacer; tocar un hueco da una cita o pone un turno. Sirve igual a quien trabaja solo (sin
 // equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
 // compartida: cada compañero ve los cambios de los demás en su dispositivo, solo.
-import { BellRing, CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Plus, Undo2 } from "lucide-react";
+import { BellRing, CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Hourglass, Plus, Undo2 } from "lucide-react";
 import { Link } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { bumpData } from "../app/dataVersion";
@@ -14,6 +14,7 @@ import { fmtVisit } from "../clinical/calendar";
 import { addDays, localInput, todayDay } from "../clinical/pageKit";
 import { useCloud, useSyncState } from "../cloud/CloudGate";
 import { agenda, remindersBetween, updateAppointment, type AgendaItem } from "../data/appointments";
+import { waitlistCount } from "../data/waitlist";
 import { getDb } from "../data/db";
 import { copyWeekForward, shiftsBetween, staffColor, type Shift } from "../data/schedule";
 import { Button, IconButton } from "../ui/Button";
@@ -84,6 +85,7 @@ export function SchedulePage() {
       ).length,
     [tomorrow, data.data],
   );
+  const waiting = useAsync(() => waitlistCount(getDb()), [data.data]);
 
   useEffect(() => {
     try {
@@ -233,6 +235,18 @@ export function SchedulePage() {
             <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
               {toRemind.data}
               <span className="sr-only"> de mañana sin recordar</span>
+            </span>
+          )}
+        </Link>
+        <Link
+          to="/agenda/espera"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
+        >
+          <Hourglass aria-hidden="true" className="size-5 text-accent" /> Lista de espera
+          {!!waiting.data && (
+            <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
+              {waiting.data}
+              <span className="sr-only"> esperando</span>
             </span>
           )}
         </Link>

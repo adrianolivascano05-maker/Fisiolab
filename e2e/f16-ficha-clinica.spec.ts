@@ -295,7 +295,7 @@ test.describe("F16 Ficha clínica", () => {
     await form.getByRole("button", { name: "Crear y rellenar su anamnesis" }).click();
     await expect(page.getByLabel("Motivo principal")).toHaveValue("Dolor lumbar");
     await expect(page.getByLabel("Profesión")).toHaveValue("Enfermera");
-    await page.getByText("Lumbar", { exact: true }).click();
+    await page.getByRole("group", { name: "Zona", exact: true }).getByText("Lumbar", { exact: true }).click();
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByRole("button", { name: /Motivo: Dolor lumbar/ })).toBeVisible();
 

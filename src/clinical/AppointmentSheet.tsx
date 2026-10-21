@@ -1,7 +1,7 @@
 // Dar, cambiar o cerrar una cita (src/data/appointments.ts): desde la cabecera de la ficha (la próxima cita o «Dar
 // cita») y desde la agenda de hoy en Pacientes. Al cambiar algo se recargan las pantallas (y, con la cuenta de
 // Google, el calendario se pone al día solo). En una clínica, también con quién es (el horario, src/schedule).
-import { CalendarClock, CalendarX2, FileCheck, NotebookPen, Pencil, RotateCcw, Trash, UserPlus, UserX } from "lucide-react";
+import { CalendarClock, CalendarX2, FileCheck, Hourglass, NotebookPen, Pencil, RotateCcw, Trash, UserPlus, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
@@ -11,6 +11,7 @@ import { getDb } from "../data/db";
 import { createPatient, listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
 import { editText, lastEditOf } from "../data/editors";
 import { memberEmail } from "../data/member";
+import { listWaitlist } from "../data/waitlist";
 import { staffName, useStaff } from "../schedule/useStaff";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -63,6 +64,11 @@ export function AppointmentSheet({
   const [repeat, setRepeat] = useState(1);
   /** Citas que ya hay a esa hora: se avisa antes de dar la cita. */
   const [clash, setClash] = useState<AgendaItem[] | null>(null);
+  /** Al anular o borrar una cita futura con gente en la lista de espera: el hueco, para ofrecérselo. */
+  const [freed, setFreed] = useState<{ startsAt: string; minutes: number; assignedTo: string | null; waiting: number } | null>(null);
+  useEffect(() => {
+    if (open) setFreed(null);
+  }, [open]);
 
   // Cada vez que se abre: con los datos de la cita, o vacía para dar una nueva.
   useEffect(() => {
@@ -121,6 +127,25 @@ export function AppointmentSheet({
     );
   };
   const setStatus = (status: AppointmentStatus, done: string) => run(() => updateAppointment(getDb(), appointment!.id, { status }), done);
+  /** Anular o borrar: si el hueco es futuro y alguien lo espera, se ofrece en vez de cerrar. */
+  async function release(work: () => Promise<unknown>, done: string) {
+    const a = appointment!;
+    setBusy(true);
+    setError(null);
+    try {
+      await work();
+      toast(done, "success");
+      bumpData();
+      const forWhom = staff.length && a.assignedTo ? a.assignedTo : undefined;
+      const waiting = Date.parse(a.startsAt) > Date.now() ? (await listWaitlist(getDb(), forWhom)).filter((w) => w.patientId !== a.patientId).length : 0;
+      if (waiting) setFreed({ startsAt: a.startsAt, minutes: a.minutes, assignedTo: a.assignedTo ?? null, waiting });
+      else onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   /** Mover la cita sin escribir: una hora, un día o una semana antes o después. */
   const nudge = (minutes: number, label: string) => {
     const d = new Date(appointment!.startsAt);
@@ -131,8 +156,24 @@ export function AppointmentSheet({
   const name = patientName ?? picked?.name ?? "";
 
   return (
-    <Sheet open={open} onClose={onClose} title={appointment && !editing ? `Cita de ${name}` : appointment ? "Cambiar la cita" : patientName ? `Dar cita a ${patientName}` : "Nueva cita"}>
-      {appointment && !editing ? (
+    <Sheet open={open} onClose={onClose} title={freed ? "Hueco libre" : appointment && !editing ? `Cita de ${name}` : appointment ? "Cambiar la cita" : patientName ? `Dar cita a ${patientName}` : "Nueva cita"}>
+      {freed ? (
+        <div className="flex flex-col gap-3">
+          <Alert tone="info" title={freed.waiting === 1 ? "Hay 1 paciente en la lista de espera" : `Hay ${freed.waiting} pacientes en la lista de espera`}>
+            Se ha quedado libre el hueco del {fmtVisit(freed.startsAt)}. ¿Se lo ofreces?
+          </Alert>
+          <Link
+            to={`/agenda/espera?${new URLSearchParams({ hueco: freed.startsAt, min: String(freed.minutes), ...(freed.assignedTo ? { con: freed.assignedTo } : {}) })}`}
+            onClick={onClose}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover"
+          >
+            <Hourglass aria-hidden="true" className="size-5" /> Ofrecer el hueco
+          </Link>
+          <Button variant="secondary" onClick={onClose}>
+            Ahora no
+          </Button>
+        </div>
+      ) : appointment && !editing ? (
         <>
           <p>
             <span className="font-semibold">{fmtVisit(appointment.startsAt)}</span> · {appointment.minutes} min ·{" "}
@@ -171,7 +212,7 @@ export function AppointmentSheet({
               <Button variant="secondary" loading={busy} icon={<UserX aria-hidden="true" className="size-5" />} onClick={() => void setStatus("no_show", "Anotado: no vino")}>
                 No vino
               </Button>
-              <Button variant="secondary" loading={busy} icon={<CalendarX2 aria-hidden="true" className="size-5" />} onClick={() => void setStatus("cancelled", "Cita anulada")}>
+              <Button variant="secondary" loading={busy} icon={<CalendarX2 aria-hidden="true" className="size-5" />} onClick={() => void release(() => updateAppointment(getDb(), appointment.id, { status: "cancelled" }), "Cita anulada")}>
                 Anular
               </Button>
             </div>
@@ -208,7 +249,7 @@ export function AppointmentSheet({
               <FileCheck aria-hidden="true" className="size-5" /> Justificante de asistencia
             </Link>
           )}
-          <Button variant="ghost" className="text-danger" loading={busy} icon={<Trash aria-hidden="true" className="size-5" />} onClick={() => void run(() => deleteAppointment(getDb(), appointment.id), "Cita borrada")}>
+          <Button variant="ghost" className="text-danger" loading={busy} icon={<Trash aria-hidden="true" className="size-5" />} onClick={() => void release(() => deleteAppointment(getDb(), appointment.id), "Cita borrada")}>
             Borrar la cita
           </Button>
         </>
@@ -300,7 +341,7 @@ export function AppointmentSheet({
 }
 
 /** Elegir el paciente de una cita nueva (desde la agenda): buscar por nombre o teléfono y tocarlo. */
-function PatientPicker({ picked, onPick }: { picked: { id: string; name: string } | null; onPick: (p: { id: string; name: string } | null) => void }) {
+export function PatientPicker({ picked, onPick }: { picked: { id: string; name: string } | null; onPick: (p: { id: string; name: string } | null) => void }) {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
   const all = useAsync(() => listPatients(getDb()), []);
