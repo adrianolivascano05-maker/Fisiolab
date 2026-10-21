@@ -43,6 +43,45 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await expect(page.getByRole("link", { name: /Intacto/ })).toBeVisible();
   });
 
+  test("F15-H3 traer pacientes de otro programa (CSV de Excel): se revisa, se importa y se puede deshacer", async ({ page }) => {
+    await page.goto("./");
+    await page.getByRole("link", { name: "Trae tus pacientes desde Excel" }).click();
+    await expect(page.getByRole("heading", { name: "Traer pacientes" })).toBeVisible();
+    await createPatient(page, { name: "Luis Pérez" });
+    await page.goto("./ajustes/datos");
+    await page.getByRole("link", { name: /Importar pacientes/ }).click();
+    // Un CSV como los de Excel en español: punto y coma y Windows-1252 (tildes en un byte).
+    const csv = "Nombre;Apellidos;F. Nac.;Sexo;Móvil;Población;DNI\r\nAna;Ruiz López;12/03/1985;M;612345678;Sevilla;12345678Z\r\nLuis;Pérez;;H;;;\r\nMarta;Gil;31/02/1990;F;699000111;;\r\n";
+    await page.getByLabel("Elegir el archivo de pacientes").setInputFiles({ name: "pacientes.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "latin1") });
+    await expect(page.getByRole("heading", { name: "Qué es cada columna" })).toBeVisible();
+    await expect(page.getByLabel("Población")).toHaveValue("address");
+    await expect(page.getByLabel("DNI")).toHaveValue("notes");
+    const summary = page.getByRole("region", { name: "Qué va a pasar" });
+    await expect(summary.getByText("Se importan 2 pacientes")).toBeVisible();
+    await expect(summary.getByText(/1 ya existe con el mismo nombre/)).toBeVisible();
+    await expect(summary.getByText(/1 valor no se ha reconocido/)).toBeVisible();
+    await expect(summary.getByRole("cell", { name: "Ana Ruiz López" })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Importar 2 pacientes" }).click();
+    await expect(page.getByText("2 pacientes importados").first()).toBeVisible();
+
+    await page.goto("./");
+    await page.getByRole("link", { name: /Ana Ruiz López/ }).click();
+    await expect(page.getByText("612345678")).toBeVisible();
+    await page.goto("./");
+    await expect(page.getByRole("link", { name: /Luis Pérez/ })).toHaveCount(1);
+    await expect(page.getByRole("link", { name: /Marta Gil/ })).toBeVisible();
+
+    // Deshacer: se van los importados; Luis, que ya estaba, se queda.
+    await page.goto("./ajustes/importar");
+    await page.getByRole("button", { name: "Deshacer la última importación" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Borrar los pacientes importados" }).click();
+    await expect(page.getByText("Importación deshecha: 2 pacientes borrados")).toBeVisible();
+    await page.goto("./");
+    await expect(page.getByRole("link", { name: /Ana Ruiz López|Marta Gil/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Luis Pérez/ })).toBeVisible();
+  });
+
   test("F15-E1 cargar ejemplo no se duplica aunque se pulse rápido", async ({ page }) => {
     await page.goto("./ajustes/datos");
     await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();

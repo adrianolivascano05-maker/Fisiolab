@@ -179,7 +179,11 @@ export function PatientsPage() {
           <p className="py-6 text-center text-text-muted">Ningún paciente coincide con «{search}».</p>
         ) : (
           <EmptyState icon={Users} title="Todavía no hay pacientes">
-            Pulsa + arriba para añadir el primero. Con el nombre basta.
+            Pulsa + arriba para añadir el primero. Con el nombre basta. ¿Vienes de otro programa?{" "}
+            <Link to="/ajustes/importar" className="font-semibold text-accent underline underline-offset-2">
+              Trae tus pacientes desde Excel
+            </Link>
+            .
           </EmptyState>
         )
       ) : search ? (

@@ -16,6 +16,7 @@ const AccountSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) =
 const AsymmetryPage = lazy(() => import("./pages/AsymmetryPage").then((m) => ({ default: m.AsymmetryPage })));
 const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.ClinicSettingsPage })));
 const DataSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.DataSettingsPage })));
+const ImportPatientsPage = lazy(() => import("./pages/ImportPatientsPage").then((m) => ({ default: m.ImportPatientsPage })));
 const ProviderPage = lazy(() => import("./cloud/ProviderPage").then((m) => ({ default: m.ProviderPage })));
 const SchedulePage = lazy(() => import("./schedule/SchedulePage").then((m) => ({ default: m.SchedulePage })));
 const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m.TeamPage })));
@@ -95,6 +96,7 @@ const routes = [
   { path: "/horario", element: <Navigate to="/agenda" replace /> },
   { path: "/ajustes/bloqueo", element: l(<LockSettingsPage />) },
   { path: "/ajustes/datos", element: l(<DataSettingsPage />) },
+  { path: "/ajustes/importar", element: l(<ImportPatientsPage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa
   { path: "/privacidad", element: l(<PrivacyPage />) },
   { path: "/cuenta", element: l(<SignInSetupPage />) }, // Iniciar sesión con Google (sin el ID de cliente publicado)

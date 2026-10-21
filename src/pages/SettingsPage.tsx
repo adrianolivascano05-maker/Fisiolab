@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   Database,
   Download,
+  FileSpreadsheet,
   FileUp,
   Lock,
   MonitorSmartphone,
@@ -261,6 +262,16 @@ export function DataSettingsPage() {
             Restaurar una copia
           </Button>
         </Card>
+      </section>
+
+      <section className="flex flex-col gap-3" aria-labelledby="h-traer">
+        <h2 id="h-traer" className="text-lg">
+          Traer pacientes de otro programa
+        </h2>
+        <p className="text-sm text-text-muted">Desde un Excel o un CSV exportado de tu programa anterior. Antes de importar ves qué va a pasar, y se puede deshacer.</p>
+        <Group>
+          <RowLink to="/ajustes/importar" icon={FileSpreadsheet} title="Importar pacientes" subtitle="Excel (.xlsx) o CSV" />
+        </Group>
       </section>
 
       <section className="flex flex-col gap-3" aria-labelledby="h-exportar">
