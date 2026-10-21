@@ -206,6 +206,7 @@ export function AgendaGrid({
               ref={(el) => {
                 cols.current[ci] = el;
               }}
+              data-day={c.day}
               className="relative border-l border-border"
               style={{ height }}
               onClick={(e) => {

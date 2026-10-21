@@ -18,7 +18,6 @@ import { copyWeekForward, shiftsBetween, staffColor, type Shift } from "../data/
 import { Button, IconButton } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { SelectField } from "../ui/Field";
-import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { AgendaGrid, type Move } from "./AgendaGrid";
 import { atMinutes, dayColumns, personColumns, type Column } from "./layout";
@@ -49,7 +48,7 @@ function savedView(): View {
   return window.innerWidth >= 900 ? "week" : "day";
 }
 
-type Creating = { kind: "ask" | "appointment" | "shift"; start: string; person?: string | null };
+type Creating = { kind: "appointment" | "shift"; start: string; person?: string | null };
 
 export function SchedulePage() {
   const cloud = useCloud();
@@ -164,9 +163,26 @@ export function SchedulePage() {
         <IconButton label={`${noun} siguiente${view === "3days" ? "s" : ""}`} onClick={() => step(1)}>
           <ChevronRight aria-hidden="true" className="size-6" />
         </IconButton>
-        <h2 className="min-w-[10rem] flex-1 truncate text-base font-semibold" aria-live="polite">
-          {title}
-        </h2>
+        <div className="relative min-w-[10rem] flex-1">
+          <h2 className="truncate text-base font-semibold" aria-live="polite">
+            {title}
+          </h2>
+          {/* Tocar la fecha abre el calendario del sistema para ir a cualquier día. */}
+          <input
+            type="date"
+            aria-label="Ir a una fecha"
+            value={anchor}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+            onChange={(e) => e.target.value && setAnchor(e.target.value)}
+            onClick={(e) => {
+              try {
+                e.currentTarget.showPicker();
+              } catch {
+                /* el navegador no lo permite: se abre al tocar igualmente */
+              }
+            }}
+          />
+        </div>
         <div role="group" aria-label="Vista" className="flex rounded-md border border-border p-0.5">
           {VIEWS.map((v) => (
             <button
@@ -254,25 +270,24 @@ export function SchedulePage() {
         showPerson={team && !byPerson && filter === undefined}
         onOpen={setManaging}
         onMove={(m) => void onMove(m)}
-        onSlot={(c, minutes) => setCreating({ kind: team ? "ask" : "appointment", start: atMinutes(c.day, minutes), person: c.person })}
+        onSlot={(c, minutes) => setCreating({ kind: "appointment", start: atMinutes(c.day, minutes), person: c.person })}
         onShift={team ? (s) => (admin || s.staffEmail === me) && setEditingShift(s) : undefined}
       />
       <p className="text-sm text-text-muted">
         Arrastra una cita para moverla (en el móvil, mantenla pulsada un momento); tócala para atenderla, anularla o moverla una hora, un día o una
-        semana. Toca un hueco para dar una cita{team ? " o poner un turno" : ""}.
+        semana. Toca un hueco para dar una cita{team ? " (o, desde ahí, poner un turno)" : ""}. Para ir a otra fecha, tócala arriba.
       </p>
 
-      {creating?.kind === "ask" && (
-        <Sheet open onClose={() => setCreating(null)} title={cap(fmtVisit(creating.start))}>
-          <Button block icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setCreating({ ...creating, kind: "appointment" })}>
-            Dar una cita
-          </Button>
-          <Button block variant="secondary" icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={() => setCreating({ ...creating, kind: "shift" })}>
-            Poner un turno
-          </Button>
-        </Sheet>
+      {creating?.kind === "appointment" && (
+        <AppointmentSheet
+          open
+          onClose={() => setCreating(null)}
+          appointment={null}
+          start={creating.start}
+          person={creating.person}
+          onShiftInstead={team ? () => setCreating({ ...creating, kind: "shift" }) : undefined}
+        />
       )}
-      {creating?.kind === "appointment" && <AppointmentSheet open onClose={() => setCreating(null)} appointment={null} start={creating.start} person={creating.person} />}
       {(creating?.kind === "shift" || editingShift) && (
         <ShiftSheet
           open

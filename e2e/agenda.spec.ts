@@ -158,4 +158,38 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByRole("button", { name: /^Eva Mueve\s*,\s*16:30–17:15/ })).toBeVisible();
     await expectAccessible(page);
   });
+
+  test("AG5 más sencilla: ir a una fecha, tocar un hueco, crear el paciente ahí mismo, una serie semanal y aviso si se pisa", async ({ page }) => {
+    await page.goto("./agenda");
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    await page.getByLabel("Ir a una fecha").fill("2026-10-27");
+    await expect(page.getByRole("heading", { name: "Martes, 27 de octubre" })).toBeVisible();
+
+    // Tocar el hueco de las 10:00 abre directamente la cita; el paciente nuevo se crea con su nombre, sin salir.
+    await page.locator('[data-day="2026-10-27"]').click({ position: { x: 30, y: 3 * 56 + 5 } });
+    const sheet = page.getByRole("dialog", { name: "Nueva cita" });
+    await expect(sheet.getByLabel("Día y hora")).toHaveValue("2026-10-27T10:00");
+    await sheet.getByLabel("Paciente", { exact: true }).fill("Nuria Nueva");
+    await sheet.getByRole("button", { name: "Paciente nuevo: «Nuria Nueva»" }).click();
+    await expect(sheet.getByText("Paciente: Nuria Nueva")).toBeVisible();
+    await sheet.getByLabel("Repetir").selectOption("3");
+    await expectAccessible(page);
+    await sheet.getByRole("button", { name: "Dar las 3 citas" }).click();
+    await expect(page.getByText(/3 citas dadas, una por semana hasta el/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Nuria Nueva\s*,\s*10:00–10:45/ })).toBeVisible();
+    await page.getByLabel("Ir a una fecha").fill("2026-11-10");
+    await expect(page.getByRole("button", { name: /^Nuria Nueva\s*,\s*10:00–10:45/ })).toBeVisible();
+
+    // Otra cita que se pisa con la suya: avisa, y se puede dar igualmente.
+    await page.getByRole("button", { name: "Nueva cita" }).click();
+    await sheet.getByLabel("Día y hora").fill("2026-11-10T10:15");
+    await sheet.getByLabel("Paciente", { exact: true }).fill("Otro Paciente");
+    await sheet.getByRole("button", { name: "Paciente nuevo: «Otro Paciente»" }).click();
+    await expect(sheet.getByText("Paciente: Otro Paciente")).toBeVisible();
+    await sheet.getByRole("button", { name: "Dar la cita" }).click();
+    await expect(sheet.getByText("A esa hora ya hay una cita")).toBeVisible();
+    await expect(sheet.getByText(/Nuria Nueva, /)).toBeVisible();
+    await sheet.getByRole("button", { name: "Darla igualmente" }).click();
+    await expect(page.getByRole("button", { name: /^Otro Paciente\s*,\s*10:15–11:00/ })).toBeVisible();
+  });
 });

@@ -1,6 +1,6 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import { beforeEach, describe, expect, it } from "vitest";
-import { agenda, createAppointment, getAppointment, nextAppointmentOf, updateAppointment, upcomingAppointments } from "./appointments";
+import { agenda, clashes, createAppointment, createWeekly, getAppointment, nextAppointmentOf, updateAppointment, upcomingAppointments } from "./appointments";
 import { deleteSession, nextVisitOf, saveSession, upcomingVisits } from "./clinical";
 import { dbFromHandler, type Db } from "./db";
 import { Engine } from "./engine";
@@ -78,6 +78,30 @@ describe("citas", () => {
     ]);
     expect((await getAppointment(db, a))!.status).toBe("done");
     expect((await getAppointment(db, later))!.status).toBe("scheduled");
+  });
+});
+
+describe("agenda más sencilla", () => {
+  it("avisa de las citas pendientes que se pisan (de la misma persona); las anuladas y la propia no cuentan", async () => {
+    const at = "2026-10-21T08:00:00.000Z";
+    const a = await createAppointment(db, pid, { startsAt: at, minutes: 45, assignedTo: "ana@x.es" });
+    const b = await createAppointment(db, pid, { startsAt: "2026-10-21T09:00:00.000Z", minutes: 30, assignedTo: "luis@x.es" });
+    expect((await clashes(db, "2026-10-21T08:30:00.000Z", 30, "ana@x.es")).map((c) => c.id)).toEqual([a]);
+    expect(await clashes(db, "2026-10-21T08:45:00.000Z", 30, "ana@x.es")).toEqual([]); // empieza cuando acaba
+    expect(await clashes(db, "2026-10-21T08:30:00.000Z", 30, "luis@x.es")).toEqual([]);
+    expect((await clashes(db, "2026-10-21T07:30:00.000Z", 120)).map((c) => c.id)).toEqual([a, b]); // sin equipo, todas
+    expect(await clashes(db, "2026-10-21T08:30:00.000Z", 30, null)).toEqual([]);
+    expect(await clashes(db, at, 45, "ana@x.es", a)).toEqual([]);
+    await updateAppointment(db, a, { status: "cancelled" });
+    expect(await clashes(db, at, 45, "ana@x.es")).toEqual([]);
+  });
+
+  it("una serie: una cita por semana a la misma hora, también al cambiar al horario de invierno", async () => {
+    const ids = await createWeekly(db, pid, { startsAt: new Date("2026-10-14T10:00:00").toISOString(), minutes: 45 }, 3);
+    const list = await agenda(db, "2026-10-01T00:00:00.000Z", "2026-11-30T00:00:00.000Z");
+    expect(list.map((a) => a.id)).toEqual(ids);
+    expect(list.map((a) => new Date(a.startsAt).getHours())).toEqual([10, 10, 10]);
+    expect(list.map((a) => new Date(a.startsAt).getDate())).toEqual([14, 21, 28]);
   });
 });
 

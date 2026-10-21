@@ -85,6 +85,36 @@ export async function agenda(db: Db, from: string, to: string): Promise<AgendaIt
   return rows.map((r) => ({ ...toAppointment(r), name: r.name! }));
 }
 
+/**
+ * Las citas pendientes que se pisan con una de `minutes` minutos a las `startsAt`. `assignedTo`: solo las de esa persona
+ * de la clínica (undefined: todas, sin equipo; null: sin asignar, no se comprueba). `except`: la propia cita, al cambiarla.
+ */
+export async function clashes(db: Db, startsAt: string, minutes: number, assignedTo?: string | null, except?: string): Promise<AgendaItem[]> {
+  if (assignedTo === null) return [];
+  const start = Date.parse(startsAt);
+  const end = start + minutes * 60_000;
+  const near = await agenda(db, new Date(start - 8 * 3_600_000).toISOString(), new Date(end).toISOString());
+  return near.filter(
+    (a) =>
+      a.id !== except &&
+      a.status === "scheduled" &&
+      (assignedTo === undefined || a.assignedTo === assignedTo) &&
+      Date.parse(a.startsAt) < end &&
+      Date.parse(a.startsAt) + a.minutes * 60_000 > start,
+  );
+}
+
+/** Da `count` citas, una por semana a la misma hora, empezando en `startsAt` (una serie de sesiones). Sus ids. */
+export async function createWeekly(db: Db, patientId: string, input: { startsAt: string; minutes: number; assignedTo?: string | null }, count: number): Promise<string[]> {
+  const ids: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(input.startsAt);
+    d.setDate(d.getDate() + 7 * i); // misma hora local aunque cambie el horario de verano
+    ids.push(await createAppointment(db, patientId, { ...input, startsAt: d.toISOString() }));
+  }
+  return ids;
+}
+
 /** Una persona de la clínica: su `sub` de Google y su correo. */
 export type Worker = { sub: string; email: string | null };
 

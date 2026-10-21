@@ -1,14 +1,14 @@
 // Dar, cambiar o cerrar una cita (src/data/appointments.ts): desde la cabecera de la ficha (la próxima cita o «Dar
 // cita») y desde la agenda de hoy en Pacientes. Al cambiar algo se recargan las pantallas (y, con la cuenta de
 // Google, el calendario se pone al día solo). En una clínica, también con quién es (el horario, src/schedule).
-import { CalendarX2, NotebookPen, Pencil, RotateCcw, Trash, UserX } from "lucide-react";
+import { CalendarClock, CalendarX2, NotebookPen, Pencil, RotateCcw, Trash, UserPlus, UserX } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
-import { createAppointment, deleteAppointment, STATUS_LABELS, updateAppointment, type Appointment, type AppointmentStatus } from "../data/appointments";
+import { clashes, createWeekly, deleteAppointment, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
-import { listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
+import { createPatient, listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
 import { editText, lastEditOf } from "../data/editors";
 import { memberEmail } from "../data/member";
 import { staffName, useStaff } from "../schedule/useStaff";
@@ -22,6 +22,8 @@ import { localInput } from "./pageKit";
 import { Chips } from "./parts";
 
 const DURATIONS = ["30", "45", "60", "90"];
+/** Una serie de sesiones: cuántas citas, una por semana. */
+const REPEATS = [1, 2, 3, 4, 5, 6, 8, 10, 12];
 
 export function AppointmentSheet({
   open,
@@ -31,6 +33,7 @@ export function AppointmentSheet({
   appointment,
   start,
   person,
+  onShiftInstead,
 }: {
   open: boolean;
   onClose: () => void;
@@ -42,6 +45,8 @@ export function AppointmentSheet({
   /** Para una cita nueva desde la agenda: a qué hora y con quién (null, sin asignar). */
   start?: string;
   person?: string | null;
+  /** Desde un hueco de la agenda de una clínica: poner ahí un turno en vez de una cita. */
+  onShiftInstead?: () => void;
 }) {
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null);
   const patientId = fixedPatient ?? picked?.id ?? "";
@@ -55,6 +60,9 @@ export function AppointmentSheet({
   const [assignedTo, setAssignedTo] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [repeat, setRepeat] = useState(1);
+  /** Citas que ya hay a esa hora: se avisa antes de dar la cita. */
+  const [clash, setClash] = useState<AgendaItem[] | null>(null);
 
   // Cada vez que se abre: con los datos de la cita, o vacía para dar una nueva.
   useEffect(() => {
@@ -65,6 +73,8 @@ export function AppointmentSheet({
     setAssignedTo(appointment ? (appointment.assignedTo ?? "") : person !== undefined ? (person ?? "") : (memberEmail() ?? ""));
     setPicked(null);
     setError(null);
+    setRepeat(1);
+    setClash(null);
   }, [open, appointment, start, person]);
 
   async function run(work: () => Promise<unknown>, done: string) {
@@ -82,18 +92,32 @@ export function AppointmentSheet({
     }
   }
 
-  const save = () => {
+  const save = async (anyway = false) => {
     if (!patientId) return setError("Elige el paciente.");
     if (!when) return setError("Pon el día y la hora de la cita.");
     const startsAt = new Date(when).toISOString();
     // Sin equipo (sin clínica) no se toca con quién es.
     const who = staff.length ? { assignedTo: assignedTo || null } : {};
+    const count = appointment ? 1 : repeat;
+    if (!anyway) {
+      // ¿Ya hay algo a esa hora (de esa persona, en una clínica)? Se avisa; se puede dar igualmente.
+      const found: AgendaItem[] = [];
+      for (let i = 0; i < count; i++) {
+        const d = new Date(when);
+        d.setDate(d.getDate() + 7 * i);
+        found.push(...(await clashes(getDb(), d.toISOString(), minutes, staff.length ? who.assignedTo : undefined, appointment?.id)));
+      }
+      if (found.length) return setClash(found);
+    }
+    setClash(null);
+    const last = new Date(when);
+    last.setDate(last.getDate() + 7 * (count - 1));
     return run(
       () =>
         appointment
           ? updateAppointment(getDb(), appointment.id, { startsAt, minutes, ...who })
-          : createAppointment(getDb(), patientId, { startsAt, minutes, ...who }),
-      appointment ? "Cita cambiada" : "Cita dada",
+          : createWeekly(getDb(), patientId, { startsAt, minutes, ...who }, count),
+      appointment ? "Cita cambiada" : count > 1 ? `${count} citas dadas, una por semana hasta el ${fmtVisit(last.toISOString()).replace(/,.*$/, "")}` : "Cita dada",
     );
   };
   const setStatus = (status: AppointmentStatus, done: string) => run(() => updateAppointment(getDb(), appointment!.id, { status }), done);
@@ -171,11 +195,41 @@ export function AppointmentSheet({
             void save();
           }}
         >
-          {!fixedPatient && !appointment && <PatientPicker picked={picked} onPick={setPicked} />}
-          <TextField label="Día y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          {!fixedPatient && !appointment && <PatientPicker
+              picked={picked}
+              onPick={(p) => {
+                setPicked(p);
+                setError(null);
+              }}
+            />}
+          <TextField
+            label="Día y hora"
+            type="datetime-local"
+            value={when}
+            onChange={(e) => {
+              setWhen(e.target.value);
+              setClash(null);
+            }}
+          />
           <Chips label="Duración" options={DURATIONS} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => v[0] && setMinutes(Number(v[0]))} />
+          {!appointment && (
+            <SelectField label="Repetir" value={repeat} onChange={(e) => setRepeat(Number(e.target.value))}>
+              {REPEATS.map((n) => (
+                <option key={n} value={n}>
+                  {n === 1 ? "No se repite" : `Cada semana, ${n} citas`}
+                </option>
+              ))}
+            </SelectField>
+          )}
           {staff.length > 0 && (
-            <SelectField label="Con quién" value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
+            <SelectField
+              label="Con quién"
+              value={assignedTo}
+              onChange={(e) => {
+                setAssignedTo(e.target.value);
+                setClash(null);
+              }}
+            >
               <option value="">Sin asignar</option>
               {staff.map((p) => (
                 <option key={p.email} value={p.email}>
@@ -185,9 +239,28 @@ export function AppointmentSheet({
               {assignedTo && !staff.some((p) => p.email === assignedTo) && <option value={assignedTo}>{assignedTo}</option>}
             </SelectField>
           )}
+          {clash && (
+            <Alert tone="warning" title={clash.length === 1 ? "A esa hora ya hay una cita" : `A esas horas ya hay ${clash.length} citas`}>
+              {clash
+                .slice(0, 3)
+                .map((c) => `${c.name}, ${fmtVisit(c.startsAt)}${staff.length && c.assignedTo ? ` (con ${staffName(staff, c.assignedTo)})` : ""}`)
+                .join(" · ")}
+              {clash.length > 3 ? "…" : ""}. Cambia la hora{staff.length ? " o con quién es" : ""}, o dala igualmente.
+            </Alert>
+          )}
           <Button type="submit" block loading={busy}>
-            {appointment ? "Guardar el cambio" : "Dar la cita"}
+            {appointment ? "Guardar el cambio" : repeat > 1 ? `Dar las ${repeat} citas` : "Dar la cita"}
           </Button>
+          {clash && (
+            <Button variant="secondary" block loading={busy} onClick={() => void save(true)}>
+              {appointment ? "Guardar igualmente" : "Darla igualmente"}
+            </Button>
+          )}
+          {onShiftInstead && !appointment && (
+            <Button variant="ghost" block icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={onShiftInstead}>
+              Poner un turno aquí en vez de una cita
+            </Button>
+          )}
           {appointment && (
             <Button variant="secondary" block onClick={() => setEditing(false)}>
               Volver
@@ -203,6 +276,7 @@ export function AppointmentSheet({
 /** Elegir el paciente de una cita nueva (desde la agenda): buscar por nombre o teléfono y tocarlo. */
 function PatientPicker({ picked, onPick }: { picked: { id: string; name: string } | null; onPick: (p: { id: string; name: string } | null) => void }) {
   const [q, setQ] = useState("");
+  const [adding, setAdding] = useState(false);
   const all = useAsync(() => listPatients(getDb()), []);
   const found = (all.data ?? []).filter((p) => p.name !== QUICK_PATIENT && matchesPatient(p, q)).slice(0, 6);
   if (picked)
@@ -219,6 +293,25 @@ function PatientPicker({ picked, onPick }: { picked: { id: string; name: string 
   return (
     <div className="flex flex-col gap-2">
       <TextField label="Paciente" placeholder="Busca por nombre o teléfono" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} />
+      {q.trim() && !found.some((p) => p.name.trim().toLowerCase() === q.trim().toLowerCase()) && (
+        <Button
+          variant="secondary"
+          loading={adding}
+          icon={<UserPlus aria-hidden="true" className="size-5" />}
+          onClick={async () => {
+            setAdding(true);
+            try {
+              const name = q.trim().replace(/\s+/g, " ");
+              const id = await createPatient(getDb(), { name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
+              onPick({ id, name });
+            } finally {
+              setAdding(false);
+            }
+          }}
+        >
+          Paciente nuevo: «{q.trim()}»
+        </Button>
+      )}
       <ul aria-label="Pacientes" className="flex flex-col divide-y divide-border rounded-md border border-border">
         {found.map((p) => (
           <li key={p.id}>
@@ -229,9 +322,7 @@ function PatientPicker({ picked, onPick }: { picked: { id: string; name: string 
         ))}
         {all.data && !found.length && <li className="px-3 py-2 text-sm text-text-muted">Ningún paciente con ese nombre.</li>}
       </ul>
-      <Link to="/pacientes/nuevo" className="text-sm font-semibold text-accent underline underline-offset-2">
-        Paciente nuevo
-      </Link>
+      {!q.trim() && <p className="text-sm text-text-muted">¿Es nuevo? Escribe su nombre y créalo aquí mismo; el resto de su ficha, cuando venga.</p>}
     </div>
   );
 }
