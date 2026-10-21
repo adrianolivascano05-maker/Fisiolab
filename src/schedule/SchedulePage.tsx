@@ -168,13 +168,15 @@ export function SchedulePage() {
       today: c.day === today,
     };
   };
-  /** Pellizco en la rejilla: juntando los dedos se ven más días (día → 3 días → semana); separándolos, menos. */
-  const zoom = (by: 1 | -1) => {
-    const i = VIEWS.findIndex((v) => v.id === view) + by;
-    const next = VIEWS[i];
+  /**
+   * Pellizco en la rejilla: juntando los dedos se ven más días (día → 3 días → semana); separándolos, menos. Se centra
+   * en el día que queda entre los dedos (si no se sabe, el de en medio de lo que se ve).
+   */
+  const zoom = (by: 1 | -1, c: Column | undefined) => {
+    const next = VIEWS[VIEWS.findIndex((v) => v.id === view) + by];
     if (!next) return;
-    // Al acercar, se queda en el día de hoy si está a la vista; si no, en el primero.
-    if (by < 0) setAnchor(firstDay);
+    const focus = c?.day ?? days[Math.floor(days.length / 2)]!;
+    setAnchor(next.id === "3days" ? addDays(focus, -1) : focus);
     setView(next.id);
   };
 

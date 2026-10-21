@@ -1,6 +1,6 @@
 // Agenda y seguimiento (src/data/appointments.ts y src/clinical): citas sin sesión, la agenda de hoy en Pacientes
 // (atendida, no vino), repetir el tratamiento de la última sesión, las sesiones previstas (bono) y el informe de alta.
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { add, createPatient, expect, expectAccessible, test } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
@@ -316,5 +316,49 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(page.getByRole("button", { name: /Vera Vista/ })).toBeVisible();
     await expectAccessible(page);
+  });
+  test.describe("en un móvil táctil", () => {
+    test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+    test("AG10 pellizco: se centra en el día que queda entre los dedos (el viernes, no hoy)", async ({ page }) => {
+      await createPatient(page, { name: "Pablo Pellizco" });
+      await giveAppointment(page, "Pablo Pellizco", "2026-10-23T10:00");
+      await page.goto("./agenda");
+      await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Semana" }).click();
+      await expect(page.getByRole("heading", { name: /19 oct – 25 oct 2026/ })).toBeVisible();
+
+      /** Dos dedos que se separan (o se juntan) sobre la columna de ese día. */
+      const pinch = async (over: Locator, from: number, to: number) => {
+        const box = (await over.boundingBox())!;
+        await page.evaluate(
+          ({ x, y, from, to }) => {
+            const el = document.elementFromPoint(x, y)!;
+            const fire = (type: string, d: number) => {
+              const t = [1, 2].map((id) => new Touch({ identifier: id, target: el, clientX: x + (id === 1 ? -d / 2 : d / 2), clientY: y }));
+              el.dispatchEvent(new TouchEvent(type, { touches: type === "touchend" ? [] : t, changedTouches: t, bubbles: true, cancelable: true }));
+            };
+            fire("touchstart", from);
+            fire("touchmove", (from + to) / 2);
+            fire("touchmove", to);
+            fire("touchend", to);
+          },
+          { x: box.x + box.width / 2, y: box.y + box.height + 60, from, to },
+        );
+      };
+
+      // Separar los dedos sobre el viernes: 3 días con el viernes en medio, y después solo el viernes.
+      const friday = page.getByRole("button", { name: /^Vie 23\s*, ver solo este día$/ });
+      await pinch(friday, 20, 120);
+      await expect(page.getByRole("heading", { name: /22 oct – 24 oct 2026/ })).toBeVisible();
+      await pinch(friday, 20, 120);
+      await expect(page.getByRole("heading", { name: "Viernes, 23 de octubre" })).toBeVisible();
+      await expect(page.getByRole("button", { name: /Pablo Pellizco/ })).toBeVisible();
+
+      // Juntarlos vuelve a 3 días alrededor del viernes y a su semana.
+      await pinch(page.getByText("Vie", { exact: true }), 160, 40);
+      await expect(page.getByRole("heading", { name: /22 oct – 24 oct 2026/ })).toBeVisible();
+      await pinch(friday, 160, 40);
+      await expect(page.getByRole("heading", { name: /19 oct – 25 oct 2026/ })).toBeVisible();
+    });
   });
 });

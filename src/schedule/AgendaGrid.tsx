@@ -2,7 +2,8 @@
 // clínica, por persona). Cada cita es un bloque que se arrastra para moverla: arriba y abajo cambia la hora (cada 15
 // minutos), a otra columna cambia el día o la persona. Con el ratón basta arrastrar; en el móvil, mantener pulsada la
 // cita un momento y moverla. Tocar un hueco vacío da una cita a esa hora. Los turnos se ven de fondo. Con dos dedos
-// se cambia la vista: juntándolos se ven más días; separándolos, menos. Tocar el nombre de un día lo abre solo.
+// se cambia la vista: juntándolos se ven más días; separándolos, menos, centrando el día que queda entre los dedos.
+// Tocar el nombre de un día lo abre solo.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TouchList } from "react";
 import type { AgendaItem } from "../data/appointments";
 import { staffColor, type Shift, type Staff } from "../data/schedule";
@@ -61,12 +62,12 @@ export function AgendaGrid({
   onShift?: (s: Shift) => void;
   /** Cabecera de una columna pulsada (para abrir ese día). */
   onHeader?: (c: Column) => void;
-  /** Pellizco con dos dedos: +1 para ver más días, −1 para menos. */
-  onZoom?: (by: 1 | -1) => void;
+  /** Pellizco con dos dedos: +1 para ver más días, −1 para menos; con la columna que queda entre los dedos. */
+  onZoom?: (by: 1 | -1, column: Column | undefined) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
-  /** Distancia entre los dos dedos al empezar el pellizco. */
-  const pinch = useRef<number | null>(null);
+  /** Al empezar el pellizco: la distancia entre los dos dedos y la columna que queda entre ellos. */
+  const pinch = useRef<{ dist: number; col: number } | null>(null);
   const fingers = (t: TouchList) => Math.hypot(t[0]!.clientX - t[1]!.clientX, t[0]!.clientY - t[1]!.clientY);
   const cols = useRef<(HTMLDivElement | null)[]>([]);
   const drag = useRef<Drag | null>(null);
@@ -179,13 +180,24 @@ export function AgendaGrid({
       ref={scroller}
       className="relative max-h-[calc(100dvh-var(--layout-header)-var(--layout-tabbar)-13rem)] min-h-[24rem] touch-pan-x touch-pan-y overflow-auto rounded-lg border border-border bg-bg"
       onTouchStart={(e) => {
-        pinch.current = onZoom && e.touches.length === 2 ? fingers(e.touches) : null;
+        if (!onZoom || e.touches.length !== 2) {
+          pinch.current = null;
+          return;
+        }
+        // Con dos dedos no se arrastra ninguna cita: es un pellizco.
+        const d = drag.current;
+        if (d && !d.active) {
+          clearTimeout(d.timer);
+          drag.current = null;
+        }
+        pinch.current = { dist: fingers(e.touches), col: columnAt((e.touches[0]!.clientX + e.touches[1]!.clientX) / 2) };
       }}
       onTouchMove={(e) => {
-        if (pinch.current === null || e.touches.length !== 2) return;
-        const ratio = fingers(e.touches) / pinch.current;
-        if (ratio < 0.7 || ratio > 1.4) {
-          onZoom?.(ratio < 1 ? 1 : -1);
+        const p = pinch.current;
+        if (!p || e.touches.length !== 2) return;
+        const ratio = fingers(e.touches) / p.dist;
+        if (ratio < 0.75 || ratio > 1.33) {
+          onZoom?.(ratio < 1 ? 1 : -1, columns[p.col]);
           pinch.current = null;
         }
       }}
