@@ -1,0 +1,23 @@
+{
+  "_about": "Temas para reseñas de software de clínicas de fisioterapia en español (y alguno en inglés). Expresiones regulares sin distinguir mayúsculas.",
+  "request_patterns": [
+    "\\bechamos? en falta\\b", "\\becho en falta\\b", "\\bfalta(n|ría)?\\b", "\\bestaría bien\\b", "\\bsería (genial|bueno|útil|ideal)\\b",
+    "\\bme gustaría\\b", "\\bno (permite|deja|tiene|se puede)\\b", "\\bno hay forma\\b", "\\bmejorar(ía)?\\b", "\\bpodría(n)?\\b",
+    "\\bi wish\\b", "\\bwould be (nice|great|good|helpful)\\b", "\\b(missing|lacks)\\b", "\\bdoesn'?t (have|support|let|allow)\\b"
+  ],
+  "themes": [
+    { "id": "precio", "label": "Precio y planes", "kind": "complaint", "patterns": ["\\bcaro\\b", "\\bprecio", "\\bcuota", "\\bsuscripci", "\\bpor usuario\\b", "\\bpermanencia\\b", "\\bcoste\\b", "\\bexpensive\\b", "\\bpric(e|ing)\\b"] },
+    { "id": "soporte", "label": "Atención al cliente y soporte", "kind": "complaint", "patterns": ["\\bsoporte\\b", "\\batenci[oó]n al cliente\\b", "\\bno (contestan|responden)\\b", "\\bayuda\\b", "\\bsupport\\b", "\\bcustomer service\\b", "\\bformaci[oó]n\\b"] },
+    { "id": "facturacion", "label": "Facturación, Verifactu, mutuas y bonos", "kind": "complaint", "patterns": ["\\bfactura", "\\bverifactu\\b", "\\bticketbai\\b", "\\bmutua", "\\baseguradora", "\\bbonos?\\b", "\\bcobro", "\\bpagos?\\b", "\\bcaja\\b", "\\binvoic", "\\bbilling\\b"] },
+    { "id": "recordatorios", "label": "Recordatorios y comunicación con el paciente", "kind": "complaint", "patterns": ["\\brecordatorio", "\\bsms\\b", "\\bwhatsapp\\b", "\\bnotificaci", "\\bausencias?\\b", "\\bno.?show", "\\breminder"] },
+    { "id": "agenda", "label": "Agenda y reserva online", "kind": "complaint", "patterns": ["\\bagenda\\b", "\\bcitas?\\b", "\\breserva", "\\bcalendario\\b", "\\bscheduling\\b", "\\bbooking\\b", "\\bappointment"] },
+    { "id": "historia", "label": "Historia clínica y plantillas", "kind": "complaint", "patterns": ["\\bhistoria(l)? cl[ií]nic", "\\bfichas?\\b", "\\bplantilla", "\\bevoluci[oó]n\\b", "\\bvaloraci[oó]n\\b", "\\bnotas\\b", "\\bclinical notes\\b", "\\btemplate"] },
+    { "id": "movil", "label": "App móvil y uso fuera del ordenador", "kind": "complaint", "patterns": ["\\bm[oó]vil\\b", "\\bapp\\b", "\\btablet\\b", "\\bandroid\\b", "\\biphone\\b", "\\bmobile\\b", "\\boffline\\b", "\\bsin (internet|conexi[oó]n)\\b"] },
+    { "id": "lento", "label": "Lentitud, errores y caídas", "kind": "complaint", "patterns": ["\\blent[oa]\\b", "\\berror(es)?\\b", "\\bfall(a|os)\\b", "\\bse cuelga\\b", "\\bca[ií]d", "\\bbug", "\\bslow\\b", "\\bcrash"] },
+    { "id": "dificil", "label": "Difícil de usar o de aprender", "kind": "complaint", "patterns": ["\\bcomplicad", "\\bdif[ií]cil\\b", "\\bpoco intuitiv", "\\bcurva de aprendizaje\\b", "\\bconfus", "\\blioso\\b", "\\bclunky\\b", "\\bnot intuitive\\b"] },
+    { "id": "datos", "label": "Datos: migración, exportar, perder información", "kind": "complaint", "patterns": ["\\bmigra", "\\bexporta", "\\bimporta", "\\bperd(í|i|er)\\w* (datos|informaci)", "\\bcopia de seguridad\\b", "\\bdata\\b", "\\bexport\\b"] },
+    { "id": "ejercicios", "label": "Ejercicios y seguimiento del paciente en casa", "kind": "complaint", "patterns": ["\\bejercicio", "\\bpauta", "\\badherencia\\b", "\\bv[ií]deos?\\b", "\\bprogramas? de ejercicio", "\\bexercise", "\\bhome program"] },
+    { "id": "informes", "label": "Informes y estadísticas", "kind": "complaint", "patterns": ["\\binformes?\\b", "\\bestad[ií]stica", "\\bm[eé]tricas\\b", "\\breport", "\\bdashboard\\b"] },
+    { "id": "personalizar", "label": "Personalización", "kind": "complaint", "patterns": ["\\bpersonaliza", "\\bconfigura", "\\badaptar\\b", "\\bcustomi[sz]"] }
+  ]
+}
