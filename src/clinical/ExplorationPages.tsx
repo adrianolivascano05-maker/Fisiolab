@@ -1,7 +1,7 @@
 // Pestaña Exploración de la ficha: los tests especiales registrados y el formulario para apuntar uno desde la Guía
 // de tests (carga los textos de la guía, por eso va aparte del resto de la ficha).
 import { ExternalLink, Plus, Search, Stethoscope } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { fmt, fmtDate } from "../app/format";
 import { LoadError, Page } from "../app/Page";
@@ -28,7 +28,7 @@ import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { clinicalSummary, regionLabel } from "./anamnesis";
-import { findTest, galleryRegionLabel, galleryTests, galleryUrl, resultMeaning, searchTests, testsForRegions, type SpecialTest } from "./galleryLink";
+import { findTest, galleryRegionLabel, galleryTests, galleryUrl, resultMeaning, searchTests, testsByRegion, type SpecialTest } from "./galleryLink";
 import { Chips, ResultBadge, resultLabels, TextArea } from "./parts";
 import { PatientShell } from "./PatientShell";
 import { Guard, localInput, primaryLink, useLoad } from "./pageKit";
@@ -53,7 +53,9 @@ export function ExplorationPage() {
   const count = (r: FindingResult) => current.filter((f) => f.result === r).length;
   const regions = anamnesis ? clinicalSummary(anamnesis.answers).regions : [];
   const done = new Set(findings.map((f) => f.galleryTest));
-  const suggested = testsForRegions(regions).filter((t) => !done.has(t.id)).slice(0, 6);
+  const suggested = testsByRegion(regions)
+    .map((g) => ({ ...g, tests: g.tests.filter((t) => !done.has(t.id)) }))
+    .filter((g) => g.tests.length);
   const byRegion = new Map<string, Finding[]>();
   for (const f of current) byRegion.set(f.region, [...(byRegion.get(f.region) ?? []), f]);
 
@@ -95,20 +97,10 @@ export function ExplorationPage() {
           <h3 id="ex-sug" className="text-lg">
             Tests de la zona
           </h3>
-          <p className="text-sm text-text-muted">Según la anamnesis ({regions.map(regionLabel).join(", ")}), de más a menos útiles.</p>
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
-            {suggested.map((t) => (
-              <li key={t.id} className="flex items-center gap-2 px-3 py-2">
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-semibold">{t.name}</span>
-                  <span className="truncate text-sm text-text-muted">{t.group}</span>
-                </span>
-                <Link to={`/pacientes/${id}/exploracion/nuevo?test=${t.id}`} className="tap inline-flex items-center rounded-md px-3 text-sm font-semibold text-accent hover:bg-accent-soft">
-                  Registrar
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <p className="text-sm text-text-muted">Según la anamnesis, todos los de cada zona, de más a menos útiles.</p>
+          {suggested.map((g) => (
+            <SuggestedTests key={g.region} id={id} region={g.region} tests={g.tests} />
+          ))}
         </section>
       )}
       {older.length > 0 && (
@@ -122,6 +114,43 @@ export function ExplorationPage() {
         </details>
       )}
     </PatientShell>
+  );
+}
+
+/** Los tests sin hacer de una zona: los cinco más útiles a la vista y el resto a un toque. */
+function SuggestedTests({ id, region, tests }: { id: string; region: string; tests: SpecialTest[] }) {
+  const row = (t: SpecialTest) => (
+    <li key={t.id} className="flex items-center gap-2 px-3 py-2">
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate font-semibold">{t.name}</span>
+        <span className="truncate text-sm text-text-muted">{t.group}</span>
+      </span>
+      <Link to={`/pacientes/${id}/exploracion/nuevo?test=${t.id}`} aria-label={`Registrar ${t.name}`} className="tap inline-flex items-center rounded-md px-3 text-sm font-semibold text-accent hover:bg-accent-soft">
+        Registrar
+      </Link>
+    </li>
+  );
+  const list = "divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg";
+  const rest = tests.slice(5);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h4 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+        {regionLabel(region)} · {tests.length}
+      </h4>
+      <ul aria-label={`Tests de ${regionLabel(region)}`} className={list}>
+        {tests.slice(0, 5).map(row)}
+      </ul>
+      {rest.length > 0 && (
+        <details>
+          <summary className="cursor-pointer py-1 text-sm font-semibold text-accent">
+            Ver {rest.length === 1 ? "1 test más" : `los ${rest.length} tests más`} de {regionLabel(region)}
+          </summary>
+          <ul aria-label={`Más tests de ${regionLabel(region)}`} className={`mt-1 ${list}`}>
+            {rest.map(row)}
+          </ul>
+        </details>
+      )}
+    </div>
   );
 }
 
@@ -165,7 +194,7 @@ function TestPicker({ regions, onPick }: { regions: string[]; onPick: (t: Specia
   const { favorites } = useFavorites();
   const found = useMemo(() => searchTests(q), [q]);
   const favs = favorites.map(findTest).filter((t): t is SpecialTest => !!t);
-  const zone = testsForRegions(regions).slice(0, 12);
+  const zones = testsByRegion(regions);
   const group = (title: string, list: SpecialTest[]) =>
     list.length > 0 && (
       <section className="flex flex-col gap-1.5">
@@ -198,9 +227,9 @@ function TestPicker({ regions, onPick }: { regions: string[]; onPick: (t: Specia
         />
       </div>
       {q.trim() ? (found.length ? group("Resultados", found) : <p className="text-sm text-text-muted">Ningún test se llama así.</p>) : null}
-      {!q.trim() && group(`Tests de la zona (${regions.map(regionLabel).join(", ")})`, zone)}
+      {!q.trim() && zones.map((g) => <Fragment key={g.region}>{group(`Tests de ${regionLabel(g.region)} (${g.tests.length})`, g.tests)}</Fragment>)}
       {!q.trim() && group("Tus favoritos de la Guía de tests", favs)}
-      {!q.trim() && !zone.length && !favs.length && <p className="text-sm text-text-muted">Escribe el nombre del test. Si rellenas la zona en la anamnesis, aquí verás los de esa zona.</p>}
+      {!q.trim() && !zones.length && !favs.length && <p className="text-sm text-text-muted">Escribe el nombre del test. Si rellenas la zona en la anamnesis, aquí verás los de esa zona.</p>}
     </div>
   );
 }

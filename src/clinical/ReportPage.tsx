@@ -17,7 +17,7 @@ import { Button } from "../ui/Button";
 import { answerText } from "./anamnesis";
 import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyFigures, BodyMapLegend } from "./BodyMap";
-import { parseMarks } from "./bodyMap";
+import { marksText, parseMarks } from "./bodyMap";
 import { findTest, resultMeaning } from "./galleryLink";
 import { trends } from "./measures";
 import { questionnaireGroups } from "./outcomeParts";
@@ -90,6 +90,8 @@ export function ReportPage() {
   const tr = trends(tests);
   const symmetry = symmetryRows(tests);
   const qGroups = questionnaireGroups(questionnaires);
+  // El último mapa del dolor, dibujado (la lista viene de más reciente a más antiguo).
+  const lastMap = questionnaires.find((q) => q.kind === "mapa_dolor");
   // El fisioterapeuta de Ajustes → Clínica; las anamnesis antiguas lo llevaban dentro.
   const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
   const today = new Date().toISOString();
@@ -169,15 +171,7 @@ export function ReportPage() {
                       {rows.map((f) => (
                         <div key={f.id} className="flex flex-col sm:grid sm:grid-cols-[minmax(0,13rem)_1fr] sm:gap-3 print:grid print:grid-cols-[minmax(0,13rem)_1fr] print:gap-3">
                           <dt className="text-text-muted">{f.label}</dt>
-                          <dd className="flex flex-col gap-1 whitespace-pre-line">
-                            {f.type === "bodymap" && (
-                              <>
-                                <BodyFigures marks={parseMarks(a[f.id])} className="max-w-md" />
-                                <BodyMapLegend />
-                              </>
-                            )}
-                            {answerText(f, a[f.id] ?? null)}
-                          </dd>
+                          <dd className="whitespace-pre-line">{answerText(f, a[f.id] ?? null)}</dd>
                         </div>
                       ))}
                     </dl>
@@ -331,6 +325,7 @@ export function ReportPage() {
                             <span className="block text-xs text-text-muted">
                               {k.better === "higher" ? "Más es mejor" : "Menos es mejor"}
                               {d.activities?.length ? ` · ${d.activities.map((x) => `${x.name} ${x.score}`).join(", ")}` : ""}
+                              {d.marks?.length ? ` · ${marksText(d.marks)}` : ""}
                             </span>
                           </td>
                           <td className={`${td} text-right`}>{g.items.length > 1 ? `${scoreText(k, first.score)} (${fmtDateShort(first.performedAt)})` : "—"}</td>
@@ -342,6 +337,13 @@ export function ReportPage() {
                   </tbody>
                 </table>
               </Scroll>
+              {lastMap && (
+                <div className="flex break-inside-avoid flex-col gap-1">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mapa del dolor del {fmtDateShort(lastMap.performedAt)}</h3>
+                  <BodyFigures marks={parseMarks((lastMap.details as QDetails).marks)} className="max-w-md" />
+                  <BodyMapLegend />
+                </div>
+              )}
             </Block>
           )}
 

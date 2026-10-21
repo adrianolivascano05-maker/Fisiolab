@@ -13,7 +13,8 @@ import { getExercise } from "../calc/strength";
 import { getMovement, movementLabel } from "../calc/rom";
 import { wellnessItems } from "../calc/wellness";
 import { metricLabels, sideLabels, testTitle } from "../app/format";
-import { ANAMNESIS, answerText, getField, orphanAnswers, regionLabel, withCustom, type Section } from "../clinical/anamnesis";
+import { ANAMNESIS, answerText, orphanAnswers, orphanText, regionLabel, withCustom, type Section } from "../clinical/anamnesis";
+import { marksText } from "../clinical/bodyMap";
 import { getCustomFields } from "../data/customFields";
 import { displayName, kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
 import type { AnswerValue, Answers } from "../data/clinical";
@@ -103,7 +104,10 @@ export function anamnesisRows(a: Answers, template: Section[] = ANAMNESIS): [str
       const text = answerText(f, a[f.id] as AnswerValue);
       if (text) out.push([section.title, f.label, text]);
     }
-  for (const [k, v] of orphanAnswers(a, template)) out.push(["Otros datos guardados", getField(k)?.label ?? k, answerText(getField(k), v as AnswerValue)]);
+  for (const [k, v] of orphanAnswers(a, template)) {
+    const o = orphanText(k, v as AnswerValue);
+    out.push(["Otros datos guardados", o.label, o.text]);
+  }
   return out;
 }
 
@@ -257,6 +261,7 @@ export function buildSheets(c: Collected): Sheet[] {
 function questionnaireDetail(d: QDetails): string {
   const parts: string[] = [];
   const any = d as unknown as R;
+  if (Array.isArray(any.marks)) parts.push(marksText(any.marks));
   if (Array.isArray(any.activities)) parts.push((any.activities as { name: string; score: number }[]).map((a) => `${a.name}: ${a.score}/10`).join("; "));
   if (any.answers && typeof any.answers === "object") parts.push(`Respuestas: ${Object.entries(any.answers as R).map(([k, v]) => `${k}=${s(v)}`).join(", ")}`);
   return parts.join(" · ");

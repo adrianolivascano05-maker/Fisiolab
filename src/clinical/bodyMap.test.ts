@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { answerText, getField } from "./anamnesis";
+import { orphanText } from "./anamnesis";
+import { mapScore } from "./questionnaires";
 import { formatMarks, MAP_HEIGHT, marksText, parseMarks, regionsOf, ZONES, type Shape } from "./bodyMap";
 
 const box = (s: Shape) => (s.kind === "ellipse" ? { x0: s.cx - s.rx, x1: s.cx + s.rx, y0: s.cy - s.ry, y1: s.cy + s.ry } : { x0: s.x, x1: s.x + s.w, y0: s.y, y1: s.y + s.h });
@@ -54,12 +55,12 @@ describe("mapa corporal", () => {
     expect(parseMarks("hombro_d:dolor:6")).toEqual([]);
   });
 
-  it("se lee de la cabeza a los pies, también en la ficha y en el informe", () => {
+  it("se lee de la cabeza a los pies; lo marcado antes en la anamnesis se sigue leyendo", () => {
     const value = ["rodilla_i:dolor:", "lumbar:rigidez:", "hombro_d:dolor:6", "mano_d:hormigueo:3"];
     const text = "Hombro derecho: dolor 6/10; Lumbar: rigidez; Muñeca y mano derecha: hormigueo 3/10; Rodilla izquierda: dolor";
     expect(marksText(value)).toBe(text);
-    expect(answerText(getField("mapa_dolor"), value)).toBe(text);
-    expect(answerText(getField("mapa_dolor"), [])).toBe("");
+    expect(orphanText("mapa_dolor", value)).toEqual({ label: "Mapa del dolor (ahora está en Cuestionarios)", text });
+    expect(marksText([])).toBe("");
   });
 
   it("propone las articulaciones de los tests y el lado", () => {
@@ -68,5 +69,11 @@ describe("mapa corporal", () => {
     // Hombro derecho y rodilla izquierda: «Los dos» confundiría; el lado de cada una queda en el mapa.
     expect(regionsOf(parseMarks(["hombro_d:dolor:", "rodilla_i:dolor:"])).side).toBeNull();
     expect(regionsOf(parseMarks(["abdomen:dolor:"]))).toEqual({ regions: [], side: null, maxIntensity: null });
+  });
+
+  it("como cuestionario, la nota es la intensidad más alta", () => {
+    expect(mapScore(parseMarks(["hombro_d:dolor:4", "lumbar:rigidez:7"]))).toBe(7);
+    expect(() => mapScore([])).toThrow("Marca al menos una zona");
+    expect(() => mapScore(parseMarks(["lumbar:rigidez:"]))).toThrow("Pon la intensidad");
   });
 });

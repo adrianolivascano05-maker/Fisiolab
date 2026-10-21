@@ -1,7 +1,7 @@
-// Mejoras frente a la competencia (replica/fixes.md): mapa del dolor en la anamnesis, bonos y cobros, lista de espera
+// Mejoras frente a la competencia (replica/fixes.md): mapa del dolor (cuestionario), bonos y cobros, lista de espera
 // y hoja de ejercicios para casa.
 import type { Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, test } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
 
@@ -24,10 +24,31 @@ test.describe("Mejoras frente a la competencia", () => {
     await page.clock.setFixedTime(new Date("2026-10-20T08:00:00Z"));
   });
 
-  test("MJ1 mapa del dolor: se toca en el dibujo, intensidad, propone zona y lado, y sale en la ficha y el informe", async ({ page }) => {
+  test("MJ1 anamnesis limpia, todos los tests de cada zona y el mapa del dolor como cuestionario", async ({ page }) => {
     await createPatient(page, { name: "Marta Mapa" });
     await tab(page, "Anamnesis").click();
-    const map = page.locator("fieldset", { has: page.getByText("Mapa del dolor", { exact: true }) });
+    // Para escribir: sin mapa ni opciones para elegir, salvo zona, lado, banderas rojas y precauciones.
+    await expect(page.getByText("Mapa del dolor")).toHaveCount(0);
+    await page.getByLabel("Forma de inicio").fill("Progresivo, tras empezar a nadar");
+    const zona = page.getByRole("group", { name: "Zona", exact: true });
+    await zona.getByText("Hombro", { exact: true }).click();
+    await zona.getByText("ATM", { exact: true }).click();
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByText("Anamnesis guardada")).toBeVisible();
+    await expect(page.getByText("Progresivo, tras empezar a nadar")).toBeVisible();
+
+    // Exploración: cada zona con sus tests, la segunda también (antes se cortaba en 6 entre todas).
+    await tab(page, "Exploración").click();
+    await expect(page.getByRole("list", { name: "Tests de Hombro" }).getByRole("listitem")).toHaveCount(5);
+    await expect(page.getByRole("list", { name: "Tests de ATM" }).getByRole("listitem")).not.toHaveCount(0);
+    await page.getByText(/^Ver los \d+ tests más de Hombro$/).click();
+    await expect(page.getByRole("list", { name: "Más tests de Hombro" }).getByRole("listitem").first()).toBeVisible();
+    await expectAccessible(page);
+
+    await tab(page, "Resumen").click();
+    await add(page, "Cuestionario").click();
+    await page.getByRole("button", { name: /Mapa del dolor/ }).click();
+    const map = page.locator("fieldset", { has: page.getByText("Zonas", { exact: true }) });
     const front = map.getByRole("group", { name: "De frente" });
     const back = map.getByRole("group", { name: "De espaldas" });
     await front.getByRole("checkbox", { name: "Hombro derecho" }).click();
@@ -42,25 +63,19 @@ test.describe("Mejoras frente a la competencia", () => {
     await map.getByRole("button", { name: "Añadir", exact: true }).click();
     await map.getByLabel("Qué tiene en: Rodilla izquierda").selectOption("dolor");
     await expect(map.getByRole("list", { name: "Zonas marcadas" }).getByRole("listitem")).toHaveCount(3);
+    await expect(page.getByText("Intensidad más alta: 6/10")).toBeVisible();
     await expectAccessible(page);
-
-    // Lo marcado propone la zona y la intensidad (EVA); el lado no, porque hay zonas de los dos (cada una lleva el suyo).
-    await page.getByRole("button", { name: "Añadir a Zona y Lado" }).click();
-    await expect(page.getByText("Añadido: zona Hombro, Lumbar, Rodilla y intensidad 6/10 (la más alta)")).toBeVisible();
-    const zona = page.getByRole("group", { name: "Zona", exact: true });
-    for (const r of ["Hombro", "Lumbar", "Rodilla"]) await expect(zona.getByRole("checkbox", { name: r, exact: true })).toBeChecked();
-    await expect(page.getByRole("group", { name: "Lado", exact: true }).getByRole("radio", { name: "Los dos" })).not.toBeChecked();
-    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await page.getByRole("button", { name: "Guardar cuestionario" }).click();
+    const list = page.getByRole("list", { name: "Cuestionarios" });
+    await expect(list).toContainText("Mapa del dolor");
+    await expect(list).toContainText("6/10");
 
     const text = "Hombro derecho: dolor 6/10; Lumbar: hormigueo; Rodilla izquierda: dolor";
-    await expect(page.getByText(text)).toBeVisible();
-    await expect(page.getByText("6/10", { exact: true })).toBeVisible();
-    await expect(page.getByRole("img", { name: `De frente: ${text}` })).toBeVisible();
-    await expectAccessible(page);
-    await tab(page, "Resumen").click();
-    await expect(page.getByText(`Mapa del dolor: ${text}`)).toBeVisible();
-    await page.getByRole("link", { name: /Informe/ }).click();
-    await expect(page.getByRole("article", { name: "Informe" }).getByRole("img", { name: `De espaldas: ${text}` })).toBeVisible();
+    await page.goto(page.url().replace(/\/cuestionarios.*$/, ""));
+    await page.getByRole("link", { name: /^Informe/ }).click();
+    const report = page.getByRole("article", { name: "Informe" });
+    await expect(report).toContainText(text);
+    await expect(report.getByRole("img", { name: `De espaldas: ${text}` })).toBeVisible();
   });
 
   test("MJ2 bonos y cobros: precio de la sesión, vender un bono, las sesiones lo gastan, cobrar y lo pendiente", async ({ page }) => {

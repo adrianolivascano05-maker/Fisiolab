@@ -1,7 +1,9 @@
-// Catálogo de cuestionarios. La PSFS y el cambio global percibido se contestan en la app con su propia pantalla. El
-// resto se rellena entero en la app (src/clinical/forms, con la nota calculada) o, si se pasó en papel, se anota
-// solo la nota. Los que tienen derechos sobre su texto (NDI, Oswestry, QuickDASH, SPADI, TSK-11) van como hoja de
+// Catálogo de cuestionarios. La PSFS, el cambio global percibido y el mapa del dolor se contestan en la app con su
+// propia pantalla. El resto se rellena entero en la app (src/clinical/forms, con la nota calculada) o, si se pasó
+// en papel, se anota solo la nota. Los que tienen derechos sobre su texto (NDI, Oswestry, QuickDASH, SPADI, TSK-11) van como hoja de
 // respuestas: sin el texto de las preguntas.
+import { regionsOf, type Mark } from "./bodyMap";
+
 export type Better = "higher" | "lower";
 export type QuestionnaireKind = {
   id: string;
@@ -12,7 +14,7 @@ export type QuestionnaireKind = {
   better: Better;
   unit?: string;
   /** Se contesta en la app. */
-  inApp?: "psfs" | "groc";
+  inApp?: "psfs" | "groc" | "bodymap";
   /** Subescalas (KOOS, HOOS): se registra una cada vez. */
   subscales?: string[];
   hint?: string;
@@ -27,6 +29,15 @@ export type QuestionnaireKind = {
 export const QUESTIONNAIRES: QuestionnaireKind[] = [
   { id: "psfs", name: "PSFS · escala funcional específica del paciente", min: 0, max: 10, better: "higher", inApp: "psfs", hint: "El paciente elige hasta cinco actividades que le cuesta hacer y puntúa cada una de 0 (no puede) a 10 (como antes)." },
   { id: "groc", name: "Cambio global percibido", min: -7, max: 7, better: "higher", inApp: "groc", hint: "Cómo está ahora respecto al inicio del tratamiento, de −7 (muchísimo peor) a +7 (muchísimo mejor)." },
+  {
+    id: "mapa_dolor",
+    name: "Mapa del dolor",
+    min: 0,
+    max: 10,
+    better: "lower",
+    inApp: "bodymap",
+    hint: "Dónde le duele, le hormiguea o lo nota rígido, con su intensidad de 0 a 10. La nota es la intensidad más alta.",
+  },
   { id: "koos", name: "KOOS (rodilla)", min: 0, max: 100, better: "higher", subscales: ["Dolor", "Síntomas", "AVD", "Deporte y ocio", "Calidad de vida"], regions: ["rodilla"] },
   { id: "hoos", name: "HOOS (cadera)", min: 0, max: 100, better: "higher", subscales: ["Dolor", "Síntomas", "AVD", "Deporte y ocio", "Calidad de vida"], regions: ["cadera"] },
   { id: "lefs", name: "LEFS (miembro inferior)", min: 0, max: 80, better: "higher", regions: ["cadera", "rodilla", "tobillo_pie"] },
@@ -79,6 +90,8 @@ export function byRegions(regions: string[]): { kind: QuestionnaireKind; forRegi
 
 export type QDetails = {
   activities?: { name: string; score: number }[];
+  /** Mapa del dolor: las zonas marcadas («zona:síntoma:intensidad», src/clinical/bodyMap.ts). */
+  marks?: string[];
   subscale?: string;
   name?: string;
   min?: number;
@@ -103,6 +116,14 @@ export function kindOf(kind: string, d: QDetails): QuestionnaireKind {
 
 /** Nombre para mostrar: con la subescala si la hay. */
 export const displayName = (kind: string, d: QDetails) => `${kindOf(kind, d).name}${d.subscale ? ` · ${d.subscale}` : ""}`;
+
+/** Mapa del dolor: la intensidad más alta de lo marcado. */
+export function mapScore(marks: Mark[]): number {
+  if (!marks.length) throw new RangeError("Marca al menos una zona en el dibujo.");
+  const top = regionsOf(marks).maxIntensity;
+  if (top === null) throw new RangeError("Pon la intensidad (0-10) de al menos una zona.");
+  return top;
+}
 
 /** PSFS: media de las actividades puntuadas. */
 export function psfsScore(activities: { name: string; score: number }[]): number {

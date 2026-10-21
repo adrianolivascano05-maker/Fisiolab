@@ -142,7 +142,6 @@ export function PatientPage() {
                 </p>
               )}
               {summary.location && <p className="text-sm text-text-muted">Localización: {summary.location}</p>}
-              {summary.painMap && <p className="text-sm text-text-muted">Mapa del dolor: {summary.painMap}</p>}
               {summary.diagnosis && <p className="text-sm">Diagnóstico fisioterápico: {summary.diagnosis}</p>}
               {summary.goal && <p className="text-sm text-text-muted">Objetivo: {summary.goal}</p>}
             </Card>

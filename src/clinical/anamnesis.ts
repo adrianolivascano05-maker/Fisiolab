@@ -1,6 +1,8 @@
 // Plantilla de la anamnesis: la «Ficha de anamnesis de fisioterapia» de la clínica, apartado por apartado y con
-// sus mismos nombres. Se añaden solo la zona y el lado (para proponer tests de exploración) y las banderas
-// rojas. Las respuestas se guardan por id de campo: si se cambia esta lista, lo ya escrito no se pierde (un
+// sus mismos nombres, para que la rellene el fisioterapeuta. Solo se marcan en una lista la zona y el lado (para
+// ordenar los tests de exploración y los cuestionarios), las banderas rojas y las precauciones (salen en los
+// consentimientos); lo demás se escribe. El mapa del dolor es un cuestionario (src/clinical/questionnaires.ts).
+// Las respuestas se guardan por id de campo: si se cambia esta lista, lo ya escrito no se pierde (un
 // campo que se quite se sigue viendo en «Otros datos guardados»). Nombre, fecha de nacimiento y sexo están en
 // los datos del paciente.
 import { PRECAUTIONS } from "../consent/precautions";
@@ -8,15 +10,16 @@ import type { AnswerValue, Answers } from "../data/clinical";
 import type { CustomField } from "../data/customFields";
 import { marksText } from "./bodyMap";
 
+/** El mapa del dolor estuvo un tiempo en la anamnesis con este id: lo guardado se sigue leyendo. */
+const OLD_MAP = "mapa_dolor";
+
 type Base = { id: string; label: string; hint?: string };
 export type Field =
   | (Base & { type: "text" | "textarea" | "date"; rows?: number; inputMode?: "tel" | "email" })
   | (Base & { type: "number"; unit: string; min: number; max: number })
   /** Escala 0-10 (EVA). */
   | (Base & { type: "scale" })
-  | (Base & { type: "choice" | "multi"; options: string[] })
-  /** Mapa del dolor: zonas del dibujo con síntoma e intensidad (src/clinical/bodyMap.ts). */
-  | (Base & { type: "bodymap" });
+  | (Base & { type: "choice" | "multi"; options: string[] });
 export type Section = { id: string; title: string; fields: Field[] };
 
 /** Articulaciones (los mismos ids que la galería de tests, para proponer los tests de la zona). */
@@ -61,17 +64,22 @@ export const ANAMNESIS: Section[] = [
     title: "2. Motivo de consulta",
     fields: [
       { id: "motivo", label: "Motivo principal", type: "textarea", rows: 4 },
-      { id: "mapa_dolor", label: "Mapa del dolor", type: "bodymap", hint: "Toca en el dibujo dónde le duele o lo nota. Rellena solo la Zona y el Lado de abajo." },
-      { id: "regiones", label: "Zona", type: "multi", options: BODY_REGIONS.map((r) => r.id), hint: "Para proponerte los tests de exploración de la zona." },
+      {
+        id: "regiones",
+        label: "Zona",
+        type: "multi",
+        options: BODY_REGIONS.map((r) => r.id),
+        hint: "Marca todas las que te interesen: en Exploración salen todos sus tests y en Cuestionarios, los suyos primero.",
+      },
       { id: "lado", label: "Lado", type: "choice", options: ["Derecho", "Izquierdo", "Los dos", "No aplica"] },
       { id: "fecha_inicio", label: "Fecha de inicio", type: "text", hint: "Una fecha o «hace 3 semanas»." },
-      { id: "forma_inicio", label: "Forma de inicio", type: "choice", options: ["Súbito", "Progresivo"] },
+      { id: "forma_inicio", label: "Forma de inicio", type: "text", hint: "Súbito o progresivo." },
       { id: "localizacion", label: "Localización del dolor/síntoma", type: "text" },
       { id: "tipo_dolor", label: "Tipo de dolor", type: "text" },
       { id: "eva", label: "Intensidad (EVA 0-10)", type: "scale" },
       { id: "agravantes", label: "Factores agravantes", type: "textarea" },
       { id: "atenuantes", label: "Factores atenuantes", type: "textarea" },
-      { id: "ritmo", label: "Ritmo", type: "choice", options: ["Mecánico", "Inflamatorio", "Mixto"] },
+      { id: "ritmo", label: "Ritmo", type: "text", hint: "Mecánico, inflamatorio o mixto." },
       { id: "irradiacion", label: "Irradiación", type: "text" },
       { id: "evolucion", label: "Evolución desde el inicio", type: "textarea" },
       { id: "banderas_rojas", label: "Banderas rojas", type: "multi", options: RED_FLAGS, hint: "Si hay alguna, valora derivar." },
@@ -180,7 +188,6 @@ export const fieldIn = (sections: Section[], id: string) => sections.flatMap((s)
 /** Texto de una respuesta para leerla (en la ficha, el resumen y el informe). */
 export function answerText(field: Field | undefined, v: AnswerValue): string {
   if (v === null || v === undefined || v === "") return "";
-  if (field?.type === "bodymap") return marksText(v);
   if (Array.isArray(v)) return v.map((x) => (field?.id === "regiones" ? regionLabel(x) : x)).join(", ");
   if (typeof v === "boolean") return v ? "Sí" : "No";
   if (field?.type === "number") return `${String(v).replace(".", ",")}${field.unit ? ` ${field.unit}` : ""}`;
@@ -202,7 +209,6 @@ export function clinicalSummary(a: Answers) {
     regions: list(a, "regiones"),
     side: str(a, "lado"),
     location: str(a, "localizacion"),
-    painMap: marksText(a.mapa_dolor),
     referral: str(a, "derivado_por"),
     diagnosis: str(a, "diagnostico_funcional"),
     painNow: typeof a.eva === "number" ? a.eva : null,
@@ -216,6 +222,12 @@ const answered = (v: AnswerValue | undefined) => v !== undefined && v !== null &
 /** Cuántos campos de un apartado (o de toda la plantilla) tienen respuesta. */
 export function answeredCount(a: Answers, fields = ALL_FIELDS): number {
   return fields.filter((f) => answered(a[f.id])).length;
+}
+
+/** Nombre y texto de una respuesta guardada que ya no está en la plantilla. */
+export function orphanText(id: string, v: AnswerValue): { label: string; text: string } {
+  if (id === OLD_MAP) return { label: "Mapa del dolor (ahora está en Cuestionarios)", text: marksText(v) };
+  return { label: id, text: answerText(undefined, v) };
 }
 
 /** Respuestas guardadas de campos que ya no están en la plantilla (no se pierden). */

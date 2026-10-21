@@ -25,11 +25,16 @@ export function searchTests(q: string, limit = 30): SpecialTest[] {
 const rank = { alta: 0, moderada: 1, baja: 2, desconocida: 3 } as const;
 const hasData = (t: SpecialTest) => t.accuracy.some((a) => a.sens !== undefined || a.spec !== undefined || a.lrPos !== undefined || a.lrNeg !== undefined);
 
-/** Los tests de esas zonas, primero los de más utilidad contrastada. */
+/** Todos los tests de esas zonas (también los grupos de tests y las reglas de decisión), primero los de más utilidad contrastada. */
 export function testsForRegions(regionIds: string[]): SpecialTest[] {
   return tests
-    .filter((t) => regionIds.includes(t.region) && t.kind === "test")
+    .filter((t) => regionIds.includes(t.region))
     .sort((a, b) => Number(hasData(b)) - Number(hasData(a)) || rank[a.utility] - rank[b.utility]);
+}
+
+/** Los tests de cada zona por separado (en el orden de las zonas): ninguna zona se queda sin los suyos. */
+export function testsByRegion(regionIds: string[]): { region: string; tests: SpecialTest[] }[] {
+  return regionIds.map((region) => ({ region, tests: testsForRegions([region]) })).filter((g) => g.tests.length);
 }
 
 /** La fila de evidencia más completa del test. */

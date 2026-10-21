@@ -1,4 +1,4 @@
-// Mapa del dolor de la anamnesis (src/clinical/bodyMap.ts). Se elige qué marcar (dolor, hormigueo o rigidez) y se
+// Mapa del dolor, un cuestionario (src/clinical/bodyMap.ts). Se elige qué marcar (dolor, hormigueo o rigidez) y se
 // toca la zona en el dibujo, de frente o de espaldas; debajo sale cada zona marcada para cambiarle el síntoma y la
 // intensidad. Las zonas pequeñas también se añaden desde una lista. En la ficha y en el informe, el dibujo se lee.
 import { X } from "lucide-react";
@@ -130,7 +130,7 @@ export function BodyMapLegend() {
   );
 }
 
-/** El campo de la anamnesis. */
+/** El dibujo para marcar (cuestionario «Mapa del dolor»). */
 export function BodyMapInput({ label, hint, value, onChange }: { label: string; hint?: string; value: unknown; onChange: (v: string[]) => void }) {
   const marks = sortMarks(parseMarks(value));
   const [symptom, setSymptom] = useState<Symptom>("dolor");

@@ -1,7 +1,7 @@
 // Pantallas de la ficha clínica: anamnesis, mediciones (con cuestionarios y simetría) y sesiones. La exploración
 // (tests especiales) está en ExplorationPages.tsx, para no cargar la Guía de tests al abrir las demás.
 import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Trash, Wallet } from "lucide-react";
-import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { decimalText, fmt, fmtDate, fmtDateTime, parseDecimal, testTitle } from "../app/format";
 import { bumpData } from "../app/dataVersion";
@@ -41,16 +41,16 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
-import { answerText, answeredCount, clinicalSummary, orphanAnswers, regionLabel, type Field, type Section } from "./anamnesis";
+import { answerText, answeredCount, clinicalSummary, orphanAnswers, orphanText, regionLabel, type Field, type Section } from "./anamnesis";
 import { useAnamnesisSections } from "./useAnamnesis";
-import { BodyFigures, BodyMapInput, BodyMapLegend } from "./BodyMap";
+import { BodyMapInput } from "./BodyMap";
 import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
-import { parseMarks, regionsOf } from "./bodyMap";
+import { parseMarks } from "./bodyMap";
 import { AnalysisNav, TestList } from "./measureParts";
 import { mainValue, trends } from "./measures";
 import { QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
 import { Chips, NumberScale, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
-import { byRegions, displayName, getKind, kindOf, OTHER, psfsScore, QUESTIONNAIRES, scoreText, type Better, type QDetails } from "./questionnaires";
+import { byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, type Better, type QDetails } from "./questionnaires";
 import { LSI_REFERENCE, symmetryRows } from "./symmetry";
 import { madridDay } from "./timeline";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
@@ -88,34 +88,7 @@ function FieldInput({ field, value, onChange }: { field: Field; value: AnswerVal
       );
     case "number":
       return <NumberField label={field.label} unit={field.unit} hint={field.hint} value={typeof value === "number" ? String(value).replace(".", ",") : s} onChange={(e) => onChange(e.target.value)} />;
-    case "bodymap":
-      return <BodyMapInput label={field.label} hint={field.hint} value={value} onChange={onChange} />;
   }
-}
-
-/** Lo marcado en el mapa del dolor propone la zona, el lado y la intensidad (EVA), si faltan. */
-function MapSuggestion({ draft, onApply }: { draft: Answers; onApply: (patch: Answers, text: string) => void }) {
-  const { regions, side, maxIntensity } = regionsOf(parseMarks(draft.mapa_dolor));
-  const have = Array.isArray(draft.regiones) ? draft.regiones : [];
-  const missing = regions.filter((r) => !have.includes(r));
-  const newSide = side && !draft.lado ? side : null;
-  const eva = maxIntensity !== null && typeof draft.eva !== "number" ? maxIntensity : null;
-  if (!missing.length && !newSide && eva === null) return null;
-  const parts = [missing.length > 0 && `zona ${missing.map(regionLabel).join(", ")}`, newSide && `lado ${newSide.toLowerCase()}`, eva !== null && `intensidad ${eva}/10 (la más alta)`].filter(Boolean);
-  const text = parts.join(", ").replace(/, ([^,]*)$/, " y $1");
-  return (
-    <div className="flex flex-col gap-2 rounded-md bg-accent-soft p-3">
-      <p className="text-sm">Por lo marcado: {text}. Así la app te propone sus tests.</p>
-      <Button
-        size="sm"
-        variant="secondary"
-        className="self-start"
-        onClick={() => onApply({ regiones: [...have, ...missing], ...(newSide ? { lado: newSide } : {}), ...(eva !== null ? { eva } : {}) }, text)}
-      >
-        Añadir a Zona y Lado
-      </Button>
-    </div>
-  );
 }
 
 /** Nombre, edad, sexo y contacto vienen de los datos del paciente (se editan allí). */
@@ -329,18 +302,7 @@ export function AnamnesisPage() {
                     </div>
                   )}
                   {section.fields.map((f) => (
-                    <Fragment key={f.id}>
-                      <FieldInput field={f} value={draft[f.id]} onChange={set(f.id)} />
-                      {f.type === "bodymap" && (
-                        <MapSuggestion
-                          draft={draft}
-                          onApply={(patch, text) => {
-                            setDraft((d) => ({ ...(d ?? {}), ...patch }));
-                            toast(`Añadido: ${text}`, "success");
-                          }}
-                        />
-                      )}
-                    </Fragment>
+                    <FieldInput key={f.id} field={f} value={draft[f.id]} onChange={set(f.id)} />
                   ))}
                   {section.id === "exploracion" && <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />}
                 </div>
@@ -400,12 +362,6 @@ export function AnamnesisPage() {
                 {rows.map((f) => (
                   <div key={f.id} className="flex flex-col">
                     <dt className="text-sm text-text-muted">{f.label}</dt>
-                    {f.type === "bodymap" && (
-                      <dd className="flex flex-col gap-1 py-1">
-                        <BodyFigures marks={parseMarks(a[f.id])} className="max-w-md" />
-                        <BodyMapLegend />
-                      </dd>
-                    )}
                     <dd className="whitespace-pre-line">{answerText(f, a[f.id] ?? null)}</dd>
                   </div>
                 ))}
@@ -423,12 +379,15 @@ export function AnamnesisPage() {
             Otros datos guardados
           </h3>
           <dl className="flex flex-col gap-2">
-            {orphans.map(([k, v]) => (
-              <div key={k} className="flex flex-col">
-                <dt className="text-sm text-text-muted">{k}</dt>
-                <dd>{answerText(undefined, v)}</dd>
-              </div>
-            ))}
+            {orphans.map(([k, v]) => {
+              const o = orphanText(k, v);
+              return (
+                <div key={k} className="flex flex-col">
+                  <dt className="text-sm text-text-muted">{o.label}</dt>
+                  <dd>{o.text}</dd>
+                </div>
+              );
+            })}
           </dl>
         </section>
       )}
@@ -918,6 +877,25 @@ export function SessionFormPage() {
 
 // ---------- Cuestionarios ----------
 
+/** Mapa del dolor: el dibujo y su nota (la intensidad más alta), que se ve al marcar. */
+function PainMapScore({ marks, onChange }: { marks: string[]; onChange: (v: string[]) => void }) {
+  const parsed = parseMarks(marks);
+  let top: number | null = null;
+  try {
+    top = mapScore(parsed);
+  } catch {
+    top = null;
+  }
+  return (
+    <>
+      <BodyMapInput label="Zonas" hint="Toca en el dibujo dónde le duele o lo nota, o elígelo de la lista. Después pon la intensidad de cada zona." value={marks} onChange={onChange} />
+      <p className="nums text-lg" aria-live="polite">
+        Intensidad más alta: <span className="font-semibold">{top === null ? "—" : `${top}/10`}</span>
+      </p>
+    </>
+  );
+}
+
 type PsfsActivity = { name: string; score: number | null };
 
 export function QuestionnaireFormPage() {
@@ -935,6 +913,7 @@ export function QuestionnaireFormPage() {
   const [subscale, setSubscale] = useState<string[]>([]);
   const [activities, setActivities] = useState<PsfsActivity[]>([{ name: "", score: null }]);
   const [groc, setGroc] = useState<number | null>(null);
+  const [marks, setMarks] = useState<string[]>([]);
   const [other, setOther] = useState<{ name: string; min: string; max: string; better: Better }>({ name: "", min: "0", max: "100", better: "higher" });
   const [notes, setNotes] = useState("");
   const [answers, setAnswers] = useState<FormAnswers>({});
@@ -955,6 +934,7 @@ export function QuestionnaireFormPage() {
     setSubscale(d.subscale ? [d.subscale] : []);
     if (d.activities?.length) setActivities(d.activities);
     if (q.kind === "groc") setGroc(q.score);
+    if (d.marks) setMarks(d.marks);
     if (q.kind === OTHER) setOther({ name: d.name ?? "", min: decimalText(d.min ?? 0), max: decimalText(d.max ?? 100), better: d.better ?? "higher" });
     setAnswers(d.answers ?? {});
     setMode(d.answers ? "fill" : "score");
@@ -1036,7 +1016,8 @@ export function QuestionnaireFormPage() {
   const otherMax = parseDecimal(other.max);
   const k = kindOf(kind, { name: other.name, min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better });
   const details: QDetails =
-    kind === "psfs" ? { activities: activities.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), score: a.score ?? Number.NaN })) }
+    kind === "mapa_dolor" ? { marks }
+    : kind === "psfs" ? { activities: activities.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), score: a.score ?? Number.NaN })) }
     : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(result && "ok" in result && result.ok.text ? { text: result.ok.text } : {}) }
     : known?.subscales ? { subscale: subscale[0] }
     : kind === OTHER ? { name: other.name.trim(), min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better }
@@ -1055,6 +1036,7 @@ export function QuestionnaireFormPage() {
       if (activities.some((a) => a.name.trim() && a.score === null)) throw new RangeError("Puntúa cada actividad de 0 a 10.");
       return psfsScore(activities.map((a) => ({ name: a.name, score: a.score ?? Number.NaN })));
     }
+    if (kind === "mapa_dolor") return mapScore(parseMarks(marks));
     if (kind === "groc") {
       if (groc === null) throw new RangeError("Marca cómo está respecto al inicio.");
       return groc;
@@ -1226,6 +1208,7 @@ export function QuestionnaireFormPage() {
             </p>
           </fieldset>
         )}
+        {kind === "mapa_dolor" && <PainMapScore marks={marks} onChange={setMarks} />}
         {kind === "groc" && (
           <NumberScale label="Respecto al inicio del tratamiento, ¿cómo está ahora?" from={-7} to={7} value={groc} onChange={setGroc} ends={["−7 muchísimo peor", "+7 muchísimo mejor"]} hint="0 igual" />
         )}
