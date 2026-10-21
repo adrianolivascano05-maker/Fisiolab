@@ -46,7 +46,7 @@ export const dorsalTests: SpecialTest[] = [
         script: {
           start: { neck: { flex: 0, rot: 0 } },
           steps: [
-            { to: { neck: { rot: -45 } }, by: "examiner", dur: 1.6, marks: [{ kind: "push", at: "r_shoulder", dir: "caudal", label: "Estabiliza el hombro" }], text: "Gira pasivamente la cabeza al máximo hacia el lado contrario (izquierdo)." },
+            { to: { neck: { rot: -75 } }, by: "examiner", dur: 1.8, marks: [{ kind: "push", at: "r_shoulder", dir: "caudal", label: "Estabiliza el hombro" }], text: "Gira pasivamente la cabeza al máximo hacia el lado contrario (izquierdo)." },
             { to: { neck: { flex: 10 } }, by: "examiner", dur: 1.4, hold: 1.2, marks: [{ kind: "push", at: "r_shoulder", dir: "caudal", label: "" }], text: "Sin soltar la rotación, flexiona el cuello llevando la oreja hacia el pecho: aquí se queda bloqueado." },
           ],
         },
@@ -54,7 +54,7 @@ export const dorsalTests: SpecialTest[] = [
           setup: "Paciente sentado con la espalda recta. El examinador, de pie detrás, con una mano en la cabeza y la otra estabilizando el hombro derecho.",
           look: "Positivo si la flexión queda bloqueada o claramente limitada respecto al otro lado: sugiere una primera costilla derecha hipomóvil.",
         },
-        supuestos: ["Se enseña un positivo: la flexión se para a 10°.", "Rotación de 45° (la fuente dice «al máximo»)."],
+        supuestos: ["Se enseña un positivo: la flexión se para a 10°.", "Rotación de 75° como rotación máxima."],
       },
     ],
     related: ["dor-compresion-costal"],
@@ -155,7 +155,7 @@ export const dorsalTests: SpecialTest[] = [
             { to: { neck: { flex: 40 } }, by: "examiner", dur: 1.2, marks: [{ kind: "push", at: "head", dir: "caudal", label: "Flexión del cuello" }], text: "Añade flexión del cuello y mantenla." },
             { to: { r_knee: { flex: 10 } }, by: "patient", dur: 1.6, text: "Pide que extienda la rodilla…" },
             { to: { r_ankle: { flex: 10 } }, by: "patient", dur: 1.0, hold: 0.8, pain: true, text: "…y que lleve el pie a flexión dorsal." },
-            { to: { neck: { flex: 0 } }, by: "examiner", dur: 1.2, hold: 1.0, painEnd: true, text: "Diferenciación: al soltar la flexión del cuello, los síntomas cambian." },
+            { to: { neck: { flex: 0 } }, by: "patient", dur: 1.2, hold: 1.0, painEnd: true, text: "Diferenciación: suelta la flexión del cuello y pide que levante la cabeza: los síntomas cambian." },
           ],
         },
         text: {
@@ -236,9 +236,9 @@ export const dorsalTests: SpecialTest[] = [
         caption: "Rotación del tronco con la pelvis fija.",
         side: "both",
         script: {
-          start: { trunk: { rot: 0 } },
+          start: { trunk: { flex: 8, rot: 0 } },
           steps: [
-            { to: { trunk: { rot: 40 } }, by: "patient", dur: 1.6, hold: 0.4, text: "Con la pelvis fija, pide que rote el tronco hacia la derecha…" },
+            { to: { trunk: { rot: 40 } }, by: "patient", dur: 1.6, hold: 0.4, text: "Con la pelvis fija y el tronco algo flexionado, pide que rote hacia la derecha…" },
             { to: { trunk: { rot: -25 } }, by: "patient", dur: 2.2, hold: 1.0, pain: true, text: "…y hacia la izquierda: aquí queda limitada y duele." },
           ],
         },

@@ -173,8 +173,20 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
   const steps = spec.script?.steps ?? [];
   const stepNow = now.phase === "move" && now.step >= 0 ? steps[now.step] : undefined;
   const caption = stepNow ? stepNow.text : now.phase === "back" ? texts.setup : texts[now.phase];
-  // Quién mueve (pasivo o activo) y qué cambia, con sus grados.
-  const who = stepNow?.by === "patient" ? "Activo (lo mueve el paciente)" : stepNow?.by === "examiner" ? "Pasivo (lo mueve el examinador)" : "";
+  // Quién mueve (pasivo o activo) y qué cambia, con sus grados. Si no se mueve nada: isométrico (el paciente hace
+  // fuerza contra el examinador) o solo la presión del examinador.
+  const noMove = stepNow && !stepNow.to && !stepNow.shift;
+  const who = !stepNow
+    ? ""
+    : noMove && (stepNow.by === "patient" || stepNow.marks?.some((m) => m.kind === "resist"))
+      ? "Isométrico (el paciente hace fuerza; no se mueve)"
+      : noMove && stepNow.by === "examiner"
+        ? "Presión del examinador (sin movimiento)"
+        : stepNow.by === "patient"
+          ? "Activo (lo mueve el paciente)"
+          : stepNow.by === "examiner"
+            ? "Pasivo (lo mueve el examinador)"
+            : "";
   const technical = stepNow && keys && view === "clinical" ? [who, stepTechnical(keys, now.step)].filter(Boolean).join(" · ") : "";
   const ctl = "inline-flex size-11 items-center justify-center rounded-full bg-bg/90 text-text shadow-sm ring-1 ring-border backdrop-blur hover:bg-surface";
   const seg = (on: boolean) => cx("h-8 rounded-md px-2.5 text-xs font-semibold transition-colors", on ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text");

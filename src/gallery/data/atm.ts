@@ -47,13 +47,16 @@ export const atmTests: SpecialTest[] = [
         side: "both",
         script: {
           start: { jaw: { flex: 0 } },
-          steps: [{ to: { jaw: { flex: 30 } }, by: "patient", dur: 1.6, hold: 1.4, pain: true, text: "Pide que abra la boca al máximo y mide la distancia entre los incisivos; mira si la mandíbula se desvía." }],
+          steps: [
+            { to: { jaw: { flex: 30 } }, by: "patient", dur: 1.6, hold: 1.0, pain: true, text: "Pide que abra la boca al máximo y mide la distancia entre los incisivos; mira si la mandíbula se desvía." },
+            { to: { jaw: { flex: 33 } }, dur: 0.8, hold: 1.4, label: "Apertura asistida", text: "Apertura asistida: con el pulgar y el índice en tijera sobre los incisivos, ábrela un poco más, nota el tope final y vuelve a medir." },
+          ],
         },
         text: {
           setup: "Paciente sentado con la cabeza en posición neutra. El examinador, delante, con una regla milimetrada.",
           look: "Positivo si la apertura máxima asistida es menor de 40 mm (sumando el resalte de los incisivos) o la mandíbula se desvía hacia un lado. Anota si reproduce su dolor.",
         },
-        supuestos: ["Apertura de 30° del maniquí como apertura máxima."],
+        supuestos: ["Apertura de 30° del maniquí como apertura máxima activa y 33° como asistida.", "Los dedos del examinador en la apertura asistida no se dibujan."],
       },
     ],
     related: ["atm-ruidos", "atm-palpacion"],

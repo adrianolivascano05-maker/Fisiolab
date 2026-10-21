@@ -95,11 +95,11 @@ export const sacroiliacaTests: SpecialTest[] = [
         caption: "Decúbito lateral: presión sobre la cresta ilíaca hacia la camilla",
         side: "l",
         script: {
-          start: { l_hip: { flex: 20 }, l_knee: { flex: 30 }, r_hip: { flex: 25 }, r_knee: { flex: 35 } },
+          start: { l_hip: { flex: 45 }, l_knee: { flex: 90 }, r_hip: { flex: 45 }, r_knee: { flex: 90 } },
           steps: [{ by: "examiner", dur: 0.8, hold: 1.6, path: false, pain: true, marks: [{ kind: "push", at: "l_hip", dir: "medial", label: "Cresta ilíaca hacia la camilla" }], text: "Con las manos sobre la cresta ilíaca de arriba, empuja hacia la camilla, mantenido." }],
         },
         text: {
-          setup: "Paciente en decúbito lateral sobre el lado sano, con caderas y rodillas algo flexionadas. El examinador, detrás.",
+          setup: "Paciente en decúbito lateral sobre el lado sano, con las caderas a unos 45° y las rodillas a unos 90°. El examinador, detrás.",
           look: "Positivo si reproduce su dolor habitual en la región sacroilíaca o glútea.",
         },
         supuestos: ["Se explora el lado izquierdo (el de arriba)."],
@@ -448,13 +448,13 @@ export const sacroiliacaTests: SpecialTest[] = [
         side: "r",
         script: {
           start: { r_hip: { flex: 0 } },
-          steps: [{ to: { r_hip: { flex: 20 } }, by: "patient", dur: 1.8, hold: 1.4, pain: true, text: "Pide que eleve la pierna recta unos 20 cm y puntúe la dificultad (0-5)." }],
+          steps: [{ to: { r_hip: { flex: 13 } }, by: "patient", dur: 1.8, hold: 1.4, pain: true, text: "Pide que eleve la pierna recta unos 20 cm y puntúe la dificultad (0-5)." }],
         },
         text: {
           setup: "Paciente en supino con las piernas extendidas y los pies separados unos 20 cm. El examinador observa al lado.",
           look: "Positivo si le cuesta, nota pesadez o dolor al elevar la pierna; suele mejorar al comprimir la pelvis.",
         },
-        supuestos: ["20 cm de elevación tomados como 20° de flexión de cadera."],
+        supuestos: ["20 cm de elevación del talón: unos 13° de flexión de cadera con una pierna de unos 90 cm."],
       },
     ],
     related: ["sac-p4", "sac-ligamento-dorsal-largo"],
@@ -482,18 +482,19 @@ export const sacroiliacaTests: SpecialTest[] = [
     figures: [
       {
         view: "side",
-        posture: "prone",
+        posture: "sidelying",
         hands: ["pelvis"],
         grips: [{ kind: "tips", face: "posterior" }],
         arrows: [{ at: "pelvis", dir: "anterior", label: "palpación", len: 14 }],
         pain: ["pelvis"],
         caption: "Palpación justo por debajo de la espina ilíaca posterosuperior",
-        side: "both",
+        side: "l",
         script: {
+          start: { l_hip: { flex: 20 }, l_knee: { flex: 30 }, r_hip: { flex: 25 }, r_knee: { flex: 35 } },
           steps: [{ by: "examiner", dur: 0.8, hold: 1.6, path: false, pain: true, marks: [{ kind: "push", at: "pelvis", dir: "anterior", label: "Palpa bajo la EIPS" }], text: "Palpa justo por debajo de la espina ilíaca posterosuperior y retira la presión: cuenta cuánto dura el dolor." }],
         },
         text: {
-          setup: "Paciente en prono (fuera del embarazo; si no, en decúbito lateral). El examinador, detrás.",
+          setup: "Paciente en decúbito lateral con caderas y rodillas algo flexionadas. El examinador, detrás (fuera del embarazo también se puede hacer en prono).",
           look: "Positivo si el dolor persiste más de 5 segundos después de retirar la presión.",
         },
       },

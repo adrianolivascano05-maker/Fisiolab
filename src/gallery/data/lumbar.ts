@@ -12,6 +12,13 @@ const HICKS_2005 =
 const ALARMA_RADICULAR =
   "Derivar con urgencia si hay anestesia en silla de montar, retención o incontinencia urinaria o fecal, o déficit motor progresivo (posible síndrome de cola de caballo).";
 
+const SIEPER_2009 = {
+  source: "Sieper et al., 2009",
+  citation:
+    "Sieper J, van der Heijde D, Landewé R, et al. New criteria for inflammatory back pain in patients with chronic back pain: a real patient exercise by experts from the Assessment of SpondyloArthritis international Society (ASAS). Ann Rheum Dis. 2009;68(6):784-788.",
+  doi: "10.1136/ard.2008.101501",
+};
+
 export const lumbarTests: SpecialTest[] = [
   // ───────────── Radiculopatía lumbar ─────────────
   {
@@ -659,7 +666,7 @@ export const lumbarTests: SpecialTest[] = [
         script: {
           start: { r_hip: { flex: 0 }, l_hip: { flex: 0 } },
           steps: [
-            { to: { r_hip: { flex: -25 }, l_hip: { flex: -25 } }, by: "examiner", dur: 1.8, hold: 1.2, pain: true, text: "Eleva pasivamente las dos piernas extendidas, sujetándolas por los tobillos." },
+            { to: { r_hip: { flex: -20 }, l_hip: { flex: -20 } }, by: "examiner", dur: 1.8, hold: 1.2, pain: true, text: "Eleva pasivamente las dos piernas extendidas unos 30 cm, sujetándolas por los tobillos." },
             { to: { r_hip: { flex: 0 }, l_hip: { flex: 0 } }, by: "examiner", dur: 1.6, hold: 0.8, painEnd: true, text: "Al bajarlas, el dolor desaparece." },
           ],
         },
@@ -667,7 +674,7 @@ export const lumbarTests: SpecialTest[] = [
           setup: "Paciente en prono. El examinador, a los pies, sujeta los dos tobillos.",
           look: "Positivo si con las piernas elevadas aparece dolor lumbar intenso, pesadez o sensación de que la espalda «se va a salir», que desaparece al bajarlas.",
         },
-        supuestos: ["Elevación de 25° (la fuente dice unos 30 cm)."],
+        supuestos: ["30 cm de elevación: unos 20° de extensión de cadera con una pierna de unos 90 cm."],
       },
     ],
     related: ["lum-inestabilidad-prono", "lum-aberraciones"],
@@ -949,6 +956,7 @@ export const lumbarTests: SpecialTest[] = [
         supuestos: ["Las marcas y la cinta no se dibujan."],
       },
     ],
+    related: ["lum-dolor-inflamatorio-asas"],
   },
 
   // ───────────── Signos no orgánicos ─────────────
@@ -1049,5 +1057,54 @@ export const lumbarTests: SpecialTest[] = [
       },
     ],
     related: ["lum-regla-estabilizacion"],
+  },
+  {
+    id: "lum-dolor-inflamatorio-asas",
+    region: "lumbar",
+    group: "Movilidad y espondiloartritis",
+    name: "Criterios ASAS de dolor lumbar inflamatorio",
+    aka: ["ASAS inflammatory back pain criteria", "Criterios de expertos de dolor lumbar inflamatorio"],
+    kind: "rule",
+    purpose: "Identifica, con cinco preguntas, el dolor lumbar crónico de perfil inflamatorio que hace sospechar una espondiloartritis axial.",
+    position: "Paciente con dolor lumbar de más de 3 meses. Se pregunta en la entrevista.",
+    steps: [
+      "Mejora con el ejercicio.",
+      "Dolor por la noche (que mejora al levantarse).",
+      "Comienzo insidioso.",
+      "Comienzo antes de los 40 años.",
+      "No mejora con el reposo.",
+    ],
+    positive: "Al menos 4 de los 5.",
+    interpretation:
+      "Ayudan a reconocer el dolor inflamatorio, no confirman la enfermedad: en la cohorte de validación la especificidad bajó al 72 %. Si se cumplen, sobre todo en un adulto joven, valora la derivación a reumatología (analítica e imagen de las sacroilíacas). Las medidas de movilidad (Schober) sirven más para el seguimiento que para el diagnóstico.",
+    accuracy: [
+      { sens: 77, spec: 91.7, context: "Dolor lumbar crónico; referencia: juicio de 13 reumatólogos expertos que exploraron a 20 pacientes", ...SIEPER_2009 },
+      { sens: 79.6, spec: 72.4, context: "Cohorte de validación de 648 pacientes con dolor lumbar crónico", ...SIEPER_2009 },
+    ],
+    utility: "moderada",
+    figures: [
+      {
+        view: "side",
+        posture: "standing",
+        to: { trunk: 60, r_hip: 60, l_hip: 60, r_shoulder: 60, l_shoulder: 60 },
+        arrows: [{ at: "shoulder", dir: "anterior", kind: "move", label: "se mueve y mejora" }],
+        pain: ["lumbar"],
+        caption: "Dolor que mejora con el movimiento y no con el reposo",
+        side: "both",
+        script: {
+          start: { pelvis: { flex: 0 }, trunk: { flex: 0 }, r_hip: { flex: 0 }, l_hip: { flex: 0 } },
+          steps: [
+            { dur: 0.6, hold: 1.4, pain: true, path: false, text: "Pregunta por la rigidez y el dolor de madrugada, que mejoran al levantarse y moverse." },
+            { to: { pelvis: { flex: 35 }, trunk: { flex: 25 }, r_hip: { flex: 35 }, l_hip: { flex: 35 } }, by: "patient", dur: 2.2, hold: 0.6, painEnd: true, label: "Ejercicio", text: "El dolor inflamatorio mejora con el ejercicio y no con el reposo." },
+          ],
+        },
+        text: {
+          setup: "Se pregunta en la entrevista a un paciente con dolor lumbar de más de 3 meses.",
+          look: "Al menos 4 de 5: mejora con el ejercicio, dolor nocturno, comienzo insidioso, comienzo antes de los 40 y no mejora con el reposo.",
+        },
+        supuestos: ["Los criterios son preguntas: la figura solo representa la mejora con el movimiento."],
+      },
+    ],
+    related: ["lum-schober"],
   },
 ];

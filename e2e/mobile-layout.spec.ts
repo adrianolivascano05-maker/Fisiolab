@@ -1,0 +1,41 @@
+import { expect, loadSeed, test } from "./fixtures";
+
+// Las pantallas del día a día con datos de ejemplo, en un móvil estrecho (360 px) y en uno grande (412 px, como un
+// Pixel 7 Pro): nada se sale por los lados (sin desplazamiento horizontal de la página).
+for (const width of [360, 412]) {
+  test(`ficha, agenda y guía sin desbordes a ${width} px`, async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width, height: 800 });
+    await loadSeed(page);
+    await page.goto("./");
+    const href = await page.getByRole("list", { name: "Pacientes" }).getByRole("link").first().getAttribute("href");
+    const patient = `.${href!.replace(/^.*\/pacientes\//, "/pacientes/")}`;
+    const paths = [
+      "./",
+      "./agenda",
+      "./agenda/espera",
+      "./agenda/recordatorios",
+      "./exploracion",
+      "./exploracion/hombro",
+      "./exploracion/hombro/hom-cluster-murrell-walton",
+      "./ajustes/cobros",
+      "./ajustes/estadisticas",
+      patient,
+      `${patient}/anamnesis`,
+      `${patient}/exploracion`,
+      `${patient}/sesiones`,
+      `${patient}/sesiones/nueva`,
+      `${patient}/cuestionarios`,
+      `${patient}/cobros`,
+      `${patient}/ejercicios`,
+      `${patient}/formularios`,
+      `${patient}/informe`,
+    ];
+    for (const path of paths) {
+      await page.goto(path);
+      await page.waitForLoadState("networkidle");
+      await expect(page.locator("main").first(), path).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth), path).toBeLessThanOrEqual(width);
+    }
+  });
+}

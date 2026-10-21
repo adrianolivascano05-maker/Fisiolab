@@ -37,6 +37,7 @@ const MILLER_2008 = {
   source: "Miller et al., 2008",
   citation:
     "Miller CA, Forrester GA, Lewis JS. The validity of the lag signs in diagnosing full-thickness tears of the rotator cuff: a preliminary investigation. Arch Phys Med Rehabil. 2008;89(6):1162-1168.",
+  doi: "10.1016/j.apmr.2007.10.046",
 };
 const BARTH_2006 = {
   source: "Barth et al., 2006",
@@ -527,15 +528,15 @@ export const hombroTests: SpecialTest[] = [
         script: {
           start: { r_shoulder: { flex: 0, abd: 20, rot: 0 }, r_elbow: { flex: 90, pron: 0 } },
           steps: [
-            { to: { r_shoulder: { rot: -50 } }, by: "examiner", dur: 1.6, hold: 0.4, text: "Lleva el hombro pasivamente a rotación externa casi máxima." },
-            { to: { r_shoulder: { rot: -15 } }, dur: 0.8, hold: 1.2, release: [1], label: "Cae hacia RI", text: "Pide que mantenga la posición y suelta la muñeca sin soltar el codo: el antebrazo vuelve hacia dentro." },
+            { to: { r_shoulder: { rot: -65 } }, by: "examiner", dur: 1.6, hold: 0.4, text: "Lleva el hombro pasivamente a rotación externa casi máxima." },
+            { to: { r_shoulder: { rot: -25 } }, dur: 0.8, hold: 1.2, release: [1], label: "Cae hacia RI", text: "Pide que mantenga la posición y suelta la muñeca sin soltar el codo: el antebrazo vuelve hacia dentro." },
           ],
         },
         text: {
           setup: "Paciente sentado, de espaldas al examinador, con el codo derecho a 90° y unos 20° de abducción. El examinador sujeta el codo y la muñeca.",
           look: "Positivo si el antebrazo cae hacia la rotación interna porque no puede mantener la rotación externa.",
         },
-        supuestos: ["Se enseña un positivo: de 50° de rotación externa cae a 15°.", "Abducción de 20° en el plano frontal (la fuente dice plano escapular)."],
+        supuestos: ["Se enseña un positivo: de 65° de rotación externa (5° menos que el tope habitual) cae a 25°.", "Abducción de 20° en el plano frontal (la fuente dice plano escapular)."],
       },
     ],
     related: ["hom-hornblower", "hom-rotacion-externa-resistida"],
@@ -1045,12 +1046,15 @@ export const hombroTests: SpecialTest[] = [
           steps: [
             { by: "examiner", dur: 0.8, hold: 0.4, marks: [{ kind: "push", at: "r_elbow", dir: "medial", label: "Carga axial" }], text: "Con el brazo a 90° de abducción, aplica carga axial a lo largo del húmero." },
             {
-              to: { r_shoulder: { flex: 135, abd: 45 } },
+              to: { r_shoulder: { flex: 145, abd: 30 } },
               by: "examiner",
               dur: 2.0,
               hold: 1.0,
               pain: true,
-              marks: [{ kind: "push", at: "r_upperarm@0.3", dir: "caudal", label: "Abajo y atrás" }],
+              marks: [
+                { kind: "push", at: "r_upperarm@0.3", dir: "caudal", label: "Abajo y atrás" },
+                { kind: "push", at: "r_elbow", dir: "caudal", label: "Mantiene la carga axial" },
+              ],
               text: "Eleva el brazo unos 45° en diagonal mientras empujas la parte proximal hacia abajo y atrás.",
               label: "Elevación en diagonal",
             },
@@ -1060,7 +1064,7 @@ export const hombroTests: SpecialTest[] = [
           setup: "Paciente sentado con la espalda apoyada. El examinador, al lado, sujeta el codo y la parte proximal del brazo.",
           look: "Positivo si aparece un dolor posterior brusco en el hombro, con o sin chasquido.",
         },
-        supuestos: ["Elevación diagonal hasta 135° entre el plano frontal y el sagital."],
+        supuestos: ["Elevación de 135° en un plano diagonal a 45° entre el frontal y el sagital (flexión 145° y abducción 30° en el convenio del esqueleto)."],
       },
     ],
     related: ["hom-jerk"],
@@ -1108,9 +1112,9 @@ export const hombroTests: SpecialTest[] = [
           start: { r_shoulder: { flex: 90, abd: -15, rot: 0 }, r_elbow: { flex: 5, pron: 0 } },
           steps: [
             { to: { r_shoulder: { rot: 80 }, r_elbow: { pron: 90 } }, by: "patient", dur: 1.2, text: "Con el brazo a 90° de flexión y 15° de aducción horizontal, gira el pulgar hacia abajo.", label: "Pulgar hacia abajo" },
-            { by: "examiner", dur: 0.8, hold: 1.0, pain: true, marks: [{ kind: "push", at: "r_forearm@0.7", dir: "caudal", label: "Empuja hacia abajo; resiste" }], text: "Empuja el antebrazo hacia abajo mientras el paciente resiste. Pregunta dónde duele." },
+            { by: "patient", dur: 0.8, hold: 1.0, pain: true, marks: [{ kind: "push", at: "r_forearm@0.7", dir: "caudal", label: "Empuja hacia abajo; resiste" }], text: "Empuja el antebrazo hacia abajo mientras el paciente resiste. Pregunta dónde duele." },
             { to: { r_shoulder: { rot: 0 }, r_elbow: { pron: -85 } }, by: "patient", dur: 1.4, text: "Repite con la palma hacia arriba.", label: "Palma hacia arriba" },
-            { by: "examiner", dur: 0.8, hold: 1.2, painEnd: true, marks: [{ kind: "push", at: "r_forearm@0.7", dir: "caudal", label: "Empuja hacia abajo; resiste" }], text: "Empuja otra vez: con la palma arriba el dolor disminuye." },
+            { by: "patient", dur: 0.8, hold: 1.2, painEnd: true, marks: [{ kind: "push", at: "r_forearm@0.7", dir: "caudal", label: "Empuja hacia abajo; resiste" }], text: "Empuja otra vez: con la palma arriba el dolor disminuye." },
           ],
         },
         text: {
@@ -1306,7 +1310,7 @@ export const hombroTests: SpecialTest[] = [
         side: "r",
         script: {
           start: { r_shoulder: { flex: 90, abd: 0, rot: 0 }, r_elbow: { flex: 5, pron: -85 } },
-          steps: [{ by: "examiner", dur: 0.8, hold: 1.6, pain: true, marks: [{ kind: "push", at: "r_wrist", dir: "caudal", label: "Empuja hacia abajo; resiste" }], text: "Con el codo extendido y la palma hacia arriba, empuja el antebrazo hacia abajo mientras el paciente resiste y palpas la corredera." }],
+          steps: [{ by: "patient", dur: 0.8, hold: 1.6, pain: true, marks: [{ kind: "push", at: "r_wrist", dir: "caudal", label: "Empuja hacia abajo; resiste" }], text: "Con el codo extendido y la palma hacia arriba, empuja el antebrazo hacia abajo mientras el paciente resiste y palpas la corredera." }],
         },
         text: {
           setup: "Paciente de pie con el hombro derecho a 90° de flexión, el codo extendido y el antebrazo en supinación. Una mano en el antebrazo y la otra palpa la corredera bicipital.",
@@ -1794,5 +1798,278 @@ export const hombroTests: SpecialTest[] = [
       },
     ],
     related: ["hom-roos", "hom-adson"],
+  },
+  {
+    id: "hom-drop-sign",
+    region: "hombro",
+    group: G_RC,
+    name: "Signo de caída (drop sign de Hertel)",
+    aka: ["Drop sign", "Signo de Hertel"],
+    kind: "test",
+    purpose: "Detecta rotura del infraespinoso por incapacidad de mantener la rotación externa con el brazo a 90° de elevación.",
+    position: "Paciente sentado, de espaldas al examinador. El examinador sostiene el brazo a 90° de elevación con el codo a 90°.",
+    steps: [
+      "Sujeta el codo con una mano y la muñeca con la otra.",
+      "Con el brazo a 90° de elevación, lleva el hombro a rotación externa casi máxima.",
+      "Pide al paciente que mantenga la posición y suelta la muñeca, sin soltar el codo.",
+      "Observa si el antebrazo cae hacia delante (rotación interna).",
+    ],
+    positive: "El antebrazo cae hacia la rotación interna: no puede mantener la rotación externa a 90° de elevación.",
+    interpretation:
+      "Ni confirma ni descarta por sí solo: un positivo aumenta poco la probabilidad de rotura de espesor completo y un negativo la baja algo. Combínalo con el signo de retraso en rotación externa (más específico) y con el resto de pruebas del manguito.",
+    accuracy: [{ ...MILLER_2008, sens: 73, spec: 77, lrPos: 3.2, lrNeg: 0.34, context: "Rotura de espesor completo confirmada por ecografía; 37 pacientes (muestra pequeña)" }],
+    utility: "moderada",
+    figures: [
+      {
+        view: "front",
+        posture: "sitting",
+        joints: { r_shoulder: 90, r_elbow: 90 },
+        hands: ["r_elbow", "r_wrist"],
+        grips: [{ kind: "grasp", face: "caudal" }, { kind: "grasp", face: "posterior" }],
+        arrows: [{ at: "r_wrist", dir: "caudal", kind: "move", label: "cae a RI" }],
+        caption: "Brazo a 90° en rotación externa: al soltar la muñeca, el antebrazo cae hacia delante",
+        side: "r",
+        script: {
+          start: { r_shoulder: { flex: 0, abd: 90, rot: 0 }, r_elbow: { flex: 90, pron: 0 } },
+          steps: [
+            { to: { r_shoulder: { rot: -75 } }, by: "examiner", dur: 1.6, hold: 0.4, text: "Con el brazo a 90° de abducción y el codo a 90°, lleva el hombro a rotación externa casi máxima." },
+            { to: { r_shoulder: { rot: 5 } }, dur: 0.7, hold: 1.2, release: [1], label: "Cae hacia RI", text: "Pide que mantenga la posición y suelta la muñeca sin soltar el codo: el antebrazo cae hacia delante." },
+          ],
+        },
+        text: {
+          setup: "Paciente sentado. El examinador sostiene el brazo derecho a 90° de abducción con el codo a 90°, una mano en el codo y otra en la muñeca.",
+          look: "Positivo si el antebrazo cae hacia la rotación interna al soltar la muñeca.",
+        },
+        supuestos: ["Se enseña un positivo: de 75° de rotación externa cae a 5° de rotación interna.", "Abducción en el plano frontal (la fuente dice plano escapular)."],
+      },
+    ],
+    related: ["hom-lag-rotacion-externa", "hom-hornblower", "hom-cluster-murrell-walton"],
+  },
+  {
+    id: "hom-lag-rotacion-interna",
+    region: "hombro",
+    group: G_RC,
+    name: "Signo de retraso en rotación interna",
+    aka: ["Internal rotation lag sign (IRLS)", "Lift-off lag sign", "Signo de retraso del subescapular"],
+    kind: "test",
+    purpose: "Detecta rotura completa del subescapular por incapacidad de mantener la mano separada de la espalda.",
+    position: "Paciente de pie o sentado con el dorso de la mano en la zona lumbar. El examinador, detrás.",
+    steps: [
+      "Coloca el dorso de la mano del paciente en la zona lumbar con el codo a unos 90°.",
+      "Sujeta el codo y separa pasivamente la mano de la espalda (rotación interna casi máxima).",
+      "Pide al paciente que mantenga la mano separada y suelta la muñeca.",
+      "Observa si la mano vuelve a la espalda.",
+    ],
+    positive: "La mano vuelve hacia la espalda (retraso): no puede mantener la rotación interna.",
+    interpretation:
+      "En el único estudio con ecografía no se le escapó ninguna rotura completa del subescapular, así que un negativo hace poco probable esa rotura; el estudio es pequeño (37 pacientes) y el intervalo de confianza de la LR− es amplio. Un positivo aumenta de forma moderada la probabilidad. Combínalo con belly press y bear hug.",
+    accuracy: [{ ...MILLER_2008, sens: 100, spec: 84, lrPos: 6.2, context: "Rotura completa del subescapular confirmada por ecografía; 37 pacientes. LR− 0 con IC 95 % de 0 a 2,5: muy imprecisa" }],
+    utility: "moderada",
+    cautions: "Requiere rotación interna suficiente para llevar la mano a la espalda; si duele o no llega, usa el belly press.",
+    figures: [
+      {
+        view: "side",
+        posture: "standing",
+        joints: { r_shoulder: -30, r_elbow: 30 },
+        pose3d: { r_shoulder: { flex: -18, abd: 23, rot: 88 }, r_elbow: { flex: 87 }, r_wrist: { flex: -20 } },
+        hands: ["r_elbow", "r_wrist"],
+        grips: [{ kind: "grasp", face: "lateral" }, { kind: "grasp", face: "posterior" }],
+        arrows: [{ at: "r_hand", dir: "anterior", kind: "move", label: "vuelve" }],
+        caption: "Mano separada de la espalda: al soltarla, vuelve hacia la zona lumbar",
+        side: "r",
+        camera: { from: [-0.45, 0.2, -0.9], zoom: 0.72 },
+        script: {
+          start: { r_shoulder: { flex: -25, abd: 20, rot: 70 }, r_elbow: { flex: 70 } },
+          steps: [
+            { to: { r_shoulder: { rot: 88 } }, by: "examiner", dur: 1.4, hold: 0.4, label: "Separa la mano (RI)", text: "Sujeta el codo y separa la mano de la espalda hasta casi la rotación interna máxima." },
+            { to: { r_shoulder: { rot: 72 } }, dur: 0.7, hold: 1.2, release: [1], label: "Vuelve a la espalda", text: "Pide que mantenga la mano separada y suelta la muñeca: la mano vuelve hacia la espalda." },
+          ],
+        },
+        text: {
+          setup: "Paciente de pie con el dorso de la mano derecha en la zona lumbar. El examinador, detrás, sujeta el codo y la muñeca.",
+          look: "Positivo si la mano vuelve hacia la espalda al soltarla: no puede mantener la rotación interna.",
+        },
+        supuestos: ["Se enseña un positivo: de 88° de rotación interna vuelve a 72°.", "Codo a 70° de flexión (la fuente dice unos 90°) para que la mano quede en la zona lumbar en este modelo."],
+      },
+    ],
+    related: ["hom-lift-off", "hom-belly-press", "hom-bear-hug"],
+  },
+  {
+    id: "hom-irrst",
+    region: "hombro",
+    group: G_SUB,
+    name: "Test de resistencia en rotación interna (IRRST)",
+    aka: ["Internal rotation resistance strength test", "Test de Zaslav"],
+    kind: "test",
+    purpose: "En un paciente con signos de choque positivos, distingue el choque subacromial de un problema intraarticular comparando la fuerza en rotación externa e interna.",
+    position: "Paciente de pie con el brazo a 90° de abducción, 80° de rotación externa y el codo a 90°. El examinador, detrás.",
+    steps: [
+      "Sujeta el codo con una mano y apoya la otra en la muñeca.",
+      "Pide al paciente que rote hacia fuera con fuerza contra tu mano (rotación externa isométrica).",
+      "En la misma posición, pide que rote hacia dentro con fuerza (rotación interna isométrica).",
+      "Compara la fuerza de las dos rotaciones.",
+    ],
+    positive: "La rotación interna es más débil que la externa: orienta a un problema intraarticular (labrum, choque interno). Si la débil es la externa, orienta a choque subacromial.",
+    interpretation:
+      "En su estudio original, en pacientes con signos de choque positivos, separó bien la patología intraarticular del choque subacromial. Es un único estudio, del propio autor y con artroscopia como referencia: úsalo para orientar, junto con los signos de choque y de aprensión.",
+    accuracy: [
+      {
+        sens: 88,
+        spec: 96,
+        context: "Patología intraarticular frente a choque subacromial, en pacientes con signo de choque positivo; 115 pacientes consecutivos con artroscopia",
+        source: "Zaslav, 2001",
+        citation:
+          "Zaslav KR. Internal rotation resistance strength test: a new diagnostic test to differentiate intra-articular pathology from outlet (Neer) impingement syndrome in the shoulder. J Shoulder Elbow Surg. 2001;10(1):23-27.",
+        doi: "10.1067/mse.2001.111960",
+      },
+    ],
+    utility: "moderada",
+    figures: [
+      {
+        view: "front",
+        posture: "standing",
+        joints: { r_shoulder: 90, r_elbow: 90 },
+        hands: ["r_elbow", "r_wrist"],
+        grips: [{ kind: "grasp", face: "caudal" }, { kind: "grasp", face: "posterior" }],
+        arrows: [{ at: "r_wrist", dir: "anterior", label: "resiste" }],
+        caption: "Brazo a 90/90: se compara la fuerza en rotación externa y en rotación interna",
+        side: "r",
+        script: {
+          start: { r_shoulder: { flex: 0, abd: 90, rot: -80 }, r_elbow: { flex: 90, pron: 0 } },
+          steps: [
+            { by: "patient", dur: 0.6, hold: 1.6, marks: [{ kind: "resist", joint: "r_shoulder", dof: "rot", sign: -1, label: "Empuja hacia RE; el examinador lo frena" }], text: "Pide que rote hacia fuera con fuerza contra tu mano. No hay movimiento (isométrico)." },
+            { by: "patient", dur: 0.6, hold: 1.6, marks: [{ kind: "resist", joint: "r_shoulder", dof: "rot", sign: 1, label: "Empuja hacia RI; el examinador lo frena" }], text: "En la misma posición, pide que rote hacia dentro con fuerza. Compara las dos fuerzas." },
+          ],
+        },
+        text: {
+          setup: "Paciente de pie con el brazo derecho a 90° de abducción, 80° de rotación externa y el codo a 90°. El examinador sujeta el codo y la muñeca.",
+          look: "Si la rotación interna es más débil que la externa, orienta a patología intraarticular; si la débil es la externa, a choque subacromial.",
+        },
+        supuestos: ["Abducción en el plano frontal y examinador al lado (la descripción habitual lo pone detrás).", "Se enseñan las dos resistencias seguidas; la diferencia de fuerza no se puede dibujar."],
+      },
+    ],
+    related: ["hom-neer", "hom-hawkins-kennedy", "hom-aprension"],
+  },
+  {
+    id: "hom-distraccion-pasiva",
+    region: "hombro",
+    group: G_SLAP,
+    name: "Test de distracción pasiva (PDT)",
+    aka: ["Passive distraction test", "PDT"],
+    kind: "test",
+    purpose: "Busca dolor de una lesión SLAP tensando el bíceps con el brazo elevado y pronando el antebrazo.",
+    position: "Paciente en supino con el hombro en el borde de la camilla. El examinador, al lado, sostiene el brazo.",
+    steps: [
+      "Eleva el brazo a 150° con el codo extendido y el antebrazo en supinación.",
+      "Manteniendo la elevación, prona el antebrazo de forma pasiva.",
+      "Pregunta si aparece dolor y dónde.",
+    ],
+    positive: "Dolor profundo en el hombro (anterior o posterior) al pronar el antebrazo.",
+    interpretation:
+      "Bastante específico y poco sensible: un positivo apoya una lesión SLAP; un negativo no la descarta. Combinado con O'Brien, si los dos son negativos la lesión es poco probable (valor predictivo negativo del 90,5 % en el estudio original).",
+    accuracy: [
+      {
+        sens: 53,
+        spec: 94,
+        context: "Lesión SLAP con repercusión clínica frente a artroscopia; 254 artroscopias, estudio retrospectivo",
+        source: "Schlechter et al., 2009",
+        citation: "Schlechter JA, Summa S, Rubin BD. The passive distraction test: a new diagnostic aid for clinically significant superior labral pathology. Arthroscopy. 2009;25(12):1374-1379.",
+        doi: "10.1016/j.arthro.2009.04.070",
+      },
+    ],
+    utility: "moderada",
+    cautions: "No se puede hacer si la elevación no llega a 150° o si la posición de partida ya duele (en el estudio se excluyeron).",
+    figures: [
+      {
+        view: "side",
+        posture: "supine",
+        joints: { r_shoulder: 150, r_elbow: 0 },
+        hands: ["r_hand@0.3", "r_elbow"],
+        grips: [{ kind: "grasp", face: "anterior" }, { kind: "grasp", face: "posterior" }],
+        arrows: [{ at: "r_forearm@0.7", rotate: "cw", label: "pronación" }],
+        pain: ["r_shoulder"],
+        caption: "Brazo elevado a 150° con el codo extendido: se prona el antebrazo",
+        side: "r",
+        script: {
+          start: { r_shoulder: { flex: 150, abd: 0, rot: 0 }, r_elbow: { flex: 0, pron: -85 } },
+          steps: [{ to: { r_elbow: { pron: 85 } }, by: "examiner", dur: 1.6, hold: 1.4, pain: true, label: "Pronación", text: "Manteniendo el brazo a 150° y el codo extendido, prona el antebrazo. Pregunta si duele y dónde." }],
+        },
+        text: {
+          setup: "Paciente en supino con el hombro derecho en el borde de la camilla, el brazo elevado a 150°, el codo extendido y el antebrazo en supinación. El examinador le sujeta la mano y el codo.",
+          look: "Positivo si la pronación provoca dolor profundo en el hombro.",
+        },
+        supuestos: ["Elevación de 150° en el plano sagital (la fuente dice plano escapular).", "Se enseña un positivo."],
+      },
+    ],
+    related: ["hom-obrien", "hom-biceps-load-ii", "hom-crank"],
+  },
+  {
+    id: "hom-cluster-murrell-walton",
+    region: "hombro",
+    group: G_RC,
+    name: "Cluster de Murrell y Walton (rotura del manguito)",
+    aka: ["Murrell-Walton cluster", "Debilidad del supraespinoso + debilidad en RE + signo de choque"],
+    kind: "cluster",
+    purpose: "Combina tres pruebas sencillas y la edad para estimar la probabilidad de rotura del manguito rotador.",
+    position: "Paciente de pie o sentado. Se exploran seguidas las tres pruebas.",
+    steps: [
+      "Fuerza del supraespinoso: elevación resistida a 90° en el plano escapular (lata vacía o llena).",
+      "Fuerza en rotación externa: rotación externa resistida con el codo pegado al cuerpo.",
+      "Signo de choque (Neer o Hawkins-Kennedy).",
+      "Anota cuántas son positivas y si el paciente tiene 60 años o más.",
+    ],
+    positive: "Las tres positivas, o dos positivas en un paciente de 60 años o más.",
+    interpretation:
+      "Sirve en los dos sentidos: con las tres positivas, o dos y 60 años o más, la probabilidad de rotura fue del 98 % en el estudio original; si no hay ninguna, se descartó la rotura. Otro estudio (448 pacientes, artrografía) llegó a algo parecido: la debilidad en rotación externa, la edad de 65 o más y el dolor nocturno fueron los mejores predictores. Ante una sospecha alta, pide ecografía.",
+    accuracy: [
+      {
+        context: "Las tres positivas, o dos y edad ≥ 60 años: 98 % de probabilidad de rotura; sin ninguna, se descartó. 400 pacientes con y sin rotura, estudio prospectivo publicado como carta",
+        source: "Murrell y Walton, 2001",
+        citation: "Murrell GA, Walton JR. Diagnosis of rotator cuff tears. Lancet. 2001;357(9258):769-770.",
+        doi: "10.1016/S0140-6736(00)04161-1",
+      },
+      {
+        context: "Predictores de rotura en la artrografía (regresión logística): debilidad en rotación externa (OR ajustada 6,96), edad ≥ 65 (4,05) y dolor nocturno (2,61); 448 pacientes",
+        source: "Litaker et al., 2000",
+        citation: "Litaker D, Pioro M, El Bilbeisi H, Brems J. Returning to the bedside: using the history and physical examination to identify rotator cuff tears. J Am Geriatr Soc. 2000;48(12):1633-1637.",
+        doi: "10.1111/j.1532-5415.2000.tb03875.x",
+      },
+    ],
+    utility: "alta",
+    figures: [
+      {
+        view: "front",
+        posture: "standing",
+        joints: { r_shoulder: 90 },
+        hands: ["r_forearm@0.6"],
+        grips: [{ kind: "press", face: "cranial" }],
+        arrows: [{ at: "r_wrist", dir: "caudal", label: "resiste" }],
+        pain: ["r_shoulder"],
+        caption: "Una de las tres pruebas: fuerza del supraespinoso a 90° en el plano escapular",
+        side: "r",
+        script: {
+          start: { r_shoulder: { flex: 90, abd: 60, rot: 0 }, r_elbow: { flex: 5, pron: 0 } },
+          steps: [
+            {
+              by: "examiner",
+              dur: 0.8,
+              hold: 1.6,
+              pain: true,
+              marks: [
+                { kind: "push", at: "r_forearm@0.6", dir: "caudal", label: "Empuja hacia abajo" },
+                { kind: "resist", joint: "r_shoulder", dof: "flex", sign: 1, label: "Resiste hacia arriba" },
+              ],
+              text: "Fuerza del supraespinoso: empuja el antebrazo hacia abajo mientras el paciente resiste. Después, rotación externa resistida y signo de choque.",
+            },
+          ],
+        },
+        text: {
+          setup: "Paciente de pie con el brazo derecho a 90° en el plano escapular y el codo extendido. Se exploran seguidas la fuerza del supraespinoso, la fuerza en rotación externa y el signo de choque.",
+          look: "Las tres positivas, o dos y 60 años o más: rotura muy probable. Ninguna: rotura muy poco probable.",
+        },
+        supuestos: ["Solo se dibuja una de las tres pruebas (la fuerza del supraespinoso, con el pulgar hacia arriba).", "Plano escapular a 30° del frontal (60° de abducción horizontal)."],
+      },
+    ],
+    related: ["hom-jobe", "hom-rotacion-externa-resistida", "hom-neer", "hom-hawkins-kennedy", "hom-cluster-park-rotura"],
   },
 ];

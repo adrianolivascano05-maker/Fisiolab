@@ -50,7 +50,7 @@ export const codoTests: SpecialTest[] = [
           steps: [
             { to: { r_wrist: { flex: -35, abd: 10 } }, by: "patient", dur: 1.2, text: "Pide que cierre el puño y extienda la muñeca (con algo de desviación radial).", label: "Extensión de muñeca" },
             {
-              by: "examiner",
+              by: "patient",
               dur: 0.8,
               hold: 1.4,
               pain: true,
@@ -155,7 +155,19 @@ export const codoTests: SpecialTest[] = [
         side: "r",
         script: {
           start: { r_shoulder: { flex: 70, abd: 0 }, r_elbow: { flex: 5, pron: 80 }, r_wrist: { flex: 0 } },
-          steps: [{ by: "examiner", dur: 0.8, hold: 1.6, pain: true, marks: [{ kind: "push", at: "r_hand@0.85", dir: "caudal", label: "Empuja el dedo medio; resiste" }], text: "Pide que extienda el dedo medio y empújalo hacia la flexión mientras resiste." }],
+          steps: [
+            {
+              by: "patient",
+              dur: 0.8,
+              hold: 1.6,
+              pain: true,
+              marks: [
+                { kind: "push", at: "r_hand@0.85", dir: "caudal", label: "Empuja el dedo medio" },
+                { kind: "resist", at: "r_hand@0.85", dir: "cranial", label: "Extiende el dedo medio contra la mano" },
+              ],
+              text: "Pide que extienda el dedo medio y empújalo hacia la flexión mientras resiste.",
+            },
+          ],
         },
         text: {
           setup: "Paciente sentado con el codo derecho extendido, el antebrazo en pronación y la muñeca neutra. Un dedo del examinador sobre la falange proximal del dedo medio.",
@@ -465,8 +477,8 @@ export const codoTests: SpecialTest[] = [
           steps: [
             { to: { r_elbow: { pron: -80 } }, by: "examiner", dur: 1.2, text: "Con el codo extendido, supina el antebrazo." },
             { to: { r_elbow: { abd: 6 } }, by: "examiner", dur: 1.0, marks: [{ kind: "push", at: "r_forearm@0.85", dir: "caudal", label: "Compresión axial" }], text: "Aplica valgo y compresión axial." },
-            { to: { r_elbow: { flex: 40 } }, by: "examiner", dur: 1.8, marks: [{ kind: "push", at: "r_forearm@0.85", dir: "caudal", label: "" }], text: "Flexiona poco a poco el codo manteniendo esas fuerzas." },
-            { to: { r_elbow: { flex: 60 } }, by: "examiner", dur: 1.0, hold: 1.2, pain: true, marks: [{ kind: "push", at: "r_forearm@0.85", dir: "caudal", label: "" }], text: "Pasados unos 40° aparece la aprensión o el resalte de la cabeza radial que se reduce." },
+            { to: { r_elbow: { flex: 30 } }, by: "examiner", dur: 1.8, hold: 0.8, pain: true, marks: [{ kind: "push", at: "r_forearm@0.85", dir: "caudal", label: "" }], text: "Flexiona poco a poco el codo manteniendo esas fuerzas: hacia 20-30° aparece la aprensión (la cabeza radial se subluxa)…" },
+            { to: { r_elbow: { flex: 60 } }, by: "examiner", dur: 1.2, hold: 1.0, painEnd: true, marks: [{ kind: "push", at: "r_forearm@0.85", dir: "caudal", label: "" }], text: "…y pasados unos 40° se reduce con un resalte que se nota con la mano." },
           ],
         },
         text: {
@@ -719,6 +731,7 @@ export const codoTests: SpecialTest[] = [
         },
       },
     ],
+    related: ["cod-squeeze-biceps"],
   },
   // ── Fractura ────────────────────────────────────────────────────────
   {
@@ -771,5 +784,68 @@ export const codoTests: SpecialTest[] = [
         supuestos: ["Se enseña un positivo: al codo derecho le faltan 12°."],
       },
     ],
+  },
+  {
+    id: "cod-squeeze-biceps",
+    region: "codo",
+    group: "Bíceps distal",
+    name: "Test de compresión del bíceps (squeeze)",
+    aka: ["Biceps squeeze test", "Test de Ruland"],
+    kind: "test",
+    purpose: "Comprueba si el tendón distal del bíceps está entero viendo si el antebrazo se supina al apretar el vientre del bíceps (como el test de Thompson en el Aquiles).",
+    position: "Paciente sentado con el antebrazo apoyado en el muslo, el codo a 60-80° de flexión y el antebrazo algo pronado. El examinador, a su lado.",
+    steps: [
+      "Pide al paciente que relaje el brazo con el antebrazo apoyado en el muslo.",
+      "Aprieta con firmeza el vientre del bíceps.",
+      "Observa si el antebrazo hace un pequeño movimiento de supinación.",
+      "Compara con el lado sano.",
+    ],
+    positive: "Al apretar el bíceps no aparece la supinación del antebrazo (o es mucho menor que en el lado sano).",
+    interpretation:
+      "En su estudio original fue positivo en casi todas las sospechas de rotura completa y nunca en personas sin lesión. El estudio es pequeño y la especificidad se midió en controles sanos, no en pacientes con otros dolores de codo. Úsalo junto al hook test; si la sospecha sigue alta, pide ecografía o resonancia.",
+    accuracy: [
+      {
+        spec: 100,
+        context: "Positivo en 24 de 26 sospechas de rotura (92 %); 21 de los 22 operados tenían rotura completa. Ningún positivo en 65 personas sin lesión del miembro superior",
+        source: "Ruland et al., 2005",
+        citation: "Ruland RT, Dunbar RP, Bowen JD. The biceps squeeze test for diagnosis of distal biceps tendon ruptures. Clin Orthop Relat Res. 2005;(437):128-131.",
+        doi: "10.1097/01.blo.0000167668.18444.f5",
+      },
+    ],
+    utility: "moderada",
+    figures: [
+      {
+        view: "side",
+        posture: "sitting",
+        joints: { r_shoulder: 10, r_elbow: 70 },
+        hands: ["r_upperarm@0.6"],
+        grips: [{ kind: "grasp", face: "anterior" }],
+        arrows: [
+          { at: "r_upperarm@0.6", dir: "medial", label: "apretar" },
+          { at: "r_forearm@0.7", rotate: "ccw", label: "supinación" },
+        ],
+        caption: "Al apretar el bíceps, el antebrazo se supina si el tendón está entero",
+        side: "r",
+        script: {
+          start: { r_shoulder: { flex: 10, abd: 5, rot: 0 }, r_elbow: { flex: 70, pron: 30 } },
+          steps: [
+            {
+              to: { r_elbow: { pron: 10 } },
+              dur: 0.8,
+              hold: 1.4,
+              marks: [{ kind: "push", at: "r_upperarm@0.6", dir: "medial", label: "Aprieta el vientre del bíceps" }],
+              label: "Supinación",
+              text: "Aprieta el vientre del bíceps con el brazo relajado: lo normal es que el antebrazo se supine un poco.",
+            },
+          ],
+        },
+        text: {
+          setup: "Paciente sentado con el codo derecho a 70°, el antebrazo algo pronado y apoyado, relajado. El examinador, a su lado.",
+          look: "Se enseña la respuesta normal. Positivo si el antebrazo no se supina al apretar (o mucho menos que en el otro lado).",
+        },
+        supuestos: ["Se enseña la respuesta normal: 20° de supinación al apretar.", "Se dibuja una mano; en la prueba se puede apretar con las dos."],
+      },
+    ],
+    related: ["cod-hook"],
   },
 ];

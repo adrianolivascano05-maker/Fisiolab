@@ -769,7 +769,7 @@ export const tobilloPieTests: SpecialTest[] = [
         pain: ["r_shank@0.8"],
         side: "r",
         script: {
-          start: { r_ankle: { flex: 0 } },
+          start: { r_ankle: { flex: 15 } },
           steps: [{ to: { r_ankle: { flex: -35 } }, by: "patient", dur: 2.0, hold: 1.0, text: "Sujetando el engrosamiento, pide que mueva el tobillo de flexión dorsal a flexión plantar y mira si el engrosamiento se desplaza." }],
         },
         text: {
@@ -1118,14 +1118,14 @@ export const tobilloPieTests: SpecialTest[] = [
         caption: "Rodilla extendida",
         side: "r",
         script: {
-          start: { r_ankle: { flex: 0 } },
-          steps: [{ to: { r_ankle: { flex: 10 } }, by: "examiner", dur: 1.4, hold: 1.4, text: "Con la rodilla extendida, lleva el tobillo a flexión dorsal pasiva máxima y mide el ángulo." }],
+          start: { r_ankle: { flex: -20 } },
+          steps: [{ to: { r_ankle: { flex: 0 } }, by: "examiner", dur: 1.4, hold: 1.4, text: "Con la rodilla extendida, lleva el tobillo a flexión dorsal pasiva máxima y mide el ángulo: aquí no pasa de 0°." }],
         },
         text: {
           setup: "Paciente en supino con la rodilla derecha extendida. El examinador sujeta el retropié con el subastragalino en neutro.",
           look: "Compárala con la flexión dorsal con la rodilla flexionada (siguiente figura): si mejora claramente, el acortamiento es del gemelo.",
         },
-        supuestos: ["Se enseña un acortamiento del gemelo: 10° con la rodilla extendida y 25° con la rodilla flexionada."],
+        supuestos: ["Se enseña un acortamiento del gemelo: 0° con la rodilla extendida y 25° con la rodilla flexionada."],
       },
       {
         view: "side",
@@ -1144,7 +1144,7 @@ export const tobilloPieTests: SpecialTest[] = [
           setup: "Paciente en supino con la cadera y la rodilla derechas flexionadas.",
           look: "Positivo si la flexión dorsal mejora claramente al flexionar la rodilla (acortamiento del gemelo). Si no mejora, la limitación es del sóleo-Aquiles o articular.",
         },
-        supuestos: ["Se enseña un acortamiento del gemelo: 10° con la rodilla extendida y 25° con la rodilla flexionada."],
+        supuestos: ["Se enseña un acortamiento del gemelo: 0° con la rodilla extendida y 25° con la rodilla flexionada."],
       },
     ],
   },

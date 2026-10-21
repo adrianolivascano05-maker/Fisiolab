@@ -9,6 +9,11 @@ const WU = {
   citation: "Wu F, Rajpura A, Sandher D. Finkelstein's test is superior to Eichhoff's test in the investigation of de Quervain's disease. Journal of Hand and Microsurgery, 2018;10(2):116-118.",
   doi: "10.1055/s-0038-1626690",
 };
+const AHN = {
+  source: "Ahn, 2001",
+  citation: "Ahn DS. Hand elevation: a new test for carpal tunnel syndrome. Ann Plast Surg. 2001;46(2):120-124.",
+  doi: "10.1097/00000637-200102000-00005",
+};
 const MALLEE = {
   source: "Mallee et al., 2014",
   citation: "Mallee WH, et al. Clinical diagnostic evaluation for scaphoid fractures: a systematic review and meta-analysis. Journal of Hand Surgery (Am), 2014.",
@@ -34,7 +39,10 @@ export const munecaManoTests: SpecialTest[] = [
     positive: "Hormigueo o adormecimiento en el territorio del mediano (pulgar, índice, medio y mitad radial del anular) antes de 60 s.",
     interpretation:
       "Precisión moderada: un positivo aumenta algo la probabilidad y un negativo no descarta. Combínalo con la compresión carpiana, el diagrama de la mano y la regla de Wainner.",
-    accuracy: [{ sens: 68, spec: 73, context: "revisión sistemática; estimación ponderada de varios estudios", ...MACDERMID }],
+    accuracy: [
+      { sens: 68, spec: 73, context: "revisión sistemática; estimación ponderada de varios estudios", ...MACDERMID },
+      { sens: 67.5, spec: 91, context: "200 manos con túnel carpiano y 200 de control, en el mismo estudio que el test de elevación de la mano", ...AHN },
+    ],
     utility: "moderada",
     figures: [
       {
@@ -55,7 +63,7 @@ export const munecaManoTests: SpecialTest[] = [
         supuestos: ["Solo se dibuja la mano derecha; en la prueba, los dorsos de las dos manos quedan enfrentados.", "Flexión de muñeca de 80°."],
       },
     ],
-    related: ["mm-phalen-invertido", "mm-tinel", "mm-compresion-carpiana", "mm-wainner"],
+    related: ["mm-phalen-invertido", "mm-tinel", "mm-compresion-carpiana", "mm-wainner", "mm-elevacion-mano"],
   },
   {
     id: "mm-phalen-invertido",
@@ -113,7 +121,10 @@ export const munecaManoTests: SpecialTest[] = [
     positive: "Hormigueo irradiado a los dedos del territorio del mediano.",
     interpretation:
       "Poco sensible y algo específico: un positivo aumenta un poco la probabilidad, pero un negativo no sirve para descartar. Mejor combinado con Phalen y la compresión carpiana.",
-    accuracy: [{ sens: 50, spec: 77, context: "revisión sistemática; estimación ponderada de varios estudios", ...MACDERMID }],
+    accuracy: [
+      { sens: 50, spec: 77, context: "revisión sistemática; estimación ponderada de varios estudios", ...MACDERMID },
+      { sens: 67.5, spec: 90, context: "200 manos con túnel carpiano y 200 de control, en el mismo estudio que el test de elevación de la mano", ...AHN },
+    ],
     utility: "moderada",
     figures: [
       {
@@ -211,7 +222,7 @@ export const munecaManoTests: SpecialTest[] = [
         },
         text: {
           setup: "Paciente sentado con un dibujo de las dos manos y un bolígrafo.",
-          look: "Positivo si el patrón es clásico o probable (síntomas en al menos dos de los dedos 1.º a 3.º, sin afectar a la palma ni al dorso de la mano).",
+          look: "Positivo si el patrón es clásico o probable: hormigueo, adormecimiento o menos sensibilidad en al menos dos de los dedos 1.º a 3.º. El clásico no afecta a la palma ni al dorso; el probable admite la palma, salvo si solo es su lado cubital.",
         },
         supuestos: ["El dibujo no se representa: la figura solo marca dónde están los síntomas."],
       },
@@ -618,7 +629,7 @@ export const munecaManoTests: SpecialTest[] = [
         hands: ["r_wrist", "r_hand@0.6"],
         grips: [{ kind: "grasp", face: "anterior" }, { kind: "press", face: "posterior" }],
         arrows: [
-          { at: "r_wrist", dir: "posterior", label: "pulgar" },
+          { at: "r_wrist", dir: "lateral", label: "pulgar" },
           { at: "r_hand", dir: "lateral", kind: "move", label: "radial" },
         ],
         pain: ["r_wrist"],
@@ -627,8 +638,8 @@ export const munecaManoTests: SpecialTest[] = [
         script: {
           start: { r_shoulder: { flex: 20, abd: 10 }, r_elbow: { flex: 90, pron: 20 }, r_wrist: { flex: -10, abd: -20 } },
           steps: [
-            { by: "examiner", dur: 0.8, hold: 0.3, path: false, marks: [{ kind: "push", at: "r_wrist", dir: "posterior", label: "Presiona el escafoides hacia dorsal" }], text: "Con la muñeca en desviación cubital y ligera extensión, presiona el tubérculo del escafoides hacia dorsal." },
-            { to: { r_wrist: { flex: 15, abd: 15 } }, by: "examiner", dur: 1.6, marks: [{ kind: "push", at: "r_wrist", dir: "posterior", label: "Sin dejar de presionar" }], text: "Sin dejar de presionar, lleva la muñeca hacia radial y flexión.", label: "Desv. radial + flexión" },
+            { by: "examiner", dur: 0.8, hold: 0.3, path: false, marks: [{ kind: "push", at: "r_wrist", dir: "lateral", label: "Presiona el escafoides hacia dorsal" }], text: "Con la muñeca en desviación cubital y ligera extensión, presiona el tubérculo del escafoides hacia dorsal." },
+            { to: { r_wrist: { flex: 15, abd: 15 } }, by: "examiner", dur: 1.6, marks: [{ kind: "push", at: "r_wrist", dir: "lateral", label: "Sin dejar de presionar" }], text: "Sin dejar de presionar, lleva la muñeca hacia radial y flexión.", label: "Desv. radial + flexión" },
             { by: "examiner", dur: 0.3, hold: 1.4, path: false, release: [0], pain: true, text: "Suelta el pulgar de golpe y nota si hay un chasquido." },
           ],
         },
@@ -976,5 +987,45 @@ export const munecaManoTests: SpecialTest[] = [
         supuestos: ["El cambio de color de la mano no se dibuja."],
       },
     ],
+  },
+  {
+    id: "mm-elevacion-mano",
+    region: "muneca_mano",
+    group: "Túnel carpiano",
+    name: "Test de elevación de la mano",
+    aka: ["Hand elevation test", "Test de Ahn"],
+    kind: "test",
+    purpose: "Provoca los síntomas del túnel carpiano manteniendo las manos elevadas por encima de la cabeza.",
+    position: "Paciente sentado o de pie.",
+    steps: [
+      "Pide al paciente que levante los dos brazos por encima de la cabeza con los codos extendidos.",
+      "Que mantenga la posición hasta que aparezcan síntomas, como mucho 2 minutos.",
+      "Pregunta si nota hormigueo o adormecimiento y en qué dedos.",
+    ],
+    positive: "Aparece hormigueo o adormecimiento en el territorio del mediano (pulgar, índice, medio y mitad radial del anular).",
+    interpretation:
+      "En su estudio original fue más sensible y más específico que Phalen y Tinel en los mismos pacientes. Es un único estudio con controles sin síntomas, así que la especificidad real (frente a otros dolores de la mano) será menor. Úsalo junto a Phalen, compresión carpiana y el diagrama de Katz; para confirmar, estudio neurofisiológico.",
+    accuracy: [{ sens: 75.5, spec: 98.5, context: "200 manos con túnel carpiano y 200 de control (118 pacientes); estudio prospectivo", ...AHN }],
+    utility: "moderada",
+    cautions: "No es adecuado si hay dolor de hombro que impida elevar los brazos.",
+    figures: [
+      {
+        view: "front",
+        posture: "sitting",
+        joints: { r_shoulder: 170, l_shoulder: 170 },
+        pain: ["r_hand@0.7"],
+        caption: "Manos por encima de la cabeza hasta 2 minutos",
+        side: "both",
+        script: {
+          steps: [{ to: { r_shoulder: { flex: 170, abd: 0, rot: 0 }, l_shoulder: { flex: 170, abd: 0, rot: 0 }, r_elbow: { flex: 0, pron: 0 }, l_elbow: { flex: 0, pron: 0 } }, by: "patient", dur: 2.0, hold: 2.4, pain: true, text: "Pide que levante los dos brazos por encima de la cabeza, con los codos extendidos, y los mantenga hasta 2 minutos." }],
+        },
+        text: {
+          setup: "Paciente sentado con las manos apoyadas en los muslos.",
+          look: "Positivo si aparece hormigueo o adormecimiento en el territorio del mediano mientras mantiene los brazos arriba.",
+        },
+        supuestos: ["Tiempo máximo de 2 minutos: es el de la descripción habitual; el resumen del estudio no lo da.", "Elevación de 170° con las palmas hacia delante."],
+      },
+    ],
+    related: ["mm-phalen", "mm-tinel", "mm-compresion-carpiana", "mm-wainner"],
   },
 ];

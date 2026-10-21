@@ -382,7 +382,7 @@ export const cervicalTests: SpecialTest[] = [
         script: {
           steps: [
             { dur: 0.6, hold: 0.8, path: false, pain: true, text: "Con el brazo abajo, el dolor radicular está presente." },
-            { to: { r_shoulder: { flex: 165, abd: 26, rot: 74 }, r_elbow: { flex: 100 } }, by: "patient", dur: 2.4, hold: 1.4, painEnd: true, label: "Mano sobre la cabeza", text: "Pide que coloque la mano sobre la cabeza: el dolor del brazo disminuye." },
+            { to: { r_shoulder: { flex: 0, abd: 150, rot: -90 }, r_elbow: { flex: 104 } }, by: "patient", dur: 2.4, hold: 1.4, painEnd: true, label: "Mano sobre la cabeza", text: "Pide que coloque la mano sobre la cabeza: el dolor del brazo disminuye." },
           ],
         },
         text: {
@@ -811,19 +811,19 @@ export const cervicalTests: SpecialTest[] = [
         posture: "supine",
         joints: { neck: 20 },
         hands: ["neck@0.8", "head"],
-        grips: [{ kind: "tips", face: "posterior" }, { kind: "grasp", face: "posterior" }],
+        grips: [{ kind: "grasp", face: "posterior" }, null],
         arrows: [{ at: "neck@0.8", dir: "anterior", label: "anterior" }],
         caption: "Cabeza y atlas elevados en bloque hacia delante.",
         side: "both",
         script: {
-          start: { neck: { flex: 20 } },
+          start: { neck: { flex: 0 } },
           steps: [{ by: "examiner", dur: 1.0, hold: 1.8, path: false, pain: true, marks: [{ kind: "push", at: "neck@0.8", dir: "anterior", label: "Eleva cabeza y atlas en bloque" }], text: "Con la cabeza apoyada en tus manos, eleva en bloque la cabeza y el atlas hacia delante y mantén unos segundos." }],
         },
         text: {
           setup: "Paciente en supino con la cabeza apoyada en las manos del examinador, sentado a la cabecera.",
           look: "Positivo si aparecen mareo, nistagmo, parestesias en labios o extremidades, nudo en la garganta o sensación de que «se cae la cabeza».",
         },
-        supuestos: ["El desplazamiento del atlas no se dibuja: lo marca la flecha."],
+        supuestos: ["El desplazamiento del atlas no se dibuja: lo marca la flecha.", "Las manos acunan el occipucio y el atlas con la cabeza en posición neutra (en la prueba, los índices van entre el occipucio y la apófisis espinosa de C2)."],
       },
     ],
     related: ["cer-sharp-purser", "cer-ligamentos-alares"],

@@ -13,6 +13,12 @@ const MARTIN_2014 =
 const METCALFE_2019 =
   "Metcalfe D, et al. Does This Patient Have Hip Osteoarthritis? The Rational Clinical Examination Systematic Review. JAMA. 2019;322(23):2323-2333.";
 
+const HOPPE_2017 = {
+  source: "Hoppe et al., 2017",
+  citation: "Hoppe DJ, Truntzer JN, Shapiro LM, Abrams GD, Safran MR. Diagnostic accuracy of 3 physical examination tests in the assessment of hip microinstability. Orthop J Sports Med. 2017;5(11):2325967117740121.",
+  doi: "10.1177/2325967117740121",
+};
+
 export const caderaTests: SpecialTest[] = [
   // ───────────── Choque femoroacetabular y labrum ─────────────
   {
@@ -282,7 +288,7 @@ export const caderaTests: SpecialTest[] = [
         script: {
           steps: [
             { to: { r_hip: { flex: 35 } }, by: "patient", dur: 1.6, text: "El paciente eleva la pierna recta unos 30-45°." },
-            { by: "examiner", dur: 0.8, hold: 1.4, pain: true, marks: [{ kind: "resist", joint: "r_hip", dof: "flex", sign: 1, label: "Sigue subiendo contra la mano" }], text: "Aplica una resistencia firme hacia la camilla y pregunta si duele y dónde." },
+            { by: "patient", dur: 0.8, hold: 1.4, pain: true, marks: [{ kind: "resist", joint: "r_hip", dof: "flex", sign: 1, label: "Sigue subiendo contra la mano" }], text: "Aplica una resistencia firme hacia la camilla y pregunta si duele y dónde." },
           ],
         },
         text: {
@@ -1230,5 +1236,98 @@ export const caderaTests: SpecialTest[] = [
       },
     ],
     related: ["cad-percusion-patelar-pubica"],
+  },
+  {
+    id: "cad-ab-heer",
+    region: "cadera",
+    group: "Microinestabilidad de cadera",
+    name: "Test AB-HEER (abducción, hiperextensión y rotación externa)",
+    aka: ["Abduction-hyperextension-external rotation test", "AB-HEER"],
+    kind: "test",
+    purpose: "Busca dolor anterior de cadera por microinestabilidad empujando el trocánter hacia delante con la cadera en abducción, extensión y rotación externa.",
+    position: "Paciente en decúbito lateral sobre el lado sano. El examinador, detrás, sostiene la pierna de arriba.",
+    steps: [
+      "Sostén la pierna de arriba con la rodilla extendida.",
+      "Lleva la cadera a unos 30° de abducción, 10° de extensión y rotación externa.",
+      "Con la otra mano, empuja la cara posterior del trocánter mayor hacia delante.",
+      "Pregunta si aparece dolor anterior en la cadera.",
+    ],
+    positive: "Dolor anterior de cadera (ingle) que reproduce el síntoma del paciente.",
+    interpretation:
+      "Es el más preciso de los tres tests de microinestabilidad del estudio: un positivo la hace bastante probable y un negativo la hace menos probable, pero no la descarta. El HEER (hiperextensión y rotación externa en supino) tuvo una sensibilidad del 71 % y una especificidad del 85 %; con los tres tests positivos la probabilidad de microinestabilidad fue del 95 %. Sospéchala en pacientes jóvenes, laxos o con displasia leve y dolor inguinal.",
+    accuracy: [{ ...HOPPE_2017, sens: 80.6, spec: 89.4, context: "Microinestabilidad confirmada en la artroscopia con criterios objetivos; 109 pacientes operados" }],
+    utility: "alta",
+    figures: [
+      {
+        view: "front",
+        posture: "sidelying",
+        joints: { l_hip: 30 },
+        hands: ["l_shank@0.3", "l_hip"],
+        grips: [{ kind: "grasp", face: "medial" }, { kind: "press", face: "posterior" }],
+        arrows: [{ at: "l_hip", dir: "anterior", label: "trocánter adelante" }],
+        pain: ["l_hip"],
+        caption: "Cadera en abducción, extensión y RE: se empuja el trocánter hacia delante",
+        side: "l",
+        script: {
+          start: { l_hip: { flex: 0, abd: 0, rot: 0 }, l_knee: { flex: 0 }, r_hip: { flex: 45 }, r_knee: { flex: 90 } },
+          steps: [
+            { to: { l_hip: { abd: 30, flex: -10, rot: -30 } }, by: "examiner", dur: 1.8, hold: 0.4, label: "Abducción 30° + extensión 10° + RE", text: "Sostén la pierna de arriba con la rodilla extendida y llévala a 30° de abducción, 10° de extensión y rotación externa." },
+            { by: "examiner", dur: 0.8, hold: 1.6, pain: true, marks: [{ kind: "push", at: "l_hip", dir: "anterior", label: "Empuja el trocánter hacia delante" }], text: "Empuja la cara posterior del trocánter mayor hacia delante. Pregunta si duele en la ingle." },
+          ],
+        },
+        text: {
+          setup: "Paciente tumbado sobre el lado sano (aquí, el derecho), con la pierna de abajo flexionada. El examinador, detrás, sostiene la pierna izquierda.",
+          look: "Positivo si aparece dolor anterior de cadera que reproduce el del paciente.",
+        },
+        supuestos: ["Rotación externa de 30° (la fuente no da el grado).", "Rodilla extendida.", "Lado explorado: izquierdo (tumbado sobre el derecho)."],
+      },
+    ],
+    related: ["cad-inestabilidad-prono", "cad-fadir", "cad-log-roll"],
+  },
+  {
+    id: "cad-inestabilidad-prono",
+    region: "cadera",
+    group: "Microinestabilidad de cadera",
+    name: "Test de inestabilidad en prono",
+    aka: ["Prone instability test"],
+    kind: "test",
+    purpose: "Busca dolor anterior de cadera por microinestabilidad empujando el trocánter hacia delante con la cadera en rotación externa, en prono.",
+    position: "Paciente en prono con la rodilla del lado explorado a 90°. El examinador, al lado.",
+    steps: [
+      "Sujeta el tobillo y lleva la cadera a rotación externa (el pie va hacia dentro).",
+      "Con la otra mano, empuja la cara posterior del trocánter mayor hacia la camilla.",
+      "Pregunta si aparece dolor anterior en la cadera.",
+    ],
+    positive: "Dolor anterior de cadera (ingle) que reproduce el síntoma del paciente.",
+    interpretation:
+      "Muy específico y poco sensible: un positivo apoya mucho la microinestabilidad, un negativo no la descarta. Combínalo con el AB-HEER, que es más sensible.",
+    accuracy: [{ ...HOPPE_2017, sens: 33.9, spec: 97.9, context: "Microinestabilidad confirmada en la artroscopia con criterios objetivos; 109 pacientes operados" }],
+    utility: "alta",
+    figures: [
+      {
+        view: "side",
+        posture: "prone",
+        joints: { r_knee: 90 },
+        hands: ["r_ankle", "r_hip"],
+        grips: [{ kind: "grasp", face: "caudal" }, { kind: "press", face: "posterior" }],
+        arrows: [{ at: "r_hip", dir: "anterior", label: "trocánter adelante" }],
+        pain: ["r_hip"],
+        caption: "Prono, cadera en RE: se empuja el trocánter hacia la camilla",
+        side: "r",
+        script: {
+          start: { r_knee: { flex: 90 }, r_hip: { rot: 0 } },
+          steps: [
+            { to: { r_hip: { rot: -30 } }, by: "examiner", dur: 1.4, hold: 0.4, label: "RE 30°", text: "Sujeta el tobillo y lleva la cadera a rotación externa: el pie va hacia dentro." },
+            { by: "examiner", dur: 0.8, hold: 1.6, pain: true, marks: [{ kind: "push", at: "r_hip", dir: "anterior", label: "Empuja el trocánter hacia la camilla" }], text: "Empuja la cara posterior del trocánter mayor hacia delante (hacia la camilla). Pregunta si duele en la ingle." },
+          ],
+        },
+        text: {
+          setup: "Paciente en prono con la rodilla derecha a 90°. Una mano sujeta el tobillo y la otra se apoya en el trocánter mayor.",
+          look: "Positivo si aparece dolor anterior de cadera que reproduce el del paciente.",
+        },
+        supuestos: ["Rotación externa de 30° con la rodilla a 90° (la fuente no da el grado).", "Cadera en extensión neutra."],
+      },
+    ],
+    related: ["cad-ab-heer", "cad-craig"],
   },
 ];
