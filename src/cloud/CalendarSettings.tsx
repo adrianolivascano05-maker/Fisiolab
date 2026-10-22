@@ -79,6 +79,11 @@ export function CalendarSettings() {
           )}
           {statusText(s)}
         </p>
+        {s.status === "error" && s.fix && (
+          <a href={s.fix} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-accent underline underline-offset-2">
+            Activar la API de Google Calendar
+          </a>
+        )}
         {s.status === "no-permission" && settings.enabled && (
           <Button
             onClick={() => {

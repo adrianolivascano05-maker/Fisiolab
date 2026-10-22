@@ -142,9 +142,28 @@ export async function syncEvents(token: string, cal: string, wanted: Map<string,
 // ---------- Cuándo ----------
 
 export type CalendarStatus = "off" | "no-permission" | "idle" | "working" | "error";
-export type CalendarState = { status: CalendarStatus; lastAt: string | null; error: string | null; upcoming: number };
+/** `fix`: enlace para arreglarlo cuando el fallo no es de la app (la API de Calendar sin activar en el proyecto). */
+export type CalendarState = { status: CalendarStatus; lastAt: string | null; error: string | null; fix?: string | null; upcoming: number };
 
 const RECHECK_MS = 30 * 60_000;
+/** Tras un error, no se vuelve a intentar solo hasta pasado este tiempo (el botón «Apuntar ahora» sí lo intenta). */
+const RETRY_MS = 10 * 60_000;
+
+/**
+ * El texto de un error de Google Calendar. Si el proyecto de Google no tiene activada la API de Calendar (403
+ * SERVICE_DISABLED), lo dice en castellano con el enlace para activarla: no se arregla reintentando.
+ */
+export function calendarError(e: unknown): { error: string; fix: string | null } {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (e instanceof GoogleError && e.status === 403 && /has not been used|is disabled|SERVICE_DISABLED|accessNotConfigured/i.test(msg)) {
+    const project = /project[= ](\d+)/.exec(msg)?.[1];
+    return {
+      error: "la API de Google Calendar no está activada en el proyecto de Google de la app. Quien administra la app tiene que activarla (botón «Habilitar») y, pasados unos minutos, pulsar «Apuntar ahora».",
+      fix: `https://console.cloud.google.com/apis/library/calendar-json.googleapis.com${project ? `?project=${project}` : ""}`,
+    };
+  }
+  return { error: msg, fix: null };
+}
 
 /**
  * Pasa las citas al calendario después de cada sincronización con Drive (así ya están las de otros
@@ -156,6 +175,7 @@ export class CalendarSync {
   private listeners = new Set<(s: CalendarState) => void>();
   private running: Promise<void> | null = null;
   private again = false;
+  private failedAt = 0;
 
   constructor(
     private db: Db,
@@ -215,6 +235,8 @@ export class CalendarSync {
     if (!hasGranted(CALENDAR_SCOPE)) return this.set({ status: "no-permission", error: null });
     const token = getToken();
     if (!token || !navigator.onLine) return;
+    // Después de un error, no se repite en cada sincronización: se espera un rato (o al botón).
+    if (!force && this.state.status === "error" && Date.now() - this.failedAt < RETRY_MS) return;
     const now = new Date();
     const me = member();
     const visits = await upcomingVisits(this.db, now, me ? { sub: me, email: memberEmail() } : null);
@@ -228,7 +250,7 @@ export class CalendarSync {
     const memo = this.memo();
     if (!force && memo?.sig === sig && now.getTime() - Date.parse(memo.at) < RECHECK_MS) return this.set({ status: "idle", upcoming: wanted.size });
 
-    this.set({ status: "working", error: null });
+    this.set({ status: "working", error: null, fix: null });
     try {
       const cal = await ensureCalendar(token.accessToken, calId);
       if (cal !== calId) await setSetting(this.db, memberKey(CALENDAR_ID), cal);
@@ -239,7 +261,10 @@ export class CalendarSync {
     } catch (e) {
       if (e instanceof AuthError && /permiso/.test(e.message)) this.set({ status: "no-permission", error: null });
       else if (e instanceof AuthError) this.set({ status: "idle" }); // token caducado: lo resuelve la sincronización
-      else this.set({ status: "error", error: e instanceof Error ? e.message : String(e) });
+      else {
+        this.failedAt = Date.now();
+        this.set({ status: "error", ...calendarError(e) });
+      }
     }
   }
 }

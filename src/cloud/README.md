@@ -22,7 +22,9 @@ Los nombres de los menús son los de la consola de Google en octubre de 2026; si
 
 1. Abre <https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com> con la cuenta de Google de
    la clínica (o la tuya). En el mismo paso se crea el proyecto (nombre `Cenit Fisiolab`) y se activa la Google
-   Drive API. Comprueba arriba que queda elegido ese proyecto.
+   Drive API. Comprueba arriba que queda elegido ese proyecto. Activa también la **Google Calendar API**
+   (<https://console.cloud.google.com/apis/library/calendar-json.googleapis.com> → **Habilitar**): sin ella, «Apuntar
+   solas las citas» da un error 403 y la app enseña el enlace para activarla.
 2. <https://console.cloud.google.com/auth/branding> (**Google Auth Platform**) → **Empezar**:
    - Nombre de la aplicación: `Cénit · Fisiolab`; correo de asistencia: el tuyo.
    - Público: **Externo**.
