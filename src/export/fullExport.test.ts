@@ -79,7 +79,7 @@ describe("exportación completa", () => {
     for (const sheet of ["Pacientes", "Motivos de consulta", "Anamnesis", "Sesiones", "Exploración", "Mediciones", "Cuestionarios", "Bienestar", "Consentimientos", "Citas", "Bonos", "Cobros"])
       expect(workbook, sheet).toContain(`name="${sheet}"`);
     const pacientes = await readTable(files.get("Todos los datos.xlsx")!, "x.xlsx");
-    expect(pacientes[0]).toEqual(["Código", "Nombre", "Fecha de nacimiento", "Sexo", "Teléfono", "Correo", "Dirección", "Peso (kg)", "Altura (cm)", "Notas", "Alta en Cénit", "Última modificación"]);
+    expect(pacientes[0]).toEqual(["Código", "Nombre", "Fecha de nacimiento", "Sexo", "Teléfono", "Correo", "Dirección", "DNI o NIE", "Peso (kg)", "Altura (cm)", "Notas", "Alta en Cénit", "Última modificación"]);
     expect(pacientes.find((r) => r[1] === "Lucía Pérez")?.slice(1, 5)).toEqual(["Lucía Pérez", "12/03/1985", "Mujer", "612345678"]);
     const sesiones = text(xlsx.get("xl/worksheets/sheet4.xml"));
     expect(sesiones).toContain("Puente de glúteo 3x10");

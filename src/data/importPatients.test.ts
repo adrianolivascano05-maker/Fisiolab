@@ -145,7 +145,7 @@ describe("de la tabla a los pacientes", () => {
       "notes",
       "bodyMassKg",
       "heightCm",
-      "notes",
+      "dni",
       "ignore",
     ]);
   });
@@ -172,7 +172,8 @@ describe("de la tabla a los pacientes", () => {
       address: "Calle Mayor 3, Sevilla",
       bodyMassKg: 61.5,
       heightCm: 168,
-      notes: "DNI: 12345678Z",
+      dni: "12345678Z",
+      notes: "",
     });
     // Lo que no se reconoce no se pierde: va a las notas y se cuenta.
     expect(plan.rows[1]!.input).toMatchObject({ birthDate: null, sex: null, bodyMassKg: null });

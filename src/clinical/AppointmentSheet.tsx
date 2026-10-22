@@ -108,6 +108,9 @@ export function AppointmentSheet({
   const [freed, setFreed] = useState<{ startsAt: string; minutes: number; assignedTo: string | null; waiting: number; patientId: string } | null>(null);
   /** Después de «No vino»: la cita marcada, para deshacerlo o darle otra. */
   const [missed, setMissed] = useState<Appointment | null>(null);
+  /** La nueva cita tras «No vino»: por defecto, la semana siguiente a la misma hora; se puede poner cualquiera. */
+  const [rebookAt, setRebookAt] = useState("");
+  const [rebookClash, setRebookClash] = useState<AgendaItem[] | null>(null);
   useEffect(() => {
     if (open) {
       setFreed(null);
@@ -188,6 +191,8 @@ export function AppointmentSheet({
       await updateAppointment(getDb(), a.id, { status: "no_show" });
       bumpData();
       setMissed(a);
+      setRebookAt(localInput(daysLater(a.startsAt, 7)));
+      setRebookClash(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -213,10 +218,10 @@ export function AppointmentSheet({
       setBusy(false);
     }
   }
-  /** La misma hora del reloj una semana después (también si cambia la hora entre medias). */
-  const weekLater = (iso: string) => {
+  /** La misma hora del reloj unos días después (también si cambia la hora entre medias). */
+  const daysLater = (iso: string, days: number) => {
     const d = new Date(iso);
-    d.setDate(d.getDate() + 7);
+    d.setDate(d.getDate() + days);
     return d.toISOString();
   };
   /** Mover la cita sin escribir: una hora, un día o una semana antes o después. */
@@ -233,24 +238,47 @@ export function AppointmentSheet({
       {missed ? (
         <div className="flex flex-col gap-3">
           <p>
-            Anotado que no vino a la cita del <span className="font-semibold">{fmtVisit(missed.startsAt)}</span>. ¿Le das otra?
+            Anotado que no vino a la cita del <span className="font-semibold">{fmtVisit(missed.startsAt)}</span>. ¿Le das otra? Elige el día y la hora que quieras.
           </p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Atajos para la nueva cita">
+            {[1, 2, 7, 14].map((d) => (
+              <Button key={d} size="sm" variant={rebookAt === localInput(daysLater(missed.startsAt, d)) ? "primary" : "secondary"} onClick={() => setRebookAt(localInput(daysLater(missed.startsAt, d)))}>
+                {d === 1 ? "Al día siguiente" : d === 2 ? "En 2 días" : d === 7 ? "En 1 semana" : "En 2 semanas"}
+              </Button>
+            ))}
+          </div>
+          <TextField
+            label="Nueva cita"
+            type="datetime-local"
+            value={rebookAt}
+            onChange={(e) => {
+              setRebookAt(e.target.value);
+              setRebookClash(null);
+            }}
+            hint="A la misma hora; cambia el día o la hora como quieras."
+          />
+          {rebookClash && rebookClash.length > 0 && (
+            <Alert tone="warning" title={rebookClash.length === 1 ? "A esa hora ya hay otra cita" : `A esa hora ya hay ${rebookClash.length} citas`}>
+              {rebookClash.map((c) => `${c.name} (${fmtVisit(c.startsAt)})`).join(" · ")}. Puedes darla igualmente o elegir otra hora.
+            </Alert>
+          )}
           <Button
             loading={busy}
+            disabled={!rebookAt}
             icon={<CalendarClock aria-hidden="true" className="size-5" />}
-            onClick={() =>
+            onClick={async () => {
+              const startsAt = new Date(rebookAt).toISOString();
+              if (!rebookClash) {
+                const found = await clashes(getDb(), startsAt, missed.minutes, staff.length ? (missed.assignedTo ?? null) : undefined);
+                if (found.length) return setRebookClash(found);
+              }
               void run(
-                () =>
-                  createAppointment(getDb(), missed.patientId, {
-                    startsAt: weekLater(missed.startsAt),
-                    minutes: missed.minutes,
-                    assignedTo: missed.assignedTo ?? null,
-                  }),
-                `Nueva cita: ${fmtVisit(weekLater(missed.startsAt))}`,
-              )
-            }
+                () => createAppointment(getDb(), missed.patientId, { startsAt, minutes: missed.minutes, assignedTo: missed.assignedTo ?? null }),
+                `Nueva cita: ${fmtVisit(startsAt)}`,
+              );
+            }}
           >
-            Otra cita la semana que viene, a la misma hora
+            {rebookClash?.length ? "Darle la cita igualmente" : "Darle esta cita"}
           </Button>
           <Button variant="secondary" loading={busy} icon={<RotateCcw aria-hidden="true" className="size-5" />} onClick={() => void run(() => updateAppointment(getDb(), missed.id, { status: "scheduled" }), "Deshecho: la cita vuelve a estar pendiente")}>
             Deshacer «No vino»
