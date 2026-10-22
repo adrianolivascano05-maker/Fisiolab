@@ -125,4 +125,25 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("article", { name: "Carta de derivación" })).toContainText("Perfil de funcionamiento (CIF)");
     await expect(page.getByRole("article", { name: "Carta de derivación" })).toContainText("Dolor en la espalda (b28013.2)");
   });
+
+  test("US6 CIF: borrador rápido con los datos de la ficha y calificadores propuestos", async ({ page }) => {
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Lola Lumbar");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Lola Lumbar" })).toBeVisible();
+    await page.goto(`${page.url()}/anamnesis`);
+    await page.getByRole("group", { name: "Zona", exact: true }).getByText("Lumbar", { exact: true }).click();
+    await page.locator("fieldset", { hasText: "Intensidad (EVA 0-10)" }).getByText("6", { exact: true }).click();
+    await page.getByRole("button", { name: "Borrador rápido con los datos de la ficha" }).click();
+    const chosen = page.getByRole("list", { name: "Códigos de la CIF elegidos" });
+    await expect(chosen).toContainText("b28013 Dolor en la espalda");
+    await expect(chosen).toContainText("s76002 Columna vertebral lumbar");
+    await expect(page.getByLabel("Calificador (b28013)")).toHaveValue("3");
+    await expect(chosen).toContainText("Coincide con lo propuesto: Deficiencia GRAVE · EVA de la anamnesis: dolor 6/10 = 60 %");
+    // Si se cambia, se puede volver a lo propuesto en un toque.
+    await page.getByLabel("Calificador (b28013)").selectOption("1");
+    await chosen.getByRole("button", { name: "Usar el propuesto para b28013" }).click();
+    await expect(page.getByLabel("Calificador (b28013)")).toHaveValue("3");
+    await expectAccessible(page);
+  });
 });

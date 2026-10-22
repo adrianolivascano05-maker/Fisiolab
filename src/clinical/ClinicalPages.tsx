@@ -46,6 +46,7 @@ import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orp
 import { RedFlagPanel } from "./RedFlagPanel";
 import { CifPicker } from "./cif/CifPicker";
 import { draftDiagnosis } from "./cif/cif";
+import { evidenceFrom } from "./cif/suggest";
 import { YellowFlagPanel } from "./YellowFlagPanel";
 import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyMapInput } from "./BodyMap";
@@ -165,7 +166,7 @@ export function AnamnesisPage() {
   const toast = useToast();
   const data = useLoad(id, async () => {
     const db = getDb();
-    const [patient, anamnesis, findings, tests, episodes, focus, current] = await Promise.all([
+    const [patient, anamnesis, findings, tests, episodes, focus, current, sessions, questionnaires] = await Promise.all([
       getPatient(db, id),
       getAnamnesis(db, id),
       listFindings(db, id),
@@ -173,10 +174,12 @@ export function AnamnesisPage() {
       listEpisodes(db, id),
       getFocus(db, id),
       currentEpisode(db, id),
+      listSessions(db, id),
+      listQuestionnaires(db, id),
     ]);
     // Viendo todos los motivos, la anamnesis es la del último abierto: se dice cuál.
     const shown = focus === ALL && episodes.length > 1 ? episodes.find((e) => e.id === current) : undefined;
-    return { patient, anamnesis, findings, tests, shown, current };
+    return { patient, anamnesis, findings, tests, shown, current, sessions, questionnaires };
   });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Answers | null>(null);
@@ -207,7 +210,7 @@ export function AnamnesisPage() {
   }, [data.data, editEpisode, navigate]);
 
   if (!data.data) return <Guard state={data} title="Anamnesis" back={`/pacientes/${id}`} />;
-  const { patient, anamnesis, findings, tests, shown } = data.data;
+  const { patient, anamnesis, findings, tests, shown, sessions, questionnaires } = data.data;
   if (!patient) return <Page title="Anamnesis" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const romTrends = trends(tests.filter((t) => t.movement !== null));
 
@@ -303,6 +306,7 @@ export function AnamnesisPage() {
                         value={Array.isArray(draft[f.id]) ? (draft[f.id] as string[]) : []}
                         onChange={set(f.id)}
                         regions={Array.isArray(draft.regiones) ? (draft.regiones as string[]) : []}
+                        evidence={evidenceFrom(draft, sessions, questionnaires, symmetryRows(tests))}
                         onDraft={() => {
                           const text = draftDiagnosis(Array.isArray(draft.cif) ? (draft.cif as string[]) : []);
                           const now = typeof draft.diagnostico_funcional === "string" ? draft.diagnostico_funcional.trim() : "";

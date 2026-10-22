@@ -1,7 +1,7 @@
 // El perfil CIF de la anamnesis: los códigos elegidos con su calificador y un buscador rápido (por código o por
 // palabras, filtrado por componente, con los sugeridos para la zona y los usados hace poco). Con ellos se redacta el
 // diagnóstico fisioterapéutico.
-import { NotebookPen, Plus, Search, Trash } from "lucide-react";
+import { NotebookPen, Plus, Search, Sparkles, Trash } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, IconButton } from "../../ui/Button";
 import { SelectField, TextField } from "../../ui/Field";
@@ -22,6 +22,7 @@ import {
   type Coded,
   type Component,
 } from "./cif";
+import { autoProfile, suggestQualifier, type Evidence } from "./suggest";
 
 /** El catálogo, una sola vez y solo cuando hace falta. */
 let catalog: Promise<CifEntry[]> | null = null;
@@ -49,6 +50,7 @@ export function CifPicker({
   onChange,
   regions = [],
   onDraft,
+  evidence,
 }: {
   label: string;
   hint?: string;
@@ -58,8 +60,23 @@ export function CifPicker({
   regions?: string[];
   /** Redactar el diagnóstico con los códigos elegidos. */
   onDraft?: () => void;
+  /** Lo que hay en la ficha (dolor, cuestionarios, simetría): para proponer calificadores y el borrador rápido. */
+  evidence?: Evidence;
 }) {
   const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  /** El borrador rápido: los códigos de su zona y de sus datos, con el calificador que proponen. */
+  const auto = async () => {
+    if (!evidence) return;
+    setBusy(true);
+    try {
+      const list = await loadCatalog();
+      const titles = new Map(list.map((e) => [e.code, e.title]));
+      onChange([...value, ...autoProfile(evidence, (c) => titles.get(c), new Set(entries.map((e) => e.coded.code)))]);
+    } finally {
+      setBusy(false);
+    }
+  };
   const entries = value.map(readEntry).filter((e): e is NonNullable<ReturnType<typeof readEntry>> => !!e);
   const set = (i: number, c: Coded) => onChange(value.map((v, j) => (j === i ? makeEntry(c, entries[i]!.title) : v)));
   const add = (e: CifEntry) => {
@@ -86,6 +103,23 @@ export function CifPicker({
                     <Trash aria-hidden="true" className="size-5" />
                   </IconButton>
                 </div>
+                {(() => {
+                  const sug = evidence ? suggestQualifier(c.code, evidence) : null;
+                  if (!sug) return null;
+                  const same = c.q === sug.q;
+                  return (
+                    <p className="flex flex-wrap items-center gap-x-2 text-sm">
+                      <span className={same ? "text-text-muted" : ""}>
+                        {same ? "Coincide con lo propuesto" : "Propuesto"}: {qualifierLabel(k, sug.q, { facilitator: c.facilitator })} · {sug.why}
+                      </span>
+                      {!same && (
+                        <Button size="sm" variant="ghost" onClick={() => set(i, { ...c, q: sug.q })}>
+                          Usar<span className="sr-only"> el propuesto para {c.code}</span>
+                        </Button>
+                      )}
+                    </p>
+                  );
+                })()}
                 <div className="grid gap-2 sm:grid-cols-2">
                   {k === "e" && (
                     <SelectField label={`Barrera o facilitador (${c.code})`} value={c.facilitator ? "+" : "."} onChange={(ev) => set(i, { ...c, facilitator: ev.target.value === "+" })}>
@@ -121,6 +155,11 @@ export function CifPicker({
         </ul>
       )}
       <div className="flex flex-wrap gap-2">
+        {evidence && (
+          <Button variant="secondary" loading={busy} icon={<Sparkles aria-hidden="true" className="size-5" />} onClick={() => void auto()}>
+            Borrador rápido con los datos de la ficha
+          </Button>
+        )}
         <Button variant="secondary" icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setOpen(true)}>
           Añadir códigos de la CIF
         </Button>
