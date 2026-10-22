@@ -1460,6 +1460,7 @@ export const rodillaTests: SpecialTest[] = [
           look: "Positivo si una onda de líquido rellena el lado medial. Se gradúa de 0 a 3+: trazas, una onda pequeña en el lado medial; 1+, una onda mayor; 2+, el líquido vuelve solo al lado medial tras el barrido hacia arriba; 3+, tanto líquido que no se puede vaciar el lado medial.",
         },
         supuestos: ["La mano no se desliza en la animación: la flecha marca el barrido."],
+        place: { stance: "sit" },
       },
     ],
     related: ["rod-choque-rotuliano"],

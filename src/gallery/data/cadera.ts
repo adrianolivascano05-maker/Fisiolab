@@ -939,6 +939,7 @@ export const caderaTests: SpecialTest[] = [
           look: "Positivo si la cadera se flexiona (el glúteo se eleva) o la rodilla no llega a una flexión similar al otro lado.",
         },
         supuestos: ["Se enseña la maniobra; la elevación del glúteo del positivo no se dibuja."],
+        place: { stance: "sit" },
       },
     ],
     related: ["cad-thomas"],
