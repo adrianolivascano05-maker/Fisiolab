@@ -7,7 +7,7 @@ const BASE_KEY = "fisiolab.lock";
 const ITERATIONS = 150_000;
 
 /** `length`: cifras del PIN (para comprobarlo al teclear la última); `passkey`: Face ID o huella (passkey.ts). */
-export type LockConfig = { salt: string; hash: string; afterMs: number; length?: number; passkey?: string };
+export type LockConfig = { salt: string; hash: string; afterMs: number; length?: number; passkey?: string; v?: number };
 
 let scope: string | null = null;
 /** De quién es el PIN: la cuenta que ha entrado (su `sub`), o null sin cuenta. */
@@ -26,7 +26,9 @@ export const LOCK_AFTER: { ms: number; label: string }[] = [
   { ms: 30 * 60_000, label: "Al cabo de 30 minutos" },
   { ms: 60 * 60_000, label: "Al cabo de 1 hora" },
 ];
-export const DEFAULT_LOCK_AFTER = 60 * 60_000;
+export const DEFAULT_LOCK_AFTER = 15 * 60_000;
+/** Antes era 1 hora por defecto: los que la tenían pasan una vez a 15 minutos (se puede volver a elegir 1 hora). */
+const OLD_DEFAULT = 60 * 60_000;
 /** Fallos seguidos tras los que, con cuenta, hay que volver a entrar con Google. */
 export const MAX_FAILS = 5;
 
@@ -44,6 +46,11 @@ async function digest(pin: string, salt: Uint8Array): Promise<string> {
 export function getLock(): LockConfig | null {
   try {
     const own = JSON.parse(localStorage.getItem(key()) ?? "null") as LockConfig | null;
+    if (own && !own.v) {
+      const moved = { ...own, afterMs: own.afterMs === OLD_DEFAULT ? DEFAULT_LOCK_AFTER : own.afterMs, v: 2 };
+      localStorage.setItem(key(), JSON.stringify(moved));
+      return moved;
+    }
     if (own || !scope) return own;
     // El PIN de antes era del dispositivo: pasa a ser de la primera cuenta que entra.
     const old = JSON.parse(localStorage.getItem(BASE_KEY) ?? "null") as LockConfig | null;
@@ -61,7 +68,7 @@ const save = (c: LockConfig) => localStorage.setItem(key(), JSON.stringify(c));
 
 export async function setPin(pin: string, afterMs = getLock()?.afterMs ?? DEFAULT_LOCK_AFTER): Promise<void> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  save({ ...getLock(), salt: b64(salt), hash: await digest(pin, salt), afterMs, length: pin.length });
+  save({ ...getLock(), salt: b64(salt), hash: await digest(pin, salt), afterMs, length: pin.length, v: 2 });
   localStorage.removeItem(failsKey());
 }
 

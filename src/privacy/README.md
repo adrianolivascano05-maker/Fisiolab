@@ -30,7 +30,7 @@ Los datos de las funciones están en `../data/privacy.ts`.
   por detrás, invisible e `inert`. Con cuenta de Google, cada persona tiene el suyo en el dispositivo (en una tablet
   compartida, «Cambiar de cuenta de Google» desde la pantalla del PIN); en una clínica es obligatorio y se elige al
   entrar por primera vez. Se guarda su huella con PBKDF2-SHA-256 (150 000 vueltas y sal), nunca el PIN. Se pide al
-  abrir la app, al volver a ella y tras el tiempo elegido sin usarla (por defecto 1 hora; en una clínica, como
+  abrir la app, al volver a ella y tras el tiempo elegido sin usarla (por defecto 15 minutos; en una clínica, como
   mucho 1 hora); recargar dentro de ese tiempo no lo pide. Con cuenta, tras 5 fallos o si se olvida, se vuelve a
   entrar con Google y se elige otro (los datos se quedan); sin cuenta, tras 5 fallos hay que esperar 30 s (el doble
   con cada fallo, hasta 15 min) y si se olvida solo queda borrar los datos. Opcional: Face ID o huella
