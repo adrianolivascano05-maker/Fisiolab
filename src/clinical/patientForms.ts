@@ -35,11 +35,12 @@ export type FormResponse = { v: 1; answers: Record<string, unknown> };
 
 /** Los apartados de la anamnesis que rellena el paciente, con un título suyo. */
 const PATIENT_SECTIONS: Record<string, string> = {
-  datos: "Sobre ti",
-  motivo: "Lo que te pasa",
-  antecedentes: "Tu salud",
-  familiares: "Tu familia",
-  habitos: "Tu día a día",
+  datos: "Datos personales",
+  motivo: "Motivo de consulta",
+  antecedentes: "Antecedentes médicos personales",
+  familiares: "Antecedentes médicos familiares",
+  tratamientos: "Tratamientos previos y expectativas",
+  habitos: "Hábitos y estilo de vida",
 };
 
 /**
@@ -58,14 +59,20 @@ const PATIENT_FIELDS: Record<string, { label: string; hint?: string }> = {
   atenuantes: { label: "¿Qué lo alivia?" },
   irradiacion: { label: "¿Se va hacia otra zona?", hint: "Por ejemplo, del cuello al brazo o de la espalda a la pierna." },
   evolucion: { label: "¿Cómo ha ido desde que empezó?", hint: "Mejor, peor, igual, a temporadas…" },
+  sintomas_paciente: { label: "¿Has notado alguna de estas cosas?", hint: "Marca las que te pasen. Si no te pasa ninguna, déjalo en blanco." },
   enfermedades: { label: "¿Tienes o has tenido alguna enfermedad importante?" },
   cirugias: { label: "¿Te han operado de algo?" },
   traumatismos: { label: "¿Has tenido golpes fuertes, fracturas o esguinces?" },
-  fisio_previa: { label: "¿Has ido antes a fisioterapia? ¿Por qué?" },
+  fisio_previa: { label: "¿Has ido antes a fisioterapia? ¿Por qué y cómo te fue?" },
+  otros_tratamientos: { label: "¿Qué otros tratamientos has probado para esto?", hint: "Medicación, infiltraciones, cirugía, osteopatía…" },
+  respuesta_tratamientos: { label: "¿Te ayudaron? ¿Alguno te empeoró?" },
+  creencias: { label: "¿Qué crees que te pasa y por qué?" },
+  expectativas: { label: "¿Qué esperas de la fisioterapia?", hint: "Y en cuánto tiempo te gustaría notarlo." },
+  objetivo_paciente: { label: "¿Qué te gustaría volver a hacer?", hint: "Por ejemplo: correr, dormir sin dolor, coger en brazos a tu hijo…" },
   medicacion: { label: "¿Qué medicación tomas?" },
   alergias: { label: "¿Tienes alguna alergia?" },
   pruebas: { label: "¿Te han hecho pruebas (radiografía, resonancia, ecografía…)? ¿Qué decían?" },
-  familiares: { label: "¿Hay enfermedades importantes en tu familia?" },
+  familiares: { label: "¿Tus padres o hermanos tienen o han tenido alguna enfermedad importante?", hint: "Por ejemplo: reumáticas, del corazón, cáncer, neurológicas…" },
   actividad: { label: "¿Haces deporte o actividad física? ¿Cuál?" },
   frecuencia: { label: "¿Cada cuánto?", hint: "Por ejemplo, 3 veces por semana." },
   ocupacion: { label: "En tu trabajo, ¿cómo pasas el día?", hint: "Por ejemplo: con el ordenador, de pie, cargando peso…" },

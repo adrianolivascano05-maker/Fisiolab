@@ -34,7 +34,7 @@ describe("formularios para el paciente", () => {
   it("al paciente solo se le pregunta lo suyo, dicho para él, y las preguntas propias de la clínica", () => {
     const custom = withCustom([{ id: "c_horas", section: "habitos", label: "Horas sentado al día", type: "text" }]);
     const sections = patientSections(custom);
-    expect(sections.map((s) => s.title)).toEqual(["Sobre ti", "Lo que te pasa", "Tu salud", "Tu familia", "Tu día a día"]);
+    expect(sections.map((s) => s.title)).toEqual(["Datos personales", "Motivo de consulta", "Antecedentes médicos personales", "Antecedentes médicos familiares", "Tratamientos previos y expectativas", "Hábitos y estilo de vida"]);
     const ids = sections.flatMap((s) => s.fields.map((f) => f.id));
     for (const no of ["regiones", "lado", "banderas_rojas", "precauciones", "ritmo", "diagnostico_funcional", "fecha_valoracion"]) expect(ids).not.toContain(no);
     expect(ids).toContain("c_horas");

@@ -9,6 +9,7 @@ import { PRECAUTIONS } from "../consent/precautions";
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { CustomField } from "../data/customFields";
 import { marksText } from "./bodyMap";
+import { PATIENT_FLAG_LABELS, RED_FLAG_LABELS } from "./redFlags";
 
 /** El mapa del dolor estuvo un tiempo en la anamnesis con este id: lo guardado se sigue leyendo. */
 const OLD_MAP = "mapa_dolor";
@@ -38,16 +39,8 @@ export const BODY_REGIONS: { id: string; label: string }[] = [
 ];
 export const regionLabel = (id: string) => BODY_REGIONS.find((r) => r.id === id)?.label ?? id;
 
-export const RED_FLAGS = [
-  "Pérdida de peso sin explicación",
-  "Fiebre o malestar general",
-  "Antecedente de cáncer",
-  "Dolor nocturno que no cede con el reposo",
-  "Traumatismo importante reciente",
-  "Alteración de esfínteres o anestesia en silla de montar",
-  "Pérdida de fuerza o sensibilidad que avanza",
-  "Corticoides durante mucho tiempo o inmunosupresión",
-];
+/** La lista de banderas rojas del fisioterapeuta (src/clinical/redFlags.ts, con los cuadros que forman). */
+export const RED_FLAGS = RED_FLAG_LABELS;
 
 export const ANAMNESIS: Section[] = [
   {
@@ -82,17 +75,23 @@ export const ANAMNESIS: Section[] = [
       { id: "ritmo", label: "Ritmo", type: "text", hint: "Mecánico, inflamatorio o mixto." },
       { id: "irradiacion", label: "Irradiación", type: "text" },
       { id: "evolucion", label: "Evolución desde el inicio", type: "textarea" },
-      { id: "banderas_rojas", label: "Banderas rojas", type: "multi", options: RED_FLAGS, hint: "Si hay alguna, valora derivar." },
+      { id: "banderas_rojas", label: "Banderas rojas", type: "multi", options: RED_FLAGS, hint: "Las que confirmes al preguntar. Abajo salen las que marcó el paciente o aparecen en lo escrito, y los cuadros que forman." },
+      {
+        id: "sintomas_paciente",
+        label: "Síntomas de alarma que marcó el paciente",
+        type: "multi",
+        options: PATIENT_FLAG_LABELS,
+        hint: "Los marca el paciente en su formulario: pregúntale por cada uno.",
+      },
     ],
   },
   {
     id: "antecedentes",
-    title: "3. Antecedentes personales",
+    title: "3. Antecedentes médicos personales",
     fields: [
       { id: "enfermedades", label: "Enfermedades previas", type: "textarea" },
       { id: "cirugias", label: "Cirugías previas", type: "textarea" },
       { id: "traumatismos", label: "Traumatismos / fracturas", type: "textarea" },
-      { id: "fisio_previa", label: "Tratamientos de fisioterapia previos", type: "textarea" },
       { id: "medicacion", label: "Medicación actual", type: "textarea" },
       { id: "alergias", label: "Alergias", type: "text" },
       {
@@ -107,12 +106,24 @@ export const ANAMNESIS: Section[] = [
   },
   {
     id: "familiares",
-    title: "4. Antecedentes familiares",
-    fields: [{ id: "familiares", label: "Antecedentes relevantes en la familia", type: "textarea" }],
+    title: "4. Antecedentes médicos familiares",
+    fields: [{ id: "familiares", label: "Enfermedades relevantes en la familia", type: "textarea", hint: "Padres y hermanos: reumáticas, cardiovasculares, cáncer, neurológicas…" }],
+  },
+  {
+    id: "tratamientos",
+    title: "5. Tratamientos previos y expectativas",
+    fields: [
+      { id: "fisio_previa", label: "Fisioterapia previa", type: "textarea", hint: "Para este problema u otros: cuándo, qué le hicieron y cómo le fue." },
+      { id: "otros_tratamientos", label: "Otros tratamientos para este problema", type: "textarea", hint: "Medicación, infiltraciones, cirugía, osteopatía, quiropraxia, acupuntura…" },
+      { id: "respuesta_tratamientos", label: "Respuesta a los tratamientos", type: "textarea", hint: "Qué le ayudó, qué no y qué le empeoró." },
+      { id: "creencias", label: "Qué cree el paciente que le pasa", type: "textarea", hint: "Su explicación del problema y de su causa." },
+      { id: "expectativas", label: "Expectativas del paciente", type: "textarea", hint: "Qué espera del tratamiento y en cuánto tiempo." },
+      { id: "objetivo_paciente", label: "Qué quiere volver a hacer", type: "textarea", hint: "En sus palabras: correr, dormir sin dolor, coger en brazos a su hijo…" },
+    ],
   },
   {
     id: "habitos",
-    title: "5. Hábitos y estilo de vida",
+    title: "6. Hábitos y estilo de vida",
     fields: [
       { id: "actividad", label: "Actividad física / deporte", type: "text" },
       { id: "frecuencia", label: "Frecuencia", type: "text", hint: "Por ejemplo, 3 veces por semana." },
@@ -125,7 +136,7 @@ export const ANAMNESIS: Section[] = [
   },
   {
     id: "exploracion",
-    title: "6. Exploración física",
+    title: "7. Exploración física",
     fields: [
       { id: "inspeccion", label: "Inspección / observación postural", type: "textarea" },
       { id: "palpacion", label: "Palpación", type: "textarea" },
@@ -138,7 +149,7 @@ export const ANAMNESIS: Section[] = [
   },
   {
     id: "diagnostico",
-    title: "7. Diagnóstico fisioterápico",
+    title: "8. Diagnóstico fisioterápico",
     fields: [
       { id: "diagnostico_funcional", label: "Diagnóstico fisioterapéutico (criterio del profesional)", type: "textarea" },
       { id: "estructuras", label: "Estructuras implicadas", type: "text" },
@@ -146,7 +157,7 @@ export const ANAMNESIS: Section[] = [
   },
   {
     id: "objetivos",
-    title: "8. Objetivos",
+    title: "9. Objetivos",
     fields: [
       { id: "objetivos_corto", label: "Objetivos a corto plazo", type: "textarea" },
       { id: "objetivos_largo", label: "Objetivos a largo plazo", type: "textarea" },
@@ -157,7 +168,7 @@ export const ANAMNESIS: Section[] = [
   },
   {
     id: "observaciones",
-    title: "9. Observaciones",
+    title: "10. Observaciones",
     fields: [
       { id: "observaciones", label: "Observaciones", type: "textarea", rows: 4 },
       { id: "alta_recomendaciones", label: "Recomendaciones al alta", type: "textarea", hint: "Salen en el informe de alta." },

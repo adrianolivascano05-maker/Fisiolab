@@ -40,4 +40,28 @@ test.describe("Comodidad del día a día", () => {
     await page.getByRole("button", { name: "Ya reevaluado hoy" }).click();
     await expect(page.getByLabel("Fecha de reevaluación")).toHaveValue("");
   });
+
+  test("US3 la anamnesis avisa sola de las banderas rojas que se escriben y del cuadro que forman", async ({ page }) => {
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Óscar Alarma");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Óscar Alarma" })).toBeVisible();
+    await page.goto(`${page.url()}/anamnesis`);
+    await page.getByRole("group", { name: "Zona", exact: true }).getByText("Cervical", { exact: true }).click();
+    // Lo dicho en negativo no cuenta; lo demás sale mientras se escribe.
+    await page.getByLabel("Motivo principal").fill("Dolor de cuello. No tiene fiebre. Desde ayer, mareo al girar la cabeza");
+    const alarms = page.getByRole("region", { name: /Alarmas/ });
+    await expect(alarms.getByRole("article", { name: "Posible origen vascular cervical (arterias del cuello)" })).toContainText("Urgente");
+    await expect(alarms).toContainText("En «Motivo principal»");
+    await expect(alarms).not.toContainText("Fiebre o malestar general");
+    await alarms.getByText("Qué preguntar para profundizar").click();
+    await expect(alarms).toContainText("5 D y 3 N");
+    await expectAccessible(page);
+    // Confirmarla la marca en «Banderas rojas».
+    await alarms.getByRole("button", { name: /Confirmar.*Mareo/ }).click();
+    await expect(page.getByRole("checkbox", { name: /^Mareo, visión doble/ })).toBeChecked();
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByRole("link", { name: "Hacer un informe para su médico" })).toBeVisible();
+    await expect(page.getByRole("region", { name: /Alarmas/ })).toContainText("Confirmadas: Mareo, visión doble");
+  });
 });

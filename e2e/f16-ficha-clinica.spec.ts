@@ -10,7 +10,7 @@ test.describe("F16 Ficha clínica", () => {
     await tab(page, "Anamnesis").click();
     await expect(page.getByRole("heading", { name: "Anamnesis", exact: true })).toBeVisible();
     await expect(page.getByText("1. Datos personales")).toBeVisible();
-    await expect(page.getByText("9. Observaciones")).toBeVisible();
+    await expect(page.getByText("10. Observaciones")).toBeVisible();
     await page.getByLabel("Motivo principal").fill("Dolor de rodilla al bajar escaleras");
     await page.getByText("Rodilla", { exact: true }).click();
     await page.getByText("Derecho", { exact: true }).click();
@@ -21,7 +21,8 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
 
     await expect(page.getByRole("button", { name: "Editar" })).toBeVisible();
-    await expect(page.getByText("Banderas rojas: 1")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Alarmas: 1 cuadro a descartar" })).toBeVisible();
+    await expect(page.getByRole("article", { name: "Posible infección" })).toContainText("Preferente");
     await expect(page.getByText("6/10")).toBeVisible();
     await expectAccessible(page);
 
@@ -29,7 +30,7 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByRole("button", { name: "Motivo: Dolor de rodilla al bajar escaleras" })).toBeVisible();
     await expect(page.getByRole("main").getByText("Dolor de rodilla al bajar escaleras", { exact: true }).last()).toBeVisible();
     await expect(page.getByText("Diagnóstico fisioterápico: Tendinopatía rotuliana")).toBeVisible();
-    await expect(page.getByText("Banderas rojas: 1")).toBeVisible();
+    await expect(page.getByText("Alarmas: Posible infección (preferente)")).toBeVisible();
     // El dolor de la anamnesis ya dibuja la gráfica.
     await expect(page.getByRole("img", { name: /Dolor de 0 a 10/ })).toBeVisible();
 

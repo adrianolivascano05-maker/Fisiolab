@@ -42,7 +42,8 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
-import { answerText, answeredCount, clinicalSummary, orphanAnswers, orphanText, type Section } from "./anamnesis";
+import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orphanText, type Section } from "./anamnesis";
+import { RedFlagPanel } from "./RedFlagPanel";
 import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyMapInput } from "./BodyMap";
 import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
@@ -207,6 +208,7 @@ export function AnamnesisPage() {
   if (!patient) return <Page title="Anamnesis" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const romTrends = trends(tests.filter((t) => t.movement !== null));
 
+  const labelOf = (fid: string) => fieldIn(sections, fid)?.label ?? fid;
   const set = (fid: string) => (v: AnswerValue) => setDraft((d) => ({ ...(d ?? {}), [fid]: v }));
   const startEdit = () => {
     base.current = { ...(anamnesis?.answers ?? {}) };
@@ -292,6 +294,18 @@ export function AnamnesisPage() {
                   {section.fields.map((f) => (
                     <FieldInput key={f.id} field={f} value={draft[f.id]} onChange={set(f.id)} />
                   ))}
+                  {section.id === "motivo" && (
+                    <RedFlagPanel
+                      answers={draft}
+                      birthDate={patient.birthDate}
+                      labelOf={labelOf}
+                      patientId={id}
+                      onMark={(label) => {
+                        const now = Array.isArray(draft.banderas_rojas) ? (draft.banderas_rojas as string[]) : [];
+                        if (!now.includes(label)) set("banderas_rojas")([...now, label]);
+                      }}
+                    />
+                  )}
                   {section.id === "exploracion" && <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />}
                 </div>
               </Fold>
@@ -318,7 +332,6 @@ export function AnamnesisPage() {
   const done = answeredCount(a, allFields);
   const valued = typeof a.fecha_valoracion === "string" ? a.fecha_valoracion : null;
   const orphans = orphanAnswers(a, sections);
-  const red = clinicalSummary(a).redFlags;
   return (
     <PatientShell patient={patient} id={id}>
       <div className="flex items-start justify-between gap-3">
@@ -337,11 +350,7 @@ export function AnamnesisPage() {
       <Link to={`/pacientes/${id}/formularios?enviar=anamnesis`} className="inline-flex items-center gap-1.5 self-start text-sm font-semibold text-accent">
         <Send aria-hidden="true" className="size-4" /> Mandar al paciente su parte para que la rellene
       </Link>
-      {red.length > 0 && (
-        <Alert tone="danger" title={`Banderas rojas: ${red.length}`}>
-          {red.join(" · ")}. Valora derivar.
-        </Alert>
-      )}
+      <RedFlagPanel answers={a} birthDate={patient.birthDate} labelOf={labelOf} patientId={id} />
       {sections.map((section) => {
         const rows = section.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");
         const n = filled(section, a);

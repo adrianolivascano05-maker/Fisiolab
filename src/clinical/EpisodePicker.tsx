@@ -22,6 +22,8 @@ import { ANAMNESIS } from "./anamnesis";
 const KEEP_SECTIONS = ["datos", "antecedentes", "familiares", "habitos"];
 const KEEP = new Set(ANAMNESIS.filter((s) => KEEP_SECTIONS.includes(s.id)).flatMap((s) => s.fields.map((f) => f.id)));
 KEEP.delete("fecha_valoracion");
+// La fisioterapia previa es de su historia, no solo de este motivo.
+KEEP.add("fisio_previa");
 
 const today = () => new Date().toISOString().slice(0, 10);
 const records = (n: number | undefined) => (!n ? "sin registros" : n === 1 ? "1 registro" : `${n} registros`);

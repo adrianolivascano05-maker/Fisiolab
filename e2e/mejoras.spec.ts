@@ -356,7 +356,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await expect(page.getByText(/Suelo pélvico: \d preguntas añadidas/)).toBeVisible();
     await page.getByRole("button", { name: "Añadir una pregunta" }).click();
     const q = page.getByRole("dialog", { name: "Nueva pregunta" });
-    await q.getByLabel("Apartado").selectOption({ label: "5. Hábitos y estilo de vida" });
+    await q.getByLabel("Apartado").selectOption({ label: "6. Hábitos y estilo de vida" });
     await q.getByLabel("Pregunta").fill("Horas sentado al día");
     await q.getByRole("button", { name: "Guardar" }).click();
     await expect(page.getByRole("list", { name: "Preguntas propias: Hábitos y estilo de vida" })).toContainText("Horas sentado al día");
@@ -365,7 +365,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await createPatient(page, { name: "Nora Propia" });
     await tab(page, "Anamnesis").click();
     await page.locator("fieldset", { hasText: "Escapes de orina" }).getByText("Al esfuerzo").click();
-    await page.getByText("5. Hábitos y estilo de vida").click();
+    await page.getByText("6. Hábitos y estilo de vida").click();
     await page.getByLabel("Horas sentado al día").fill("8");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByText("Anamnesis guardada")).toBeVisible();

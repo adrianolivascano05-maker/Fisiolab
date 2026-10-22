@@ -5,6 +5,7 @@ import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { clinicalSummary, regionLabel } from "../clinical/anamnesis";
+import { redFlagReview } from "../clinical/redFlags";
 import { AnalysisNav, TrendTiles } from "../clinical/measureParts";
 import { QuestionnaireTiles, SymmetryPanel } from "../clinical/outcomeParts";
 import { PainChart, ResultBadge, sideShort } from "../clinical/parts";
@@ -93,6 +94,7 @@ export function PatientPage() {
   const missing = TEMPLATES.filter((t) => t.written === "required" && t.suggest(consentCtx) && !inForce.some((c) => c.template === t.id));
 
   const summary = anamnesis ? clinicalSummary(anamnesis.answers) : null;
+  const alarms = anamnesis ? redFlagReview(anamnesis.answers, patient.birthDate) : null;
   const pain = painSeries({ sessions, wellness, anamnesis });
   const lastSession = sessions[0] ?? null;
   const review = lastSession?.reviewOn ?? null;
@@ -153,7 +155,7 @@ export function PatientPage() {
         </Link>
       )}
 
-      {summary && (summary.reason || summary.regions.length > 0 || summary.redFlags.length > 0) && (
+      {summary && (summary.reason || summary.regions.length > 0 || (alarms?.hits.length ?? 0) > 0) && (
       <section aria-labelledby="clinico" className="flex flex-col gap-2">
         <h2 id="clinico" className="text-lg">
           Motivo de consulta
@@ -178,9 +180,19 @@ export function PatientPage() {
             </Card>
           </Link>
         ) : null}
-        {summary.redFlags.length > 0 && (
-          <Alert tone="danger" title={`Banderas rojas: ${summary.redFlags.length}`}>
-            {summary.redFlags.join(" · ")}. Valora derivar.
+        {alarms && alarms.hits.length > 0 && (
+          <Alert
+            tone="danger"
+            title={
+              alarms.patterns.length
+                ? `Alarmas: ${alarms.patterns.map((p) => `${p.pattern.name} (${p.pattern.urgency})`).join(" · ")}`
+                : `Banderas rojas: ${alarms.hits.length}`
+            }
+          >
+            {alarms.hits.map((h) => h.flag.label).join(" · ")}.{" "}
+            <Link to={`/pacientes/${id}/anamnesis`} className="font-semibold underline">
+              Qué preguntar y cuándo derivar
+            </Link>
           </Alert>
         )}
       </section>

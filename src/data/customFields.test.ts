@@ -26,7 +26,7 @@ describe("campos propios de la anamnesis", () => {
     expect(habitos.fields.at(-1)).toEqual({ id: "c_horas", label: "Horas sentado al día", type: "text" });
     const answers = { motivo: "Lumbalgia", c_horas: "8" };
     expect(orphanAnswers(answers, sections)).toEqual([]);
-    expect(anamnesisRows(answers, sections)).toContainEqual(["5. Hábitos y estilo de vida", "Horas sentado al día", "8"]);
+    expect(anamnesisRows(answers, sections)).toContainEqual(["6. Hábitos y estilo de vida", "Horas sentado al día", "8"]);
     // Sin el campo: la respuesta no se pierde.
     await saveCustomFields(db, []);
     expect(orphanAnswers(answers, withCustom(await getCustomFields(db)))).toEqual([["c_horas", "8"]]);
