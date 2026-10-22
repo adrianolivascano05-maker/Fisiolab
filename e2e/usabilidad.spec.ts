@@ -97,7 +97,6 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("heading", { name: "Carlos CIF" })).toBeVisible();
     await page.goto(`${page.url()}/anamnesis`);
     await page.getByRole("group", { name: "Zona", exact: true }).getByText("Lumbar", { exact: true }).click();
-    await page.getByText("8. Diagnóstico fisioterápico").click();
     await page.getByRole("button", { name: "Añadir códigos de la CIF" }).click();
     const sheet = page.getByRole("dialog", { name: "Buscar en la CIF" });
     // Sin escribir: los de su zona.
@@ -121,7 +120,8 @@ test.describe("Comodidad del día a día", () => {
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByText("Andar (d450.21): desempeño/realización: dificultad moderada; capacidad: dificultad ligera").first()).toBeVisible();
 
-    await page.goto(page.url().replace(/anamnesis$/, "derivacion"));
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
+    await page.getByRole("link", { name: /^Carta de derivación/ }).click();
     await expect(page.getByRole("article", { name: "Carta de derivación" })).toContainText("Perfil de funcionamiento (CIF)");
     await expect(page.getByRole("article", { name: "Carta de derivación" })).toContainText("Dolor en la espalda (b28013.2)");
   });
