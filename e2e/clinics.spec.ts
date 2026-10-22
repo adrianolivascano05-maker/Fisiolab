@@ -58,6 +58,7 @@ async function enter(page: Page) {
 
 /** Da de alta la clínica desde la pantalla de elegirla. */
 async function createClinic(page: Page, name: string) {
+  await page.getByLabel("En una clínica con equipo").check();
   await page.getByLabel("Nombre de la clínica").fill(name);
   await page.getByRole("button", { name: "Crear la clínica" }).click();
 }
@@ -102,6 +103,24 @@ const inServer = (google: FakeGoogle, text: string) =>
   expect.poll(async () => (await google.clinicText("Fisiolab Centro", PASSWORD)).includes(enc(text)), { timeout: 20_000 }).toBe(true);
 
 test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
+  test("CL0 fisio por su cuenta: sin equipo ni repartos, y puede abrir una clínica con equipo cuando quiera", async ({ page }) => {
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana", { server: true });
+    await page.goto("./");
+    await page.getByRole("button", { name: "Entrar con Google" }).click();
+    await expect(page.getByLabel("Por mi cuenta")).toBeChecked({ timeout: 15_000 });
+    await page.getByLabel("Nombre de tu consulta (o el tuyo)").fill("Ana Fisio");
+    await page.getByRole("button", { name: "Empezar" }).click();
+    await patients(page);
+    await page.goto("./ajustes");
+    await page.getByRole("link", { name: /Mi consulta/ }).click();
+    await expect(page.getByRole("heading", { name: "Mi consulta" })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Abrir una clínica con equipo" }).click();
+    await expect(page.getByRole("heading", { name: "Equipo de la clínica" })).toBeVisible();
+    await page.getByRole("button", { name: "Trabajar por mi cuenta" }).click();
+    await expect(page.getByRole("heading", { name: "Mi consulta" })).toBeVisible();
+  });
   test("CL1 dar de alta la clínica: solo copias cifradas en el servidor, nada en Drive; otro dispositivo la elige", async ({ page, browser }) => {
     test.slow();
     const google = new FakeGoogle(users);
@@ -113,6 +132,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("button", { name: "Entrar con Google" }).click();
     await expect(page.getByRole("heading", { name: "Tu clínica", exact: true })).toBeVisible({ timeout: 15_000 });
     await expectAccessible(page);
+    await page.getByLabel("En una clínica con equipo").check();
     await page.getByRole("button", { name: "Crear la clínica" }).click();
     await expect(page.getByText("Escribe el nombre de la clínica.")).toBeVisible();
     await createClinic(page, "Fisiolab Centro");
@@ -599,7 +619,17 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
 
     // Suspender la clínica de Carla: no sube nada (lo dice), pero sigue funcionando en su dispositivo.
     await page.reload();
+    // Un toque en la fila no suspende: pide confirmación (y Cancelar no toca nada).
     await page.getByRole("region", { name: "Clínicas" }).getByRole("button", { name: /Clínica Carla/ }).click();
+    const suspend = page.getByRole("dialog", { name: "¿Suspender «Clínica Carla»?" });
+    await suspend.getByRole("button", { name: "Cancelar" }).click();
+    await expect(suspend).toBeHidden();
+    expect([...google.clinics.values()].find((c) => c.name === "Clínica Carla")!.suspended).toBeFalsy();
+    await page.getByRole("region", { name: "Clínicas" }).getByRole("button", { name: /Clínica Carla/ }).click();
+    await expect(suspend.getByRole("button", { name: "Suspender «Clínica Carla»" })).toBeDisabled();
+    await suspend.getByRole("checkbox", { name: /Sí, quiero suspender «Clínica Carla»/ }).check();
+    await expectAccessible(page);
+    await suspend.getByRole("button", { name: "Suspender «Clínica Carla»" }).click();
     await expect(page.getByRole("region", { name: "Clínicas" }).getByRole("button", { name: /Clínica Carla · suspendida/ })).toBeVisible();
     await createPatient(carla, { name: "Paciente Suspendido" });
     await choosePassword(carla).catch(() => {});

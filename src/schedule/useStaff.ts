@@ -1,14 +1,13 @@
 // El equipo de la clínica para el horario y para elegir con quién es una cita (src/data/schedule.ts). Sin clínica,
-// vacío: la app trabaja como siempre, sin equipo.
+// o en la de un fisio que trabaja por su cuenta (src/cloud/teamMode.ts), vacío: la app trabaja sin equipo.
 import { useAsync } from "../app/useAsync";
-import { useCloud } from "../cloud/CloudGate";
+import { useTeamMode } from "../cloud/teamMode";
 import { getDb } from "../data/db";
 import { listStaff, type Staff } from "../data/schedule";
 
 export function useStaff(): Staff[] {
-  const cloud = useCloud();
-  const inClinic = !!cloud?.clinic;
-  const staff = useAsync(async () => (inClinic ? listStaff(getDb()) : []), [inClinic]);
+  const { team } = useTeamMode();
+  const staff = useAsync(async () => (team ? listStaff(getDb()) : []), [team]);
   return staff.data ?? [];
 }
 

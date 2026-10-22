@@ -5,9 +5,9 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { cx } from "./cx";
 
-export function Group({ title, footer, children, className }: { title?: string; footer?: ReactNode; children: ReactNode; className?: string }) {
+export function Group({ title, footer, children, className, id }: { title?: string; footer?: ReactNode; children: ReactNode; className?: string; id?: string }) {
   return (
-    <section aria-label={title} className={cx("flex flex-col gap-1.5", className)}>
+    <section id={id} aria-label={title} className={cx("flex flex-col gap-1.5", className)}>
       {title && <h2 className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase" style={{ fontFamily: "var(--font-sans)" }}>{title}</h2>}
       <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">{children}</ul>
       {footer && <p className="px-1 text-xs text-text-muted">{footer}</p>}

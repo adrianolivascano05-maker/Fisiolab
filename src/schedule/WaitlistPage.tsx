@@ -3,6 +3,7 @@
 // (?hueco=…&min=…&con=…): primero salen a quienes les encaja; a cada uno se le ofrece por WhatsApp o correo, con el
 // mensaje listo (queda apuntado), y se le da la cita con un toque. Desde la ficha se llega con ?paciente=… para
 // apuntarlo.
+import { useTeamMode } from "../cloud/teamMode";
 import { CalendarPlus, Mail, MessageCircle, Pencil, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -11,7 +12,6 @@ import { madridDay } from "../app/format";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { PatientPicker } from "../clinical/AppointmentSheet";
-import { useCloud } from "../cloud/CloudGate";
 import { clashes, createAppointment, updateAppointment } from "../data/appointments";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
@@ -34,8 +34,7 @@ const waiting = (iso: string) => {
 const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
 
 export function WaitlistPage() {
-  const cloud = useCloud();
-  const team = !!cloud?.clinic;
+  const { team } = useTeamMode();
   const staff = useStaff();
   const toast = useToast();
   const navigate = useNavigate();

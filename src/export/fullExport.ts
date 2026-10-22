@@ -143,10 +143,10 @@ export function buildSheets(c: Collected): Sheet[] {
   const sheets: Sheet[] = [
     {
       name: "Pacientes",
-      header: ["Código", "Nombre", "Fecha de nacimiento", "Sexo", "Teléfono", "Correo", "Dirección", "Peso (kg)", "Altura (cm)", "Notas", "Alta en Cénit", "Última modificación"],
+      header: ["Código", "Nombre", "Fecha de nacimiento", "Sexo", "Teléfono", "Correo", "Dirección", "DNI o NIE", "Peso (kg)", "Altura (cm)", "Notas", "Alta en Cénit", "Última modificación"],
       rows: [...T.patients!]
         .sort((a, b) => s(a.name).localeCompare(s(b.name), "es"))
-        .map((p) => [s(p.id), s(p.name), day(p.birth_date), SEX[s(p.sex)] ?? "", s(p.phone), s(p.email), s(p.address), n(p.body_mass_kg), n(p.height_cm), s(p.notes), when(p.created_at), when(p.updated_at)]),
+        .map((p) => [s(p.id), s(p.name), day(p.birth_date), SEX[s(p.sex)] ?? "", s(p.phone), s(p.email), s(p.address), s(p.dni), n(p.body_mass_kg), n(p.height_cm), s(p.notes), when(p.created_at), when(p.updated_at)]),
     },
     {
       name: "Motivos de consulta",
@@ -304,6 +304,7 @@ export function patientHtml(c: Collected, p: R, exportedAt = new Date()): string
     ["Teléfono", s(p.phone)],
     ["Correo", s(p.email)],
     ["Dirección", s(p.address)],
+    ["DNI o NIE", s(p.dni)],
     ["Peso", p.body_mass_kg ? `${fmtNum(p.body_mass_kg)} kg` : ""],
     ["Altura", p.height_cm ? `${fmtNum(p.height_cm)} cm` : ""],
     ["Notas", s(p.notes)],

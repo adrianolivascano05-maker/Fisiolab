@@ -1,4 +1,5 @@
 import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, Dumbbell, Hourglass, Send, ShieldAlert, ShieldCheck, Stethoscope, Wallet, type LucideIcon } from "lucide-react";
+import { SHOW_EXERCISES } from "../app/features";
 import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
@@ -20,6 +21,7 @@ import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
 import { listConsents } from "../data/consents";
 import { getDb } from "../data/db";
+import { fmtVisit } from "../clinical/calendar";
 import { CONSENTS } from "../data/privacy";
 import { getPatient, listTests, listWellness } from "../data/repo";
 import { Alert } from "../ui/Alert";
@@ -134,6 +136,23 @@ export function PatientPage() {
         </Link>
       )}
 
+      {lastSession && (
+        <Link to={`/pacientes/${id}/sesiones`} className="block" aria-label={`Última sesión, del ${fmtDate(lastSession.performedAt)}`}>
+          <Card className="flex flex-col gap-1 hover:border-accent">
+            <p className="flex items-baseline justify-between gap-2">
+              <span className="font-semibold">Última sesión · {fmtDate(lastSession.performedAt)}</span>
+              {lastSession.pain !== null && <span className="nums text-sm text-text-muted">Dolor {lastSession.pain}/10</span>}
+            </p>
+            {lastSession.treatment && <p className="line-clamp-2 text-sm">{lastSession.treatment}</p>}
+            {(lastSession.nextAt || review) && (
+              <p className="text-sm text-text-muted">
+                {[lastSession.nextAt && `Siguiente cita: ${fmtVisit(lastSession.nextAt)}`, review && `Reevaluar el ${fmtDate(`${review}T12:00:00`)}`].filter(Boolean).join(" · ")}
+              </p>
+            )}
+          </Card>
+        </Link>
+      )}
+
       {summary && (summary.reason || summary.regions.length > 0 || summary.redFlags.length > 0) && (
       <section aria-labelledby="clinico" className="flex flex-col gap-2">
         <h2 id="clinico" className="text-lg">
@@ -167,65 +186,6 @@ export function PatientPage() {
       </section>
       )}
 
-      <Group>
-        <RowLink
-          to={`/pacientes/${id}/anamnesis`}
-          icon={ClipboardList}
-          title="Anamnesis"
-          subtitle={anamnesis ? `Actualizada el ${fmtDate(anamnesis.updatedAt)}` : "Sin rellenar"}
-        />
-        <RowLink
-          to={`/pacientes/${id}/formularios`}
-          icon={Send}
-          title="Formularios para el paciente"
-          subtitle={formsLine(sentForms)}
-        />
-        <RowLink
-          to={`/pacientes/${id}/proteccion-datos`}
-          icon={privacy.informedAt ? ShieldCheck : ShieldAlert}
-          tone={privacy.informedAt ? "accent" : "warning"}
-          title="Protección de datos"
-          subtitle={privacy.informedAt ? [`Informado el ${fmtDate(`${privacy.informedAt}T12:00:00`)}`, ...consents].join(" · ") : "Pendiente: hoja para imprimir y firmar"}
-          warn={!privacy.informedAt}
-        />
-        <RowLink
-          to={`/pacientes/${id}/consentimientos`}
-          icon={FilePen}
-          tone={missing.length ? "warning" : "accent"}
-          title="Consentimientos"
-          subtitle={
-            missing.length
-              ? `Falta por escrito: ${missing.map((t) => t.title.toLowerCase()).join(", ")}`
-              : inForce.length
-                ? `${inForce.length === 1 ? "1 firmado" : `${inForce.length} firmados`}`
-                : "Se preparan con su anamnesis"
-          }
-          warn={missing.length > 0}
-        />
-        <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Completo o de alta; imprimir o guardar en PDF" />
-        <RowLink to={`/pacientes/${id}/justificante`} icon={FileCheck} title="Justificante de asistencia" subtitle="Para su trabajo o su centro de estudios" />
-        <RowLink
-          to={`/pacientes/${id}/ejercicios`}
-          icon={Dumbbell}
-          title="Ejercicios para casa"
-          subtitle={plans.length ? `Hoja del ${fmtDate(plans[0]!.updatedAt)} · ${plans[0]!.items.length === 1 ? "1 ejercicio" : `${plans[0]!.items.length} ejercicios`}` : "Hoja para imprimir o enviar por WhatsApp"}
-        />
-      </Group>
-      <Group title="Cobros y agenda">
-        <RowLink
-          to={`/pacientes/${id}/cobros`}
-          icon={Wallet}
-          tone={account.balanceCents > 0 ? "warning" : "accent"}
-          title="Bonos y cobros"
-          subtitle={accountLine(account) ?? "Vender un bono o apuntar un cobro"}
-        />
-        <RowLink
-          to={waiting ? "/agenda/espera" : `/agenda/espera?paciente=${id}`}
-          icon={Hourglass}
-          title="Lista de espera"
-          subtitle={waiting ? `En la lista: ${preferText(waiting).toLowerCase()}` : "Avisarle si se libera un hueco antes"}
-        />
-      </Group>
 
       {/* Lo clínico: por qué viene, banderas y dolor. */}
 
@@ -346,6 +306,69 @@ export function PatientPage() {
           </ol>
         </section>
       )}
+
+      {/* Lo administrativo, al final: lo clínico primero. */}
+      <Group>
+        <RowLink
+          to={`/pacientes/${id}/anamnesis`}
+          icon={ClipboardList}
+          title="Anamnesis"
+          subtitle={anamnesis ? `Actualizada el ${fmtDate(anamnesis.updatedAt)}` : "Sin rellenar"}
+        />
+        <RowLink
+          to={`/pacientes/${id}/formularios`}
+          icon={Send}
+          title="Formularios para el paciente"
+          subtitle={formsLine(sentForms)}
+        />
+        <RowLink
+          to={`/pacientes/${id}/proteccion-datos`}
+          icon={privacy.informedAt ? ShieldCheck : ShieldAlert}
+          tone={privacy.informedAt ? "accent" : "warning"}
+          title="Protección de datos"
+          subtitle={privacy.informedAt ? [`Informado el ${fmtDate(`${privacy.informedAt}T12:00:00`)}`, ...consents].join(" · ") : "Pendiente: hoja para imprimir y firmar"}
+          warn={!privacy.informedAt}
+        />
+        <RowLink
+          to={`/pacientes/${id}/consentimientos`}
+          icon={FilePen}
+          tone={missing.length ? "warning" : "accent"}
+          title="Consentimientos"
+          subtitle={
+            missing.length
+              ? `Falta por escrito: ${missing.map((t) => t.title.toLowerCase()).join(", ")}`
+              : inForce.length
+                ? `${inForce.length === 1 ? "1 firmado" : `${inForce.length} firmados`}`
+                : "Se preparan con su anamnesis"
+          }
+          warn={missing.length > 0}
+        />
+        <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Completo o de alta; imprimir o guardar en PDF" />
+        <RowLink to={`/pacientes/${id}/justificante`} icon={FileCheck} title="Justificante de asistencia" subtitle="Para su trabajo o su centro de estudios" />
+        {SHOW_EXERCISES && (
+          <RowLink
+            to={`/pacientes/${id}/ejercicios`}
+            icon={Dumbbell}
+            title="Ejercicios para casa"
+            subtitle={plans.length ? `Hoja del ${fmtDate(plans[0]!.updatedAt)} · ${plans[0]!.items.length === 1 ? "1 ejercicio" : `${plans[0]!.items.length} ejercicios`}` : "Hoja para imprimir o enviar por WhatsApp"}
+          />
+        )}
+      </Group>
+      <Group title="Cobros y agenda">
+        <RowLink
+          to={`/pacientes/${id}/cobros`}
+          icon={Wallet}
+          tone={account.balanceCents > 0 ? "warning" : "accent"}
+          title="Bonos y cobros"
+          subtitle={accountLine(account) ?? "Vender un bono o apuntar un cobro"}
+        />
+        <RowLink
+          to={waiting ? "/agenda/espera" : `/agenda/espera?paciente=${id}`}
+          icon={Hourglass}
+          title="Lista de espera"
+          subtitle={waiting ? `En la lista: ${preferText(waiting).toLowerCase()}` : "Avisarle si se libera un hueco antes"}
+        />
+      </Group>
     </PatientShell>
   );
 }

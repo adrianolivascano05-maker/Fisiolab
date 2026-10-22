@@ -11,7 +11,20 @@ export { DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./calendar";
 const googleLink =
   "inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover";
 
-export function CalendarSheet({ open, onClose, event, title = "Añadir al calendario" }: { open: boolean; onClose: () => void; event: CalendarEvent; title?: string }) {
+export function CalendarSheet({
+  open,
+  onClose,
+  event,
+  title = "Añadir al calendario",
+  onNever,
+}: {
+  open: boolean;
+  onClose: () => void;
+  event: CalendarEvent;
+  title?: string;
+  /** Si se da, un botón «No volver a preguntar» (la hoja que sale sola al guardar una sesión). */
+  onNever?: () => void;
+}) {
   return (
     <Sheet open={open} onClose={onClose} title={title}>
       <p>
@@ -36,6 +49,11 @@ export function CalendarSheet({ open, onClose, event, title = "Añadir al calend
         Google Calendar se abre con la cita ya escrita: pulsa «Guardar». El archivo .ics lo abren el calendario del iPhone y del Mac, Outlook y casi
         todos los demás. El evento lleva el nombre del paciente y la hora, nada de su historia clínica.
       </p>
+      {onNever && (
+        <Button variant="ghost" block onClick={onNever}>
+          No volver a preguntar
+        </Button>
+      )}
     </Sheet>
   );
 }

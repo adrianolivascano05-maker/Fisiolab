@@ -42,7 +42,8 @@ export function AttendancePage() {
   }, [id, appointmentId]);
   const [when, setWhen] = useState<string | null>(null);
   const [minutes, setMinutes] = useState<string | null>(null);
-  const [idDoc, setIdDoc] = useState("");
+  /** El de su ficha, salvo que se cambie aquí (solo para este justificante). */
+  const [idDocEdit, setIdDoc] = useState<string | null>(null);
   const [purpose, setPurpose] = useState("");
   const [busy, setBusy] = useState(false);
   const article = useRef<HTMLElement>(null);
@@ -56,6 +57,7 @@ export function AttendancePage() {
   if (!data.data) return <>{bar}<main className="mx-auto max-w-3xl p-4"><Loading /></main></>;
   const { patient, clinic, appointment } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
+  const idDoc = idDocEdit ?? patient.dni;
 
   const start = new Date(when ?? (appointment ? localInput(appointment.startsAt) : ""));
   // Lo escrito tal cual (se puede borrar para escribir otro); para el texto, entre 5 y 480 minutos.
@@ -91,7 +93,7 @@ export function AttendancePage() {
             onChange={(e) => setMinutes(e.target.value)}
             error={minutesText && length !== typed ? `Entre 5 y 480 minutos: sale ${length}.` : undefined}
           />
-          <TextField label="DNI o NIE del paciente (opcional)" value={idDoc} onChange={(e) => setIdDoc(e.target.value)} hint="Sale en el justificante; no se guarda." />
+          <TextField label="DNI o NIE del paciente (opcional)" value={idDoc} onChange={(e) => setIdDoc(e.target.value)} hint="Sale de su ficha; si lo cambias aquí, solo vale para este justificante." />
           <TextField label="Para qué es (opcional)" value={purpose} onChange={(e) => setPurpose(e.target.value)} hint="Por ejemplo: «a petición del interesado, para presentar en su empresa»." />
           {!appointment && !when && <Alert tone="info" title="No consta ninguna visita">Pon el día y la hora de la consulta.</Alert>}
           {future && <Alert tone="warning" title="Esa hora aún no ha llegado">El justificante dice que ha asistido: hazlo cuando haya venido.</Alert>}

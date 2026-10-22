@@ -11,6 +11,9 @@ import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSes
 import { getDb } from "../data/db";
 import { ageOn, getClinic } from "../data/privacy";
 import { getPatient, listTests, listWellness } from "../data/repo";
+import { SharePdf } from "./SharePdf";
+import { TextField } from "../ui/Field";
+import { TextArea } from "./parts";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { safeName } from "../cloud/saveToDrive";
 import { Button } from "../ui/Button";
@@ -70,6 +73,9 @@ export function ReportPage() {
   const article = useRef<HTMLElement>(null);
   const template = useAnamnesisSections();
   const [parts, setParts] = useState<Record<Part, boolean>>({ anamnesis: true, exploracion: true, dolor: true, mediciones: true, cuestionarios: true, sesiones: true });
+  /** A quién va (su médico, la mutua…) y una nota para él: solo en este informe, no se guardan. */
+  const [to, setTo] = useState("");
+  const [note, setNote] = useState("");
 
   const back = `/pacientes/${id}`;
   const bar = (
@@ -131,10 +137,19 @@ export function ReportPage() {
               ))}
             </div>
           </fieldset>
+          <TextField label="Dirigido a (opcional)" placeholder="Por ejemplo: Dra. López, traumatología" value={to} onChange={(e) => setTo(e.target.value)} />
+          <TextArea label="Nota para quien lo recibe (opcional)" value={note} onChange={setNote} />
           <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
             Imprimir o guardar en PDF
           </Button>
-          <p className="text-sm text-text-muted">En el diálogo de impresión, elige «Guardar como PDF» para tenerlo en un archivo.</p>
+          <SharePdf
+            make={async () => {
+              const { reportPdf } = await import("./reportPdf");
+              return reportPdf(article.current!);
+            }}
+            fileName={safeName(`Informe ${patient.name} ${today.slice(0, 10)}.pdf`)}
+            title="Informe de fisioterapia"
+          />
           <Link to={`/pacientes/${id}/alta`} className="text-sm font-semibold text-accent">
             Informe de alta: más corto, con la evolución del motivo de consulta
           </Link>
@@ -153,6 +168,16 @@ export function ReportPage() {
 
         <article ref={article} aria-label="Informe" className="flex flex-col gap-5 rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
           <Letterhead clinic={clinic} title="Informe de fisioterapia" subtitle={`Historia clínica y evolución · ${fmtDate(today)}`} />
+          {(to.trim() || note.trim()) && (
+            <div className="flex flex-col gap-1">
+              {to.trim() && (
+                <p>
+                  <span className="text-text-muted">A la atención de:</span> <span className="font-semibold">{to.trim()}</span>
+                </p>
+              )}
+              {note.trim() && <p className="whitespace-pre-line">{note.trim()}</p>}
+            </div>
+          )}
 
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 print:grid-cols-2">
             {facts.map(([k, v]) => (

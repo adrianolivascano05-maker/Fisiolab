@@ -22,6 +22,7 @@ import exercises021 from "./migrations/021_exercises.sql?raw";
 import waitlistPrefs022 from "./migrations/022_waitlist_prefs.sql?raw";
 import exerciseVideo023 from "./migrations/023_exercise_video.sql?raw";
 import patientForms024 from "./migrations/024_patient_forms.sql?raw";
+import patientDni025 from "./migrations/025_patient_dni.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -49,4 +50,5 @@ export const migrations: Migration[] = [
   { version: 22, sql: waitlistPrefs022 },
   { version: 23, sql: exerciseVideo023 },
   { version: 24, sql: patientForms024 },
+  { version: 25, sql: patientDni025 },
 ];

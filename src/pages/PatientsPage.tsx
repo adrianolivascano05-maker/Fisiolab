@@ -1,4 +1,4 @@
-import { CalendarCheck, CalendarClock, CalendarX2, CircleCheck, Plus, Search, UserX, Users, Zap } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarX2, CircleCheck, Hourglass, Plus, Search, UserX, Users, Wallet, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { fmtDate, madridDay } from "../app/format";
@@ -13,12 +13,13 @@ import { useDataVersion } from "../app/dataVersion";
 import { agenda, STATUS_LABELS, type AgendaItem } from "../data/appointments";
 import { euros, pendingAccounts } from "../data/billing";
 import { dueReviews, upcomingVisits } from "../data/clinical";
+import { listWaitlist } from "../data/waitlist";
 import { getDb } from "../data/db";
 import { createPatient, getSetting, listPatients, matchesPatient, QUICK_PATIENT, type PatientSummary } from "../data/repo";
 import { SEED_PREFIX } from "../data/seed";
 import { Alert } from "../ui/Alert";
 import { EmptyState } from "../ui/EmptyState";
-import { Group, RowButton } from "../ui/Grouped";
+import { Group, RowButton, RowLink } from "../ui/Grouped";
 import { PatientRow } from "../ui/ListItem";
 import { useToast } from "../ui/Toast";
 
@@ -62,6 +63,7 @@ export function PatientsPage() {
   const version = useDataVersion();
   /** Lo que debe cada paciente de hoy, para verlo al llegar (Bonos y cobros). */
   const owes = useAsync(async () => new Map((await pendingAccounts(getDb(), dayPlus(0))).map((d) => [d.patientId, d.balanceCents])), [version]);
+  const waiting = useAsync(async () => (await listWaitlist(getDb())).length, [version]);
   const visits = useAsync(async () => (await upcomingVisits(getDb())).filter((v) => madridDay(v.nextAt) > dayPlus(0) && madridDay(v.nextAt) <= dayPlus(7)), []);
   const [managing, setManaging] = useState<AgendaItem | null>(null);
   const navigate = useNavigate();
@@ -103,8 +105,8 @@ export function PatientsPage() {
     <Page
       title="Pacientes"
       action={
-        <Link to="/pacientes/nuevo" aria-label="Nuevo paciente" className="tap inline-flex items-center justify-center rounded-md text-accent hover:bg-surface">
-          <Plus aria-hidden="true" className="size-7" />
+        <Link to="/pacientes/nuevo" aria-label="Nuevo paciente" className="tap inline-flex items-center justify-center gap-1 rounded-md px-1 font-semibold text-accent hover:bg-surface">
+          <Plus aria-hidden="true" className="size-6" /> Nuevo
         </Link>
       }
     >
@@ -158,6 +160,7 @@ export function PatientsPage() {
           })}
         </Group>
       )}
+      {!search && <Pending owes={owes.data ?? null} reviews={reviews.data ?? null} waiting={waiting.data ?? 0} />}
       {managing && (
         <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} />
       )}
@@ -226,7 +229,7 @@ const dayPlus = (n: number) => {
 function Reviews({ items }: { items: { patientId: string; name: string; reviewOn: string }[] }) {
   const today = dayPlus(0);
   return (
-    <Group title="Para reevaluar">
+    <Group title="Para reevaluar" className="scroll-mt-24" id="para-reevaluar">
       {items.map((r) => (
         <PatientRow
           key={r.patientId}
@@ -255,5 +258,30 @@ function BackupReminder({ hasRealPatients, lastBackup }: { hasRealPatients: bool
         Hacer la copia
       </Link>
     </Alert>
+  );
+}
+
+/** Lo pendiente de la clínica en un sitio: sin cobrar, reevaluaciones de hoy o atrasadas y lista de espera. */
+function Pending({ owes, reviews, waiting }: { owes: Map<string, number> | null; reviews: { reviewOn: string }[] | null; waiting: number }) {
+  const today = dayPlus(0);
+  const debt = owes ? [...owes.values()].reduce((n, c) => n + c, 0) : 0;
+  const due = reviews?.filter((r) => r.reviewOn <= today).length ?? 0;
+  if (!owes?.size && !due && !waiting) return null;
+  return (
+    <Group title="Pendiente">
+      {owes && owes.size > 0 && (
+        <RowLink to="/ajustes/cobros" icon={Wallet} tone="warning" title={`Sin cobrar: ${euros(debt)}`} subtitle={owes.size === 1 ? "1 paciente" : `${owes.size} pacientes`} />
+      )}
+      {due > 0 && (
+        <RowButton
+          icon={CalendarClock}
+          tone="warning"
+          title={due === 1 ? "1 reevaluación para hoy o atrasada" : `${due} reevaluaciones para hoy o atrasadas`}
+          subtitle="Ver la lista"
+          onClick={() => document.getElementById("para-reevaluar")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+        />
+      )}
+      {waiting > 0 && <RowLink to="/agenda/espera" icon={Hourglass} title={waiting === 1 ? "1 paciente en lista de espera" : `${waiting} pacientes en lista de espera`} />}
+    </Group>
   );
 }

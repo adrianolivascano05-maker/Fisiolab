@@ -8,7 +8,7 @@ import { bumpData } from "../app/dataVersion";
 import { madridDay } from "../app/format";
 import { getClinic } from "../data/privacy";
 import { DEFAULT_TEMPLATE, mailtoUrl, REMINDER_TEMPLATE_KEY, reminderText, waPhone, whatsappUrl } from "../schedule/reminders";
-import { clashes, createWeekly, deleteAppointment, markConfirmed, markReminded, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
+import { clashes, createAppointment, createWeekly, deleteAppointment, markConfirmed, markReminded, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
 import { useAsync } from "../app/useAsync";
 import { accountLine, addPayment, euros, getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
@@ -106,9 +106,12 @@ export function AppointmentSheet({
   const [clash, setClash] = useState<AgendaItem[] | null>(null);
   /** Al anular o borrar una cita futura con gente en la lista de espera: el hueco, para ofrecérselo. */
   const [freed, setFreed] = useState<{ startsAt: string; minutes: number; assignedTo: string | null; waiting: number; patientId: string } | null>(null);
+  /** Después de «No vino»: la cita marcada, para deshacerlo o darle otra. */
+  const [missed, setMissed] = useState<Appointment | null>(null);
   useEffect(() => {
     if (open) {
       setFreed(null);
+      setMissed(null);
       setPaying(false);
       setConfirming(null);
     }
@@ -176,6 +179,21 @@ export function AppointmentSheet({
     );
   };
   const setStatus = (status: AppointmentStatus, done: string) => run(() => updateAppointment(getDb(), appointment!.id, { status }), done);
+  /** «No vino»: se anota y, en vez de cerrar, se ofrece darle otra cita o deshacerlo. */
+  async function markMissed() {
+    const a = appointment!;
+    setBusy(true);
+    setError(null);
+    try {
+      await updateAppointment(getDb(), a.id, { status: "no_show" });
+      bumpData();
+      setMissed(a);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
   /** Anular o borrar: si el hueco es futuro y alguien lo espera, se ofrece en vez de cerrar. */
   async function release(work: () => Promise<unknown>, done: string) {
     const a = appointment!;
@@ -195,6 +213,12 @@ export function AppointmentSheet({
       setBusy(false);
     }
   }
+  /** La misma hora del reloj una semana después (también si cambia la hora entre medias). */
+  const weekLater = (iso: string) => {
+    const d = new Date(iso);
+    d.setDate(d.getDate() + 7);
+    return d.toISOString();
+  };
   /** Mover la cita sin escribir: una hora, un día o una semana antes o después. */
   const nudge = (minutes: number, label: string) => {
     const d = new Date(appointment!.startsAt);
@@ -205,8 +229,37 @@ export function AppointmentSheet({
   const name = patientName ?? picked?.name ?? "";
 
   return (
-    <Sheet open={open} onClose={onClose} title={freed ? "Hueco libre" : appointment && !editing ? `Cita de ${name}` : appointment ? "Cambiar la cita" : patientName ? `Dar cita a ${patientName}` : "Nueva cita"}>
-      {freed ? (
+    <Sheet open={open} onClose={onClose} title={missed ? `No vino: ${name}` : freed ? "Hueco libre" : appointment && !editing ? `Cita de ${name}` : appointment ? "Cambiar la cita" : patientName ? `Dar cita a ${patientName}` : "Nueva cita"}>
+      {missed ? (
+        <div className="flex flex-col gap-3">
+          <p>
+            Anotado que no vino a la cita del <span className="font-semibold">{fmtVisit(missed.startsAt)}</span>. ¿Le das otra?
+          </p>
+          <Button
+            loading={busy}
+            icon={<CalendarClock aria-hidden="true" className="size-5" />}
+            onClick={() =>
+              void run(
+                () =>
+                  createAppointment(getDb(), missed.patientId, {
+                    startsAt: weekLater(missed.startsAt),
+                    minutes: missed.minutes,
+                    assignedTo: missed.assignedTo ?? null,
+                  }),
+                `Nueva cita: ${fmtVisit(weekLater(missed.startsAt))}`,
+              )
+            }
+          >
+            Otra cita la semana que viene, a la misma hora
+          </Button>
+          <Button variant="secondary" loading={busy} icon={<RotateCcw aria-hidden="true" className="size-5" />} onClick={() => void run(() => updateAppointment(getDb(), missed.id, { status: "scheduled" }), "Deshecho: la cita vuelve a estar pendiente")}>
+            Deshacer «No vino»
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            Listo
+          </Button>
+        </div>
+      ) : freed ? (
         <div className="flex flex-col gap-3">
           <Alert tone="info" title={freed.waiting === 1 ? "Hay 1 paciente en la lista de espera" : `Hay ${freed.waiting} pacientes en la lista de espera`}>
             Se ha quedado libre el hueco del {fmtVisit(freed.startsAt)}. ¿Se lo ofreces?
@@ -286,13 +339,13 @@ export function AppointmentSheet({
           {phase === "now" && (
             <div className="grid grid-cols-[2fr_1fr] gap-2">
               <Link
-                to={`/pacientes/${patientId}/sesiones/nueva`}
+                to={`/pacientes/${patientId}/sesiones/nueva?hora=${encodeURIComponent(appointment.startsAt)}`}
                 onClick={onClose}
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 text-center font-semibold text-on-accent hover:bg-accent-hover"
               >
                 <NotebookPen aria-hidden="true" className="size-5 shrink-0" /> Atender: apuntar la sesión
               </Link>
-              <Button variant="secondary" size="lg" loading={busy} icon={<UserX aria-hidden="true" className="size-5" />} onClick={() => void setStatus("no_show", "Anotado: no vino")}>
+              <Button variant="secondary" size="lg" loading={busy} icon={<UserX aria-hidden="true" className="size-5" />} onClick={() => void markMissed()}>
                 No vino
               </Button>
             </div>

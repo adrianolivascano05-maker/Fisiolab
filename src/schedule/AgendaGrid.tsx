@@ -410,7 +410,7 @@ function EventBlock({
       type="button"
       title={label}
       className={cx(
-        "absolute flex touch-pan-y flex-col overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left text-xs leading-tight select-none",
+        "@container absolute flex touch-pan-y flex-col overflow-hidden rounded-md border-l-4 px-1.5 py-0.5 text-left text-xs leading-tight select-none",
         ghostTime ? "cursor-grabbing shadow-pop ring-2 ring-accent" : "cursor-grab hover:brightness-95",
         (off || moving) && "opacity-40",
       )}
@@ -421,7 +421,11 @@ function EventBlock({
       onPointerCancel={onPointerCancel}
       onClick={onClick}
     >
-      <span className={cx("truncate font-semibold", off && "line-through")}>{item.name}</span>
+      {/* En columnas estrechas (la semana en el móvil), el nombre corto: «Ana R.» en vez de «An…». */}
+      <span className={cx("truncate font-semibold", off && "line-through")}>
+        <span className="@min-[6.5rem]:hidden">{shortName(item.name)} </span>
+        <span className="sr-only @min-[6.5rem]:not-sr-only">{item.name}</span>
+      </span>
       <span className="truncate text-text-muted">
         <span className="sr-only">, </span>
         {time}
@@ -430,4 +434,10 @@ function EventBlock({
       <span className="sr-only">, {STATUS_LABELS[item.status]}</span>
     </button>
   );
+}
+
+/** «Ana Ruiz López» → «Ana R.»: el nombre de pila y la inicial del primer apellido. */
+export function shortName(name: string): string {
+  const [first = "", second] = name.trim().split(/\s+/);
+  return second ? `${first} ${second[0]!.toUpperCase()}.` : first;
 }

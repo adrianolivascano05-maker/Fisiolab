@@ -2,6 +2,7 @@
 // en la app sin cuenta; cada cuenta abre su base en el dispositivo y la junta con su copia de Google Drive o, con el
 // servidor de Cloudflare, cada cuenta elige su clínica (clinic.ts) y trabaja con la base que comparte su equipo.
 // Sin la nube activada no hace nada: la app funciona solo en el dispositivo, como siempre.
+import { setPendingMode, type ClinicMode } from "./teamMode";
 import { Building2, ChevronRight, CloudOff, LogIn, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router";
@@ -505,6 +506,8 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
   };
   const pick = (c: Clinic) => (localPatients > 0 ? setPicked(c) : enter(c, false));
 
+  /** Fisio que trabaja por su cuenta o clínica con equipo (src/cloud/teamMode.ts). */
+  const [mode, setMode] = useState<ClinicMode>("solo");
   async function create(e: FormEvent) {
     e.preventDefault();
     const clean = name.trim();
@@ -514,7 +517,9 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
     setBusy(true);
     setFailure(null);
     try {
-      pick(await clinicApi(config.cloudflareUrl!).create(token, clean));
+      const made = await clinicApi(config.cloudflareUrl!).create(token, clean);
+      setPendingMode(made.id, mode);
+      pick(made);
     } catch (err) {
       setFailure(errText(err));
     } finally {
@@ -578,11 +583,14 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
               <div className="mt-3">
               <form className="flex flex-col gap-3" noValidate onSubmit={create}>
                 {!me.clinics.length && <h2 className="font-semibold">Da de alta tu clínica</h2>}
+                <ModeChoice mode={mode} onChange={setMode} />
                 <p className="text-sm text-text-muted">
-                  La administrarás tú: después añades a tu equipo con su correo de Google. Solo vosotros veréis sus pacientes.
+                  {mode === "solo"
+                    ? "Solo tú verás tus pacientes. Si un día abres una clínica, añades a tu equipo desde Ajustes sin perder nada."
+                    : "La administrarás tú: después añades a tu equipo con su correo de Google. Solo vosotros veréis sus pacientes."}
                 </p>
                 <TextField
-                  label="Nombre de la clínica"
+                  label={mode === "solo" ? "Nombre de tu consulta (o el tuyo)" : "Nombre de la clínica"}
                   autoComplete="organization"
                   value={name}
                   error={nameError ?? undefined}
@@ -592,7 +600,7 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
                   }}
                 />
                 <Button type="submit" loading={busy} icon={<Plus aria-hidden="true" className="size-5" />}>
-                  Crear la clínica
+                  {mode === "solo" ? "Empezar" : "Crear la clínica"}
                 </Button>
               </form>
               </div>
@@ -601,11 +609,14 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
             <Card>
               <form className="flex flex-col gap-3" noValidate onSubmit={create}>
                 {!me.clinics.length && <h2 className="font-semibold">Da de alta tu clínica</h2>}
+                <ModeChoice mode={mode} onChange={setMode} />
                 <p className="text-sm text-text-muted">
-                  La administrarás tú: después añades a tu equipo con su correo de Google. Solo vosotros veréis sus pacientes.
+                  {mode === "solo"
+                    ? "Solo tú verás tus pacientes. Si un día abres una clínica, añades a tu equipo desde Ajustes sin perder nada."
+                    : "La administrarás tú: después añades a tu equipo con su correo de Google. Solo vosotros veréis sus pacientes."}
                 </p>
                 <TextField
-                  label="Nombre de la clínica"
+                  label={mode === "solo" ? "Nombre de tu consulta (o el tuyo)" : "Nombre de la clínica"}
                   autoComplete="organization"
                   value={name}
                   error={nameError ?? undefined}
@@ -615,7 +626,7 @@ function ClinicScreen({ config, account, me, error, localPatients, notice }: Ext
                   }}
                 />
                 <Button type="submit" loading={busy} icon={<Plus aria-hidden="true" className="size-5" />}>
-                  Crear la clínica
+                  {mode === "solo" ? "Empezar" : "Crear la clínica"}
                 </Button>
               </form>
             </Card>
@@ -828,5 +839,24 @@ export function CloudSettings() {
         </Button>
       </Sheet>
     </section>
+  );
+}
+
+function ModeChoice({ mode, onChange }: { mode: ClinicMode; onChange: (m: ClinicMode) => void }) {
+  const option = (value: ClinicMode, title: string, text: string) => (
+    <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-md border border-border p-3 has-[:checked]:border-accent has-[:checked]:bg-accent-soft">
+      <input type="radio" name="clinic-mode" className="mt-1 size-5 accent-accent" checked={mode === value} onChange={() => onChange(value)} />
+      <span className="flex flex-col">
+        <span className="font-semibold">{title}</span>
+        <span className="text-sm text-text-muted">{text}</span>
+      </span>
+    </label>
+  );
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-1 text-sm font-semibold">¿Cómo trabajas?</legend>
+      {option("solo", "Por mi cuenta", "Fisio independiente: sin equipo, turnos ni repartos.")}
+      {option("team", "En una clínica con equipo", "Varios fisios (y recepción) con la misma agenda y los mismos pacientes.")}
+    </fieldset>
   );
 }

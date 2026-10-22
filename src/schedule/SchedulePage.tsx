@@ -3,6 +3,7 @@
 // de persona) y se puede deshacer; tocar un hueco da una cita o pone un turno. Sirve igual a quien trabaja solo (sin
 // equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
 // compartida: cada compañero ve los cambios de los demás en su dispositivo, solo.
+import { useTeamMode } from "../cloud/teamMode";
 import { BellRing, CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Hourglass, Plus, Undo2 } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
@@ -52,12 +53,30 @@ function savedView(): View {
 
 type Creating = { kind: "appointment" | "shift"; start: string; person?: string | null };
 
+const HELP_KEY = "fisiolab.agendaHelp.seen";
+function markHelpSeen() {
+  try {
+    localStorage.setItem(HELP_KEY, "1");
+  } catch {
+    /* sin almacenamiento: volverá a salir abierta */
+  }
+}
+
 export function SchedulePage() {
+  const [helpSeen] = useState(() => {
+    try {
+      const seen = localStorage.getItem(HELP_KEY) === "1";
+      if (!seen) markHelpSeen(); // la próxima vez, plegada
+      return seen;
+    } catch {
+      return false;
+    }
+  });
   const cloud = useCloud();
   const toast = useToast();
   const sync = useSyncState();
   const staff = useStaff();
-  const team = !!cloud?.clinic;
+  const { team } = useTeamMode();
   const me = cloud?.account.email.trim().toLowerCase() ?? "";
   const admin = cloud?.clinic?.role === "admin";
   const today = todayDay();
@@ -243,12 +262,11 @@ export function SchedulePage() {
         <Button icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setCreating({ kind: "appointment", start: atMinutes(firstDay, 10 * 60) })}>
           Nueva cita
         </Button>
-        {/* En el móvil, solo el icono y su número (el nombre lo lee el lector de pantalla): todo en una fila. */}
         <Link
           to="/agenda/recordatorios"
           className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface sm:px-4"
         >
-          <BellRing aria-hidden="true" className="size-5 text-accent" /> <span className="sr-only sm:not-sr-only">Recordatorios</span>
+          <BellRing aria-hidden="true" className="size-5 text-accent" /> <span>Recordatorios</span>
           {!!toRemind.data && (
             <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
               {toRemind.data}
@@ -260,7 +278,7 @@ export function SchedulePage() {
           to="/agenda/espera"
           className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface sm:px-4"
         >
-          <Hourglass aria-hidden="true" className="size-5 text-accent" /> <span className="sr-only sm:not-sr-only">Lista de espera</span>
+          <Hourglass aria-hidden="true" className="size-5 text-accent" /> <span>Lista de espera</span>
           {!!waiting.data && (
             <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
               {waiting.data}
@@ -337,12 +355,20 @@ export function SchedulePage() {
         onZoom={zoom}
         onSwipe={step}
       />
-      <p className="text-sm text-text-muted">
+      {/* La ayuda, abierta la primera vez; después, plegada (se recuerda en este dispositivo). */}
+      <details
+        className="text-sm text-text-muted"
+        open={!helpSeen}
+        onToggle={(e) => {
+          if (!(e.currentTarget as HTMLDetailsElement).open) markHelpSeen();
+        }}
+      >
+        <summary className="min-h-11 cursor-pointer py-2 font-semibold text-accent">Cómo se usa la agenda</summary>
         Para pasar de semana, desliza la fila de los días a un lado. Para ver más o menos días, junta o separa dos dedos sobre la agenda (o elige Día, 3
         días o Semana); toca un día de la semana para verlo solo.
         Arrastra una cita para moverla (en el móvil, mantenla pulsada un momento); tócala para atenderla, anularla o moverla una hora, un día o una
         semana. Toca un hueco para dar una cita{team ? " (o, desde ahí, poner un turno)" : ""}. Para ir a otra fecha, tócala arriba.
-      </p>
+      </details>
 
       {creating?.kind === "appointment" && (
         <AppointmentSheet

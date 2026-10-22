@@ -13,6 +13,7 @@ import { reportPdf } from "../clinical/reportPdf";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { Sheet } from "../ui/Sheet";
 import { TextField } from "../ui/Field";
 import { Group, Row, RowButton } from "../ui/Grouped";
 import { useToast } from "../ui/Toast";
@@ -37,6 +38,9 @@ export function ProviderPage() {
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [contract, setContract] = useState<string | null>(null);
+  // Suspender o reactivar pasa por una hoja de confirmación: un toque en la fila nunca suspende una clínica.
+  const [toggling, setToggling] = useState<OperatorClinic | null>(null);
+  const [sure, setSure] = useState(false);
   const contractRef = useRef<HTMLElement>(null);
   if (!cloud?.operator || !api) return <Navigate to="/ajustes" replace />;
 
@@ -133,10 +137,54 @@ export function ProviderPage() {
 
       <Group title="Clínicas">
         {active.map((c) => (
-          <ClinicRow key={c.id} c={c} busy={busy === c.id} onToggle={() => void run(c.id, (t) => api.suspend(t, c.id, !c.suspendedAt), c.suspendedAt ? `«${c.name}» reactivada` : `«${c.name}» suspendida`)} />
+          <ClinicRow
+            key={c.id}
+            c={c}
+            busy={busy === c.id}
+            onToggle={() => {
+              setSure(false);
+              setToggling(c);
+            }}
+          />
         ))}
         {data.data && !active.length && <Row title="Aún no hay clínicas" />}
       </Group>
+
+      <Sheet open={toggling !== null} onClose={() => setToggling(null)} title={toggling ? `${toggling.suspendedAt ? "¿Reactivar" : "¿Suspender"} «${toggling.name}»?` : ""}>
+        {toggling &&
+          (toggling.suspendedAt ? (
+            <p>Su equipo vuelve a poder guardar cambios en el servidor y a recibir formularios.</p>
+          ) : (
+            <>
+              <p>
+                Mientras esté suspendida, su equipo ({toggling.members === 1 ? "1 persona" : `${toggling.members} personas`}) no podrá guardar cambios en el
+                servidor ni recibir formularios de sus pacientes. Sí podrá descargar su copia. No se borra nada y se reactiva desde aquí cuando quieras.
+              </p>
+              <label className="flex min-h-11 items-start gap-3">
+                <input type="checkbox" className="mt-1 size-5 shrink-0 accent-accent" checked={sure} onChange={(e) => setSure(e.target.checked)} />
+                <span className="text-sm">Sí, quiero suspender «{toggling.name}», administrada por {toggling.admins.join(", ") || toggling.createdBy}.</span>
+              </label>
+            </>
+          ))}
+        {toggling && (
+          <Button
+            block
+            variant={toggling.suspendedAt ? "primary" : "danger"}
+            disabled={!toggling.suspendedAt && !sure}
+            loading={busy === toggling.id}
+            onClick={() => {
+              const c = toggling;
+              setToggling(null);
+              void run(c.id, (t) => api.suspend(t, c.id, !c.suspendedAt), c.suspendedAt ? `«${c.name}» reactivada` : `«${c.name}» suspendida`);
+            }}
+          >
+            {toggling.suspendedAt ? `Reactivar «${toggling.name}»` : `Suspender «${toggling.name}»`}
+          </Button>
+        )}
+        <Button variant="secondary" block onClick={() => setToggling(null)}>
+          Cancelar
+        </Button>
+      </Sheet>
 
       <Card>
         <form className="flex flex-col gap-3" noValidate onSubmit={add}>
@@ -274,7 +322,7 @@ function ClinicRow({ c, busy, onToggle }: { c: OperatorClinic; busy: boolean; on
       icon={c.suspendedAt ? PlayCircle : PauseCircle}
       tone={c.suspendedAt ? "warning" : "accent"}
       title={`${c.name}${c.suspendedAt ? " · suspendida" : ""}`}
-      subtitle={`${facts.join(" · ")} · tocar para ${c.suspendedAt ? "reactivar" : "suspender"}`}
+      subtitle={`${facts.join(" · ")} · tocar para ${c.suspendedAt ? "reactivar" : "suspender (pide confirmación)"}`}
       busy={busy}
       onClick={onToggle}
     />

@@ -7,13 +7,14 @@ import { bumpData, useDataVersion } from "../app/dataVersion";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { addPayment, createPack, deletePack, deletePayment, euros, getPackPresets, getPricing, methodLabel, patientAccount, updatePack, type PackState, type Payment } from "../data/billing";
+import { addPayment, createPack, deletePack, deletePayment, euros, getPackPresets, getPricing, methodLabel, parseEuros, patientAccount, setSessionPrice, updatePack, type PackState, type Payment } from "../data/billing";
 import { getDb } from "../data/db";
 import { getPatient } from "../data/repo";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
 import { Sheet } from "../ui/Sheet";
+import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { PackForm, PaymentForm } from "./billingForms";
 import { todayDay } from "./pageKit";
@@ -44,6 +45,8 @@ export function BillingPage() {
   const { patient, account: a, pricing, presets } = data.data;
   if (!patient) return <Page title="Bonos y cobros" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const packsCents = a.packs.reduce((n, p) => n + (p.priceCents ?? 0), 0);
+  // Sin precio de la sesión nunca puesto, las sueltas no cuentan: «Al día» engañaría.
+  const unpriced = pricing.sessionCents === null && pricing.since === null;
 
   async function drop() {
     if (!dropping) return;
@@ -61,7 +64,7 @@ export function BillingPage() {
       <Card className={cx("flex flex-col gap-1", a.balanceCents > 0 && "border-warning bg-warning-soft")}>
         <p className="text-sm text-text-muted">{a.balanceCents > 0 ? "Pendiente de cobro" : a.balanceCents < 0 ? "Pagado a cuenta" : "Cuenta"}</p>
         <p className="text-2xl font-semibold tabular-nums" role="status">
-          {a.balanceCents === 0 ? "Al día" : euros(Math.abs(a.balanceCents))}
+          {a.balanceCents === 0 ? (unpriced && packsCents === 0 ? "Sin precio de sesión" : "Al día") : euros(Math.abs(a.balanceCents))}
         </p>
         {(packsCents > 0 || a.loose.count > 0 || a.paidCents > 0) && (
           <p className="text-sm text-text-muted">
@@ -80,7 +83,7 @@ export function BillingPage() {
           </Button>
         )}
       </Card>
-      {pricing.sessionCents === null && (
+      {pricing.sessionCents === null && (unpriced ? <SessionPriceInline today={today} /> : (
         <p className="text-sm text-text-muted">
           Las sesiones sin bono no cuentan: pon el precio de la sesión en{" "}
           <Link to="/ajustes/cobros" className="font-semibold text-accent">
@@ -88,7 +91,7 @@ export function BillingPage() {
           </Link>
           .
         </p>
-      )}
+      ))}
 
       <section aria-labelledby="h-bonos" className="flex flex-col gap-2">
         <h2 id="h-bonos" className="text-lg">
@@ -153,9 +156,9 @@ export function BillingPage() {
                 <Link
                   to={`/pacientes/${id}/recibo/${p.id}`}
                   aria-label={`Justificante del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
-                  className="inline-flex size-11 items-center justify-center rounded-md text-text-muted hover:bg-surface hover:text-text"
+                  className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface"
                 >
-                  <FileText aria-hidden="true" className="size-5" />
+                  <FileText aria-hidden="true" className="size-5" /> Justificante
                 </Link>
                 <button
                   type="button"
@@ -237,5 +240,35 @@ export function BillingPage() {
         </Button>
       </Sheet>
     </Page>
+  );
+}
+
+/** El precio de la sesión suelta, aquí mismo, la primera vez (después se cambia en Ajustes → Precios y cobros). */
+function SessionPriceInline({ today }: { today: string }) {
+  const toast = useToast();
+  const [price, setPrice] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    const cents = parseEuros(price);
+    if (cents === null) return setError("Escribe el precio, por ejemplo 40.");
+    await setSessionPrice(getDb(), cents, today);
+    bumpData();
+    toast(`Precio de la sesión: ${euros(cents)}`, "success");
+  };
+  return (
+    <Card className="flex flex-col gap-2">
+      <p className="text-sm">
+        Aún no has puesto el precio de la sesión, así que las sesiones sin bono no cuentan como pendientes. Ponlo aquí: vale desde hoy para todos los
+        pacientes (lo cambias cuando quieras en{" "}
+        <Link to="/ajustes/cobros" className="font-semibold text-accent">
+          Ajustes → Precios y cobros
+        </Link>
+        ).
+      </p>
+      <div className="flex items-end gap-2">
+        <TextField label="Precio de la sesión (€)" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} error={error ?? undefined} />
+        <Button onClick={() => void save()}>Guardar</Button>
+      </div>
+    </Card>
   );
 }

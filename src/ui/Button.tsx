@@ -12,7 +12,7 @@ const variants: Record<Variant, string> = {
 };
 // sm se queda en 32px de alto visual pero mantiene 44px de zona táctil con el padding del contenedor.
 const sizes: Record<Size, string> = {
-  sm: "h-8 px-3 text-sm font-semibold",
+  sm: "h-10 px-3 text-sm font-semibold",
   md: "h-11 px-4 text-base font-semibold",
   lg: "h-14 px-6 text-lg",
 };

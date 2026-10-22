@@ -8,7 +8,7 @@ import type { Statement } from "./protocol";
 import { getSetting, setSetting, type PatientInput, type Sex } from "./repo";
 import { readXlsx } from "./xlsx";
 
-export type Field = "name" | "lastName" | "birthDate" | "sex" | "phone" | "email" | "address" | "notes" | "bodyMassKg" | "heightCm" | "ignore";
+export type Field = "name" | "lastName" | "birthDate" | "sex" | "phone" | "email" | "address" | "dni" | "notes" | "bodyMassKg" | "heightCm" | "ignore";
 
 export const FIELD_LABELS: Record<Field, string> = {
   name: "Nombre",
@@ -18,6 +18,7 @@ export const FIELD_LABELS: Record<Field, string> = {
   phone: "Teléfono",
   email: "Correo electrónico",
   address: "Dirección",
+  dni: "DNI o NIE",
   notes: "Notas",
   bodyMassKg: "Peso (kg)",
   heightCm: "Altura (cm)",
@@ -97,6 +98,7 @@ const GUESSES: [Field, RegExp][] = [
   ["sex", /^(sexo|genero|sex|gender)$/],
   ["phone", /tel|movil|celular|phone|mobile|whatsapp/],
   ["email", /e-?mail|correo/],
+  ["dni", /^(dni|nie|nif|d\.?n\.?i\.?|documento|doc\.? identidad|documento de identidad|n\.? ?documento)$/],
   ["address", /direcc|domicilio|address|calle|poblacion|localidad|ciudad|provincia|codigo postal|^c\.? ?p\.?$/],
   ["notes", /nota|observ|comentario|antecedente/],
   ["bodyMassKg", /^peso|weight/],
@@ -226,6 +228,7 @@ export function planImport(table: string[][], fields: Field[], { headerRow = tru
         phone: pick("phone").join(" / "),
         email: (pick("email")[0] ?? "").toLowerCase(),
         address: pick("address").join(", "),
+        dni: (pick("dni")[0] ?? "").replace(/[\s.-]/g, "").toUpperCase(),
       },
     });
   });
@@ -247,9 +250,9 @@ export async function importPatients(db: Db, inputs: PatientInput[], file: strin
     const id = crypto.randomUUID();
     ids.push(id);
     return {
-      sql: `insert into patients (name, birth_date, sex, body_mass_kg, height_cm, leg_length_cm, pushoff_distance_cm, notes, phone, email, address, id, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      bind: [p.name.trim(), p.birthDate, p.sex, p.bodyMassKg, p.heightCm, null, null, p.notes, p.phone ?? "", p.email ?? "", p.address ?? "", id, t, t],
+      sql: `insert into patients (name, birth_date, sex, body_mass_kg, height_cm, leg_length_cm, pushoff_distance_cm, notes, phone, email, address, dni, id, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      bind: [p.name.trim(), p.birthDate, p.sex, p.bodyMassKg, p.heightCm, null, null, p.notes, p.phone ?? "", p.email ?? "", p.address ?? "", p.dni ?? "", id, t, t],
     };
   });
   for (let i = 0; i < statements.length; i += 500) await db.transaction(statements.slice(i, i + 500));

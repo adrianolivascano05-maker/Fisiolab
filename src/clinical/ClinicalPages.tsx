@@ -1,5 +1,6 @@
 // Pantallas de la ficha clínica: anamnesis, mediciones (con cuestionarios y simetría) y sesiones. La exploración
 // (tests especiales) está en ExplorationPages.tsx, para no cargar la Guía de tests al abrir las demás.
+import { SHOW_EXERCISES } from "../app/features";
 import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Send, Trash, Wallet } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
@@ -485,6 +486,24 @@ export function MeasurementsPage() {
 
 // ---------- Sesiones ----------
 
+/** «No volver a preguntar» en la hoja del calendario que sale al guardar una sesión (de este dispositivo). La
+ * siguiente cita sigue teniendo su botón de calendario en la ficha. */
+const CALENDAR_PROMPT_KEY = "fisiolab.calendarPrompt.off";
+function calendarPromptOff(): boolean {
+  try {
+    return localStorage.getItem(CALENDAR_PROMPT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function setCalendarPromptOff() {
+  try {
+    localStorage.setItem(CALENDAR_PROMPT_KEY, "1");
+  } catch {
+    /* sin almacenamiento: volverá a preguntar */
+  }
+}
+
 export function SessionsPage() {
   const { id = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -501,7 +520,7 @@ export function SessionsPage() {
   const today = todayDay();
   // Al guardar una sesión con siguiente cita se ofrece pasarla al calendario (la próxima cita, con su botón, está en la cabecera).
   const justSaved = sessions.find((s) => s.id === params.get("calendario"));
-  const justSavedEvent = justSaved && patient && !autoCalendar ? visitEvent(justSaved, patient) : null;
+  const justSavedEvent = justSaved && patient && !autoCalendar && !calendarPromptOff() ? visitEvent(justSaved, patient) : null;
   return (
     <PatientShell patient={patient} id={id}>
       <div className="flex items-center justify-between gap-3">
@@ -526,7 +545,16 @@ export function SessionsPage() {
         </ol>
       )}
       {justSavedEvent && (
-        <CalendarSheet open onClose={() => setParams({}, { replace: true })} event={justSavedEvent} title="¿Añadir la cita a tu calendario?" />
+        <CalendarSheet
+          open
+          onClose={() => setParams({}, { replace: true })}
+          event={justSavedEvent}
+          title="¿Añadir la cita a tu calendario?"
+          onNever={() => {
+            setCalendarPromptOff();
+            setParams({}, { replace: true });
+          }}
+        />
       )}
     </PatientShell>
   );
@@ -660,7 +688,12 @@ export function SessionFormPage() {
       lastMinutes: sessions.find((s) => s.nextMinutes)?.nextMinutes ?? DEFAULT_VISIT_MINUTES,
     };
   });
-  const [when, setWhen] = useState(() => localInput(new Date().toISOString()));
+  // Desde una cita de la agenda («Atender»), la sesión lleva la hora de la cita, no la de ahora.
+  const [query] = useSearchParams();
+  const [when, setWhen] = useState(() => {
+    const at = query.get("hora");
+    return localInput(at && !Number.isNaN(Date.parse(at)) ? at : new Date().toISOString());
+  });
   const [pain, setPain] = useState<number | null>(null);
   const [subjective, setSubjective] = useState("");
   const [objective, setObjective] = useState("");
@@ -697,6 +730,12 @@ export function SessionFormPage() {
     setNextAt(next ? localInput(next) : "");
     setNextMinutes(a?.minutes ?? s.nextMinutes);
   }, [data.data?.session, data.data?.appointment]);
+
+  // Una sesión nueva sigue con la reevaluación pendiente de la anterior (si no, se perdía al guardar sin fecha).
+  const carried = !sid ? (data.data?.previous?.reviewOn ?? null) : null;
+  useEffect(() => {
+    if (carried) setReviewOn((r) => r || carried);
+  }, [carried]);
 
   const back = `/pacientes/${id}/sesiones`;
   if (!data.data) return <Guard state={data} title="Sesión" back={back} />;
@@ -803,9 +842,11 @@ export function SessionFormPage() {
         )}
         <TextArea label="Tratamiento" value={treatment} onChange={setTreatment} rows={4} />
         <TextArea label="Plan y ejercicios para casa" value={plan} onChange={setPlan} />
-        <Link to={`/pacientes/${id}/ejercicios`} className="-mt-2 self-start text-sm font-semibold text-accent underline">
-          Su hoja de ejercicios para casa (para imprimir o enviar)
-        </Link>
+        {SHOW_EXERCISES && (
+          <Link to={`/pacientes/${id}/ejercicios`} className="-mt-2 self-start text-sm font-semibold text-accent underline">
+            Su hoja de ejercicios para casa (para imprimir o enviar)
+          </Link>
+        )}
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-semibold">Siguiente cita</legend>
           <div className="flex flex-wrap gap-2">
@@ -836,10 +877,15 @@ export function SessionFormPage() {
             ))}
             {reviewOn && (
               <Button variant="ghost" size="sm" onClick={() => setReviewOn("")}>
-                Sin fecha
+                {carried && reviewOn === carried ? "Ya reevaluado hoy" : "Sin fecha"}
               </Button>
             )}
           </div>
+          {carried && reviewOn === carried && (
+            <p className="text-sm text-text-muted">
+              Sigue la reevaluación pendiente del {dayText(carried)}. Si la haces hoy, pulsa «Ya reevaluado hoy» o pon la siguiente.
+            </p>
+          )}
           <TextField label="Fecha de reevaluación" type="date" value={reviewOn} onChange={(e) => setReviewOn(e.target.value)} />
         </fieldset>
         {error && <Alert tone="danger" title={error} />}

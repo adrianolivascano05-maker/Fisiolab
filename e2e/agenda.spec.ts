@@ -37,6 +37,13 @@ test.describe("Agenda y seguimiento", () => {
     const sheet = page.getByRole("dialog", { name: "Cita de Bruno Falta" });
     await expectAccessible(page);
     await sheet.getByRole("button", { name: "No vino" }).click();
+    // Se ofrece darle otra cita o deshacerlo.
+    const missed = page.getByRole("dialog", { name: "No vino: Bruno Falta" });
+    await expect(missed.getByRole("button", { name: /Otra cita la semana que viene/ })).toBeVisible();
+    await expectAccessible(page);
+    // Otra cita en un toque: a la misma hora del reloj aunque el domingo cambie la hora.
+    await missed.getByRole("button", { name: /Otra cita la semana que viene/ }).click();
+    await expect(page.getByText(/Nueva cita: .*27 oct.*11:00/)).toBeVisible();
     await expect(today.getByRole("button", { name: /Bruno Falta/ })).toContainText("No vino");
 
     // Ana viene: desde la agenda se apunta su sesión y la cita queda atendida.

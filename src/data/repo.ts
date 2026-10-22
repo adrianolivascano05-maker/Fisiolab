@@ -35,6 +35,8 @@ export type PatientInput = {
   phone?: string;
   email?: string;
   address?: string;
+  /** DNI o NIE (vacío si no se sabe): sale en justificantes y consentimientos. */
+  dni?: string;
 };
 
 export type Patient = Required<PatientInput> & { id: string; createdAt: string; updatedAt: string; privacy: PatientPrivacy };
@@ -78,6 +80,7 @@ type PatientRow = {
   phone: string;
   email: string;
   address: string;
+  dni: string;
   privacy: string;
   created_at: string;
   updated_at: string;
@@ -97,6 +100,7 @@ function toPatient(r: PatientRow): Patient {
     phone: r.phone,
     email: r.email,
     address: r.address,
+    dni: r.dni ?? "",
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     privacy: parsePrivacy(r.privacy),
@@ -145,6 +149,7 @@ function patientBind(p: PatientInput) {
     (p.phone ?? "").trim(),
     (p.email ?? "").trim(),
     (p.address ?? "").trim(),
+    (p.dni ?? "").trim().toUpperCase(),
   ];
 }
 
@@ -153,8 +158,8 @@ export async function createPatient(db: Db, input: PatientInput): Promise<string
   const t = now();
   await db.transaction([
     {
-      sql: `insert into patients (name, birth_date, sex, body_mass_kg, height_cm, leg_length_cm, pushoff_distance_cm, notes, phone, email, address, id, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `insert into patients (name, birth_date, sex, body_mass_kg, height_cm, leg_length_cm, pushoff_distance_cm, notes, phone, email, address, dni, id, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [...patientBind(input), id, t, t],
     },
   ]);
@@ -165,7 +170,7 @@ export async function updatePatient(db: Db, id: string, input: PatientInput): Pr
   await db.transaction([
     {
       sql: `update patients set name = ?, birth_date = ?, sex = ?, body_mass_kg = ?, height_cm = ?, leg_length_cm = ?,
-                   pushoff_distance_cm = ?, notes = ?, phone = ?, email = ?, address = ?, updated_at = ?
+                   pushoff_distance_cm = ?, notes = ?, phone = ?, email = ?, address = ?, dni = ?, updated_at = ?
              where id = ?`,
       bind: [...patientBind(input), now(), id],
     },

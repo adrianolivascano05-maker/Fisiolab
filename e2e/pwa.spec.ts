@@ -137,7 +137,7 @@ test.describe("PWA: instalable y sin conexión", () => {
 
   test("PWA-E4 ajustes: un menú con cada apartado y cómo está", async ({ page }) => {
     await page.goto("./ajustes");
-    for (const name of [/Cuenta de Google/, /Clínica y protección de datos/, /Bloqueo con PIN.*Desactivado/, /Copias de seguridad y exportar/, /Instalar la app/, /Cómo se usa/, /Validación de las mediciones/, /Privacidad/, /Precios y cobros/, /Biblioteca de ejercicios/, /Anamnesis de la clínica/])
+    for (const name of [/Cuenta de Google/, /Clínica y protección de datos/, /Bloqueo con PIN.*Desactivado/, /Copias de seguridad y exportar/, /Instalar la app/, /Cómo se usa/, /Validación de las mediciones/, /Privacidad/, /Precios y cobros/, /Anamnesis de la clínica/])
       await expect(page.getByRole("link", { name })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("link", { name: /Cómo se usa/ }).click();

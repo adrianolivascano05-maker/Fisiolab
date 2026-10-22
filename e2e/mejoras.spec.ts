@@ -160,8 +160,10 @@ test.describe("Mejoras frente a la competencia", () => {
   });
 
   test("MJ4 hoja de ejercicios: biblioteca con ejemplos, la hoja del paciente, PDF y WhatsApp", async ({ page }) => {
+    // Las hojas de ejercicios están ocultas (src/app/features.ts): sin enlace, pero la página sigue.
     await page.goto("./ajustes");
-    await page.getByRole("link", { name: /Biblioteca de ejercicios/ }).click();
+    await expect(page.getByRole("link", { name: /Biblioteca de ejercicios/ })).toHaveCount(0);
+    await page.goto("./ajustes/ejercicios");
     await page.getByRole("button", { name: "Añadir ejemplos para empezar" }).click();
     await expect(page.getByText(/14 ejemplos añadidos/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Lumbar" })).toBeVisible();
@@ -170,7 +172,8 @@ test.describe("Mejoras frente a la competencia", () => {
     await importData(page, "Nombre;Teléfono\r\nElena Ejercicios;622 333 444\r\n");
     await page.goto("./");
     await page.getByRole("link", { name: /Elena Ejercicios/ }).first().click();
-    await page.getByRole("link", { name: /Ejercicios para casa/ }).click();
+    await page.waitForURL(/\/pacientes\/[^/]+$/);
+    await page.goto(`${page.url()}/ejercicios`);
     await page.getByRole("button", { name: "Añadir de la biblioteca" }).click();
     const lib = page.getByRole("dialog", { name: "Biblioteca de ejercicios" });
     await lib.getByRole("button", { name: "Lumbar" }).click();
@@ -318,7 +321,8 @@ test.describe("Mejoras frente a la competencia", () => {
     await importData(page, "Nombre;Teléfono\r\nFede Fase;633 444 555\r\nGala Igual;644 555 666\r\n");
     await page.goto("./");
     await page.getByRole("link", { name: /Fede Fase/ }).first().click();
-    await page.getByRole("link", { name: /Ejercicios para casa/ }).click();
+    await page.waitForURL(/\/pacientes\/[^/]+$/);
+    await page.goto(`${page.url()}/ejercicios`);
     await page.getByRole("button", { name: "Añadir de la biblioteca" }).click();
     const lib = page.getByRole("dialog", { name: "Biblioteca de ejercicios" });
     await lib.getByLabel("Buscar un ejercicio").fill("pared");
@@ -336,7 +340,8 @@ test.describe("Mejoras frente a la competencia", () => {
 
     await page.goto("./");
     await page.getByRole("link", { name: /Gala Igual/ }).first().click();
-    await page.getByRole("link", { name: /Ejercicios para casa/ }).click();
+    await page.waitForURL(/\/pacientes\/[^/]+$/);
+    await page.goto(`${page.url()}/ejercicios`);
     await page.getByRole("button", { name: "Usar una plantilla" }).click();
     await page.getByRole("dialog", { name: "Plantillas" }).getByRole("button", { name: /^Rodilla, fase 1/ }).click();
     await expectAccessible(page);

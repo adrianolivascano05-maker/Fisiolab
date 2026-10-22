@@ -1,5 +1,7 @@
 // S24 Ajustes: un menú con lo que se configura, agrupado, y en cada fila cómo está ahora. Cada apartado tiene su
 // pantalla (cuenta, clínica, bloqueo, copias), como los ajustes del móvil.
+import { useTeamMode } from "../cloud/teamMode";
+import { SHOW_EXERCISES } from "../app/features";
 import {
   BookOpenCheck,
   Briefcase,
@@ -61,6 +63,7 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 /** S24 Ajustes: el menú. */
 export function SettingsPage() {
   const cloud = useCloud();
+  const { solo } = useTeamMode();
   // El proveedor ve cuántas solicitudes de acceso tiene por atender.
   const pendingRequests = useAsync(async () => {
     const token = getToken();
@@ -94,13 +97,18 @@ export function SettingsPage() {
           tone={clinic && !clinicComplete(clinic) ? "warning" : "accent"}
         />
         {cloud?.clinic && (
-          <RowLink to="/ajustes/equipo" icon={UsersRound} title="Equipo de la clínica" subtitle={`${cloud.clinic.name} · ${ROLE_LABELS[cloud.clinic.role]}`} />
+          <RowLink
+            to="/ajustes/equipo"
+            icon={UsersRound}
+            title={solo ? "Mi consulta" : "Equipo de la clínica"}
+            subtitle={solo ? `${cloud.clinic.name} · por mi cuenta (si abres una clínica, añade aquí a tu equipo)` : `${cloud.clinic.name} · ${ROLE_LABELS[cloud.clinic.role]}`}
+          />
         )}
         <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
         <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
         <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, lo cobrado y lo pendiente" />
         <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
-        <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />
+        {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
       </Group>
 
       {cloud?.operator && (

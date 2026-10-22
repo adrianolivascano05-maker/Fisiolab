@@ -1,5 +1,6 @@
 // Ajustes → Equipo de la clínica (clinic.ts): quién forma parte de ella y, para quien la administra, añadir y quitar
 // gente, cambiar el nombre o borrarla del servidor. También cambiar de clínica o salir de ella en este dispositivo.
+import { setClinicMode, useTeamMode } from "./teamMode";
 import { Building2, LogOut, Pencil, Repeat, ShieldCheck, Trash, UserPlus, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router";
@@ -23,6 +24,7 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export function TeamPage() {
   const cloud = useCloud();
+  const { solo } = useTeamMode();
   const toast = useToast();
   const clinic = cloud?.clinic;
   const api = cloud?.clinics;
@@ -76,6 +78,8 @@ export function TeamPage() {
       await run(async (t) => {
         await api!.putMember(t, clinic!.id, clean, canManage ? "admin" : "member");
         await ensureStaff(getDb(), clean, "");
+        // Quien trabajaba por su cuenta y añade a alguien pasa a clínica con equipo.
+        if (solo) await setClinicMode("team");
       }, `${clean} añadido al equipo`)
     ) {
       setEmail("");
@@ -103,8 +107,22 @@ export function TeamPage() {
     }
   };
 
+  const alone = (members.data?.length ?? 0) <= 1;
   return (
-    <Page title="Equipo de la clínica" backTo="/ajustes">
+    <Page title={solo ? "Mi consulta" : "Equipo de la clínica"} backTo="/ajustes">
+      {admin && (solo || alone) && (
+        <Card className="flex flex-col gap-2">
+          <p className="font-semibold">{solo ? "Trabajas por tu cuenta" : "Clínica con equipo"}</p>
+          <p className="text-sm text-text-muted">
+            {solo
+              ? "Sin turnos ni equipo en la agenda. Si abres una clínica, pasa a clínica con equipo (o añade a alguien abajo): tus pacientes y tu agenda siguen igual."
+              : "Aún no hay nadie más en el equipo. Si trabajas solo, puedes quitar de la agenda los turnos y el equipo."}
+          </p>
+          <Button variant="secondary" onClick={() => void setClinicMode(solo ? "team" : "solo")}>
+            {solo ? "Abrir una clínica con equipo" : "Trabajar por mi cuenta"}
+          </Button>
+        </Card>
+      )}
       <Card className="flex flex-col gap-2">
         <p className="flex items-center gap-2 text-lg font-semibold">
           <Building2 aria-hidden="true" className="size-5 shrink-0 text-accent" /> {clinic.name}

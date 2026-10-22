@@ -27,9 +27,10 @@ type Form = {
   phone: string;
   email: string;
   address: string;
+  dni: string;
 };
 
-const empty: Form = { name: "", birthDate: "", sex: "", bodyMassKg: "", heightCm: "", legLengthCm: "", pushOffDistanceCm: "", notes: "", phone: "", email: "", address: "" };
+const empty: Form = { name: "", birthDate: "", sex: "", bodyMassKg: "", heightCm: "", legLengthCm: "", pushOffDistanceCm: "", notes: "", phone: "", email: "", address: "", dni: "" };
 
 // Mismos rangos que la base de datos (src/data/migrations/001_init.sql).
 const ranges = {
@@ -66,6 +67,7 @@ function validate(f: Form): { errors: Errors; input?: PatientInput } {
       phone: f.phone,
       email: f.email,
       address: f.address,
+      dni: f.dni,
     },
   };
 }
@@ -108,6 +110,7 @@ export function PatientFormPage() {
               phone: p.phone,
               email: p.email,
               address: p.address,
+              dni: p.dni,
             })
           : setLoadError(new Error("Este paciente no existe.")),
       setLoadError,
@@ -181,7 +184,10 @@ export function PatientFormPage() {
           <TextField label="Teléfono" type="tel" autoComplete="off" value={form.phone} onChange={set("phone")} />
           <TextField label="Email" type="email" autoComplete="off" value={form.email} onChange={set("email")} error={errors.email} />
         </div>
-        <TextField label="Dirección" autoComplete="off" value={form.address} onChange={set("address")} />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <TextField label="Dirección" autoComplete="off" value={form.address} onChange={set("address")} />
+          <TextField label="DNI o NIE" autoComplete="off" value={form.dni} onChange={set("dni")} hint="Opcional. Sale en justificantes y consentimientos." />
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <NumberField label="Peso" unit="kg" value={form.bodyMassKg} onChange={set("bodyMassKg")} error={errors.bodyMassKg} />
           <NumberField label="Estatura" unit="cm" value={form.heightCm} onChange={set("heightCm")} error={errors.heightCm} />

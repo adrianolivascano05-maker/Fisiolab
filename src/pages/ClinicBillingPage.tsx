@@ -217,7 +217,11 @@ export function ClinicBillingPage() {
               Pendiente de cobro{pending > 0 ? `: ${euros(pending)}` : ""}
             </h2>
             {d.debtors.length === 0 ? (
-              <p className="text-sm text-text-muted">Nadie tiene nada pendiente.</p>
+              <p className="text-sm text-text-muted">
+                {d.pricing.sessionCents === null && d.pricing.since === null
+                  ? "Sin precio de la sesión, solo cuentan los bonos: pon el precio arriba para ver lo pendiente de las sesiones sueltas."
+                  : "Nadie tiene nada pendiente."}
+              </p>
             ) : (
               <ul aria-label="Pendiente de cobro" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
                 {d.debtors.map((x) => (

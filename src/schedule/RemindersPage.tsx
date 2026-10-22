@@ -1,6 +1,7 @@
 // Agenda → Recordatorios: las citas de un día (mañana, por defecto) con su mensaje listo para enviar por WhatsApp o por
 // correo desde este dispositivo, sin servicios de pago. Se apunta quién se ha recordado y quién ha confirmado.
 // Respeta el permiso de contacto de cada paciente (src/data/privacy.ts, «WhatsApp, SMS o correo»).
+import { useTeamMode } from "../cloud/teamMode";
 import { CircleCheck, Mail, MessageCircle, Pencil, Phone } from "lucide-react";
 import { useMemo, useState } from "react";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -8,7 +9,6 @@ import { Page } from "../app/Page";
 import { Link } from "react-router";
 import { useAsync } from "../app/useAsync";
 import { addDays, todayDay } from "../clinical/pageKit";
-import { useCloud } from "../cloud/CloudGate";
 import { markConfirmed, markReminded, remindersBetween, type ReminderItem } from "../data/appointments";
 import { getDb } from "../data/db";
 import { getClinic, setContactConsent } from "../data/privacy";
@@ -27,11 +27,10 @@ const fmtDay = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString("
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function RemindersPage() {
-  const cloud = useCloud();
   const toast = useToast();
   const staff = useStaff();
   const version = useDataVersion();
-  const team = !!cloud?.clinic;
+  const { team } = useTeamMode();
   const today = todayDay();
   const [day, setDay] = useState(addDays(today, 1));
   const [who, setWho] = useState("");

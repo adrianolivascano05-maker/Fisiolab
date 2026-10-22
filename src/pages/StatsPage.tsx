@@ -1,9 +1,9 @@
 // Ajustes → La clínica en números (src/data/stats.ts): lo esencial de un periodo para ver cómo va la consulta. Sesiones,
 // pacientes, ausencias (las que cuestan dinero) y altas; en un equipo, cada profesional. Y las sesiones de cada mes.
+import { useTeamMode } from "../cloud/teamMode";
 import { useMemo, useState } from "react";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
 import { euros } from "../data/billing";
 import { clinicStats, type ClinicStats } from "../data/stats";
@@ -33,7 +33,7 @@ const monthLong = (ym: string) => new Date(`${ym}-15T12:00:00`).toLocaleDateStri
 const thisMonth = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }).slice(0, 7);
 
 export function StatsPage() {
-  const cloud = useCloud();
+  const { team } = useTeamMode();
   const staff = useStaff();
   const [period, setPeriod] = useState<PeriodId>("month");
   const r = useMemo(() => range(period), [period]);
@@ -70,13 +70,13 @@ export function StatsPage() {
           </dl>
           {s.appointments.scheduled > 0 && (
             <p className="text-sm text-text-muted">
-              Quedan {s.appointments.scheduled === 1 ? "1 cita pendiente" : `${s.appointments.scheduled} citas pendientes`} en este periodo.
+              {s.appointments.scheduled === 1 ? "Queda 1 cita pendiente" : `Quedan ${s.appointments.scheduled} citas pendientes`} en este periodo.
             </p>
           )}
 
           <MonthlyChart monthly={s.monthly} />
 
-          {cloud?.clinic && s.byPerson.length > 0 && (
+          {team && s.byPerson.length > 0 && (
             <section aria-labelledby="h-equipo" className="flex flex-col gap-2">
               <h2 id="h-equipo" className="text-lg">
                 Por profesional

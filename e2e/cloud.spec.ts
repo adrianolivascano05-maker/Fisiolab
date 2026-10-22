@@ -103,7 +103,7 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await add(tablet, "Sesión").click();
     await tablet.getByLabel("Tratamiento").fill("Desde la tablet");
     await tablet.getByRole("button", { name: "Guardar sesión" }).click();
-    await expect(tablet.getByText("Desde la tablet")).toBeVisible();
+    await expect(tablet.getByText("Desde la tablet").first()).toBeVisible();
     await inDrive(google, "ana", "Desde la tablet");
 
     // El móvil, que sigue abierto, la trae al sincronizar y avisa de que hay datos nuevos.
@@ -112,7 +112,7 @@ test.describe("Nube: cuenta de Google y Google Drive", () => {
     await page.goto("./");
     await page.getByRole("link", { name: /Lucía Nube/ }).click();
     await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Sesiones" }).click();
-    await expect(page.getByText("Desde la tablet")).toBeVisible();
+    await expect(page.getByText("Desde la tablet").first()).toBeVisible();
 
     // Bruno, compañero de la clínica, entra con su cuenta: no ve a los pacientes de Ana.
     const colleague = await device(browser, google, "bruno", errors);
