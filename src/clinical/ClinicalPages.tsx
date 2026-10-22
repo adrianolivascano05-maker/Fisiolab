@@ -46,7 +46,7 @@ import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orp
 import { RedFlagPanel } from "./RedFlagPanel";
 import { fold } from "./redFlags";
 import { CifPicker } from "./cif/CifPicker";
-import { draftDiagnosis } from "./cif/cif";
+import { draftDiagnosis, personalFactors } from "./cif/prose";
 import { evidenceFrom } from "./cif/suggest";
 import { YellowFlagPanel } from "./YellowFlagPanel";
 import { useAnamnesisSections } from "./useAnamnesis";
@@ -310,7 +310,10 @@ export function AnamnesisPage() {
                         regions={Array.isArray(draft.regiones) ? (draft.regiones as string[]) : []}
                         evidence={evidenceFrom(draft, sessions, questionnaires, symmetryRows(tests))}
                         onDraft={() => {
-                          const text = draftDiagnosis(Array.isArray(draft.cif) ? (draft.cif as string[]) : []);
+                          const text = draftDiagnosis(Array.isArray(draft.cif) ? (draft.cif as string[]) : [], {
+                            evidence: evidenceFrom(draft, sessions, questionnaires, symmetryRows(tests)),
+                            personal: personalFactors(draft, patient.birthDate),
+                          });
                           const now = typeof draft.diagnostico_funcional === "string" ? draft.diagnostico_funcional.trim() : "";
                           // Lo redactado se añade debajo de lo que ya hubiera escrito; nunca lo borra.
                           set("diagnostico_funcional")(now ? `${now}\n\n${text}` : text);

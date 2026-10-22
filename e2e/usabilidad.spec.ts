@@ -90,7 +90,7 @@ test.describe("Comodidad del día a día", () => {
     await expect(page).toHaveURL(/cuestionarios\/nuevo\?tipo=tsk11/);
   });
 
-  test("US5 CIF: buscar rápido, calificar y redactar el diagnóstico; sale en la carta de derivación", async ({ page }) => {
+  test("US5 CIF: acotar por componente como un fisio, calificar con un toque y redactar; sale en la carta de derivación", async ({ page }) => {
     await page.goto("./pacientes/nuevo");
     await page.getByLabel("Nombre").fill("Carlos CIF");
     await page.getByRole("button", { name: "Crear paciente" }).click();
@@ -98,24 +98,51 @@ test.describe("Comodidad del día a día", () => {
     await page.goto(`${page.url()}/anamnesis`);
     await page.getByRole("group", { name: "Zona", exact: true }).getByText("Lumbar", { exact: true }).click();
     await page.getByRole("button", { name: "Añadir códigos de la CIF" }).click();
-    const sheet = page.getByRole("dialog", { name: "Buscar en la CIF" });
-    // Sin escribir: los de su zona.
-    await expect(sheet.getByRole("button", { name: /s76002 Columna vertebral lumbar/ })).toBeVisible();
-    // Por palabras, sin tildes.
-    await sheet.getByLabel("Código o palabras").fill("dolor espalda");
-    await sheet.getByRole("button", { name: /b28013 Dolor en la espalda/ }).click();
-    // Por código y filtrando el componente.
-    await sheet.getByRole("radio", { name: "Actividades (d)" }).click();
-    await sheet.getByLabel("Código o palabras").fill("d450");
+    const sheet = page.getByRole("dialog", { name: "Añadir códigos de la CIF" });
+    await expect(sheet.getByRole("radio", { name: "Funciones corporales" })).toHaveAttribute("aria-checked", "true");
+    // Las estructuras de su zona, propuestas con los datos de la ficha.
+    await sheet.getByRole("radio", { name: "Estructuras corporales" }).click();
+    await expect(sheet.getByRole("button", { name: /^s76002 Columna vertebral lumbar/ })).toBeVisible();
+    await sheet.getByRole("radio", { name: "Funciones corporales" }).click();
+
+    // Atajo «Dolor» → dolor en la espalda, calificado en la misma hoja.
+    await sheet.getByRole("button", { name: "Dolor", exact: true }).click();
+    await expect(sheet.getByRole("navigation", { name: "Dónde estás" })).toContainText("Dolor");
+    await sheet.getByRole("button", { name: /^b28013 Dolor en la espalda/ }).click();
+    await expect(sheet.getByRole("button", { name: /^b28013 Dolor en la espalda/ })).toHaveAttribute("aria-pressed", "true");
+    const painQ = sheet.getByRole("group", { name: "Calificador (b28013)" });
+    await painQ.getByText("Moderada").click();
+    await expect(painQ.getByRole("radio", { name: "2 Moderada" })).toBeChecked();
+
+    // Acotar: movilidad → b710 → de varias articulaciones.
+    await sheet.getByRole("navigation", { name: "Dónde estás" }).getByRole("button", { name: "Atrás" }).click();
+    await sheet.getByRole("button", { name: "Movilidad y estabilidad articular" }).click();
+    await sheet.getByRole("button", { name: "Acotar b710: 5 más concretas" }).click();
+    await expect(sheet.getByRole("navigation", { name: "Dónde estás" })).toContainText("b710");
+    await sheet.getByRole("button", { name: /^b7101 Movilidad de varias articulaciones/ }).click();
+
+    // Buscar: «andar» no es una función; está en actividades y participación.
+    await sheet.getByLabel("Buscar en funciones corporales").fill("andar");
+    await sheet.getByRole("button", { name: /^Actividades y participación \(\d+\)/ }).click();
+    await expect(sheet.getByRole("radio", { name: "Actividades y participación" })).toHaveAttribute("aria-checked", "true");
     await sheet.getByRole("button", { name: /^d450 Andar/ }).click();
+    await sheet.getByRole("group", { name: "Desempeño/realización (d450)" }).getByText("Moderada").click();
+    await sheet.getByRole("button", { name: "Valorar también la capacidad de d450" }).click();
+    await sheet.getByRole("group", { name: "Capacidad (d450)" }).getByText("Ligera").click();
+    await expect(sheet.getByRole("group", { name: "Capacidad (d450)" }).getByRole("radio", { name: "1 Ligera" })).toBeChecked();
+    await sheet.getByText("Cómo queda redactado").click();
+    await expect(sheet.getByText(/dificultad moderada para andar en su entorno habitual, ligera en capacidad \(d450\.21\)/)).toBeVisible();
     await expectAccessible(page);
     await sheet.getByRole("button", { name: "Listo" }).click();
 
-    await page.getByLabel("Calificador (b28013)").selectOption("2");
-    await page.getByLabel("Desempeño/realización (d450)").selectOption("2");
-    await page.getByLabel("Capacidad (d450)").selectOption("1");
+    const chosen = page.getByRole("region", { name: "Códigos de la CIF elegidos" });
+    await expect(chosen.getByRole("list", { name: "Funciones corporales" })).toContainText("b28013 Dolor en la espalda");
+    await expect(chosen.getByRole("list", { name: "Funciones corporales" })).toContainText("b7101 Movilidad de varias articulaciones");
+    await expect(chosen.getByRole("list", { name: "Actividades y participación" })).toContainText("d450 Andar");
     await page.getByRole("button", { name: "Redactar el diagnóstico con la CIF" }).click();
-    await expect(page.getByLabel("Diagnóstico fisioterapéutico (criterio del profesional)")).toHaveValue(/Dolor en la espalda \(b28013\.2\): deficiencia moderada/);
+    const diagnosis = page.getByLabel("Diagnóstico fisioterapéutico (criterio del profesional)");
+    await expect(diagnosis).toHaveValue(/Funciones corporales: deficiencia moderada en dolor en la espalda \(b28013\.2\)/);
+    await expect(diagnosis).toHaveValue(/Actividades y participación: dificultad moderada para andar en su entorno habitual, ligera en capacidad \(d450\.21\)/);
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByText("Andar (d450.21): desempeño/realización: dificultad moderada; capacidad: dificultad ligera").first()).toBeVisible();
@@ -124,9 +151,11 @@ test.describe("Comodidad del día a día", () => {
     await page.getByRole("link", { name: /^Carta de derivación/ }).click();
     const letter = page.getByRole("article", { name: "Carta de derivación" });
     await expect(letter).toContainText("Funcionamiento (CIF)");
-    await expect(letter).toContainText("Dolor en la espalda (b28013.2)");
+    await expect(letter).toContainText("deficiencia moderada en dolor en la espalda (b28013.2)");
     // El motivo lo cuenta con la CIF.
-    await expect(letter).toContainText("Según la CIF, presenta deficiencia moderada en dolor en la espalda (b28013.2) y dificultad moderada en andar (d450.21)");
+    await expect(letter).toContainText(
+      "Según la CIF, presenta deficiencia moderada en dolor en la espalda (b28013.2) y dificultad moderada para andar en su entorno habitual, ligera en capacidad (d450.21)",
+    );
   });
 
   test("US6 CIF: borrador rápido con los datos de la ficha y calificadores propuestos", async ({ page }) => {
@@ -136,17 +165,25 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("heading", { name: "Lola Lumbar" })).toBeVisible();
     await page.goto(`${page.url()}/anamnesis`);
     await page.getByRole("group", { name: "Zona", exact: true }).getByText("Lumbar", { exact: true }).click();
+    await page.getByRole("group", { name: "Lado", exact: true }).getByText("Izquierdo", { exact: true }).click();
     await page.locator("fieldset", { hasText: "Intensidad (EVA 0-10)" }).getByText("6", { exact: true }).click();
     await page.getByRole("button", { name: "Borrador rápido con los datos de la ficha" }).click();
-    const chosen = page.getByRole("list", { name: "Códigos de la CIF elegidos" });
+    const chosen = page.getByRole("region", { name: "Códigos de la CIF elegidos" });
     await expect(chosen).toContainText("b28013 Dolor en la espalda");
     await expect(chosen).toContainText("s76002 Columna vertebral lumbar");
-    await expect(page.getByLabel("Calificador (b28013)")).toHaveValue("3");
+    // La estructura, con el lado de la anamnesis.
+    await expect(chosen.getByLabel("Localización (s76002)")).toHaveValue("2");
+    const painQ = chosen.getByRole("group", { name: "Calificador (b28013)" });
+    await expect(painQ.getByRole("radio", { name: "3 Grave" })).toBeChecked();
     await expect(chosen).toContainText("Coincide con lo propuesto: Deficiencia GRAVE · EVA de la anamnesis: dolor 6/10 = 60 %");
     // Si se cambia, se puede volver a lo propuesto en un toque.
-    await page.getByLabel("Calificador (b28013)").selectOption("1");
+    await painQ.getByText("Ligera").click();
     await chosen.getByRole("button", { name: "Usar el propuesto para b28013" }).click();
-    await expect(page.getByLabel("Calificador (b28013)")).toHaveValue("3");
+    await expect(painQ.getByRole("radio", { name: "3 Grave" })).toBeChecked();
     await expectAccessible(page);
+    await page.getByRole("button", { name: "Redactar el diagnóstico con la CIF" }).click();
+    await expect(page.getByLabel("Diagnóstico fisioterapéutico (criterio del profesional)")).toHaveValue(
+      /deficiencia grave en dolor en la espalda \(b28013\.3\), según EVA 6\/10 en la anamnesis[\s\S]*deficiencia de gravedad sin especificar en columna vertebral lumbar: izquierda \(s76002\.882\)/,
+    );
   });
 });

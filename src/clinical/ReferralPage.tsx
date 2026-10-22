@@ -1,7 +1,8 @@
 // Carta de derivación a su médico: los datos del paciente, por qué consulta, las alarmas encontradas en la
-// anamnesis (src/clinical/redFlags.ts), su funcionamiento descrito con la CIF (el perfil de la anamnesis o, si no lo
-// hay, el que proponen los datos de la ficha: dolor, cuestionarios y mediciones), sus cuestionarios con cómo se leen
-// y qué códigos CIF informan, el diagnóstico fisioterapéutico y lo que se le ha hecho. Sale redactada con lo que hay
+// anamnesis (src/clinical/redFlags.ts), su funcionamiento redactado con la CIF (el perfil de la anamnesis o, si no lo
+// hay, el que proponen los datos de la ficha: dolor, cuestionarios y mediciones; con el dato que respalda cada
+// calificador y sus factores personales), sus cuestionarios con cómo se leen y qué valoran dicho con las categorías
+// de la CIF, el diagnóstico fisioterapéutico y lo que se le ha hecho. Sale redactada con lo que hay
 // en la ficha en ese momento y todo se puede cambiar antes de imprimirla o enviarla; no se guarda.
 import { Printer } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -18,9 +19,10 @@ import { TopBar } from "../ui/AppBar";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { TextArea } from "./parts";
-import { draftDiagnosis, loadCatalog } from "./cif/cif";
+import { loadCatalog, readEntry, type Coded } from "./cif/cif";
+import { draftDiagnosis, personalFactors } from "./cif/prose";
 import { autoProfile, evidenceFrom } from "./cif/suggest";
-import { cifPhrases, latestQuestionnaires } from "./referral";
+import { cifPhrases, informsText, latestQuestionnaires } from "./referral";
 import { symmetryRows } from "./symmetry";
 import { redFlagReview, type FlagHit, type Urgency } from "./redFlags";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
@@ -60,6 +62,8 @@ export function ReferralPage() {
   const [functioning, setFunctioning] = useState("");
   const [proposed, setProposed] = useState(false);
   const [withQuestionnaires, setWithQuestionnaires] = useState(true);
+  /** Los títulos de la CIF y el perfil usado, para decir qué valora cada cuestionario. */
+  const [cif, setCif] = useState<{ titles: Map<string, string>; profile: Coded[] }>({ titles: new Map(), profile: [] });
   const [ready, setReady] = useState(false);
 
   // La primera vez, la carta redactada con lo que hay en la ficha.
@@ -71,13 +75,12 @@ export function ReferralPage() {
       const a = anamnesis?.answers ?? {};
       // La CIF: el perfil de la anamnesis; sin él, el que proponen el dolor, los cuestionarios y las mediciones.
       const own = Array.isArray(a.cif) ? (a.cif as string[]) : [];
-      let entries = own;
-      if (!own.length) {
-        const catalog = await loadCatalog();
-        const titles = new Map(catalog.map((e) => [e.code, e.title]));
-        entries = autoProfile(evidenceFrom(a, sessions, questionnaires, symmetryRows(tests)), (c) => titles.get(c), new Set());
-      }
+      const catalog = await loadCatalog();
+      const titles = new Map(catalog.map((e) => [e.code, e.title]));
+      const evidence = evidenceFrom(a, sessions, questionnaires, symmetryRows(tests));
+      const entries = own.length ? own : autoProfile(evidence, (c) => titles.get(c), new Set());
       if (!live) return;
+      setCif({ titles, profile: entries.map(readEntry).flatMap((e) => (e ? [e.coded] : [])) });
       const { hits, patterns } = redFlagReview(a, patient.birthDate);
       const years = ageOn(patient.birthDate);
       const motivo = typeof a.motivo === "string" ? a.motivo.trim() : "";
@@ -95,7 +98,7 @@ export function ReferralPage() {
           .filter(Boolean)
           .join(" "),
       );
-      setFunctioning(draftDiagnosis(entries));
+      setFunctioning(draftDiagnosis(entries, { evidence, personal: personalFactors(a, patient.birthDate) }));
       setProposed(!own.length && entries.length > 0);
       setDiagnosis(typeof a.diagnostico_funcional === "string" ? a.diagnostico_funcional : "");
       const first = sessions.at(-1);
@@ -152,7 +155,11 @@ export function ReferralPage() {
           <TextArea label="Motivo de la derivación" value={reason} onChange={setReason} rows={5} />
           <TextArea
             label="Funcionamiento según la CIF"
-            hint={proposed ? "Propuesto con los datos de la ficha (dolor, cuestionarios y mediciones), porque la anamnesis aún no tiene perfil CIF: revísalo." : "Del perfil CIF de la anamnesis."}
+            hint={
+              proposed
+                ? "Propuesto con los datos de la ficha (dolor, cuestionarios y mediciones), porque la anamnesis aún no tiene perfil CIF: revísalo."
+                : "Del perfil CIF de la anamnesis, con el dato que respalda cada calificador y sus factores personales."
+            }
             value={functioning}
             onChange={setFunctioning}
             rows={5}
@@ -225,8 +232,8 @@ export function ReferralPage() {
                 {results.map((r) => (
                   <li key={r.key}>
                     {r.name} ({fmtDate(r.at)}): <span className="font-semibold">{r.score}</span>
-                    {r.reading ? `. ${r.reading}` : ""}
-                    {r.codes.length ? ` · CIF: ${r.codes.join(", ")}` : ""}
+                    {r.reading ? `. ${r.reading.replace(/\.$/, "")}` : ""}.
+                    {r.codes.length ? ` Valora: ${informsText(r.codes, (c) => cif.titles.get(c), cif.profile)}.` : ""}
                   </li>
                 ))}
               </ul>

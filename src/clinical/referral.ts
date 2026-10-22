@@ -1,27 +1,42 @@
 // Lo que la carta de derivación (src/clinical/ReferralPage.tsx) dice del funcionamiento del paciente con la CIF y
 // de sus cuestionarios: frases cortas con el calificador de cada código y la última nota de cada cuestionario con
-// cómo se lee y qué códigos CIF informa.
+// cómo se lee y qué valora, dicho con las categorías de la CIF.
 import type { Questionnaire } from "../data/clinical";
-import { qualifierLabel, readEntry, type Component } from "./cif/cif";
-import { cifLinks } from "./cif/questionnaireLinks";
+import { formatCoded, readEntry, type Coded } from "./cif/cif";
+import { mergeLeads, phraseParts } from "./cif/prose";
+import { cifLinks, informs } from "./cif/questionnaireLinks";
 import { bandText, displayName, kindOf, scoreText, type QDetails } from "./questionnaires";
 
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+const listText = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} y ${xs.at(-1)}`);
 
 /**
- * Los códigos con un problema calificado (1 a 4), en frases: «deficiencia GRAVE en dolor en la espalda (b28013.3)».
- * Los «sin especificar», «no aplicable» y «no hay problema» no se dicen aquí (sí salen en el perfil).
+ * Los códigos con un problema calificado (1 a 4), en frases: «deficiencia grave en dolor en la espalda (b28013.3)»,
+ * «dificultad moderada para andar (d450.2)»; seguidas y con la misma gravedad, sin repetirla («para vestirse
+ * (d540.2)»). Los «sin especificar», «no aplicable» y «no hay problema» no se dicen aquí (sí salen en el perfil).
  */
 export function cifPhrases(entries: string[]): string[] {
-  return entries
-    .map(readEntry)
-    .filter((e): e is NonNullable<ReturnType<typeof readEntry>> => !!e && e.coded.q !== null && e.coded.q >= 1 && e.coded.q <= 4)
-    .map(({ coded: c, title }) => {
-      const k = c.code[0] as Component;
-      const label = qualifierLabel(k, c.q!, { facilitator: c.facilitator }).toLowerCase();
-      const notation = `${c.code}${k === "e" && c.facilitator ? "+" : "."}${c.q}${k === "d" && c.capacity !== null ? c.capacity : ""}`;
-      return k === "e" ? `${label}: ${lowerFirst(title)} (${notation})` : `${label} en ${lowerFirst(title)} (${notation})`;
-    });
+  return mergeLeads(
+    entries
+      .map(readEntry)
+      .filter((e): e is NonNullable<ReturnType<typeof readEntry>> => !!e && e.coded.q !== null && e.coded.q >= 1 && e.coded.q <= 4)
+      .map(({ coded, title }) => phraseParts(coded, title)!),
+  );
+}
+
+/**
+ * Qué valora un cuestionario, con las palabras de la CIF y, si el perfil tiene ese código, con su calificador:
+ * «dolor en la espalda (b28013.3), cambiar las posturas corporales básicas (d410.3) y andar (d450)».
+ */
+export function informsText(codes: string[], titleOf: (code: string) => string | undefined, profile: Coded[]): string {
+  const parts = codes.map((code) => {
+    // Lo que tiene el perfil: el mismo código o, si el cuestionario es más general («b280»), uno más concreto suyo.
+    const mine = profile.find((c) => c.code === code) ?? profile.find((c) => informs([code], c.code));
+    const at = mine?.code ?? code;
+    const title = (titleOf(at) ?? at).replace(/[“”"]/g, "");
+    return `${lowerFirst(title)} (${mine && mine.q !== null ? formatCoded(mine) : at})`;
+  });
+  return listText([...new Set(parts)]);
 }
 
 export type QuestionnaireLine = { key: string; name: string; at: string; score: string; reading: string | null; codes: string[] };

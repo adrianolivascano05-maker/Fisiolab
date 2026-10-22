@@ -39,4 +39,11 @@ describe("calificadores propuestos", () => {
     expect(out.map((e) => `${e.coded.code}.${e.coded.q}`)).toEqual(["b28013.3", "s76002.8", "d415.2", "d430.2", "d450.2", "b152.2"]);
     expect(out[0]!.title).toBe("Dolor en la espalda");
   });
+
+  it("la estructura lleva el lado de la anamnesis y cada propuesta su dato en pocas palabras", () => {
+    const ev = evidenceFrom({ regiones: ["rodilla"], lado: "Izquierdo", eva: 5 }, [], [q("koos12", 50)], []);
+    const out = autoProfile(ev, (c) => titles.get(c), new Set()).map((e) => readEntry(e)!);
+    expect(out.find((e) => e.coded.code === "s75011")!.coded).toMatchObject({ q: 8, location: 2 });
+    expect(suggestQualifier("b28015", ev)?.short).toBe("EVA 5/10 en la anamnesis");
+  });
 });

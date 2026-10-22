@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { codedText, draftDiagnosis, entriesText, formatCoded, makeEntry, parseCatalog, parseCoded, qualifierLabel, searchCif, suggestedCodes } from "./cif";
+import { codedText, entriesText, formatCoded, makeEntry, parseCatalog, parseCoded, qualifierLabel, searchCif, suggestedCodes } from "./cif";
 import { CIF_TSV } from "./cifData";
 
 const catalog = parseCatalog(CIF_TSV);
@@ -54,19 +54,21 @@ describe("notación y calificadores", () => {
     expect(qualifierLabel("b", 8)).toBe("sin especificar");
   });
 
-  it("redacta el diagnóstico por componentes", () => {
-    const entries = [
-      makeEntry(parseCoded("b28013.2")!, "Dolor en la espalda"),
-      makeEntry(parseCoded("d450.21")!, "Andar"),
-      makeEntry(parseCoded("e310+3")!, "Familiares cercanos"),
-    ];
-    expect(draftDiagnosis(entries)).toBe(
-      [
-        "Deficiencias en las funciones corporales: Dolor en la espalda (b28013.2): deficiencia moderada.",
-        "Limitaciones en la actividad y restricciones en la participación: Andar (d450.21): desempeño/realización: dificultad moderada; capacidad: dificultad ligera.",
-        "Factores ambientales: Familiares cercanos (e310+3): facilitador grave.",
-      ].join("\n"),
+  it("las estructuras llevan la naturaleza del cambio y la localización", () => {
+    expect(parseCoded("s75011.272")).toMatchObject({ code: "s75011", q: 2, nature: 7, location: 2, capacity: null });
+    expect(formatCoded({ code: "s75011", q: 2, capacity: null, facilitator: false, nature: null, location: 1 })).toBe("s75011.281");
+    expect(formatCoded({ code: "s75011", q: 3, capacity: null, facilitator: false, nature: 2, location: null })).toBe("s75011.32");
+    for (const s of ["s75011.272", "s76002.881", "s720.3"]) expect(formatCoded(parseCoded(s)!)).toBe(s);
+    expect(codedText(parseCoded("s75011.272")!, "Articulación de la rodilla")).toBe(
+      "Articulación de la rodilla (s75011.272): deficiencia moderada; cambios cualitativos en la estructura, incluyendo la acumulación de fluido; izquierda",
     );
-    expect(entriesText(entries).split("\n")[0]).toBe(codedText(parseCoded("b28013.2")!, "Dolor en la espalda"));
+  });
+
+  it("se lee en la ficha con sus calificadores", () => {
+    const entries = [makeEntry(parseCoded("b28013.2")!, "Dolor en la espalda"), makeEntry(parseCoded("d450.21")!, "Andar")];
+    expect(entriesText(entries).split("\n")).toEqual([
+      "Dolor en la espalda (b28013.2): deficiencia moderada",
+      "Andar (d450.21): desempeño/realización: dificultad moderada; capacidad: dificultad ligera",
+    ]);
   });
 });

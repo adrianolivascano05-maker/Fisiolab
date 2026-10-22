@@ -1,5 +1,5 @@
 // La CIF en la anamnesis: cada código elegido se guarda con su notación oficial («b280.2», «d450.21», «e310+3») y de
-// ahí salen el texto para leerlo y el borrador del diagnóstico fisioterapéutico. Las palabras de cada calificador son
+// ahí salen el texto para leerlo y el borrador del diagnóstico fisioterapéutico (src/clinical/cif/prose.ts). Las palabras de cada calificador son
 // las de la escala de la CIF (OMS 2001) para cada componente. El catálogo (src/clinical/cif/cifData.ts) se carga solo
 // al abrir el buscador.
 import { fold } from "../redFlags";
@@ -46,21 +46,37 @@ export function searchCif(catalog: CifEntry[], query: string, component: Compone
 
 // ---------- Notación y calificadores ----------
 
-/** Un código elegido: el primer calificador (en d, el desempeño/realización), el segundo (en d, la capacidad) y si un factor ambiental es facilitador. */
-export type Coded = { code: string; q: number | null; capacity: number | null; facilitator: boolean };
+/**
+ * Un código elegido, con sus calificadores en la notación oficial: el primero (extensión; en d, el desempeño/
+ * realización); en d, el segundo es la capacidad; en s, el segundo es la naturaleza del cambio y el tercero la
+ * localización; en e, si es barrera («.») o facilitador («+»).
+ */
+export type Coded = { code: string; q: number | null; capacity: number | null; facilitator: boolean; nature?: number | null; location?: number | null };
 
 export const QUALIFIERS = [0, 1, 2, 3, 4, 8, 9] as const;
 
 export function parseCoded(s: string): Coded | null {
-  const m = /^([bsde]\d{1,5})(?:([.+])(\d)?(\d)?)?$/.exec(s.trim());
+  const m = /^([bsde]\d{1,5})(?:([.+])(\d)?(\d)?(\d)?)?$/.exec(s.trim());
   if (!m) return null;
-  return { code: m[1]!, facilitator: m[2] === "+", q: m[3] !== undefined ? Number(m[3]) : null, capacity: m[4] !== undefined ? Number(m[4]) : null };
+  const d = (x: string | undefined) => (x !== undefined ? Number(x) : null);
+  const k = m[1]![0];
+  return {
+    code: m[1]!,
+    facilitator: m[2] === "+",
+    q: d(m[3]),
+    capacity: k === "d" ? d(m[4]) : null,
+    ...(k === "s" ? { nature: d(m[4]), location: d(m[5]) } : {}),
+  };
 }
 
 export function formatCoded(c: Coded): string {
   if (c.q === null) return c.code;
-  const sep = c.code[0] === "e" && c.facilitator ? "+" : ".";
-  return `${c.code}${sep}${c.q}${c.code[0] === "d" && c.capacity !== null ? c.capacity : ""}`;
+  const k = c.code[0];
+  const sep = k === "e" && c.facilitator ? "+" : ".";
+  let tail = "";
+  if (k === "d" && c.capacity !== null) tail = String(c.capacity);
+  if (k === "s" && (c.nature != null || c.location != null)) tail = `${c.nature ?? 8}${c.location != null ? c.location : ""}`;
+  return `${c.code}${sep}${c.q}${tail}`;
 }
 
 const SCALE: Record<number, string> = { 0: "NO hay", 1: "LIGERA", 2: "MODERADA", 3: "GRAVE", 4: "COMPLETA" };
@@ -79,6 +95,33 @@ export function qualifierLabel(component: Component, q: number, opts: { facilita
   return q === 0 ? `NO hay ${noun}` : `${noun[0]!.toUpperCase()}${noun.slice(1)} ${SCALE[q]}`;
 }
 
+/** Estructuras, segundo calificador: la naturaleza del cambio (CIF, OMS 2001). */
+export const NATURE: Record<number, string> = {
+  0: "no hay cambio en la estructura",
+  1: "ausencia total",
+  2: "ausencia parcial",
+  3: "parte adicional",
+  4: "dimensiones aberrantes",
+  5: "discontinuidad",
+  6: "posición desviada",
+  7: "cambios cualitativos en la estructura, incluyendo la acumulación de fluido",
+  8: "no especificada",
+  9: "no aplicable",
+};
+/** Estructuras, tercer calificador (sugerido): la localización (CIF, OMS 2001). */
+export const LOCATION: Record<number, string> = {
+  0: "más de una región",
+  1: "derecha",
+  2: "izquierda",
+  3: "ambos lados",
+  4: "delante",
+  5: "detrás",
+  6: "proximal",
+  7: "distal",
+  8: "no especificada",
+  9: "no aplicable",
+};
+
 /** Porcentaje orientativo de la escala genérica. */
 export const PERCENT: Record<number, string> = { 0: "0-4 %", 1: "5-24 %", 2: "25-49 %", 3: "50-95 %", 4: "96-100 %" };
 
@@ -92,27 +135,11 @@ export function codedText(c: Coded, title: string): string {
     const perf = `desempeño/realización: ${lower(qualifierLabel("d", c.q))}`;
     return `${title} (${notation}): ${perf}${c.capacity !== null ? `; capacidad: ${lower(qualifierLabel("d", c.capacity))}` : ""}`;
   }
-  return `${title} (${notation}): ${lower(qualifierLabel(k, c.q, { facilitator: c.facilitator }))}`;
-}
-
-/** El borrador del diagnóstico fisioterapéutico: los códigos elegidos, por componente, con sus calificadores. */
-export function draftDiagnosis(entries: string[]): string {
-  const parsed = entries.map(readEntry).filter((e): e is NonNullable<ReturnType<typeof readEntry>> => !!e);
-  const lines: string[] = [];
-  for (const comp of COMPONENTS) {
-    const mine = parsed.filter((e) => e.coded.code[0] === comp.id);
-    if (!mine.length) continue;
-    const head =
-      comp.id === "b"
-        ? "Deficiencias en las funciones corporales"
-        : comp.id === "s"
-          ? "Deficiencias en las estructuras corporales"
-          : comp.id === "d"
-            ? "Limitaciones en la actividad y restricciones en la participación"
-            : "Factores ambientales";
-    lines.push(`${head}: ${mine.map((e) => codedText(e.coded, e.title)).join("; ")}.`);
-  }
-  return lines.join("\n");
+  const extra =
+    k === "s"
+      ? [c.nature != null && c.nature !== 8 && c.nature !== 9 ? NATURE[c.nature] : "", c.location != null && c.location !== 8 && c.location !== 9 ? LOCATION[c.location] : ""].filter(Boolean)
+      : [];
+  return `${title} (${notation}): ${[lower(qualifierLabel(k, c.q, { facilitator: c.facilitator })), ...extra].join("; ")}`;
 }
 
 // ---------- Sugerencias ----------

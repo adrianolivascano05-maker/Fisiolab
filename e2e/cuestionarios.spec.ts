@@ -1,5 +1,5 @@
 // Los cuestionarios nuevos (docs/cuestionarios-nuevos.md): buscarlos, rellenarlos, que lleguen con sus códigos CIF a
-// la carta de derivación, los pendientes del permiso de su titular y los de solo nota con su lectura.
+// la carta de derivación (qué valoran, con las palabras de la CIF), los pendientes del permiso de su titular y los de solo nota con su lectura.
 import type { Page } from "@playwright/test";
 import { expect, expectAccessible, test } from "./fixtures";
 
@@ -38,11 +38,16 @@ test.describe("Cuestionarios nuevos", () => {
     await page.getByRole("link", { name: /^Carta de derivación/ }).click();
     const letter = page.getByRole("article", { name: "Carta de derivación" });
     await expect(letter).toContainText("RMDQ (lumbar, Roland-Morris)");
-    await expect(letter).toContainText("CIF: b28013, d410, d415, d450, d540");
-    // 12/24 = 50 % de problema: dificultad GRAVE según la escala de la CIF.
+    // Qué valora, dicho con la CIF y con el calificador que propone: 12/24 = 50 % de problema, GRAVE.
+    await expect(letter).toContainText(
+      "Valora: dolor en la espalda (b28013.3), cambiar las posturas corporales básicas (d410.3), mantener la posición del cuerpo (d415.3), andar (d450.3) y vestirse (d540.3).",
+    );
     await expect(letter).toContainText("Según la CIF, presenta");
-    await expect(letter).toContainText("dificultad grave en cambiar las posturas corporales básicas (d410.3)");
-    await expect(page.getByLabel("Funcionamiento según la CIF")).toHaveValue(/Limitaciones en la actividad y restricciones en la participación: .*\(d410\.3\)/);
+    await expect(letter).toContainText("dificultad grave para cambiar las posturas corporales básicas (d410.3)");
+    // Redactado: lo que respalda el mismo cuestionario con la misma gravedad, de una vez.
+    await expect(page.getByLabel("Funcionamiento según la CIF")).toHaveValue(
+      /Actividades y participación: dificultad grave para cambiar las posturas corporales básicas \(d410\.3\), para mantener la posición del cuerpo \(d415\.3\), para andar \(d450\.3\) y para vestirse \(d540\.3\), según RMDQ 12\/24 el 20 oct\./,
+    );
     await expectAccessible(page);
   });
 
