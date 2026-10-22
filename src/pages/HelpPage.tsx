@@ -82,8 +82,10 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "La agenda",
     body: (
       <>
-        Toca un hueco para dar una cita. <b>Recordatorios</b> prepara el WhatsApp o el correo de las citas de mañana. Si alguien quiere venir antes,
-        apúntalo en la <b>Lista de espera</b>: al anular una cita, la app te ofrece su hueco.
+        <b>Hoy</b> es el día en una lista: cada cita con <b>Atender</b> (apunta la sesión y vuelve aquí) y <b>Cobrar</b>; debajo, lo pendiente
+        (reevaluaciones, lo que queda sin cobrar y quién tiene que firmar algo). <b>Día</b> y <b>Semana</b> son la rejilla: toca un hueco para dar
+        una cita. <b>Recordatorios</b> prepara el WhatsApp o el correo de las citas de mañana. Si alguien quiere venir antes, apúntalo en la{" "}
+        <b>Lista de espera</b>: al anular una cita, la app te ofrece su hueco.
       </>
     ),
   },
@@ -100,8 +102,8 @@ const steps: { title: string; body: ReactNode }[] = [
 ];
 
 const places: { icon: typeof Users; name: string; text: string }[] = [
-  { icon: Users, name: "Pacientes", text: "tus pacientes, sus próximas citas y las reevaluaciones pendientes." },
-  { icon: CalendarDays, name: "Agenda", text: "las citas del día o de la semana, los recordatorios y la lista de espera." },
+  { icon: Users, name: "Pacientes", text: "el buscador, las citas de hoy en una fila y la lista de tus pacientes." },
+  { icon: CalendarDays, name: "Agenda", text: "hoy (atender, cobrar y lo pendiente), el día o la semana, los recordatorios y la lista de espera." },
   { icon: BookOpen, name: "Guía de tests", text: "212 tests de exploración por articulación. Desde un test, «Registrar el resultado» lo apunta en el paciente que estabas viendo." },
   { icon: Settings, name: "Ajustes", text: "tu cuenta, los datos de la clínica, el PIN, las copias y la instalación. Un punto rojo avisa si falta algo." },
 ];
@@ -159,7 +161,7 @@ export function HelpPage() {
             y bórralos después.
           </li>
           <li>
-            ¿Medir a alguien sin crear su ficha? En Pacientes, <b>«Medición rápida»</b>.
+            ¿Medir a alguien sin crear su ficha? En la Guía de tests, <b>«Medir ahora, sin ficha»</b>.
           </li>
           <li>
             Cada pantalla de medición tiene su ayuda: el botón <b>«Cómo grabar y marcar»</b>.

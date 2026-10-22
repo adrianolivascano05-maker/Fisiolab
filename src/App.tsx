@@ -27,6 +27,7 @@ const ProviderPage = lazy(() => import("./cloud/ProviderPage").then((m) => ({ de
 const SchedulePage = lazy(() => import("./schedule/SchedulePage").then((m) => ({ default: m.SchedulePage })));
 const RemindersPage = lazy(() => import("./schedule/RemindersPage").then((m) => ({ default: m.RemindersPage })));
 const WaitlistPage = lazy(() => import("./schedule/WaitlistPage").then((m) => ({ default: m.WaitlistPage })));
+const DebtorsPage = lazy(() => import("./schedule/DebtorsPage").then((m) => ({ default: m.DebtorsPage })));
 const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m.TeamPage })));
 const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })));
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
@@ -105,6 +106,7 @@ const routes = [
   { path: "/agenda", element: l(<SchedulePage />) },
   { path: "/agenda/recordatorios", element: l(<RemindersPage />) },
   { path: "/agenda/espera", element: l(<WaitlistPage />) },
+  { path: "/agenda/cobros", element: l(<DebtorsPage />) },
   { path: "/horario", element: <Navigate to="/agenda" replace /> },
   { path: "/ajustes/bloqueo", element: l(<LockSettingsPage />) },
   { path: "/ajustes/datos", element: l(<DataSettingsPage />) },

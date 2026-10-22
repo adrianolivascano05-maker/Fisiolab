@@ -27,13 +27,17 @@ test.describe("Agenda y seguimiento", () => {
     await createPatient(page, { name: "Bruno Falta" });
     await giveAppointment(page, "Bruno Falta", "2026-10-20T11:00");
 
+    // En Pacientes, una franja con las citas de hoy; lleva a Agenda › Hoy.
     await page.goto("./");
-    const today = page.getByRole("region", { name: "Hoy" });
-    await expect(today.getByRole("button")).toHaveText([/11:00 · Bruno Falta.*45 min/, /12:30 · Ana Agenda.*45 min/]);
+    await page.getByRole("link", { name: /^Hoy · 2 citas/ }).click();
+    await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Hoy" })).toHaveAttribute("aria-pressed", "true");
+    const today = page.getByRole("region", { name: "Citas de hoy" });
+    await expect(today.getByRole("button", { name: /^\d\d:\d\d · / })).toHaveText([/11:00 · Bruno Falta.*45 min/, /12:30 · Ana Agenda.*45 min/]);
+    await expect(today.getByRole("link", { name: "Atender" })).toHaveCount(2);
     await expectAccessible(page);
 
     // Bruno no viene.
-    await today.getByRole("button", { name: /Bruno Falta/ }).click();
+    await today.getByRole("button", { name: /^11:00 · Bruno Falta/ }).click();
     const sheet = page.getByRole("dialog", { name: "Cita de Bruno Falta" });
     await expectAccessible(page);
     await sheet.getByRole("button", { name: "No vino" }).click();
@@ -47,17 +51,17 @@ test.describe("Agenda y seguimiento", () => {
     await missed.getByLabel("Nueva cita", { exact: true }).fill("2026-10-22T17:15");
     await missed.getByRole("button", { name: "Darle esta cita" }).click();
     await expect(page.getByText(/Nueva cita: .*22 oct.*17:15/)).toBeVisible();
-    await expect(today.getByRole("button", { name: /Bruno Falta/ })).toContainText("No vino");
+    await expect(today.getByRole("button", { name: /^11:00 · Bruno Falta/ })).toContainText("No vino");
 
-    // Ana viene: desde la agenda se apunta su sesión y la cita queda atendida.
-    await today.getByRole("button", { name: /Ana Agenda/ }).click();
+    // Ana viene: desde la agenda se apunta su sesión, se vuelve a Hoy y la cita queda atendida.
+    await today.getByRole("button", { name: /^12:30 · Ana Agenda/ }).click();
     await page.getByRole("dialog", { name: "Cita de Ana Agenda" }).getByRole("link", { name: /Atender/ }).click();
+    await expect(page.getByRole("link", { name: "Volver a Hoy" })).toBeVisible();
     await page.getByLabel("Tratamiento").fill("Terapia manual");
     await page.getByRole("button", { name: "Guardar sesión" }).click();
-    await expect(page.getByText("Terapia manual")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Dar cita" })).toBeVisible();
-    await page.goto("./");
-    await expect(today.getByRole("button", { name: /Ana Agenda/ })).toContainText("Atendida");
+    await expect(page.getByText(/Sesión registrada/)).toBeVisible();
+    await expect(today.getByRole("button", { name: /^12:30 · Ana Agenda/ })).toContainText("Atendida");
+    await expect(today.getByRole("link", { name: "Atender" })).toHaveCount(0);
   });
 
   test("AG2 cambiar y anular una cita desde la ficha", async ({ page }) => {
@@ -72,7 +76,7 @@ test.describe("Agenda y seguimiento", () => {
     await edit.getByRole("button", { name: "Guardar el cambio" }).click();
     await expect(page.getByRole("button", { name: /Próxima cita: .*17:15/ })).toBeVisible();
     await page.goto("./");
-    await expect(page.getByRole("region", { name: "Próximas citas" })).toContainText("Clara Cambia");
+    await expect(page.getByRole("link", { name: /Clara Cambia/ })).toContainText(/Próxima cita: .*17:15/);
     await page.getByRole("link", { name: /Clara Cambia/ }).first().click();
     await page.getByRole("button", { name: /Próxima cita/ }).click();
     await page.getByRole("dialog", { name: "Cita de Clara Cambia" }).getByRole("button", { name: "Anular" }).click();
@@ -160,7 +164,7 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByRole("button", { name: /^Eva Mueve\s*,\s*12:00–12:45/ })).toBeVisible();
 
     // Una cita nueva desde el botón, eligiendo el paciente.
-    await page.getByRole("button", { name: "Hoy" }).click();
+    await page.getByRole("button", { name: "Ir a hoy" }).click();
     await page.getByRole("button", { name: "Nueva cita" }).click();
     const sheet = page.getByRole("dialog", { name: "Nueva cita" });
     await sheet.getByLabel("Paciente", { exact: true }).fill("eva");
@@ -225,7 +229,7 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByText("2 citas importadas")).toBeVisible();
 
     await page.goto("./agenda");
-    await page.getByRole("link", { name: /Recordatorios\s*2 de mañana sin recordar/ }).click();
+    await page.getByRole("region", { name: "Mañana" }).getByRole("link", { name: /2 citas.*2 sin recordar · Recordatorios/ }).click();
     await expect(page.getByRole("heading", { name: /miércoles, 21 de octubre/i })).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "2 citas pendientes" })).toContainText("0 recordadas");
     const ana = page.getByRole("group", { name: "10:00 · Ana Ruiz" });

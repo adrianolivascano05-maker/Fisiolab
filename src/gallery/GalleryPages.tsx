@@ -1,9 +1,11 @@
 // Galería de tests diferenciales: inicio por articulación, patologías desplegables y ficha de cada test.
-import { AlertTriangle, BookOpen, ChevronRight, ChevronsDownUp, ChevronsUpDown, Search, Star } from "lucide-react";
+import { AlertTriangle, BookOpen, ChevronRight, ChevronsDownUp, ChevronsUpDown, Search, Star, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
 import { fmt } from "../app/format";
 import { Page } from "../app/Page";
+import { useQuickMeasure } from "../app/quickMeasure";
+import { Group, RowButton } from "../ui/Grouped";
 import { cx } from "../ui/cx";
 import { EmptyState } from "../ui/EmptyState";
 import { AnimatedFigure } from "./AnimatedFigure";
@@ -107,6 +109,7 @@ export function GalleryHome() {
       .sort(byEvidence);
   }, [q]);
   const favs = tests.filter((t) => favorites.includes(t.id));
+  const quick = useQuickMeasure();
 
   return (
     <Page title="Guía de tests" tabs>
@@ -170,6 +173,14 @@ export function GalleryHome() {
                 );
               })}
             </ul>
+          </section>
+          <section aria-labelledby="h-medir" className="flex flex-col gap-2">
+            <h2 id="h-medir" className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+              Mediciones
+            </h2>
+            <Group>
+              <RowButton icon={Zap} title="Medir ahora, sin ficha" subtitle="Saltos, fuerza, sprint, movilidad… en la ficha «Medición rápida»" busy={quick.busy} onClick={() => void quick.start()} />
+            </Group>
           </section>
           <p className="text-xs text-text-muted">
             Ilustraciones propias. Cifras de revisiones publicadas con su fuente; consúltala antes de citarlas. Ningún test por sí solo hace un

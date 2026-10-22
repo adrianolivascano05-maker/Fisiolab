@@ -122,7 +122,9 @@ test.describe("Mejoras frente a la competencia", () => {
 
     await page.goto("./ajustes/cobros");
     await expect(page.getByText(/Cobrado en octubre/).locator("..")).toContainText(/205,50.*Efectivo 25,50.*Bizum 180,00|205,50.*Bizum 180,00.*Efectivo 25,50/);
-    await expect(page.getByText("Nadie tiene nada pendiente.")).toBeVisible();
+    await page.getByRole("link", { name: /Pendiente de cobro/ }).click();
+    await expect(page.getByText("Nadie tiene nada pendiente")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Volver a Hoy" })).toBeVisible();
   });
 
   test("MJ3 lista de espera: al anular una cita, ofrecer el hueco por WhatsApp y darle la cita", async ({ page }) => {
@@ -155,6 +157,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await expectAccessible(page);
     await dana.getByRole("button", { name: "Darle la cita" }).click();
     await expect(page.getByText(/Cita dada a Dana Espera/)).toBeVisible();
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Hoy" }).click();
     await page.getByRole("link", { name: /Lista de espera/ }).click();
     await expect(page.getByText("No hay nadie esperando.")).toBeVisible();
   });
@@ -240,9 +243,9 @@ test.describe("Mejoras frente a la competencia", () => {
     const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
     expect(pdf.suggestedFilename()).toBe("Justificante de pago Pablo Pago 2026-10-20.pdf");
 
-    // Cobrar desde la cita de hoy (sesión suelta).
-    await page.goto("./");
-    await page.getByRole("region", { name: "Hoy" }).getByRole("button", { name: /Quique Suelto/ }).click();
+    // Cobrar desde la cita de hoy (sesión suelta), en Agenda › Hoy.
+    await page.goto("./agenda");
+    await page.getByRole("region", { name: "Citas de hoy" }).getByRole("button", { name: /^\d\d:\d\d · Quique Suelto/ }).click();
     const cita = page.getByRole("dialog", { name: "Cita de Quique Suelto" });
     // Importada ya pasada, entra como atendida: el justificante, sí; «Atender», no.
     await expect(cita.getByRole("link", { name: "Justificante de asistencia" })).toBeVisible();

@@ -41,7 +41,7 @@ import { NumberField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useAsync } from "../app/useAsync";
-import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
+import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent, calendarPromptOff, setCalendarPromptOff } from "./CalendarButton";
 import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orphanText, type Section } from "./anamnesis";
 import { RedFlagPanel } from "./RedFlagPanel";
 import { fold } from "./redFlags";
@@ -527,24 +527,6 @@ export function MeasurementsPage() {
 
 // ---------- Sesiones ----------
 
-/** «No volver a preguntar» en la hoja del calendario que sale al guardar una sesión (de este dispositivo). La
- * siguiente cita sigue teniendo su botón de calendario en la ficha. */
-const CALENDAR_PROMPT_KEY = "fisiolab.calendarPrompt.off";
-function calendarPromptOff(): boolean {
-  try {
-    return localStorage.getItem(CALENDAR_PROMPT_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-function setCalendarPromptOff() {
-  try {
-    localStorage.setItem(CALENDAR_PROMPT_KEY, "1");
-  } catch {
-    /* sin almacenamiento: volverá a preguntar */
-  }
-}
-
 export function SessionsPage() {
   const { id = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -778,7 +760,10 @@ export function SessionFormPage() {
     if (carried) setReviewOn((r) => r || carried);
   }, [carried]);
 
-  const back = `/pacientes/${id}/sesiones`;
+  // Desde Agenda › Hoy («Atender»): se vuelve a Hoy, con la cita ya atendida.
+  const fromToday = query.get("volver") === "hoy";
+  const back = fromToday ? "/agenda?vista=hoy" : `/pacientes/${id}/sesiones`;
+  const backLabel = fromToday ? "Hoy" : undefined;
   if (!data.data) return <Guard state={data} title="Sesión" back={back} />;
   const { patient, session, lastMinutes, previous, count } = data.data;
   if (sid && !session) return <Page title="Sesión" backTo={back}><LoadError error={new Error("Esta sesión no existe.")} /></Page>;
@@ -805,7 +790,7 @@ export function SessionFormPage() {
       toast(sid ? "Sesión guardada" : `Sesión registrada${extra}`, "success");
       // Cita nueva o cambiada: se ofrece pasarla al calendario.
       const changed = next !== null && (next !== session?.nextAt || minutes !== session?.nextMinutes);
-      navigate(changed ? `${back}?calendario=${saved}` : back, { replace: true });
+      navigate(changed ? (fromToday ? `${back}&calendario=${saved}&paciente=${id}` : `${back}?calendario=${saved}`) : back, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSaving(false);
@@ -827,7 +812,7 @@ export function SessionFormPage() {
   };
 
   return (
-    <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back} tabs={false}>
+    <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back} backLabel={backLabel} tabs={false}>
       <p className="text-text-muted">
         {patient?.name}
         {!sid && count.planned !== null && ` · sesión ${count.done + 1} de ${count.planned}`}

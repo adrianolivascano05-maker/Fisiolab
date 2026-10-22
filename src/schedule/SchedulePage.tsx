@@ -4,8 +4,8 @@
 // equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
 // compartida: cada compañero ve los cambios de los demás en su dispositivo, solo.
 import { useTeamMode } from "../cloud/teamMode";
-import { BellRing, CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Hourglass, Plus, Undo2 } from "lucide-react";
-import { Link, useSearchParams } from "react-router";
+import { CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Plus, Undo2 } from "lucide-react";
+import { useSearchParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { bumpData } from "../app/dataVersion";
 import { Page } from "../app/Page";
@@ -14,8 +14,7 @@ import { AppointmentSheet } from "../clinical/AppointmentSheet";
 import { fmtVisit } from "../clinical/calendar";
 import { addDays, localInput, todayDay } from "../clinical/pageKit";
 import { useCloud, useSyncState } from "../cloud/CloudGate";
-import { agenda, remindersBetween, updateAppointment, type AgendaItem } from "../data/appointments";
-import { waitlistCount } from "../data/waitlist";
+import { agenda, updateAppointment, type AgendaItem } from "../data/appointments";
 import { getDb } from "../data/db";
 import { copyWeekForward, shiftsBetween, staffColor, type Shift } from "../data/schedule";
 import { Button, IconButton } from "../ui/Button";
@@ -23,24 +22,29 @@ import { cx } from "../ui/cx";
 import { SelectField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { AgendaGrid, type Move } from "./AgendaGrid";
+import { TodayView } from "./TodayView";
 import { atMinutes, dayColumns, personColumns, type Column } from "./layout";
 import { ShiftSheet } from "./ShiftSheet";
 import { staffName, useStaff } from "./useStaff";
 
-type View = "day" | "3days" | "week";
+type View = "today" | "day" | "3days" | "week";
 const VIEWS: { id: View; label: string; days: number }[] = [
+  { id: "today", label: "Hoy", days: 1 },
   { id: "day", label: "Día", days: 1 },
   { id: "3days", label: "3 días", days: 3 },
   { id: "week", label: "Semana", days: 7 },
 ];
-const VIEW_KEY = "fisiolab.agenda.view";
+/** v2: con la vista «Hoy» (lista del día), que es la primera en el móvil. */
+const VIEW_KEY = "fisiolab.agenda.view.v2";
+/** Las vistas de rejilla, en orden: el pellizco pasa de una a otra. */
+const GRID_VIEWS = VIEWS.filter((v) => v.id !== "today");
 
 /** El lunes (AAAA-MM-DD) de la semana de `day`. */
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T12:00:00`).getDay() + 6) % 7));
 const fmt = (day: string, o: Intl.DateTimeFormatOptions) => new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", o);
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
-/** La vista de la última vez; la primera, por día en el móvil y por semana en el ordenador. */
+/** La vista de la última vez; la primera, la lista de hoy en el móvil y la semana en el ordenador. */
 function savedView(): View {
   try {
     const v = localStorage.getItem(VIEW_KEY) as View | null;
@@ -48,7 +52,7 @@ function savedView(): View {
   } catch {
     /* sin almacenamiento */
   }
-  return window.innerWidth >= 900 ? "week" : "day";
+  return window.innerWidth >= 900 ? "week" : "today";
 }
 
 type Creating = { kind: "appointment" | "shift"; start: string; person?: string | null };
@@ -80,9 +84,14 @@ export function SchedulePage() {
   const me = cloud?.account.email.trim().toLowerCase() ?? "";
   const admin = cloud?.clinic?.role === "admin";
   const today = todayDay();
-  const [view, setView] = useState<View>(savedView);
-  // ?dia=AAAA-MM-DD: abrir en ese día (al dar una cita desde la lista de espera, la nueva se ve al llegar).
+  // ?vista=hoy: la lista de hoy (desde la franja «Hoy» de Pacientes o al volver de atender una cita).
+  // ?dia=AAAA-MM-DD: abrir la rejilla en ese día (al dar una cita desde la lista de espera, la nueva se ve al llegar).
   const [params] = useSearchParams();
+  const [view, setView] = useState<View>(() => {
+    if (params.get("vista") === "hoy") return "today";
+    const v = savedView();
+    return v === "today" && /^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? "day" : v;
+  });
   const [anchor, setAnchor] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? params.get("dia")! : today));
   const [who, setWho] = useState("");
   const [creating, setCreating] = useState<Creating | null>(null);
@@ -97,16 +106,6 @@ export function SchedulePage() {
   const from = new Date(`${days[0]}T00:00:00`).toISOString();
   const to = new Date(`${addDays(days.at(-1)!, 1)}T00:00:00`).toISOString();
   const data = useAsync(async () => ({ shifts: await shiftsBetween(getDb(), from, to), appointments: await agenda(getDb(), from, to) }), [from, to]);
-  // Las citas de mañana que aún no se han recordado.
-  const tomorrow = addDays(today, 1);
-  const toRemind = useAsync(
-    async () =>
-      (await remindersBetween(getDb(), new Date(`${tomorrow}T00:00:00`).toISOString(), new Date(`${addDays(tomorrow, 1)}T00:00:00`).toISOString())).filter(
-        (a) => !a.remindedAt && !a.confirmedAt,
-      ).length,
-    [tomorrow, data.data],
-  );
-  const waiting = useAsync(() => waitlistCount(getDb()), [data.data]);
 
   useEffect(() => {
     try {
@@ -192,7 +191,7 @@ export function SchedulePage() {
    * en el día que queda entre los dedos (si no se sabe, el de en medio de lo que se ve).
    */
   const zoom = (by: 1 | -1, c: Column | undefined) => {
-    const next = VIEWS[VIEWS.findIndex((v) => v.id === view) + by];
+    const next = GRID_VIEWS[GRID_VIEWS.findIndex((v) => v.id === view) + by];
     if (!next) return;
     const focus = c?.day ?? days[Math.floor(days.length / 2)]!;
     setAnchor(next.id === "3days" ? addDays(focus, -1) : focus);
@@ -200,10 +199,44 @@ export function SchedulePage() {
   };
 
   return (
-    <Page title="Agenda" large={false} wide>
+    <Page
+      title="Agenda"
+      large={false}
+      wide
+      action={
+        <button
+          type="button"
+          onClick={() => setCreating({ kind: "appointment", start: atMinutes(firstDay, 10 * 60) })}
+          className="tap inline-flex items-center justify-center gap-1 rounded-md px-1 font-semibold text-accent hover:bg-surface"
+        >
+          <Plus aria-hidden="true" className="size-6" /> Nueva cita
+        </button>
+      }
+    >
       <div className="flex flex-wrap items-center gap-2">
+        <div role="group" aria-label="Vista" className="flex rounded-md border border-border p-0.5">
+          {VIEWS.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              aria-pressed={view === v.id}
+              className={cx("tap rounded px-2.5 text-sm", view === v.id ? "bg-accent font-semibold text-on-accent" : "text-text hover:bg-surface")}
+              onClick={() => setView(v.id)}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+        {view === "today" && (
+          <h2 className="text-base font-semibold" aria-live="polite">
+            {cap(fmt(today, { weekday: "long", day: "numeric", month: "long" }))}
+          </h2>
+        )}
+      </div>
+      {view !== "today" && (
+        <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" variant="secondary" disabled={showsToday} onClick={() => setAnchor(today)}>
-          Hoy
+          Ir a hoy
         </Button>
         <IconButton label={`${noun} anterior${view === "3days" ? "es" : ""}`} onClick={() => step(-1)}>
           <ChevronLeft aria-hidden="true" className="size-6" />
@@ -231,20 +264,12 @@ export function SchedulePage() {
             }}
           />
         </div>
-        <div role="group" aria-label="Vista" className="flex rounded-md border border-border p-0.5">
-          {VIEWS.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              aria-pressed={view === v.id}
-              className={cx("tap rounded px-2.5 text-sm", view === v.id ? "bg-accent font-semibold text-on-accent" : "text-text hover:bg-surface")}
-              onClick={() => setView(v.id)}
-            >
-              {v.label}
-            </button>
-          ))}
         </div>
-      </div>
+      )}
+      {view === "today" ? (
+        <TodayView onOpen={setManaging} />
+      ) : (
+      <>
       <div className="flex flex-wrap items-end gap-2">
         {team && (
           <div className="min-w-48 flex-1">
@@ -259,33 +284,6 @@ export function SchedulePage() {
             </SelectField>
           </div>
         )}
-        <Button icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setCreating({ kind: "appointment", start: atMinutes(firstDay, 10 * 60) })}>
-          Nueva cita
-        </Button>
-        <Link
-          to="/agenda/recordatorios"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface sm:px-4"
-        >
-          <BellRing aria-hidden="true" className="size-5 text-accent" /> <span>Recordatorios</span>
-          {!!toRemind.data && (
-            <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
-              {toRemind.data}
-              <span className="sr-only"> de mañana sin recordar</span>
-            </span>
-          )}
-        </Link>
-        <Link
-          to="/agenda/espera"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface sm:px-4"
-        >
-          <Hourglass aria-hidden="true" className="size-5 text-accent" /> <span>Lista de espera</span>
-          {!!waiting.data && (
-            <span className="rounded-full bg-accent px-2 text-sm text-on-accent">
-              {waiting.data}
-              <span className="sr-only"> esperando</span>
-            </span>
-          )}
-        </Link>
         {team && (
           <Button variant="secondary" icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={() => setCreating({ kind: "shift", start: atMinutes(firstDay, 9 * 60) })}>
             Añadir turno
@@ -369,6 +367,8 @@ export function SchedulePage() {
         Arrastra una cita para moverla (en el móvil, mantenla pulsada un momento); tócala para atenderla, anularla o moverla una hora, un día o una
         semana. Toca un hueco para dar una cita{team ? " (o, desde ahí, poner un turno)" : ""}. Para ir a otra fecha, tócala arriba.
       </details>
+      </>
+      )}
 
       {creating?.kind === "appointment" && (
         <AppointmentSheet
@@ -396,7 +396,7 @@ export function SchedulePage() {
           admin={admin}
         />
       )}
-      {managing && <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} />}
+      {managing && <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} backToToday={view === "today"} />}
     </Page>
   );
 }

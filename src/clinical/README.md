@@ -45,17 +45,17 @@ Además:
 - **Simetría entre lados** (`symmetry.ts`): lado peor / lado mejor × 100 con la última medición de cada lado
   (salto a una pierna, 5-0-5 con cada pierna, movilidad por lados). La raya del 90 % es la referencia habitual de
   vuelta al deporte; es una ayuda para leer los datos, no un criterio de alta.
-- **Reevaluaciones**: la fecha que se pone en la última sesión. La lista de pacientes muestra «Para reevaluar»
-  con las de los próximos 7 días y las atrasadas.
+- **Reevaluaciones**: la fecha que se pone en la última sesión. Agenda › Hoy muestra en «Pendiente» las de hoy y
+  las atrasadas.
 - **Informe de alta** (`/pacientes/:id/alta`, `DischargePage.tsx`): del motivo de consulta que se ve, las fechas,
   el número de sesiones, el diagnóstico, la evolución (dolor, cuestionarios y mediciones: primero y último), el
   tratamiento hecho y las recomendaciones al alta (se guardan en su anamnesis). Se abre al «Dar por terminado» un
   motivo y desde el informe. Membrete y firma salen de Ajustes → Clínica (`reportParts.tsx`, común con el informe).
 - **Agenda** (migración 013, `../data/appointments.ts`, `AppointmentSheet.tsx`): cada cita es una fila, con su estado
   (pendiente, atendida, no vino, anulada). Se da desde la cabecera de la ficha («Dar cita», sin sesión) o al guardar
-  una sesión (la siguiente cita, que lleva el id de la sesión). En Pacientes, «Hoy» enseña todas las citas del día;
+  una sesión (la siguiente cita, que lleva el id de la sesión). En Agenda › Hoy (src/schedule/TodayView.tsx) salen todas las citas del día, con «Atender» y «Cobrar»;
   tocando una se apunta la sesión, se marca que no vino, se anula, se cambia o se borra. Al apuntar una sesión, las
-  citas pendientes de ese día quedan atendidas. «Próximas citas» enseña las pendientes de los 7 días siguientes.
+  citas pendientes de ese día quedan atendidas. La próxima cita de cada paciente sale debajo de su nombre en la lista de Pacientes.
 - **Siguiente cita** (migración 007): día, hora y duración al guardar una sesión. Se pasa al calendario del
   fisioterapeuta sin conectar ninguna cuenta (`calendar.ts`, `CalendarButton.tsx`): un enlace que abre Google
   Calendar con el evento escrito (se confirma con «Guardar») o un archivo .ics para el calendario del iPhone y

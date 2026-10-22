@@ -76,3 +76,21 @@ export function CalendarButton({ event, compact }: { event: CalendarEvent; compa
     </>
   );
 }
+
+/** «No volver a preguntar» en la hoja del calendario que sale al guardar una sesión (de este dispositivo). La
+ * siguiente cita sigue teniendo su botón de calendario en la ficha. */
+const CALENDAR_PROMPT_KEY = "fisiolab.calendarPrompt.off";
+export function calendarPromptOff(): boolean {
+  try {
+    return localStorage.getItem(CALENDAR_PROMPT_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+export function setCalendarPromptOff() {
+  try {
+    localStorage.setItem(CALENDAR_PROMPT_KEY, "1");
+  } catch {
+    /* sin almacenamiento: volverá a preguntar */
+  }
+}

@@ -40,6 +40,7 @@ export function AppointmentSheet({
   start,
   person,
   onShiftInstead,
+  backToToday,
 }: {
   open: boolean;
   onClose: () => void;
@@ -53,6 +54,8 @@ export function AppointmentSheet({
   person?: string | null;
   /** Desde un hueco de la agenda de una clínica: poner ahí un turno en vez de una cita. */
   onShiftInstead?: () => void;
+  /** Abierta desde Agenda › Hoy: al atender, la sesión vuelve a Hoy. */
+  backToToday?: boolean;
 }) {
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null);
   const patientId = fixedPatient ?? picked?.id ?? "";
@@ -367,7 +370,7 @@ export function AppointmentSheet({
           {phase === "now" && (
             <div className="grid grid-cols-[2fr_1fr] gap-2">
               <Link
-                to={`/pacientes/${patientId}/sesiones/nueva?hora=${encodeURIComponent(appointment.startsAt)}`}
+                to={`/pacientes/${patientId}/sesiones/nueva?hora=${encodeURIComponent(appointment.startsAt)}${backToToday ? "&volver=hoy" : ""}`}
                 onClick={onClose}
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 text-center font-semibold text-on-accent hover:bg-accent-hover"
               >

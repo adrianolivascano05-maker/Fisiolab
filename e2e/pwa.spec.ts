@@ -121,18 +121,18 @@ test.describe("PWA: instalable y sin conexión", () => {
     await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Lucía/ })).toBeVisible();
-    await expect(page.getByText("Haz una copia de seguridad")).toHaveCount(0);
+    await expect(page.getByRole("status").filter({ hasText: "copia de seguridad" })).toHaveCount(0);
 
     await createPatient(page, { name: "Real" });
     await page.goto("./");
-    await expect(page.getByText("Haz una copia de seguridad")).toBeVisible();
-    await expect(page.getByText("Todavía no has hecho ninguna.", { exact: false })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "copia de seguridad" })).toBeVisible();
+    await expect(page.getByText(/Todavía no has hecho ninguna copia de seguridad/)).toBeVisible();
     await page.getByRole("link", { name: "Hacer la copia" }).click();
     await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar copia de seguridad" }).click()]);
     await expect(page.getByText(/Última copia: \d/)).toBeVisible();
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Real/ })).toBeVisible();
-    await expect(page.getByText("Haz una copia de seguridad")).toHaveCount(0);
+    await expect(page.getByRole("status").filter({ hasText: "copia de seguridad" })).toHaveCount(0);
   });
 
   test("PWA-E4 ajustes: un menú con cada apartado y cómo está", async ({ page }) => {

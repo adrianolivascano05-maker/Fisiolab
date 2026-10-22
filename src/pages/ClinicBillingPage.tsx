@@ -1,9 +1,8 @@
 // Ajustes → Precios y cobros (src/data/billing.ts): el precio de la sesión suelta, los bonos que vende la clínica (para
-// venderlos con un toque), lo cobrado este mes y el anterior por forma de pago, el Excel de cobros para la gestoría y
-// quién tiene algo pendiente (con un toque, su cuenta).
-import { Download, Pencil, Plus, Trash } from "lucide-react";
+// venderlos con un toque), lo cobrado este mes y el anterior por forma de pago y el Excel de cobros para la gestoría.
+// Quién tiene algo pendiente está en Agenda › Hoy › «Sin cobrar» (src/schedule/DebtorsPage.tsx).
+import { Download, Pencil, Plus, Trash, Wallet } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
 import { fmtDate } from "../app/format";
 import { Page } from "../app/Page";
@@ -27,6 +26,7 @@ import { getDb } from "../data/db";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { Group, RowLink } from "../ui/Grouped";
 import { NumberField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
@@ -212,32 +212,15 @@ export function ClinicBillingPage() {
             </Button>
           </Card>
 
-          <section aria-labelledby="h-pendiente" className="flex flex-col gap-2">
-            <h2 id="h-pendiente" className="text-lg">
-              Pendiente de cobro{pending > 0 ? `: ${euros(pending)}` : ""}
-            </h2>
-            {d.debtors.length === 0 ? (
-              <p className="text-sm text-text-muted">
-                {d.pricing.sessionCents === null && d.pricing.since === null
-                  ? "Sin precio de la sesión, solo cuentan los bonos: pon el precio arriba para ver lo pendiente de las sesiones sueltas."
-                  : "Nadie tiene nada pendiente."}
-              </p>
-            ) : (
-              <ul aria-label="Pendiente de cobro" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
-                {d.debtors.map((x) => (
-                  <li key={x.patientId}>
-                    <Link to={`/pacientes/${x.patientId}/cobros`} className="flex min-h-14 items-center gap-3 px-3 py-2 hover:bg-surface">
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold">{x.name}</span>
-                        <span className="block text-sm text-text-muted">{x.lastPaidOn ? `Último cobro el ${fmtDate(`${x.lastPaidOn}T12:00:00`)}` : "Sin cobros"}</span>
-                      </span>
-                      <span className="font-semibold tabular-nums">{euros(x.balanceCents)}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <Group>
+            <RowLink
+              to="/agenda/cobros"
+              icon={Wallet}
+              tone={pending > 0 ? "warning" : "accent"}
+              title={pending > 0 ? `Pendiente de cobro: ${euros(pending)}` : "Pendiente de cobro"}
+              subtitle={pending > 0 ? "Quién tiene algo sin pagar" : "Nadie tiene nada pendiente"}
+            />
+          </Group>
         </>
       )}
 

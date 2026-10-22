@@ -110,10 +110,11 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByRole("img", { name: /Dolor de 0 a 10/ })).toBeVisible();
     await expect(page.getByText(/Próxima reevaluación/)).toBeVisible();
     await expect(page.getByRole("list", { name: "Historia del paciente" })).toContainText("Sesión");
-    // En la lista de pacientes sale para reevaluar (la semana que viene).
+    // La reevaluación es la semana que viene: todavía no sale como pendiente en Agenda › Hoy.
+    await page.goto("./agenda?vista=hoy");
+    await expect(page.getByRole("region", { name: "Pendiente" })).toHaveCount(0);
     await page.goto("./");
-    await expect(page.getByRole("region", { name: "Para reevaluar" })).toContainText("Diego Sesiones");
-    await page.getByRole("region", { name: "Para reevaluar" }).getByRole("link", { name: /Diego Sesiones/ }).click();
+    await page.getByRole("link", { name: /Diego Sesiones/ }).click();
 
     // Editar y borrar.
     await tab(page, "Sesiones").click();
