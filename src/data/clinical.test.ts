@@ -179,8 +179,11 @@ describe("simetría y cuestionarios", () => {
     for (const q of QUESTIONNAIRES) for (const r of q.regions ?? []) expect(ids.has(r), `${q.id}: ${r}`).toBe(true);
     const knee = byRegions(["rodilla"]);
     expect(knee.length).toBe(QUESTIONNAIRES.length);
-    expect(knee.filter((k) => k.forRegion).map((k) => k.kind.id)).toEqual(["koos", "lefs", "visa_p", "acl_rsi"]);
-    expect(knee.findIndex((k) => !k.forRegion)).toBe(4);
+    const forKnee = knee.filter((k) => k.forRegion).map((k) => k.kind.id);
+    // Los de rodilla de siempre primero, en su orden; detrás, los nuevos de rodilla (Kujala, Lysholm, IKDC…).
+    expect(forKnee.slice(0, 4)).toEqual(["koos", "lefs", "visa_p", "acl_rsi"]);
+    expect(forKnee).toEqual(expect.arrayContaining(["kujala", "lysholm", "ikdc", "koos12", "oks", "womac"]));
+    expect(knee.findIndex((k) => !k.forRegion)).toBe(forKnee.length);
     const other = kindOf("otro", { name: "Escala propia", min: 0, max: 20, better: "lower" });
     expect(other).toMatchObject({ name: "Escala propia", max: 20, better: "lower" });
     expect(scoreText(other, 7.5)).toBe("7,5/20");

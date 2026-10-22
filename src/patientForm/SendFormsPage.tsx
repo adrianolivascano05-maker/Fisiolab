@@ -26,6 +26,7 @@ import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
+import { useGranted } from "../data/questionnairePermissions";
 import { currentEpisode } from "../data/episodes";
 import { addSentForm, cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
 import { getClinic } from "../data/privacy";
@@ -182,6 +183,9 @@ export function SendFormsPage() {
 }
 
 function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: string) => Promise<void> }) {
+  // Los pendientes del permiso de su titular, solo si la clínica ha marcado que lo tiene.
+  const granted = useGranted();
+  const sendable = SENDABLE.filter((k) => k.license !== "comprobar" || granted.includes(k.id));
   const [kind, setKind] = useState(initial === ANAMNESIS_KIND || SENDABLE.some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,7 +208,7 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
       <SelectField label="Qué le mandas" value={kind} onChange={(e) => setKind(e.target.value)}>
         <option value={ANAMNESIS_KIND}>Su parte de la anamnesis</option>
         <optgroup label="Cuestionarios">
-          {SENDABLE.map((k) => (
+          {sendable.map((k) => (
             <option key={k.id} value={k.id}>
               {k.name}
             </option>

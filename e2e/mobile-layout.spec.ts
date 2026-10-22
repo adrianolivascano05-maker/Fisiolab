@@ -20,6 +20,7 @@ for (const width of [360, 412]) {
       "./exploracion/hombro/hom-cluster-murrell-walton",
       "./ajustes/cobros",
       "./ajustes/estadisticas",
+      "./ajustes/cuestionarios",
       patient,
       `${patient}/anamnesis`,
       `${patient}/exploracion`,
@@ -30,6 +31,9 @@ for (const width of [360, 412]) {
       `${patient}/ejercicios`,
       `${patient}/formularios`,
       `${patient}/informe`,
+      `${patient}/derivacion`,
+      `${patient}/cuestionarios/nuevo`,
+      `${patient}/cuestionarios/nuevo?tipo=dn4`,
     ];
     for (const path of paths) {
       await page.goto(path);

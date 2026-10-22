@@ -10,8 +10,8 @@ import {
   COMPONENTS,
   PERCENT,
   QUALIFIERS,
+  loadCatalog,
   makeEntry,
-  parseCatalog,
   qualifierLabel,
   readEntry,
   recentCodes,
@@ -24,9 +24,6 @@ import {
 } from "./cif";
 import { autoProfile, suggestQualifier, type Evidence } from "./suggest";
 
-/** El catálogo, una sola vez y solo cuando hace falta. */
-let catalog: Promise<CifEntry[]> | null = null;
-const loadCatalog = () => (catalog ??= import("./cifData").then((m) => parseCatalog(m.CIF_TSV)));
 
 function useCatalog(on: boolean) {
   const [list, setList] = useState<CifEntry[] | null>(null);

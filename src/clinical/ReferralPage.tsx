@@ -1,6 +1,8 @@
 // Carta de derivación a su médico: los datos del paciente, por qué consulta, las alarmas encontradas en la
-// anamnesis (src/clinical/redFlags.ts), el diagnóstico fisioterapéutico y lo que se le ha hecho. Sale redactada y
-// todo se puede cambiar antes de imprimirla o enviarla; no se guarda (cada carta es de su momento).
+// anamnesis (src/clinical/redFlags.ts), su funcionamiento descrito con la CIF (el perfil de la anamnesis o, si no lo
+// hay, el que proponen los datos de la ficha: dolor, cuestionarios y mediciones), sus cuestionarios con cómo se leen
+// y qué códigos CIF informan, el diagnóstico fisioterapéutico y lo que se le ha hecho. Sale redactada con lo que hay
+// en la ficha en ese momento y todo se puede cambiar antes de imprimirla o enviarla; no se guarda.
 import { Printer } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
@@ -8,15 +10,18 @@ import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { safeName } from "../cloud/saveToDrive";
-import { getAnamnesis, listSessions } from "../data/clinical";
+import { getAnamnesis, listQuestionnaires, listSessions } from "../data/clinical";
 import { getDb } from "../data/db";
 import { ageOn, getClinic } from "../data/privacy";
-import { getPatient } from "../data/repo";
+import { getPatient, listTests } from "../data/repo";
 import { TopBar } from "../ui/AppBar";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { TextArea } from "./parts";
-import { entriesText } from "./cif/cif";
+import { draftDiagnosis, loadCatalog } from "./cif/cif";
+import { autoProfile, evidenceFrom } from "./cif/suggest";
+import { cifPhrases, latestQuestionnaires } from "./referral";
+import { symmetryRows } from "./symmetry";
 import { redFlagReview, type FlagHit, type Urgency } from "./redFlags";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { SharePdf } from "./SharePdf";
@@ -35,8 +40,15 @@ export function ReferralPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, anamnesis, sessions, clinic] = await Promise.all([getPatient(db, id), getAnamnesis(db, id), listSessions(db, id), getClinic(db)]);
-    return { patient, anamnesis, sessions, clinic };
+    const [patient, anamnesis, sessions, clinic, questionnaires, tests] = await Promise.all([
+      getPatient(db, id),
+      getAnamnesis(db, id),
+      listSessions(db, id),
+      getClinic(db),
+      listQuestionnaires(db, id),
+      listTests(db, id),
+    ]);
+    return { patient, anamnesis, sessions, clinic, questionnaires, tests };
   }, [id]);
   const article = useRef<HTMLElement>(null);
   const [to, setTo] = useState("A su médico de Atención Primaria");
@@ -44,33 +56,55 @@ export function ReferralPage() {
   const [reason, setReason] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [treatment, setTreatment] = useState("");
+  /** El funcionamiento con la CIF, ya redactado; y si sale del perfil de la anamnesis o lo proponen los datos. */
+  const [functioning, setFunctioning] = useState("");
+  const [proposed, setProposed] = useState(false);
+  const [withQuestionnaires, setWithQuestionnaires] = useState(true);
   const [ready, setReady] = useState(false);
 
   // La primera vez, la carta redactada con lo que hay en la ficha.
   useEffect(() => {
     if (ready || !data.data?.patient) return;
-    const { patient, anamnesis, sessions } = data.data;
-    const a = anamnesis?.answers ?? {};
-    const { hits, patterns } = redFlagReview(a, patient.birthDate);
-    const years = ageOn(patient.birthDate);
-    const motivo = typeof a.motivo === "string" ? a.motivo.trim() : "";
-    const top = patterns[0]?.pattern.urgency;
-    setPriority(top ?? "ordinaria");
-    setReason(
-      [
-        `${years !== null ? `Paciente de ${years} años` : "Paciente"}${motivo ? ` que consulta por ${lower(motivo).replace(/\.$/, "")}` : " valorado en fisioterapia"}.`,
-        hits.length ? `En la valoración presenta: ${listText(hits.map((h) => `${lower(h.flag.label)}${how(h)}`))}.` : "",
-        patterns.length
-          ? `Solicito su valoración para descartar ${listText(patterns.map((p) => lower(p.pattern.name.replace(/^Posible /, ""))))} antes de continuar con el tratamiento de fisioterapia.`
-          : "Solicito su valoración.",
-      ]
-        .filter(Boolean)
-        .join(" "),
-    );
-    setDiagnosis(typeof a.diagnostico_funcional === "string" ? a.diagnostico_funcional : "");
-    const first = sessions.at(-1);
-    setTreatment(sessions.length ? `${sessions.length === 1 ? "1 sesión" : `${sessions.length} sesiones`} de fisioterapia desde el ${fmtDate(first!.performedAt)}.` : "Valoración inicial, sin tratamiento todavía.");
-    setReady(true);
+    const { patient, anamnesis, sessions, questionnaires, tests } = data.data;
+    let live = true;
+    void (async () => {
+      const a = anamnesis?.answers ?? {};
+      // La CIF: el perfil de la anamnesis; sin él, el que proponen el dolor, los cuestionarios y las mediciones.
+      const own = Array.isArray(a.cif) ? (a.cif as string[]) : [];
+      let entries = own;
+      if (!own.length) {
+        const catalog = await loadCatalog();
+        const titles = new Map(catalog.map((e) => [e.code, e.title]));
+        entries = autoProfile(evidenceFrom(a, sessions, questionnaires, symmetryRows(tests)), (c) => titles.get(c), new Set());
+      }
+      if (!live) return;
+      const { hits, patterns } = redFlagReview(a, patient.birthDate);
+      const years = ageOn(patient.birthDate);
+      const motivo = typeof a.motivo === "string" ? a.motivo.trim() : "";
+      const phrases = cifPhrases(entries);
+      setPriority(patterns[0]?.pattern.urgency ?? "ordinaria");
+      setReason(
+        [
+          `${years !== null ? `Paciente de ${years} años` : "Paciente"}${motivo ? ` que consulta por ${lower(motivo).replace(/\.$/, "")}` : " valorado en fisioterapia"}.`,
+          phrases.length ? `Según la CIF, presenta ${listText(phrases)}.` : "",
+          hits.length ? `En la valoración presenta: ${listText(hits.map((h) => `${lower(h.flag.label)}${how(h)}`))}.` : "",
+          patterns.length
+            ? `Solicito su valoración para descartar ${listText(patterns.map((p) => lower(p.pattern.name.replace(/^Posible /, ""))))} antes de continuar con el tratamiento de fisioterapia.`
+            : "Solicito su valoración.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
+      setFunctioning(draftDiagnosis(entries));
+      setProposed(!own.length && entries.length > 0);
+      setDiagnosis(typeof a.diagnostico_funcional === "string" ? a.diagnostico_funcional : "");
+      const first = sessions.at(-1);
+      setTreatment(sessions.length ? `${sessions.length === 1 ? "1 sesión" : `${sessions.length} sesiones`} de fisioterapia desde el ${fmtDate(first!.performedAt)}.` : "Valoración inicial, sin tratamiento todavía.");
+      setReady(true);
+    })();
+    return () => {
+      live = false;
+    };
   }, [data.data, ready]);
 
   const bar = (
@@ -80,12 +114,12 @@ export function ReferralPage() {
   );
   if (data.error) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={data.error} /></main></>;
   if (!data.data || !ready) return <>{bar}<main className="mx-auto max-w-3xl p-4"><Loading /></main></>;
-  const { patient, anamnesis, clinic } = data.data;
+  const { patient, anamnesis, clinic, questionnaires } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
   const a = anamnesis?.answers ?? {};
   const { hits, patterns } = redFlagReview(a, patient.birthDate);
   const years = ageOn(patient.birthDate);
-  const cif = Array.isArray(a.cif) ? entriesText(a.cif as string[]).split("\n").filter(Boolean) : [];
+  const results = latestQuestionnaires(questionnaires);
   const today = new Date().toISOString();
   const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
   const facts: [string, string][] = [
@@ -116,7 +150,20 @@ export function ReferralPage() {
             </div>
           </fieldset>
           <TextArea label="Motivo de la derivación" value={reason} onChange={setReason} rows={5} />
+          <TextArea
+            label="Funcionamiento según la CIF"
+            hint={proposed ? "Propuesto con los datos de la ficha (dolor, cuestionarios y mediciones), porque la anamnesis aún no tiene perfil CIF: revísalo." : "Del perfil CIF de la anamnesis."}
+            value={functioning}
+            onChange={setFunctioning}
+            rows={5}
+          />
           <TextArea label="Diagnóstico fisioterapéutico" value={diagnosis} onChange={setDiagnosis} />
+          {results.length > 0 && (
+            <label className="flex min-h-11 items-center gap-2">
+              <input type="checkbox" className="size-5 accent-accent" checked={withQuestionnaires} onChange={(e) => setWithQuestionnaires(e.target.checked)} />
+              Incluir los cuestionarios de los últimos 6 meses ({results.length})
+            </label>
+          )}
           <TextArea label="Tratamiento realizado y respuesta" value={treatment} onChange={setTreatment} />
           <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
             Imprimir o guardar en PDF
@@ -167,11 +214,20 @@ export function ReferralPage() {
               <p className="whitespace-pre-line">{diagnosis.trim()}</p>
             </Block>
           )}
-          {cif.length > 0 && (
-            <Block title="Perfil de funcionamiento (CIF)">
+          {functioning.trim() && (
+            <Block title="Funcionamiento (CIF)">
+              <p className="whitespace-pre-line">{functioning.trim()}</p>
+            </Block>
+          )}
+          {withQuestionnaires && results.length > 0 && (
+            <Block title="Cuestionarios">
               <ul className="flex list-disc flex-col gap-0.5 pl-5">
-                {cif.map((line) => (
-                  <li key={line}>{line}</li>
+                {results.map((r) => (
+                  <li key={r.key}>
+                    {r.name} ({fmtDate(r.at)}): <span className="font-semibold">{r.score}</span>
+                    {r.reading ? `. ${r.reading}` : ""}
+                    {r.codes.length ? ` · CIF: ${r.codes.join(", ")}` : ""}
+                  </li>
                 ))}
               </ul>
             </Block>

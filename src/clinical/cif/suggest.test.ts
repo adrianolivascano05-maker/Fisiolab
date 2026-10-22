@@ -15,12 +15,17 @@ describe("calificadores propuestos", () => {
   it("dolor desde la última sesión o la EVA; actividades desde el cuestionario de la zona", () => {
     const ev = evidenceFrom({ eva: 4, regiones: ["lumbar"] }, [{ pain: 6, performedAt: "2026-10-21T10:00:00Z" }], [q("odi", 32)], []);
     expect(suggestQualifier("b28013", ev)).toMatchObject({ q: 3, why: expect.stringContaining("dolor 6/10 = 60 %") });
-    expect(suggestQualifier("d430", ev)).toMatchObject({ q: 2, why: expect.stringContaining("32 % de discapacidad") });
+    expect(suggestQualifier("d430", ev)).toMatchObject({ q: 2, why: expect.stringContaining("32 % de problema") });
     expect(suggestQualifier("s76002", ev)).toBeNull();
-    // Sin sesiones, la EVA de la anamnesis; un cuestionario de otra zona no cuenta.
+    // Sin sesiones, la EVA de la anamnesis; un cuestionario solo propone lo que informa.
     const ev2 = evidenceFrom({ eva: 4, regiones: ["rodilla"] }, [], [q("odi", 32)], []);
     expect(suggestQualifier("b280", ev2)).toMatchObject({ q: 2 });
-    expect(suggestQualifier("d450", ev2)).toBeNull();
+    expect(suggestQualifier("d440", ev2)).toBeNull();
+    // ISI → sueño; el KOOS por subescala: la de dolor informa el dolor, la de AVD las actividades.
+    const ev3 = evidenceFrom({ regiones: ["rodilla"] }, [], [{ ...q("koos", 25), details: { subscale: "Dolor" } }, { ...q("koos", 80), details: { subscale: "AVD" } }, q("isi", 13)], []);
+    expect(suggestQualifier("b134", ev3)).toMatchObject({ q: 2, why: expect.stringContaining("ISI") });
+    expect(suggestQualifier("b28015", ev3)).toMatchObject({ q: 3, why: expect.stringContaining("KOOS (rodilla) · Dolor") });
+    expect(suggestQualifier("d450", ev3)).toMatchObject({ q: 1, why: expect.stringContaining("KOOS (rodilla) · AVD") });
   });
 
   it("los cuestionarios en que más es mejor también cuentan bien (LEFS 60/80 = 25 % de problema)", () => {
@@ -31,7 +36,7 @@ describe("calificadores propuestos", () => {
   it("el borrador rápido trae los códigos de la zona con lo propuesto y no repite", () => {
     const ev = evidenceFrom({ regiones: ["lumbar"] }, [{ pain: 6, performedAt: "2026-10-21T10:00:00Z" }], [q("odi", 32), q("phq9", 9)], []);
     const out = autoProfile(ev, (c) => titles.get(c), new Set(["d410"])).map((e) => readEntry(e)!);
-    expect(out.map((e) => `${e.coded.code}.${e.coded.q}`)).toEqual(["b28013.3", "s76002.8", "d415.2", "d430.2", "b152.2"]);
+    expect(out.map((e) => `${e.coded.code}.${e.coded.q}`)).toEqual(["b28013.3", "s76002.8", "d415.2", "d430.2", "d450.2", "b152.2"]);
     expect(out[0]!.title).toBe("Dolor en la espalda");
   });
 });

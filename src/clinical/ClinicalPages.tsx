@@ -44,6 +44,7 @@ import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
 import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orphanText, type Section } from "./anamnesis";
 import { RedFlagPanel } from "./RedFlagPanel";
+import { fold } from "./redFlags";
 import { CifPicker } from "./cif/CifPicker";
 import { draftDiagnosis } from "./cif/cif";
 import { evidenceFrom } from "./cif/suggest";
@@ -57,12 +58,13 @@ import { mainValue, trends } from "./measures";
 import { QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
 import { Chips, NumberScale, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
 import { FieldInput } from "./FieldInput";
-import { byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, type Better, type QDetails } from "./questionnaires";
+import { bandText, byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, TOPICS, type Better, type QDetails } from "./questionnaires";
 import { LSI_REFERENCE, symmetryRows } from "./symmetry";
 import { madridDay } from "./timeline";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PatientShell } from "./PatientShell";
-import { formFor, type Answers as FormAnswers } from "./forms";
+import { usableForm, type Answers as FormAnswers } from "./forms";
+import { useGranted } from "../data/questionnairePermissions";
 import { FormFill, formResult } from "./FormFill";
 import { SENDABLE } from "./patientForms";
 import { addDays, dayText, Guard, localInput, primaryLink, sexLabels, todayDay, useLoad } from "./pageKit";
@@ -972,6 +974,7 @@ type PsfsActivity = { name: string; score: number | null };
 
 export function QuestionnaireFormPage() {
   const { id = "", qid } = useParams();
+  const granted = useGranted();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -991,6 +994,7 @@ export function QuestionnaireFormPage() {
   const [answers, setAnswers] = useState<FormAnswers>({});
   // Los que tienen el cuestionario entero en la app se rellenan aquí; también se puede anotar solo la nota.
   const [mode, setMode] = useState<"fill" | "score">("fill");
+  const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -1044,17 +1048,20 @@ export function QuestionnaireFormPage() {
       </li>
     );
     const describe = (k: (typeof QUESTIONNAIRES)[number]) => {
-      const f = formFor(k.id);
+      const f = usableForm(k.id, granted);
       const n = f?.sections.reduce((acc, sec) => acc + sec.items.length, 0);
       const range = k.unit && k.unit !== "%" ? k.unit : `de ${k.min} a ${k.max}, ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`;
-      return `${n ? `${n} preguntas` : "Anotas la nota"} · ${range}`;
+      const how = n ? `${n} preguntas` : k.license === "licencia" ? "De pago: anotas la nota de la hoja oficial" : k.license === "comprobar" ? "Pendiente del permiso del titular: anotas la nota" : "Anotas la nota";
+      return `${how} · ${range}`;
     };
-    const ranked = byRegions(regions).filter(({ kind: k }) => !k.inApp);
-    const TOPICS = ["Calidad de vida", "Estado de ánimo", "Dolor, miedo y creencias", "Actividad física"];
+    // Buscar por nombre, sigla o para qué sirve, sin tildes.
+    const q = fold(search.trim());
+    const matches = (k: (typeof QUESTIONNAIRES)[number]) => !q || q.split(/\s+/).every((w) => fold(`${k.name} ${k.id} ${k.hint ?? ""} ${k.topic ?? ""}`).includes(w));
+    const ranked = byRegions(regions).filter(({ kind: k }) => !k.inApp && matches(k));
     // De su zona primero; después la evolución que cuenta el paciente, los generales por tema y el resto por zona.
     const groups = [
       { title: "De su zona", items: ranked.filter((r) => r.forRegion).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k), tag: "Su zona" })) },
-      { title: "Cómo lo vive el paciente", items: QUESTIONNAIRES.filter((k) => k.inApp).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" })) },
+      { title: "Cómo lo vive el paciente", items: QUESTIONNAIRES.filter((k) => k.inApp && matches(k)).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" })) },
       ...TOPICS.map((topic) => ({
         title: topic,
         items: ranked.filter((r) => !r.forRegion && r.kind.topic === topic).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k) })),
@@ -1063,13 +1070,15 @@ export function QuestionnaireFormPage() {
         title: "Por zona del cuerpo",
         items: [
           ...ranked.filter((r) => !r.forRegion && !r.kind.topic).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k) })),
-          option({ id: OTHER, name: "Otro cuestionario", text: "Escribe su nombre y su rango." }),
+          ...(q ? [] : [option({ id: OTHER, name: "Otro cuestionario", text: "Escribe su nombre y su rango." })]),
         ],
       },
     ].filter((g) => g.items.length);
     return (
       <Page title="Nuevo cuestionario" backTo={back} tabs={false}>
         <p className="text-text-muted">{patient?.name}: elige el cuestionario. Se rellena aquí y la nota se calcula sola.</p>
+        <TextField label="Buscar cuestionario" placeholder="Por ejemplo: rodilla, DN4, mareo, suelo pélvico" value={search} onChange={(e) => setSearch(e.target.value)} autoComplete="off" />
+        {!groups.length && <p className="text-text-muted">Ningún cuestionario con «{search.trim()}».</p>}
         {groups.map((g) => (
           <section key={g.title} aria-label={g.title} className="flex flex-col gap-2">
             <h2 className="text-lg">{g.title}</h2>
@@ -1081,18 +1090,23 @@ export function QuestionnaireFormPage() {
   }
 
   const known = getKind(kind);
-  const form = formFor(kind);
+  const form = usableForm(kind, granted);
   const filling = !!form && mode === "fill";
   const result = filling ? formResult(form, answers) : null;
   const otherMin = parseDecimal(other.min);
   const otherMax = parseDecimal(other.max);
-  const k = kindOf(kind, { name: other.name, min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better });
+  // Con subescala elegida (FABQ, WOMAC…), su propio rango.
+  const k = kindOf(kind, { name: other.name, min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better, subscale: !filling ? subscale[0] : undefined });
+  // La nota anotada a mano, leída con los tramos del catálogo (los de solo nota que los tienen).
+  const typed = parseDecimal(score);
+  const scoreBand = !filling && known && typed !== null && !Number.isNaN(typed) ? bandText(known, typed) : null;
   const details: QDetails =
     kind === "mapa_dolor" ? { marks }
     : kind === "psfs" ? { activities: activities.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), score: a.score ?? Number.NaN })) }
     : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(result && "ok" in result && result.ok.text ? { text: result.ok.text } : {}) }
     : known?.subscales ? { subscale: subscale[0] }
     : kind === OTHER ? { name: other.name.trim(), min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better }
+    : scoreBand ? { text: scoreBand }
     : {};
   const sameAs = (q: Questionnaire) => q.kind === kind && displayName(q.kind, q.details as QDetails) === displayName(kind, details);
   const previous = all.find((q) => q.id !== qid && sameAs(q) && (!record || q.performedAt < record.performedAt));
@@ -1185,6 +1199,13 @@ export function QuestionnaireFormPage() {
           />
         )}
         {!known?.inApp && kind !== OTHER && !filling && <p className="text-sm text-text-muted">Pásalo con su hoja oficial y escribe aquí la puntuación total.</p>}
+        {known?.reading && <p className="text-sm">{known.reading}</p>}
+        {known?.license && known.license !== "libre" && known.licenseNote && (
+          <p className="text-sm text-text-muted">
+            {known.license === "licencia" ? "De pago para uso comercial" : known.license === "comprobar" ? "Pendiente del permiso de su titular" : "Libre, con registro o permiso"}: {known.licenseNote}
+          </p>
+        )}
+        {known?.refs && <p className="text-xs text-text-muted">{known.refs}</p>}
         {previous && (
           <p className="text-sm">
             La última vez: <span className="nums font-semibold">{scoreText(k, previous.score)}</span> el {fmtDate(previous.performedAt)}
@@ -1195,7 +1216,7 @@ export function QuestionnaireFormPage() {
             <Button variant="secondary" size="sm" onClick={() => setParams({}, { replace: true })}>
               Cambiar de cuestionario
             </Button>
-            {SENDABLE.some((x) => x.id === kind) && (
+            {!!form && SENDABLE.some((x) => x.id === kind) && (
               <Link
                 to={`/pacientes/${id}/formularios?enviar=${kind}`}
                 className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg px-3 text-sm font-semibold hover:bg-surface"
@@ -1303,6 +1324,7 @@ export function QuestionnaireFormPage() {
             onChange={(e) => setScore(e.target.value)}
           />
         )}
+        {scoreBand && <p className="font-semibold" aria-live="polite">{scoreBand}</p>}
         <TextArea label="Notas" value={notes} onChange={setNotes} rows={2} />
         {error && <Alert tone="danger" title={error} />}
         <Button type="submit" size="lg" block loading={saving}>

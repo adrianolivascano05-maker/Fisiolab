@@ -14,6 +14,10 @@ export const COMPONENTS: { id: Component; label: string; short: string }[] = [
   { id: "e", label: "Factores ambientales", short: "Ambientales (e)" },
 ];
 
+/** El catálogo, una sola vez y solo cuando hace falta (es grande: va en su propio archivo). */
+let catalog: Promise<CifEntry[]> | null = null;
+export const loadCatalog = () => (catalog ??= import("./cifData").then((m) => parseCatalog(m.CIF_TSV)));
+
 /** Nivel de una categoría: 1 el capítulo (b2), 2 (b280), 3 (b2801), 4 (b28013). */
 export const levelOf = (code: string) => (code.length <= 2 ? 1 : code.length - 2);
 

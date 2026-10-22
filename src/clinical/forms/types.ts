@@ -18,7 +18,13 @@ export type Item = {
   na?: boolean;
 };
 
-export type Section = { title: string; intro?: string; items: Item[] };
+export type Section = {
+  title: string;
+  intro?: string;
+  items: Item[];
+  /** La rellena el fisioterapeuta (exploración, como en el DN4): el cuestionario no se manda al móvil del paciente. */
+  clinician?: boolean;
+};
 
 /** Respuestas por id de ítem. null: «No aplica». Sin la clave: sin responder. */
 export type Answers = Record<string, number | null>;

@@ -122,8 +122,11 @@ test.describe("Comodidad del día a día", () => {
 
     await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
     await page.getByRole("link", { name: /^Carta de derivación/ }).click();
-    await expect(page.getByRole("article", { name: "Carta de derivación" })).toContainText("Perfil de funcionamiento (CIF)");
-    await expect(page.getByRole("article", { name: "Carta de derivación" })).toContainText("Dolor en la espalda (b28013.2)");
+    const letter = page.getByRole("article", { name: "Carta de derivación" });
+    await expect(letter).toContainText("Funcionamiento (CIF)");
+    await expect(letter).toContainText("Dolor en la espalda (b28013.2)");
+    // El motivo lo cuenta con la CIF.
+    await expect(letter).toContainText("Según la CIF, presenta deficiencia moderada en dolor en la espalda (b28013.2) y dificultad moderada en andar (d450.21)");
   });
 
   test("US6 CIF: borrador rápido con los datos de la ficha y calificadores propuestos", async ({ page }) => {

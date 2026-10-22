@@ -100,8 +100,12 @@ export function patientSections(sections: Section[]): Section[] {
     .filter((s) => s.fields.length);
 }
 
-/** Los cuestionarios que se pueden mandar: los que tienen todas sus preguntas en la app. */
-export const SENDABLE = QUESTIONNAIRES.filter((k) => !!formFor(k.id));
+/** Los cuestionarios que se pueden mandar: los que tienen todas sus preguntas en la app y las contesta el paciente. */
+export const SENDABLE = QUESTIONNAIRES.filter((k) => {
+  const f = formFor(k.id);
+  // Los que tienen una parte de exploración (DN4) los rellena el fisioterapeuta en la consulta.
+  return !!f && !f.sections.some((s) => s.clinician);
+});
 
 /** «tu historia clínica» o «el cuestionario «X»», para el mensaje y la ficha. */
 export function formWhat(kind: string): string {

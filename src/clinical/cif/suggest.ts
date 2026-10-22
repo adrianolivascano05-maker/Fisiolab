@@ -1,14 +1,15 @@
 // Calificadores propuestos con lo que ya hay en la ficha, pasando cada dato a porcentaje y llevándolo a la escala
 // genérica de la CIF (0-4 % → 0, 5-24 % → 1, 25-49 % → 2, 50-95 % → 3, 96-100 % → 4):
 // - Dolor (b280 y sus subcategorías): el último dolor de 0 a 10 (sesión o EVA de la anamnesis) × 10.
-// - Actividades y participación (d): el último cuestionario de la zona (Oswestry, NDI, QuickDASH, SPADI, LEFS…),
-//   como porcentaje de discapacidad.
 // - Movilidad articular (b710): la asimetría de movilidad entre lados (100 − LSI).
-// - Funciones emocionales (b152): PHQ-9 o GAD-7, como porcentaje de su máximo.
+// - El resto: el último cuestionario que informa esa categoría (src/clinical/cif/questionnaireLinks.ts: Oswestry → d430,
+//   PHQ-9 → b152, ISI → b134, DHI → b240…), como porcentaje de problema sobre su rango; para las actividades (d) sin
+//   cuestionario propio, el último de la zona.
 // Es orientativo: la CIF pide calibrar los porcentajes con instrumentos validados; el calificador lo decide el
 // profesional.
 import type { Answers, Questionnaire } from "../../data/clinical";
-import { kindOf } from "../questionnaires";
+import { displayName, kindOf, scoreText, type QDetails } from "../questionnaires";
+import { cifLinks, informs } from "./questionnaireLinks";
 import type { SymmetryRow } from "../symmetry";
 import { makeEntry, type Coded } from "./cif";
 
@@ -29,10 +30,12 @@ export function percentToQualifier(p: number): number {
 }
 
 const pct = (v: number) => `${Math.round(v)} %`;
+/** Para el borrador rápido cuentan los cuestionarios de estos días antes del último. */
+const RECENT_DAYS = 120;
 
 /** El porcentaje de problema de un cuestionario (0 = ninguno), sea cual sea su sentido. */
 function problemPercent(q: Questionnaire): number {
-  const k = kindOf(q.kind, q.details);
+  const k = kindOf(q.kind, q.details as QDetails);
   const span = k.max - k.min || 1;
   const p = k.better === "lower" ? (q.score - k.min) / span : (k.max - q.score) / span;
   return Math.max(0, Math.min(100, p * 100));
@@ -40,12 +43,25 @@ function problemPercent(q: Questionnaire): number {
 
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 
+/** Los códigos CIF que informa un registro (con su subescala). */
+const linksOf = (q: Questionnaire) => cifLinks(q.kind, (q.details as QDetails).subscale);
+
 /** El último cuestionario de función de la zona de la anamnesis. */
 function regionQuestionnaire(ev: Evidence): Questionnaire | undefined {
   return ev.questionnaires.find((q) => {
-    const regions = kindOf(q.kind, q.details).regions ?? [];
-    return regions.some((r) => ev.regions.includes(r));
+    const regions = kindOf(q.kind, q.details as QDetails).regions ?? [];
+    return regions.some((r) => ev.regions.includes(r)) && linksOf(q).length > 0;
   });
+}
+
+/** El último cuestionario que informa esa categoría (src/clinical/cif/questionnaireLinks.ts). */
+const linkedQuestionnaire = (ev: Evidence, code: string) => ev.questionnaires.find((q) => informs(linksOf(q), code));
+
+function fromQuestionnaire(q: Questionnaire): Suggestion {
+  const k = kindOf(q.kind, q.details as QDetails);
+  const p = problemPercent(q);
+  const value = k.unit === "%" ? `${pct(p)} de problema` : `${scoreText(k, q.score)}, ${pct(p)} de problema`;
+  return { q: percentToQualifier(p), why: `${displayName(q.kind, q.details as QDetails)} del ${fmtDay(q.performedAt)}: ${value}` };
 }
 
 export function suggestQualifier(code: string, ev: Evidence): Suggestion | null {
@@ -61,19 +77,11 @@ export function suggestQualifier(code: string, ev: Evidence): Suggestion | null 
       return { q: percentToQualifier(p), why: `${worst.title}: ${worst.left.text} izquierda y ${worst.right.text} derecha, ${pct(p)} menos en el lado peor` };
     }
   }
-  if (code.startsWith("b152")) {
-    const q = ev.questionnaires.find((x) => x.kind === "phq9" || x.kind === "gad7");
-    if (q) {
-      const p = problemPercent(q);
-      return { q: percentToQualifier(p), why: `${kindOf(q.kind, q.details).name} del ${fmtDay(q.performedAt)}: ${q.score} = ${pct(p)} del máximo` };
-    }
-  }
+  const linked = linkedQuestionnaire(ev, code);
+  if (linked) return fromQuestionnaire(linked);
   if (code.startsWith("d")) {
     const q = regionQuestionnaire(ev);
-    if (q) {
-      const p = problemPercent(q);
-      return { q: percentToQualifier(p), why: `${kindOf(q.kind, q.details).name} del ${fmtDay(q.performedAt)}: ${pct(p)} de discapacidad` };
-    }
+    if (q) return fromQuestionnaire(q);
   }
   return null;
 }
@@ -109,7 +117,9 @@ export function autoProfile(ev: Evidence, titleOf: (code: string) => string | un
   }
   if (!ev.regions.length) add("b280");
   if (ev.symmetry.some((r) => /°/.test(r.left.text))) add("b710");
-  if (ev.questionnaires.some((q) => q.kind === "phq9" || q.kind === "gad7")) add("b152");
+  // Lo que informan los cuestionarios de los últimos 4 meses (el más reciente, el primero).
+  const newest = ev.questionnaires[0] ? Date.parse(ev.questionnaires[0].performedAt) : 0;
+  for (const q of ev.questionnaires.filter((x) => Date.parse(x.performedAt) >= newest - RECENT_DAYS * 86_400_000)) linksOf(q).forEach(add);
   return codes.map((code) => {
     const s = suggestQualifier(code, ev);
     const c: Coded = { code, q: s ? s.q : 8, capacity: null, facilitator: false };

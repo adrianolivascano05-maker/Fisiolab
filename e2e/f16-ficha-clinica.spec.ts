@@ -153,7 +153,7 @@ test.describe("F16 Ficha clínica", () => {
 
     // KOOS: solo la puntuación, con su subescala y su rango.
     await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
-    await page.getByRole("button", { name: /KOOS/ }).click();
+    await page.getByRole("button", { name: /^KOOS \(rodilla\)/ }).click();
     await page.getByText("Solo anotar la nota").click();
     await page.getByLabel("Puntuación", { exact: true }).fill("62");
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
@@ -200,7 +200,7 @@ test.describe("F16 Ficha clínica", () => {
 
     // KOOS: una nota por subescala; con solo el dolor contestado, solo se guarda el dolor.
     await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
-    await page.getByRole("button", { name: /KOOS/ }).click();
+    await page.getByRole("button", { name: /^KOOS \(rodilla\)/ }).click();
     const section = (name: string) => page.getByRole("region", { name }).getByRole("group");
     const firstOfEach = async (name: string) => {
       const qs = section(name);

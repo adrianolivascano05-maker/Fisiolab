@@ -1,8 +1,15 @@
 // Catálogo de cuestionarios. La PSFS, el cambio global percibido y el mapa del dolor se contestan en la app con su
 // propia pantalla. El resto se rellena entero en la app (src/clinical/forms, con la nota calculada) o, si se pasó
-// en papel, se anota solo la nota. Los que tienen derechos sobre su texto (NDI, Oswestry, QuickDASH, SPADI, TSK-11) van como hoja de
-// respuestas: sin el texto de las preguntas.
+// en papel, se anota solo la nota. Los de pago o con el texto sin comprobar (`scoreOnly`) solo se anotan; los que
+// están pendientes del permiso de su titular (`license: "comprobar"`) se rellenan en la app cuando la clínica marca
+// que lo tiene (Ajustes → Cuestionarios). Los nuevos de cada grupo están en src/clinical/catalog.
 import { regionsOf, type Mark } from "./bodyMap";
+import { KINDS as COLUMNA } from "./catalog/columna";
+import { KINDS as DOLOR } from "./catalog/dolor";
+import { KINDS as GENERAL } from "./catalog/general";
+import { KINDS as MIEMBRO_INFERIOR } from "./catalog/miembroInferior";
+import { KINDS as MIEMBRO_SUPERIOR } from "./catalog/miembroSuperior";
+import { KINDS as PIE_DEPORTE } from "./catalog/pieDeporte";
 
 export type Better = "higher" | "lower";
 export type QuestionnaireKind = {
@@ -24,6 +31,22 @@ export type QuestionnaireKind = {
   topic?: string;
   /** Subescalas con su propio rango (FABQ): por nombre. */
   subscaleRange?: Record<string, { min: number; max: number }>;
+  /**
+   * Condiciones de uso: «libre»; «permiso» (libre, pero la clínica tiene que pedirlo o registrarse); «comprobar»
+   * (pendiente de que el titular confirme el uso en una app: se rellena en la app solo cuando la clínica marca que lo
+   * tiene); «licencia» (de pago para uso comercial: sin preguntas, solo la nota). Sin el campo, como hasta ahora.
+   */
+  license?: "libre" | "permiso" | "comprobar" | "licencia";
+  /** A quién pedir el permiso o la licencia, y cómo. */
+  licenseNote?: string;
+  /** Sin preguntas en la app (de pago, o con el texto original sin comprobar): solo se anota la nota de la hoja oficial. */
+  scoreOnly?: boolean;
+  /** Cómo se lee la nota anotada: tramos de menor a mayor, cada uno hasta `upTo` incluido. Solo los verificados. */
+  bands?: { upTo: number; text: string }[];
+  /** Cambio mínimo importante o cómo interpretar la evolución, si está verificado. */
+  reading?: string;
+  /** Referencias: original y validación española (autores, año, DOI). */
+  refs?: string;
 };
 
 export const QUESTIONNAIRES: QuestionnaireKind[] = [
@@ -77,7 +100,21 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
   { id: "csi", name: "CSI (sensibilización central)", min: 0, max: 100, better: "lower", topic: "Dolor, miedo y creencias" },
   { id: "ompsq10", name: "Örebro corto (riesgo de que el dolor se cronifique)", min: 0, max: 100, better: "lower", topic: "Dolor, miedo y creencias" },
   { id: "ipaq", name: "IPAQ corto (actividad física)", min: 0, max: 20000, better: "higher", unit: "MET-min/sem", topic: "Actividad física" },
+  ...COLUMNA,
+  ...MIEMBRO_SUPERIOR,
+  ...MIEMBRO_INFERIOR,
+  ...PIE_DEPORTE,
+  ...DOLOR,
+  ...GENERAL,
 ];
+
+/** Cómo se lee una nota anotada, con los tramos del catálogo. */
+export function bandText(k: QuestionnaireKind, score: number): string | null {
+  return k.bands?.find((b) => score <= b.upTo)?.text ?? null;
+}
+
+/** Los temas de los generales, en el orden del catálogo. */
+export const TOPICS = [...new Set(QUESTIONNAIRES.map((k) => k.topic).filter((t): t is string => !!t))];
 
 export const OTHER = "otro";
 export const getKind = (id: string) => QUESTIONNAIRES.find((q) => q.id === id);
