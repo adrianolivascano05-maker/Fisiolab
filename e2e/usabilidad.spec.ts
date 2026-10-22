@@ -89,4 +89,40 @@ test.describe("Comodidad del día a día", () => {
     await page.getByRole("region", { name: /Banderas amarillas/ }).getByRole("link", { name: /TSK-11/ }).click();
     await expect(page).toHaveURL(/cuestionarios\/nuevo\?tipo=tsk11/);
   });
+
+  test("US5 CIF: buscar rápido, calificar y redactar el diagnóstico; sale en la carta de derivación", async ({ page }) => {
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Carlos CIF");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Carlos CIF" })).toBeVisible();
+    await page.goto(`${page.url()}/anamnesis`);
+    await page.getByRole("group", { name: "Zona", exact: true }).getByText("Lumbar", { exact: true }).click();
+    await page.getByText("8. Diagnóstico fisioterápico").click();
+    await page.getByRole("button", { name: "Añadir códigos de la CIF" }).click();
+    const sheet = page.getByRole("dialog", { name: "Buscar en la CIF" });
+    // Sin escribir: los de su zona.
+    await expect(sheet.getByRole("button", { name: /s76002 Columna vertebral lumbar/ })).toBeVisible();
+    // Por palabras, sin tildes.
+    await sheet.getByLabel("Código o palabras").fill("dolor espalda");
+    await sheet.getByRole("button", { name: /b28013 Dolor en la espalda/ }).click();
+    // Por código y filtrando el componente.
+    await sheet.getByRole("radio", { name: "Actividades (d)" }).click();
+    await sheet.getByLabel("Código o palabras").fill("d450");
+    await sheet.getByRole("button", { name: /^d450 Andar/ }).click();
+    await expectAccessible(page);
+    await sheet.getByRole("button", { name: "Listo" }).click();
+
+    await page.getByLabel("Calificador (b28013)").selectOption("2");
+    await page.getByLabel("Desempeño/realización (d450)").selectOption("2");
+    await page.getByLabel("Capacidad (d450)").selectOption("1");
+    await page.getByRole("button", { name: "Redactar el diagnóstico con la CIF" }).click();
+    await expect(page.getByLabel("Diagnóstico fisioterapéutico (criterio del profesional)")).toHaveValue(/Dolor en la espalda \(b28013\.2\): deficiencia moderada/);
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByText("Andar (d450.21): desempeño/realización: dificultad moderada; capacidad: dificultad ligera").first()).toBeVisible();
+
+    await page.goto(page.url().replace(/anamnesis$/, "derivacion"));
+    await expect(page.getByRole("article", { name: "Carta de derivación" })).toContainText("Perfil de funcionamiento (CIF)");
+    await expect(page.getByRole("article", { name: "Carta de derivación" })).toContainText("Dolor en la espalda (b28013.2)");
+  });
 });

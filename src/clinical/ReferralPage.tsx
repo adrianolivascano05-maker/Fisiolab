@@ -16,6 +16,7 @@ import { TopBar } from "../ui/AppBar";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { TextArea } from "./parts";
+import { entriesText } from "./cif/cif";
 import { redFlagReview, type FlagHit, type Urgency } from "./redFlags";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { SharePdf } from "./SharePdf";
@@ -84,6 +85,7 @@ export function ReferralPage() {
   const a = anamnesis?.answers ?? {};
   const { hits, patterns } = redFlagReview(a, patient.birthDate);
   const years = ageOn(patient.birthDate);
+  const cif = Array.isArray(a.cif) ? entriesText(a.cif as string[]).split("\n").filter(Boolean) : [];
   const today = new Date().toISOString();
   const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
   const facts: [string, string][] = [
@@ -163,6 +165,15 @@ export function ReferralPage() {
           {diagnosis.trim() && (
             <Block title="Diagnóstico fisioterapéutico">
               <p className="whitespace-pre-line">{diagnosis.trim()}</p>
+            </Block>
+          )}
+          {cif.length > 0 && (
+            <Block title="Perfil de funcionamiento (CIF)">
+              <ul className="flex list-disc flex-col gap-0.5 pl-5">
+                {cif.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
             </Block>
           )}
           {treatment.trim() && (

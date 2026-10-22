@@ -3,6 +3,7 @@
 import type { AnswerValue } from "../data/clinical";
 import { NumberField, TextField } from "../ui/Field";
 import { regionLabel, type Field } from "./anamnesis";
+import { CifPicker } from "./cif/CifPicker";
 import { Chips, PainScale, TextArea } from "./parts";
 
 export function FieldInput({ field, value, onChange }: { field: Field; value: AnswerValue | undefined; onChange: (v: AnswerValue) => void }) {
@@ -29,6 +30,8 @@ export function FieldInput({ field, value, onChange }: { field: Field; value: An
           render={field.id === "regiones" ? regionLabel : undefined}
         />
       );
+    case "cif":
+      return <CifPicker label={field.label} hint={field.hint} value={Array.isArray(value) ? value : []} onChange={onChange} />;
     case "number":
       return <NumberField label={field.label} unit={field.unit} hint={field.hint} value={typeof value === "number" ? String(value).replace(".", ",") : s} onChange={(e) => onChange(e.target.value)} />;
   }

@@ -9,6 +9,7 @@ import { PRECAUTIONS } from "../consent/precautions";
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { CustomField } from "../data/customFields";
 import { marksText } from "./bodyMap";
+import { entriesText } from "./cif/cif";
 import { PATIENT_FLAG_LABELS, RED_FLAG_LABELS } from "./redFlags";
 
 /** El mapa del dolor estuvo un tiempo en la anamnesis con este id: lo guardado se sigue leyendo. */
@@ -20,7 +21,9 @@ export type Field =
   | (Base & { type: "number"; unit: string; min: number; max: number })
   /** Escala 0-10 (EVA). */
   | (Base & { type: "scale" })
-  | (Base & { type: "choice" | "multi"; options: string[] });
+  | (Base & { type: "choice" | "multi"; options: string[] })
+  /** Códigos de la CIF con sus calificadores (src/clinical/cif). */
+  | (Base & { type: "cif" });
 export type Section = { id: string; title: string; fields: Field[] };
 
 /** Articulaciones (los mismos ids que la galería de tests, para proponer los tests de la zona). */
@@ -151,6 +154,12 @@ export const ANAMNESIS: Section[] = [
     id: "diagnostico",
     title: "8. Diagnóstico fisioterápico",
     fields: [
+      {
+        id: "cif",
+        label: "Perfil CIF",
+        type: "cif",
+        hint: "Busca por código o por palabras, ponle a cada uno su calificador y redacta con ellos el diagnóstico.",
+      },
       { id: "diagnostico_funcional", label: "Diagnóstico fisioterapéutico (criterio del profesional)", type: "textarea" },
       { id: "estructuras", label: "Estructuras implicadas", type: "text" },
     ],
@@ -199,6 +208,7 @@ export const fieldIn = (sections: Section[], id: string) => sections.flatMap((s)
 /** Texto de una respuesta para leerla (en la ficha, el resumen y el informe). */
 export function answerText(field: Field | undefined, v: AnswerValue): string {
   if (v === null || v === undefined || v === "") return "";
+  if (field?.type === "cif" && Array.isArray(v)) return entriesText(v as string[]);
   if (Array.isArray(v)) return v.map((x) => (field?.id === "regiones" ? regionLabel(x) : x)).join(", ");
   if (typeof v === "boolean") return v ? "Sí" : "No";
   if (field?.type === "number") return `${String(v).replace(".", ",")}${field.unit ? ` ${field.unit}` : ""}`;

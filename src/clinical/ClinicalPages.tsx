@@ -44,6 +44,8 @@ import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
 import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orphanText, type Section } from "./anamnesis";
 import { RedFlagPanel } from "./RedFlagPanel";
+import { CifPicker } from "./cif/CifPicker";
+import { draftDiagnosis } from "./cif/cif";
 import { YellowFlagPanel } from "./YellowFlagPanel";
 import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyMapInput } from "./BodyMap";
@@ -292,9 +294,27 @@ export function AnamnesisPage() {
                       </Link>
                     </div>
                   )}
-                  {section.fields.map((f) => (
-                    <FieldInput key={f.id} field={f} value={draft[f.id]} onChange={set(f.id)} />
-                  ))}
+                  {section.fields.map((f) =>
+                    f.type === "cif" ? (
+                      <CifPicker
+                        key={f.id}
+                        label={f.label}
+                        hint={f.hint}
+                        value={Array.isArray(draft[f.id]) ? (draft[f.id] as string[]) : []}
+                        onChange={set(f.id)}
+                        regions={Array.isArray(draft.regiones) ? (draft.regiones as string[]) : []}
+                        onDraft={() => {
+                          const text = draftDiagnosis(Array.isArray(draft.cif) ? (draft.cif as string[]) : []);
+                          const now = typeof draft.diagnostico_funcional === "string" ? draft.diagnostico_funcional.trim() : "";
+                          // Lo redactado se añade debajo de lo que ya hubiera escrito; nunca lo borra.
+                          set("diagnostico_funcional")(now ? `${now}\n\n${text}` : text);
+                          toast("Diagnóstico redactado con la CIF: revísalo debajo", "success");
+                        }}
+                      />
+                    ) : (
+                      <FieldInput key={f.id} field={f} value={draft[f.id]} onChange={set(f.id)} />
+                    ),
+                  )}
                   {section.id === "motivo" && (
                     <RedFlagPanel
                       answers={draft}
