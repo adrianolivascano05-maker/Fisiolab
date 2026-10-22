@@ -61,7 +61,32 @@ test.describe("Comodidad del día a día", () => {
     await alarms.getByRole("button", { name: /Confirmar.*Mareo/ }).click();
     await expect(page.getByRole("checkbox", { name: /^Mareo, visión doble/ })).toBeChecked();
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
-    await expect(page.getByRole("link", { name: "Hacer un informe para su médico" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Carta de derivación a su médico" })).toBeVisible();
     await expect(page.getByRole("region", { name: /Alarmas/ })).toContainText("Confirmadas: Mareo, visión doble");
+
+    // La carta de derivación sale redactada, urgente y con las alarmas.
+    await page.getByRole("link", { name: "Carta de derivación a su médico" }).click();
+    await expect(page.getByRole("radio", { name: /^Urgente/ })).toBeChecked();
+    const letter = page.getByRole("article", { name: "Carta de derivación" });
+    await expect(letter).toContainText("Signos y síntomas de alarma");
+    await expect(letter).toContainText("Solicito su valoración para descartar origen vascular cervical");
+    await page.getByLabel("Dirigida a").fill("Dra. Ruiz, Atención Primaria");
+    await expect(letter).toContainText("Dra. Ruiz, Atención Primaria");
+    await expectAccessible(page);
+  });
+
+  test("US4 banderas amarillas: lo que se escribe propone el cuestionario que lo mide", async ({ page }) => {
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Pilar Miedo");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Pilar Miedo" })).toBeVisible();
+    await page.goto(`${page.url()}/anamnesis`);
+    await page.getByLabel("Motivo principal").fill("Lumbalgia");
+    await page.getByText("5. Tratamientos previos y expectativas").click();
+    await page.getByLabel("Qué cree el paciente que le pasa").fill("Le da miedo agacharse: cree que se le va a romper la espalda");
+    await expect(page.getByRole("region", { name: /Banderas amarillas/ })).toContainText("Miedo al movimiento");
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await page.getByRole("region", { name: /Banderas amarillas/ }).getByRole("link", { name: /TSK-11/ }).click();
+    await expect(page).toHaveURL(/cuestionarios\/nuevo\?tipo=tsk11/);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ageOn, findFlags, FLAGS, redFlagReview } from "./redFlags";
+import { findFlags, FLAGS, redFlagReview } from "./redFlags";
 
 const ids = (a: Parameters<typeof findFlags>[0]) => findFlags(a).map((h) => `${h.flag.id}:${h.from}`);
 
@@ -50,9 +50,4 @@ describe("banderas rojas", () => {
     expect(redFlagReview({ regiones: ["lumbar"], enfermedades: "Osteoporosis", medicacion: "Prednisona desde hace 2 años" }, born).patterns.map((p) => p.pattern.id)).toEqual(["fractura"]);
   });
 
-  it("calcula la edad", () => {
-    expect(ageOn("1970-06-15", new Date(2026, 5, 14))).toBe(55);
-    expect(ageOn("1970-06-15", new Date(2026, 5, 15))).toBe(56);
-    expect(ageOn(null)).toBeNull();
-  });
 });

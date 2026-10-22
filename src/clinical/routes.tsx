@@ -13,6 +13,7 @@ const SessionFormPage = lazy(() => pages().then((m) => ({ default: m.SessionForm
 const QuestionnairesPage = lazy(() => pages().then((m) => ({ default: m.QuestionnairesPage })));
 const QuestionnaireFormPage = lazy(() => pages().then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
+const ReferralPage = lazy(() => import("./ReferralPage").then((m) => ({ default: m.ReferralPage })));
 const AttendancePage = lazy(() => import("./AttendancePage").then((m) => ({ default: m.AttendancePage })));
 const ExercisesPage = lazy(() => import("./ExercisesPage").then((m) => ({ default: m.ExercisesPage })));
 const ReceiptPage = lazy(() => import("./ReceiptPage").then((m) => ({ default: m.ReceiptPage })));
@@ -41,6 +42,7 @@ export const clinicalRoutes = [
   { path: "/pacientes/:id/cuestionarios/:qid", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/informe", element: l(<ReportPage />) },
   { path: "/pacientes/:id/justificante", element: l(<AttendancePage />) },
+  { path: "/pacientes/:id/derivacion", element: l(<ReferralPage />) },
   { path: "/pacientes/:id/alta", element: l(<DischargePage />) },
   { path: "/pacientes/:id/cobros", element: l(<BillingPage />) },
   { path: "/pacientes/:id/recibo/:pid", element: l(<ReceiptPage />) },

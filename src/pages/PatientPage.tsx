@@ -191,7 +191,7 @@ export function PatientPage() {
           >
             {alarms.hits.map((h) => h.flag.label).join(" · ")}.{" "}
             <Link to={`/pacientes/${id}/anamnesis`} className="font-semibold underline">
-              Qué preguntar y cuándo derivar
+              Qué preguntar y carta de derivación
             </Link>
           </Alert>
         )}
@@ -357,6 +357,7 @@ export function PatientPage() {
         />
         <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Completo o de alta; imprimir o guardar en PDF" />
         <RowLink to={`/pacientes/${id}/justificante`} icon={FileCheck} title="Justificante de asistencia" subtitle="Para su trabajo o su centro de estudios" />
+        <RowLink to={`/pacientes/${id}/derivacion`} icon={Send} title="Carta de derivación" subtitle="Para su médico: motivo, alarmas, diagnóstico y tratamiento" />
         {SHOW_EXERCISES && (
           <RowLink
             to={`/pacientes/${id}/ejercicios`}

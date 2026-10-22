@@ -44,6 +44,7 @@ import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./CalendarButton";
 import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orphanText, type Section } from "./anamnesis";
 import { RedFlagPanel } from "./RedFlagPanel";
+import { YellowFlagPanel } from "./YellowFlagPanel";
 import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyMapInput } from "./BodyMap";
 import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
@@ -306,6 +307,7 @@ export function AnamnesisPage() {
                       }}
                     />
                   )}
+                  {section.id === "tratamientos" && <YellowFlagPanel answers={draft} labelOf={labelOf} patientId={id} links={false} />}
                   {section.id === "exploracion" && <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />}
                 </div>
               </Fold>
@@ -351,6 +353,7 @@ export function AnamnesisPage() {
         <Send aria-hidden="true" className="size-4" /> Mandar al paciente su parte para que la rellene
       </Link>
       <RedFlagPanel answers={a} birthDate={patient.birthDate} labelOf={labelOf} patientId={id} />
+      <YellowFlagPanel answers={a} labelOf={labelOf} patientId={id} />
       {sections.map((section) => {
         const rows = section.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");
         const n = filled(section, a);

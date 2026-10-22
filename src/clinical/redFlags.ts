@@ -12,6 +12,7 @@
 // - Wells PS et al. Pretest probability of deep-vein thrombosis. Lancet 1997. https://doi.org/10.1016/S0140-6736(97)08140-3
 // Los cuadros cardíaco, visceral y neurológico progresivo son orientativos: sin una regla validada detrás.
 import type { Answers } from "../data/clinical";
+import { ageOn } from "../data/privacy";
 
 export type FlagId =
   | "peso"
@@ -251,7 +252,8 @@ export function findFlags(a: Answers, labelOf: (fieldId: string) => string = (id
       if (hits.has(f.id)) continue;
       for (const w of f.words) {
         let at = text.indexOf(w);
-        while (at !== -1 && negated(text, at)) at = text.indexOf(w, at + w.length);
+        // Palabra entera por delante («vih», no «uvih…») y no dicha en negativo.
+        while (at !== -1 && ((at > 0 && /[a-zñ]/.test(text[at - 1]!)) || negated(text, at))) at = text.indexOf(w, at + w.length);
         if (at !== -1) {
           hits.set(f.id, { flag: f, from: "texto", field: labelOf(field), quote: snippet(v, at, w.length) });
           break;
@@ -289,19 +291,10 @@ export function findPatterns(hits: FlagHit[], ctx: Context): PatternHit[] {
   return out.sort((x, y) => (x.pattern.urgency === y.pattern.urgency ? 0 : x.pattern.urgency === "urgente" ? -1 : 1));
 }
 
-/** Años cumplidos a partir de la fecha de nacimiento (aaaa-mm-dd), o null. */
-export function ageOn(birthDate: string | null | undefined, today = new Date()): number | null {
-  if (!birthDate || !/^\d{4}-\d{2}-\d{2}/.test(birthDate)) return null;
-  const [y, m, d] = birthDate.slice(0, 10).split("-").map(Number) as [number, number, number];
-  let age = today.getFullYear() - y;
-  if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
-  return age;
-}
-
 /** Todo junto, para la anamnesis de un paciente. */
 export function redFlagReview(a: Answers, birthDate: string | null | undefined, labelOf?: (fieldId: string) => string) {
   const hits = findFlags(a, labelOf);
   const regions = Array.isArray(a.regiones) ? (a.regiones as string[]) : [];
   const osteoporosis = Object.values(a).some((v) => (typeof v === "string" || Array.isArray(v)) && fold(String(v)).includes("osteopor"));
-  return { hits, patterns: findPatterns(hits, { regions, age: ageOn(birthDate), osteoporosis }) };
+  return { hits, patterns: findPatterns(hits, { regions, age: ageOn(birthDate ?? null), osteoporosis }) };
 }

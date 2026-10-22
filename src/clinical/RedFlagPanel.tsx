@@ -90,8 +90,8 @@ export function RedFlagPanel({
       {marked.length > 0 && <p className="text-sm">Confirmadas: {marked.map((h) => h.flag.label).join(" · ")}.</p>}
       <p className="text-xs text-text-muted">Ayuda a no pasar nada por alto; no es un diagnóstico. Decidir si derivar es tuyo.</p>
       {!onMark && (
-        <Link to={`/pacientes/${patientId}/informe`} className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-accent">
-          <FileText aria-hidden="true" className="size-4" /> Hacer un informe para su médico
+        <Link to={`/pacientes/${patientId}/derivacion`} className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-accent">
+          <FileText aria-hidden="true" className="size-4" /> Carta de derivación a su médico
         </Link>
       )}
     </section>
