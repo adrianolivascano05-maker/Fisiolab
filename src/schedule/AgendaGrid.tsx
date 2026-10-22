@@ -423,7 +423,7 @@ function EventBlock({
     >
       {/* En columnas estrechas (la semana en el móvil), el nombre corto: «Ana R.» en vez de «An…». */}
       <span className={cx("truncate font-semibold", off && "line-through")}>
-        <span className="@min-[6.5rem]:hidden">{shortName(item.name)} </span>
+        <span aria-hidden="true" className="@min-[6.5rem]:hidden">{shortName(item.name)} </span>
         <span className="sr-only @min-[6.5rem]:not-sr-only">{item.name}</span>
       </span>
       <span className="truncate text-text-muted">

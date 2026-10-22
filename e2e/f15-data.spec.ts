@@ -68,7 +68,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await page.getByLabel("Elegir el archivo de pacientes").setInputFiles({ name: "pacientes.csv", mimeType: "text/csv", buffer: Buffer.from(csv, "latin1") });
     await expect(page.getByRole("heading", { name: "Qué es cada columna" })).toBeVisible();
     await expect(page.getByLabel("Población")).toHaveValue("address");
-    await expect(page.getByLabel("DNI")).toHaveValue("notes");
+    await expect(page.getByLabel("DNI")).toHaveValue("dni");
     const summary = page.getByRole("region", { name: "Qué va a pasar" });
     await expect(summary.getByText("Se importan 2 pacientes")).toBeVisible();
     await expect(summary.getByText(/1 ya existe con el mismo nombre/)).toBeVisible();

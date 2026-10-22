@@ -15,6 +15,7 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("heading", { name: "Diana Documento" })).toBeVisible();
     await page.goto(`${page.url()}/justificante`);
     await expect(page.getByLabel("DNI o NIE del paciente (opcional)")).toHaveValue("12345678Z");
+    await page.getByLabel("Día y hora de la consulta").fill("2026-10-20T10:00");
     await expect(page.getByRole("article", { name: "Justificante de asistencia" })).toContainText("con DNI/NIE 12345678Z");
     await expectAccessible(page);
   });
@@ -24,14 +25,14 @@ test.describe("Comodidad del día a día", () => {
     await page.getByLabel("Nombre").fill("Rita Reevalúa");
     await page.getByRole("button", { name: "Crear paciente" }).click();
     await expect(page.getByRole("heading", { name: "Rita Reevalúa" })).toBeVisible();
+    const record = page.url();
     await add(page, "Sesión").click();
     await page.getByRole("button", { name: "En 1 semana" }).click();
     await expect(page.getByLabel("Fecha de reevaluación")).toHaveValue("2026-10-27");
     await page.getByRole("button", { name: "Guardar sesión" }).click();
     await expect(page.getByText(/Reevaluar el/).first()).toBeVisible();
 
-    await page.goto("./");
-    await page.getByRole("link", { name: /Rita Reevalúa/ }).first().click();
+    await page.goto(record);
     await add(page, "Sesión").click();
     await expect(page.getByLabel("Fecha de reevaluación")).toHaveValue("2026-10-27");
     await expect(page.getByText(/Sigue la reevaluación pendiente del/)).toBeVisible();

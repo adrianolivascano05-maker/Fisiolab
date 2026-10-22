@@ -40,11 +40,11 @@ test.describe("Agenda y seguimiento", () => {
     // Se ofrece darle otra cita o deshacerlo.
     const missed = page.getByRole("dialog", { name: "No vino: Bruno Falta" });
     // Por defecto, la semana siguiente a la misma hora del reloj (aunque el domingo cambie la hora); se puede poner otra.
-    await expect(missed.getByLabel("Nueva cita")).toHaveValue("2026-10-27T11:00");
+    await expect(missed.getByLabel("Nueva cita", { exact: true })).toHaveValue("2026-10-27T11:00");
     await expectAccessible(page);
     await missed.getByRole("button", { name: "Al día siguiente" }).click();
-    await expect(missed.getByLabel("Nueva cita")).toHaveValue("2026-10-21T11:00");
-    await missed.getByLabel("Nueva cita").fill("2026-10-22T17:15");
+    await expect(missed.getByLabel("Nueva cita", { exact: true })).toHaveValue("2026-10-21T11:00");
+    await missed.getByLabel("Nueva cita", { exact: true }).fill("2026-10-22T17:15");
     await missed.getByRole("button", { name: "Darle esta cita" }).click();
     await expect(page.getByText(/Nueva cita: .*22 oct.*17:15/)).toBeVisible();
     await expect(today.getByRole("button", { name: /Bruno Falta/ })).toContainText("No vino");
