@@ -10,6 +10,7 @@ import { galleryRoutes } from "./gallery/routes"; // Galería de tests (src/gall
 import { clinicalRoutes } from "./clinical/routes"; // Ficha clínica: anamnesis, exploración, mediciones y sesiones
 import { PatientsPage } from "./pages/PatientsPage";
 import { PatientsLayout } from "./app/PatientsLayout";
+import { RouteError } from "./app/RouteError";
 import { useDesktop } from "./app/useMediaQuery";
 import { FormInbox } from "./patientForm/FormInbox"; // Respuestas de los pacientes a sus formularios (src/clinical/patientForms.ts)
 
@@ -33,6 +34,7 @@ const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m
 const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })));
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const HelpPage = lazy(() => import("./pages/HelpPage").then((m) => ({ default: m.HelpPage })));
+const ReportProblemPage = lazy(() => import("./pages/ReportProblemPage").then((m) => ({ default: m.ReportProblemPage })));
 const InstallPage = lazy(() => import("./pages/InstallPage").then((m) => ({ default: m.InstallPage })));
 const JumpSetupPage = lazy(() => import("./pages/JumpSetupPage").then((m) => ({ default: m.JumpSetupPage })));
 const LoadVelocityPage = lazy(() => import("./pages/LoadVelocityPage").then((m) => ({ default: m.LoadVelocityPage })));
@@ -120,6 +122,7 @@ const routes = [
   { path: "/ajustes/ejercicios", element: l(<ExerciseLibraryPage />) },
   { path: "/ajustes/anamnesis", element: l(<CustomFieldsPage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa
+  { path: "/ayuda/fallos", element: l(<ReportProblemPage />) }, // Algo no funciona: problemas frecuentes e informe de fallo
   { path: "/privacidad", element: l(<PrivacyPage />) },
   { path: "/cuenta", element: l(<SignInSetupPage />) }, // Iniciar sesión con Google (sin el ID de cliente publicado)
   { path: "/instalar", element: l(<InstallPage />) }, // Usar la app en otros dispositivos
@@ -135,7 +138,8 @@ function HomeRoute() {
 
 /** Las pantallas de la sección Pacientes (el inicio, las fichas y las mediciones) van dentro del panel del ordenador. */
 const inPatients = (r: { path?: string }) => r.path === "/" || /^\/(pacientes|tests)(\/|$)/.test(r.path ?? "");
-const tree = [{ element: <PatientsLayout />, children: routes.filter(inPatients) }, ...routes.filter((r) => !inPatients(r))];
+// Si una pantalla falla, sale RouteError (con el informe de fallo) en vez de quedarse en blanco.
+const tree = [{ errorElement: <RouteError />, children: [{ element: <PatientsLayout />, children: routes.filter(inPatients) }, ...routes.filter((r) => !inPatients(r))] }];
 
 /** El router se crea al entrar (después de volver de Google, con la dirección ya en su sitio). */
 function Router() {

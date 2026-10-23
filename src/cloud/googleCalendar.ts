@@ -3,6 +3,7 @@
 // Cada siguiente cita (la de la última sesión de cada paciente) es un evento con un id fijo sacado de la sesión:
 // apuntarla dos veces, o desde dos dispositivos, deja un solo evento. Las citas que ya han pasado o empezado no
 // se tocan nunca.
+import { logError } from "../app/errorLog";
 import { visitEvent, end, type CalendarEvent, type EventNames } from "../clinical/calendar";
 import { upcomingVisits } from "../data/clinical";
 import type { Db } from "../data/db";
@@ -263,6 +264,7 @@ export class CalendarSync {
       else if (e instanceof AuthError) this.set({ status: "idle" }); // token caducado: lo resuelve la sincronización
       else {
         this.failedAt = Date.now();
+        logError("Google Calendar", e);
         this.set({ status: "error", ...calendarError(e) });
       }
     }

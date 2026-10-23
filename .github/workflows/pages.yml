@@ -29,6 +29,9 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Corrector de código (oxlint, .oxlintrc.json): los errores paran la publicación; los avisos solo se enseñan.
+      - name: Corrector de código
+        run: npm run lint
       - name: Pruebas de fórmulas, base de datos y vídeo
         run: npm test
       - name: Build bajo /<repositorio>/
@@ -66,6 +69,30 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: e2e-fallos-${{ strategy.job-index }}
+          path: test-results
+          retention-days: 7
+
+  # Las pantallas principales en WebKit, el motor de Safari (iPhone y iPad). De momento solo informa: no para la
+  # publicación, porque no se puede probar antes en el entorno de desarrollo. Si sale en rojo, mira el detalle del
+  # paso; el trabajo sale en verde igualmente.
+  webkit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps webkit
+      - name: Pantallas principales en WebKit (Safari)
+        run: npx playwright test --browser=webkit e2e/f01-patients.spec.ts e2e/f16-ficha-clinica.spec.ts e2e/agenda.spec.ts e2e/pwa.spec.ts e2e/mobile-layout.spec.ts
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-webkit-fallos
           path: test-results
           retention-days: 7
 

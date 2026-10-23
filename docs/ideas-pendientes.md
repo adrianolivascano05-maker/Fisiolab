@@ -60,7 +60,10 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
    - Simulacro de desastre: perder el móvil, restaurar desde la copia cifrada y comprobar que no falta nada.
    - Piloto con una o dos clínicas conocidas durante un mes, con una versión «de prueba» separada de la estable.
    - Soporte: página de problemas frecuentes y un canal claro; decidir quién atiende y en qué plazo.
-   - Estado: pendiente; recomendado antes de cualquier clínica externa.
+   - **Hecho el 24-10-2026** (ver `docs/soporte.md`): registro de fallos e informe, pantalla de error, corrector
+     de código en la publicación, pruebas en Safari (solo informan), simulacro de pérdida del móvil, presupuesto
+     de peticiones (1,9 por minuto por dispositivo: unos 75 dispositivos todo el día en el plan gratuito) y
+     problemas frecuentes. Falta: el piloto con clínicas reales (lo hace una persona) y formatear el código.
 
 ## Del análisis de la competencia (plan de acción)
 

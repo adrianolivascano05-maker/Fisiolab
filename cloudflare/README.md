@@ -180,6 +180,22 @@ En peticiones y espacio, para una clínica sobra:
 Si un día se pasa de algún límite, el servidor da error hasta el día siguiente. No se pierde nada: la app sigue
 funcionando en el dispositivo y sube la copia cuando puede.
 
+### Cuántas clínicas caben
+
+Medido con la app de verdad (prueba `e2e/capacidad.spec.ts`, 24-10-2026): con la pantalla abierta y sin tocar
+nada, cada dispositivo hace **1,9 peticiones por minuto** (mirar si hay cambios y mirar si hay formularios
+respondidos). Cada cosa que se guarda añade una más. Con la pantalla apagada o la app cerrada, ninguna.
+
+| Uso | Peticiones al día por dispositivo | Dispositivos con el plan gratuito |
+| --- | --- | --- |
+| Abierta 10 horas seguidas, uso normal | unas 1.300 | unos 75 |
+| Abierta 5 horas en total (lo habitual en una clínica) | unas 650 | unos 150 |
+
+Es decir, con el plan gratuito caben unas **25 clínicas pequeñas de 3 dispositivos** en un mismo servidor, o cada
+clínica monta el suyo (es gratis y no comparte nada con las demás). Si se pasa de ahí, el plan de pago de Workers
+(unos 5 $ al mes) da 10 millones de peticiones al mes. La prueba avisa si algún cambio de la app sube de 3 por
+minuto.
+
 **Tiempo de proceso.** El plan gratuito da a cada petición 10 ms de CPU. Cuando ya se guarde una copia de
 verdad, mira en la página del Worker **Metrics** → **CPU time**. Si alguna vez salen errores 1102 (límite
 superado), el plan de pago de Workers (Workers Paid, unos 5 $ al mes, con tarjeta) quita ese límite sin cambiar

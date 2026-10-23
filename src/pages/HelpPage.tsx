@@ -192,6 +192,13 @@ export function HelpPage() {
           Contacto
         </h2>
         <p className="text-sm">
+          ¿Algo no funciona? Mira los{" "}
+          <Link to="/ayuda/fallos" className={link}>
+            problemas frecuentes y el informe de fallo
+          </Link>
+          : manda en un toque lo que ha fallado en este dispositivo.
+        </p>
+        <p className="text-sm">
           ¿Dudas, un problema o quieres dar de alta tu clínica? Escribe a{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`} className={link}>
             {SUPPORT_EMAIL}

@@ -14,6 +14,7 @@ import {
   Dumbbell,
   FileSpreadsheet,
   FileUp,
+  LifeBuoy,
   Lock,
   MonitorSmartphone,
   Palette,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
+import { readErrors } from "../app/errorLog";
 import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
 import { useInstall } from "../app/pwa";
@@ -153,6 +155,7 @@ export function SettingsPage() {
         />
         <RowLink to="/ajustes/aspecto" icon={Palette} title="Aspecto" subtitle={theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} />
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
+        <RowLink to="/ayuda/fallos" icon={LifeBuoy} title="Algo no funciona" subtitle={errorCount(readErrors().length)} />
         <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
       </Group>
       </div>
@@ -166,6 +169,8 @@ export function SettingsPage() {
     </Page>
   );
 }
+
+const errorCount = (n: number) => (n === 0 ? "Problemas frecuentes e informe de fallo" : n === 1 ? "1 error anotado en este dispositivo" : `${n} errores anotados en este dispositivo`);
 
 /** Ajustes → Cuenta de Google: la sesión y la sincronización, Google Calendar y el cifrado de la copia. */
 export function AccountSettingsPage() {

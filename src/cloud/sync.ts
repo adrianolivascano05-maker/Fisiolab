@@ -14,6 +14,7 @@
 // La copia va siempre cifrada (crypt.ts): se cifra antes de subir y se descifra al bajar. Sin contraseña de
 // cifrado en la cuenta no se sube nada («needs-password»); con ella pero sin la clave en este dispositivo, no se baja
 // ni se sube nada hasta escribirla («needs-key»). Una copia antigua sin cifrar se sigue pudiendo bajar y juntar.
+import { logError } from "../app/errorLog";
 import { onDbChange, type Db } from "../data/db";
 import { describeOverwritten } from "../data/editors";
 import { getSetting } from "../data/repo";
@@ -260,6 +261,7 @@ export class SyncController {
       } else if (!navigator.onLine || (e instanceof TypeError && /fetch|network|load failed/i.test(e.message))) {
         this.set({ status: "offline" }); // fetch sin red
       } else {
+        logError("sincronización", e);
         this.set({ status: "error", error: e instanceof Error ? e.message : String(e) });
       }
     }

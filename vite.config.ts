@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from "vite";
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
@@ -33,8 +34,18 @@ function cspMeta(): Plugin {
   };
 }
 
+/** La versión que sale en el informe de fallos: el commit del build (o «desarrollo» si no hay git). */
+function appVersion() {
+  try {
+    return `${execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim()} · ${new Date().toISOString().slice(0, 10)}`;
+  } catch {
+    return "desarrollo";
+  }
+}
+
 export default defineConfig({
   base,
+  define: { __APP_VERSION__: JSON.stringify(appVersion()) },
   // Las fuentes nunca se incrustan como data: (la CSP solo admite fuentes servidas por la propia app).
   // El motor 3D de la galería (three.js, ~600 kB) va en su propio trozo y solo se descarga al abrir un test.
   build: { assetsInlineLimit: (file) => (file.endsWith(".woff2") ? false : undefined), chunkSizeWarningLimit: 700 },
