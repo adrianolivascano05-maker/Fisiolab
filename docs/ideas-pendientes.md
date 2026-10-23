@@ -40,6 +40,18 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
    - Requiere modo clínica con nube (el modo solo en el dispositivo no puede publicar huecos).
    - Estado: pendiente; empezaría después de la bandeja de envíos, porque la usa.
 
+6. **Preparar la app para otras clínicas (soporte y fiabilidad).** Antes de abrirla fuera de Fisiolab:
+   - Registro de errores dentro de la app (sin servicios externos) y botón «Enviar informe de fallo» que copia
+     versión, dispositivo y últimos errores para mandarlo por correo o WhatsApp.
+   - Linter y formateador en la integración continua; pruebas de navegador también en WebKit (iPhone).
+   - Servidor: el plan gratuito de Cloudflare da unos 80 dispositivos a la vez en total (100 000 peticiones al
+     día, `cloudflare/README.md`). Con varias clínicas en un mismo servidor, o cada clínica monta el suyo, o
+     pasar a Workers Paid (unos 5 $ al mes). Medir la carga real antes.
+   - Simulacro de desastre: perder el móvil, restaurar desde la copia cifrada y comprobar que no falta nada.
+   - Piloto con una o dos clínicas conocidas durante un mes, con una versión «de prueba» separada de la estable.
+   - Soporte: página de problemas frecuentes y un canal claro; decidir quién atiende y en qué plazo.
+   - Estado: pendiente; recomendado antes de cualquier clínica externa.
+
 ## Del análisis de la competencia (plan de acción)
 
 - Corto plazo: captura de errores en producción guardada en el dispositivo; linter y formateador; prueba
