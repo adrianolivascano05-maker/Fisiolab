@@ -131,7 +131,7 @@ export function AttendancePage() {
               }
             }}
           >
-            Descargar en PDF
+            Guardar en PDF
           </Button>
           <DriveSaveButton label="Guardar en mi Drive (PDF)" make={async () => ({ name: fileName, mimeType: "application/pdf", bytes: await pdf() })} />
         </form>

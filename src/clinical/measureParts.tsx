@@ -1,10 +1,9 @@
 // Mediciones en la ficha: accesos a los análisis, tarjetas visuales por medición (último valor, cambio y
 // tendencia) y la lista completa de tests.
-import { ArrowDownRight, ArrowRight, ArrowUpRight, ChartLine, Dumbbell, Gauge, HeartPulse, Rotate3d, Scale } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, ChartLine, Dumbbell, Gauge, Rotate3d, Scale } from "lucide-react";
 import { Link } from "react-router";
 import { fmt, fmtDate, fmtDateTime, isJumpType, testTitle } from "../app/format";
-import { wellnessTotal } from "../calc/wellness";
-import type { TestSummary, WellnessEntry } from "../data/repo";
+import type { TestSummary } from "../data/repo";
 import { Card } from "../ui/Card";
 import { mainValue, trends } from "./measures";
 import { Sparkline } from "./parts";
@@ -12,16 +11,16 @@ import { Sparkline } from "./parts";
 const tile = "flex min-h-14 items-center gap-2 rounded-lg border border-border bg-bg p-3 font-semibold shadow-card hover:border-accent";
 
 /** Accesos a los análisis que ya tienen datos. */
-export function AnalysisNav({ id, tests, wellness }: { id: string; tests: TestSummary[]; wellness: WellnessEntry | null }) {
+export function AnalysisNav({ id, tests }: { id: string; tests: TestSummary[] }) {
   const typesDone = new Set(tests.map((t) => t.type));
   const lastJump = tests.find((t) => isJumpType(t.type));
   const hasRom = tests.some((t) => t.movement !== null);
-  if (!lastJump && !wellness && !hasRom && !typesDone.has("vbt")) return null;
+  if (!lastJump && !hasRom && !typesDone.has("vbt")) return null;
   return (
     <nav aria-label="Análisis" className="grid grid-cols-2 gap-2">
       {lastJump && (
         <Link to={`/pacientes/${id}/evolucion/${lastJump.type}`} className={tile}>
-          <ChartLine aria-hidden="true" className="size-5 shrink-0 text-accent" /> Evolución
+          <ChartLine aria-hidden="true" className="size-5 shrink-0 text-accent" /> Evolución de mediciones
         </Link>
       )}
       {(typesDone.has("sj") || typesDone.has("cmj")) && (
@@ -37,14 +36,6 @@ export function AnalysisNav({ id, tests, wellness }: { id: string; tests: TestSu
       {typesDone.has("vbt") && (
         <Link to={`/pacientes/${id}/perfil/carga-velocidad`} className={tile}>
           <Dumbbell aria-hidden="true" className="size-5 shrink-0 text-accent" /> Carga-velocidad y 1RM
-        </Link>
-      )}
-      {wellness && (
-        <Link to={`/pacientes/${id}/bienestar`} className={tile}>
-          <HeartPulse aria-hidden="true" className="size-5 shrink-0 text-accent" />
-          <span>
-            Bienestar <span className="nums font-normal text-text-muted">· {wellnessTotal(wellness)}/25</span>
-          </span>
         </Link>
       )}
       {hasRom && (

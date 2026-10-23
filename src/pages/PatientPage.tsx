@@ -1,380 +1,228 @@
-import { Activity, CalendarClock, ClipboardList, FileCheck, FilePen, FileText, ListChecks, NotebookPen, Dumbbell, Hourglass, Send, ShieldAlert, ShieldCheck, Stethoscope, Wallet, type LucideIcon } from "lucide-react";
-import { SHOW_EXERCISES } from "../app/features";
+import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Hourglass, ListChecks, NotebookPen, Scale, Send, ShieldAlert, ShieldCheck, Stethoscope, TriangleAlert, Wallet } from "lucide-react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
-import { fmtDate } from "../app/format";
+import { SHOW_EXERCISES } from "../app/features";
+import { fmtDate, testTitle } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { clinicalSummary, regionLabel } from "../clinical/anamnesis";
-import { redFlagReview } from "../clinical/redFlags";
-import { AnalysisNav, TrendTiles } from "../clinical/measureParts";
-import { QuestionnaireTiles, SymmetryPanel } from "../clinical/outcomeParts";
-import { PainChart, ResultBadge, sideShort } from "../clinical/parts";
+import { mainValue } from "../clinical/measures";
+import { questionnaireGroups } from "../clinical/outcomeParts";
 import { PatientShell } from "../clinical/PatientShell";
+import { kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
+import { redFlagReview } from "../clinical/redFlags";
 import { LSI_REFERENCE, symmetryRows } from "../clinical/symmetry";
-import { buildTimeline, painSeries, type EventKind } from "../clinical/timeline";
-import { accountLine, patientAccount } from "../data/billing";
-import { listPlans } from "../data/exercises";
-import { listWaitlist, preferText } from "../data/waitlist";
-import { formStatus, listSentForms } from "../data/patientForms";
-import { formTitle } from "../clinical/patientForms";
-import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
+import { accountLine, patientAccount } from "../data/billing";
+import { getAnamnesis, listQuestionnaires, listSessions } from "../data/clinical";
 import { listConsents } from "../data/consents";
 import { getDb } from "../data/db";
-import { fmtVisit } from "../clinical/calendar";
+import { listPlans } from "../data/exercises";
 import { CONSENTS } from "../data/privacy";
-import { getPatient, listTests, listWellness } from "../data/repo";
-import { Alert } from "../ui/Alert";
+import { getPatient, listTests } from "../data/repo";
+import { listWaitlist, preferText } from "../data/waitlist";
 import { Card } from "../ui/Card";
-import { cx } from "../ui/cx";
 import { Group, RowLink } from "../ui/Grouped";
+import { Sheet } from "../ui/Sheet";
 
-/** Saltos: los que usan el peso y la distancia de empuje para la fuerza y la potencia. */
-const JUMPS = new Set<string>(["cmj", "sj", "cmj_arms", "dj", "single_leg", "rj_10_5"]);
+const dayText = (d: string) => fmtDate(`${d}T12:00:00`);
 
-/** Un botón de «Añadir»: icono y nombre, como los de la ficha de un contacto en el móvil. */
-function Add({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label: string }) {
-  return (
-    <Link to={to} className="flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-lg border border-border bg-bg px-1 text-xs font-semibold shadow-card hover:border-accent">
-      <Icon aria-hidden="true" className="size-6 text-accent" />
-      {label}
-    </Link>
-  );
-}
-
-const kindStyle: Record<EventKind, { dot: string; label: string }> = {
-  session: { dot: "bg-brand", label: "Sesión" },
-  finding: { dot: "bg-danger", label: "Exploración" },
-  test: { dot: "bg-accent", label: "Medición" },
-  questionnaire: { dot: "bg-chart-right", label: "Cuestionario" },
-  wellness: { dot: "bg-highlight", label: "Bienestar" },
-  anamnesis: { dot: "bg-text-muted", label: "Anamnesis" },
-};
-
-/** En qué están los formularios que se le han mandado. */
-function formsLine(forms: Awaited<ReturnType<typeof listSentForms>>): string {
-  const pending = forms.filter((f) => formStatus(f) === "pending").length;
-  if (pending) return pending === 1 ? "1 esperando respuesta" : `${pending} esperando respuesta`;
-  const done = forms.find((f) => formStatus(f) === "done");
-  if (done) return `Rellenó «${formTitle(done.kind)}» el ${fmtDate(done.answeredAt ?? done.importedAt!)}`;
-  return "Que rellene su anamnesis o un cuestionario desde el móvil";
-}
-
-/** S02 Ficha del paciente: resumen clínico y de mediciones de un vistazo. */
+/** S02 Ficha del paciente › Resumen: las dos acciones de cada día (sesión y valorar), cómo está (una tarjeta que informa,
+ * no un menú), lo que falta y, en tres grupos, sus documentos, lo legal y su cuenta. Cada cosa sale una sola vez: la
+ * anamnesis, la valoración y las sesiones tienen su pestaña. */
 export function PatientPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-    const [patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waitlist, sentForms] = await Promise.all([
+    const [patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, waitlist] = await Promise.all([
       getPatient(db, id),
-      listTests(db, id),
-      listWellness(db, id),
       getAnamnesis(db, id),
       listSessions(db, id),
-      listFindings(db, id),
       listQuestionnaires(db, id),
+      listTests(db, id),
       listConsents(db, id),
       patientAccount(db, id, today),
       listPlans(db, id),
       listWaitlist(db),
-      listSentForms(db, id),
     ]);
-    return { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waiting: waitlist.find((w) => w.patientId === id) ?? null, sentForms };
+    return { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, waiting: waitlist.find((w) => w.patientId === id) ?? null };
   }, [id]);
+  const [assessing, setAssessing] = useState(false);
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Paciente" backTo="/"><Loading /></Page>;
-  const { patient, tests, wellness, anamnesis, sessions, findings, questionnaires, signed, account, plans, waiting, sentForms } = data.data;
+  const { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, waiting } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
+
   // Consentimientos: los firmados vigentes y los que su anamnesis pide por escrito y faltan.
   const consentCtx = consentContext(patient, anamnesis?.answers ?? {});
   const inForce = signed.filter((c) => !c.revokedAt);
   const missing = TEMPLATES.filter((t) => t.written === "required" && t.suggest(consentCtx) && !inForce.some((c) => c.template === t.id));
+  const privacy = patient.privacy;
+  const optional = CONSENTS.filter((c) => privacy.consents?.[c.id] !== undefined).map((c) => `${c.label}: ${privacy.consents![c.id] ? "sí" : "no"}`);
 
   const summary = anamnesis ? clinicalSummary(anamnesis.answers) : null;
   const alarms = anamnesis ? redFlagReview(anamnesis.answers, patient.birthDate) : null;
-  const pain = painSeries({ sessions, wellness, anamnesis });
-  const lastSession = sessions[0] ?? null;
-  const review = lastSession?.reviewOn ?? null;
-  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-  const current = latestFindings(findings);
-  const positives = current.filter((f) => f.result === "positive");
-  const others = current.filter((f) => f.result !== "positive");
-  const timeline = buildTimeline(id, { sessions, findings, tests, questionnaires, wellness, anamnesis }).slice(0, 8);
-  const symmetry = symmetryRows(tests);
-  const lowSymmetry = symmetry.filter((r) => r.lsi < LSI_REFERENCE);
-  const privacy = patient.privacy;
-  const consents = CONSENTS.filter((c) => privacy.consents?.[c.id] !== undefined).map((c) => `${c.label}: ${privacy.consents![c.id] ? "sí" : "no"}`);
+  const last = sessions[0] ?? null;
+  const review = last?.reviewOn ?? null;
+  const lastGroup = questionnaireGroups(questionnaires)[0];
+  const lastQ = lastGroup?.items[0];
+  const lastTest = tests[0];
+  const lastValue = lastTest ? mainValue(lastTest) : null;
+  const lowSymmetry = symmetryRows(tests).filter((r) => r.lsi < LSI_REFERENCE);
+  const headline = summary?.diagnosis || summary?.reason || "";
+  const where = [...(summary?.regions ?? []).map(regionLabel), summary?.side && summary.side !== "No aplica" ? summary.side.toLowerCase() : ""].filter(Boolean).join(" · ");
+  const hasSituation = !!(headline || where || alarms?.hits.length || last || lastQ || lastTest);
+  const pending = missing.length > 0 || !privacy.informedAt || (review !== null && review < today);
 
   return (
     <PatientShell patient={patient} id={id}>
-      <section aria-labelledby="h-anadir" className="flex flex-col gap-1.5">
-        <h2 id="h-anadir" className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase" style={{ fontFamily: "var(--font-sans)" }}>
-          Añadir
-        </h2>
-        <nav aria-label="Añadir" className="grid grid-cols-4 gap-2">
-          <Add to={`/pacientes/${id}/sesiones/nueva`} icon={NotebookPen} label="Sesión" />
-          <Add to={`/pacientes/${id}/test`} icon={Activity} label="Medición" />
-          <Add to={`/pacientes/${id}/exploracion/nuevo`} icon={Stethoscope} label="Exploración" />
-          <Add to={`/pacientes/${id}/cuestionarios/nuevo`} icon={ListChecks} label="Cuestionario" />
-        </nav>
-      </section>
-
-      {(!patient.bodyMassKg || !patient.pushOffDistanceCm) && tests.some((t) => JUMPS.has(t.type)) && (
-        <Alert tone="info" title="Faltan datos para fuerza y potencia">
-          Añade el peso y la distancia de empuje en <Link className="underline" to={`/pacientes/${id}/editar`}>Editar</Link>. La altura del salto se calcula igualmente.
-        </Alert>
-      )}
-      {review && review <= today && (
-        <Link to={`/pacientes/${id}/sesiones`} className="block">
-          <Card className="flex items-center gap-3 border-warning bg-warning-soft hover:border-accent">
-            <CalendarClock aria-hidden="true" className="size-5 shrink-0 text-warning" />
-            <span>
-              {review < today ? "Reevaluación pendiente desde el" : "Reevaluar hoy,"} <span className="font-semibold">{fmtDate(`${review}T12:00:00`)}</span>
-            </span>
-          </Card>
+      {/* Las dos acciones de cada visita. */}
+      <div className="grid grid-cols-[3fr_2fr] gap-2">
+        <Link to={`/pacientes/${id}/sesiones/nueva`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
+          <NotebookPen aria-hidden="true" className="size-5" /> Nueva sesión
         </Link>
-      )}
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          onClick={() => setAssessing(true)}
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface"
+        >
+          <Stethoscope aria-hidden="true" className="size-5 text-accent" /> Valorar
+        </button>
+      </div>
+      <Sheet open={assessing} onClose={() => setAssessing(false)} title="Valorar">
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+          <RowLink to={`/pacientes/${id}/exploracion/nuevo`} icon={Stethoscope} title="Registrar un test" subtitle="Lachman, Neer, Slump… los de su zona, primero" />
+          <RowLink to={`/pacientes/${id}/cuestionarios/nuevo`} icon={ListChecks} title="Pasar un cuestionario" subtitle="Aquí o enviado a su móvil" />
+          <RowLink to={`/pacientes/${id}/test`} icon={Activity} title="Nueva medición" subtitle="Saltos, fuerza, sprint, carrera, movilidad o nórdico" />
+        </ul>
+      </Sheet>
 
-      {lastSession && (
-        <Link to={`/pacientes/${id}/sesiones`} className="block" aria-label={`Última sesión, del ${fmtDate(lastSession.performedAt)}`}>
-          <Card className="flex flex-col gap-1 hover:border-accent">
-            <p className="flex items-baseline justify-between gap-2">
-              <span className="font-semibold">Última sesión · {fmtDate(lastSession.performedAt)}</span>
-              {lastSession.pain !== null && <span className="nums text-sm text-text-muted">Dolor {lastSession.pain}/10</span>}
+      <section aria-labelledby="h-situacion" className="flex flex-col gap-2">
+        <h2 id="h-situacion" className="text-lg">
+          Situación
+        </h2>
+        <Card className="flex flex-col gap-2">
+          {!hasSituation && (
+            <p className="text-text-muted">
+              Sin datos todavía.{" "}
+              <Link to={`/pacientes/${id}/anamnesis`} className="font-semibold text-accent underline underline-offset-2">
+                Empieza por la anamnesis
+              </Link>
+              .
             </p>
-            {lastSession.treatment && <p className="line-clamp-2 text-sm">{lastSession.treatment}</p>}
-            {(lastSession.nextAt || review) && (
-              <p className="text-sm text-text-muted">
-                {[lastSession.nextAt && `Siguiente cita: ${fmtVisit(lastSession.nextAt)}`, review && `Reevaluar el ${fmtDate(`${review}T12:00:00`)}`].filter(Boolean).join(" · ")}
-              </p>
-            )}
-          </Card>
-        </Link>
-      )}
-
-      {summary && (summary.reason || summary.regions.length > 0 || (alarms?.hits.length ?? 0) > 0) && (
-      <section aria-labelledby="clinico" className="flex flex-col gap-2">
-        <h2 id="clinico" className="text-lg">
-          Motivo de consulta
-        </h2>
-        {summary.reason || summary.regions.length ? (
-          <Link to={`/pacientes/${id}/anamnesis`} className="block">
-            <Card className="flex flex-col gap-1.5 hover:border-accent">
-              {summary.reason && <p className="font-semibold">{summary.reason}</p>}
-              {(summary.regions.length > 0 || summary.side) && (
-                <p className="flex flex-wrap gap-1.5">
-                  {summary.regions.map((r) => (
-                    <span key={r} className="rounded-pill bg-accent-soft px-2.5 py-0.5 text-sm font-semibold text-accent">
-                      {regionLabel(r)}
-                    </span>
-                  ))}
-                  {summary.side && summary.side !== "No aplica" && <span className="rounded-pill bg-surface px-2.5 py-0.5 text-sm">{summary.side}</span>}
-                </p>
-              )}
-              {summary.location && <p className="text-sm text-text-muted">Localización: {summary.location}</p>}
-              {summary.diagnosis && <p className="text-sm">Diagnóstico fisioterápico: {summary.diagnosis}</p>}
-              {summary.goal && <p className="text-sm text-text-muted">Objetivo: {summary.goal}</p>}
-            </Card>
-          </Link>
-        ) : null}
-        {alarms && alarms.hits.length > 0 && (
-          <Alert
-            tone="danger"
-            title={
-              alarms.patterns.length
-                ? `Alarmas: ${alarms.patterns.map((p) => `${p.pattern.name} (${p.pattern.urgency})`).join(" · ")}`
-                : `Banderas rojas: ${alarms.hits.length}`
-            }
-          >
-            {alarms.hits.map((h) => h.flag.label).join(" · ")}.{" "}
-            <Link to={`/pacientes/${id}/anamnesis`} className="font-semibold underline">
-              Qué preguntar y carta de derivación
-            </Link>
-          </Alert>
-        )}
-      </section>
-      )}
-
-
-      {/* Lo clínico: por qué viene, banderas y dolor. */}
-
-      {(pain.length > 0 || (review && review > today)) && (
-      <section aria-labelledby="dolor" className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 id="dolor" className="text-lg">
-            Dolor
-          </h2>
-          {pain.length > 0 && (
-            <span className="nums text-sm text-text-muted">
-              {pain.length === 1 ? "1 registro" : `${pain[0]!.pain} → ${pain.at(-1)!.pain} en ${pain.length} registros`}
-            </span>
           )}
-        </div>
-        {pain.length > 0 && (
-          <Card>
-            <PainChart points={pain} label={`Dolor de 0 a 10: ${pain.map((p) => `${fmtDate(p.at)} ${p.pain}`).join(", ")}`} />
-          </Card>
-        )}
-        {review && review > today && (
-          <Link to={`/pacientes/${id}/sesiones`} className="block">
-            <Card className="flex items-center gap-3 hover:border-accent">
-              <CalendarClock aria-hidden="true" className="size-5 shrink-0 text-accent" />
+          {(headline || where) && (
+            <p className="flex flex-col">
+              {headline && <span className="line-clamp-2 font-semibold">{headline}</span>}
+              {where && <span className="text-sm text-text-muted">{where}</span>}
+            </p>
+          )}
+          {alarms && alarms.hits.length > 0 && (
+            <p className="flex items-start gap-2 text-sm text-danger">
+              <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               <span>
-                Próxima reevaluación: <span className="font-semibold">{fmtDate(`${review}T12:00:00`)}</span>
+                <span className="font-semibold">
+                  {alarms.patterns.length ? `Alarmas: ${alarms.patterns.map((p) => `${p.pattern.name} (${p.pattern.urgency})`).join(" · ")}` : `Banderas rojas: ${alarms.hits.length}`}
+                </span>{" "}
+                ·{" "}
+                <Link to={`/pacientes/${id}/anamnesis`} className="font-semibold underline underline-offset-2">
+                  ver
+                </Link>
               </span>
-            </Card>
-          </Link>
-        )}
-      </section>
-      )}
-
-      {current.length > 0 && (
-      <section aria-labelledby="exploracion" className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 id="exploracion" className="text-lg">
-            Exploración
-          </h2>
-          <Link to={`/pacientes/${id}/exploracion`} className="text-sm font-semibold text-accent">
-            Ver todo
-          </Link>
-        </div>
-        <ul aria-label="Tests de exploración" className="flex flex-wrap gap-2">
-            {[...positives, ...others].map((f) => (
-              <li key={f.id}>
-                <Link to={`/pacientes/${id}/exploracion/${f.id}`} className="block">
-                  <ResultBadge result={f.result}>
-                    {f.testName}
-                    {f.side ? ` ${sideShort[f.side]}` : ""}
-                    <span className="sr-only">: {f.result === "positive" ? "positivo" : f.result === "negative" ? "negativo" : "dudoso"}</span>
-                  </ResultBadge>
-                </Link>
-              </li>
-            ))}
-          </ul>
-      </section>
-      )}
-
-      {(tests.length > 0 || wellness.length > 0) && (
-      <section aria-labelledby="mediciones" className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <h2 id="mediciones" className="text-lg">
-            Mediciones
-          </h2>
-          {tests.length > 0 && (
-            <Link to={`/pacientes/${id}/mediciones`} className="text-sm font-semibold text-accent">
-              Ver todas ({tests.length})
-            </Link>
+            </p>
           )}
-        </div>
-        <AnalysisNav id={id} tests={tests} wellness={wellness[0] ?? null} />
-        {tests.length > 0 && <TrendTiles tests={tests} limit={6} />}
-        {lowSymmetry.length > 0 && (
-          <>
-            <h3 className="text-base">Simetría bajo el {LSI_REFERENCE} %</h3>
-            <SymmetryPanel rows={lowSymmetry} />
-          </>
-        )}
-      </section>
-      )}
-
-      {questionnaires.length > 0 && (
-        <section aria-labelledby="cuestionarios" className="flex flex-col gap-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <h2 id="cuestionarios" className="text-lg">
-              Cuestionarios
-            </h2>
-            <Link to={`/pacientes/${id}/cuestionarios`} className="text-sm font-semibold text-accent">
-              Ver todos
-            </Link>
-          </div>
-          <QuestionnaireTiles patientId={id} items={questionnaires} />
-        </section>
-      )}
-
-      {timeline.length > 0 && (
-        <section aria-labelledby="historia" className="flex flex-col gap-2">
-          <h2 id="historia" className="text-lg">
-            Historia
-          </h2>
-          <ol aria-label="Historia del paciente" className="flex flex-col">
-            {timeline.map((e, i) => (
-              <li key={`${e.kind}-${e.at}-${i}`} className="relative flex gap-3 pb-3 pl-1">
-                <span aria-hidden="true" className="flex w-3 flex-col items-center">
-                  <span className={cx("mt-1.5 size-3 shrink-0 rounded-full", kindStyle[e.kind].dot)} />
-                  {i < timeline.length - 1 && <span className="mt-1 w-px flex-1 bg-border" />}
-                </span>
-                <Link to={e.to} className="flex min-w-0 flex-1 flex-col rounded-md hover:bg-surface">
-                  <span className="text-xs text-text-muted">
-                    {fmtDate(e.at)} · {kindStyle[e.kind].label}
-                  </span>
-                  <span className="truncate font-semibold">{e.title}</span>
-                  {e.detail && <span className="truncate text-sm text-text-muted">{e.detail}</span>}
+          {last && (
+            <p className="text-sm">
+              <span className="font-semibold">Última sesión</span> · {fmtDate(last.performedAt)}
+              {last.pain !== null && ` · dolor ${last.pain}/10`}
+              {last.treatment && <span className="block line-clamp-1 text-text-muted">{last.treatment}</span>}
+            </p>
+          )}
+          {lastGroup && lastQ && (
+            <p className="text-sm">
+              <span className="font-semibold">Último cuestionario</span> · {lastGroup.name} {scoreText(kindOf(lastQ.kind, lastQ.details as QDetails), lastQ.score)} · {fmtDate(lastQ.performedAt)}
+            </p>
+          )}
+          {lastTest && (
+            <p className="text-sm">
+              <span className="font-semibold">Última medición</span> · {testTitle(lastTest)}
+              {lastValue ? ` ${lastValue.text}${lastValue.unit === "°" ? "°" : lastValue.unit ? ` ${lastValue.unit}` : ""}` : ""} · {fmtDate(lastTest.performedAt)}
+            </p>
+          )}
+          {lowSymmetry.length > 0 && (
+            <p className="flex items-start gap-2 text-sm text-danger">
+              <Scale aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <span className="font-semibold">Simetría bajo el {LSI_REFERENCE} %:</span> {lowSymmetry.map((r) => `${r.title} ${Math.round(r.lsi)} %`).join(" · ")} ·{" "}
+                <Link to={`/pacientes/${id}/valoracion#mediciones`} className="font-semibold underline underline-offset-2">
+                  ver
                 </Link>
-              </li>
-            ))}
-          </ol>
-        </section>
+              </span>
+            </p>
+          )}
+          {review && review >= today && (
+            <p className="flex items-center gap-2 text-sm">
+              <CalendarClock aria-hidden="true" className="size-4 shrink-0 text-accent" /> {review === today ? "Reevaluar hoy" : `Reevaluar el ${dayText(review)}`}
+            </p>
+          )}
+        </Card>
+      </section>
+
+      {pending && (
+        <Group title="Pendiente">
+          {review && review < today && (
+            <RowLink to={`/pacientes/${id}/valoracion`} icon={CalendarClock} tone="warning" title="Reevaluación pendiente" subtitle={`Desde el ${dayText(review)}`} warn />
+          )}
+          {missing.length > 0 && (
+            <RowLink
+              to={`/pacientes/${id}/consentimientos`}
+              icon={FilePen}
+              tone="warning"
+              title={missing.length === 1 ? `Consentimiento sin firmar: ${missing[0]!.title.toLowerCase()}` : `${missing.length} consentimientos sin firmar`}
+              subtitle={missing.length === 1 ? "Por escrito, según su anamnesis" : missing.map((t) => t.title.toLowerCase()).join(", ")}
+              warn
+            />
+          )}
+          {!privacy.informedAt && (
+            <RowLink to={`/pacientes/${id}/proteccion-datos`} icon={ShieldAlert} tone="warning" title="Hoja de protección de datos sin entregar" subtitle="Para imprimir y que la firme" warn />
+          )}
+        </Group>
       )}
 
-      {/* Lo administrativo, al final: lo clínico primero. */}
-      <Group>
-        <RowLink
-          to={`/pacientes/${id}/anamnesis`}
-          icon={ClipboardList}
-          title="Anamnesis"
-          subtitle={anamnesis ? `Actualizada el ${fmtDate(anamnesis.updatedAt)}` : "Sin rellenar"}
-        />
-        <RowLink
-          to={`/pacientes/${id}/formularios`}
-          icon={Send}
-          title="Formularios para el paciente"
-          subtitle={formsLine(sentForms)}
-        />
-        <RowLink
-          to={`/pacientes/${id}/proteccion-datos`}
-          icon={privacy.informedAt ? ShieldCheck : ShieldAlert}
-          tone={privacy.informedAt ? "accent" : "warning"}
-          title="Protección de datos"
-          subtitle={privacy.informedAt ? [`Informado el ${fmtDate(`${privacy.informedAt}T12:00:00`)}`, ...consents].join(" · ") : "Pendiente: hoja para imprimir y firmar"}
-          warn={!privacy.informedAt}
-        />
-        <RowLink
-          to={`/pacientes/${id}/consentimientos`}
-          icon={FilePen}
-          tone={missing.length ? "warning" : "accent"}
-          title="Consentimientos"
-          subtitle={
-            missing.length
-              ? `Falta por escrito: ${missing.map((t) => t.title.toLowerCase()).join(", ")}`
-              : inForce.length
-                ? `${inForce.length === 1 ? "1 firmado" : `${inForce.length} firmados`}`
-                : "Se preparan con su anamnesis"
-          }
-          warn={missing.length > 0}
-        />
-        <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Completo o de alta; imprimir o guardar en PDF" />
-        <RowLink to={`/pacientes/${id}/justificante`} icon={FileCheck} title="Justificante de asistencia" subtitle="Para su trabajo o su centro de estudios" />
-        <RowLink to={`/pacientes/${id}/derivacion`} icon={Send} title="Carta de derivación" subtitle="Para su médico: motivo, alarmas, diagnóstico y tratamiento" />
+      <Group title="Documentos">
+        <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Para el paciente o su médico" />
+        <RowLink to={`/pacientes/${id}/alta`} icon={FileCheck} title="Informe de alta" subtitle="Al cerrar el motivo de consulta" />
+        <RowLink to={`/pacientes/${id}/derivacion`} icon={Send} title="Carta de derivación" subtitle="Pide otra valoración a su médico" />
+        <RowLink to={`/pacientes/${id}/justificante`} icon={ClipboardList} title="Justificante de asistencia" subtitle="Para su trabajo o sus estudios" />
         {SHOW_EXERCISES && (
           <RowLink
             to={`/pacientes/${id}/ejercicios`}
             icon={Dumbbell}
             title="Ejercicios para casa"
-            subtitle={plans.length ? `Hoja del ${fmtDate(plans[0]!.updatedAt)} · ${plans[0]!.items.length === 1 ? "1 ejercicio" : `${plans[0]!.items.length} ejercicios`}` : "Hoja para imprimir o enviar por WhatsApp"}
+            subtitle={plans.length ? `Hoja del ${fmtDate(plans[0]!.updatedAt)}` : "Para imprimir o enviar por WhatsApp"}
           />
         )}
       </Group>
-      <Group title="Cobros y agenda">
+      <Group title="Legal">
         <RowLink
-          to={`/pacientes/${id}/cobros`}
-          icon={Wallet}
-          tone={account.balanceCents > 0 ? "warning" : "accent"}
-          title="Bonos y cobros"
-          subtitle={accountLine(account) ?? "Vender un bono o apuntar un cobro"}
+          to={`/pacientes/${id}/consentimientos`}
+          icon={FilePen}
+          title="Consentimientos informados"
+          subtitle={inForce.length ? (inForce.length === 1 ? "1 firmado" : `${inForce.length} firmados`) : "Se preparan con su anamnesis"}
         />
+        <RowLink
+          to={`/pacientes/${id}/proteccion-datos`}
+          icon={privacy.informedAt ? ShieldCheck : ShieldAlert}
+          title="Protección de datos (RGPD)"
+          subtitle={privacy.informedAt ? [`Entregada el ${dayText(privacy.informedAt)}`, ...optional].join(" · ") : "Sin entregar"}
+        />
+      </Group>
+      <Group title="Cuenta">
+        <RowLink to={`/pacientes/${id}/cobros`} icon={Wallet} title="Bonos y cobros" subtitle={accountLine(account) ?? "Vender un bono o cobrar"} />
         <RowLink
           to={waiting ? "/agenda/espera" : `/agenda/espera?paciente=${id}`}
           icon={Hourglass}

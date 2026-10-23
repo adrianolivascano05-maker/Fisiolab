@@ -37,14 +37,13 @@ test.describe("Mejoras frente a la competencia", () => {
     await expect(page.getByText("Anamnesis guardada")).toBeVisible();
     await expect(page.getByText("Progresivo, tras empezar a nadar")).toBeVisible();
 
-    // Exploración: cada zona con sus tests, la segunda también (antes se cortaba en 6 entre todas).
-    await tab(page, "Exploración").click();
-    await expect(page.getByRole("list", { name: "Tests de Hombro" }).getByRole("listitem")).toHaveCount(5);
-    await expect(page.getByRole("list", { name: "Tests de ATM" }).getByRole("listitem")).not.toHaveCount(0);
-    await page.getByText(/^Ver los \d+ tests más de Hombro$/).click();
-    await expect(page.getByRole("list", { name: "Más tests de Hombro" }).getByRole("listitem").first()).toBeVisible();
+    // Valoración › Registrar un test: cada zona con todos sus tests, la segunda también, arriba del todo.
+    await tab(page, "Valoración").click();
+    await page.getByRole("link", { name: "Registrar un test" }).click();
+    await expect(page.getByRole("heading", { name: /^Tests de Hombro \(\d+\)$/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Tests de ATM \(\d+\)$/ })).toBeVisible();
     await expectAccessible(page);
-
+    await page.getByRole("link", { name: "Volver a Valoración" }).click();
     await tab(page, "Resumen").click();
     await add(page, "Cuestionario").click();
     await page.getByRole("button", { name: /Mapa del dolor/ }).click();
@@ -71,8 +70,8 @@ test.describe("Mejoras frente a la competencia", () => {
     await expect(list).toContainText("6/10");
 
     const text = "Hombro derecho: dolor 6/10; Lumbar: hormigueo; Rodilla izquierda: dolor";
-    await page.goto(page.url().replace(/\/cuestionarios.*$/, ""));
-    await page.getByRole("link", { name: /^Informe/ }).click();
+    await page.goto(page.url().replace(/\/(cuestionarios|valoracion).*$/, ""));
+    await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText(text);
     await expect(report.getByRole("img", { name: `De espaldas: ${text}` })).toBeVisible();
@@ -195,7 +194,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await expect(doc).toContainText("Caminar30 minutos al día");
     await expect(page.getByRole("link", { name: "Enviar por WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/34622333444\?text=Hola%2C%20Elena\.%20Tus%20ejercicios/);
     await expectAccessible(page);
-    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
+    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Guardar en PDF" }).click()]);
     expect(pdf.suggestedFilename()).toBe("Ejercicios Elena Ejercicios 2026-10-20.pdf");
   });
 
@@ -240,7 +239,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await expect(receipt).toContainText("Forma de pago: tarjeta.");
     await expect(receipt).toContainText("no es una factura");
     await expectAccessible(page);
-    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
+    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Guardar en PDF" }).click()]);
     expect(pdf.suggestedFilename()).toBe("Justificante de pago Pablo Pago 2026-10-20.pdf");
 
     // Cobrar desde la cita de hoy (sesión suelta), en Agenda › Hoy.
@@ -368,13 +367,13 @@ test.describe("Mejoras frente a la competencia", () => {
     await createPatient(page, { name: "Nora Propia" });
     await tab(page, "Anamnesis").click();
     await page.locator("fieldset", { hasText: "Escapes de orina" }).getByText("Al esfuerzo").click();
-    await page.getByText("6. Hábitos y estilo de vida").click();
+    await page.locator("summary", { hasText: "Hábitos y estilo de vida" }).click();
     await page.getByLabel("Horas sentado al día").fill("8");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByText("Anamnesis guardada")).toBeVisible();
     await expect(page.getByText("Al esfuerzo")).toBeVisible();
     await tab(page, "Resumen").click();
-    await page.getByRole("link", { name: /^Informe/ }).click();
+    await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Escapes de orina");
     await expect(report).toContainText("Horas sentado al día");

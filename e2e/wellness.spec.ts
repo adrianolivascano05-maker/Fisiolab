@@ -1,5 +1,7 @@
 import type { Page } from "@playwright/test";
-import { add, createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+
+const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
 
 async function answer(page: Page, values: Record<string, number>) {
   for (const [item, v] of Object.entries(values)) {
@@ -13,8 +15,9 @@ async function answer(page: Page, values: Record<string, number>) {
 test.describe("F13 Bienestar", () => {
   test("F13-H1 cuestionario: incompleto, guardar, resumen y corregir el mismo día", async ({ page }) => {
     await createPatient(page, { name: "Bienestar" });
-    await add(page, "Medición").click();
-    await page.getByRole("link", { name: /Bienestar/ }).click();
+    // El bienestar diario es un cuestionario: en Valoración › Cuestionarios.
+    await tab(page, "Valoración").click();
+    await page.getByRole("link", { name: /^Bienestar diario/ }).click();
     await expect(page.getByRole("heading", { name: "¿Cómo está hoy?" })).toBeVisible();
     await answer(page, { Fatiga: 4, "Calidad del sueño": 2 });
     await page.getByRole("button", { name: "Guardar" }).click();
@@ -42,15 +45,16 @@ test.describe("F13 Bienestar", () => {
     await expect(page.getByRole("table").getByRole("row")).toHaveCount(2);
     await expectAccessible(page);
 
-    await page.getByRole("link", { name: "Volver" }).first().click();
-    await expect(page.getByRole("link", { name: /Bienestar · 19\/25/ })).toBeVisible();
+    await page.getByRole("link", { name: "Volver a Valoración" }).click();
+    await expect(page.getByRole("link", { name: /^Bienestar diario.*19\/25/ })).toBeVisible();
   });
 
   test("F13-H2 por debajo de lo habitual con los datos de ejemplo", async ({ page }) => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
-    await page.getByRole("link", { name: /Bienestar · 14\/25/ }).click();
+    await tab(page, "Valoración").click();
+    await page.getByRole("link", { name: /^Bienestar diario.*14\/25/ }).click();
     const summary = page.getByRole("region", { name: "Resumen de hoy" });
     await expect(summary).toContainText("Por debajo de lo habitual");
     await expect(summary).toContainText("fatiga (2), calidad del sueño (2)");

@@ -173,7 +173,7 @@ export function ReferralPage() {
           )}
           <TextArea label="Tratamiento realizado y respuesta" value={treatment} onChange={setTreatment} />
           <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
-            Imprimir o guardar en PDF
+            Imprimir
           </Button>
           <SharePdf
             make={async () => {

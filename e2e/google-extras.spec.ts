@@ -33,8 +33,11 @@ test.describe("Google Calendar y archivos en Drive", () => {
     await page.getByLabel("Tratamiento").fill("Terapia manual");
     await page.getByLabel("Día y hora").fill("2030-05-06T10:00");
     await page.getByRole("button", { name: "Guardar sesión" }).click();
-    await expect(page.getByText("Apuntada en tu Google Calendar")).toBeVisible();
     await expect(page.getByRole("dialog", { name: "¿Añadir la cita a tu calendario?" })).toHaveCount(0);
+    // La hoja de la próxima cita dice que ya está en el calendario.
+    await page.getByRole("button", { name: /^Próxima cita/ }).click();
+    await expect(page.getByRole("dialog", { name: "Cita de Lucía Cita" }).getByText("Apuntada en tu Google Calendar")).toBeVisible();
+    await page.keyboard.press("Escape");
 
     await expect.poll(() => google.events("ana").length, { timeout: 20_000 }).toBe(1);
     expect(google.calendars).toHaveLength(1);

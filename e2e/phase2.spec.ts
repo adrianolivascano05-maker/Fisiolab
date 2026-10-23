@@ -5,6 +5,7 @@ test.describe("Fase 2 de saltos", () => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Valoración" }).click();
     await page.getByRole("link", { name: "Perfil fuerza-velocidad" }).click();
     const boxes = page.getByRole("checkbox");
     await expect(boxes).toHaveCount(4);
@@ -27,6 +28,7 @@ test.describe("Fase 2 de saltos", () => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Valoración" }).click();
     await page.getByRole("link", { name: "Perfil fuerza-velocidad" }).click();
     await page.getByRole("checkbox").first().check();
     await expect(page.getByRole("button", { name: "Guardar perfil" })).toHaveCount(0);

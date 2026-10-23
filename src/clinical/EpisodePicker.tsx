@@ -132,7 +132,7 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className="inline-flex min-h-9 max-w-full items-center gap-1.5 self-start rounded-pill border border-border bg-bg px-3 text-sm hover:bg-surface"
+        className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-pill border border-border bg-bg px-3 text-sm hover:bg-surface"
       >
         <span className="text-text-muted">Motivo:</span>
         <span className="truncate font-semibold">{label}</span>

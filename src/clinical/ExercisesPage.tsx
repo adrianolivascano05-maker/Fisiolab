@@ -173,7 +173,7 @@ export function ExercisesPage() {
               setTimeout(() => URL.revokeObjectURL(url), 2000);
             }}
           >
-            Descargar en PDF
+            Guardar en PDF
           </Button>
           <DriveSaveButton label="Guardar en mi Drive (PDF)" make={async () => ({ name: fileName, mimeType: "application/pdf", bytes: await pdf() })} />
           <div className="flex flex-wrap gap-2 pt-1">

@@ -4,8 +4,9 @@ Lo que el fisioterapeuta registra de cada paciente además de las mediciones: la
 exploración que hace (positivos, negativos o dudosos), los cuestionarios y cada sesión. Todo se guarda en el dispositivo, en la misma
 base que el resto (migración `src/data/migrations/006_clinical.sql`), entra en la copia de seguridad y en el CSV.
 
-La ficha del paciente tiene una cabecera común (`PatientShell.tsx`: iniciales, nombre, datos, motivo de consulta, próxima
-cita y «Editar») y cinco pestañas que se quedan fijas arriba al bajar:
+La ficha del paciente tiene una cabecera común (`PatientShell.tsx`: nombre y datos, y una fila de chips de 44 px con
+el motivo de consulta, la próxima cita o «Dar cita» y lo que debe; «Editar» arriba a la derecha) y cuatro pestañas que
+se quedan fijas arriba al bajar. Cada cosa sale una sola vez: lo que se ve en una pestaña no se repite en otra.
 
 **Motivos de consulta** (`EpisodePicker.tsx`, `../data/episodes.ts`, migración `010_episodes.sql`). Un paciente que vuelve
 por otro problema tiene otro motivo, con su propia anamnesis (al crearlo se copian los datos personales, los antecedentes
@@ -18,15 +19,14 @@ con todo lo suyo (el primero no se borra).
 
 | Pestaña | Ruta | Qué hay |
 | --- | --- | --- |
-| Resumen | `/pacientes/:id` | «Añadir» (sesión, medición, exploración, cuestionario), una lista con Anamnesis, Protección de datos e Informe, y lo que tenga datos: motivo de consulta y banderas rojas, curva del dolor, reevaluación, tests de exploración, últimas mediciones con su tendencia, simetrías bajo el 90 %, cuestionarios e historia (`src/pages/PatientPage.tsx`) |
-| Anamnesis | `/pacientes/:id/anamnesis` | la ficha de anamnesis de la clínica, en apartados plegables (abiertos: motivo, antecedentes con las precauciones, diagnóstico y objetivos con el plan). El contacto (teléfono, email, dirección) no va aquí sino en los datos del paciente |
-| Exploración | `/pacientes/:id/exploracion` | tests especiales registrados, con lo que aporta cada resultado (razón de verosimilitud de la galería) y los tests propuestos para la zona |
-| Mediciones | `/pacientes/:id/mediciones` y `/pacientes/:id/cuestionarios` | dos pantallas con un selector arriba: «Pruebas físicas» (análisis, simetría entre lados y lista completa de saltos, fuerza, sprint, carrera, movilidad y nórdico) y «Cuestionarios» |
-| Sesiones | `/pacientes/:id/sesiones` | cada visita: dolor 0-10, qué refiere, qué encuentras, tratamiento, plan y cuándo reevaluar; con lo que se midió ese día. Arriba, cuántas lleva de las previstas (o del bono) si se pusieron en la anamnesis («Sesiones previstas», en Objetivos). Al apuntar una sesión, «Repetir el tratamiento de la última sesión» copia su tratamiento y su plan |
+| Resumen | `/pacientes/:id` | «Nueva sesión» y «Valorar» (hoja: registrar un test, pasar un cuestionario, nueva medición); «Situación», que informa y no es un menú (diagnóstico, alarmas, última sesión, último cuestionario o medición, simetría bajo el 90 % y reevaluación); «Pendiente» solo si falta algo (consentimiento por escrito, hoja de protección de datos, reevaluación atrasada); y tres grupos: Documentos, Legal y Cuenta (`src/pages/PatientPage.tsx`) |
+| Anamnesis | `/pacientes/:id/anamnesis` | la ficha de anamnesis de la clínica, en apartados plegables sin números; «Editar anamnesis» y «Mandar su parte al paciente» en una fila. El apartado de exploración física enlaza a Valoración. El contacto (teléfono, email, dirección) no va aquí sino en los datos del paciente |
+| Valoración | `/pacientes/:id/valoracion` | una página con tres bloques y saltos entre ellos (`AssessmentPage` en `ExplorationPages.tsx`): Exploración (tests registrados con lo que aporta cada resultado; los de la zona encabezan el selector de «Registrar un test»), Cuestionarios (con «Enviar al móvil», la evolución de cada uno y el bienestar diario) y Mediciones (análisis, simetría entre lados y la lista). Se abre en el último bloque usado con ese paciente. Las direcciones de antes (`/exploracion`, `/mediciones`, `/cuestionarios`) abren su bloque |
+| Sesiones | `/pacientes/:id/sesiones` | cada visita: dolor 0-10, qué refiere, qué encuentras, tratamiento, plan y cuándo reevaluar; con lo que se midió ese día. Arriba, cuántas lleva de las previstas y la curva del dolor; al final, la historia (línea de tiempo). En «Nueva sesión», «Dar la siguiente cita» y «Reevaluar» (plegado si ya hay fecha); «Repetir el tratamiento de la última sesión» copia su tratamiento y su plan |
 
 Además:
 
-- **Informe** (`/pacientes/:id/informe`, icono de documento arriba en el resumen): datos, anamnesis, exploración con
+- **Informe** (`/pacientes/:id/informe`, en Resumen › Documentos): datos, anamnesis, exploración con
   la evidencia de cada resultado, curva del dolor, mediciones con la simetría, cuestionarios y sesiones. Se eligen
   los apartados y se imprime o se guarda en PDF con el diálogo del navegador (`window.print()`, A4). Con la cuenta de
   Google, «Guardar en mi Drive (PDF)» lo sube a la carpeta «Cénit · Fisiolab» de Drive (`reportPdf.ts`).

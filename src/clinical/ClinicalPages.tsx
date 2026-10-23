@@ -1,7 +1,8 @@
-// Pantallas de la ficha clínica: anamnesis, mediciones (con cuestionarios y simetría) y sesiones. La exploración
-// (tests especiales) está en ExplorationPages.tsx, para no cargar la Guía de tests al abrir las demás.
+// Pantallas de la ficha clínica: anamnesis, sesiones y dos bloques de la Valoración (cuestionarios y mediciones). La
+// exploración (tests especiales) y la página Valoración están en ExplorationPages.tsx, para no cargar la Guía de tests al
+// abrir las demás.
 import { SHOW_EXERCISES } from "../app/features";
-import { Activity, CalendarCheck, CalendarClock, ChevronDown, ClipboardList, ListChecks, NotebookPen, Pencil, Plus, Send, Trash, Wallet } from "lucide-react";
+import { CalendarCheck, CalendarClock, ChevronDown, ChevronRight, ClipboardList, HeartPulse, ListChecks, NotebookPen, Pencil, Plus, Send, Trash, Wallet } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { decimalText, fmt, fmtDate, fmtDateTime, parseDecimal, testTitle } from "../app/format";
@@ -30,7 +31,8 @@ import {
 import { getAppointment } from "../data/appointments";
 import { getDb } from "../data/db";
 import { ALL, currentEpisode, episodeLabel, getFocus, listEpisodes } from "../data/episodes";
-import { getPatient, listTests, listWellness, type Patient } from "../data/repo";
+import { getPatient, listTests, listWellness, type Patient, type TestSummary, type WellnessEntry } from "../data/repo";
+import { wellnessTotal } from "../calc/wellness";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -56,11 +58,11 @@ import { parseMarks } from "./bodyMap";
 import { AnalysisNav, TestList } from "./measureParts";
 import { mainValue, trends } from "./measures";
 import { QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
-import { Chips, NumberScale, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
+import { Chips, NumberScale, PainChart, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
 import { FieldInput } from "./FieldInput";
 import { bandText, byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, TOPICS, type Better, type QDetails } from "./questionnaires";
 import { LSI_REFERENCE, symmetryRows } from "./symmetry";
-import { madridDay } from "./timeline";
+import { buildTimeline, madridDay, painSeries, type EventKind } from "./timeline";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PatientShell } from "./PatientShell";
 import { usableForm, type Answers as FormAnswers } from "./forms";
@@ -107,7 +109,7 @@ function Fold({ id, title, count, open, children }: { id: string; title: string;
   return (
     <details id={id} open={open || undefined} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
-        <span className="text-lg font-semibold text-brand">{title}</span>
+        <span className="text-lg font-semibold text-brand">{title.replace(/^\d+\.\s*/, "")}</span>
         <span className="flex items-center gap-2 text-sm text-text-muted">
           {count}
           <ChevronDown aria-hidden="true" className="size-5 transition-transform group-open:rotate-180" />
@@ -119,43 +121,14 @@ function Fold({ id, title, count, open, children }: { id: string; title: string;
 }
 
 /** Lo que la app ya sabe de la exploración: tests registrados y movilidad medida. */
+/** En el apartado de exploración física: lo registrado vive en Valoración; aquí, una línea que lleva allí. */
 function ExplorationLinks({ id, findings, romTrends }: { id: string; findings: Finding[]; romTrends: ReturnType<typeof trends> }) {
-  const current = latestFindings(findings);
-  if (!current.length && !romTrends.length) return null;
+  const n = latestFindings(findings).length;
+  const what = [n ? (n === 1 ? "1 test" : `${n} tests`) : "", romTrends.length ? "movilidad medida" : ""].filter(Boolean).join(" y ");
   return (
-    <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
-      {current.length > 0 && (
-        <>
-          <p className="text-sm font-semibold">Tests registrados en Exploración</p>
-          <ul className="flex flex-wrap gap-1.5">
-            {current.map((f) => (
-              <li key={f.id}>
-                <Link to={`/pacientes/${id}/exploracion/${f.id}`}>
-                  <ResultBadge result={f.result}>
-                    {f.testName}
-                    {f.side ? ` ${sideShort[f.side]}` : ""}
-                  </ResultBadge>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {romTrends.length > 0 && (
-        <>
-          <p className="text-sm font-semibold">Movilidad medida</p>
-          <ul className="flex flex-col gap-0.5 text-sm">
-            {romTrends.map((t) => (
-              <li key={t.title}>
-                <Link to={`/tests/${t.latest.id}`} className="underline-offset-2 hover:underline">
-                  {t.title}: <span className="nums font-semibold">{t.value.text}°</span> <span className="text-text-muted">({fmtDate(t.latest.performedAt)})</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </div>
+    <Link to={`/pacientes/${id}/valoracion`} className="inline-flex min-h-11 items-center gap-1 self-start text-sm font-semibold text-accent">
+      {what ? `Tests y mediciones (${what}): en Valoración` : "Tests y mediciones: en Valoración"} <ChevronRight aria-hidden="true" className="size-4" />
+    </Link>
   );
 }
 
@@ -365,22 +338,23 @@ export function AnamnesisPage() {
   const orphans = orphanAnswers(a, sections);
   return (
     <PatientShell patient={patient} id={id}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-col">
-          <h2 className="text-xl">Anamnesis</h2>
-          {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
-          <p className="text-sm text-text-muted">
-            {valued ? `Valoración del ${dayText(valued)}` : `Rellenada el ${fmtDate(anamnesis.createdAt)}`}
-            {anamnesis.updatedAt !== anamnesis.createdAt && ` · actualizada el ${fmtDate(anamnesis.updatedAt)}`} · {done} de {allFields.length} campos
-          </p>
-        </div>
+      <div className="flex flex-col">
+        <h2 className="text-xl">Anamnesis</h2>
+        {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
+        <p className="text-sm text-text-muted">
+          {valued ? `Valoración del ${dayText(valued)}` : `Rellenada el ${fmtDate(anamnesis.createdAt)}`}
+          {anamnesis.updatedAt !== anamnesis.createdAt && ` · actualizada el ${fmtDate(anamnesis.updatedAt)}`} · {done} de {allFields.length} campos
+        </p>
+      </div>
+      {/* Las dos acciones, en una fila: editarla aquí o mandarle su parte al móvil. */}
+      <div className="grid grid-cols-2 gap-2">
         <Button variant="secondary" icon={<Pencil aria-hidden="true" className="size-4" />} onClick={startEdit}>
           Editar anamnesis
         </Button>
+        <Link to={`/pacientes/${id}/formularios?enviar=anamnesis`} className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-md border border-border bg-bg px-2 text-center text-sm font-semibold text-accent hover:bg-surface">
+          <Send aria-hidden="true" className="size-4 shrink-0" /> Mandar su parte al paciente
+        </Link>
       </div>
-      <Link to={`/pacientes/${id}/formularios?enviar=anamnesis`} className="inline-flex items-center gap-1.5 self-start text-sm font-semibold text-accent">
-        <Send aria-hidden="true" className="size-4" /> Mandar al paciente su parte para que la rellene
-      </Link>
       <RedFlagPanel answers={a} birthDate={patient.birthDate} labelOf={labelOf} patientId={id} />
       <YellowFlagPanel answers={a} labelOf={labelOf} patientId={id} />
       {sections.map((section) => {
@@ -427,79 +401,63 @@ export function AnamnesisPage() {
   );
 }
 
-// ---------- Mediciones y cuestionarios ----------
+// ---------- Valoración: cuestionarios y mediciones ----------
+// Son dos de los tres bloques de la pestaña Valoración (la página está en ExplorationPages.tsx, con la exploración).
 
-/** Dentro de la pestaña Mediciones: las pruebas físicas o los cuestionarios, cada uno en su pantalla. */
-function MeasureSwitch({ id, current }: { id: string; current: "pruebas" | "cuestionarios" }) {
-  const item = (key: typeof current, to: string, label: string) => (
-    <Link
-      to={to}
-      replace
-      aria-current={current === key ? "page" : undefined}
-      className={`flex min-h-11 flex-1 items-center justify-center rounded-md px-3 text-sm font-semibold ${current === key ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text"}`}
-    >
-      {label}
-    </Link>
-  );
+/** Valoración › Cuestionarios: pasar uno aquí o mandarlo al móvil, sus tarjetas con la evolución y el bienestar diario. */
+export function QuestionnairesSection({ id, questionnaires, wellness, waiting }: { id: string; questionnaires: Questionnaire[]; wellness: WellnessEntry | null; waiting: number }) {
   return (
-    <nav aria-label="Pruebas o cuestionarios" className="flex gap-1 rounded-lg bg-surface p-1">
-      {item("pruebas", `/pacientes/${id}/mediciones`, "Pruebas físicas")}
-      {item("cuestionarios", `/pacientes/${id}/cuestionarios`, "Cuestionarios")}
-    </nav>
-  );
-}
-
-export function QuestionnairesPage() {
-  const { id = "" } = useParams();
-  const data = useLoad(id, async () => {
-    const db = getDb();
-    const [patient, questionnaires] = await Promise.all([getPatient(db, id), listQuestionnaires(db, id)]);
-    return { patient, questionnaires };
-  });
-  if (!data.data) return <Guard state={data} title="Cuestionarios" back={`/pacientes/${id}`} />;
-  const { patient, questionnaires } = data.data;
-  return (
-    <PatientShell patient={patient} id={id}>
-      <MeasureSwitch id={id} current="cuestionarios" />
-      <Link to={`/pacientes/${id}/cuestionarios/nuevo`} className="inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover">
-        <ListChecks aria-hidden="true" className="size-5" /> Nuevo cuestionario
-      </Link>
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-[2fr_1fr] gap-2">
+        <Link to={`/pacientes/${id}/cuestionarios/nuevo`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
+          <ListChecks aria-hidden="true" className="size-5" /> Nuevo cuestionario
+        </Link>
+        <Link to={`/pacientes/${id}/formularios?enviar=elegir`} className="inline-flex min-h-12 items-center justify-center gap-1.5 rounded-md border border-border bg-bg px-3 text-center text-sm font-semibold hover:bg-surface">
+          <Send aria-hidden="true" className="size-4 shrink-0" /> Enviar al móvil
+        </Link>
+      </div>
+      {waiting > 0 && (
+        <Link to={`/pacientes/${id}/formularios`} className="text-sm font-semibold text-accent">
+          {waiting === 1 ? "1 formulario esperando su respuesta" : `${waiting} formularios esperando su respuesta`} ›
+        </Link>
+      )}
       {questionnaires.length ? (
         <QuestionnaireTiles patientId={id} items={questionnaires} />
       ) : (
-        <EmptyState icon={ListChecks} title="Sin cuestionarios todavía">
-          Se rellenan aquí pregunta a pregunta y la nota sale sola. Si el paciente lo hizo en papel, puedes anotar solo la puntuación.
-        </EmptyState>
+        <p className="text-sm text-text-muted">Sin cuestionarios todavía. Se rellenan aquí pregunta a pregunta y la nota sale sola; si lo hizo en papel, puedes anotar solo la puntuación.</p>
       )}
-    </PatientShell>
+      <Link to={`/pacientes/${id}/bienestar`} className="flex min-h-12 items-center gap-3 rounded-lg border border-border bg-bg px-3 py-2 hover:bg-surface">
+        <HeartPulse aria-hidden="true" className="size-5 shrink-0 text-accent" />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="font-semibold">Bienestar diario</span>
+          <span className="text-sm text-text-muted">{wellness ? `El último: ${wellnessTotal(wellness)}/25 · ${fmtDate(wellness.performedAt)}` : "Sueño, fatiga, estrés, dolor muscular y ánimo"}</span>
+        </span>
+      </Link>
+    </div>
   );
 }
 
-export function MeasurementsPage() {
-  const { id = "" } = useParams();
-  const data = useLoad(id, async () => {
-    const db = getDb();
-    const [patient, tests, wellness] = await Promise.all([getPatient(db, id), listTests(db, id), listWellness(db, id)]);
-    return { patient, tests, wellness };
-  });
-  if (!data.data) return <Guard state={data} title="Mediciones" back={`/pacientes/${id}`} />;
-  const { patient, tests, wellness } = data.data;
+/** Valoración › Mediciones: medir, los análisis, la simetría entre lados y todas las mediciones. */
+export function MeasurementsSection({ id, patient, tests }: { id: string; patient: Patient; tests: TestSummary[] }) {
   const symmetry = symmetryRows(tests);
   const above = symmetry.filter((r) => r.lsi >= LSI_REFERENCE).length;
   return (
-    <PatientShell patient={patient} id={id}>
-      <MeasureSwitch id={id} current="pruebas" />
-      <Link to={`/pacientes/${id}/test`} className="inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover">
+    <div className="flex flex-col gap-3">
+      <Link to={`/pacientes/${id}/test`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
         <Plus aria-hidden="true" className="size-5" /> Nueva medición
       </Link>
-      <AnalysisNav id={id} tests={tests} wellness={wellness[0] ?? null} />
-
+      {(!patient.bodyMassKg || !patient.pushOffDistanceCm) && tests.some((t) => JUMP_TYPES.has(t.type)) && (
+        <Alert tone="info" title="Faltan datos para fuerza y potencia">
+          Añade el peso y la distancia de empuje en <Link className="underline" to={`/pacientes/${id}/editar`}>Editar</Link>. La altura del salto se calcula igualmente.
+        </Alert>
+      )}
+      <AnalysisNav id={id} tests={tests} />
       {symmetry.length > 0 && (
         <section aria-labelledby="simetria" className="flex flex-col gap-2">
           <div className="flex items-baseline justify-between gap-2">
-            <h2 id="simetria" className="text-lg">
+            <h3 id="simetria" className="text-base">
               Simetría entre lados
-            </h2>
+            </h3>
             <span className="nums text-sm text-text-muted">
               {above} de {symmetry.length} en el {LSI_REFERENCE} % o más
             </span>
@@ -510,20 +468,20 @@ export function MeasurementsPage() {
           <SymmetryPanel rows={symmetry} />
         </section>
       )}
-
       {tests.length === 0 ? (
-        <EmptyState icon={Activity} title="Sin mediciones todavía">
-          Pulsa «Nueva medición» para registrar su primer salto, su fuerza o su movilidad.
-        </EmptyState>
+        <p className="text-sm text-text-muted">Sin mediciones todavía: saltos, fuerza, sprint, carrera, movilidad o nórdico, con «Nueva medición».</p>
       ) : (
         <>
-          <h2 className="text-lg">Todas las mediciones</h2>
+          <h3 className="text-base">Todas las mediciones</h3>
           <TestList tests={tests} />
         </>
       )}
-    </PatientShell>
+    </div>
   );
 }
+
+/** Saltos: los que usan el peso y la distancia de empuje para la fuerza y la potencia. */
+const JUMP_TYPES = new Set<string>(["cmj", "sj", "cmj_arms", "dj", "single_leg", "rj_10_5"]);
 
 // ---------- Sesiones ----------
 
@@ -534,11 +492,23 @@ export function SessionsPage() {
   const autoCalendar = useAutoCalendar();
   const data = useLoad(id, async () => {
     const db = getDb();
-    const [patient, sessions, findings, tests, count] = await Promise.all([getPatient(db, id), listSessions(db, id), listFindings(db, id), listTests(db, id), sessionCount(db, id)]);
-    return { patient, sessions, findings, tests, count };
+    const [patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis] = await Promise.all([
+      getPatient(db, id),
+      listSessions(db, id),
+      listFindings(db, id),
+      listTests(db, id),
+      sessionCount(db, id),
+      listQuestionnaires(db, id),
+      listWellness(db, id),
+      getAnamnesis(db, id),
+    ]);
+    return { patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis };
   });
   if (!data.data) return <Guard state={data} title="Sesiones" back={`/pacientes/${id}`} />;
-  const { patient, sessions, findings, tests, count } = data.data;
+  const { patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis } = data.data;
+  // La evolución: la curva del dolor arriba y, al final, la historia de todo lo que se ha hecho.
+  const pain = painSeries({ sessions, wellness, anamnesis });
+  const timeline = buildTimeline(id, { sessions, findings, tests, questionnaires, wellness, anamnesis }).slice(0, 12);
   const review = sessions[0]?.reviewOn ?? null;
   const today = todayDay();
   // Al guardar una sesión con siguiente cita se ofrece pasarla al calendario (la próxima cita, con su botón, está en la cabecera).
@@ -553,6 +523,19 @@ export function SessionsPage() {
         </Link>
       </div>
       {count.planned !== null && <SessionMeter done={count.done} planned={count.planned} />}
+      {pain.length > 0 && (
+        <section aria-labelledby="h-dolor" className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-2">
+            <h3 id="h-dolor" className="text-base">
+              Dolor
+            </h3>
+            <span className="nums text-sm text-text-muted">{pain.length === 1 ? "1 registro" : `${pain[0]!.pain} → ${pain.at(-1)!.pain} en ${pain.length} registros`}</span>
+          </div>
+          <Card>
+            <PainChart points={pain} label={`Dolor de 0 a 10: ${pain.map((p) => `${fmtDate(p.at)} ${p.pain}`).join(", ")}`} />
+          </Card>
+        </section>
+      )}
       {review && (
         <Alert tone={review <= today ? "warning" : "info"} title={review < today ? `Reevaluación pendiente desde el ${dayText(review)}` : review === today ? "Reevaluar hoy" : `Próxima reevaluación: ${dayText(review)}`} />
       )}
@@ -566,6 +549,30 @@ export function SessionsPage() {
             <SessionCard key={s.id} s={s} n={sessions.length - i} id={id} findings={findings.filter((f) => madridDay(f.performedAt) === madridDay(s.performedAt))} tests={tests.filter((t) => madridDay(t.performedAt) === madridDay(s.performedAt))} />
           ))}
         </ol>
+      )}
+      {timeline.length > 0 && (
+        <section aria-labelledby="historia" className="flex flex-col gap-2">
+          <h3 id="historia" className="text-base">
+            Historia
+          </h3>
+          <ol aria-label="Historia del paciente" className="flex flex-col">
+            {timeline.map((e, i) => (
+              <li key={`${e.kind}-${e.at}-${i}`} className="relative flex gap-3 pb-3 pl-1">
+                <span aria-hidden="true" className="flex w-3 flex-col items-center">
+                  <span className={cx("mt-1.5 size-3 shrink-0 rounded-full", kindStyle[e.kind].dot)} />
+                  {i < timeline.length - 1 && <span className="mt-1 w-px flex-1 bg-border" />}
+                </span>
+                <Link to={e.to} className="flex min-w-0 flex-1 flex-col rounded-md hover:bg-surface">
+                  <span className="text-xs text-text-muted">
+                    {fmtDate(e.at)} · {kindStyle[e.kind].label}
+                  </span>
+                  <span className="truncate font-semibold">{e.title}</span>
+                  {e.detail && <span className="truncate text-sm text-text-muted">{e.detail}</span>}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
       )}
       {justSavedEvent && (
         <CalendarSheet
@@ -582,6 +589,15 @@ export function SessionsPage() {
     </PatientShell>
   );
 }
+
+const kindStyle: Record<EventKind, { dot: string; label: string }> = {
+  session: { dot: "bg-brand", label: "Sesión" },
+  finding: { dot: "bg-danger", label: "Exploración" },
+  test: { dot: "bg-accent", label: "Medición" },
+  questionnaire: { dot: "bg-chart-right", label: "Cuestionario" },
+  wellness: { dot: "bg-highlight", label: "Bienestar" },
+  anamnesis: { dot: "bg-text-muted", label: "Anamnesis" },
+};
 
 /** Cuántas sesiones lleva de las previstas (o del bono) en este motivo de consulta. */
 function SessionMeter({ done, planned }: { done: number; planned: number }) {
@@ -643,7 +659,7 @@ function SessionCard({ s, n, id, findings, tests }: { s: Session; n: number; id:
             <ul className="flex flex-wrap gap-1.5">
               {findings.map((f) => (
                 <li key={f.id}>
-                  <Link to={`/pacientes/${id}/exploracion/${f.id}`}>
+                  <Link to={`/pacientes/${id}/exploracion/${f.id}`} className="inline-flex min-h-11 items-center">
                     <ResultBadge result={f.result}>
                       {f.testName}
                       {f.side ? ` ${sideShort[f.side]}` : ""}
@@ -655,7 +671,7 @@ function SessionCard({ s, n, id, findings, tests }: { s: Session; n: number; id:
                 const v = mainValue(t);
                 return (
                   <li key={t.id}>
-                    <Link to={`/tests/${t.id}`} className="inline-flex min-h-7 items-center rounded-pill bg-accent-soft px-2.5 text-sm font-semibold text-accent">
+                    <Link to={`/tests/${t.id}`} className="inline-flex min-h-11 items-center rounded-pill bg-accent-soft px-2.5 text-sm font-semibold text-accent">
                       {testTitle(t)}
                       {v ? ` · ${v.text}${v.unit === "°" ? "°" : v.unit ? ` ${v.unit}` : ""}` : " · sin marcar"}
                     </Link>
@@ -664,7 +680,7 @@ function SessionCard({ s, n, id, findings, tests }: { s: Session; n: number; id:
               })}
               {tests.length > 6 && (
                 <li>
-                  <Link to={`/pacientes/${id}/mediciones`} className="inline-flex min-h-7 items-center rounded-pill px-2.5 text-sm font-semibold text-accent underline-offset-2 hover:underline">
+                  <Link to={`/pacientes/${id}/mediciones`} className="inline-flex min-h-11 items-center rounded-pill px-2.5 text-sm font-semibold text-accent underline-offset-2 hover:underline">
                     y {tests.length - 6} mediciones más
                   </Link>
                 </li>
@@ -874,11 +890,11 @@ export function SessionFormPage() {
           </Link>
         )}
         <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-semibold">Siguiente cita</legend>
+          <legend className="text-sm font-semibold">Dar la siguiente cita</legend>
           <div className="flex flex-wrap gap-2">
             {[7, 14].map((d) => (
               <Button key={d} variant={nextAt && nextAt === sameTimeIn(d) ? "primary" : "secondary"} size="sm" onClick={() => setNextAt(sameTimeIn(d))}>
-                {d === 7 ? "Dentro de 1 semana" : "Dentro de 2 semanas"}
+                {d === 7 ? "Cita en 1 semana" : "Cita en 2 semanas"}
               </Button>
             ))}
             {nextAt && (
@@ -893,27 +909,33 @@ export function SessionFormPage() {
           )}
           <p className="text-sm text-text-muted">Los botones la ponen a la hora de esta sesión, al cuarto de hora más cercano. {autoCalendar ? "Al guardar se apunta sola en tu Google Calendar." : "Al guardar podrás añadirla a tu calendario (Google, iPhone, Outlook…)."}</p>
         </fieldset>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-semibold">Reevaluar</legend>
-          <div className="flex flex-wrap gap-2">
-            {[7, 14, 28].map((d) => (
-              <Button key={d} variant={reviewOn === addDays(base, d) ? "primary" : "secondary"} size="sm" onClick={() => setReviewOn(addDays(base, d))}>
-                {d === 7 ? "En 1 semana" : d === 14 ? "En 2 semanas" : "En 4 semanas"}
-              </Button>
-            ))}
-            {reviewOn && (
-              <Button variant="ghost" size="sm" onClick={() => setReviewOn("")}>
-                {carried && reviewOn === carried ? "Ya reevaluado hoy" : "Sin fecha"}
-              </Button>
-            )}
+        {carried && reviewOn === carried && (
+          <p className="-mb-2 text-sm text-text-muted">
+            Sigue la reevaluación pendiente del {dayText(carried)}. Si la haces hoy, ábrela y pulsa «Ya reevaluado hoy», o pon la siguiente.
+          </p>
+        )}
+        {/* Reevaluar: con una fecha ya puesta, plegado en una línea (se abre para cambiarla); sin fecha, abierto. */}
+        <details className="group flex flex-col gap-2 rounded-md border border-border px-3" open={!reviewOn || undefined}>
+          <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-2 font-semibold [&::-webkit-details-marker]:hidden">
+            <span>{reviewOn ? `Reevaluar el ${dayText(reviewOn)}` : "Reevaluar"}</span>
+            {reviewOn && <span className="text-sm text-accent group-open:hidden">Cambiar</span>}
+          </summary>
+          <div className="flex flex-col gap-2 pb-3">
+            <div role="group" aria-label="Reevaluar" className="flex flex-wrap gap-2">
+              {[7, 14, 28].map((d) => (
+                <Button key={d} variant={reviewOn === addDays(base, d) ? "primary" : "secondary"} size="sm" onClick={() => setReviewOn(addDays(base, d))}>
+                  {d === 7 ? "Reevaluar en 1 semana" : d === 14 ? "En 2 semanas" : "En 4 semanas"}
+                </Button>
+              ))}
+              {reviewOn && (
+                <Button variant="ghost" size="sm" onClick={() => setReviewOn("")}>
+                  {carried && reviewOn === carried ? "Ya reevaluado hoy" : "Sin fecha"}
+                </Button>
+              )}
+            </div>
+            <TextField label="Fecha de reevaluación" type="date" value={reviewOn} onChange={(e) => setReviewOn(e.target.value)} />
           </div>
-          {carried && reviewOn === carried && (
-            <p className="text-sm text-text-muted">
-              Sigue la reevaluación pendiente del {dayText(carried)}. Si la haces hoy, pulsa «Ya reevaluado hoy» o pon la siguiente.
-            </p>
-          )}
-          <TextField label="Fecha de reevaluación" type="date" value={reviewOn} onChange={(e) => setReviewOn(e.target.value)} />
-        </fieldset>
+        </details>
         {error && <Alert tone="danger" title={error} />}
         <Button type="submit" size="lg" block loading={saving}>
           {sid ? "Guardar cambios" : "Guardar sesión"}

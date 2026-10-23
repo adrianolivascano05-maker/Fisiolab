@@ -64,6 +64,7 @@ test.describe("F07 Fuerza: velocidad de barra y 1RM", () => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Valoración" }).click();
     await page.getByRole("link", { name: "Carga-velocidad y 1RM" }).click();
     // Las 4 series del último día vienen elegidas: recta v = 1,45 − 0,011 · carga → 1RM ≈ 104,5 kg a 0,30 m/s.
     await expect(page.getByRole("checkbox", { checked: true })).toHaveCount(4);
@@ -92,7 +93,7 @@ test.describe("F07 Fuerza: velocidad de barra y 1RM", () => {
     // El resultado de una serie muestra su intensidad respecto al perfil guardado.
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
-    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Mediciones" }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Valoración" }).click();
     await page.getByRole("link", { name: /Sentadilla · 80 kg/ }).click();
     await expect(page.getByText(/7\d % del 1RM/)).toBeVisible();
   });

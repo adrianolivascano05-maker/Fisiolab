@@ -1,16 +1,15 @@
-// Rutas de la ficha clínica (anamnesis, exploración, mediciones, cuestionarios, sesiones, informe e informe de alta).
+// Rutas de la ficha clínica (anamnesis, valoración: exploración, cuestionarios y mediciones; sesiones, informe e informe de alta).
 // La ficha del paciente (/pacientes/:id) es el resumen y vive en src/pages/PatientPage.tsx.
 import { lazy, Suspense } from "react";
+import { Navigate, useParams } from "react-router";
 
 const pages = () => import("./ClinicalPages");
 const AnamnesisPage = lazy(() => pages().then((m) => ({ default: m.AnamnesisPage })));
 const exploration = () => import("./ExplorationPages");
-const ExplorationPage = lazy(() => exploration().then((m) => ({ default: m.ExplorationPage })));
+const AssessmentPage = lazy(() => exploration().then((m) => ({ default: m.AssessmentPage })));
 const FindingFormPage = lazy(() => exploration().then((m) => ({ default: m.FindingFormPage })));
-const MeasurementsPage = lazy(() => pages().then((m) => ({ default: m.MeasurementsPage })));
 const SessionsPage = lazy(() => pages().then((m) => ({ default: m.SessionsPage })));
 const SessionFormPage = lazy(() => pages().then((m) => ({ default: m.SessionFormPage })));
-const QuestionnairesPage = lazy(() => pages().then((m) => ({ default: m.QuestionnairesPage })));
 const QuestionnaireFormPage = lazy(() => pages().then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
 const ReferralPage = lazy(() => import("./ReferralPage").then((m) => ({ default: m.ReferralPage })));
@@ -27,17 +26,24 @@ const ConsentViewPage = lazy(() => consents().then((m) => ({ default: m.ConsentV
 const SendFormsPage = lazy(() => import("../patientForm/SendFormsPage").then((m) => ({ default: m.SendFormsPage })));
 const l = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
+function ToAssessment({ block }: { block: string }) {
+  const { id = "" } = useParams();
+  return <Navigate to={{ pathname: `/pacientes/${id}/valoracion`, hash: block }} replace />;
+}
+
 export const clinicalRoutes = [
   { path: "/pacientes/:id/anamnesis", element: l(<AnamnesisPage />) },
   { path: "/pacientes/:id/formularios", element: l(<SendFormsPage />) },
-  { path: "/pacientes/:id/exploracion", element: l(<ExplorationPage />) },
+  { path: "/pacientes/:id/valoracion", element: l(<AssessmentPage />) },
+  // Las direcciones de antes (Exploración, Mediciones y Cuestionarios eran pestañas): abren Valoración en su bloque.
+  { path: "/pacientes/:id/exploracion", element: <ToAssessment block="exploracion" /> },
   { path: "/pacientes/:id/exploracion/nuevo", element: l(<FindingFormPage />) },
   { path: "/pacientes/:id/exploracion/:fid", element: l(<FindingFormPage />) },
-  { path: "/pacientes/:id/mediciones", element: l(<MeasurementsPage />) },
+  { path: "/pacientes/:id/mediciones", element: <ToAssessment block="mediciones" /> },
   { path: "/pacientes/:id/sesiones", element: l(<SessionsPage />) },
   { path: "/pacientes/:id/sesiones/nueva", element: l(<SessionFormPage />) },
   { path: "/pacientes/:id/sesiones/:sid", element: l(<SessionFormPage />) },
-  { path: "/pacientes/:id/cuestionarios", element: l(<QuestionnairesPage />) },
+  { path: "/pacientes/:id/cuestionarios", element: <ToAssessment block="cuestionarios" /> },
   { path: "/pacientes/:id/cuestionarios/nuevo", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/cuestionarios/:qid", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/informe", element: l(<ReportPage />) },

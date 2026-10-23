@@ -44,7 +44,7 @@ export function WellnessPage() {
   }, [todayEntry?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const title = "Bienestar";
-  const back = `/pacientes/${id}/mediciones`;
+  const back = `/pacientes/${id}/valoracion#cuestionarios`;
   if (data.error) return <Page title={title} backTo={back} tabs={false}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title={title} backTo={back} tabs={false}><Loading /></Page>;
   const { patient, entries } = data.data;

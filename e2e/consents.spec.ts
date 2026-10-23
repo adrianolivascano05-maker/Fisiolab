@@ -27,8 +27,9 @@ test.describe("Consentimientos", () => {
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
 
     await tab(page, "Resumen").click();
-    const row = page.getByRole("link", { name: /^Consentimientos/ });
-    await expect(row).toContainText("Falta por escrito: tratamientos invasivos");
+    // En «Pendiente», el que falta por escrito; lleva a Consentimientos.
+    const row = page.getByRole("link", { name: /^Consentimiento sin firmar: tratamientos invasivos/ });
+    await expect(row).toBeVisible();
     await row.click();
 
     await expect(page.getByRole("heading", { name: "Consentimientos" })).toBeVisible();

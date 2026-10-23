@@ -673,7 +673,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await createClinic(page, "Fisiolab Centro");
     await patients(page);
     await createPatient(page, { name: "Nora Enlace" });
-    await page.getByRole("link", { name: /Formularios para el paciente/ }).click();
+    // Lo enviado y su estado: la pantalla de formularios del paciente.
+    await page.goto(`${page.url()}/formularios`);
     await expect(page.getByText("Todavía no le has mandado ninguno.")).toBeVisible();
     await expectAccessible(page);
 
@@ -728,7 +729,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
 
     // Un cuestionario desde su pantalla: llega con la nota calculada.
     await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
-    await page.getByRole("navigation", { name: "Añadir" }).getByRole("link", { name: "Cuestionario" }).click();
+    await page.getByRole("button", { name: "Valorar" }).click();
+    await page.getByRole("dialog", { name: "Valorar" }).getByRole("link", { name: /^Pasar un cuestionario/ }).click();
     await page.getByRole("button", { name: /GAD-7/ }).click();
     await page.getByRole("link", { name: "Que lo rellene en su móvil" }).click();
     await expect(page.getByRole("dialog", { name: "Enviar un formulario" }).getByLabel("Qué le mandas")).toHaveValue("gad7");

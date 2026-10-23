@@ -7,7 +7,8 @@ test.describe("F14 Ver la evolución", () => {
     await expectAccessible(page);
     await page.getByRole("link", { name: /Lucía Herrero/ }).click();
     await expectAccessible(page);
-    await page.getByRole("link", { name: "Evolución" }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Valoración" }).click();
+    await page.getByRole("link", { name: "Evolución de mediciones" }).click();
     await page.getByLabel("Test", { exact: true }).selectOption({ label: "CMJ (con contramovimiento)" });
     await expect(page.locator(".recharts-line-dot")).toHaveCount(5);
     await expect(page.getByText(/^Mejor: 31,2/)).toBeVisible();
@@ -30,7 +31,8 @@ test.describe("F14 Ver la evolución", () => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Irene Soto/ }).click();
-    await page.getByRole("link", { name: "Evolución" }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Valoración" }).click();
+    await page.getByRole("link", { name: "Evolución de mediciones" }).click();
     await page.getByLabel("Medida").selectOption({ label: "Potencia media" });
     await expect(page.getByText("La potencia necesita el peso y la distancia de empuje del paciente.")).toBeVisible();
   });

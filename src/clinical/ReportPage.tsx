@@ -3,7 +3,7 @@
 import { Printer } from "lucide-react";
 import { TopBar } from "../ui/AppBar";
 import { useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { fmt, fmtDate, fmtDateShort } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
@@ -140,7 +140,7 @@ export function ReportPage() {
           <TextField label="Dirigido a (opcional)" placeholder="Por ejemplo: Dra. López, traumatología" value={to} onChange={(e) => setTo(e.target.value)} />
           <TextArea label="Nota para quien lo recibe (opcional)" value={note} onChange={setNote} />
           <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
-            Imprimir o guardar en PDF
+            Imprimir
           </Button>
           <SharePdf
             make={async () => {
@@ -150,9 +150,6 @@ export function ReportPage() {
             fileName={safeName(`Informe ${patient.name} ${today.slice(0, 10)}.pdf`)}
             title="Informe de fisioterapia"
           />
-          <Link to={`/pacientes/${id}/alta`} className="text-sm font-semibold text-accent">
-            Informe de alta: más corto, con la evolución del motivo de consulta
-          </Link>
           <DriveSaveButton
             label="Guardar en mi Drive (PDF)"
             make={async () => {

@@ -281,7 +281,7 @@ test.describe("Agenda y seguimiento", () => {
     await expect(doc).toContainText("Se expide a petición de la interesada, para presentar en su empresa.");
     await expect(doc).toContainText("se firma en Sevilla");
     await expectAccessible(page);
-    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
+    const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Guardar en PDF" }).click()]);
     expect(pdf.suggestedFilename()).toMatch(/^Justificante Eva Justifica 2026-10-20\.pdf$/);
   });
 

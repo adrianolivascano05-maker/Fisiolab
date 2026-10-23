@@ -75,9 +75,16 @@ export async function createPatient(page: Page, p: NewPatient) {
   return page.url();
 }
 
-/** Desde el resumen de la ficha: uno de los botones de «Añadir» (Sesión, Medición, Exploración, Cuestionario). */
+/** Desde el resumen de la ficha: «Nueva sesión», o «Valorar» y en su hoja un test, un cuestionario o una medición. */
 export function add(page: Page, what: "Sesión" | "Medición" | "Exploración" | "Cuestionario") {
-  return page.getByRole("navigation", { name: "Añadir" }).getByRole("link", { name: what, exact: true });
+  return {
+    click: async () => {
+      if (what === "Sesión") return page.getByRole("main").getByRole("link", { name: "Nueva sesión" }).first().click();
+      await page.getByRole("button", { name: "Valorar" }).click();
+      const name = { Medición: "Nueva medición", Exploración: "Registrar un test", Cuestionario: "Pasar un cuestionario" }[what];
+      await page.getByRole("dialog", { name: "Valorar" }).getByRole("link", { name: new RegExp(`^${name}`) }).click();
+    },
+  };
 }
 
 /** Desde la ficha: nuevo test de salto, hasta la pantalla de marcado. */

@@ -27,7 +27,7 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("heading", { name: "Rita Reevalúa" })).toBeVisible();
     const record = page.url();
     await add(page, "Sesión").click();
-    await page.getByRole("button", { name: "En 1 semana" }).click();
+    await page.getByRole("button", { name: "Reevaluar en 1 semana" }).click();
     await expect(page.getByLabel("Fecha de reevaluación")).toHaveValue("2026-10-27");
     await page.getByRole("button", { name: "Guardar sesión" }).click();
     await expect(page.getByText(/Reevaluar el/).first()).toBeVisible();
@@ -37,6 +37,8 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByLabel("Fecha de reevaluación")).toHaveValue("2026-10-27");
     await expect(page.getByText(/Sigue la reevaluación pendiente del/)).toBeVisible();
     await expectAccessible(page);
+    // Con fecha, «Reevaluar» sale plegado en una línea: se abre para cambiarla.
+    await page.getByText(/^Reevaluar el /).click();
     await page.getByRole("button", { name: "Ya reevaluado hoy" }).click();
     await expect(page.getByLabel("Fecha de reevaluación")).toHaveValue("");
   });
@@ -82,7 +84,7 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("heading", { name: "Pilar Miedo" })).toBeVisible();
     await page.goto(`${page.url()}/anamnesis`);
     await page.getByLabel("Motivo principal").fill("Lumbalgia");
-    await page.getByText("5. Tratamientos previos y expectativas").click();
+    await page.locator("summary", { hasText: "Tratamientos previos y expectativas" }).click();
     await page.getByLabel("Qué cree el paciente que le pasa").fill("Le da miedo agacharse: cree que se le va a romper la espalda");
     await expect(page.getByRole("region", { name: /Banderas amarillas/ })).toContainText("Miedo al movimiento");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();

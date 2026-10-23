@@ -22,7 +22,9 @@ import { Button } from "../ui/Button";
 import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { DEFAULT_VISIT_MINUTES, fmtVisit } from "./calendar";
+import { DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./calendar";
+import { CalendarButton } from "./CalendarButton";
+import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PaymentForm } from "./billingForms";
 import { localInput, todayDay } from "./pageKit";
 import { Chips } from "./parts";
@@ -64,6 +66,7 @@ export function AppointmentSheet({
   const [when, setWhen] = useState("");
   const [minutes, setMinutes] = useState(DEFAULT_VISIT_MINUTES);
   const staff = useStaff();
+  const autoCalendar = useAutoCalendar();
   const edit = useAsync(async () => (open && appointment && staff.length ? lastEditOf(getDb(), "appointments", appointment.id) : null), [open, appointment?.id, staff.length]);
   const lastEdit = edit.data;
   const [assignedTo, setAssignedTo] = useState<string>("");
@@ -86,6 +89,7 @@ export function AppointmentSheet({
       wa: waPhone(patient?.phone ?? ""),
       email: patient?.email ?? "",
       contact: patient?.privacy.consents?.contact ?? null,
+      event: patient ? visitEvent({ id: appointment.id, nextAt: appointment.startsAt, nextMinutes: appointment.minutes }, patient) : null,
       reminder: reminderText(template ?? DEFAULT_TEMPLATE, {
         name: patient?.name ?? "",
         startsAt: appointment.startsAt,
@@ -356,6 +360,12 @@ export function AppointmentSheet({
                 )}
               </div>
               {extra.data.contact === false && <p className="text-sm text-text-muted">No acepta WhatsApp ni correo.</p>}
+              {/* Sin Google Calendar conectado: pasar la cita al calendario del fisio (antes, un botón en la cabecera de la ficha). */}
+              {autoCalendar ? (
+                <p className="text-sm text-text-muted">Apuntada en tu Google Calendar</p>
+              ) : (
+                extra.data.event && <CalendarButton event={extra.data.event} />
+              )}
               <Button
                 size="sm"
                 variant="ghost"

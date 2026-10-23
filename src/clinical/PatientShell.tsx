@@ -16,11 +16,8 @@ import { editText, lastEditOfPatient } from "../data/editors";
 import { getDb } from "../data/db";
 import { ageOn } from "../data/privacy";
 import type { Patient } from "../data/repo";
-import { useAutoCalendar } from "../cloud/CalendarSettings";
-import { initials } from "../ui/ListItem";
-import { fmtVisit, visitEvent } from "./calendar";
+import { fmtVisit } from "./calendar";
 import { AppointmentSheet } from "./AppointmentSheet";
-import { CalendarButton } from "./CalendarButton";
 import { EpisodePicker } from "./EpisodePicker";
 import { PatientNav } from "./parts";
 
@@ -36,9 +33,6 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
     const a = await patientAccount(getDb(), id, new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }));
     return a.balanceCents > 0 ? a.balanceCents : 0;
   }, [id, version]);
-  // Con Google Calendar conectado la cita ya está en el calendario; si no, el botón para pasarla.
-  const autoCalendar = useAutoCalendar();
-  const event = visit.data && patient ? visitEvent({ id: visit.data.id, nextAt: visit.data.startsAt, nextMinutes: visit.data.minutes }, patient) : null;
   const name = patient?.name ?? "Paciente";
   const years = patient ? ageOn(patient.birthDate) : null;
   const facts = patient
@@ -56,62 +50,52 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
       tabs={tabs}
       action={
         patient && (
-          <Link to={`/pacientes/${id}/editar`} className="tap inline-flex items-center rounded-md px-2 font-semibold text-accent hover:bg-surface">
-            Editar datos
+          <Link to={`/pacientes/${id}/editar`} aria-label="Editar datos" className="tap inline-flex items-center rounded-md px-2 font-semibold text-accent hover:bg-surface">
+            Editar
           </Link>
         )
       }
       header={
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <span aria-hidden="true" className="flex size-14 shrink-0 items-center justify-center rounded-full bg-accent-soft text-lg font-semibold text-accent">
-              {initials(name)}
-            </span>
-            <div className="flex min-w-0 flex-col">
-              <h1 className="text-[1.75rem] leading-tight font-bold break-words">{name}</h1>
-              {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin más datos"}</p>}
-              {edit.data && <p className="text-xs text-text-muted">Última modificación: {editText(edit.data)}</p>}
-            </div>
+          <div className="flex min-w-0 flex-col">
+            <h1 className="text-[1.75rem] leading-tight font-bold break-words">{name}</h1>
+            {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin más datos"}</p>}
+            {edit.data && <p className="text-xs text-text-muted">Última modificación: {editText(edit.data)}</p>}
           </div>
-          {/* Lo que debe, a la vista al llegar (Bonos y cobros). */}
-          {owes.data ? (
-            <Link
-              to={`/pacientes/${id}/cobros`}
-              className="inline-flex min-h-9 items-center gap-2 self-start rounded-pill border border-warning bg-warning-soft px-3 text-sm font-semibold hover:border-accent"
-            >
-              <Wallet aria-hidden="true" className="size-4" /> Pendiente de cobro: {euros(owes.data)}
-            </Link>
-          ) : null}
-          {patient && <EpisodePicker patientId={id} />}
-          {visit.data ? (
-            <div className="flex flex-wrap items-center gap-x-2">
+          {/* Una fila de chips: el motivo que se ve, la próxima cita (o darla) y lo que debe. Añadir al calendario, dentro de la cita. */}
+          <div className="flex flex-wrap items-center gap-2">
+            {patient && <EpisodePicker patientId={id} />}
+            {visit.data ? (
               <button
                 type="button"
                 aria-haspopup="dialog"
                 onClick={() => setManaging(true)}
-                className="inline-flex min-h-9 items-center gap-1.5 rounded-pill bg-accent-soft px-3 text-sm font-semibold text-accent hover:bg-surface"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-pill bg-accent-soft px-3 text-sm font-semibold text-accent hover:bg-surface"
               >
                 <CalendarCheck aria-hidden="true" className="size-4" /> Próxima cita: {fmtVisit(visit.data.startsAt)}
               </button>
-              {autoCalendar ? (
-                <span className="text-xs text-text-muted">Apuntada en tu Google Calendar</span>
-              ) : (
-                event && <CalendarButton event={event} compact />
-              )}
-            </div>
-          ) : (
-            patient &&
-            visit.data === null && (
-              <button
-                type="button"
-                aria-haspopup="dialog"
-                onClick={() => setManaging(true)}
-                className="inline-flex min-h-9 items-center gap-1.5 self-start rounded-pill border border-border bg-bg px-3 text-sm font-semibold text-accent hover:bg-surface"
+            ) : (
+              patient &&
+              visit.data === null && (
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  onClick={() => setManaging(true)}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-border bg-bg px-3 text-sm font-semibold text-accent hover:bg-surface"
+                >
+                  <CalendarPlus aria-hidden="true" className="size-4" /> Dar cita
+                </button>
+              )
+            )}
+            {owes.data ? (
+              <Link
+                to={`/pacientes/${id}/cobros`}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-warning bg-warning-soft px-3 text-sm font-semibold hover:border-accent"
               >
-                <CalendarPlus aria-hidden="true" className="size-4" /> Dar cita
-              </button>
-            )
-          )}
+                <Wallet aria-hidden="true" className="size-4" /> Debe {euros(owes.data)}
+              </Link>
+            ) : null}
+          </div>
           {patient && <AppointmentSheet open={managing} onClose={() => setManaging(false)} patientId={id} patientName={patient.name} appointment={visit.data ?? null} />}
         </div>
       }

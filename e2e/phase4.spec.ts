@@ -68,6 +68,7 @@ test.describe("Fase 4: sprint, cambio de dirección y carrera", () => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Valoración" }).click();
     await page.getByRole("link", { name: /5-0-5 · gira con la dcha/ }).click();
     await expect(card(page, "Déficit de cambio de dirección")).toContainText(/0,\d\d s/);
   });

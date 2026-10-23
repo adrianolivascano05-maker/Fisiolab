@@ -10,9 +10,9 @@ const variants: Record<Variant, string> = {
   ghost: "bg-transparent text-accent hover:bg-accent-soft",
   danger: "bg-danger text-on-accent hover:opacity-90",
 };
-// sm se queda en 32px de alto visual pero mantiene 44px de zona táctil con el padding del contenedor.
+// sm es más estrecho y de letra más pequeña, pero mide 44px de alto como md: la zona táctil mínima en el móvil.
 const sizes: Record<Size, string> = {
-  sm: "h-10 px-3 text-sm font-semibold",
+  sm: "h-11 px-3 text-sm font-semibold",
   md: "h-11 px-4 text-base font-semibold",
   lg: "h-14 px-6 text-lg",
 };

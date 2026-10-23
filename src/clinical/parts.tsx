@@ -1,42 +1,38 @@
 // Piezas de la ficha clínica: pestañas del paciente, escala de dolor, chips de opciones, resultado de un test
 // y gráficas pequeñas en SVG (sin librería: la ficha se abre al instante).
-import { Activity, CircleHelp, ClipboardList, LayoutDashboard, Minus, NotebookPen, Plus, Stethoscope } from "lucide-react";
+import { CircleHelp, ClipboardList, LayoutDashboard, Minus, NotebookPen, Plus, Stethoscope } from "lucide-react";
 import { useId, type ReactNode } from "react";
-import { NavLink, useLocation } from "react-router";
+import { NavLink } from "react-router";
 import { fmtDateShort } from "../app/format";
 import type { FindingResult } from "../data/clinical";
 import { cx } from "../ui/cx";
 
-/** Pestañas dentro de la ficha de un paciente: las cinco caben en el móvil (icono y nombre). */
+/** Pestañas dentro de la ficha de un paciente: las cuatro, con su nombre entero en el móvil. */
 export function PatientNav({ id }: { id: string }) {
-  // Los cuestionarios tienen su pantalla, pero van dentro de la pestaña Mediciones.
-  const inQuestionnaires = useLocation().pathname.endsWith(`/pacientes/${id}/cuestionarios`);
   const tabs = [
     { to: `/pacientes/${id}`, label: "Resumen", icon: LayoutDashboard, end: true },
     { to: `/pacientes/${id}/anamnesis`, label: "Anamnesis", icon: ClipboardList },
-    { to: `/pacientes/${id}/exploracion`, label: "Exploración", icon: Stethoscope },
-    { to: `/pacientes/${id}/mediciones`, label: "Mediciones", icon: Activity },
+    { to: `/pacientes/${id}/valoracion`, label: "Valoración", icon: Stethoscope },
     { to: `/pacientes/${id}/sesiones`, label: "Sesiones", icon: NotebookPen },
   ];
   return (
     // Fijas arriba al bajar: cambiar de pestaña está siempre a un toque.
     <nav aria-label="Ficha del paciente" className="sticky top-[var(--layout-header)] z-10 -mx-4 bg-canvas/95 px-4 py-1.5 backdrop-blur">
-      <ul className="grid grid-cols-5 gap-1 rounded-lg bg-surface p-1">
+      <ul className="grid grid-cols-4 gap-1 rounded-lg bg-surface p-1">
         {tabs.map(({ to, label, icon: Icon, end }) => (
           <li key={to} className="min-w-0">
             <NavLink
               to={to}
               end={end}
-              aria-current={inQuestionnaires && label === "Mediciones" ? "page" : undefined}
               className={({ isActive }) =>
                 cx(
-                  "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-[0.6875rem] leading-tight font-semibold",
-                  isActive || (inQuestionnaires && label === "Mediciones") ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text",
+                  "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-xs leading-tight font-semibold",
+                  isActive ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text",
                 )
               }
             >
               <Icon aria-hidden="true" className="size-5 shrink-0" />
-              <span className="max-w-full truncate">{label}</span>
+              <span className="max-w-full">{label}</span>
             </NavLink>
           </li>
         ))}

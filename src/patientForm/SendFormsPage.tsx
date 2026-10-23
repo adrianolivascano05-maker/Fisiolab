@@ -86,7 +86,11 @@ export function SendFormsPage() {
       </p>
       {!online ? (
         <Alert tone="info" title="Hace falta el servidor de la clínica">
-          Para mandar formularios tienes que trabajar en una clínica con el servidor de Cénit (Ajustes → Cuenta).
+          Para mandar formularios tienes que trabajar en una clínica con el servidor de Cénit:{" "}
+          <Link to="/ajustes/cuenta" className="font-semibold underline underline-offset-2">
+            Ajustes › Cuenta de Google
+          </Link>
+          .
         </Alert>
       ) : (
         <div className="flex flex-wrap gap-2">
@@ -120,7 +124,7 @@ export function SendFormsPage() {
         <p className="text-sm text-text-muted">Todavía no le has mandado ninguno.</p>
       )}
 
-      <Sheet open={choosing !== null} onClose={closeChooser} title="Enviar un formulario">
+      <Sheet open={choosing !== null && online} onClose={closeChooser} title="Enviar un formulario">
         {choosing !== null && (
           <ChooseForm
             initial={choosing}

@@ -9,8 +9,9 @@ test.describe("F16 Ficha clínica", () => {
     await createPatient(page, { name: "Lucía Anamnesis" });
     await tab(page, "Anamnesis").click();
     await expect(page.getByRole("heading", { name: "Anamnesis", exact: true })).toBeVisible();
-    await expect(page.getByText("1. Datos personales")).toBeVisible();
-    await expect(page.getByText("10. Observaciones")).toBeVisible();
+    // Los apartados, sin números.
+    await expect(page.locator("summary", { hasText: "Datos personales" })).toBeVisible();
+    await expect(page.locator("summary", { hasText: "Observaciones" })).toBeVisible();
     await page.getByLabel("Motivo principal").fill("Dolor de rodilla al bajar escaleras");
     await page.getByText("Rodilla", { exact: true }).click();
     await page.getByText("Derecho", { exact: true }).click();
@@ -28,10 +29,11 @@ test.describe("F16 Ficha clínica", () => {
 
     await tab(page, "Resumen").click();
     await expect(page.getByRole("button", { name: "Motivo: Dolor de rodilla al bajar escaleras" })).toBeVisible();
-    await expect(page.getByRole("main").getByText("Dolor de rodilla al bajar escaleras", { exact: true }).last()).toBeVisible();
-    await expect(page.getByText("Diagnóstico fisioterápico: Tendinopatía rotuliana")).toBeVisible();
-    await expect(page.getByText("Alarmas: Posible infección (preferente)")).toBeVisible();
-    // El dolor de la anamnesis ya dibuja la gráfica.
+    const situation = page.getByRole("region", { name: "Situación" });
+    await expect(situation).toContainText("Tendinopatía rotuliana");
+    await expect(situation).toContainText("Alarmas: Posible infección (preferente)");
+    // El dolor de la anamnesis ya dibuja la gráfica, en Sesiones.
+    await tab(page, "Sesiones").click();
     await expect(page.getByRole("img", { name: /Dolor de 0 a 10/ })).toBeVisible();
 
     // Editar conserva lo escrito.
@@ -62,11 +64,7 @@ test.describe("F16 Ficha clínica", () => {
     await expect(row).toBeVisible();
     await expectAccessible(page);
 
-    await tab(page, "Resumen").click();
-    await expect(page.getByRole("list", { name: "Tests de exploración" })).toContainText("Test de Lachman");
-
     // Editar: pasa a negativo.
-    await tab(page, "Exploración").click();
     await row.click();
     await page.getByText("Negativo", { exact: true }).click();
     await page.getByRole("button", { name: "Guardar cambios" }).click();
@@ -96,20 +94,21 @@ test.describe("F16 Ficha clínica", () => {
     await add(page, "Sesión").click();
     await page.locator("fieldset", { hasText: "Dolor hoy" }).getByText("4", { exact: true }).click();
     await page.getByLabel("Tratamiento").fill("Isométricos de cuádriceps");
-    await page.getByRole("button", { name: "En 1 semana" }).click();
+    await page.getByRole("button", { name: "Reevaluar en 1 semana" }).click();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar sesión" }).click();
 
     await expect(page.getByRole("heading", { name: "Sesiones", exact: true })).toBeVisible();
-    await expect(page.getByText("Dolor 4/10")).toBeVisible();
-    await expect(page.getByText("Isométricos de cuádriceps")).toBeVisible();
+    await expect(page.getByText("Dolor 4/10", { exact: true })).toBeVisible();
+    await expect(page.getByText("Isométricos de cuádriceps", { exact: true })).toBeVisible();
     await expect(page.getByText(/Próxima reevaluación/)).toBeVisible();
     await expectAccessible(page);
 
-    await tab(page, "Resumen").click();
+    // En Sesiones, la curva del dolor y la historia; en el Resumen, la reevaluación.
     await expect(page.getByRole("img", { name: /Dolor de 0 a 10/ })).toBeVisible();
-    await expect(page.getByText(/Próxima reevaluación/)).toBeVisible();
     await expect(page.getByRole("list", { name: "Historia del paciente" })).toContainText("Sesión");
+    await tab(page, "Resumen").click();
+    await expect(page.getByRole("region", { name: "Situación" })).toContainText(/Reevaluar el/);
     // La reevaluación es la semana que viene: todavía no sale como pendiente en Agenda › Hoy.
     await page.goto("./agenda?vista=hoy");
     await expect(page.getByRole("region", { name: "Pendiente" })).toHaveCount(0);
@@ -150,7 +149,7 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("group", { name: "Cómo hace la actividad 2" }).getByText("5", { exact: true }).click();
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(list).toContainText("6/10");
-    await expect(list).toContainText("+3 desde el primero (mejor)");
+    await expect(list).toContainText(/en 2 pases \(\+3, mejor\)/);
 
     // KOOS: solo la puntuación, con su subescala y su rango.
     await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
@@ -170,8 +169,10 @@ test.describe("F16 Ficha clínica", () => {
     await expect(list).toContainText("62/100");
 
     await tab(page, "Resumen").click();
-    await expect(page.getByRole("list", { name: "Cuestionarios" })).toContainText("KOOS");
+    await expect(page.getByRole("region", { name: "Situación" })).toContainText("Último cuestionario");
+    await tab(page, "Sesiones").click();
     await expect(page.getByRole("list", { name: "Historia del paciente" })).toContainText("Cuestionario");
+    await tab(page, "Valoración").click();
 
     // Corregir y borrar.
     await page.getByRole("list", { name: "Cuestionarios" }).getByRole("link", { name: /KOOS/ }).click();
@@ -276,7 +277,7 @@ test.describe("F16 Ficha clínica", () => {
     await tab(page, "Anamnesis").click();
     await page.getByLabel("Motivo principal").fill("Esguince de tobillo");
     // Los datos personales van plegados al empezar.
-    await page.getByText("1. Datos personales").click();
+    await page.locator("summary", { hasText: "Datos personales" }).click();
     await page.getByLabel("Profesión").fill("Enfermera");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByRole("button", { name: /Motivo: Esguince de tobillo/ })).toBeVisible();
@@ -284,7 +285,7 @@ test.describe("F16 Ficha clínica", () => {
     await add(page, "Sesión").click();
     await page.getByLabel("Tratamiento").fill("Propiocepción");
     await page.getByRole("button", { name: "Guardar sesión" }).click();
-    await expect(page.getByText("Propiocepción")).toBeVisible();
+    await expect(page.getByText("Propiocepción").first()).toBeVisible();
 
     // Vuelve meses después por otra cosa: motivo nuevo, con su anamnesis (se copian los datos personales).
     await page.getByRole("button", { name: /Motivo:/ }).click();
@@ -314,7 +315,7 @@ test.describe("F16 Ficha clínica", () => {
     // Al primer motivo: su anamnesis y su sesión.
     await page.getByRole("button", { name: /Motivo:/ }).click();
     await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: /Esguince de tobillo/ }).click();
-    await expect(page.getByText("Propiocepción")).toBeVisible();
+    await expect(page.getByText("Propiocepción").first()).toBeVisible();
     await expect(page.getByText("Control motor")).toHaveCount(0);
     await tab(page, "Anamnesis").click();
     await expect(page.getByText("Esguince de tobillo").first()).toBeVisible();
@@ -323,8 +324,8 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("button", { name: /Motivo:/ }).click();
     await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: /Todos los motivos/ }).click();
     await tab(page, "Sesiones").click();
-    await expect(page.getByText("Propiocepción")).toBeVisible();
-    await expect(page.getByText("Control motor")).toBeVisible();
+    await expect(page.getByText("Propiocepción").first()).toBeVisible();
+    await expect(page.getByLabel("Sesiones").getByText("Control motor", { exact: true })).toBeVisible();
 
     // Borrar el segundo motivo se lleva lo suyo.
     await page.getByRole("button", { name: /Motivo:/ }).click();
@@ -333,7 +334,7 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: "Borrar este motivo" }).click();
     await page.getByRole("dialog", { name: "Motivo de consulta" }).getByRole("button", { name: "Borrar el motivo" }).click();
     await expect(page.getByRole("button", { name: /Motivo: Esguince de tobillo/ })).toBeVisible();
-    await expect(page.getByText("Propiocepción")).toBeVisible();
+    await expect(page.getByText("Propiocepción").first()).toBeVisible();
     await expect(page.getByText("Control motor")).toHaveCount(0);
   });
 
@@ -341,14 +342,14 @@ test.describe("F16 Ficha clínica", () => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
-    await tab(page, "Mediciones").click();
+    await tab(page, "Valoración").click();
     const sym = page.getByRole("list", { name: "Simetría entre lados" });
     await expect(sym).toContainText("CMJ a una pierna");
     await expect(sym).toContainText("bajo el 90 %");
     await expectAccessible(page);
 
     await tab(page, "Resumen").click();
-    await page.getByRole("link", { name: /^Informe/ }).click();
+    await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Informe de fisioterapia");
     await expect(report).toContainText("Marcos Vidal");
@@ -357,14 +358,14 @@ test.describe("F16 Ficha clínica", () => {
     // Lo que no se marca no sale.
     await page.getByRole("checkbox", { name: "Mediciones" }).uncheck();
     await expect(report).not.toContainText("Simetría entre lados");
-    await expect(page.getByRole("button", { name: "Imprimir o guardar en PDF" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Imprimir", exact: true })).toBeVisible();
   });
 
   test("F16-H7 siguiente cita: se guarda con la sesión y se pasa al calendario", async ({ page }) => {
     await createPatient(page, { name: "Nora Calendario" });
     await add(page, "Sesión").click();
     await page.getByLabel("Tratamiento").fill("Ejercicio de carga");
-    await page.getByRole("button", { name: "Dentro de 1 semana" }).click();
+    await page.getByRole("button", { name: "Cita en 1 semana" }).click();
     await page.getByText("60 min", { exact: true }).click();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar sesión" }).click();
@@ -384,8 +385,9 @@ test.describe("F16 Ficha clínica", () => {
     await google.waitForURL(/^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE/);
     await google.close();
     await expect(sheet).toBeHidden();
-    // Y el .ics, desde el botón de la próxima cita.
-    await page.getByRole("button", { name: "Añadir al calendario" }).click();
+    // Y el .ics, desde la hoja de la próxima cita.
+    await page.getByRole("button", { name: /^Próxima cita/ }).click();
+    await page.getByRole("dialog", { name: "Cita de Nora Calendario" }).getByRole("button", { name: "Añadir al calendario" }).click();
     const again = page.getByRole("dialog", { name: "Añadir al calendario" });
     const [dl] = await Promise.all([page.waitForEvent("download"), again.getByRole("button", { name: /\.ics/ }).click()]);
     expect(dl.suggestedFilename()).toMatch(/^cita-fisioterapia-\d{4}-\d{2}-\d{2}\.ics$/);
@@ -403,10 +405,10 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByText("Próxima cita:")).toBeVisible();
     await expect(page.getByText(/Siguiente cita: .* · 60 min/)).toBeVisible();
 
-    // En el resumen, la próxima cita con su botón.
+    // En el resumen, la próxima cita abre su hoja, con el botón del calendario.
     await tab(page, "Resumen").click();
-    await expect(page.getByText("Próxima cita:")).toBeVisible();
-    await page.getByRole("button", { name: "Añadir al calendario" }).click();
+    await page.getByRole("button", { name: /^Próxima cita/ }).click();
+    await page.getByRole("dialog", { name: "Cita de Nora Calendario" }).getByRole("button", { name: "Añadir al calendario" }).click();
     await expect(page.getByRole("dialog", { name: "Añadir al calendario" }).getByRole("link", { name: "Google Calendar" })).toBeVisible();
   });
 });

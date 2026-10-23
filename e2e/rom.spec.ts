@@ -143,6 +143,7 @@ test.describe("F11 Movilidad", () => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Valoración" }).click();
     await page.getByRole("link", { name: "Movilidad", exact: true }).click();
     const lunge = page.getByRole("list", { name: "Movimientos medidos" }).getByRole("link", { name: /Tobillo · flexión dorsal/ });
     // Último día: izquierdo 40,3 → 40°, derecho 35°, diferencia 5°.

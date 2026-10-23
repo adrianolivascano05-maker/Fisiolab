@@ -20,7 +20,7 @@ test.describe("Protección de datos", () => {
 
     await createPatient(page, { name: "Marta Datos" });
     // En el resumen de la ficha, en naranja mientras no se le haya dado.
-    await page.getByRole("link", { name: /Protección de datos.*Pendiente/ }).click();
+    await page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Sin entregar/ }).click();
     await expect(page.getByRole("heading", { name: "Protección de datos", level: 1 })).toBeVisible();
     const notice = page.getByRole("article", { name: "Información sobre protección de datos" });
     await expect(notice.getByText(/Fisio Prueba S\.L\./)).toBeVisible();
@@ -35,7 +35,7 @@ test.describe("Protección de datos", () => {
 
     await page.getByRole("link", { name: "Volver" }).click();
     // La ficha resume cuándo se le informó y sus consentimientos.
-    const row = page.getByRole("link", { name: /Protección de datos.*Informado el/ });
+    const row = page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Entregada el/ });
     await expect(row).toContainText("Fotos y vídeos: sí · WhatsApp, SMS o correo: no");
   });
 

@@ -55,7 +55,7 @@ export function SharePdf({ make, fileName, title }: { make: () => Promise<Uint8A
         </Button>
       )}
       <Button variant="secondary" loading={busy === "download"} icon={<Download aria-hidden="true" className="size-5" />} onClick={() => void run("download")}>
-        Descargar en PDF
+        Guardar en PDF
       </Button>
     </>
   );

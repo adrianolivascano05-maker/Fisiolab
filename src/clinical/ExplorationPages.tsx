@@ -1,8 +1,10 @@
 // Pestaña Exploración de la ficha: los tests especiales registrados y el formulario para apuntar uno desde la Guía
 // de tests (carga los textos de la guía, por eso va aparte del resto de la ficha).
-import { ExternalLink, Plus, Search, Stethoscope } from "lucide-react";
+import { ExternalLink, Plus, Search } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import { MeasurementsSection, QuestionnairesSection } from "./ClinicalPages";
+import { formStatus, listSentForms } from "../data/patientForms";
 import { fmt, fmtDate } from "../app/format";
 import { LoadError, Page } from "../app/Page";
 import {
@@ -11,19 +13,19 @@ import {
   getFinding,
   latestFindings,
   listFindings,
+  listQuestionnaires,
   saveFinding,
   type Finding,
   type FindingResult,
   type FindingSide,
 } from "../data/clinical";
 import { getDb } from "../data/db";
-import { getPatient } from "../data/repo";
+import { getPatient, listTests, listWellness } from "../data/repo";
 import { useFavorites } from "../gallery/useFavorites";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
-import { EmptyState } from "../ui/EmptyState";
 import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
@@ -31,42 +33,27 @@ import { clinicalSummary, regionLabel } from "./anamnesis";
 import { findTest, galleryRegionLabel, galleryTests, galleryUrl, resultMeaning, searchTests, testsByRegion, type SpecialTest } from "./galleryLink";
 import { Chips, ResultBadge, resultLabels, TextArea } from "./parts";
 import { PatientShell } from "./PatientShell";
-import { Guard, localInput, primaryLink, useLoad } from "./pageKit";
+import { Guard, localInput, useLoad } from "./pageKit";
 
 // ---------- Exploración ----------
 
 const resultOrder: Record<FindingResult, number> = { positive: 0, inconclusive: 1, negative: 2 };
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
-export function ExplorationPage() {
-  const { id = "" } = useParams();
-  const data = useLoad(id, async () => {
-    const db = getDb();
-    const [patient, findings, anamnesis] = await Promise.all([getPatient(db, id), listFindings(db, id), getAnamnesis(db, id)]);
-    return { patient, findings, anamnesis };
-  });
-  if (!data.data) return <Guard state={data} title="Exploración" back={`/pacientes/${id}`} />;
-  const { patient, findings, anamnesis } = data.data;
+/** Valoración › Exploración: los tests especiales registrados (los de la zona de la anamnesis encabezan el selector de
+ * «Registrar un test»). */
+function ExplorationSection({ id, findings }: { id: string; findings: Finding[] }) {
   const current = latestFindings(findings).sort((x, y) => resultOrder[x.result] - resultOrder[y.result]);
   const currentIds = new Set(current.map((f) => f.id));
   const older = findings.filter((f) => !currentIds.has(f.id));
   const count = (r: FindingResult) => current.filter((f) => f.result === r).length;
-  const regions = anamnesis ? clinicalSummary(anamnesis.answers).regions : [];
-  const done = new Set(findings.map((f) => f.galleryTest));
-  const suggested = testsByRegion(regions)
-    .map((g) => ({ ...g, tests: g.tests.filter((t) => !done.has(t.id)) }))
-    .filter((g) => g.tests.length);
   const byRegion = new Map<string, Finding[]>();
   for (const f of current) byRegion.set(f.region, [...(byRegion.get(f.region) ?? []), f]);
-
   return (
-    <PatientShell patient={patient} id={id}>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-xl">Exploración</h2>
-        <Link to={`/pacientes/${id}/exploracion/nuevo`} className={primaryLink}>
-          <Plus aria-hidden="true" className="size-5" /> Nuevo test
-        </Link>
-      </div>
+    <div className="flex flex-col gap-3">
+      <Link to={`/pacientes/${id}/exploracion/nuevo`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
+        <Plus aria-hidden="true" className="size-5" /> Registrar un test
+      </Link>
       {current.length > 0 && (
         <p className="nums flex flex-wrap gap-2 text-sm">
           <ResultBadge result="positive">{plural(count("positive"), "positivo")}</ResultBadge>
@@ -75,15 +62,13 @@ export function ExplorationPage() {
         </p>
       )}
       {current.length === 0 ? (
-        <EmptyState icon={Stethoscope} title="Ningún test registrado">
-          Registra cada test especial que hagas como positivo, negativo o dudoso. También puedes hacerlo desde la Guía de tests, en la ficha de cada test.
-        </EmptyState>
+        <p className="text-sm text-text-muted">Ningún test registrado. Apunta cada test especial como positivo, negativo o dudoso; los de su zona salen primero.</p>
       ) : (
         [...byRegion].map(([region, list]) => (
           <section key={region} aria-labelledby={`ex-${region}`} className="flex flex-col gap-2">
-            <h3 id={`ex-${region}`} className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+            <h4 id={`ex-${region}`} className="text-sm font-semibold uppercase tracking-wide text-text-muted">
               {regionLabel(region)}
-            </h3>
+            </h4>
             <ul className="flex flex-col gap-2">
               {list.map((f) => (
                 <FindingRow key={f.id} f={f} id={id} />
@@ -92,20 +77,9 @@ export function ExplorationPage() {
           </section>
         ))
       )}
-      {suggested.length > 0 && (
-        <section aria-labelledby="ex-sug" className="flex flex-col gap-2">
-          <h3 id="ex-sug" className="text-lg">
-            Tests de la zona
-          </h3>
-          <p className="text-sm text-text-muted">Según la anamnesis, todos los de cada zona, de más a menos útiles.</p>
-          {suggested.map((g) => (
-            <SuggestedTests key={g.region} id={id} region={g.region} tests={g.tests} />
-          ))}
-        </section>
-      )}
       {older.length > 0 && (
         <details className="rounded-lg border border-border bg-bg p-3">
-          <summary className="cursor-pointer font-semibold">Resultados anteriores ({older.length})</summary>
+          <summary className="min-h-8 cursor-pointer font-semibold">Resultados anteriores ({older.length})</summary>
           <ul className="mt-2 flex flex-col gap-2">
             {older.map((f) => (
               <FindingRow key={f.id} f={f} id={id} />
@@ -113,44 +87,99 @@ export function ExplorationPage() {
           </ul>
         </details>
       )}
-    </PatientShell>
+    </div>
   );
 }
 
-/** Los tests sin hacer de una zona: los cinco más útiles a la vista y el resto a un toque. */
-function SuggestedTests({ id, region, tests }: { id: string; region: string; tests: SpecialTest[] }) {
-  const row = (t: SpecialTest) => (
-    <li key={t.id} className="flex items-center gap-2 px-3 py-2">
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate font-semibold">{t.name}</span>
-        <span className="truncate text-sm text-text-muted">{t.group}</span>
-      </span>
-      <Link to={`/pacientes/${id}/exploracion/nuevo?test=${t.id}`} aria-label={`Registrar ${t.name}`} className="tap inline-flex items-center rounded-md px-3 text-sm font-semibold text-accent hover:bg-accent-soft">
-        Registrar
-      </Link>
-    </li>
-  );
-  const list = "divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg";
-  const rest = tests.slice(5);
+const BLOCKS = [
+  { id: "exploracion", label: "Exploración" },
+  { id: "cuestionarios", label: "Cuestionarios" },
+  { id: "mediciones", label: "Mediciones" },
+] as const;
+type Block = (typeof BLOCKS)[number]["id"];
+const LAST_BLOCK = "fisiolab.valoracion.bloque";
+const rememberBlock = (patientId: string, b: Block) => {
+  try {
+    sessionStorage.setItem(`${LAST_BLOCK}.${patientId}`, b);
+  } catch {
+    /* sin almacenamiento */
+  }
+};
+const lastBlock = (patientId: string): Block | null => {
+  try {
+    const v = sessionStorage.getItem(`${LAST_BLOCK}.${patientId}`);
+    return BLOCKS.some((b) => b.id === v) ? (v as Block) : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Pestaña Valoración: Exploración, Cuestionarios y Mediciones en una página, con tres títulos y saltos entre ellos.
+ * Se abre en el bloque que pide la dirección (#cuestionarios…) o en el último que se usó con este paciente. */
+export function AssessmentPage() {
+  const { id = "" } = useParams();
+  const { hash } = useLocation();
+  const data = useLoad(id, async () => {
+    const db = getDb();
+    const [patient, findings, questionnaires, tests, wellness, forms] = await Promise.all([
+      getPatient(db, id),
+      listFindings(db, id),
+      listQuestionnaires(db, id),
+      listTests(db, id),
+      listWellness(db, id),
+      listSentForms(db, id),
+    ]);
+    return { patient, findings, questionnaires, tests, wellness, waiting: forms.filter((f) => formStatus(f) === "pending").length };
+  });
+  const ready = !!data.data;
+  useEffect(() => {
+    if (!ready) return;
+    const wanted = (hash.slice(1) as Block) || lastBlock(id);
+    if (!wanted || wanted === "exploracion") return;
+    document.getElementById(`valoracion-${wanted}`)?.scrollIntoView({ block: "start" });
+    rememberBlock(id, wanted);
+  }, [ready, hash, id]);
+  if (!data.data) return <Guard state={data} title="Valoración" back={`/pacientes/${id}`} />;
+  const { patient, findings, questionnaires, tests, wellness, waiting } = data.data;
+  if (!patient) return <Page title="Valoración" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
+  const head = (b: Block) => BLOCKS.find((x) => x.id === b)!.label;
   return (
-    <div className="flex flex-col gap-1.5">
-      <h4 className="text-sm font-semibold uppercase tracking-wide text-text-muted">
-        {regionLabel(region)} · {tests.length}
-      </h4>
-      <ul aria-label={`Tests de ${regionLabel(region)}`} className={list}>
-        {tests.slice(0, 5).map(row)}
-      </ul>
-      {rest.length > 0 && (
-        <details>
-          <summary className="cursor-pointer py-1 text-sm font-semibold text-accent">
-            Ver {rest.length === 1 ? "1 test más" : `los ${rest.length} tests más`} de {regionLabel(region)}
-          </summary>
-          <ul aria-label={`Más tests de ${regionLabel(region)}`} className={`mt-1 ${list}`}>
-            {rest.map(row)}
-          </ul>
-        </details>
-      )}
-    </div>
+    <PatientShell patient={patient} id={id}>
+      <nav aria-label="Bloques de la valoración" className="flex gap-1 rounded-lg border border-border p-1">
+        {BLOCKS.map((b) => (
+          <a
+            key={b.id}
+            href={`#valoracion-${b.id}`}
+            onClick={(e) => {
+              e.preventDefault();
+              rememberBlock(id, b.id);
+              document.getElementById(`valoracion-${b.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            className="flex min-h-11 flex-1 items-center justify-center rounded-md px-1 text-sm font-semibold text-accent hover:bg-surface"
+          >
+            {b.label}
+          </a>
+        ))}
+      </nav>
+      <section id="valoracion-exploracion" aria-labelledby="h-exploracion" className="flex scroll-mt-40 flex-col gap-3">
+        <h2 id="h-exploracion" className="text-xl">
+          {head("exploracion")}
+        </h2>
+        <ExplorationSection id={id} findings={findings} />
+      </section>
+      <section id="valoracion-cuestionarios" aria-labelledby="h-cuestionarios" className="flex scroll-mt-40 flex-col gap-3 border-t border-border pt-4">
+        <h2 id="h-cuestionarios" className="text-xl">
+          {head("cuestionarios")}
+        </h2>
+        <QuestionnairesSection id={id} questionnaires={questionnaires} wellness={wellness[0] ?? null} waiting={waiting} />
+      </section>
+      <section id="valoracion-mediciones" aria-labelledby="h-mediciones" className="flex scroll-mt-40 flex-col gap-3 border-t border-border pt-4">
+        <h2 id="h-mediciones" className="text-xl">
+          {head("mediciones")}
+        </h2>
+        <MeasurementsSection id={id} patient={patient} tests={tests} />
+      </section>
+    </PatientShell>
   );
 }
 

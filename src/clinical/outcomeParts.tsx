@@ -93,8 +93,8 @@ export function QuestionnaireTiles({ patientId, items }: { patientId: string; it
                 {diff !== null && (
                   <span className={cx("nums inline-flex items-center gap-0.5 text-sm", better === null ? "text-text-muted" : better ? "text-success" : "text-danger")}>
                     <Arrow aria-hidden="true" className="size-4" />
-                    {diff > 0 ? "+" : diff < 0 ? "−" : "±"}
-                    {fmt(Math.abs(diff), Number.isInteger(diff) ? 0 : 1)} desde el primero{better === null ? "" : better ? " (mejor)" : " (peor)"}
+                    {scoreText(k, first.score)} → {scoreText(k, last.score)} en {g.items.length} pases ({diff > 0 ? "+" : diff < 0 ? "−" : "±"}
+                    {fmt(Math.abs(diff), Number.isInteger(diff) ? 0 : 1)}{better === null ? "" : better ? ", mejor" : ", peor"})
                   </span>
                 )}
               </Card>

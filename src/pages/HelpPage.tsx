@@ -23,8 +23,9 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "La ficha de cada paciente",
     body: (
       <>
-        Sus datos y su próxima cita arriba, y las pestañas <b>Resumen, Anamnesis, Exploración, Mediciones y Sesiones</b>, que se quedan fijas al
-        bajar: de una a otra con un toque. <b>Editar</b>, arriba a la derecha.
+        Arriba, sus datos y una fila con el <b>motivo</b>, su <b>próxima cita</b> y lo que <b>debe</b>. Debajo, cuatro pestañas fijas al bajar:{" "}
+        <b>Resumen</b> (cómo está, lo pendiente y sus documentos), <b>Anamnesis</b>, <b>Valoración</b> (tests de exploración, cuestionarios y
+        mediciones, en una página) y <b>Sesiones</b> (cada visita, la curva del dolor y su historia). <b>Editar</b>, arriba a la derecha.
       </>
     ),
   },
@@ -32,7 +33,7 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "Consentimientos",
     body: (
       <>
-        En el Resumen, <b>Consentimientos</b>: la app propone los que necesita según su anamnesis (punción, manipulación, suelo pélvico…), con sus
+        En el Resumen › Legal, <b>Consentimientos informados</b>: la app propone los que necesita según su anamnesis (punción, manipulación, suelo pélvico…), con sus
         riesgos personales ya escritos si marcas sus <b>precauciones</b> en la anamnesis. Se firman con el dedo en la pantalla o se imprimen, y se
         pueden retirar.
       </>
@@ -51,9 +52,8 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "Añadir lo que hagas, en el orden que quieras",
     body: (
       <>
-        En el Resumen, <b>Añadir</b>: una sesión, una medición (salto, fuerza, sprint, carrera, movilidad), un test de exploración o un cuestionario
-        (se rellena entero en la app y la nota se calcula sola).
-        Cada pestaña tiene además su propio botón para añadir.
+        En el Resumen, <b>Nueva sesión</b> y <b>Valorar</b>: un test de exploración, un cuestionario (se rellena entero en la app y la nota se
+        calcula sola) o una medición (salto, fuerza, sprint, carrera, movilidad). En Valoración, cada bloque tiene su propio botón.
       </>
     ),
   },
@@ -61,8 +61,8 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "Protección de datos e informe",
     body: (
       <>
-        En el Resumen, debajo de Añadir: la hoja de <b>protección de datos</b> para que la firme (sale en naranja hasta que se la des) y el{" "}
-        <b>informe</b> para imprimir, guardar en PDF o en tu Drive.
+        En el Resumen, <b>Documentos</b> (informe, informe de alta, carta de derivación y justificante, para imprimir, guardar en PDF o en tu
+        Drive) y <b>Legal</b> (consentimientos y la hoja de <b>protección de datos</b>; lo que falte sale arriba, en «Pendiente»).
       </>
     ),
   },
@@ -70,11 +70,11 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "Bonos, cobros y ejercicios para casa",
     body: (
       <>
-        También en el Resumen: <b>Bonos y cobros</b> (vende un bono de sesiones, que se gasta solo al apuntar cada sesión, y apunta lo que te paga;
+        También en el Resumen, en Cuenta: <b>Bonos y cobros</b> (vende un bono de sesiones, que se gasta solo al apuntar cada sesión, y apunta lo que te paga;
         el precio de la sesión, en Ajustes → Precios y cobros) y <b>Ejercicios para casa</b> (su hoja, desde la biblioteca de la clínica, para
-        imprimir o enviar por WhatsApp). En Cuestionarios, el <b>mapa del dolor</b>: toca en el dibujo dónde le duele. Tus propias preguntas en la
-        anamnesis, en Ajustes → Anamnesis de la clínica. Con el servidor de la clínica, en <b>Formularios para el paciente</b> le mandas por WhatsApp su
-        parte de la anamnesis o un cuestionario: lo rellena en su móvil, sin cuenta, y llega solo a su ficha.
+        imprimir o enviar por WhatsApp). En Valoración › Cuestionarios, el <b>mapa del dolor</b>: toca en el dibujo dónde le duele. Tus propias preguntas en la
+        anamnesis, en Ajustes → Anamnesis de la clínica. Con el servidor de la clínica, <b>Enviar al móvil</b> (en Cuestionarios) o <b>Mandar su parte al paciente</b>{" "}
+        (en Anamnesis) le manda por WhatsApp un cuestionario o su parte de la anamnesis: lo rellena en su móvil, sin cuenta, y llega solo a su ficha.
       </>
     ),
   },

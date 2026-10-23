@@ -3,11 +3,12 @@
 // recomendaciones al alta (se guardan en su anamnesis, «Recomendaciones al alta»). Más corto que el informe completo.
 import { Printer } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { fmtDate, testTitle } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
+import { SharePdf } from "./SharePdf";
 import { safeName } from "../cloud/saveToDrive";
 import { getAnamnesis, listQuestionnaires, listSessions, saveAnamnesis } from "../data/clinical";
 import { getDb } from "../data/db";
@@ -161,8 +162,16 @@ export function DischargePage() {
             Guardar las recomendaciones
           </Button>
           <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
-            Imprimir o guardar en PDF
+            Imprimir
           </Button>
+          <SharePdf
+            make={async () => {
+              const { reportPdf } = await import("./reportPdf");
+              return reportPdf(article.current!);
+            }}
+            fileName={safeName(`Alta ${patient.name} ${today.slice(0, 10)}.pdf`)}
+            title="Informe de alta de fisioterapia"
+          />
           <DriveSaveButton
             label="Guardar en mi Drive (PDF)"
             make={async () => {
@@ -170,9 +179,6 @@ export function DischargePage() {
               return { name: safeName(`Alta ${patient.name} ${today.slice(0, 10)}.pdf`), mimeType: "application/pdf", bytes: await reportPdf(article.current!) };
             }}
           />
-          <Link to={`/pacientes/${id}/informe`} className="text-sm font-semibold text-accent">
-            Ver el informe completo
-          </Link>
         </div>
 
         <article ref={article} aria-label="Informe de alta" className="flex flex-col gap-5 rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">

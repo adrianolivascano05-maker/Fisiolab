@@ -6,7 +6,6 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { PatientShell } from "../clinical/PatientShell";
 import { getAnamnesis } from "../data/clinical";
 import { getConsent, listConsents, revokeConsent, saveSignedConsent, type Signatures, type SignedConsent } from "../data/consents";
 import { getDb } from "../data/db";
@@ -67,9 +66,9 @@ function DetectedWarning({ id, ctx }: { id: string; ctx: ConsentContext }) {
 export function ConsentListPage() {
   const { id = "" } = useParams();
   const data = useAsync(() => loadAll(id), [id]);
-  if (!data.data) return <PatientShell patient={undefined} id={id}>{data.error ? <LoadError error={data.error} /> : <Loading />}</PatientShell>;
+  if (!data.data) return <Page title="Consentimientos" backTo={`/pacientes/${id}`}>{data.error ? <LoadError error={data.error} /> : <Loading />}</Page>;
   const { patient, consents, ctx, hasAnamnesis } = data.data;
-  if (!patient || !ctx) return <PatientShell patient={null} id={id}><LoadError error={new Error("Este paciente no existe.")} /></PatientShell>;
+  if (!patient || !ctx) return <Page title="Consentimientos" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
 
   const row = (t: ConsentTemplate, reason: string | null) => {
     const absolute = t.personal(ctx).filter((r) => r.absolute);
@@ -89,8 +88,8 @@ export function ConsentListPage() {
   const others = TEMPLATES.filter((t) => !proposed.some((p) => p.t.id === t.id) && !active(consents, t.id));
 
   return (
-    <PatientShell patient={patient} id={id}>
-      <h2 className="text-xl">Consentimientos</h2>
+    // Un documento de la ficha, como el informe: se abre desde el Resumen y vuelve a él (sin las pestañas).
+    <Page title="Consentimientos" backTo={`/pacientes/${id}`} backLabel={patient.name}>
       <p className="text-sm text-text-muted">
         Se preparan con su anamnesis{hasAnamnesis ? "" : " (aún sin rellenar)"}: sus riesgos personales salen solos. Se firman en la pantalla o en papel.
       </p>
@@ -112,13 +111,10 @@ export function ConsentListPage() {
       )}
       {proposed.length > 0 && <Group title="Propuestos para este paciente">{proposed.map(({ t, reason }) => row(t, reason))}</Group>}
       {others.length > 0 && <Group title="Otros">{others.map((t) => row(t, null))}</Group>}
-      <Group title="Protección de datos">
-        <RowLink to={`/pacientes/${id}/proteccion-datos`} icon={FilePen} title="Información y consentimientos de protección de datos" subtitle="RGPD: fotos y vídeos, contacto, docencia" />
-      </Group>
       <p className="text-sm text-text-muted">
         Modelos orientativos, no validados clínica ni legalmente: revísalos con tu colegio profesional o tu asesoría antes de usarlos.
       </p>
-    </PatientShell>
+    </Page>
   );
 }
 
@@ -338,7 +334,7 @@ export function ConsentViewPage() {
               )}
               <div className="flex flex-wrap gap-2">
                 <Button variant="secondary" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
-                  Imprimir o guardar en PDF
+                  Imprimir
                 </Button>
                 {!c.revokedAt && (
                   <Button variant="ghost" className="text-danger" icon={<Undo2 aria-hidden="true" className="size-5" />} onClick={() => setRevoking(true)}>
