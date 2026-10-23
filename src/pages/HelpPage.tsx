@@ -7,7 +7,8 @@ import { Page } from "../app/Page";
 import { RECORD_ONLY } from "../clinical/reportParts";
 import { Card } from "../ui/Card";
 
-const link = "font-semibold text-accent underline underline-offset-2";
+// Enlaces dentro de una frase: el relleno vertical agranda la zona táctil (44 px) sin mover el texto.
+const link = "py-3 font-semibold text-accent underline underline-offset-2";
 
 const steps: { title: string; body: ReactNode }[] = [
   {

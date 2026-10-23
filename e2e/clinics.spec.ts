@@ -722,7 +722,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("button", { name: "Buscar respuestas" }).click();
     await expect(page.getByText("Nora Enlace ha rellenado: Anamnesis (su parte)")).toBeVisible();
     await expect(page.getByRole("list", { name: "Formularios enviados" })).toContainText("Rellenado");
-    await page.getByRole("link", { name: "Nora Enlace" }).click();
+    await page.getByRole("link", { name: "Volver a Ficha" }).click();
     await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Anamnesis" }).click();
     await expect(page.getByRole("definition").filter({ hasText: "Me duele la rodilla al bajar escaleras" })).toBeVisible();
     await expect(page.getByRole("definition").filter({ hasText: "Ninguna" })).toBeVisible();

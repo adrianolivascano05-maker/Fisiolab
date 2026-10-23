@@ -82,7 +82,7 @@ export function PrivacyNotice({ clinic, storage, patientName, privacy }: { clini
         </p>
       </Part>
 
-      <Part title="Consentimientos opcionales">
+      <Part title="Permisos opcionales">
         <ul className="flex flex-col gap-1.5">
           {CONSENTS.map((c) => (
             <li key={c.id} className="grid grid-cols-[auto_auto_1fr] items-start gap-x-3">

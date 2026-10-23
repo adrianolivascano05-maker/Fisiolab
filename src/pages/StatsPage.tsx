@@ -170,7 +170,7 @@ function MonthlyChart({ monthly }: { monthly: ClinicStats["monthly"] }) {
         })}
       </svg>
       <details>
-        <summary className="cursor-pointer text-sm text-text-muted">Ver como tabla</summary>
+        <summary className="min-h-11 cursor-pointer py-2.5 text-sm text-text-muted">Ver como tabla</summary>
         <table className="mt-2 w-full text-sm tabular-nums">
           <tbody>
             {monthly.map((m) => (

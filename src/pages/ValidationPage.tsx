@@ -203,7 +203,7 @@ function KindPanel({
       )}
 
       <details className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">
-        <summary className="cursor-pointer font-semibold">Cómo hacer una sesión de validación</summary>
+        <summary className="min-h-11 cursor-pointer py-2.5 font-semibold">Cómo hacer una sesión de validación</summary>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           {kind.protocol.map((t) => (
             <li key={t}>{t}</li>

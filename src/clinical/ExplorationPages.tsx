@@ -290,7 +290,7 @@ export function FindingFormPage() {
     setNotes(f.notes);
   }, [data.data?.finding]);
 
-  if (!data.data) return <Guard state={data} title="Test de exploración" back={`/pacientes/${id}/exploracion`} />;
+  if (!data.data) return <Guard state={data} title="Registrar un test" back={`/pacientes/${id}/exploracion`} />;
   const { patient, finding, anamnesis } = data.data;
   const back = `/pacientes/${id}/exploracion`;
   if (fid && !finding) return <Page title="Test" backTo={back}><LoadError error={new Error("Este resultado no existe.")} /></Page>;
@@ -302,7 +302,7 @@ export function FindingFormPage() {
 
   if (!testId) {
     return (
-      <Page title="Test de exploración" backTo={back} tabs={false}>
+      <Page title="Registrar un test" backTo={back} tabs={false}>
         <p className="text-text-muted">{patient?.name}: elige el test que has hecho.</p>
         <TestPicker regions={summary?.regions ?? []} onPick={(t) => setParams({ test: t.id }, { replace: true })} />
       </Page>
@@ -348,7 +348,7 @@ export function FindingFormPage() {
   };
 
   return (
-    <Page title={fid ? "Editar resultado" : "Test de exploración"} backTo={back} tabs={false}>
+    <Page title={fid ? "Editar resultado" : "Registrar un test"} backTo={back} tabs={false}>
       <Card className="flex flex-col gap-1">
         <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">
           {patient?.name} · {test ? `${galleryRegionLabel(test)} · ${test.group}` : regionLabel(finding?.region ?? "")}

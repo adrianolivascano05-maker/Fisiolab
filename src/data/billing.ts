@@ -283,7 +283,7 @@ export async function patientAccount(db: Db, patientId: string, today: string): 
 }
 
 /** Qué pasa con una sesión nueva en ese instante: la gasta un bono (y cuántas le quedan después), es suelta (y lo que vale) o no cuenta. */
-export type SessionCharge = { kind: "pack"; title: string; leftAfter: number } | { kind: "loose"; cents: number } | { kind: "none" };
+export type SessionCharge = { kind: "pack"; title: string; leftAfter: number; sessions: number } | { kind: "loose"; cents: number } | { kind: "none" };
 
 export async function nextSessionCharge(db: Db, patientId: string, performedAt: string, today: string): Promise<SessionCharge> {
   const [packs, sessions, pricing] = await Promise.all([
@@ -297,11 +297,11 @@ export async function nextSessionCharge(db: Db, patientId: string, performedAt: 
   if (by === undefined) return { kind: "none" };
   if (by === null) return { kind: "loose", cents: priceOn(pricing, madridDay(performedAt)) ?? 0 };
   const p = a.packs.find((x) => x.id === by)!;
-  return { kind: "pack", title: p.title, leftAfter: p.left };
+  return { kind: "pack", title: p.title, leftAfter: p.left, sessions: p.sessions };
 }
 
 export function chargeText(c: SessionCharge): string | null {
-  if (c.kind === "pack") return c.leftAfter === 0 ? `Es la última sesión de «${c.title}»` : `Del «${c.title}»: le quedarán ${c.leftAfter}`;
+  if (c.kind === "pack") return c.leftAfter === 0 ? `Es la última sesión de «${c.title}»` : `Del «${c.title}»: después de esta, quedan ${c.leftAfter} de ${c.sessions}`;
   if (c.kind === "loose") return `Sesión suelta: ${euros(c.cents)}`;
   return null;
 }
@@ -320,7 +320,7 @@ export async function paymentsBetween(db: Db, from: string, to: string): Promise
   return rows.map((r) => ({ ...toPayment(r), name: r.name }));
 }
 
-// ---------- Cantidades en letra (para el justificante de pago) ----------
+// ---------- Cantidades en letra (para el recibo) ----------
 
 const UNITS = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve"];
 const TENS = ["", "", "", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"];

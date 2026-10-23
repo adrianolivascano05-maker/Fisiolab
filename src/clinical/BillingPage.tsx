@@ -1,5 +1,5 @@
 // Ficha → Bonos y cobros (src/data/billing.ts): lo que el paciente tiene pendiente, sus bonos (cuántas sesiones le
-// quedan) y lo que ha pagado. Vender un bono y apuntar un cobro, en una hoja. No son facturas.
+// quedan) y lo que ha pagado. Vender un bono y cobrar, en una hoja. No son facturas.
 import { FileText, Pencil, Plus, RotateCw, Trash, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
@@ -155,10 +155,10 @@ export function BillingPage() {
                 </div>
                 <Link
                   to={`/pacientes/${id}/recibo/${p.id}`}
-                  aria-label={`Justificante del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
+                  aria-label={`Recibo del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
                   className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface"
                 >
-                  <FileText aria-hidden="true" className="size-5" /> Justificante
+                  <FileText aria-hidden="true" className="size-5" /> Recibo
                 </Link>
                 <button
                   type="button"
@@ -173,7 +173,7 @@ export function BillingPage() {
           </ul>
         )}
         <Button icon={<Wallet aria-hidden="true" className="size-5" />} onClick={() => setSheet("payment")}>
-          Apuntar un cobro
+          Cobrar
         </Button>
       </section>
       <p className="text-sm text-text-muted">Es un registro de lo cobrado para llevar las cuentas de la consulta. No sustituye a las facturas.</p>
@@ -210,7 +210,7 @@ export function BillingPage() {
           />
         )}
       </Sheet>
-      <Sheet open={sheet === "payment"} onClose={() => setSheet(null)} title="Apuntar un cobro">
+      <Sheet open={sheet === "payment"} onClose={() => setSheet(null)} title="Cobrar">
         {sheet === "payment" && (
           <PaymentForm
             today={today}

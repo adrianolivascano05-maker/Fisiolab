@@ -89,7 +89,7 @@ export function ConsentListPage() {
 
   return (
     // Un documento de la ficha, como el informe: se abre desde el Resumen y vuelve a él (sin las pestañas).
-    <Page title="Consentimientos" backTo={`/pacientes/${id}`} backLabel={patient.name}>
+    <Page title="Consentimientos" backTo={`/pacientes/${id}`}>
       <p className="text-sm text-text-muted">
         Se preparan con su anamnesis{hasAnamnesis ? "" : " (aún sin rellenar)"}: sus riesgos personales salen solos. Se firman en la pantalla o en papel.
       </p>

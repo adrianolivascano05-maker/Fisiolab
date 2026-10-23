@@ -101,7 +101,7 @@ export function AccessRequestCards({ me, baseUrl, clientId }: { me: Me; baseUrl:
       {failure && <Alert tone="danger" title={failure} />}
       <p className="text-center text-sm text-text-muted">
         ¿Dudas? Escríbenos a{" "}
-        <a href={`mailto:${SUPPORT_EMAIL}`} className="font-semibold text-accent underline underline-offset-2">
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="py-3 font-semibold text-accent underline underline-offset-2">
           {SUPPORT_EMAIL}
         </a>
       </p>

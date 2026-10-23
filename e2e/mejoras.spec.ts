@@ -110,8 +110,8 @@ test.describe("Mejoras frente a la competencia", () => {
     await expect(page.getByRole("link", { name: /Bonos y cobros/ })).toContainText("Bono 5 sesiones: quedan 3 de 5");
     await page.getByRole("link", { name: /Bonos y cobros/ }).click();
     await expect(page.getByRole("group", { name: "Bono 5 sesiones" })).toContainText("2 de 5 usadas · quedan 3");
-    await page.getByRole("button", { name: "Apuntar un cobro" }).click();
-    const pay = page.getByRole("dialog", { name: "Apuntar un cobro" });
+    await page.getByRole("button", { name: "Cobrar", exact: true }).click();
+    const pay = page.getByRole("dialog", { name: "Cobrar" });
     await pay.getByLabel("Cantidad").fill("25,50");
     await pay.getByText("Efectivo").click();
     await pay.getByRole("button", { name: "Guardar el cobro" }).click();
@@ -198,7 +198,7 @@ test.describe("Mejoras frente a la competencia", () => {
     expect(pdf.suggestedFilename()).toBe("Ejercicios Elena Ejercicios 2026-10-20.pdf");
   });
 
-  test("MJ5 cobrar en el momento: bonos de la clínica, la sesión gasta el bono, cobrar desde la cita, justificante de pago y Excel", async ({ page }) => {
+  test("MJ5 cobrar en el momento: bonos de la clínica, la sesión gasta el bono, cobrar desde la cita, recibo y Excel", async ({ page }) => {
     await page.goto("./ajustes/cobros");
     await page.getByLabel("Precio de la sesión suelta").fill("40");
     await page.getByRole("button", { name: "Guardar el precio" }).click();
@@ -227,20 +227,20 @@ test.describe("Mejoras frente a la competencia", () => {
 
     // Al apuntar la sesión ya se ve qué la paga.
     await page.goto(`${url}/sesiones/nueva`);
-    await expect(page.getByText("Del «Bono 5 sesiones»: le quedarán 4")).toBeVisible();
+    await expect(page.getByText("Del «Bono 5 sesiones»: después de esta, quedan 4 de 5")).toBeVisible();
     await page.getByRole("button", { name: "Guardar sesión" }).click();
-    await expect(page.getByText("Sesión registrada · quedan 4 del bono")).toBeVisible();
+    await expect(page.getByText("Sesión registrada · bono: quedan 4 de 5")).toBeVisible();
 
-    // El justificante del cobro: la cantidad en letra, la forma de pago y que no es una factura.
+    // El recibo del cobro: la cantidad en letra, la forma de pago y que no es una factura.
     await page.goto(`${url}/cobros`);
-    await page.getByRole("link", { name: /Justificante del cobro de 180,00/ }).click();
-    const receipt = page.getByRole("article", { name: "Justificante de pago" });
+    await page.getByRole("link", { name: /Recibo del cobro de 180,00/ }).click();
+    const receipt = page.getByRole("article", { name: "Recibo" });
     await expect(receipt).toContainText(/ha recibido de Pablo Pago la cantidad de 180,00\s€ \(ciento ochenta euros\)/);
     await expect(receipt).toContainText("Forma de pago: tarjeta.");
     await expect(receipt).toContainText("no es una factura");
     await expectAccessible(page);
     const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Guardar en PDF" }).click()]);
-    expect(pdf.suggestedFilename()).toBe("Justificante de pago Pablo Pago 2026-10-20.pdf");
+    expect(pdf.suggestedFilename()).toBe("Recibo Pablo Pago 2026-10-20.pdf");
 
     // Cobrar desde la cita de hoy (sesión suelta), en Agenda › Hoy.
     await page.goto("./agenda");

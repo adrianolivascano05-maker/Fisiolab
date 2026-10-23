@@ -245,7 +245,7 @@ export function AnamnesisPage() {
                     if (el instanceof HTMLDetailsElement) el.open = true;
                     el?.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="inline-flex min-h-9 items-center rounded-pill border border-border-input bg-bg px-3 text-sm font-semibold hover:bg-surface">
+                  className="inline-flex min-h-11 items-center rounded-pill border border-border-input bg-bg px-3 text-sm font-semibold hover:bg-surface">
                   {section.title.replace(/^\d+\.\s*/, "")}
                 </a>
               </li>
@@ -267,7 +267,7 @@ export function AnamnesisPage() {
                   {section.id === "datos" && (
                     <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
                       <PatientBasics patient={patient} />
-                      <Link to={`/pacientes/${id}/editar`} className="self-start text-sm font-semibold text-accent">
+                      <Link to={`/pacientes/${id}/editar`} className="inline-flex min-h-11 items-center self-start text-sm font-semibold text-accent">
                         Editar nombre, nacimiento, sexo y contacto
                       </Link>
                     </div>
@@ -606,10 +606,10 @@ function SessionMeter({ done, planned }: { done: number; planned: number }) {
     <Card className="flex flex-col gap-2">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-semibold">
-          {done} de {planned} sesiones
+          {done} de {planned} sesiones previstas
         </span>
         <span className={cx("text-sm", left <= 0 ? "font-semibold text-warning" : "text-text-muted")}>
-          {left > 1 ? `Quedan ${left}` : left === 1 ? "Queda 1" : left === 0 ? "Hechas todas" : `${-left} más de las previstas`}
+          {left > 1 ? `quedan ${left}` : left === 1 ? "queda 1" : left === 0 ? "hechas todas" : `${-left} más de las previstas`}
         </span>
       </div>
       <div role="progressbar" aria-label="Sesiones hechas" aria-valuemin={0} aria-valuemax={planned} aria-valuenow={Math.min(done, planned)} className="h-2 overflow-hidden rounded-pill bg-surface">
@@ -802,7 +802,7 @@ export function SessionFormPage() {
         rememberMethod(payMethod);
         await addPayment(getDb(), id, { amountCents: c.cents, method: payMethod, paidOn: when.slice(0, 10), concept: "Sesión de fisioterapia" });
       }
-      const extra = !sid && c ? (c.kind === "pack" ? (c.leftAfter ? ` · quedan ${c.leftAfter} del bono` : " · bono gastado") : c.kind === "loose" && payNow ? ` · cobrada ${euros(c.cents)}` : "") : "";
+      const extra = !sid && c ? (c.kind === "pack" ? (c.leftAfter ? ` · bono: quedan ${c.leftAfter} de ${c.sessions}` : " · bono gastado") : c.kind === "loose" && payNow ? ` · cobrada ${euros(c.cents)}` : "") : "";
       toast(sid ? "Sesión guardada" : `Sesión registrada${extra}`, "success");
       // Cita nueva o cambiada: se ofrece pasarla al calendario.
       const changed = next !== null && (next !== session?.nextAt || minutes !== session?.nextMinutes);
@@ -831,7 +831,7 @@ export function SessionFormPage() {
     <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back} backLabel={backLabel} tabs={false}>
       <p className="text-text-muted">
         {patient?.name}
-        {!sid && count.planned !== null && ` · sesión ${count.done + 1} de ${count.planned}`}
+        {!sid && count.planned !== null && ` · sesión ${count.done + 1} de ${count.planned} previstas`}
       </p>
       {!sid && count.planned !== null && count.done >= count.planned && (
         <Alert tone="warning" title={`Ya lleva las ${count.planned} sesiones previstas`}>
@@ -1234,7 +1234,7 @@ export function QuestionnaireFormPage() {
             {!!form && SENDABLE.some((x) => x.id === kind) && (
               <Link
                 to={`/pacientes/${id}/formularios?enviar=${kind}`}
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-bg px-3 text-sm font-semibold hover:bg-surface"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-bg px-3 text-sm font-semibold hover:bg-surface"
               >
                 <Send aria-hidden="true" className="size-4" /> Que lo rellene en su móvil
               </Link>

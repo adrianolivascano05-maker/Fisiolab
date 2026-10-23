@@ -155,7 +155,7 @@ export function PackForm({
   );
 }
 
-/** Apuntar un cobro. `suggested`: la cantidad que se propone (lo pendiente o el precio de la sesión). */
+/** Cobrar. `suggested`: la cantidad que se propone (lo pendiente o el precio de la sesión). */
 export function PaymentForm({
   today,
   suggested,

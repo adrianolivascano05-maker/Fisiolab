@@ -146,7 +146,7 @@ describe("cobrar en el momento", () => {
     await setSessionPrice(db, 4000, "2026-10-01");
     expect(chargeText(await nextSessionCharge(db, ana, "2026-10-02T09:00:00.000Z", "2026-10-02"))?.replace(/\s/g, " ")).toBe("Sesión suelta: 40,00 €");
     await createPack(db, ana, pack({ sessions: 2 }), null);
-    expect(chargeText(await nextSessionCharge(db, ana, "2026-10-02T09:00:00.000Z", "2026-10-02"))).toBe("Del «Bono 5 sesiones»: le quedarán 1");
+    expect(chargeText(await nextSessionCharge(db, ana, "2026-10-02T09:00:00.000Z", "2026-10-02"))).toBe("Del «Bono 5 sesiones»: después de esta, quedan 1 de 2");
     await saveSession(db, ana, session("2026-10-02T09:00:00.000Z"));
     expect(chargeText(await nextSessionCharge(db, ana, "2026-10-03T09:00:00.000Z", "2026-10-03"))).toBe("Es la última sesión de «Bono 5 sesiones»");
   });
@@ -166,7 +166,7 @@ describe("cobrar en el momento", () => {
     expect((await paymentsBetween(db, "2026-10-01", "2026-11-01")).map((p) => [p.name, p.amountCents, p.method])).toEqual([["Ana Ruiz", 4000, "tarjeta"]]);
   });
 
-  it("las cantidades en letra, para el justificante de pago", () => {
+  it("las cantidades en letra, para el recibo", () => {
     expect([0, 1, 16, 21, 31, 100, 101, 115, 500, 1000, 1001, 21000, 200000, 1000000, 2500000].map(numberInWords)).toEqual([
       "cero",
       "uno",

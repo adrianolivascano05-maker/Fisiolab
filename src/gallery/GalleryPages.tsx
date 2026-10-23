@@ -490,7 +490,7 @@ function Evidence({ t }: { t: SpecialTest }) {
             <span>
               Tu sospecha antes del test: <span className="nums font-semibold">{pre} %</span>
             </span>
-            <input type="range" min={5} max={95} step={5} value={pre} onChange={(e) => setPre(Number(e.target.value))} aria-label="Probabilidad antes del test" className="accent-[var(--color-accent)]" />
+            <input type="range" min={5} max={95} step={5} value={pre} onChange={(e) => setPre(Number(e.target.value))} aria-label="Probabilidad antes del test" className="h-11 accent-[var(--color-accent)]" />
           </label>
           <dl className="nums grid grid-cols-2 gap-2 text-sm">
             {best.lr.pos !== null && (

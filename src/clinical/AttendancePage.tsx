@@ -100,7 +100,7 @@ export function AttendancePage() {
           {!physio && (
             <p className="text-sm text-warning">
               Falta tu nombre y nº de colegiado:{" "}
-              <Link to="/ajustes/clinica" className="font-semibold underline">
+              <Link to="/ajustes/clinica" className="py-3 font-semibold underline">
                 rellénalos en Ajustes → Clínica
               </Link>{" "}
               para que salgan en la firma.

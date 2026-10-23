@@ -96,16 +96,16 @@ test.describe("Agenda y seguimiento", () => {
     // Primera sesión.
     await tab(page, "Resumen").click();
     await add(page, "Sesión").click();
-    await expect(page.getByText("Diego Alta · sesión 1 de 2")).toBeVisible();
+    await expect(page.getByText("Diego Alta · sesión 1 de 2 previstas")).toBeVisible();
     await page.getByLabel("Tratamiento").fill("Movilización lumbar y ejercicio de control motor");
     await page.getByLabel("Plan y ejercicios para casa").fill("Puente glúteo 3×10");
     await page.getByRole("button", { name: "Guardar sesión" }).click();
-    await expect(page.getByText("1 de 2 sesiones")).toBeVisible();
+    await expect(page.getByText("1 de 2 sesiones previstas")).toBeVisible();
     await expect(page.getByText("Queda 1")).toBeVisible();
 
     // Segunda: repite el tratamiento con un toque.
     await page.getByRole("link", { name: "Nueva sesión" }).click();
-    await expect(page.getByText("Diego Alta · sesión 2 de 2")).toBeVisible();
+    await expect(page.getByText("Diego Alta · sesión 2 de 2 previstas")).toBeVisible();
     await page.getByLabel("Fecha y hora").fill("2026-10-27T10:00");
     await page.getByRole("button", { name: /Repetir el tratamiento de la última sesión/ }).click();
     await expect(page.getByLabel("Tratamiento")).toHaveValue("Movilización lumbar y ejercicio de control motor");

@@ -189,7 +189,7 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
             : "";
   const technical = stepNow && keys && view === "clinical" ? [who, stepTechnical(keys, now.step)].filter(Boolean).join(" · ") : "";
   const ctl = "inline-flex size-11 items-center justify-center rounded-full bg-bg/90 text-text shadow-sm ring-1 ring-border backdrop-blur hover:bg-surface";
-  const seg = (on: boolean) => cx("h-8 rounded-md px-2.5 text-xs font-semibold transition-colors", on ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text");
+  const seg = (on: boolean) => cx("h-11 min-w-11 rounded-md px-2.5 text-xs font-semibold transition-colors", on ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text");
   return (
     <figure className="flex flex-col overflow-hidden rounded-2xl border border-border bg-bg">
       <div ref={frame} className="relative aspect-[4/3] w-full" style={figVars}>
@@ -279,7 +279,7 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
         aria-label="Momento de la maniobra"
         aria-valuetext={ph.label}
         onChange={(e) => jump(Number(e.target.value) / 1000)}
-        className="mx-3 mt-2 h-6 accent-[var(--color-accent)]"
+        className="mx-3 mt-1 h-11 accent-[var(--color-accent)]"
       />
       <ol className="mx-3 flex gap-1 rounded-lg bg-surface p-1" aria-label="Fases">
         {clock.phases.slice(0, 3).map((p, i) => (
@@ -288,7 +288,7 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
               type="button"
               aria-current={now.phase === p.id ? "step" : undefined}
               onClick={() => jump(p.id === "move" && clock.steps[0] ? clock.steps[0].moveTo - 0.005 : (p.from + p.to) / 2 + (p.id === "move" ? 0.1 : 0))}
-              className={cx("h-9 w-full rounded-md text-xs font-semibold transition-colors", now.phase === p.id ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text")}
+              className={cx("min-h-11 w-full rounded-md text-xs font-semibold transition-colors", now.phase === p.id ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text")}
             >
               {i + 1}. {phases.find((x) => x.id === p.id)!.label}
             </button>

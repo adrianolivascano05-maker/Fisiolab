@@ -56,7 +56,9 @@ export function TopBar({
       className="sticky top-0 z-20 border-b-2 border-highlight bg-brand text-on-brand shadow-sm"
       style={{ "--color-text": "var(--color-on-brand)", "--color-accent": "var(--color-on-brand)", "--color-surface": "color-mix(in srgb, var(--color-on-brand) 16%, transparent)" } as CSSProperties}
     >
-      <div className="mx-auto grid h-[var(--layout-header)] max-w-[var(--layout-content-max)] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-2">
+      {/* «Volver» y acciones a su medida; el título, en el sitio que quede. Lo que no cabe en una línea pasa a dos
+          (nunca «…»). */}
+      <div className="mx-auto grid h-[var(--layout-header)] max-w-[var(--layout-content-max)] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2">
         <div className="min-w-0">
           {!backTo && (
             <Link to="/" className="inline-flex min-h-11 items-center rounded-md px-1.5 py-1">
@@ -67,20 +69,27 @@ export function TopBar({
             <Link
               to={backTo}
               aria-label={label === "Atrás" ? "Volver atrás" : `Volver a ${label}`}
-              className="tap inline-flex max-w-full items-center rounded-md pr-2 font-semibold hover:bg-surface"
+              className="tap inline-flex max-w-[44vw] items-center rounded-md pr-2 font-semibold hover:bg-surface"
             >
               <ChevronLeft aria-hidden="true" className="size-6 shrink-0" />
-              <span className="truncate">{label}</span>
+              <span className={cx("line-clamp-2", label.length > 12 && "text-sm leading-tight")}>{label}</span>
             </Link>
           )}
         </div>
         {large ? (
           // Mientras se ve el título grande, este no ocupa sitio: «volver» se lee entero.
-          <span aria-hidden="true" className={cx("truncate font-semibold transition-opacity duration-[var(--motion-base)]", titleShown ? "max-w-[40vw] opacity-100" : "w-0 opacity-0")}>
+          <span
+            aria-hidden="true"
+            className={cx(
+              "line-clamp-2 text-center font-semibold transition-opacity duration-[var(--motion-base)]",
+              title.length > 22 && "text-sm leading-tight",
+              titleShown ? "opacity-100" : "invisible opacity-0",
+            )}
+          >
             {title}
           </span>
         ) : (
-          <h1 className="max-w-[40vw] truncate text-base font-semibold" style={{ fontFamily: "var(--font-sans)" }}>
+          <h1 className={cx("line-clamp-2 text-center font-semibold", title.length > 22 ? "text-sm leading-tight" : "text-base")} style={{ fontFamily: "var(--font-sans)" }}>
             {title}
           </h1>
         )}

@@ -1,4 +1,4 @@
-// Justificante de pago de un cobro (src/data/billing.ts): quién pagó, cuánto (en número y en letra), cuándo, por qué y
+// Recibo de un cobro (src/data/billing.ts): quién pagó, cuánto (en número y en letra), cuándo, por qué y
 // cómo. Lo pide el paciente para su seguro o su empresa. No es una factura y lo dice. El DNI se escribe aquí y no se
 // guarda. Se imprime, se guarda en PDF o va a Drive.
 import { Printer } from "lucide-react";
@@ -28,13 +28,13 @@ export function ReceiptPage() {
     const [patient, clinic, payment] = await Promise.all([getPatient(db, id), getClinic(db), getPayment(db, pid)]);
     return { patient, clinic, payment };
   }, [id, pid]);
-  /** El de su ficha, salvo que se cambie aquí (solo para este justificante). */
+  /** El de su ficha, salvo que se cambie aquí (solo para este recibo). */
   const [idDocEdit, setIdDoc] = useState<string | null>(null);
   const article = useRef<HTMLElement>(null);
 
   const bar = (
     <div className="print:hidden">
-      <TopBar title="Justificante de pago" backTo={`/pacientes/${id}/cobros`} />
+      <TopBar title="Recibo" backTo={`/pacientes/${id}/cobros`} />
     </div>
   );
   const shell = (body: ReactNode) => (
@@ -51,7 +51,7 @@ export function ReceiptPage() {
 
   const physio = clinic.professional;
   const issuer = clinic.name || physio;
-  const fileName = safeName(`Justificante de pago ${patient.name} ${payment.paidOn}.pdf`);
+  const fileName = safeName(`Recibo ${patient.name} ${payment.paidOn}.pdf`);
   async function pdf() {
     const { reportPdf } = await import("./reportPdf");
     return reportPdf(article.current!);
@@ -63,21 +63,21 @@ export function ReceiptPage() {
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
         <form className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden" onSubmit={(e) => e.preventDefault()}>
-          <TextField label="DNI o NIE del paciente (opcional)" value={idDoc} onChange={(e) => setIdDoc(e.target.value)} hint="Sale de su ficha; si lo cambias aquí, solo vale para este justificante." />
-          {!issuer && <p className="text-sm text-warning">Faltan los datos de la clínica: rellénalos en Ajustes → Clínica para que salgan en el justificante.</p>}
+          <TextField label="DNI o NIE del paciente (opcional)" value={idDoc} onChange={(e) => setIdDoc(e.target.value)} hint="Sale de su ficha; si lo cambias aquí, solo vale para este recibo." />
+          {!issuer && <p className="text-sm text-warning">Faltan los datos de la clínica: rellénalos en Ajustes → Clínica para que salgan en el recibo.</p>}
           <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
             Imprimir
           </Button>
-          <SharePdf make={pdf} fileName={fileName} title="Justificante de pago" />
+          <SharePdf make={pdf} fileName={fileName} title="Recibo" />
           <DriveSaveButton label="Guardar en mi Drive (PDF)" make={async () => ({ name: fileName, mimeType: "application/pdf", bytes: await pdf() })} />
         </form>
 
         <article
           ref={article}
-          aria-label="Justificante de pago"
+          aria-label="Recibo"
           className="flex flex-col gap-6 theme-light rounded-lg border border-border bg-white p-8 text-base leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none"
         >
-          <Letterhead clinic={clinic} title="Justificante de pago" subtitle={fmtDate(new Date().toISOString())} />
+          <Letterhead clinic={clinic} title="Recibo" subtitle={fmtDate(new Date().toISOString())} />
           <p>
             {issuer ? <b>{issuer}</b> : "La clínica"}
             {clinic.taxId ? `, con NIF ${clinic.taxId},` : ""} ha recibido de <b>{patient.name}</b>

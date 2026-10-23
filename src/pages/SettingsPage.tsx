@@ -188,7 +188,7 @@ export function ClinicSettingsPage() {
   return (
     <Page title="Clínica y protección de datos" backTo="/ajustes">
       <ClinicSettings />
-      <Link to="/privacidad" className="font-semibold text-accent underline">
+      <Link to="/privacidad" className="inline-flex min-h-11 items-center self-start font-semibold text-accent underline">
         Privacidad: qué datos guarda la app y dónde
       </Link>
     </Page>

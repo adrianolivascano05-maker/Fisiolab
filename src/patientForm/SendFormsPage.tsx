@@ -79,7 +79,7 @@ export function SendFormsPage() {
   };
 
   return (
-    <Page title="Formularios para el paciente" backTo={back} backLabel={patient.name}>
+    <Page title="Formularios para el paciente" backTo={back}>
       <p className="text-text-muted">
         Mándale a {patient.name} su parte de la anamnesis o un cuestionario para que lo rellene desde su móvil, sin cuenta ni app. Lo que conteste se pone solo en
         su ficha: en la anamnesis, solo donde no hayas escrito nada.
@@ -87,7 +87,7 @@ export function SendFormsPage() {
       {!online ? (
         <Alert tone="info" title="Hace falta el servidor de la clínica">
           Para mandar formularios tienes que trabajar en una clínica con el servidor de Cénit:{" "}
-          <Link to="/ajustes/cuenta" className="font-semibold underline underline-offset-2">
+          <Link to="/ajustes/cuenta" className="py-3 font-semibold underline underline-offset-2">
             Ajustes › Cuenta de Google
           </Link>
           .
