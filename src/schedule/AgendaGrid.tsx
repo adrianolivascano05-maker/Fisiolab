@@ -253,11 +253,11 @@ export function AgendaGrid({
           const h = header(c);
           const inner = (
             <>
-              <span className={cx("flex items-center gap-1.5 text-sm leading-tight", h.today ? "font-bold text-brand" : "font-semibold")}>
+              <span className={cx("flex items-center gap-1.5 text-sm leading-tight", h.today ? "font-bold text-accent" : "font-semibold")}>
                 {h.color && <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ background: h.color }} />}
                 {h.title}
               </span>
-              {h.subtitle && <span className={cx("text-xs", h.today ? "font-bold text-brand" : "text-text-muted")}>{h.subtitle}</span>}
+              {h.subtitle && <span className={cx("text-xs", h.today ? "font-bold text-accent" : "text-text-muted")}>{h.subtitle}</span>}
             </>
           );
           // touch-pan-y: deslizar de lado sobre los días no desplaza la agenda, pasa de semana.

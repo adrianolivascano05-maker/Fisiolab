@@ -34,7 +34,7 @@ export function ConsentDocumentView({
     <article className="flex flex-col gap-4 text-[15px] leading-relaxed print:text-[11pt]">
       <header className="flex flex-col gap-1 border-b border-border pb-3">
         <p className="text-sm text-text-muted">{[doc.clinic.name, doc.clinic.taxId && `NIF ${doc.clinic.taxId}`, doc.clinic.address].filter(Boolean).join(" · ") || "[Datos de la clínica]"}</p>
-        <h2 className="text-xl text-brand">Consentimiento informado: {doc.title}</h2>
+        <h2 className="text-xl text-brand-ink">Consentimiento informado: {doc.title}</h2>
         <p className="text-sm text-text-muted">Documento de información y consentimiento por escrito (Ley 41/2002, arts. 8 y 10) · versión {doc.version}</p>
       </header>
 
@@ -68,7 +68,7 @@ export function ConsentDocumentView({
 
       {doc.sections.map((s) => (
         <section key={s.title} className="flex flex-col gap-1 break-inside-avoid">
-          <h3 className="text-base font-semibold text-brand">{s.title}</h3>
+          <h3 className="text-base font-semibold text-brand-ink">{s.title}</h3>
           {s.items.length === 1 ? (
             <p>{s.items[0]}</p>
           ) : (
@@ -82,7 +82,7 @@ export function ConsentDocumentView({
       ))}
 
       <section className="flex flex-col gap-2 break-inside-avoid">
-        <h3 className="text-base font-semibold text-brand">Declaración</h3>
+        <h3 className="text-base font-semibold text-brand-ink">Declaración</h3>
         <p>
           Yo, {signer}, declaro que he leído (o me han leído) este documento, que lo he entendido, que he podido preguntar todo lo que he querido y
           que me han respondido. Sé que el resultado no se puede garantizar, que puedo retirar este consentimiento por escrito en cualquier
@@ -100,7 +100,7 @@ export function ConsentDocumentView({
       </section>
 
       <section className="flex flex-col gap-2 rounded-md border border-border p-3 break-inside-avoid">
-        <h3 className="text-base font-semibold text-brand">Retirada del consentimiento</h3>
+        <h3 className="text-base font-semibold text-brand-ink">Retirada del consentimiento</h3>
         <p>
           Retiro el consentimiento que di en este documento y asumo las consecuencias que me han explicado.{" "}
           {revokedAt ? (

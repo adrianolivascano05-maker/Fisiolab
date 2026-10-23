@@ -181,9 +181,9 @@ function Notice({ to, link, children }: { to: string; link: string; children: Re
   return (
     <p role="status" className="flex items-start gap-2 rounded-lg border border-dashed border-border-input px-3 py-2 text-sm text-text-muted">
       <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-      <span>
-        {children}{" "}
-        <Link to={to} className="font-semibold text-accent underline underline-offset-2">
+      <span className="flex flex-col items-start">
+        <span>{children}</span>
+        <Link to={to} className="inline-flex min-h-11 items-center font-semibold text-accent underline underline-offset-2">
           {link}
         </Link>
       </span>

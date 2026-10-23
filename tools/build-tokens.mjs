@@ -38,9 +38,19 @@ for (const [name, v] of Object.entries(t.shadow)) lines.push(`  --shadow-${name}
 
 lines.push("", `  --ease-standard: ${t.motion.ease};`);
 lines.push("}", "", ":root {");
+lines.push("  color-scheme: light dark;");
 lines.push(`  --motion-fast: ${t.motion.fast};`, `  --motion-base: ${t.motion.base};`);
 for (const [name, v] of Object.entries(t.layout)) lines.push(`  --layout-${name}: ${px(v)};`);
 lines.push("}", "");
 
+// Modo oscuro: sigue el ajuste del teléfono. Solo cambian los colores de «colorDark».
+const vars = (colors, indent) => Object.entries(colors).map(([name, value]) => `${indent}--color-${name}: ${value};`);
+lines.push("@media (prefers-color-scheme: dark) {", "  :root {", ...vars(t.colorDark, "    "), "  }", "}", "");
+// Papel: los documentos (informe, consentimiento…) se ven en claro también en modo oscuro, como impresos. Y al
+// imprimir, todo en claro.
+const light = Object.fromEntries(Object.keys(t.colorDark).map((name) => [name, t.color[name]]));
+lines.push(".theme-light {", "  color-scheme: light;", ...vars(light, "  "), "}", "");
+lines.push("@media print {", "  :root {", "    color-scheme: light;", ...vars(light, "    "), "  }", "}", "");
+
 writeFileSync(out, lines.join("\n"));
-console.log(`tokens: ${Object.keys(t.color).length} colores -> src/styles/tokens.css`);
+console.log(`tokens: ${Object.keys(t.color).length} colores (${Object.keys(t.colorDark).length} cambian en oscuro) -> src/styles/tokens.css`);

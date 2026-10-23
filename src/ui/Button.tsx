@@ -10,11 +10,12 @@ const variants: Record<Variant, string> = {
   ghost: "bg-transparent text-accent hover:bg-accent-soft",
   danger: "bg-danger text-on-accent hover:opacity-90",
 };
-// sm es más estrecho y de letra más pequeña, pero mide 44px de alto como md: la zona táctil mínima en el móvil.
+// sm es más estrecho y de letra más pequeña, pero mide al menos 44px de alto como md: la zona táctil mínima en el
+// móvil. Alto mínimo, no fijo: si el texto no cabe en una línea, el botón crece en vez de apretarlo.
 const sizes: Record<Size, string> = {
-  sm: "h-11 px-3 text-sm font-semibold",
-  md: "h-11 px-4 text-base font-semibold",
-  lg: "h-14 px-6 text-lg",
+  sm: "min-h-11 px-3 py-1 text-sm font-semibold",
+  md: "min-h-11 px-4 py-1.5 text-base font-semibold",
+  lg: "min-h-14 px-6 py-2 text-lg",
 };
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {

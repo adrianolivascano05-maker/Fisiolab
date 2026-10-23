@@ -9,12 +9,17 @@
   body {
     @apply bg-canvas font-sans text-base text-text antialiased;
   }
-  /* Títulos con la tipografía de la marca (Fraunces); el resto, Manrope. */
+  /* Títulos en Bricolage Grotesque (con su tamaño óptico); el resto, Source Sans 3. */
   h1,
-  h2 {
+  h2,
+  h3 {
     font-family: var(--font-display);
     font-optical-sizing: auto;
     letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  h1 {
+    font-weight: 800;
   }
   :focus-visible {
     outline: 2px solid var(--color-focus);

@@ -4,7 +4,7 @@ Fecha: 2026-10-17
 
 ## 1. Qué es y dónde está
 
-- **App:** Cénit · Fisiolab (antes «Impulso»; marca en el apartado 5: paleta bosque y oro, Fraunces + Manrope, logo de la «C» con el sol en el cénit). Ficha clínica de fisioterapia y medición por vídeo a cámara lenta: se marcan fotogramas y la app calcula altura del salto, RSI, fuerza, potencia, etc. Código, nombre, logo y textos propios.
+- **App:** Cénit · Fisiolab (antes «Impulso»; marca en el apartado 5: paleta papel y bosque con modo oscuro, Bricolage Grotesque + Source Sans 3, logo de la «C» con el sol en el cénit). Ficha clínica de fisioterapia y medición por vídeo a cámara lenta: se marcan fotogramas y la app calcula altura del salto, RSI, fuerza, potencia, etc. Código, nombre, logo y textos propios.
 - **Uso:** interno en la clínica Fisiolab, en el móvil **Android (Pixel 7 Pro)** del usuario.
 - **Publicada (versión de prueba):** https://adrianolivascano05-maker.github.io/Fisiolab/
 - **Código:** repositorio `adrianolivascano05-maker/Fisiolab` (público). Rama principal y única: `claude/replica-skill-install-zv3ker`. Cada push a esa rama vuelve a publicar la app (GitHub Actions → GitHub Pages).
@@ -163,12 +163,19 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
 ## 5. Marca (texto final)
 
 - **Nombre:** «Cénit» (completo «Cénit · Fisiolab»). Antes «Impulso».
-- **Colores (`src/styles/tokens.json`), paleta «bosque y oro»:**
-  - marca `#0E3B2E` (verde bosque), acción `#1F6F54` (esmeralda), oro `#C9A227` (detalles, nunca texto)
-  - fondo `#F2E8D8` (crema), tarjetas `#FBF7F0`, texto `#1B1B1D`, secundario `#57514A`
-  - gráficas `#00805A` y `#97700E`; peligro `#A3261C`, aviso `#7A5600`
-  - 57 pares AA, 0 fallos; el par de gráficas pasa el validador de daltonismo.
-- **Tipografía:** Fraunces (títulos y nombre) + Manrope (texto y cifras tabulares), dentro de la app.
+- **Colores (`src/styles/tokens.json`), paleta «papel y bosque»** (desde el bloque B8 de `docs/plan-limpieza.md`):
+  - claro: fondo `#F2F4F1` (papel gris verdoso), tarjetas `#FFFFFF`, texto `#16201B`, secundario `#55625A`,
+    acción `#1F6B4F`; peligro `#A63F2A`, aviso `#865409`
+  - oscuro (sigue el ajuste del teléfono): fondo `#0F1512`, tarjetas `#171F1B`, texto `#E7ECE8`, secundario
+    `#9EABA3`, acción `#6CC39D` (menta); peligro `#E8826A`, aviso `#E2A94D`
+  - barra superior `#0E3B2E` (verde bosque) y oro `#C9A227` del logo, iguales en los dos modos; los títulos de los
+    documentos usan `brand-ink` (bosque en claro, menta clara en oscuro)
+  - documentos (informe, consentimiento, justificante…) siempre en claro, como papel, y al imprimir todo en claro
+  - gráficas `#00805A` y `#97700E` en claro, `#3E9E77` y `#C4862A` en oscuro (las dos parejas pasan el validador
+    de daltonismo)
+  - contraste AA de todos los pares en los dos modos: lo comprueba `src/styles/tokens.test.ts`
+- **Tipografía:** Bricolage Grotesque (títulos y nombre) + Source Sans 3 (texto y cifras tabulares), dentro de la
+  app (sin cargar nada de internet).
 - **Logo:** «C» de goniómetro con el sol de oro en el cénit. `src/ui/Logo.tsx` (SVG); iconos con `tools/build-icons.py`.
 - **Voz:** precisa (no técnica de más), cercana (no coloquial), serena (no fría). Textos clave:
   - «Todavía no hay pacientes» / «Añade a tu primer paciente y mide su salto en un par de minutos.»

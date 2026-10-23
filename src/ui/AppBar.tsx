@@ -53,12 +53,12 @@ export function TopBar({
     // Barra en verde de la marca, con una línea de oro debajo. Dentro, los colores de texto y de acento pasan a los claros.
     <header
       className="sticky top-0 z-20 border-b-2 border-highlight bg-brand text-on-brand shadow-sm"
-      style={{ "--color-text": "var(--color-on-brand)", "--color-accent": "var(--color-on-brand)", "--color-surface": "rgb(242 232 216 / 0.16)" } as CSSProperties}
+      style={{ "--color-text": "var(--color-on-brand)", "--color-accent": "var(--color-on-brand)", "--color-surface": "color-mix(in srgb, var(--color-on-brand) 16%, transparent)" } as CSSProperties}
     >
       <div className="mx-auto grid h-[var(--layout-header)] max-w-[var(--layout-content-max)] grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-2">
         <div className="min-w-0">
           {!backTo && (
-            <Link to="/" className="inline-flex rounded-md px-1.5 py-1">
+            <Link to="/" className="inline-flex min-h-11 items-center rounded-md px-1.5 py-1">
               <Logo onDark />
             </Link>
           )}
@@ -145,7 +145,7 @@ export function TabBar() {
               <Link
                 to={active ? root : (lastIn.get(root) ?? root)}
                 aria-current={active ? "page" : undefined}
-                className={cx("relative flex h-full flex-col items-center justify-center gap-1 text-xs", active ? "font-semibold text-brand" : "text-text-muted")}
+                className={cx("relative flex h-full flex-col items-center justify-center gap-1 text-xs", active ? "font-semibold text-accent" : "text-text-muted")}
               >
                 {/* Pestaña activa: una línea de oro arriba. */}
                 <span aria-hidden="true" className={cx("absolute top-0 h-[3px] w-8 rounded-b-full bg-highlight transition-opacity", active ? "opacity-100" : "opacity-0")} />

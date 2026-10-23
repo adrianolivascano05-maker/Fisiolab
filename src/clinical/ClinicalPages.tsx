@@ -109,7 +109,7 @@ function Fold({ id, title, count, open, children }: { id: string; title: string;
   return (
     <details id={id} open={open || undefined} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
-        <span className="text-lg font-semibold text-brand">{title.replace(/^\d+\.\s*/, "")}</span>
+        <span className="text-lg font-semibold text-brand-ink">{title.replace(/^\d+\.\s*/, "")}</span>
         <span className="flex items-center gap-2 text-sm text-text-muted">
           {count}
           <ChevronDown aria-hidden="true" className="size-5 transition-transform group-open:rotate-180" />
@@ -591,7 +591,7 @@ export function SessionsPage() {
 }
 
 const kindStyle: Record<EventKind, { dot: string; label: string }> = {
-  session: { dot: "bg-brand", label: "Sesión" },
+  session: { dot: "bg-brand-ink", label: "Sesión" },
   finding: { dot: "bg-danger", label: "Exploración" },
   test: { dot: "bg-accent", label: "Medición" },
   questionnaire: { dot: "bg-chart-right", label: "Cuestionario" },

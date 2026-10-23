@@ -9,14 +9,14 @@ export function Letterhead({ clinic, title, subtitle }: { clinic: ClinicInfo; ti
   return (
     <header className="flex items-start justify-between gap-4 border-b border-border pb-3">
       <div className="flex flex-col">
-        <span className="text-xl font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
+        <span className="text-xl font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
           {title}
         </span>
         <span className="text-sm text-text-muted">{subtitle}</span>
       </div>
       {clinic.name ? (
         <span className="flex max-w-[55%] flex-col items-end text-right">
-          <span className="text-lg font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
+          <span className="text-lg font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
             {clinic.name}
           </span>
           {details && <span className="text-xs text-text-muted">{details}</span>}
@@ -25,7 +25,7 @@ export function Letterhead({ clinic, title, subtitle }: { clinic: ClinicInfo; ti
         <span className="flex items-center gap-2">
           <LogoMark size={36} />
           <span className="flex flex-col leading-none">
-            <span className="text-lg font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="text-lg font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
               Cénit
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
@@ -39,7 +39,7 @@ export function Letterhead({ clinic, title, subtitle }: { clinic: ClinicInfo; ti
 export function Block({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="break-after-avoid border-b-2 border-brand pb-1 text-lg text-brand">{title}</h2>
+      <h2 className="break-after-avoid border-b-2 border-brand-ink pb-1 text-lg text-brand-ink">{title}</h2>
       {children}
     </section>
   );

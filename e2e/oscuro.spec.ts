@@ -1,0 +1,49 @@
+import { add, expect, expectAccessible, loadSeed, test } from "./fixtures";
+
+// El modo oscuro sigue el ajuste del teléfono. Aquí se emula y se pasa el escáner de accesibilidad (contraste
+// incluido) por las pantallas principales; los documentos se quedan en claro, como papel.
+test.use({ colorScheme: "dark" });
+
+const background = (el: import("@playwright/test").Locator) => el.evaluate((e) => getComputedStyle(e).backgroundColor);
+
+test.describe("Modo oscuro", () => {
+  test("OS1 pantallas principales con contraste suficiente y documentos en papel claro", async ({ page }) => {
+    await loadSeed(page);
+    await page.goto("./");
+    // El fondo de la app es oscuro (#0F1512).
+    expect(await background(page.locator("body"))).toBe("rgb(15, 21, 18)");
+    await expectAccessible(page);
+
+    await page.getByRole("link", { name: /Marcos Vidal/ }).click();
+    await expect(page.getByRole("heading", { name: "Situación" })).toBeVisible();
+    await expectAccessible(page);
+    await add(page, "Medición").click();
+    await expect(page.getByRole("link", { name: /Fuerza/ })).toBeVisible();
+    await expectAccessible(page);
+    await page.goBack();
+
+    const tabs = page.getByRole("navigation", { name: "Ficha del paciente" });
+    await tabs.getByRole("link", { name: "Valoración" }).click();
+    await expect(page.getByRole("heading", { name: "Mediciones", exact: true })).toBeVisible();
+    await expectAccessible(page);
+    await tabs.getByRole("link", { name: "Sesiones" }).click();
+    await expect(page.getByRole("heading", { name: "Sesiones", exact: true })).toBeVisible();
+    await expectAccessible(page);
+
+    // El informe se ve como un papel blanco con texto oscuro.
+    await tabs.getByRole("link", { name: "Resumen" }).click();
+    await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
+    const paper = page.getByRole("article", { name: "Informe" });
+    await expect(paper).toBeVisible();
+    expect(await background(paper)).toBe("rgb(255, 255, 255)");
+    expect(await paper.evaluate((e) => getComputedStyle(e).color)).toBe("rgb(22, 32, 27)");
+    await expectAccessible(page);
+
+    await page.goto("./agenda");
+    await expectAccessible(page);
+    await page.goto("./exploracion");
+    await expectAccessible(page);
+    await page.goto("./ajustes");
+    await expectAccessible(page);
+  });
+});

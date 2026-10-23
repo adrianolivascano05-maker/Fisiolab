@@ -163,7 +163,7 @@ export function ReportPage() {
           />
         </div>
 
-        <article ref={article} aria-label="Informe" className="flex flex-col gap-5 rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
+        <article ref={article} aria-label="Informe" className="flex flex-col gap-5 theme-light rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
           <Letterhead clinic={clinic} title="Informe de fisioterapia" subtitle={`Historia clínica y evolución · ${fmtDate(today)}`} />
           {(to.trim() || note.trim()) && (
             <div className="flex flex-col gap-1">

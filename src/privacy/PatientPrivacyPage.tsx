@@ -159,7 +159,7 @@ export function PatientPrivacyPage() {
           </p>
         </div>
 
-        <div className="rounded-lg border border-border bg-white p-6 text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
+        <div className="theme-light rounded-lg border border-border bg-white p-6 text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
           <PrivacyNotice clinic={clinic} storage={storage} patientName={patient.name} privacy={form} />
         </div>
         <p className="text-sm text-text-muted print:hidden">

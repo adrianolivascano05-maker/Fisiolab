@@ -27,7 +27,7 @@ export function Logo({ onDark }: { onDark?: boolean }) {
     <span className="flex items-center gap-2.5">
       <LogoMark size={34} bordered={onDark} />
       <span className="flex flex-col leading-none">
-        <span className={`font-display text-[22px] font-semibold tracking-tight ${onDark ? "text-on-brand" : "text-brand"}`}>Cénit</span>
+        <span className={`font-display text-[22px] font-semibold tracking-tight ${onDark ? "text-on-brand" : "text-brand-ink"}`}>Cénit</span>
         <span className={`mt-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] ${onDark ? "text-highlight" : "text-text-muted"}`}>Fisiolab</span>
       </span>
     </span>

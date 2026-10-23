@@ -100,7 +100,7 @@ export function BodyFigures({ marks, onToggle, view, className }: { marks: Mark[
                       y={c.y + 4.5}
                       textAnchor="middle"
                       pointerEvents="none"
-                      className="fill-white stroke-text text-[13px] font-bold [paint-order:stroke] [stroke-width:3px]"
+                      className="fill-white stroke-media-bg text-[13px] font-bold [paint-order:stroke] [stroke-width:3px]"
                     >
                       {m.intensity}
                     </text>
@@ -173,7 +173,7 @@ export function BodyMapInput({ label, hint, value, onChange }: { label: string; 
             key={v.id}
             type="button"
             aria-pressed={view === v.id}
-            className={cx("min-h-11 rounded-md text-sm font-semibold", view === v.id ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text")}
+            className={cx("min-h-11 rounded-md text-sm font-semibold", view === v.id ? "bg-bg text-accent shadow-card" : "text-text-muted hover:text-text")}
             onClick={() => setView(v.id)}
           >
             {v.label}

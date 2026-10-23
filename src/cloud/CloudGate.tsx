@@ -362,7 +362,7 @@ function Shell({ children }: { children: ReactNode }) {
       <div className="flex items-center gap-3">
         <LogoMark size={44} />
         <span className="flex flex-col leading-none">
-          <span className="text-xl font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
+          <span className="text-xl font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
             Cénit
           </span>
           <span className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>

@@ -14,7 +14,7 @@ const or = (value: string, placeholder: string): ReactNode => value || blank(pla
 function Part({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-1 break-inside-avoid">
-      <h3 className="text-base font-semibold text-brand">{title}</h3>
+      <h3 className="text-base font-semibold text-brand-ink">{title}</h3>
       {children}
     </section>
   );
@@ -31,7 +31,7 @@ export function PrivacyNotice({ clinic, storage, patientName, privacy }: { clini
   return (
     <article aria-label="Información sobre protección de datos" className="flex flex-col gap-3 text-[0.9375rem] leading-relaxed">
       <header className="flex flex-col gap-0.5 border-b border-border pb-2">
-        <h2 className="text-lg text-brand">Información sobre protección de datos</h2>
+        <h2 className="text-lg text-brand-ink">Información sobre protección de datos</h2>
         <p className="text-sm text-text-muted">Para pacientes de fisioterapia · Reglamento (UE) 2016/679 y Ley Orgánica 3/2018</p>
       </header>
 

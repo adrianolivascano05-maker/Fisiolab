@@ -95,7 +95,8 @@ const steps: { title: string; body: ReactNode }[] = [
       <>
         La barra de abajo está siempre a mano y <b>cada pestaña recuerda dónde estabas</b>: mira un test en la Guía y vuelve a la ficha con un toque
         en Pacientes. Pulsa otra vez la pestaña en la que estás para volver a su inicio. Arriba a la izquierda, <b>‹</b> vuelve a la pantalla
-        anterior.
+        anterior. La app se ve en claro u oscuro según el ajuste de tu teléfono; los informes y documentos, siempre en
+        claro, como en papel.
       </>
     ),
   },

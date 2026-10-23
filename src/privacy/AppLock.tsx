@@ -137,7 +137,7 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
         <div className="flex items-center gap-3">
           <LogoMark size={44} />
           <span className="flex flex-col leading-none">
-            <span className="text-xl font-semibold text-brand" style={{ fontFamily: "var(--font-display)" }}>
+            <span className="text-xl font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
               Cénit
             </span>
             <span className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
@@ -191,7 +191,7 @@ function PinPad({
       <div role="status" className="flex h-4 items-center gap-3">
         <span className="sr-only">{value.length === 1 ? "1 cifra tecleada" : `${value.length} cifras tecleadas`}</span>
         {Array.from({ length: dots }, (_, i) => (
-          <span key={i} aria-hidden="true" className={cx("size-3.5 rounded-full border-2 border-brand", i < value.length && "bg-brand")} />
+          <span key={i} aria-hidden="true" className={cx("size-3.5 rounded-full border-2 border-accent", i < value.length && "bg-accent")} />
         ))}
       </div>
       <div role="group" aria-label="Teclado del PIN" className="grid grid-cols-3 gap-4">

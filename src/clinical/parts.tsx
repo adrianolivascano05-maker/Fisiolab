@@ -27,7 +27,7 @@ export function PatientNav({ id }: { id: string }) {
               className={({ isActive }) =>
                 cx(
                   "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-xs leading-tight font-semibold",
-                  isActive ? "bg-bg text-brand shadow-card" : "text-text-muted hover:text-text",
+                  isActive ? "bg-bg text-accent shadow-card" : "text-text-muted hover:text-text",
                 )
               }
             >

@@ -181,7 +181,7 @@ export function DischargePage() {
           />
         </div>
 
-        <article ref={article} aria-label="Informe de alta" className="flex flex-col gap-5 rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
+        <article ref={article} aria-label="Informe de alta" className="flex flex-col gap-5 theme-light rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
           <Letterhead clinic={clinic} title="Informe de alta de fisioterapia" subtitle={fmtDate(today)} />
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 print:grid-cols-2">
             {facts.map(([k, v]) => (
