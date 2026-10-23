@@ -82,7 +82,11 @@ export function add(page: Page, what: "Sesión" | "Medición" | "Exploración" |
       if (what === "Sesión") return page.getByRole("main").getByRole("link", { name: "Nueva sesión" }).first().click();
       await page.getByRole("button", { name: "Valorar" }).click();
       const name = { Medición: "Nueva medición", Exploración: "Registrar un test", Cuestionario: "Pasar un cuestionario" }[what];
-      await page.getByRole("dialog", { name: "Valorar" }).getByRole("link", { name: new RegExp(`^${name}`) }).click();
+      const sheet = page.getByRole("dialog", { name: "Valorar" });
+      await sheet.getByRole("link", { name: new RegExp(`^${name}`) }).click();
+      // La hoja se cierra con una animación: hasta que se va, su fila «Saltos, fuerza, sprint…» coincide con los
+      // enlaces que se buscan después («Saltos», «Fuerza»…) y el toque caería en ella.
+      await expect(sheet).toHaveCount(0);
     },
   };
 }
