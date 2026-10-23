@@ -181,13 +181,14 @@ export function AgendaGrid({
   }
 
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  // La semana entera cabe en la pantalla del móvil (sin desplazarse a los lados); 3 días o el equipo, más anchos.
-  const minWidth = columns.length >= 7 ? 40 : columns.length > 3 ? 92 : 140;
+  // La semana entera cabe en la pantalla del móvil (sin desplazarse a los lados, cada día de 44 px: la rejilla va de
+  // borde a borde); 3 días o el equipo, más anchos.
+  const minWidth = columns.length >= 7 ? 44 : columns.length > 3 ? 92 : 140;
 
   return (
     <div
       ref={scroller}
-      className="relative max-h-[calc(100dvh-var(--layout-header)-var(--layout-tabbar)-13rem)] min-h-[24rem] touch-pan-x touch-pan-y overflow-auto rounded-lg border border-border bg-bg"
+      className="relative -mx-4 max-h-[calc(100dvh-var(--layout-header)-var(--layout-tabbar)-13rem)] min-h-[24rem] touch-pan-x touch-pan-y overflow-auto border-y border-border bg-bg sm:mx-0 sm:rounded-lg sm:border"
       onTouchStart={(e) => {
         const t = e.touches[0]!;
         swipe.current = onSwipe && e.touches.length === 1 && (e.target as Element).closest?.("[data-agenda-head]") ? { x0: t.clientX, y0: t.clientY, dir: null } : null;

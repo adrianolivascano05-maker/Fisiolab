@@ -360,19 +360,22 @@ test.describe("Agenda y seguimiento", () => {
         );
       };
 
-      // Separar los dedos sobre el viernes: 3 días con el viernes en medio, y después solo el viernes.
+      // En el móvil no hay «3 días» (no caben): separar los dedos sobre el viernes deja solo el viernes.
+      await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "3 días" })).toHaveCount(0);
       const friday = page.getByRole("button", { name: /^Vie 23\s*, ver solo este día$/ });
-      await pinch(friday, 20, 120);
-      await expect(page.getByRole("heading", { name: /22 oct – 24 oct 2026/ })).toBeVisible();
       await pinch(friday, 20, 120);
       await expect(page.getByRole("heading", { name: "Viernes, 23 de octubre" })).toBeVisible();
       await expect(page.getByRole("button", { name: /Pablo Pellizco/ })).toBeVisible();
 
-      // Juntarlos vuelve a 3 días alrededor del viernes y a su semana.
+      // Juntarlos vuelve a su semana.
       await pinch(page.getByText("Vie", { exact: true }), 160, 40);
-      await expect(page.getByRole("heading", { name: /22 oct – 24 oct 2026/ })).toBeVisible();
-      await pinch(friday, 160, 40);
       await expect(page.getByRole("heading", { name: /19 oct – 25 oct 2026/ })).toBeVisible();
+
+      // En una pantalla ancha sí está «3 días», y el pellizco pasa por ella.
+      await page.setViewportSize({ width: 1000, height: 800 });
+      await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "3 días" }).click();
+      await expect(page.getByRole("heading", { name: /23 oct – 25 oct 2026/ })).toBeVisible();
+      await expect(page.getByRole("button", { name: /ver solo este día$/ })).toHaveCount(3);
     });
 
     test("AG11 deslizar la fila de los días a un lado pasa de semana", async ({ page }) => {

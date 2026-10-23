@@ -25,6 +25,12 @@ bocetos, prueba de 10 fisios). Las pantallas actuales, en texto, están en esa p
 
 ## Bloques, en este orden
 
+Estado (2026-10-23): hechos y publicados B1, B2, B8, B4, B5 y B6; B7 con este cambio. B3 (colores por clínica) no se
+aprobó. Cambios respecto a lo escrito abajo, decididos al hacerlo: en Ajustes se mantienen los nombres «Clínica y
+protección de datos» y «Precios y cobros» (salen en muchos textos de la app); «Biblioteca» vive en `/biblioteca` y
+las direcciones `/exploracion/…` llevan allí.
+
+
 1. **B1 · Inicio y Agenda con «Hoy».** Pacientes: + Nuevo (crea el paciente directamente), buscador, franja «Hoy»,
    lista con la próxima cita; fuera Pendiente, Próximas citas, Para reevaluar, Medición rápida (va a Biblioteca ›
    Mediciones) y los avisos (a Ajustes). Agenda: segmentos Hoy · Día · Semana; Hoy en lista con Atender (vuelve a

@@ -1,4 +1,4 @@
-// Agenda: las citas como en Google Calendar, por día, 3 días o semana, y en una clínica también los turnos de cada
+// Agenda: las citas como en Google Calendar, por día, 3 días (solo en pantallas anchas) o semana, y en una clínica también los turnos de cada
 // persona y una columna por persona en la vista de un día. Las citas se arrastran para moverlas (de hora, de día o
 // de persona) y se puede deshacer; tocar un hueco da una cita o pone un turno. Sirve igual a quien trabaja solo (sin
 // equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
@@ -36,8 +36,18 @@ const VIEWS: { id: View; label: string; days: number }[] = [
 ];
 /** v2: con la vista «Hoy» (lista del día), que es la primera en el móvil. */
 const VIEW_KEY = "fisiolab.agenda.view.v2";
-/** Las vistas de rejilla, en orden: el pellizco pasa de una a otra. */
-const GRID_VIEWS = VIEWS.filter((v) => v.id !== "today");
+/** En el móvil no caben tres días con su nombre: «3 días», solo en pantallas anchas (desde 640 px). */
+const NARROW = "(max-width: 639px)";
+function useNarrow() {
+  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
+  useEffect(() => {
+    const m = window.matchMedia(NARROW);
+    const on = () => setNarrow(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
 
 /** El lunes (AAAA-MM-DD) de la semana de `day`. */
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T12:00:00`).getDay() + 6) % 7));
@@ -93,6 +103,14 @@ export function SchedulePage() {
     return v === "today" && /^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? "day" : v;
   });
   const [anchor, setAnchor] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? params.get("dia")! : today));
+  const narrow = useNarrow();
+  const views = narrow ? VIEWS.filter((v) => v.id !== "3days") : VIEWS;
+  // Las vistas de rejilla, en orden: el pellizco pasa de una a otra.
+  const gridViews = views.filter((v) => v.id !== "today");
+  // «3 días» guardada de una pantalla ancha: en el móvil, el día.
+  useEffect(() => {
+    if (narrow && view === "3days") setView("day");
+  }, [narrow, view]);
   const [who, setWho] = useState("");
   const [creating, setCreating] = useState<Creating | null>(null);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
@@ -187,11 +205,11 @@ export function SchedulePage() {
     };
   };
   /**
-   * Pellizco en la rejilla: juntando los dedos se ven más días (día → 3 días → semana); separándolos, menos. Se centra
+   * Pellizco en la rejilla: juntando los dedos se ven más días (día → 3 días, en pantallas anchas → semana); separándolos, menos. Se centra
    * en el día que queda entre los dedos (si no se sabe, el de en medio de lo que se ve).
    */
   const zoom = (by: 1 | -1, c: Column | undefined) => {
-    const next = GRID_VIEWS[GRID_VIEWS.findIndex((v) => v.id === view) + by];
+    const next = gridViews[gridViews.findIndex((v) => v.id === view) + by];
     if (!next) return;
     const focus = c?.day ?? days[Math.floor(days.length / 2)]!;
     setAnchor(next.id === "3days" ? addDays(focus, -1) : focus);
@@ -215,7 +233,7 @@ export function SchedulePage() {
     >
       <div className="flex flex-wrap items-center gap-2">
         <div role="group" aria-label="Vista" className="flex rounded-md border border-border p-0.5">
-          {VIEWS.map((v) => (
+          {views.map((v) => (
             <button
               key={v.id}
               type="button"
@@ -234,18 +252,13 @@ export function SchedulePage() {
         )}
       </div>
       {view !== "today" && (
-        <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="secondary" disabled={showsToday} onClick={() => setAnchor(today)}>
-          Ir a hoy
-        </Button>
+        // Una sola fila: ‹ fecha › y «Ir a hoy». La fecha, si no cabe, en dos líneas.
+        <div className="flex items-center gap-1">
         <IconButton label={`${noun} anterior${view === "3days" ? "es" : ""}`} onClick={() => step(-1)}>
           <ChevronLeft aria-hidden="true" className="size-6" />
         </IconButton>
-        <IconButton label={`${noun} siguiente${view === "3days" ? "s" : ""}`} onClick={() => step(1)}>
-          <ChevronRight aria-hidden="true" className="size-6" />
-        </IconButton>
-        <div className="relative min-w-[10rem] flex-1">
-          <h2 className="truncate text-base font-semibold" aria-live="polite">
+        <div className="relative min-w-0 flex-1">
+          <h2 className="text-center text-sm leading-tight font-semibold sm:text-base" aria-live="polite">
             {title}
           </h2>
           {/* Tocar la fecha abre el calendario del sistema para ir a cualquier día. */}
@@ -264,6 +277,12 @@ export function SchedulePage() {
             }}
           />
         </div>
+        <IconButton label={`${noun} siguiente${view === "3days" ? "s" : ""}`} onClick={() => step(1)}>
+          <ChevronRight aria-hidden="true" className="size-6" />
+        </IconButton>
+        <Button size="sm" variant="secondary" disabled={showsToday} onClick={() => setAnchor(today)}>
+          Ir a hoy
+        </Button>
         </div>
       )}
       {view === "today" ? (

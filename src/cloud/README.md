@@ -199,7 +199,7 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
   de la cuenta no se lleva y, en los demás ajustes, ganan los que ya tenga la clínica. La base de la cuenta no se
   toca.
 - **Agenda y horario de la clínica** (`../schedule/`, `../data/schedule.ts`, migración 015): la pestaña «Agenda» es como
-  Google Calendar (día, 3 días o semana, con la hora a la izquierda). Las citas se arrastran para cambiarlas de hora o
+  Google Calendar (día, 3 días en pantallas anchas, o semana, con la hora a la izquierda). Las citas se arrastran para cambiarlas de hora o
   de día (en el móvil, manteniéndolas pulsadas), con «Deshacer», y desde su hoja se mueven una hora, un día o una
   semana. Tocar un hueco da una cita (eligiendo el paciente). Sin clínica sirve igual, solo con tus citas. En una
   clínica, además, los turnos de cada persona y, en la vista de un día, una columna por persona: arrastrar una cita a
