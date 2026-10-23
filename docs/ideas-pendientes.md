@@ -38,6 +38,16 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
    - Coste: plan gratuito de Cloudflare. Un correo automático de confirmación al paciente necesitaría un servicio
      de envío (posible coste): en su lugar, confirmación en pantalla, archivo para su calendario y WhatsApp.
    - Requiere modo clínica con nube (el modo solo en el dispositivo no puede publicar huecos).
+   - **Decidido por el usuario (23-10-2026):**
+     - Al reservar, la bandeja propone el WhatsApp de confirmación, y ese mensaje lleva un **enlace para anular**.
+     - Anular tiene que ser muy fácil: abrir el enlace, ver la cita y un botón «Anular cita». Sin cuenta ni
+       llamadas. El hueco vuelve a quedar libre en la página al momento, y la app anula la cita al recogerlo
+       y avisa a la lista de espera. El mismo enlace sirve también para las citas que da la clínica, no solo
+       para las reservadas online.
+     - La anamnesis de la primera visita se manda **48 horas antes**. Si la cita se reserva con menos de 48
+       horas, se manda en cuanto se reserva (junto a la confirmación).
+     - Ojo: los envíos de la bandeja salen cuando alguien abre la app y pulsa «Enviar». El de las 48 horas
+       aparece en la bandeja ese día; si nadie la abre, sale más tarde.
    - Estado: pendiente; empezaría después de la bandeja de envíos, porque la usa.
 
 6. **Preparar la app para otras clínicas (soporte y fiabilidad).** Antes de abrirla fuera de Fisiolab:
