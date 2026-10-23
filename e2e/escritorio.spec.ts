@@ -131,6 +131,53 @@ test.describe("Ordenador", () => {
     expect(await scrollWidth(page)).toBeLessThanOrEqual(1280);
   });
 
+  test("ES5 Agenda con «Hoy» al lado, Biblioteca y Ajustes en columnas y la tecla «/» al buscador", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await loadSeed(page);
+    // Agenda: la rejilla de la semana a la izquierda y lo de hoy a la derecha, a la misma altura.
+    await page.goto("./agenda");
+    const views = page.getByRole("group", { name: "Vista" });
+    const hoy = page.getByRole("complementary", { name: /^Hoy · / });
+    await expect(hoy).toBeVisible();
+    await expect(hoy.getByRole("link", { name: /Lista de espera/ })).toBeVisible();
+    // (El selector de vista va arriba, a todo el ancho; las columnas empiezan en la fila de la fecha.)
+    const [v, d, h] = [(await views.boundingBox())!, (await page.getByRole("button", { name: "Ir a hoy" }).boundingBox())!, (await hoy.boundingBox())!];
+    expect(h.x).toBeGreaterThan(v.x + v.width);
+    expect(Math.abs(h.y - d.y)).toBeLessThan(40);
+    expect(await scrollWidth(page)).toBeLessThanOrEqual(1440);
+    await expectAccessible(page);
+    // Biblioteca: las regiones en cuatro columnas; en un test, la figura a la izquierda y el texto a la derecha.
+    await page.goto("./biblioteca");
+    const regions = page.getByRole("list").filter({ has: page.getByRole("link", { name: /Rodilla/ }) }).getByRole("listitem");
+    const tops = await Promise.all([0, 1, 2, 3].map(async (i) => (await regions.nth(i).boundingBox())!.y));
+    expect(new Set(tops).size, "cuatro en la misma fila").toBe(1);
+    expect((await regions.nth(4).boundingBox())!.y, "la quinta, debajo").toBeGreaterThan(tops[0]!);
+    await page.getByRole("link", { name: /Rodilla/ }).click();
+    await page.getByRole("link", { name: /Lachman/ }).first().click();
+    const figure = page.getByRole("button", { name: /^(Reproducir|Pausar|Parar)/ }).first();
+    await expect(figure).toBeVisible();
+    const [f, c] = [(await figure.boundingBox())!, (await page.locator("summary").filter({ hasText: "Cómo se hace" }).boundingBox())!];
+    expect(c.x).toBeGreaterThan(f.x + f.width);
+    await expectAccessible(page);
+    // Ajustes: Clínica y Datos en dos columnas.
+    await page.goto("./ajustes");
+    const [cl, da] = [(await page.getByRole("region", { name: "Clínica" }).boundingBox())!, (await page.getByRole("region", { name: "Datos" }).boundingBox())!];
+    expect(da.x).toBeGreaterThan(cl.x + cl.width - 1);
+    expect(Math.abs(da.y - cl.y)).toBeLessThan(2);
+    await expectAccessible(page);
+    // La tecla «/»: desde cualquier pantalla, al buscador de pacientes; escribiendo en un campo, no hace nada.
+    await page.keyboard.press("/");
+    await expect(page.getByLabel("Buscar paciente")).toBeFocused();
+    await expect(page.getByRole("complementary", { name: "Lista de pacientes" })).toBeVisible();
+    await page.keyboard.type("Irene");
+    await expect(page.getByLabel("Buscar paciente")).toHaveValue("Irene");
+    await page.getByRole("link", { name: /Irene Soto/ }).click();
+    await expect(page.getByRole("heading", { name: "Situación" })).toBeVisible();
+    await page.keyboard.press("/");
+    await expect(page.getByLabel("Buscar paciente")).toBeFocused();
+    await expect(page.getByRole("heading", { name: "Situación" })).toBeVisible();
+  });
+
   test("ES3 a 1024 px el menú es una franja de iconos con nombre accesible; en una ventana estrecha, la app del móvil", async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto("./");

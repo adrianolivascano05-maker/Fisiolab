@@ -181,7 +181,8 @@ export function HelpPage() {
           </li>
           <li>
             En el ordenador (ventana de 1024 px o más) la app aprovecha la pantalla: el menú a la izquierda, la lista de pacientes siempre a la
-            vista junto a la ficha y, al abrirla, lo de hoy. Es la misma app, con los mismos datos.
+            vista junto a la ficha y, al abrirla, lo de hoy. Es la misma app, con los mismos datos. Con el teclado, la tecla <b>/</b> lleva al
+            buscador de pacientes.
           </li>
         </ul>
       </section>

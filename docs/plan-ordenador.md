@@ -56,9 +56,14 @@ ficha llega a 64 rem.
   respuestas cortas a pares.
 - Pruebas: ES4 en `e2e/escritorio.spec.ts`.
 
-### E3 · Agenda, Biblioteca, Ajustes y teclado (pendiente)
+### E3 · Agenda, Biblioteca, Ajustes y teclado (hecho)
 
-- Agenda: la lista de «Hoy» al lado de la rejilla de la semana.
-- Biblioteca: regiones en 3 o 4 columnas; en cada test, la figura al lado del texto.
-- Ajustes: los cuatro grupos en dos columnas.
-- Atajos: «/» lleva el cursor al buscador de pacientes.
+- Agenda: desde 1440 px de ventana, lo de hoy (citas con Atender y Cobrar, pendiente, mañana y lista de espera: la
+  misma vista «Hoy») en una columna de 21 rem a la derecha de la rejilla, con la fecha arriba. La vista «Hoy» del
+  selector sigue existiendo (en el móvil y en ventanas más estrechas es la única forma de verla).
+- Biblioteca: las regiones en tres columnas desde 1024 px y en cuatro desde 1280; en la página de un test, la figura
+  (con sus cifras y «Registrar el resultado en un paciente») a la izquierda y los apartados de texto a la derecha.
+- Ajustes: Clínica y Datos arriba, Seguridad y App debajo, en dos columnas desde 1024 px.
+- Teclado: la tecla «/» (fuera de un campo de texto) lleva el cursor al buscador de pacientes; si no está a la vista,
+  abre Pacientes y lo enfoca. Está explicado en Ajustes › Cómo se usa.
+- Pruebas: ES5 en `e2e/escritorio.spec.ts`.

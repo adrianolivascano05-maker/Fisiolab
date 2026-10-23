@@ -39,6 +39,8 @@ const VIEWS: { id: View; label: string; days: number }[] = [
 const VIEW_KEY = "fisiolab.agenda.view.v2";
 /** En el móvil no caben tres días con su nombre: «3 días», solo en pantallas anchas (desde 640 px). */
 const NARROW = "(max-width: 639px)";
+/** Desde aquí, la Agenda enseña «Hoy» al lado de la rejilla (las mismas clases `min-[1440px]:`). */
+const HOY_ASIDE = "(min-width: 1440px)";
 
 /** El lunes (AAAA-MM-DD) de la semana de `day`. */
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T12:00:00`).getDay() + 6) % 7));
@@ -95,6 +97,8 @@ export function SchedulePage() {
   });
   const [anchor, setAnchor] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? params.get("dia")! : today));
   const narrow = useMediaQuery(NARROW);
+  // En pantallas anchas, lo de hoy (citas, pendiente, mañana, lista de espera) a la derecha de la rejilla.
+  const hoyAside = useMediaQuery(HOY_ASIDE);
   const views = narrow ? VIEWS.filter((v) => v.id !== "3days") : VIEWS;
   // Las vistas de rejilla, en orden: el pellizco pasa de una a otra.
   const gridViews = views.filter((v) => v.id !== "today");
@@ -242,8 +246,12 @@ export function SchedulePage() {
           </h2>
         )}
       </div>
-      {view !== "today" && (
-        // Una sola fila: ‹ fecha › y «Ir a hoy». La fecha, si no cabe, en dos líneas.
+      {view === "today" ? (
+        <TodayView onOpen={setManaging} />
+      ) : (
+      <div className={cx("flex flex-col gap-4", hoyAside && "grid grid-cols-[minmax(0,1fr)_21rem] items-start gap-6")}>
+      <div className="flex min-w-0 flex-col gap-4">
+      {/* Una sola fila: ‹ fecha › y «Ir a hoy». La fecha, si no cabe, en dos líneas. */}
         <div className="flex items-center gap-1">
         <IconButton label={`${noun} anterior${view === "3days" ? "es" : ""}`} onClick={() => step(-1)}>
           <ChevronLeft aria-hidden="true" className="size-6" />
@@ -275,11 +283,6 @@ export function SchedulePage() {
           Ir a hoy
         </Button>
         </div>
-      )}
-      {view === "today" ? (
-        <TodayView onOpen={setManaging} />
-      ) : (
-      <>
       <div className="flex flex-wrap items-end gap-2">
         {team && (
           <div className="min-w-48 flex-1">
@@ -377,7 +380,16 @@ export function SchedulePage() {
         Arrastra una cita para moverla (en el móvil, mantenla pulsada un momento); tócala para atenderla, anularla o moverla una hora, un día o una
         semana. Toca un hueco para dar una cita{team ? " (o, desde ahí, poner un turno)" : ""}. Para ir a otra fecha, tócala arriba.
       </details>
-      </>
+      </div>
+      {hoyAside && (
+        <aside aria-labelledby="h-hoy" className="flex flex-col gap-3">
+          <h2 id="h-hoy" className="text-base font-semibold">
+            Hoy · {cap(fmt(today, { weekday: "long", day: "numeric", month: "long" }))}
+          </h2>
+          <TodayView onOpen={setManaging} />
+        </aside>
+      )}
+      </div>
       )}
 
       {creating?.kind === "appointment" && (

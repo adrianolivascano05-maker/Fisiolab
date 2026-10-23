@@ -83,6 +83,8 @@ export function SettingsPage() {
 
   return (
     <Page title="Ajustes" tabs>
+      {/* En el ordenador, los cuatro grupos en dos columnas. */}
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
       <Group title="Clínica">
         <RowLink
           to="/ajustes/clinica"
@@ -153,6 +155,7 @@ export function SettingsPage() {
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
         <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
       </Group>
+      </div>
 
       {state.data && (
         <p className="text-xs text-text-muted">

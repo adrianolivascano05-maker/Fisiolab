@@ -201,7 +201,8 @@ export function GalleryHome() {
             <h2 id="h-regiones" className={shelfTitle}>
               Tests de exploración · {tests.length}
             </h2>
-            <ul className="grid grid-cols-2 gap-2">
+            {/* En el ordenador, tres o cuatro por fila. */}
+            <ul className="grid grid-cols-2 gap-2 lg:grid-cols-3 xl:grid-cols-4">
               {regions.map((r) => {
                 const list = tests.filter((t) => t.region === r.id);
                 if (!list.length) return null;
@@ -357,6 +358,9 @@ export function GalleryTest() {
         </div>
       </div>
 
+      {/* En el ordenador, la figura (con sus datos y «Registrar») a la izquierda y el texto a la derecha. */}
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
+      <div className="flex flex-col gap-4">
       {t.figures.map((f, i) => (
         <AnimatedFigure
           key={i}
@@ -389,7 +393,9 @@ export function GalleryTest() {
       )}
 
       <RegisterInPatient testId={t.id} />
+      </div>
 
+      <div className="flex flex-col gap-4">
       <div className="flex justify-end">
         <button type="button" onClick={() => open.setAll([...present], !allOpen)} className="tap inline-flex items-center gap-1 rounded-md px-2 text-sm text-accent hover:bg-surface">
           {allOpen ? <ChevronsDownUp aria-hidden="true" className="size-4" /> : <ChevronsUpDown aria-hidden="true" className="size-4" />}
@@ -435,6 +441,8 @@ export function GalleryTest() {
             </ul>
           </Disclosure>
         )}
+      </div>
+      </div>
       </div>
     </Page>
   );

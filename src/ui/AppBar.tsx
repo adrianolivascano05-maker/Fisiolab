@@ -1,6 +1,6 @@
 import { BookOpen, CalendarDays, ChevronLeft, Settings, Users } from "lucide-react";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { getDb } from "../data/db";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { cx } from "./cx";
@@ -177,6 +177,35 @@ export function TabBar() {
 
 // ---------- Menú lateral (ordenador) ----------
 
+/** El buscador de pacientes (el de la lista fija del ordenador y el de la pantalla Pacientes del móvil). */
+const SEARCH_ID = "patient-search";
+
+/** Con el teclado: «/» lleva el cursor al buscador de pacientes (si no está a la vista, abre Pacientes). */
+function useSearchShortcut() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target;
+      if (t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+      e.preventDefault();
+      const el = document.getElementById(SEARCH_ID);
+      if (el) return el.focus();
+      navigate("/");
+      // La lista se pinta en cuanto carga la pantalla: se le da hasta un segundo.
+      const until = Date.now() + 1000;
+      const tryFocus = () => {
+        const found = document.getElementById(SEARCH_ID);
+        if (found) found.focus();
+        else if (Date.now() < until) requestAnimationFrame(tryFocus);
+      };
+      requestAnimationFrame(tryFocus);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navigate]);
+}
+
 /**
  * En el ordenador (desde 1024 px) el menú principal va a la izquierda, siempre a la vista: solo iconos en pantallas
  * medianas y con su nombre desde 1280 px. Las mismas cuatro secciones y la misma memoria que la barra de abajo.
@@ -188,6 +217,7 @@ export function SideNav() {
     lastIn.set(current.root, pathname + search);
   }, [current.root, pathname, search]);
   const pending = useSettingsPending();
+  useSearchShortcut();
   return (
     <nav aria-label="Principal" className="fixed inset-y-0 left-0 z-20 hidden w-[var(--layout-side)] flex-col border-r border-border bg-bg lg:flex">
       {/* El logo lleva al inicio. Su nombre accesible es el texto visible («Cénit Fisiolab»); en la franja de iconos, el símbolo con su nombre. */}
