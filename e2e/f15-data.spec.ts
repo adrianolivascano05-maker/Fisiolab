@@ -61,7 +61,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await page.getByRole("link", { name: "Trae tus pacientes desde Excel" }).click();
     await expect(page.getByRole("heading", { name: "Traer datos" })).toBeVisible();
     await createPatient(page, { name: "Luis Pérez" });
-    await page.goto("./ajustes/datos");
+    await page.goto("./ajustes");
     await page.getByRole("link", { name: /Importar datos/ }).click();
     // Un CSV como los de Excel en español: punto y coma y Windows-1252 (tildes en un byte).
     const csv = "Nombre;Apellidos;F. Nac.;Sexo;Móvil;Población;DNI\r\nAna;Ruiz López;12/03/1985;M;612345678;Sevilla;12345678Z\r\nLuis;Pérez;;H;;;\r\nMarta;Gil;31/02/1990;F;699000111;;\r\n";

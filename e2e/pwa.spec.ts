@@ -137,8 +137,14 @@ test.describe("PWA: instalable y sin conexión", () => {
 
   test("PWA-E4 ajustes: un menú con cada apartado y cómo está", async ({ page }) => {
     await page.goto("./ajustes");
-    for (const name of [/Cuenta de Google/, /Clínica y protección de datos/, /Bloqueo con PIN.*Desactivado/, /Copias de seguridad y exportar/, /Instalar la app/, /Cómo se usa/, /Validación de las mediciones/, /Privacidad/, /Precios y cobros/, /Anamnesis de la clínica/])
-      await expect(page.getByRole("link", { name })).toBeVisible();
+    // Cuatro grupos: Clínica, Datos, Seguridad y App, cada uno con lo suyo.
+    const groups: [string, RegExp[]][] = [
+      ["Clínica", [/Clínica y protección de datos/, /Precios y cobros/, /Anamnesis de la clínica/, /La clínica en números/]],
+      ["Datos", [/Cuenta de Google/, /Copias y exportar/, /Importar datos/]],
+      ["Seguridad", [/Bloqueo con PIN.*Desactivado/, /Privacidad/]],
+      ["App", [/Instalar la app/, /Cómo se usa/, /Validación de las mediciones/]],
+    ];
+    for (const [group, rows] of groups) for (const name of rows) await expect(page.getByRole("region", { name: group, exact: true }).getByRole("link", { name })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("link", { name: /Cómo se usa/ }).click();
     await expect(page.getByRole("heading", { name: "Cómo se usa" })).toBeVisible();

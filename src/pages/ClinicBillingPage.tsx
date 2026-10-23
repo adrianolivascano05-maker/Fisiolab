@@ -194,6 +194,15 @@ export function ClinicBillingPage() {
             <Tile label={`Cobrado en ${monthName(monthStart(today))}`} value={euros(d.now.totalCents)} detail={d.now.byMethod.map((m) => `${methodLabel(m.method)} ${euros(m.cents)}`).join(" · ") || "Nada todavía"} />
             <Tile label={`Cobrado en ${monthName(monthStart(today, 1))}`} value={euros(d.last.totalCents)} detail={d.last.byMethod.map((m) => `${methodLabel(m.method)} ${euros(m.cents)}`).join(" · ") || "Nada"} />
           </dl>
+          <Group>
+            <RowLink
+              to="/agenda/cobros"
+              icon={Wallet}
+              tone={pending > 0 ? "warning" : "accent"}
+              title={pending > 0 ? `Pendiente de cobro: ${euros(pending)}` : "Pendiente de cobro"}
+              subtitle={pending > 0 ? "Quién tiene algo sin pagar" : "Nadie tiene nada pendiente"}
+            />
+          </Group>
 
           <Card className="flex flex-col gap-3">
             <h2 className="font-semibold">Cobros para la gestoría</h2>
@@ -212,15 +221,6 @@ export function ClinicBillingPage() {
             </Button>
           </Card>
 
-          <Group>
-            <RowLink
-              to="/agenda/cobros"
-              icon={Wallet}
-              tone={pending > 0 ? "warning" : "accent"}
-              title={pending > 0 ? `Pendiente de cobro: ${euros(pending)}` : "Pendiente de cobro"}
-              subtitle={pending > 0 ? "Quién tiene algo sin pagar" : "Nadie tiene nada pendiente"}
-            />
-          </Group>
         </>
       )}
 

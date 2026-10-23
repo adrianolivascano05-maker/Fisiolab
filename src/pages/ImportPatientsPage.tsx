@@ -1,4 +1,4 @@
-// Ajustes → Copias y exportar → Traer datos de otro programa: los pacientes (src/data/importPatients.ts), sus citas y
+// Ajustes → Importar datos (traer datos de otro programa): los pacientes (src/data/importPatients.ts), sus citas y
 // su historial de sesiones (src/data/importRecords.ts), desde un Excel o un CSV. Primero se elige qué se trae, después
 // el archivo; se revisa qué es cada columna y lo que va a pasar, y se importa. La última importación se puede deshacer.
 import { CalendarDays, FileSpreadsheet, FileUp, NotebookPen, Undo2, Users } from "lucide-react";
@@ -133,7 +133,7 @@ export function ImportPatientsPage() {
   }
 
   return (
-    <Page title="Traer datos" backTo="/ajustes/datos">
+    <Page title="Traer datos" backTo="/ajustes">
       <p className="text-sm text-text-muted">
         Desde el programa que usabas antes, exporta a Excel (.xlsx) o CSV y elige aquí el archivo. Antes de importar ves qué es cada columna y qué va a
         pasar. Nada se pierde: lo que no tiene sitio va a las notas.

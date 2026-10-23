@@ -80,14 +80,7 @@ export function SettingsPage() {
 
   return (
     <Page title="Ajustes" tabs>
-      <Group title="Tú y tu clínica">
-        <RowLink
-          to="/ajustes/cuenta"
-          icon={UserRound}
-          title={cloud ? cloud.account.name : "Cuenta de Google"}
-          subtitle={cloud && sync ? `${cloud.account.email} · ${syncText(sync)}` : "Sin conectar"}
-          warn={!!sync && (sync.status === "needs-auth" || sync.status === "needs-key" || sync.status === "needs-password" || sync.status === "error")}
-        />
+      <Group title="Clínica">
         <RowLink
           to="/ajustes/clinica"
           icon={Building2}
@@ -104,15 +97,30 @@ export function SettingsPage() {
             subtitle={solo ? `${cloud.clinic.name} · por mi cuenta (si abres una clínica, añade aquí a tu equipo)` : `${cloud.clinic.name} · ${ROLE_LABELS[cloud.clinic.role]}`}
           />
         )}
-        <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
-        <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
-        <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, lo cobrado y lo pendiente" />
+        <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, bonos, lo cobrado y lo pendiente" />
         <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
         {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
+        <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
       </Group>
 
-      {cloud?.operator && (
-        <Group title="Tu servicio">
+      <Group title="Datos">
+        <RowLink
+          to="/ajustes/cuenta"
+          icon={UserRound}
+          title={cloud ? cloud.account.name : "Cuenta de Google"}
+          subtitle={cloud && sync ? `${cloud.account.email} · ${syncText(sync)}` : "Sin conectar"}
+          warn={!!sync && (sync.status === "needs-auth" || sync.status === "needs-key" || sync.status === "needs-password" || sync.status === "error")}
+        />
+        <RowLink
+          to="/ajustes/datos"
+          icon={Database}
+          title="Copias y exportar"
+          subtitle={cloud ? `Copia automática en ${cloud.sync.store.where}` : `Última copia: ${state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}`}
+          warn={!cloud && !!state.data && !state.data.lastBackup}
+          tone={!cloud && state.data && !state.data.lastBackup ? "warning" : "accent"}
+        />
+        <RowLink to="/ajustes/importar" icon={FileSpreadsheet} title="Importar datos" subtitle="De otro programa: pacientes, citas e historial · Excel o CSV" />
+        {cloud?.operator && (
           <RowLink
             to="/ajustes/proveedor"
             icon={Briefcase}
@@ -123,21 +131,15 @@ export function SettingsPage() {
                 : "Solicitudes, clínicas, altas, bajas y contrato"
             }
           />
-        </Group>
-      )}
-
-      <Group title="Tus datos">
-        <RowLink
-          to="/ajustes/datos"
-          icon={Database}
-          title="Copias de seguridad y exportar"
-          subtitle={cloud ? `Copia automática en ${cloud.sync.store.where}` : `Última copia: ${state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}`}
-          warn={!cloud && !!state.data && !state.data.lastBackup}
-          tone={!cloud && state.data && !state.data.lastBackup ? "warning" : "accent"}
-        />
+        )}
       </Group>
 
-      <Group title="La app">
+      <Group title="Seguridad">
+        <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
+        <RowLink to="/privacidad" icon={ShieldCheck} title="Privacidad" subtitle="Qué datos guarda la app y dónde" />
+      </Group>
+
+      <Group title="App">
         <RowLink
           to="/instalar"
           icon={MonitorSmartphone}
@@ -145,10 +147,6 @@ export function SettingsPage() {
           subtitle={install.state === "installed" ? "Instalada en este dispositivo" : "En este y en otros dispositivos"}
         />
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
-        <RowLink to="/privacidad" icon={ShieldCheck} title="Privacidad" />
-      </Group>
-
-      <Group title="Avanzado">
         <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
       </Group>
 
@@ -204,7 +202,7 @@ export function LockSettingsPage() {
   );
 }
 
-/** Ajustes → Copias de seguridad y exportar (y los datos de ejemplo). */
+/** Ajustes → Copias y exportar (y los datos de ejemplo). */
 export function DataSettingsPage() {
   const toast = useToast();
   const cloud = useCloud();
@@ -287,19 +285,6 @@ export function DataSettingsPage() {
             Restaurar una copia
           </Button>
         </Card>
-      </section>
-
-      <section className="flex flex-col gap-3" aria-labelledby="h-traer">
-        <h2 id="h-traer" className="text-lg">
-          Traer datos de otro programa
-        </h2>
-        <p className="text-sm text-text-muted">
-          Pacientes, citas e historial de sesiones, desde un Excel o un CSV exportado de tu programa anterior. Antes de importar ves qué va a pasar, y se
-          puede deshacer.
-        </p>
-        <Group>
-          <RowLink to="/ajustes/importar" icon={FileSpreadsheet} title="Importar datos" subtitle="Pacientes, citas e historial · Excel o CSV" />
-        </Group>
       </section>
 
       <section className="flex flex-col gap-3" aria-labelledby="h-exportar">
