@@ -23,6 +23,23 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
    anamnesis, revisando antes de guardar. Resumir una consulta entera necesitaría una IA de pago: no por ahora.
    Estado: pendiente.
 
+5. **Reserva online 24/7 (prioridad alta para el usuario).** Página pública de la clínica donde un paciente ve
+   los huecos libres según los turnos del equipo y reserva sin cuenta.
+   - Cómo, sin exponer datos: la app calcula los huecos (turnos menos citas) y sube al servidor de Cloudflare
+     **solo horas libres y nombre del profesional**, nunca pacientes. Se actualiza al cambiar la agenda.
+   - El paciente elige hueco y deja nombre, teléfono, email y motivo. Eso se cifra en su navegador con la clave
+     pública de la clínica: el servidor no puede leerlo. El servidor bloquea el hueco al momento para que no lo
+     coja otro.
+   - La app recoge las reservas al abrirse, crea la cita en la agenda y la ofrece en la bandeja de WhatsApp para
+     confirmar. Antes de la primera cita, la anamnesis se manda sola desde la bandeja (idea 1).
+   - Decisiones abiertas: confirmación automática o «solicitud» que la clínica acepta; antelación mínima y
+     máxima; duración y tipos de cita (primera visita, seguimiento); qué profesionales salen; política de
+     anulación; protección contra reservas falsas (límite por dispositivo, verificación del teléfono).
+   - Coste: plan gratuito de Cloudflare. Un correo automático de confirmación al paciente necesitaría un servicio
+     de envío (posible coste): en su lugar, confirmación en pantalla, archivo para su calendario y WhatsApp.
+   - Requiere modo clínica con nube (el modo solo en el dispositivo no puede publicar huecos).
+   - Estado: pendiente; empezaría después de la bandeja de envíos, porque la usa.
+
 ## Del análisis de la competencia (plan de acción)
 
 - Corto plazo: captura de errores en producción guardada en el dispositivo; linter y formateador; prueba
@@ -31,6 +48,6 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
 - Medio plazo: cifrar la base del dispositivo y registro de accesos por ficha; validar las mediciones con
   plataforma de fuerza y dinamómetro; trocear archivos grandes y probar en WebKit (iPhone); marcado asistido
   en las mediciones; segunda persona que revise el código.
-- Largo plazo: reserva online del paciente sin exponer la agenda; área del paciente por enlace; segundo idioma
+- Largo plazo: área del paciente por enlace; segundo idioma
   si sale de Fisiolab. Videoconsulta: no, salvo que el equipo la pida.
 - Argumento a explicar en Ajustes («Tus datos»): exportación completa, sin permanencia, cifrado.
