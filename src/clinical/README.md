@@ -68,7 +68,7 @@ Además:
 | Archivo | Qué hace |
 | --- | --- |
 | `anamnesis.ts` | plantilla de la anamnesis (la «Ficha de anamnesis de fisioterapia» de la clínica). Para cambiar la ficha basta con cambiar esta lista: las respuestas se guardan por id de campo y lo ya escrito no se pierde |
-| `ClinicalPages.tsx`, `ExplorationPages.tsx`, `pageKit.tsx`, `routes.tsx` | pantallas de las pestañas (la Exploración aparte, porque carga la Guía de tests), sus piezas comunes y sus rutas (se cargan al entrar) |
+| `ClinicalPages.tsx`, `ExplorationPages.tsx`, `pageKit.tsx`, `routes.tsx` | pantallas de las pestañas (la Exploración aparte, porque carga la Biblioteca), sus piezas comunes y sus rutas (se cargan al entrar) |
 | `parts.tsx` | pestañas del paciente, escalas numéricas (dolor, PSFS, cambio global), chips, resultado de un test y gráficas pequeñas en SVG |
 | `measures.ts`, `measureParts.tsx` | el dato principal de cada medición, sus tarjetas con tendencia y la lista |
 | `timeline.ts` | historia del paciente y serie del dolor |

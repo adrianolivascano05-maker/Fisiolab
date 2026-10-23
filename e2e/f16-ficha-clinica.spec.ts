@@ -79,9 +79,17 @@ test.describe("F16 Ficha clínica", () => {
 
   test("F16-H3 registrar el resultado desde la galería", async ({ page }) => {
     test.slow(); // la ficha del test carga la figura en 3D: 25-30 s en las pruebas
-    await createPatient(page, { name: "Marta Galería" });
-    await page.goto("./exploracion/rodilla/rod-lachman");
-    // Se acaba de ver su ficha: la guía ofrece apuntarlo en ella directamente.
+    const url = await createPatient(page, { name: "Marta Galería" });
+    await page.goto("./biblioteca/rodilla/rod-lachman");
+    // Sin venir de su ficha no se adivina el paciente: se elige, con el último abierto arriba.
+    await page.getByRole("button", { name: "Registrar el resultado en un paciente" }).click();
+    const sheet = page.getByRole("dialog", { name: "¿En qué paciente?" });
+    await expect(sheet.getByRole("link").first()).toContainText("Último abierto");
+    await expectAccessible(page);
+    await sheet.getByRole("link", { name: /^Marta Galería/ }).click();
+    await expect(page.getByText("Test de Lachman", { exact: true })).toBeVisible();
+    // Desde su ficha (?paciente=), el botón ya lleva su nombre.
+    await page.goto(`./biblioteca/rodilla/rod-lachman?paciente=${url.split("/").pop()}`);
     await page.getByRole("link", { name: "Registrar el resultado en Marta Galería" }).click();
     await expect(page.getByText("Test de Lachman", { exact: true })).toBeVisible();
     await page.getByText("Negativo", { exact: true }).click();

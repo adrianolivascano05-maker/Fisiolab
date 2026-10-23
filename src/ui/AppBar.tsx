@@ -14,7 +14,8 @@ export function parentLabel(backTo: string | undefined): string {
   if (path === "/ajustes") return "Ajustes";
   if (path === "/validacion") return "Validación";
   if (path === "/agenda") return "Agenda";
-  if (path.startsWith("/exploracion")) return "Guía";
+  if (path === "/biblioteca/cuestionarios") return "Cuestionarios";
+  if (path.startsWith("/biblioteca") || path.startsWith("/exploracion")) return "Biblioteca";
   const tab = /^\/pacientes\/[^/]+\/(anamnesis|valoracion|exploracion|mediciones|cuestionarios|sesiones|movilidad|test)(\/[^/]+)?$/.exec(path);
   if (tab) {
     const sub: Record<string, string> = { saltos: "Saltos", fuerza: "Fuerza", sprint: "Sprint", carrera: "Carrera", isquios: "Nórdico", movilidad: "Movilidad" };
@@ -94,10 +95,11 @@ export function TopBar({
 type Tab = { root: string; label: string; icon: typeof Users; match: (path: string) => boolean };
 
 const SETTINGS = /^\/(ajustes|instalar|ayuda|privacidad|validacion|cuenta|design)(\/|$)/;
+const LIBRARY = /^\/(biblioteca|exploracion)(\/|$)/;
 const tabs: Tab[] = [
-  { root: "/", label: "Pacientes", icon: Users, match: (p) => !p.startsWith("/exploracion") && !p.startsWith("/agenda") && !SETTINGS.test(p) },
+  { root: "/", label: "Pacientes", icon: Users, match: (p) => !LIBRARY.test(p) && !p.startsWith("/agenda") && !SETTINGS.test(p) },
   { root: "/agenda", label: "Agenda", icon: CalendarDays, match: (p) => p.startsWith("/agenda") }, // src/schedule
-  { root: "/exploracion", label: "Guía de tests", icon: BookOpen, match: (p) => p.startsWith("/exploracion") }, // src/gallery
+  { root: "/biblioteca", label: "Biblioteca", icon: BookOpen, match: (p) => LIBRARY.test(p) }, // src/gallery
   { root: "/ajustes", label: "Ajustes", icon: Settings, match: (p) => SETTINGS.test(p) },
 ];
 

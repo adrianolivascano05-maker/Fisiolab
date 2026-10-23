@@ -58,13 +58,24 @@ test.describe("Cuestionarios nuevos", () => {
     await expect(page.getByText("Rellenarlo aquí")).toHaveCount(0);
     await expect(page.getByText("Pásalo con su hoja oficial y escribe aquí la puntuación total.")).toBeVisible();
 
-    await page.goto("./ajustes");
-    await page.getByRole("link", { name: /^Cuestionarios/ }).click();
-    await expect(page.getByRole("heading", { name: "Cuestionarios" })).toBeVisible();
+    // El permiso se marca en la Biblioteca: desde el aviso, en la ficha del cuestionario.
+    await page.getByRole("link", { name: "Su ficha y el permiso, en la Biblioteca" }).click();
+    await expect(page.getByRole("heading", { name: /^KOOS-12/, level: 1 })).toBeVisible();
+    await expect(page.getByText(/Pendiente del permiso de su titular\./)).toBeVisible();
+    await expectAccessible(page);
+    // Y en la lista de permisos (antes en Ajustes, que ahora lleva aquí).
+    await page.goto("./ajustes/cuestionarios");
+    await expect(page.getByRole("heading", { name: "Permisos y licencias", level: 1 })).toBeVisible();
     await expect(page.getByRole("list", { name: "De pago: solo la nota" })).toContainText("WOMAC");
     await page.getByRole("checkbox", { name: /Tenemos el permiso: KOOS-12/ }).check();
     await expect(page.getByText(/KOOS-12 \(rodilla, forma corta\): ya se puede rellenar en la app/)).toBeVisible();
     await expectAccessible(page);
+    // La ficha lo refleja y deja ver sus preguntas; «Pasar a un paciente» elige el paciente.
+    await page.goto("./biblioteca/cuestionarios/koos12");
+    await expect(page.getByRole("checkbox", { name: /Tenemos el permiso/ })).toBeChecked();
+    await page.getByText(/^Ver las \d+ preguntas$/).click();
+    await page.getByRole("button", { name: "Pasar a un paciente" }).click();
+    await page.getByRole("dialog", { name: "¿En qué paciente?" }).getByRole("link", { name: /^Kiko Koos/ }).click();
 
     await page.goto(`${record}/cuestionarios/nuevo?tipo=koos12`);
     await expect(page.getByText("Rellenarlo aquí")).toBeVisible();

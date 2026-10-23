@@ -1,4 +1,4 @@
-// Galería de tests de exploración (módulo independiente de src/gallery).
+// Biblioteca: tests de exploración, cuestionarios y mediciones (módulo src/gallery).
 import { expect, expectAccessible, test } from "./fixtures";
 
 // La escena 3D se dibuja por software en el navegador de las pruebas: en una máquina cargada tarda en salir
@@ -9,8 +9,8 @@ test.describe("Galería de tests", () => {
   test("G1 articulación → patología → test, con animación, desplegables y favoritos", async ({ page }) => {
     test.slow(); // dibuja la escena 3D dos veces
     await page.goto("./");
-    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Guía de tests" }).click();
-    await expect(page.getByRole("heading", { name: "Guía de tests" })).toBeVisible();
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Biblioteca" }).click();
+    await expect(page.getByRole("heading", { name: "Biblioteca", level: 1 })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("link", { name: /^Rodilla/ }).click();
     await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
@@ -47,16 +47,25 @@ test.describe("Galería de tests", () => {
   });
 
   test("G2 buscador sin tildes ni mayúsculas", async ({ page }) => {
-    await page.goto("./exploracion");
-    await page.getByLabel("Buscar un test").fill("TUNEL carpiano");
+    await page.goto("./biblioteca");
+    await page.getByLabel("Buscar en la Biblioteca").fill("TUNEL carpiano");
     await expect(page.getByRole("list", { name: "Resultados" }).getByRole("link").first()).toBeVisible();
-    await page.getByLabel("Buscar un test").fill("zzzz");
-    await expect(page.getByText("Ningún test coincide con «zzzz».")).toBeVisible();
+    await page.getByLabel("Buscar en la Biblioteca").fill("zzzz");
+    await expect(page.getByText("Nada coincide con «zzzz».")).toBeVisible();
+    // Un solo buscador: también cuestionarios y mediciones.
+    await page.getByLabel("Buscar en la Biblioteca").fill("rodilla");
+    await expect(page.getByRole("region", { name: /^Cuestionarios \(\d+\)/ }).getByRole("link", { name: /KOOS \(rodilla\)/ })).toBeVisible();
+    await page.getByLabel("Buscar en la Biblioteca").fill("salto");
+    await expect(page.getByRole("region", { name: "Mediciones (1)" }).getByRole("link", { name: /^Saltos/ })).toBeVisible();
+    // La dirección antigua (/exploracion) lleva a la Biblioteca.
+    await page.goto("./exploracion/rodilla");
+    await expect(page).toHaveURL(/\/biblioteca\/rodilla$/);
+    await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
   });
 
   test("G3 calculadora de probabilidad tras el test", async ({ page }) => {
-    await page.goto("./exploracion");
-    await page.getByLabel("Buscar un test").fill("Lachman");
+    await page.goto("./biblioteca");
+    await page.getByLabel("Buscar en la Biblioteca").fill("Lachman");
     await page.getByRole("list", { name: "Resultados" }).getByRole("link").first().click();
     await page.getByText("Evidencia y fuentes").click();
     await expect(page.getByText("Si es positivo")).toBeVisible();
@@ -66,7 +75,7 @@ test.describe("Galería de tests", () => {
 
   test("G4 figura en 3D: se gira un poco y vuelve a la vista inicial", async ({ page }) => {
     test.slow();
-    await page.goto("./exploracion/rodilla/rod-lachman");
+    await page.goto("./biblioteca/rodilla/rod-lachman");
     await expect(page.getByRole("img", { name: "Test de Lachman" })).toBeVisible(SCENE);
     await expect(page.locator("canvas")).toHaveCount(1);
     await page.getByRole("button", { name: "Pausar la animación" }).click(SCENE);
@@ -80,7 +89,7 @@ test.describe("Galería de tests", () => {
   test("G5 varios tests seguidos: todos en 3D (cerrar una figura no deja la siguiente en el dibujo plano)", async ({ page }) => {
     test.slow();
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("./exploracion/rodilla");
+    await page.goto("./biblioteca/rodilla");
     const links = page.getByRole("main").getByRole("link").filter({ hasText: /\S/ });
     await links.first().waitFor();
     const n = Math.min(5, await links.count());
@@ -91,5 +100,28 @@ test.describe("Galería de tests", () => {
       await page.goBack();
       await links.first().waitFor();
     }
+  });
+
+  test("G5 estantes de cuestionarios y mediciones", async ({ page }) => {
+    await page.goto("./biblioteca");
+    await page.getByRole("link", { name: /^Los \d+ cuestionarios/ }).click();
+    await expect(page.getByRole("heading", { name: "Cuestionarios", level: 1 })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByLabel("Buscar cuestionario").fill("lefs");
+    await page.getByRole("link", { name: /^LEFS/ }).click();
+    await expect(page.getByRole("heading", { name: /^LEFS/, level: 1 })).toBeVisible();
+    await expect(page.getByText("de 0 a 80, más es mejor")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Pasar a un paciente" })).toBeVisible();
+    await expectAccessible(page);
+    await page.getByRole("link", { name: "Cuestionarios", exact: false }).first().click();
+    await expect(page.getByRole("heading", { name: "Cuestionarios", level: 1 })).toBeVisible();
+
+    await page.goto("./biblioteca/mediciones");
+    await expect(page.getByRole("heading", { name: "Nórdico" })).toBeVisible();
+    await expectAccessible(page);
+    // Sin ficha, directo al tipo elegido, en la ficha «Medición rápida».
+    await page.getByRole("button", { name: "Medir ahora, sin ficha: Saltos" }).click();
+    await expect(page.getByRole("heading", { name: "Saltos" })).toBeVisible();
+    await expect(page).toHaveURL(/\/pacientes\/[^/]+\/test\/saltos$/);
   });
 });

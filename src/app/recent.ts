@@ -1,5 +1,5 @@
 // El último paciente abierto en esta pestaña: para enlazar lo que se hace en otra sección con él (p. ej. registrar
-// un test de la Guía de tests en el paciente que se estaba viendo).
+// un test de la Biblioteca: el paciente que se estaba viendo sale el primero al elegir).
 const KEY = "fisiolab.last-patient";
 
 export function rememberPatient(id: string) {

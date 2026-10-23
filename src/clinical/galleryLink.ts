@@ -10,7 +10,7 @@ import type { FindingResult } from "../data/clinical";
 export type { SpecialTest };
 export const galleryTests = tests;
 export const findTest = (id: string) => tests.find((t) => t.id === id);
-export const galleryUrl = (t: SpecialTest) => `/exploracion/${regionOf(t.region).slug}/${t.id}`;
+export const galleryUrl = (t: SpecialTest) => `/biblioteca/${regionOf(t.region).slug}/${t.id}`;
 export const galleryRegionLabel = (t: SpecialTest) => regionOf(t.region).label;
 
 const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();

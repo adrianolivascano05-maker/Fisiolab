@@ -1,11 +1,14 @@
-// Galería de tests diferenciales: inicio por articulación, patologías desplegables y ficha de cada test.
-import { AlertTriangle, BookOpen, ChevronRight, ChevronsDownUp, ChevronsUpDown, Search, Star, Zap } from "lucide-react";
-import { useMemo, useState } from "react";
+// Biblioteca: la portada (un buscador para tests, cuestionarios y mediciones, y sus estantes) y los tests de
+// exploración: por articulación, patologías desplegables y ficha de cada test. Cuestionarios y mediciones, en
+// LibraryPages.tsx.
+import { Activity, AlertTriangle, BookOpen, ChevronRight, ListChecks, ChevronsDownUp, ChevronsUpDown, Search, Star, Zap } from "lucide-react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { fmt } from "../app/format";
 import { Page } from "../app/Page";
 import { useQuickMeasure } from "../app/quickMeasure";
-import { Group, RowButton } from "../ui/Grouped";
+import { Button } from "../ui/Button";
+import { Group, RowButton, RowLink } from "../ui/Grouped";
 import { cx } from "../ui/cx";
 import { EmptyState } from "../ui/EmptyState";
 import { AnimatedFigure } from "./AnimatedFigure";
@@ -16,8 +19,11 @@ import { regionBySlug, regionOf, regions } from "./regions";
 import type { SpecialTest } from "./types";
 import { useFavorites } from "./useFavorites";
 import { RegisterInPatient } from "../clinical/RegisterInPatient"; // enlace con la ficha clínica
+import { QUESTIONNAIRES } from "../clinical/questionnaires";
+import { useGranted } from "../data/questionnairePermissions";
+import { MEASURES, MEASURES_URL, measureMatches, questionnaireHow, questionnaireMatches, questionnaireUrl, QUESTIONNAIRES_URL } from "./LibraryPages";
 
-export const GALLERY = "/exploracion";
+export const GALLERY = "/biblioteca";
 const testUrl = (t: SpecialTest) => `${GALLERY}/${regionOf(t.region).slug}/${t.id}`;
 
 const utilityLabels: Record<SpecialTest["utility"], string> = {
@@ -93,56 +99,95 @@ function TestRow({ t, showRegion }: { t: SpecialTest; showRegion?: boolean }) {
 
 const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 const listBox = "divide-y divide-border overflow-hidden rounded-xl border border-border bg-bg";
+/** Al buscar, los primeros tests; el resto con «Ver los N tests», para que se vean también cuestionarios y mediciones. */
+const FIRST_TESTS = 10;
+/** Título de estante, como el de los grupos (pequeño, en mayúsculas). */
+const shelfTitle = "px-1 font-sans text-xs font-semibold tracking-wide text-text-muted uppercase";
 
 /** Inicio: buscador, favoritos y articulaciones. */
 export function GalleryHome() {
   const [q, setQ] = useState("");
+  const [allTests, setAllTests] = useState(false);
   const { favorites } = useFavorites();
-  const found = useMemo(() => {
-    const words = norm(q).split(/\s+/).filter(Boolean);
-    if (!words.length) return null;
-    return tests
-      .filter((t) => {
-        const text = norm([t.name, ...(t.aka ?? []), t.group, t.purpose, regionOf(t.region).label].join(" "));
-        return words.every((w) => text.includes(w));
-      })
-      .sort(byEvidence);
-  }, [q]);
+  const granted = useGranted();
+  const words = norm(q).split(/\s+/).filter(Boolean);
+  const searching = words.length > 0;
+  const found = searching
+    ? tests
+        .filter((t) => {
+          const text = norm([t.name, ...(t.aka ?? []), t.group, t.purpose, regionOf(t.region).label].join(" "));
+          return words.every((w) => text.includes(w));
+        })
+        .sort(byEvidence)
+    : [];
+  const foundQuestionnaires = searching ? QUESTIONNAIRES.filter((k) => questionnaireMatches(k, q)) : [];
+  const foundMeasures = searching ? MEASURES.filter((m) => measureMatches(m, q)) : [];
   const favs = tests.filter((t) => favorites.includes(t.id));
   const quick = useQuickMeasure();
 
   return (
-    <Page title="Guía de tests" tabs>
+    <Page title="Biblioteca" tabs>
       <div className="relative">
         <label htmlFor="galeria-buscar" className="sr-only">
-          Buscar un test
+          Buscar en la Biblioteca
         </label>
         <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-text-muted" />
         <input
           id="galeria-buscar"
           type="search"
-          placeholder={`Buscar entre ${tests.length} tests`}
+          placeholder="Buscar tests, cuestionarios o mediciones"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setAllTests(false);
+          }}
           className="h-12 w-full rounded-xl border border-border-input bg-surface pl-11 pr-3 text-base placeholder:text-text-muted"
         />
       </div>
 
-      {found ? (
-        found.length ? (
-          <ul aria-label="Resultados" className={listBox}>
-            {found.map((t) => (
-              <TestRow key={t.id} t={t} showRegion />
-            ))}
-          </ul>
+      {searching ? (
+        found.length || foundQuestionnaires.length || foundMeasures.length ? (
+          <>
+            {found.length > 0 && (
+              <section aria-labelledby="h-res-tests" className="flex flex-col gap-2">
+                <h2 id="h-res-tests" className={shelfTitle}>
+                  Tests de exploración ({found.length})
+                </h2>
+                <ul aria-label="Resultados" className={listBox}>
+                  {(allTests ? found : found.slice(0, FIRST_TESTS)).map((t) => (
+                    <TestRow key={t.id} t={t} showRegion />
+                  ))}
+                </ul>
+                {!allTests && found.length > FIRST_TESTS && (
+                  <Button variant="secondary" onClick={() => setAllTests(true)}>
+                    Ver los {found.length} tests
+                  </Button>
+                )}
+              </section>
+            )}
+            {foundQuestionnaires.length > 0 && (
+              <Group title={`Cuestionarios (${foundQuestionnaires.length})`}>
+                {foundQuestionnaires.map((k) => (
+                  <RowLink key={k.id} to={questionnaireUrl(k.id)} title={k.name} subtitle={questionnaireHow(k, granted)} />
+                ))}
+              </Group>
+            )}
+            {foundMeasures.length > 0 && (
+              <Group title={`Mediciones (${foundMeasures.length})`}>
+                {foundMeasures.map((m) => (
+                  <RowLink key={m.slug} to={MEASURES_URL} icon={m.icon} title={m.title} subtitle={m.what} />
+                ))}
+              </Group>
+            )}
+          </>
         ) : (
-          <p className="py-6 text-center text-text-muted">Ningún test coincide con «{q}».</p>
+          <p className="py-6 text-center text-text-muted">Nada coincide con «{q}».</p>
         )
       ) : (
         <>
           {favs.length > 0 && (
             <section aria-labelledby="h-favs" className="flex flex-col gap-2">
-              <h2 id="h-favs" className="text-sm font-semibold uppercase tracking-wide text-text-muted">
+              <h2 id="h-favs" className={shelfTitle}>
                 Favoritos
               </h2>
               <ul className={listBox}>
@@ -153,8 +198,8 @@ export function GalleryHome() {
             </section>
           )}
           <section aria-labelledby="h-regiones" className="flex flex-col gap-2">
-            <h2 id="h-regiones" className="text-sm font-semibold uppercase tracking-wide text-text-muted">
-              Por articulación
+            <h2 id="h-regiones" className={shelfTitle}>
+              Tests de exploración · {tests.length}
             </h2>
             <ul className="grid grid-cols-2 gap-2">
               {regions.map((r) => {
@@ -174,14 +219,18 @@ export function GalleryHome() {
               })}
             </ul>
           </section>
-          <section aria-labelledby="h-medir" className="flex flex-col gap-2">
-            <h2 id="h-medir" className="text-sm font-semibold uppercase tracking-wide text-text-muted">
-              Mediciones
-            </h2>
-            <Group>
-              <RowButton icon={Zap} title="Medir ahora, sin ficha" subtitle="Saltos, fuerza, sprint, movilidad… en la ficha «Medición rápida»" busy={quick.busy} onClick={() => void quick.start()} />
-            </Group>
-          </section>
+          <Group title="Cuestionarios">
+            <RowLink
+              to={QUESTIONNAIRES_URL}
+              icon={ListChecks}
+              title={`Los ${QUESTIONNAIRES.length} cuestionarios`}
+              subtitle="Qué mide cada uno, sus preguntas, la puntuación y sus permisos"
+            />
+          </Group>
+          <Group title="Mediciones">
+            <RowLink to={MEASURES_URL} icon={Activity} title="Las 6 mediciones" subtitle="Saltos, fuerza, sprint, carrera, movilidad y nórdico: qué es cada una" />
+            <RowButton icon={Zap} title="Medir ahora, sin ficha" subtitle="En la ficha «Medición rápida»" busy={quick.busy} onClick={() => void quick.start()} />
+          </Group>
           <p className="text-xs text-text-muted">
             Ilustraciones propias. Cifras de revisiones publicadas con su fuente; consúltala antes de citarlas. Ningún test por sí solo hace un
             diagnóstico.
@@ -201,7 +250,7 @@ export function GalleryRegion() {
   const open = useOpenState(`impulso.exploracion.grupos.${region}`, Object.fromEntries(groups.map((g, i) => [g, i === 0])));
   if (!r) {
     return (
-      <Page title="Guía de tests" backTo={GALLERY}>
+      <Page title="Biblioteca" backTo={GALLERY}>
         <EmptyState icon={BookOpen} title="Esta articulación no existe" />
       </Page>
     );
@@ -267,7 +316,7 @@ export function GalleryTest() {
   const back = `${GALLERY}/${region}`;
   if (!t) {
     return (
-      <Page title="Guía de tests" backTo={back}>
+      <Page title="Biblioteca" backTo={back}>
         <EmptyState icon={BookOpen} title="Este test no existe" />
       </Page>
     );

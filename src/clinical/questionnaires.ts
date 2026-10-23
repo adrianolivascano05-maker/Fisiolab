@@ -2,7 +2,7 @@
 // propia pantalla. El resto se rellena entero en la app (src/clinical/forms, con la nota calculada) o, si se pasó
 // en papel, se anota solo la nota. Los de pago o con el texto sin comprobar (`scoreOnly`) solo se anotan; los que
 // están pendientes del permiso de su titular (`license: "comprobar"`) se rellenan en la app cuando la clínica marca
-// que lo tiene (Ajustes → Cuestionarios). Los nuevos de cada grupo están en src/clinical/catalog.
+// que lo tiene (Biblioteca › Cuestionarios: en su ficha o en «Permisos y licencias»). Los nuevos de cada grupo están en src/clinical/catalog.
 import { regionsOf, type Mark } from "./bodyMap";
 import { KINDS as COLUMNA } from "./catalog/columna";
 import { KINDS as DOLOR } from "./catalog/dolor";

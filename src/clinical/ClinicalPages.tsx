@@ -1,5 +1,5 @@
 // Pantallas de la ficha clínica: anamnesis, sesiones y dos bloques de la Valoración (cuestionarios y mediciones). La
-// exploración (tests especiales) y la página Valoración están en ExplorationPages.tsx, para no cargar la Guía de tests al
+// exploración (tests especiales) y la página Valoración están en ExplorationPages.tsx, para no cargar la Biblioteca al
 // abrir las demás.
 import { SHOW_EXERCISES } from "../app/features";
 import { CalendarCheck, CalendarClock, ChevronDown, ChevronRight, ClipboardList, HeartPulse, ListChecks, NotebookPen, Pencil, Plus, Send, Trash, Wallet } from "lucide-react";
@@ -1214,6 +1214,11 @@ export function QuestionnaireFormPage() {
           <p className="text-sm text-text-muted">
             {known.license === "licencia" ? "De pago para uso comercial" : known.license === "comprobar" ? "Pendiente del permiso de su titular" : "Libre, con registro o permiso"}: {known.licenseNote}
           </p>
+        )}
+        {known?.license === "comprobar" && !form && (
+          <Link to={`/biblioteca/cuestionarios/${known.id}`} className="inline-flex min-h-11 items-center self-start text-sm font-semibold text-accent underline underline-offset-2">
+            Su ficha y el permiso, en la Biblioteca
+          </Link>
         )}
         {known?.refs && <p className="text-xs text-text-muted">{known.refs}</p>}
         {previous && (

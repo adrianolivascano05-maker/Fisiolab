@@ -1,6 +1,17 @@
-# Galería de tests de exploración (módulo independiente)
+# Biblioteca: tests de exploración, cuestionarios y mediciones (módulo independiente)
 
-Pestaña «Exploración»: tests diferenciales agrupados por articulación y, dentro de cada una, por patología.
+Pestaña «Biblioteca» (`/biblioteca`; las direcciones antiguas `/exploracion/…` llevan aquí). Un buscador para todo y
+tres estantes:
+
+- **Tests de exploración** (`GalleryPages.tsx`): agrupados por articulación y, dentro de cada una, por patología.
+- **Cuestionarios** (`LibraryPages.tsx`): la ficha de cada uno (qué mide, cómo se puntúa, sus preguntas, sus
+  condiciones de uso con el interruptor «Tenemos el permiso») y «Permisos y licencias», que antes estaba en Ajustes.
+- **Mediciones** (`LibraryPages.tsx`): qué es cada una, «Medir en un paciente» y «Medir ahora, sin ficha».
+
+«Registrar el resultado en…», «Pasar a…» y «Medir en…» (`../clinical/RegisterInPatient.tsx`) llevan el nombre del
+paciente solo si se llega desde su ficha (`?paciente=`); si no, se elige en una hoja, con el último abierto arriba.
+
+Los tests:
 Cada test tiene ilustración propia, posición, pasos, qué es positivo, cómo interpretarlo, precauciones, datos de
 precisión con su fuente y una calculadora de probabilidad tras el test (razones de verosimilitud). No guarda nada
 en la base de datos: solo los favoritos, en el navegador.

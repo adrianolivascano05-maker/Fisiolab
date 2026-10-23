@@ -41,7 +41,7 @@ test.describe("Modo oscuro", () => {
 
     await page.goto("./agenda");
     await expectAccessible(page);
-    await page.goto("./exploracion");
+    await page.goto("./biblioteca");
     await expectAccessible(page);
     await page.goto("./ajustes");
     await expectAccessible(page);

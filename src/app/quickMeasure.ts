@@ -1,5 +1,5 @@
-// Medir ya, sin rellenar una ficha: usa (o crea) la ficha «Medición rápida». Se ofrece en la Guía de tests
-// («Medir ahora, sin ficha»).
+// Medir ya, sin rellenar una ficha: usa (o crea) la ficha «Medición rápida». Se ofrece en la Biblioteca
+// («Medir ahora, sin ficha»), en general o para un tipo de medición (saltos, fuerza…).
 import { useState } from "react";
 import { useNavigate } from "react-router";
 import { getDb } from "../data/db";
@@ -10,7 +10,7 @@ export function useQuickMeasure() {
   const navigate = useNavigate();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  async function start() {
+  async function start(category?: string) {
     setBusy(true);
     try {
       const db = getDb();
@@ -27,7 +27,7 @@ export function useQuickMeasure() {
           pushOffDistanceCm: null,
           notes: "Mediciones hechas sin elegir paciente. Puedes cambiarle el nombre y los datos cuando quieras.",
         }));
-      navigate(`/pacientes/${id}/test`);
+      navigate(category ? `/pacientes/${id}/test/${category}` : `/pacientes/${id}/test`);
     } catch (e) {
       toast(e instanceof Error ? e.message : "No se pudo empezar", "danger");
       setBusy(false);

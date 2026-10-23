@@ -66,16 +66,16 @@ test.describe("PWA: instalable y sin conexión", () => {
     await expectAccessible(page);
 
     // De la ficha a la guía y de vuelta: cada pestaña sigue donde se dejó.
-    await tab("Guía de tests").click();
+    await tab("Biblioteca").click();
     await page.getByRole("link", { name: /^Rodilla/ }).click();
     await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
     await tab("Pacientes").click();
     await expect(page.getByRole("heading", { name: "Rosa Pestañas", level: 1 })).toBeVisible();
-    await tab("Guía de tests").click();
+    await tab("Biblioteca").click();
     await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
     // Pulsar la pestaña en la que se está vuelve a su inicio.
-    await tab("Guía de tests").click();
-    await expect(page.getByRole("heading", { name: "Guía de tests", level: 1 })).toBeVisible();
+    await tab("Biblioteca").click();
+    await expect(page.getByRole("heading", { name: "Biblioteca", level: 1 })).toBeVisible();
     await tab("Pacientes").click();
     await tab("Pacientes").click();
     await expect(page.getByRole("heading", { name: "Pacientes", level: 1 })).toBeVisible();

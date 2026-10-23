@@ -1,7 +1,8 @@
-// Desde la ficha de un test de la Guía de tests: registrar su resultado en un paciente. Si se llega desde la ficha
-// de un paciente (?paciente=…), o se acaba de ver uno, va directo a él.
+// Desde la Biblioteca: llevar un test, un cuestionario o una medición a un paciente. Si se llega desde su ficha
+// (?paciente=…), el botón lleva su nombre y va directo; si no, se elige el paciente en una hoja (el último abierto,
+// arriba del todo). Nunca se adivina el paciente: así no se apunta nada en la ficha equivocada.
 import { Search, Stethoscope } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router";
 import { lastPatient } from "../app/recent";
 import { useAsync } from "../app/useAsync";
@@ -10,29 +11,44 @@ import { getPatient, listPatients } from "../data/repo";
 import { Button } from "../ui/Button";
 import { Sheet } from "../ui/Sheet";
 
-export function RegisterInPatient({ testId }: { testId: string }) {
+type Props = {
+  /** A dónde ir con el paciente elegido. */
+  to: (patientId: string) => string;
+  /** El botón sin paciente: «Registrar el resultado en un paciente». */
+  label: string;
+  /** El botón con paciente: «Registrar el resultado en Ana». */
+  labelFor: (name: string) => string;
+  icon?: ReactNode;
+};
+
+export function ForPatient({ to, label, labelFor, icon }: Props) {
   const [params] = useSearchParams();
-  const pid = params.get("paciente") ?? lastPatient();
+  const pid = params.get("paciente");
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const current = useAsync(async () => (pid ? getPatient(getDb(), pid) : null), [pid]);
-  const list = useAsync(async () => (open ? listPatients(getDb(), q) : []), [open, q]);
-  const to = (id: string) => `/pacientes/${id}/exploracion/nuevo?test=${encodeURIComponent(testId)}`;
+  const recent = lastPatient();
+  const list = useAsync(async () => {
+    if (!open) return [];
+    const found = await listPatients(getDb(), q);
+    // El último paciente abierto, primero (si está en la búsqueda).
+    return [...found.filter((p) => p.id === recent), ...found.filter((p) => p.id !== recent)];
+  }, [open, q, recent]);
 
   return (
     <>
       {current.data ? (
         <div className="flex flex-col gap-1">
-          <Link to={to(current.data.id)} className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-hover">
-            <Stethoscope aria-hidden="true" className="size-5" /> Registrar el resultado en {current.data.name}
+          <Link to={to(current.data.id)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-4 py-2 text-center font-semibold text-on-accent hover:bg-accent-hover">
+            {icon} {labelFor(current.data.name)}
           </Link>
           <button type="button" onClick={() => setOpen(true)} className="tap self-center rounded-md px-2 text-sm text-accent hover:bg-surface">
             En otro paciente
           </button>
         </div>
       ) : (
-        <Button variant="secondary" icon={<Stethoscope aria-hidden="true" className="size-5" />} onClick={() => setOpen(true)}>
-          Registrar el resultado en un paciente
+        <Button variant="secondary" icon={icon} onClick={() => setOpen(true)}>
+          {label}
         </Button>
       )}
       <Sheet open={open} onClose={() => setOpen(false)} title="¿En qué paciente?">
@@ -50,8 +66,9 @@ export function RegisterInPatient({ testId }: { testId: string }) {
           <ul className="flex max-h-[50dvh] flex-col divide-y divide-border overflow-y-auto rounded-lg border border-border">
             {list.data.map((p) => (
               <li key={p.id}>
-                <Link to={to(p.id)} className="flex min-h-12 items-center px-3 font-semibold hover:bg-surface">
-                  {p.name}
+                <Link to={to(p.id)} className="flex min-h-12 items-center justify-between gap-2 px-3 font-semibold hover:bg-surface">
+                  <span>{p.name}</span>
+                  {p.id === recent && <span className="text-xs font-normal text-text-muted">Último abierto</span>}
                 </Link>
               </li>
             ))}
@@ -61,5 +78,17 @@ export function RegisterInPatient({ testId }: { testId: string }) {
         )}
       </Sheet>
     </>
+  );
+}
+
+/** En la ficha de un test: registrar su resultado en un paciente. */
+export function RegisterInPatient({ testId }: { testId: string }) {
+  return (
+    <ForPatient
+      to={(id) => `/pacientes/${id}/exploracion/nuevo?test=${encodeURIComponent(testId)}`}
+      label="Registrar el resultado en un paciente"
+      labelFor={(name) => `Registrar el resultado en ${name}`}
+      icon={<Stethoscope aria-hidden="true" className="size-5" />}
+    />
   );
 }

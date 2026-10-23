@@ -1,4 +1,4 @@
-// Pestaña Exploración de la ficha: los tests especiales registrados y el formulario para apuntar uno desde la Guía
+// Pestaña Exploración de la ficha: los tests especiales registrados y el formulario para apuntar uno desde la Biblioteca
 // de tests (carga los textos de la guía, por eso va aparte del resto de la ficha).
 import { ExternalLink, Plus, Search } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
@@ -257,7 +257,7 @@ function TestPicker({ regions, onPick }: { regions: string[]; onPick: (t: Specia
       </div>
       {q.trim() ? (found.length ? group("Resultados", found) : <p className="text-sm text-text-muted">Ningún test se llama así.</p>) : null}
       {!q.trim() && zones.map((g) => <Fragment key={g.region}>{group(`Tests de ${regionLabel(g.region)} (${g.tests.length})`, g.tests)}</Fragment>)}
-      {!q.trim() && group("Tus favoritos de la Guía de tests", favs)}
+      {!q.trim() && group("Tus favoritos de la Biblioteca", favs)}
       {!q.trim() && !zones.length && !favs.length && <p className="text-sm text-text-muted">Escribe el nombre del test. Si rellenas la zona en la anamnesis, aquí verás los de esa zona.</p>}
     </div>
   );

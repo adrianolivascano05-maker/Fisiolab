@@ -1,5 +1,5 @@
 // Los cuestionarios pendientes del permiso de su titular (license «comprobar» en src/clinical/questionnaires.ts) se
-// rellenan en la app solo cuando la clínica marca que ya lo tiene (Ajustes → Cuestionarios). Se guarda en los
+// rellenan en la app solo cuando la clínica marca que ya lo tiene (Biblioteca › Cuestionarios: en su ficha o en «Permisos y licencias»). Se guarda en los
 // ajustes de la clínica, así que vale para todo el equipo.
 import { useAsync } from "../app/useAsync";
 import { useDataVersion } from "../app/dataVersion";

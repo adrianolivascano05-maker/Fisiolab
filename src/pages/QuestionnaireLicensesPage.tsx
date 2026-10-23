@@ -1,4 +1,4 @@
-// Ajustes → Cuestionarios: las condiciones de uso de los cuestionarios que las tienen. Los pendientes del permiso de
+// Biblioteca › Cuestionarios › Permisos y licencias: las condiciones de uso de los cuestionarios que las tienen. Los pendientes del permiso de
 // su titular se rellenan en la app solo cuando la clínica marca aquí que lo tiene (src/data/questionnairePermissions.ts);
 // los de pago se anotan solo con la nota de su hoja oficial; los que piden registro, se pueden usar ya.
 import { useEffect, useState, type ReactNode } from "react";
@@ -65,7 +65,7 @@ export function QuestionnaireLicensesPage() {
   };
 
   return (
-    <Page title="Cuestionarios" backTo="/ajustes">
+    <Page title="Permisos y licencias" backTo="/biblioteca/cuestionarios" backLabel="Cuestionarios">
       <p className="text-sm text-text-muted">
         Algunos cuestionarios tienen dueño: piden permiso, registro o licencia para usarlos en una app. Aquí está a quién pedírselo. Lo que marques vale para todo el
         equipo.

@@ -93,7 +93,7 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "Pasar de una sección a otra",
     body: (
       <>
-        La barra de abajo está siempre a mano y <b>cada pestaña recuerda dónde estabas</b>: mira un test en la Guía y vuelve a la ficha con un toque
+        La barra de abajo está siempre a mano y <b>cada pestaña recuerda dónde estabas</b>: mira un test en la Biblioteca y vuelve a la ficha con un toque
         en Pacientes. Pulsa otra vez la pestaña en la que estás para volver a su inicio. Arriba a la izquierda, <b>‹</b> vuelve a la pantalla
         anterior. La app se ve en claro u oscuro según el ajuste de tu teléfono; los informes y documentos, siempre en
         claro, como en papel.
@@ -105,7 +105,11 @@ const steps: { title: string; body: ReactNode }[] = [
 const places: { icon: typeof Users; name: string; text: string }[] = [
   { icon: Users, name: "Pacientes", text: "el buscador, las citas de hoy en una fila y la lista de tus pacientes." },
   { icon: CalendarDays, name: "Agenda", text: "hoy (atender, cobrar y lo pendiente), el día o la semana, los recordatorios y la lista de espera." },
-  { icon: BookOpen, name: "Guía de tests", text: "212 tests de exploración por articulación. Desde un test, «Registrar el resultado» lo apunta en el paciente que estabas viendo." },
+  {
+    icon: BookOpen,
+    name: "Biblioteca",
+    text: "los tests de exploración por articulación, los cuestionarios (qué mide cada uno, sus preguntas y sus permisos) y las mediciones. Un buscador para todo. Si llegas desde la ficha de un paciente, «Registrar el resultado», «Pasar a…» y «Medir en…» van a su ficha; si no, eliges el paciente.",
+  },
   { icon: Settings, name: "Ajustes", text: "tu cuenta, los datos de la clínica, el PIN, las copias y la instalación. Un punto rojo avisa si falta algo." },
 ];
 
@@ -162,7 +166,7 @@ export function HelpPage() {
             y bórralos después.
           </li>
           <li>
-            ¿Medir a alguien sin crear su ficha? En la Guía de tests, <b>«Medir ahora, sin ficha»</b>.
+            ¿Medir a alguien sin crear su ficha? En la Biblioteca, <b>«Medir ahora, sin ficha»</b>.
           </li>
           <li>
             Cada pantalla de medición tiene su ayuda: el botón <b>«Cómo grabar y marcar»</b>.
