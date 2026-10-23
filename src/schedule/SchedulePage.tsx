@@ -25,6 +25,7 @@ import { AgendaGrid, type Move } from "./AgendaGrid";
 import { TodayView } from "./TodayView";
 import { atMinutes, dayColumns, personColumns, type Column } from "./layout";
 import { ShiftSheet } from "./ShiftSheet";
+import { useMediaQuery } from "../app/useMediaQuery";
 import { staffName, useStaff } from "./useStaff";
 
 type View = "today" | "day" | "3days" | "week";
@@ -38,16 +39,6 @@ const VIEWS: { id: View; label: string; days: number }[] = [
 const VIEW_KEY = "fisiolab.agenda.view.v2";
 /** En el móvil no caben tres días con su nombre: «3 días», solo en pantallas anchas (desde 640 px). */
 const NARROW = "(max-width: 639px)";
-function useNarrow() {
-  const [narrow, setNarrow] = useState(() => window.matchMedia(NARROW).matches);
-  useEffect(() => {
-    const m = window.matchMedia(NARROW);
-    const on = () => setNarrow(m.matches);
-    m.addEventListener("change", on);
-    return () => m.removeEventListener("change", on);
-  }, []);
-  return narrow;
-}
 
 /** El lunes (AAAA-MM-DD) de la semana de `day`. */
 const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T12:00:00`).getDay() + 6) % 7));
@@ -103,7 +94,7 @@ export function SchedulePage() {
     return v === "today" && /^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? "day" : v;
   });
   const [anchor, setAnchor] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? params.get("dia")! : today));
-  const narrow = useNarrow();
+  const narrow = useMediaQuery(NARROW);
   const views = narrow ? VIEWS.filter((v) => v.id !== "3days") : VIEWS;
   // Las vistas de rejilla, en orden: el pellizco pasa de una a otra.
   const gridViews = views.filter((v) => v.id !== "today");

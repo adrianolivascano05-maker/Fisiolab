@@ -5,7 +5,7 @@ import { IconButton } from "./Button";
 type SheetProps = { open: boolean; onClose: () => void; title: string; children: ReactNode };
 
 /**
- * Hoja inferior (ayuda de cada test, confirmaciones). Usa <dialog> nativo:
+ * Hoja inferior (ayuda de cada test, confirmaciones); en el ordenador, un diálogo centrado. Usa <dialog> nativo:
  * atrapa el foco, cierra con Escape y devuelve el foco al botón que la abrió.
  */
 export function Sheet({ open, onClose, title, children }: SheetProps) {
@@ -24,7 +24,7 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
       aria-labelledby={titleId}
-      className="safe-bottom m-0 mt-auto max-h-[85dvh] w-full max-w-none rounded-t-lg bg-bg p-0 text-text shadow-pop backdrop:bg-text/40"
+      className="safe-bottom m-0 mt-auto max-h-[85dvh] w-full max-w-none rounded-t-lg bg-bg p-0 text-text shadow-pop backdrop:bg-text/40 lg:m-auto lg:w-[34rem] lg:max-w-[calc(100vw-2rem)] lg:rounded-lg"
     >
       <div className="mx-auto flex max-w-[var(--layout-content-max)] flex-col gap-3 p-4">
         <div className="flex items-center justify-between">

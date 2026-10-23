@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router";
 import { getDb } from "../data/db";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { cx } from "./cx";
-import { Logo } from "./Logo";
+import { Logo, LogoMark } from "./Logo";
 
 /** Nombre de la pantalla a la que lleva «volver», para escribirlo junto a la flecha (como en el iPhone). */
 export function parentLabel(backTo: string | undefined): string {
@@ -61,7 +61,7 @@ export function TopBar({
       <div className="mx-auto grid h-[var(--layout-header)] max-w-[var(--layout-content-max)] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2">
         <div className="min-w-0">
           {!backTo && (
-            <Link to="/" className="inline-flex min-h-11 items-center rounded-md px-1.5 py-1">
+            <Link to="/" className="inline-flex min-h-11 items-center rounded-md px-1.5 py-1 lg:hidden">
               <Logo onDark />
             </Link>
           )}
@@ -147,7 +147,7 @@ export function TabBar() {
   }, [current.root, pathname, search]);
   const pending = useSettingsPending();
   return (
-    <nav aria-label="Principal" className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur">
+    <nav aria-label="Principal" className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur lg:hidden">
       <ul className="mx-auto grid h-[var(--layout-tabbar)] max-w-[var(--layout-content-max)]" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
         {tabs.map(({ root, label, icon: Icon }) => {
           const active = root === current.root;
@@ -165,6 +165,59 @@ export function TabBar() {
                   {root === "/ajustes" && pending && <span aria-hidden="true" className="absolute -top-0.5 -right-1 size-2.5 rounded-full bg-danger ring-2 ring-bg" />}
                 </span>
                 {label}
+                {root === "/ajustes" && pending && <span className="sr-only">(hay datos por completar)</span>}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+// ---------- Menú lateral (ordenador) ----------
+
+/**
+ * En el ordenador (desde 1024 px) el menú principal va a la izquierda, siempre a la vista: solo iconos en pantallas
+ * medianas y con su nombre desde 1280 px. Las mismas cuatro secciones y la misma memoria que la barra de abajo.
+ */
+export function SideNav() {
+  const { pathname, search } = useLocation();
+  const current = tabs.find((t) => t.match(pathname)) ?? tabs[0]!;
+  useEffect(() => {
+    lastIn.set(current.root, pathname + search);
+  }, [current.root, pathname, search]);
+  const pending = useSettingsPending();
+  return (
+    <nav aria-label="Principal" className="fixed inset-y-0 left-0 z-20 hidden w-[var(--layout-side)] flex-col border-r border-border bg-bg lg:flex">
+      {/* El logo lleva al inicio. Su nombre accesible es el texto visible («Cénit Fisiolab»); en la franja de iconos, el símbolo con su nombre. */}
+      <Link to="/" title="Inicio" className="flex h-[var(--layout-header)] shrink-0 items-center justify-center border-b-2 border-highlight bg-brand xl:justify-start xl:px-4">
+        <span className="xl:hidden">
+          <LogoMark size={34} bordered title="Cénit Fisiolab" />
+        </span>
+        <span className="hidden xl:block">
+          <Logo onDark />
+        </span>
+      </Link>
+      <ul className="flex flex-col gap-1 p-2 xl:p-3">
+        {tabs.map(({ root, label, icon: Icon }) => {
+          const active = root === current.root;
+          return (
+            <li key={root}>
+              <Link
+                to={active ? root : (lastIn.get(root) ?? root)}
+                aria-current={active ? "page" : undefined}
+                title={label}
+                className={cx(
+                  "relative flex min-h-11 items-center justify-center gap-3 rounded-md px-2 text-sm xl:justify-start xl:px-3",
+                  active ? "bg-accent-soft font-semibold text-accent" : "text-text-muted hover:bg-surface hover:text-text",
+                )}
+              >
+                <span className="relative">
+                  <Icon aria-hidden="true" className="size-6" />
+                  {root === "/ajustes" && pending && <span aria-hidden="true" className="absolute -top-0.5 -right-1 size-2.5 rounded-full bg-danger ring-2 ring-bg" />}
+                </span>
+                <span className="sr-only xl:not-sr-only">{label}</span>
                 {root === "/ajustes" && pending && <span className="sr-only">(hay datos por completar)</span>}
               </Link>
             </li>

@@ -141,7 +141,7 @@ export function HelpPage() {
         <h2 id="h-donde" className="text-lg">
           Dónde está cada cosa
         </h2>
-        <p className="text-sm text-text-muted">En la barra de abajo:</p>
+        <p className="text-sm text-text-muted">En la barra de abajo (en el ordenador, en el menú de la izquierda):</p>
         <ul className="flex flex-col gap-2">
           {places.map(({ icon: Icon, name, text }) => (
             <li key={name} className="flex items-start gap-3">
@@ -178,6 +178,10 @@ export function HelpPage() {
               datos de tu clínica
             </Link>{" "}
             antes de imprimir la hoja de protección de datos.
+          </li>
+          <li>
+            En el ordenador (ventana de 1024 px o más) la app aprovecha la pantalla: el menú a la izquierda, la lista de pacientes siempre a la
+            vista junto a la ficha y, al abrirla, lo de hoy. Es la misma app, con los mismos datos.
           </li>
         </ul>
       </section>

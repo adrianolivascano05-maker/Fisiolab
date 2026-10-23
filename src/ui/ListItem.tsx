@@ -1,7 +1,15 @@
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { Link } from "react-router";
 
-type PatientRowProps = { to: string; name: string; meta: string; /** En lugar de las iniciales (p. ej. en las citas). */ icon?: LucideIcon };
+type PatientRowProps = {
+  to: string;
+  name: string;
+  meta: string;
+  /** En lugar de las iniciales (p. ej. en las citas). */
+  icon?: LucideIcon;
+  /** El paciente que se está viendo (la lista fija del ordenador). */
+  active?: boolean;
+};
 
 /** Iniciales del nombre (sin prefijos como «Ejemplo ·» ni signos). */
 export function initials(name: string) {
@@ -16,10 +24,10 @@ export function initials(name: string) {
 }
 
 /** Fila de la lista de pacientes (S01, S23). Toda la fila es el enlace. */
-export function PatientRow({ to, name, meta, icon: Icon }: PatientRowProps) {
+export function PatientRow({ to, name, meta, icon: Icon, active }: PatientRowProps) {
   return (
     <li>
-      <Link to={to} className="flex min-h-16 items-center gap-3 px-4 py-2 hover:bg-surface">
+      <Link to={to} aria-current={active ? "page" : undefined} className={`flex min-h-16 items-center gap-3 px-4 py-2 hover:bg-surface ${active ? "bg-accent-soft" : ""}`}>
         <span
           aria-hidden="true"
           className="flex size-10 shrink-0 items-center justify-center rounded-pill bg-accent-soft text-sm font-semibold text-accent"

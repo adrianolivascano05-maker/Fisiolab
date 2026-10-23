@@ -9,6 +9,8 @@ import { freeRoutes } from "./free/routes"; // Ángulos en vídeo con IA, desde 
 import { galleryRoutes } from "./gallery/routes"; // Galería de tests (src/gallery/README.md)
 import { clinicalRoutes } from "./clinical/routes"; // Ficha clínica: anamnesis, exploración, mediciones y sesiones
 import { PatientsPage } from "./pages/PatientsPage";
+import { PatientsLayout } from "./app/PatientsLayout";
+import { useDesktop } from "./app/useMediaQuery";
 import { FormInbox } from "./patientForm/FormInbox"; // Respuestas de los pacientes a sus formularios (src/clinical/patientForms.ts)
 
 // Al abrir la app solo se carga la lista de pacientes; cada pantalla se carga al entrar en ella (el service worker
@@ -41,6 +43,7 @@ const NordicSetupPage = lazy(() => import("./pages/NordicSetupPage").then((m) =>
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
 const PatientFormPage = lazy(() => import("./pages/PatientFormPage").then((m) => ({ default: m.PatientFormPage })));
 const PatientPage = lazy(() => import("./pages/PatientPage").then((m) => ({ default: m.PatientPage })));
+const DesktopHome = lazy(() => import("./pages/DesktopHome").then((m) => ({ default: m.DesktopHome })));
 const PrivacyPage = lazy(() => import("./pages/PrivacyPage").then((m) => ({ default: m.PrivacyPage })));
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then((m) => ({ default: m.ProfilePage })));
 const ResultPage = lazy(() => import("./pages/ResultPage").then((m) => ({ default: m.ResultPage })));
@@ -67,7 +70,7 @@ const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
 
 // Una ruta por pantalla. Las direcciones que no existen muestran «Página no encontrada».
 const routes = [
-  { path: "/", element: <PatientsPage /> }, // S01
+  { path: "/", element: <HomeRoute /> }, // S01 (en el ordenador, lo de hoy junto a la lista)
   { path: "/pacientes/nuevo", element: l(<PatientFormPage />) }, // S03
   { path: "/pacientes/:id", element: l(<PatientPage />) }, // S02
   { path: "/pacientes/:id/editar", element: l(<PatientFormPage />) }, // S03
@@ -125,9 +128,18 @@ const routes = [
   { path: "*", element: l(<NotFoundPage />) },
 ];
 
+/** El inicio: la lista de pacientes en el móvil; en el ordenador, lo de hoy (la lista ya está al lado). */
+function HomeRoute() {
+  return useDesktop() ? l(<DesktopHome />) : <PatientsPage />;
+}
+
+/** Las pantallas de la sección Pacientes (el inicio, las fichas y las mediciones) van dentro del panel del ordenador. */
+const inPatients = (r: { path?: string }) => r.path === "/" || /^\/(pacientes|tests)(\/|$)/.test(r.path ?? "");
+const tree = [{ element: <PatientsLayout />, children: routes.filter(inPatients) }, ...routes.filter((r) => !inPatients(r))];
+
 /** El router se crea al entrar (después de volver de Google, con la dirección ya en su sitio). */
 function Router() {
-  const [router] = useState(() => createBrowserRouter(routes, { basename: BASENAME }));
+  const [router] = useState(() => createBrowserRouter(tree, { basename: BASENAME }));
   return <RouterProvider router={router} />;
 }
 

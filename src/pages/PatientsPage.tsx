@@ -43,113 +43,135 @@ function letter(name: string) {
   return /[A-ZÑ]/.test(c) ? c : "#";
 }
 
-/** S01 Pacientes: el buscador, una franja con las citas de hoy (lleva a Agenda › Hoy, donde está lo pendiente) y la
- * lista. Los avisos (copia de seguridad, instalar en el iPhone, código de recuperación) van al final. */
-export function PatientsPage() {
+/** El buscador y la lista (por letras, como los contactos del móvil; buscando, los resultados). */
+function usePatientList() {
   const [search, setSearch] = useState("");
-  // La lista se carga una vez y se filtra aquí: buscar no consulta la base en cada tecla.
-  const all = useAsync(() => listPatients(getDb()), []);
+  const version = useDataVersion();
+  // La lista se carga una vez (y cuando cambian los datos) y se filtra aquí: buscar no consulta la base en cada tecla.
+  const all = useAsync(() => listPatients(getDb()), [version]);
   const found = useMemo(() => all.data?.filter((p) => matchesPatient(p, search)), [all.data, search]);
-  const patients = { ...all, data: found };
+  const own = all.data?.filter((p) => !p.name.startsWith(SEED_PREFIX) && p.name !== QUICK_PATIENT) ?? [];
+  return { search, setSearch, all, found, own, hasPatients: (all.data?.length ?? 0) > 0 };
+}
+
+type PatientList = ReturnType<typeof usePatientList>;
+
+function PatientSearch({ list, compact }: { list: PatientList; compact?: boolean }) {
+  return (
+    <div className="relative">
+      <label htmlFor="patient-search" className="sr-only">
+        Buscar paciente
+      </label>
+      <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-text-muted" />
+      <input
+        id="patient-search"
+        type="search"
+        placeholder={compact ? "Buscar paciente" : "Buscar por nombre, teléfono o motivo"}
+        value={list.search}
+        onChange={(e) => list.setSearch(e.target.value)}
+        className="h-11 w-full rounded-lg border border-transparent bg-surface pr-3 pl-10 text-base placeholder:text-text-muted focus:border-border-input"
+      />
+    </div>
+  );
+}
+
+function PatientRows({ list, currentId }: { list: PatientList; currentId?: string | null }) {
+  const { search, all, found } = list;
+  const byLetter = new Map<string, PatientSummary[]>();
+  for (const p of found ?? []) byLetter.set(letter(p.name), [...(byLetter.get(letter(p.name)) ?? []), p]);
+  const row = (p: PatientSummary) => <PatientRow key={p.id} to={`/pacientes/${p.id}`} name={p.name} meta={meta(p)} active={p.id === currentId} />;
+  if (all.error) return <LoadError error={all.error} />;
+  if (!found) return <Loading />;
+  if (found.length === 0) {
+    return search ? (
+      <p className="py-6 text-center text-text-muted">Ningún paciente coincide con «{search}».</p>
+    ) : (
+      <EmptyState icon={Users} title="Todavía no hay pacientes">
+        Pulsa «Nuevo» arriba para añadir el primero. Con el nombre basta. ¿Vienes de otro programa?{" "}
+        <Link to="/ajustes/importar" className="font-semibold text-accent underline underline-offset-2">
+          Trae tus pacientes desde Excel
+        </Link>
+        .
+      </EmptyState>
+    );
+  }
+  if (search) return <Group title="Resultados">{found.map(row)}</Group>;
+  return (
+    <div role="list" aria-label="Pacientes" className="flex flex-col gap-4">
+      {[...byLetter].map(([l, patients]) => (
+        <div role="listitem" key={l}>
+          <Group title={l}>{patients.map(row)}</Group>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Los avisos (copia de seguridad, instalar en el iPhone, código de recuperación), al final de la lista en el móvil
+ * y en el inicio del ordenador: no tapan nada, pero siguen a la vista hasta que se resuelven. */
+export function PatientNotices({ hasRealPatients }: { hasRealPatients: boolean }) {
+  const cloud = useCloud();
   const info = useAsync(() => getDb().info(), []);
   const lastBackup = useAsync(() => getSetting<string>(getDb(), "last_backup_at"), []);
+  return (
+    <div className="flex flex-col gap-2 empty:hidden">
+      {info.data && !info.data.persistent && (
+        <Alert tone="warning" title="Este navegador no guarda los datos">
+          Todo se perderá al cerrar la pestaña. Abre la app en Safari o Chrome actualizados.
+        </Alert>
+      )}
+      {/* A quien administra una clínica, hasta que guarde el código de recuperación. */}
+      {cloud?.clinic && <RecoveryReminder />}
+      {/* En iPhone, Safari puede borrar los datos de una web que no se abre en unos días; instalada, no. */}
+      {isIos() && !isStandalone() && (
+        <Notice to="/instalar" link="Cómo instalarla">
+          Instala la app en este iPhone: si no, Safari puede borrar los pacientes tras unos días sin abrirla.
+        </Notice>
+      )}
+      {/* Con la nube, la copia es automática: no hace falta recordar la de archivo. */}
+      {!cloud && <BackupReminder hasRealPatients={hasRealPatients} lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)} />}
+    </div>
+  );
+}
+
+const newPatientLink = (
+  <Link to="/pacientes/nuevo" aria-label="Nuevo paciente" className="tap inline-flex items-center justify-center gap-1 rounded-md px-1 font-semibold text-accent hover:bg-surface">
+    <Plus aria-hidden="true" className="size-6" /> Nuevo
+  </Link>
+);
+
+/** S01 Pacientes (el móvil): el buscador, una franja con las citas de hoy (lleva a Agenda › Hoy, donde está lo
+ * pendiente) y la lista. Los avisos van al final. */
+export function PatientsPage() {
+  const list = usePatientList();
   const version = useDataVersion();
   // Las citas de hoy que siguen en pie (sin las anuladas), para la franja.
   const today = useAsync(
     async () => (await agenda(getDb(), `${dayPlus(-1)}T20:00:00Z`, `${dayPlus(1)}T04:00:00Z`)).filter((a) => madridDay(a.startsAt) === dayPlus(0) && a.status !== "cancelled"),
     [version],
   );
-  const cloud = useCloud();
-
-  const own = patients.data?.filter((p) => !p.name.startsWith(SEED_PREFIX) && p.name !== QUICK_PATIENT) ?? [];
-  // Sin buscar: por letras, como los contactos del móvil.
-  const byLetter = new Map<string, PatientSummary[]>();
-  for (const p of patients.data ?? []) byLetter.set(letter(p.name), [...(byLetter.get(letter(p.name)) ?? []), p]);
-  const hasPatients = (all.data?.length ?? 0) > 0;
-
   return (
-    <Page
-      title="Pacientes"
-      action={
-        <Link to="/pacientes/nuevo" aria-label="Nuevo paciente" className="tap inline-flex items-center justify-center gap-1 rounded-md px-1 font-semibold text-accent hover:bg-surface">
-          <Plus aria-hidden="true" className="size-6" /> Nuevo
-        </Link>
-      }
-    >
-      {info.data && !info.data.persistent && (
-        <Alert tone="warning" title="Este navegador no guarda los datos">
-          Todo se perderá al cerrar la pestaña. Abre la app en Safari o Chrome actualizados.
-        </Alert>
-      )}
-      <div className="relative">
-        <label htmlFor="patient-search" className="sr-only">
-          Buscar paciente
-        </label>
-        <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-text-muted" />
-        <input
-          id="patient-search"
-          type="search"
-          placeholder="Buscar por nombre, teléfono o motivo"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="h-11 w-full rounded-lg border border-transparent bg-surface pr-3 pl-10 text-base placeholder:text-text-muted focus:border-border-input"
-        />
-      </div>
-
-      {!search && hasPatients && today.data && <TodayStrip items={today.data} />}
-
-      {patients.error ? (
-        <LoadError error={patients.error} />
-      ) : !patients.data ? (
-        <Loading />
-      ) : patients.data.length === 0 ? (
-        search ? (
-          <p className="py-6 text-center text-text-muted">Ningún paciente coincide con «{search}».</p>
-        ) : (
-          <EmptyState icon={Users} title="Todavía no hay pacientes">
-            Pulsa «Nuevo» arriba para añadir el primero. Con el nombre basta. ¿Vienes de otro programa?{" "}
-            <Link to="/ajustes/importar" className="font-semibold text-accent underline underline-offset-2">
-              Trae tus pacientes desde Excel
-            </Link>
-            .
-          </EmptyState>
-        )
-      ) : search ? (
-        <Group title="Resultados">
-          {patients.data.map((p) => (
-            <PatientRow key={p.id} to={`/pacientes/${p.id}`} name={p.name} meta={meta(p)} />
-          ))}
-        </Group>
-      ) : (
-        <div role="list" aria-label="Pacientes" className="flex flex-col gap-4">
-          {[...byLetter].map(([l, list]) => (
-            <div role="listitem" key={l}>
-              <Group title={l}>
-                {list.map((p) => (
-                  <PatientRow key={p.id} to={`/pacientes/${p.id}`} name={p.name} meta={meta(p)} />
-                ))}
-              </Group>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Los avisos, al final: no tapan la lista, pero siguen a la vista hasta que se resuelven. */}
-      {!search && (
-        <div className="flex flex-col gap-2">
-          {/* A quien administra una clínica, hasta que guarde el código de recuperación. */}
-          {cloud?.clinic && <RecoveryReminder />}
-          {/* En iPhone, Safari puede borrar los datos de una web que no se abre en unos días; instalada, no. */}
-          {isIos() && !isStandalone() && (
-            <Notice to="/instalar" link="Cómo instalarla">
-              Instala la app en este iPhone: si no, Safari puede borrar los pacientes tras unos días sin abrirla.
-            </Notice>
-          )}
-          {/* Con la nube, la copia es automática: no hace falta recordar la de archivo. */}
-          {!cloud && <BackupReminder hasRealPatients={own.length > 0} lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)} />}
-        </div>
-      )}
+    <Page title="Pacientes" action={newPatientLink}>
+      <PatientSearch list={list} />
+      {!list.search && list.hasPatients && today.data && <TodayStrip items={today.data} />}
+      <PatientRows list={list} />
+      {!list.search && <PatientNotices hasRealPatients={list.own.length > 0} />}
     </Page>
+  );
+}
+
+/** El panel fijo del ordenador: «Pacientes», el buscador y la lista, con el paciente abierto marcado. */
+export function PatientsPane({ currentId }: { currentId: string | null }) {
+  const list = usePatientList();
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xl">Pacientes</h2>
+        {newPatientLink}
+      </div>
+      <PatientSearch list={list} compact />
+      <PatientRows list={list} currentId={currentId} />
+    </div>
   );
 }
 

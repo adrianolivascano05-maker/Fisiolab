@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SyncNotice } from "../cloud/CloudGate";
 import { Alert } from "../ui/Alert";
-import { TabBar, TopBar } from "../ui/AppBar";
+import { SideNav, TabBar, TopBar } from "../ui/AppBar";
+import { useInPane } from "./pane";
 import { cx } from "../ui/cx";
 
 type PageProps = {
@@ -43,16 +44,21 @@ export function Page({ title, backTo, backLabel, action, tabs = true, tone = "de
   const big = large || !!header;
   const { ref, past } = useScrolledPast();
   const showTabs = tabs && tone !== "media";
+  // En el ordenador, el menú lateral en todas las pantallas (también en los formularios) salvo en las de vídeo; si la
+  // pantalla va dentro de un panel (Pacientes), el panel ya lo pone.
+  const inPane = useInPane();
+  const showSide = tone !== "media" && !inPane;
   return (
-    <div className={cx("min-h-dvh", tone === "media" && "bg-media-bg text-media-text")}>
+    <div className={cx("min-h-dvh", tone === "media" && "bg-media-bg text-media-text", showSide && "lg:pl-[var(--layout-side)]")}>
       <TopBar title={title} backTo={backTo} backLabel={backLabel} action={action} large={big} titleShown={!big || past} />
-      <main className={cx("mx-auto flex flex-col gap-4 px-4 pt-2", wide ? "max-w-[90rem]" : "max-w-[var(--layout-content-max)]", showTabs ? "pb-28" : "pb-12")}>
+      <main className={cx("mx-auto flex flex-col gap-4 px-4 pt-2 lg:px-6", wide ? "max-w-[90rem]" : "max-w-[var(--layout-content-max)]", showTabs ? "pb-28 lg:pb-12" : "pb-12")}>
         {header ?? (big && <h1 className="text-[2rem] leading-tight font-bold">{title}</h1>)}
         {big && <div ref={ref} aria-hidden="true" className="-mt-4 h-0" />}
         <SyncNotice />
         {children}
       </main>
       {showTabs && <TabBar />}
+      {showSide && <SideNav />}
     </div>
   );
 }

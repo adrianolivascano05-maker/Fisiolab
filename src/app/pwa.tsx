@@ -13,7 +13,7 @@ export function UpdateBanner() {
   } = useRegisterSW();
   if (!needRefresh) return null;
   return (
-    <div role="status" className="safe-bottom fixed inset-x-0 bottom-20 z-40 px-4">
+    <div role="status" className="safe-bottom fixed inset-x-0 bottom-20 z-40 px-4 lg:bottom-6 lg:left-[var(--layout-side)]">
       <div className="mx-auto flex max-w-[var(--layout-content-max)] items-center gap-3 rounded-lg bg-text p-3 text-bg shadow-pop">
         <p className="flex-1 text-sm font-semibold">Hay una versión nueva de la app.</p>
         <Button size="sm" onClick={() => void updateServiceWorker(true)}>

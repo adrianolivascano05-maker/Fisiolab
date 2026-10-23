@@ -27,6 +27,20 @@
   }
 }
 
+/* Ordenador (desde 1024 px): el menú principal pasa a la izquierda (solo iconos; con su nombre desde 1280 px) y la
+   columna de contenido se ensancha. Por debajo, la app es la del móvil, sin cambios. */
+@media (min-width: 1024px) {
+  :root {
+    --layout-content-max: 52rem;
+    --layout-side: var(--layout-sidenav-rail);
+  }
+}
+@media (min-width: 1280px) {
+  :root {
+    --layout-side: var(--layout-sidenav);
+  }
+}
+
 @utility tap {
   min-height: var(--layout-tap-min);
   min-width: var(--layout-tap-min);

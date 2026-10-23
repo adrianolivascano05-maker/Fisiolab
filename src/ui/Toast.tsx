@@ -33,7 +33,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 top-[calc(var(--layout-header)+0.5rem)] z-50 flex flex-col items-center gap-2 px-4"
+        className="pointer-events-none fixed inset-x-0 top-[calc(var(--layout-header)+0.5rem)] z-50 flex flex-col items-center gap-2 px-4 lg:left-[var(--layout-side)]"
       >
         {items.map((t) => (
           <p key={t.id} className={cx("rounded-md px-4 py-3 text-sm font-semibold shadow-pop", toneClass[t.tone])}>
