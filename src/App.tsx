@@ -35,6 +35,7 @@ const InstallPage = lazy(() => import("./pages/InstallPage").then((m) => ({ defa
 const JumpSetupPage = lazy(() => import("./pages/JumpSetupPage").then((m) => ({ default: m.JumpSetupPage })));
 const LoadVelocityPage = lazy(() => import("./pages/LoadVelocityPage").then((m) => ({ default: m.LoadVelocityPage })));
 const LockSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.LockSettingsPage })));
+const AppearancePage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.AppearancePage })));
 const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m.MarkPage })));
 const NordicSetupPage = lazy(() => import("./pages/NordicSetupPage").then((m) => ({ default: m.NordicSetupPage })));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
@@ -108,6 +109,7 @@ const routes = [
   { path: "/agenda/cobros", element: l(<DebtorsPage />) },
   { path: "/horario", element: <Navigate to="/agenda" replace /> },
   { path: "/ajustes/bloqueo", element: l(<LockSettingsPage />) },
+  { path: "/ajustes/aspecto", element: l(<AppearancePage />) },
   { path: "/ajustes/datos", element: l(<DataSettingsPage />) },
   { path: "/ajustes/importar", element: l(<ImportPatientsPage />) },
   { path: "/ajustes/estadisticas", element: l(<StatsPage />) },

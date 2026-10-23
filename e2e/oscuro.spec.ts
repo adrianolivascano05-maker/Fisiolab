@@ -46,4 +46,28 @@ test.describe("Modo oscuro", () => {
     await page.goto("./ajustes");
     await expectAccessible(page);
   });
+
+  test("OS2 Ajustes → Aspecto: claro u oscuro a mano, se recuerda, y automático vuelve a seguir al dispositivo", async ({ page }) => {
+    // El dispositivo está en oscuro (test.use arriba): «Claro» lo deja en claro.
+    await page.goto("./ajustes");
+    await page.getByRole("region", { name: "App", exact: true }).getByRole("link", { name: /Aspecto.*Automático/ }).click();
+    await expect(page.getByRole("heading", { name: "Aspecto" })).toBeVisible();
+    await page.getByRole("radio", { name: /^Claro/ }).check();
+    expect(await background(page.locator("body"))).toBe("rgb(242, 244, 241)");
+    await expectAccessible(page);
+    // Se recuerda al volver a abrir la app.
+    await page.reload();
+    await expect(page.getByRole("radio", { name: /^Claro/ })).toBeChecked();
+    expect(await background(page.locator("body"))).toBe("rgb(242, 244, 241)");
+    // Oscuro, y la fila de Ajustes lo dice.
+    await page.getByRole("radio", { name: /^Oscuro/ }).check();
+    expect(await background(page.locator("body"))).toBe("rgb(15, 21, 18)");
+    await page.goto("./ajustes");
+    await expect(page.getByRole("link", { name: /Aspecto.*Oscuro/ })).toBeVisible();
+    // Automático: como el dispositivo (aquí, oscuro); con el dispositivo en claro, claro.
+    await page.goto("./ajustes/aspecto");
+    await page.getByRole("radio", { name: /^Automático/ }).check();
+    await page.emulateMedia({ colorScheme: "light" });
+    expect(await background(page.locator("body"))).toBe("rgb(242, 244, 241)");
+  });
 });

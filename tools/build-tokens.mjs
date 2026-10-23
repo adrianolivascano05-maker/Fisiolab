@@ -43,14 +43,17 @@ lines.push(`  --motion-fast: ${t.motion.fast};`, `  --motion-base: ${t.motion.ba
 for (const [name, v] of Object.entries(t.layout)) lines.push(`  --layout-${name}: ${px(v)};`);
 lines.push("}", "");
 
-// Modo oscuro: sigue el ajuste del teléfono. Solo cambian los colores de «colorDark».
+// Modo oscuro: sigue el ajuste del teléfono, salvo que se elija Claro u Oscuro en Ajustes → Aspecto
+// (src/app/theme.ts pone data-theme="auto" | "light" | "dark" en <html>). Solo cambian los colores de «colorDark».
 const vars = (colors, indent) => Object.entries(colors).map(([name, value]) => `${indent}--color-${name}: ${value};`);
-lines.push("@media (prefers-color-scheme: dark) {", "  :root {", ...vars(t.colorDark, "    "), "  }", "}", "");
+lines.push("@media (prefers-color-scheme: dark) {", '  :root:not([data-theme="light"]) {', ...vars(t.colorDark, "    "), "  }", "}", "");
+lines.push(':root[data-theme="dark"] {', "  color-scheme: dark;", ...vars(t.colorDark, "  "), "}", "");
+lines.push(':root[data-theme="light"] {', "  color-scheme: light;", "}", "");
 // Papel: los documentos (informe, consentimiento…) se ven en claro también en modo oscuro, como impresos. Y al
 // imprimir, todo en claro.
 const light = Object.fromEntries(Object.keys(t.colorDark).map((name) => [name, t.color[name]]));
 lines.push(".theme-light {", "  color-scheme: light;", ...vars(light, "  "), "}", "");
-lines.push("@media print {", "  :root {", "    color-scheme: light;", ...vars(light, "    "), "  }", "}", "");
+lines.push("@media print {", "  :root,", "  :root[data-theme] {", "    color-scheme: light;", ...vars(light, "    "), "  }", "}", "");
 
 writeFileSync(out, lines.join("\n"));
 console.log(`tokens: ${Object.keys(t.color).length} colores (${Object.keys(t.colorDark).length} cambian en oscuro) -> src/styles/tokens.css`);

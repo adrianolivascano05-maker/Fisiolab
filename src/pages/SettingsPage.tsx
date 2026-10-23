@@ -16,6 +16,7 @@ import {
   FileUp,
   Lock,
   MonitorSmartphone,
+  Palette,
   ShieldCheck,
   UserRound,
   UsersRound,
@@ -26,6 +27,7 @@ import { Link } from "react-router";
 import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
 import { useInstall } from "../app/pwa";
+import { THEME_LABELS, useTheme, type Theme } from "../app/theme";
 import { useAsync } from "../app/useAsync";
 import { AccountCard } from "../cloud/AccountPages";
 import { CalendarSettings } from "../cloud/CalendarSettings";
@@ -77,6 +79,7 @@ export function SettingsPage() {
   }, []);
   const lock = getLock();
   const clinic = state.data?.clinic;
+  const [theme] = useTheme();
 
   return (
     <Page title="Ajustes" tabs>
@@ -146,6 +149,7 @@ export function SettingsPage() {
           title="Instalar la app"
           subtitle={install.state === "installed" ? "Instalada en este dispositivo" : "En este y en otros dispositivos"}
         />
+        <RowLink to="/ajustes/aspecto" icon={Palette} title="Aspecto" subtitle={theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} />
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
         <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
       </Group>
@@ -366,6 +370,32 @@ export function DataSettingsPage() {
           Cancelar
         </Button>
       </Sheet>
+    </Page>
+  );
+}
+
+/** Ajustes → Aspecto: claro, oscuro o como el dispositivo. Vale para este dispositivo. */
+export function AppearancePage() {
+  const [theme, setTheme] = useTheme();
+  const options: { id: Theme; hint: string }[] = [
+    { id: "auto", hint: "Claro u oscuro según el ajuste del teléfono u ordenador" },
+    { id: "light", hint: "Siempre claro" },
+    { id: "dark", hint: "Siempre oscuro" },
+  ];
+  return (
+    <Page title="Aspecto" backTo="/ajustes">
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 text-sm text-text-muted">Cómo se ve la app en este dispositivo. Los informes y documentos se ven siempre en claro, como en papel.</legend>
+        {options.map((o) => (
+          <label key={o.id} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-border bg-bg px-4 py-2 has-[:checked]:border-accent">
+            <input type="radio" name="tema" className="size-5 shrink-0 accent-[var(--color-accent)]" checked={theme === o.id} onChange={() => setTheme(o.id)} />
+            <span className="flex flex-col">
+              <span className="font-semibold">{THEME_LABELS[o.id]}</span>
+              <span className="text-sm text-text-muted">{o.hint}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
     </Page>
   );
 }
