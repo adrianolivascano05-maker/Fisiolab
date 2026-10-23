@@ -161,24 +161,30 @@ export function AssessmentPage() {
           </a>
         ))}
       </nav>
+      {/* En ancho (el ordenador), los bloques en columnas: Exploración y Cuestionarios a la izquierda y Mediciones a la
+          derecha; en muy ancho, uno por columna. En el móvil, seguidos. */}
+      <div className="flex flex-col gap-4 @2xl:grid @2xl:grid-cols-2 @2xl:items-start @2xl:gap-x-6 @4xl:grid-cols-3">
+      <div className="flex flex-col gap-4 @4xl:contents">
       <section id="valoracion-exploracion" aria-labelledby="h-exploracion" className="flex scroll-mt-40 flex-col gap-3">
         <h2 id="h-exploracion" className="text-xl">
           {head("exploracion")}
         </h2>
         <ExplorationSection id={id} findings={findings} />
       </section>
-      <section id="valoracion-cuestionarios" aria-labelledby="h-cuestionarios" className="flex scroll-mt-40 flex-col gap-3 border-t border-border pt-4">
+      <section id="valoracion-cuestionarios" aria-labelledby="h-cuestionarios" className="flex scroll-mt-40 flex-col gap-3 border-t border-border pt-4 @4xl:border-t-0 @4xl:pt-0">
         <h2 id="h-cuestionarios" className="text-xl">
           {head("cuestionarios")}
         </h2>
         <QuestionnairesSection id={id} questionnaires={questionnaires} wellness={wellness[0] ?? null} waiting={waiting} />
       </section>
-      <section id="valoracion-mediciones" aria-labelledby="h-mediciones" className="flex scroll-mt-40 flex-col gap-3 border-t border-border pt-4">
+      </div>
+      <section id="valoracion-mediciones" aria-labelledby="h-mediciones" className="flex scroll-mt-40 flex-col gap-3 border-t border-border pt-4 @2xl:border-t-0 @2xl:pt-0">
         <h2 id="h-mediciones" className="text-xl">
           {head("mediciones")}
         </h2>
         <MeasurementsSection id={id} patient={patient} tests={tests} />
       </section>
+      </div>
     </PatientShell>
   );
 }

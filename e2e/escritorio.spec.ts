@@ -81,6 +81,56 @@ test.describe("Ordenador", () => {
     }
   });
 
+  test("ES4 la ficha en dos columnas: Resumen, Valoración, Sesiones, Nueva sesión y la anamnesis, accesibles", async ({ page }) => {
+    await loadSeed(page);
+    await page.goto("./");
+    await list(page).getByRole("link", { name: /Marcos Vidal/ }).click();
+    await expect(page.getByRole("heading", { name: "Situación" })).toBeVisible();
+    /** `b` queda a la derecha de `a`, a la misma altura (en columnas, no uno debajo del otro). */
+    const beside = async (a: import("@playwright/test").Locator, b: import("@playwright/test").Locator) => {
+      await expect(b).toBeVisible();
+      const [x, y] = [(await a.boundingBox())!, (await b.boundingBox())!];
+      expect(y.x, "a la derecha").toBeGreaterThan(x.x + x.width - 1);
+      expect(Math.abs(y.y - x.y), "a la misma altura").toBeLessThan(120);
+    };
+    // Resumen: la situación a la izquierda y los documentos a la derecha; la cabecera con los chips a la derecha del nombre.
+    await beside(page.getByRole("heading", { name: "Situación" }), page.getByRole("region", { name: "Documentos" }));
+    await beside(page.getByRole("heading", { name: /Marcos Vidal/ }), page.getByRole("button", { name: "Dar cita" }));
+    expect(await scrollWidth(page)).toBeLessThanOrEqual(1280);
+    await expectAccessible(page);
+    // Valoración: Exploración a la izquierda y Mediciones a la derecha.
+    const tabs = page.getByRole("navigation", { name: "Ficha del paciente" });
+    await tabs.getByRole("link", { name: "Valoración" }).click();
+    await expect(page.getByRole("heading", { name: "Mediciones", exact: true })).toBeVisible();
+    await beside(page.getByRole("heading", { name: "Exploración", exact: true }), page.getByRole("heading", { name: "Mediciones", exact: true }));
+    await expectAccessible(page);
+    // Sesiones: la lista a la izquierda y la historia a la derecha.
+    // (Mientras carga, la barra de arriba ya dice «Sesiones»: el encabezado que se mide es el de la página.)
+    await tabs.getByRole("link", { name: "Sesiones" }).click();
+    await expect(page.getByRole("heading", { name: "Historia" })).toBeVisible();
+    await beside(page.getByRole("main").getByRole("heading", { name: "Sesiones", exact: true }), page.getByRole("heading", { name: "Historia" }));
+    await expectAccessible(page);
+    // Nueva sesión: la sesión a la izquierda y la siguiente cita a la derecha.
+    await page.getByRole("main").getByRole("link", { name: "Nueva sesión" }).first().click();
+    await expect(page.getByLabel("Fecha y hora")).toBeVisible();
+    await beside(page.getByLabel("Fecha y hora"), page.getByRole("group", { name: "Dar la siguiente cita" }));
+    await expectAccessible(page);
+    // Anamnesis al rellenar: el índice a la izquierda y los apartados a la derecha; guardada, se lee en dos columnas.
+    await page.goBack();
+    await tabs.getByRole("link", { name: "Anamnesis" }).click();
+    const index = page.getByRole("navigation", { name: "Apartados de la anamnesis" });
+    await expect(index).toBeVisible();
+    await beside(index, page.locator("#anamnesis-datos"));
+    await expectAccessible(page);
+    await page.getByLabel("Motivo principal").fill("Dolor de rodilla derecha al correr");
+    await page.getByLabel("Fecha de inicio").fill("hace tres semanas");
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByRole("button", { name: "Editar anamnesis" })).toBeVisible();
+    await expect(page.getByText("hace tres semanas")).toBeVisible();
+    await expectAccessible(page);
+    expect(await scrollWidth(page)).toBeLessThanOrEqual(1280);
+  });
+
   test("ES3 a 1024 px el menú es una franja de iconos con nombre accesible; en una ventana estrecha, la app del móvil", async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto("./");

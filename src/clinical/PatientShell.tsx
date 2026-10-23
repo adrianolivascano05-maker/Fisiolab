@@ -48,6 +48,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
       title={name}
       backTo="/"
       tabs={tabs}
+      width="record"
       action={
         patient && (
           <Link to={`/pacientes/${id}/editar`} aria-label="Editar datos" className="tap inline-flex items-center rounded-md px-2 font-semibold text-accent hover:bg-surface">
@@ -56,14 +57,15 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
         )
       }
       header={
-        <div className="flex flex-col gap-2">
+        // En ancho (el ordenador), el nombre a la izquierda y los chips a la derecha, en una fila.
+        <div className="flex flex-col gap-2 @2xl:flex-row @2xl:items-end @2xl:justify-between @2xl:gap-4">
           <div className="flex min-w-0 flex-col">
             <h1 className="text-[1.75rem] leading-tight font-bold break-words">{name}</h1>
             {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin más datos"}</p>}
             {edit.data && <p className="text-xs text-text-muted">Última modificación: {editText(edit.data)}</p>}
           </div>
           {/* Una fila de chips: el motivo que se ve, la próxima cita (o darla) y lo que debe. Añadir al calendario, dentro de la cita. */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 @2xl:shrink-0 @2xl:justify-end">
             {patient && <EpisodePicker patientId={id} />}
             {visit.data ? (
               <button

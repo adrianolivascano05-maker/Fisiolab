@@ -44,7 +44,7 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent, calendarPromptOff, setCalendarPromptOff } from "./CalendarButton";
-import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orphanText, type Section } from "./anamnesis";
+import { answerText, answeredCount, clinicalSummary, fieldIn, orphanAnswers, orphanText, type Field, type Section } from "./anamnesis";
 import { RedFlagPanel } from "./RedFlagPanel";
 import { fold } from "./redFlags";
 import { CifPicker } from "./cif/CifPicker";
@@ -98,6 +98,9 @@ function PatientBasics({ patient }: { patient: Patient }) {
     </dl>
   );
 }
+
+/** Campos que en ancho ocupan las dos columnas: los de texto largo, la escala del dolor, las opciones múltiples y la CIF. */
+const wideField = (f: Field) => f.type === "textarea" || f.type === "cif" || f.type === "scale" || f.type === "multi";
 
 /** Apartados que se ven abiertos al llegar: lo que más se consulta (motivo, precauciones, diagnóstico y plan). */
 const OPEN_FIRST = new Set(["motivo", "antecedentes", "diagnostico", "objetivos"]);
@@ -231,9 +234,11 @@ export function AnamnesisPage() {
         <h2 className="text-xl">{anamnesis ? "Editar anamnesis" : "Anamnesis"}</h2>
         {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
         <p className="text-sm text-text-muted">Ficha de anamnesis de fisioterapia: historia clínica y valoración inicial. Rellena lo que necesites; todo se puede completar más tarde.</p>
+        {/* En ancho (el ordenador), el índice fijo a la izquierda y los apartados a la derecha; en el móvil, el índice arriba. */}
+        <div className="flex flex-col gap-4 @2xl:grid @2xl:grid-cols-[13rem_minmax(0,1fr)] @2xl:items-start @2xl:gap-x-6">
         {/* Índice: la ficha es larga; cada apartado a un toque. */}
-        <nav aria-label="Apartados de la anamnesis">
-          <ul className="flex flex-wrap gap-2">
+        <nav aria-label="Apartados de la anamnesis" className="@2xl:sticky @2xl:top-[calc(var(--layout-header)+1rem)]">
+          <ul className="flex flex-wrap gap-2 @2xl:flex-col">
             {sections.map((section) => (
               <li key={section.id}>
                 <a
@@ -245,7 +250,7 @@ export function AnamnesisPage() {
                     if (el instanceof HTMLDetailsElement) el.open = true;
                     el?.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="inline-flex min-h-11 items-center rounded-pill border border-border-input bg-bg px-3 text-sm font-semibold hover:bg-surface">
+                  className="inline-flex min-h-11 items-center rounded-pill border border-border-input bg-bg px-3 text-sm font-semibold hover:bg-surface @2xl:w-full">
                   {section.title.replace(/^\d+\.\s*/, "")}
                 </a>
               </li>
@@ -263,19 +268,19 @@ export function AnamnesisPage() {
                 count={n ? `${n} de ${section.fields.length}` : ""}
                 open={OPEN_FIRST.has(section.id) || (n > 0 && !!anamnesis)}
               >
-                <div role="group" aria-label={section.title} className="flex flex-col gap-4">
+                <div role="group" aria-label={section.title} className="flex flex-col gap-4 @4xl:grid @4xl:grid-cols-2 @4xl:gap-x-6">
                   {section.id === "datos" && (
-                    <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
+                    <div className="flex flex-col gap-2 rounded-md bg-surface p-3 @4xl:col-span-2">
                       <PatientBasics patient={patient} />
                       <Link to={`/pacientes/${id}/editar`} className="inline-flex min-h-11 items-center self-start text-sm font-semibold text-accent">
                         Editar nombre, nacimiento, sexo y contacto
                       </Link>
                     </div>
                   )}
-                  {section.fields.map((f) =>
-                    f.type === "cif" ? (
+                  {section.fields.map((f) => (
+                    <div key={f.id} className={cx(wideField(f) && "@4xl:col-span-2")}>
+                    {f.type === "cif" ? (
                       <CifPicker
-                        key={f.id}
                         label={f.label}
                         hint={f.hint}
                         value={Array.isArray(draft[f.id]) ? (draft[f.id] as string[]) : []}
@@ -294,10 +299,12 @@ export function AnamnesisPage() {
                         }}
                       />
                     ) : (
-                      <FieldInput key={f.id} field={f} value={draft[f.id]} onChange={set(f.id)} />
-                    ),
-                  )}
+                      <FieldInput field={f} value={draft[f.id]} onChange={set(f.id)} />
+                    )}
+                    </div>
+                  ))}
                   {section.id === "motivo" && (
+                    <div className="@4xl:col-span-2">
                     <RedFlagPanel
                       answers={draft}
                       birthDate={patient.birthDate}
@@ -308,9 +315,18 @@ export function AnamnesisPage() {
                         if (!now.includes(label)) set("banderas_rojas")([...now, label]);
                       }}
                     />
+                    </div>
                   )}
-                  {section.id === "tratamientos" && <YellowFlagPanel answers={draft} labelOf={labelOf} patientId={id} links={false} />}
-                  {section.id === "exploracion" && <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />}
+                  {section.id === "tratamientos" && (
+                    <div className="@4xl:col-span-2">
+                      <YellowFlagPanel answers={draft} labelOf={labelOf} patientId={id} links={false} />
+                    </div>
+                  )}
+                  {section.id === "exploracion" && (
+                    <div className="@4xl:col-span-2">
+                      <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />
+                    </div>
+                  )}
                 </div>
               </Fold>
             );
@@ -327,6 +343,7 @@ export function AnamnesisPage() {
             </Button>
           </div>
         </form>
+        </div>
       </PatientShell>
     );
   }
@@ -364,13 +381,16 @@ export function AnamnesisPage() {
           <Fold key={section.id} id={`an-${section.id}`} title={section.title} count={n ? `${n} de ${section.fields.length}` : "Sin rellenar"} open={OPEN_FIRST.has(section.id) && n > 0}>
             {section.id === "datos" && <PatientBasics patient={patient} />}
             {rows.length > 0 ? (
-              <dl className="flex flex-col gap-2">
-                {rows.map((f) => (
-                  <div key={f.id} className="flex flex-col">
-                    <dt className="text-sm text-text-muted">{f.label}</dt>
-                    <dd className="whitespace-pre-line">{answerText(f, a[f.id] ?? null)}</dd>
-                  </div>
-                ))}
+              <dl className="flex flex-col gap-2 @2xl:grid @2xl:grid-cols-2 @2xl:gap-x-6">
+                {rows.map((f) => {
+                  const text = answerText(f, a[f.id] ?? null);
+                  return (
+                    <div key={f.id} className={cx("flex flex-col", (wideField(f) || text.length > 60) && "@2xl:col-span-2")}>
+                      <dt className="text-sm text-text-muted">{f.label}</dt>
+                      <dd className="whitespace-pre-line">{text}</dd>
+                    </div>
+                  );
+                })}
               </dl>
             ) : (
               section.id !== "datos" && <p className="text-sm text-text-muted">Sin rellenar.</p>
@@ -516,6 +536,9 @@ export function SessionsPage() {
   const justSavedEvent = justSaved && patient && !autoCalendar && !calendarPromptOff() ? visitEvent(justSaved, patient) : null;
   return (
     <PatientShell patient={patient} id={id}>
+      {/* En ancho (el ordenador), las sesiones a la izquierda y la historia a la derecha; en el móvil, seguidas. */}
+      <div className="flex flex-col gap-4 @2xl:grid @2xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] @2xl:items-start @2xl:gap-x-6">
+      <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl">Sesiones</h2>
         <Link to={`/pacientes/${id}/sesiones/nueva`} className={primaryLink}>
@@ -550,6 +573,7 @@ export function SessionsPage() {
           ))}
         </ol>
       )}
+      </div>
       {timeline.length > 0 && (
         <section aria-labelledby="historia" className="flex flex-col gap-2">
           <h3 id="historia" className="text-base">
@@ -574,6 +598,7 @@ export function SessionsPage() {
           </ol>
         </section>
       )}
+      </div>
       {justSavedEvent && (
         <CalendarSheet
           open
@@ -828,7 +853,7 @@ export function SessionFormPage() {
   };
 
   return (
-    <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back} backLabel={backLabel} tabs={false}>
+    <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back} backLabel={backLabel} tabs={false} width="record">
       <p className="text-text-muted">
         {patient?.name}
         {!sid && count.planned !== null && ` · sesión ${count.done + 1} de ${count.planned} previstas`}
@@ -864,7 +889,9 @@ export function SessionFormPage() {
           )}
         </div>
       )}
-      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+      {/* En ancho (el ordenador), dos columnas: la sesión a la izquierda; la siguiente cita, reevaluar y guardar a la derecha. */}
+      <form onSubmit={submit} className="flex flex-col gap-4 @2xl:grid @2xl:grid-cols-2 @2xl:items-start @2xl:gap-x-6" noValidate>
+      <div className="flex flex-col gap-4">
         <TextField label="Fecha y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         <PainScale label="Dolor hoy (EVA 0-10)" value={pain} onChange={setPain} />
         <TextArea label="Qué refiere" hint="Cómo ha ido desde la última sesión, qué nota." value={subjective} onChange={setSubjective} />
@@ -889,6 +916,8 @@ export function SessionFormPage() {
             Su hoja de ejercicios para casa (para imprimir o enviar)
           </Link>
         )}
+      </div>
+      <div className="flex flex-col gap-4">
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-semibold">Dar la siguiente cita</legend>
           <div className="flex flex-wrap gap-2">
@@ -945,6 +974,7 @@ export function SessionFormPage() {
             Borrar sesión
           </Button>
         )}
+      </div>
       </form>
       <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar esta sesión?">
         <p>Se borrará la sesión del {fmtDateTime(session?.performedAt ?? new Date().toISOString())}. Las mediciones y los tests de ese día no se borran.</p>

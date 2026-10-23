@@ -23,8 +23,15 @@ type PageProps = {
   header?: ReactNode;
   /** Más ancha en pantallas grandes (la agenda, con una columna por día). */
   wide?: boolean;
+  /**
+   * Ancho del contenido en pantallas grandes: `content` (lectura, 52 rem), `record` (la ficha y sus formularios,
+   * que en ancho se ponen en dos columnas: 64 rem) o `wide` (la agenda, 90 rem; también con `wide`).
+   */
+  width?: "content" | "record" | "wide";
   children: ReactNode;
 };
+
+const WIDTHS = { content: "max-w-[var(--layout-content-max)]", record: "max-w-[64rem]", wide: "max-w-[90rem]" };
 
 /** El título grande ha salido por arriba (para enseñarlo pequeño en la barra). */
 function useScrolledPast() {
@@ -40,7 +47,7 @@ function useScrolledPast() {
   return { ref, past };
 }
 
-export function Page({ title, backTo, backLabel, action, tabs = true, tone = "default", large = !backTo, header, wide = false, children }: PageProps) {
+export function Page({ title, backTo, backLabel, action, tabs = true, tone = "default", large = !backTo, header, wide = false, width = wide ? "wide" : "content", children }: PageProps) {
   const big = large || !!header;
   const { ref, past } = useScrolledPast();
   const showTabs = tabs && tone !== "media";
@@ -51,7 +58,10 @@ export function Page({ title, backTo, backLabel, action, tabs = true, tone = "de
   return (
     <div className={cx("min-h-dvh", tone === "media" && "bg-media-bg text-media-text", showSide && "lg:pl-[var(--layout-side)]")}>
       <TopBar title={title} backTo={backTo} backLabel={backLabel} action={action} large={big} titleShown={!big || past} />
-      <main className={cx("mx-auto flex flex-col gap-4 px-4 pt-2 lg:px-6", wide ? "max-w-[90rem]" : "max-w-[var(--layout-content-max)]", showTabs ? "pb-28 lg:pb-12" : "pb-12")}>
+      {/* La ficha (`record`) es un `@container`: sus pantallas se ponen en columnas según el ancho que les queda (con
+          la lista de pacientes al lado, menos), no según el de la ventana; por debajo de 42 rem (el móvil siempre)
+          nada cambia. Solo ahí: un contenedor también encierra lo `fixed` de dentro (la capa de arrastre de la agenda). */}
+      <main className={cx("mx-auto flex flex-col gap-4 px-4 pt-2 lg:px-6", width === "record" && "@container", WIDTHS[width], showTabs ? "pb-28 lg:pb-12" : "pb-12")}>
         {header ?? (big && <h1 className="text-[2rem] leading-tight font-bold">{title}</h1>)}
         {big && <div ref={ref} aria-hidden="true" className="-mt-4 h-0" />}
         <SyncNotice />

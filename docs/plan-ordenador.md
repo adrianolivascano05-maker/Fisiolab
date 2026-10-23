@@ -35,12 +35,26 @@ datos: cambia la disposición, no el contenido.
   abajo. Los avisos (`Toast`) y la banda de «hay una versión nueva» dejan sitio al menú.
 - **Pruebas**: `e2e/escritorio.spec.ts` (ES1 a ES3) y `e2e/a11y-layout.spec.ts` a 1440 px.
 
-### E2 · La ficha en ancho (pendiente)
+### E2 · La ficha en ancho (hecho)
 
-- Cabecera: nombre y chips (Motivo, Cita, Debe) en una fila; pestañas compactas.
-- Resumen en dos columnas: acciones, Situación y Pendiente a la izquierda; Documentos, Legal y Cuenta a la derecha.
-- Valoración y Sesiones en columnas (la gráfica o la historia al lado de la lista).
-- Nueva sesión y Anamnesis en dos columnas, con el índice de la anamnesis fijo a la izquierda.
+La ficha decide sus columnas por el ancho que le queda (consultas de contenedor de CSS: `@container` en el `<main>`
+de las páginas `width="record"` y clases `@2xl:` desde 42 rem y `@4xl:` desde 56 rem), no por el de la ventana: con la
+lista de pacientes al lado tiene menos sitio, y en el móvil (menos de 42 rem) no cambia nada. El contenido de la
+ficha llega a 64 rem.
+
+- Cabecera: el nombre a la izquierda y los chips (Motivo, Cita, Debe) a la derecha, en una fila; las pestañas con el
+  icono y el nombre en una línea.
+- Resumen en dos columnas: Nueva sesión y Valorar, Situación y Pendiente a la izquierda; Documentos, Legal y Cuenta a
+  la derecha.
+- Valoración: Exploración y Cuestionarios a la izquierda y Mediciones a la derecha; desde 56 rem, una columna por
+  bloque.
+- Sesiones: la lista (con el medidor de sesiones y la curva del dolor) a la izquierda y la historia a la derecha.
+- Nueva sesión: la sesión (fecha, dolor, qué refiere, qué encuentras, tratamiento, plan) a la izquierda; la siguiente
+  cita, reevaluar y Guardar a la derecha.
+- Anamnesis al rellenar: el índice de apartados fijo a la izquierda y los apartados a la derecha; desde 56 rem, los
+  campos cortos a pares (los de texto largo, la escala, las opciones múltiples y la CIF, a todo el ancho). Leída, las
+  respuestas cortas a pares.
+- Pruebas: ES4 en `e2e/escritorio.spec.ts`.
 
 ### E3 · Agenda, Biblioteca, Ajustes y teclado (pendiente)
 

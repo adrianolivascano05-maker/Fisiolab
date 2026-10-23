@@ -79,8 +79,12 @@ export function PatientPage() {
 
   return (
     <PatientShell patient={patient} id={id}>
-      {/* Las dos acciones de cada visita. */}
-      <div className="grid grid-cols-[3fr_2fr] gap-2">
+      {/* En ancho (el ordenador), dos columnas: lo de hoy (acciones, situación, pendiente) y, al lado, sus documentos,
+          lo legal y su cuenta. En el móvil, todo seguido en este mismo orden. */}
+      <div className="flex flex-col gap-4 @2xl:grid @2xl:grid-cols-2 @2xl:items-start @2xl:gap-x-6">
+        <div className="flex flex-col gap-4">
+          {/* Las dos acciones de cada visita. */}
+          <div className="grid grid-cols-[3fr_2fr] gap-2">
         <Link to={`/pacientes/${id}/sesiones/nueva`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
           <NotebookPen aria-hidden="true" className="size-5" /> Nueva sesión
         </Link>
@@ -93,13 +97,6 @@ export function PatientPage() {
           <Stethoscope aria-hidden="true" className="size-5 text-accent" /> Valorar
         </button>
       </div>
-      <Sheet open={assessing} onClose={() => setAssessing(false)} title="Valorar">
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
-          <RowLink to={`/pacientes/${id}/exploracion/nuevo`} icon={Stethoscope} title="Registrar un test" subtitle="Lachman, Neer, Slump… los de su zona, primero" />
-          <RowLink to={`/pacientes/${id}/cuestionarios/nuevo`} icon={ListChecks} title="Pasar un cuestionario" subtitle="Aquí o enviado a su móvil" />
-          <RowLink to={`/pacientes/${id}/test`} icon={Activity} title="Nueva medición" subtitle="Saltos, fuerza, sprint, carrera, movilidad o nórdico" />
-        </ul>
-      </Sheet>
 
       <section aria-labelledby="h-situacion" className="flex flex-col gap-2">
         <h2 id="h-situacion" className="text-lg">
@@ -193,6 +190,8 @@ export function PatientPage() {
         </Group>
       )}
 
+        </div>
+        <div className="flex flex-col gap-4">
       <Group title="Documentos">
         <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Para el paciente o su médico" />
         <RowLink to={`/pacientes/${id}/alta`} icon={FileCheck} title="Informe de alta" subtitle="Al cerrar el motivo de consulta" />
@@ -230,6 +229,15 @@ export function PatientPage() {
           subtitle={waiting ? `En la lista: ${preferText(waiting).toLowerCase()}` : "Avisarle si se libera un hueco antes"}
         />
       </Group>
+        </div>
+      </div>
+      <Sheet open={assessing} onClose={() => setAssessing(false)} title="Valorar">
+        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+          <RowLink to={`/pacientes/${id}/exploracion/nuevo`} icon={Stethoscope} title="Registrar un test" subtitle="Lachman, Neer, Slump… los de su zona, primero" />
+          <RowLink to={`/pacientes/${id}/cuestionarios/nuevo`} icon={ListChecks} title="Pasar un cuestionario" subtitle="Aquí o enviado a su móvil" />
+          <RowLink to={`/pacientes/${id}/test`} icon={Activity} title="Nueva medición" subtitle="Saltos, fuerza, sprint, carrera, movilidad o nórdico" />
+        </ul>
+      </Sheet>
     </PatientShell>
   );
 }
