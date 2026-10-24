@@ -26,10 +26,11 @@ export const test = base.extend<{ consoleErrors: string[] }>({
       await withoutCloud(context);
       return use(context);
     }
-    // WebKit sin perfil en disco (la sesión efímera de las pruebas, como una ventana privada de Safari) no da el
-    // almacenamiento privado (OPFS) y la app iría en memoria. Con un perfil, como Safari de verdad: uno nuevo por prueba.
+    // El contexto efímero de las pruebas en WebKit (como una ventana privada de Safari) no da el almacenamiento privado
+    // (OPFS) y la app iría en memoria. Un contexto «persistente» sí lo da, aunque la carpeta de perfil vaya vacía
+    // (Playwright no escribe nada y cada prueba empieza limpia). Con una carpeta de verdad, WebKit no arranca.
     const { baseURL, viewport, locale, timezoneId, isMobile, hasTouch } = testInfo.project.use;
-    const persistent = await playwright.webkit.launchPersistentContext(testInfo.outputPath("perfil"), { baseURL, viewport, locale, timezoneId, isMobile, hasTouch });
+    const persistent = await playwright.webkit.launchPersistentContext("", { baseURL, viewport, locale, timezoneId, isMobile, hasTouch });
     await withoutCloud(persistent);
     await use(persistent);
     await persistent.close();
