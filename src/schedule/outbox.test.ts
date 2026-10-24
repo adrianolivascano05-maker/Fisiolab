@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReminderItem } from "../data/appointments";
-import { anamnesisText, buildOutbox, confirmationText, DEFAULT_OUTBOX, followUpText, type OutboxInput } from "./outbox";
+import { anamnesisText, buildOutbox, DEFAULT_OUTBOX, followUpText, type OutboxInput } from "./outbox";
 
 // Martes 20 de octubre de 2026, 10:00 en Madrid.
 const NOW = "2026-10-20T08:00:00.000Z";
@@ -107,30 +107,7 @@ describe("bandeja: cuestionarios antes de reevaluar", () => {
   });
 });
 
-describe("bandeja: reservas por internet", () => {
-  it("se confirman en cuanto llegan, aunque la cita sea dentro de semanas; con la anamnesis dentro si ya le toca", () => {
-    const far = appt("lejos", "n1", "2026-11-10T09:00:00.000Z", { source: "online" });
-    const near = appt("cerca", "n2", "2026-10-21T09:00:00.000Z", { source: "online" });
-    const out = buildOutbox(input({ upcoming: [far, near], seenBefore: new Set(["n1"]) }));
-    expect(out.map((x) => x.id)).toEqual(["confirmacion:cerca", "confirmacion:lejos", "recordatorio:cerca"]);
-    // n2 es nuevo y su cita es en menos de 48 h: su anamnesis va en la confirmación, no aparte.
-    expect(out[0]).toMatchObject({ withAnamnesis: true, needsForms: true });
-    expect(out[1]).toMatchObject({ needsForms: false });
-    expect(out[1]!.withAnamnesis).toBeUndefined();
-    // Ya confirmada: no vuelve a salir.
-    const marks = [{ id: "confirmacion:lejos", patientId: "n1", rule: "confirmacion", status: "sent" as const, at: NOW, by: "" }];
-    expect(ids(input({ upcoming: [far], seenBefore: new Set(["n1"]), marks }))).toEqual([]);
-  });
-});
-
 describe("bandeja: mensajes", () => {
-  it("la confirmación lleva el día, con quién, la anamnesis si toca y el enlace para anular al final", () => {
-    const t = confirmationText({ name: "Ana Ruiz", clinic: "Fisiolab", startsAt: "2026-10-22T07:00:00.000Z", professional: "Laura", cancelUrl: "https://x/cita/abc", anamnesisUrl: "https://x/formulario/f#k" });
-    expect(t).toContain("Tu cita de fisioterapia con Laura en Fisiolab queda reservada para el jueves, 22 de octubre a las 09:00.");
-    expect(t).toContain("https://x/formulario/f#k");
-    expect(t.split("\n").at(-1)).toBe("Si no puedes venir, anúlala aquí: https://x/cita/abc");
-  });
-
   it("la anamnesis lleva el día, la hora, la clínica y el enlace", () => {
     const t = anamnesisText({ name: "Ana Ruiz López", clinic: "Fisiolab", startsAt: "2026-10-22T07:00:00.000Z", url: "https://x/formulario/abc#k" });
     expect(t).toContain("Hola, Ana.");

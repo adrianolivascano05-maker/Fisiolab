@@ -19,7 +19,6 @@ for (const width of [360, 412]) {
       "./biblioteca/hombro",
       "./biblioteca/hombro/hom-cluster-murrell-walton",
       "./ajustes/cobros",
-      "./ajustes/reservas",
       "./agenda/envios",
       "./facturas",
       "./facturas/nueva",

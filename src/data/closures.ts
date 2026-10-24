@@ -1,5 +1,5 @@
-// Agenda cerrada (migración 029): ratos en los que la reserva online no ofrece huecos, de una persona o de toda la
-// clínica (staffEmail vacío). Una tarde, un día o unas vacaciones; también los festivos. Cada fisio cierra la suya y
+// Agenda cerrada (migración 029): ratos sin citas, de una persona o de toda la clínica (staffEmail vacío), que salen
+// rayados en la agenda. Una tarde, un día o unas vacaciones; también los festivos. Cada fisio cierra la suya y
 // quien administra la clínica, la de cualquiera o la de todos. Las citas que ya hay en esos ratos no se tocan.
 import type { Db } from "./db";
 

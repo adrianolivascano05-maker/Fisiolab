@@ -1,4 +1,4 @@
-// Cerrar la agenda (src/data/closures.ts): una tarde, un día o varios en los que no se puede reservar por internet,
+// Cerrar la agenda (src/data/closures.ts): una tarde, un día o varios sin citas, que salen rayados en la agenda,
 // de una persona o de toda la clínica. Cada fisio cierra la suya; quien administra, la de cualquiera o la de todos.
 // Las citas que ya hay en esos días no se tocan: la hoja avisa de cuántas son.
 import { CalendarOff, Trash } from "lucide-react";
@@ -135,7 +135,7 @@ export function ClosureSheet({
           void save();
         }}
       >
-        <p className="text-sm text-text-muted">En esos ratos no se puede reservar por internet. Las citas que ya hay no se tocan.</p>
+        <p className="text-sm text-text-muted">Sale rayado en la agenda para que nadie dé citas en ese rato. Las citas que ya hay no se tocan.</p>
         {team && (
           <SelectField label="De quién" value={form.who} onChange={(e) => set({ who: e.target.value })} disabled={!admin && people.length < 2}>
             {admin && <option value="">Toda la clínica</option>}

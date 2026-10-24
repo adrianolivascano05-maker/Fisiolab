@@ -13,7 +13,6 @@ import { PatientsLayout } from "./app/PatientsLayout";
 import { RouteError } from "./app/RouteError";
 import { useDesktop } from "./app/useMediaQuery";
 import { FormInbox } from "./patientForm/FormInbox"; // Respuestas de los pacientes a sus formularios (src/clinical/patientForms.ts)
-import { BookingSync } from "./booking/BookingSync"; // Reserva online: publicar huecos libres y recoger reservas y anulaciones
 
 // Al abrir la app solo se carga la lista de pacientes; cada pantalla se carga al entrar en ella (el service worker
 // ya las tiene guardadas, así que es inmediato también sin conexión).
@@ -67,12 +66,10 @@ const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default:
 const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
 // Lo que abre el paciente con su enlace: sin la base, sin PIN y sin cuenta.
 const PublicFormPage = lazy(() => import("./patientForm/PublicFormPage").then((m) => ({ default: m.PublicFormPage })));
-const PublicBookingPage = lazy(() => import("./booking/PublicBookingPage").then((m) => ({ default: m.PublicBookingPage })));
-const PublicCancelPage = lazy(() => import("./booking/PublicCancelPage").then((m) => ({ default: m.PublicCancelPage })));
+const OldLinkPage = lazy(() => import("./app/OldLinkPage").then((m) => ({ default: m.OldLinkPage })));
 const InvoicesPage = lazy(() => import("./invoices/InvoicesPage").then((m) => ({ default: m.InvoicesPage })));
 const InvoiceFormPage = lazy(() => import("./invoices/InvoiceFormPage").then((m) => ({ default: m.InvoiceFormPage })));
 const InvoicePage = lazy(() => import("./invoices/InvoicePage").then((m) => ({ default: m.InvoicePage })));
-const BookingSettingsPage = lazy(() => import("./booking/BookingSettingsPage").then((m) => ({ default: m.BookingSettingsPage })));
 const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 // En GitHub Pages la app vive en /Fisiolab/; en la raíz del dominio, en /.
@@ -130,7 +127,7 @@ const routes = [
   { path: "/ajustes/cobros", element: l(<ClinicBillingPage />) },
   { path: "/ajustes/ejercicios", element: l(<ExerciseLibraryPage />) },
   { path: "/ajustes/anamnesis", element: l(<CustomFieldsPage />) },
-  { path: "/ajustes/reservas", element: l(<BookingSettingsPage />) }, // Reserva online
+  { path: "/ajustes/reservas", element: <Navigate to="/ajustes" replace /> }, // La reserva online ya no existe
   { path: "/facturas", element: l(<InvoicesPage />) }, // Facturas emitidas, libro y ajustes
   { path: "/facturas/nueva", element: l(<InvoiceFormPage />) },
   { path: "/facturas/:id", element: l(<InvoicePage />) },
@@ -161,10 +158,10 @@ function Router() {
 }
 
 /**
- * Las páginas que abre el paciente sin cuenta: su formulario (…/formulario/<id>#<clave>), pedir cita
- * (…/reservar/<clínica>) y su cita para anularla (…/cita/<código>). Van sin la base, sin PIN y sin la app.
+ * Las páginas que abre el paciente sin cuenta: su formulario (…/formulario/<id>#<clave>). Van sin la base, sin PIN y
+ * sin la app. Los enlaces antiguos de la reserva por internet y para anular una cita dicen que se hable con la clínica.
  */
-const PUBLIC_PAGES = { formulario: PublicFormPage, reservar: PublicBookingPage, cita: PublicCancelPage };
+const PUBLIC_PAGES = { formulario: PublicFormPage, reservar: OldLinkPage, cita: OldLinkPage };
 const publicPage = () => {
   const first = location.pathname.slice((BASENAME === "/" ? "" : BASENAME).length).split("/")[1] ?? "";
   return Object.hasOwn(PUBLIC_PAGES, first) ? PUBLIC_PAGES[first as keyof typeof PUBLIC_PAGES] : null;
@@ -193,7 +190,6 @@ export function App() {
           <DbGate>
             <Router />
             <FormInbox />
-            <BookingSync />
           </DbGate>
         </CloudGate>
       </AppLock>

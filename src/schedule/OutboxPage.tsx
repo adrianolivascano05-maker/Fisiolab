@@ -27,13 +27,8 @@ import { SelectField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { loadOutbox } from "./loadOutbox";
-import { cancelUrl, ensureCancelLink } from "../booking/sync";
-import { formsBase } from "../clinical/patientForms";
-import { logError } from "../app/errorLog";
 import {
   anamnesisText,
-  cancelLine,
-  confirmationText,
   followUpText,
   itemWhen,
   OUTBOX_SETTINGS_KEY,
@@ -48,7 +43,6 @@ import { staffName, useStaff } from "./useStaff";
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const SUBJECT: Record<OutboxRule, string> = {
-  confirmacion: "Tu cita está reservada",
   recordatorio: "Recordatorio de tu cita",
   anamnesis: "Antes de tu primera cita",
   seguimiento: "Antes de tu revisión",
@@ -87,35 +81,8 @@ export function OutboxPage() {
     const db = getDb();
     const a = i.appointment;
     const professional = team && a?.assignedTo ? staffName(staff, a.assignedTo) : null;
-    /** El enlace para anular: con el servidor de la clínica; si falla, el mensaje sale sin él. */
-    const cancelLink = async () => {
-      if (!a) return null;
-      try {
-        const code = await ensureCancelLink(db, cloud, a, professional ? `con ${professional}` : "", team);
-        return code ? cancelUrl(formsBase(), code) : null;
-      } catch (e) {
-        logError("enlace para anular", e);
-        return null;
-      }
-    };
-    if (i.rule === "recordatorio") {
-      const text = reminderText(template, { name: i.name, startsAt: a!.startsAt, clinic: clinicName, professional });
-      const url = await cancelLink();
-      return { text: url ? `${text}\n${cancelLine(url)}` : text };
-    }
+    if (i.rule === "recordatorio") return { text: reminderText(template, { name: i.name, startsAt: a!.startsAt, clinic: clinicName, professional }) };
     try {
-      if (i.rule === "confirmacion") {
-        // Si ya tiene código (lo creó el móvil del paciente al reservar), se pone al día su hora en el servidor.
-        const url = (await cancelLink()) ?? (a!.cancelToken ? cancelUrl(formsBase(), a!.cancelToken) : null);
-        if (!url) return { error: "No se ha podido crear el enlace para anular: revisa la conexión y vuelve a intentarlo." };
-        const anamnesis = i.withAnamnesis
-          ? await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections })
-          : undefined;
-        return {
-          text: confirmationText({ name: i.name, clinic: clinicName, startsAt: a!.startsAt, professional, cancelUrl: url, anamnesisUrl: anamnesis?.url }),
-          forms: anamnesis ? [anamnesis] : [],
-        };
-      }
       if (i.rule === "anamnesis") {
         const f = await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections });
         return { text: anamnesisText({ name: i.name, clinic: clinicName, startsAt: i.appointment!.startsAt, url: f.url }), forms: [f] };
@@ -136,8 +103,6 @@ export function OutboxPage() {
     if (p && "forms" in p && p.forms?.length) await recordSentForms(db, p.forms);
     if (i.rule === "recordatorio") await markReminded(db, i.appointment!.id);
     else await markOutbox(db, { id: i.id, patientId: i.patientId, rule: i.rule, status: "sent", by: memberEmail() ?? "" });
-    // La confirmación que llevaba la anamnesis cuenta también como la anamnesis enviada.
-    if (i.rule === "confirmacion" && i.withAnamnesis) await markOutbox(db, { id: `anamnesis:${i.appointment!.id}`, patientId: i.patientId, rule: "anamnesis", status: "sent", by: memberEmail() ?? "" });
   }
   async function skip(i: OutboxItem) {
     await markOutbox(getDb(), { id: i.id, patientId: i.patientId, rule: i.rule, status: "skipped", by: memberEmail() ?? "" });

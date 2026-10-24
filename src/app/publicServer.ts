@@ -1,10 +1,10 @@
-// Lo que comparten las páginas que abre el paciente sin cuenta (formulario, reservar y anular una cita): la dirección
-// del servidor de la clínica (la de cloud.json, la misma que usa la app) y el texto de sus errores.
+// Lo que usa la página que abre el paciente sin cuenta (su formulario): la dirección del servidor de la clínica (la de
+// cloud.json, la misma que usa la app) y el texto de sus errores.
 
 export async function serverUrl(): Promise<string> {
   const res = await fetch(`${import.meta.env.BASE_URL}cloud.json`, { cache: "no-cache" });
   const url = res.ok ? ((await res.json()) as { cloudflareUrl?: string }).cloudflareUrl?.trim() : "";
-  if (!url) throw new Error("Esta app no tiene servidor para formularios ni reservas.");
+  if (!url) throw new Error("Esta app no tiene servidor para formularios.");
   return url.replace(/\/+$/, "");
 }
 

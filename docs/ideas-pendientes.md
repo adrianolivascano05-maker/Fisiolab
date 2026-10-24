@@ -3,6 +3,28 @@
 Lista viva. Cada punto: qué es, de dónde sale y estado. Nada de esto está hecho salvo que lo diga.
 Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61EGQoQjzA (23-10-2026).
 
+## Decidido el 24-10-2026: quitar lo que da problemas y limpiar
+
+El usuario quiere quitarse marrones: que las clínicas gestionen las citas como siempre (teléfono, WhatsApp, en
+persona) y que facturen con su propio programa (Verifactu fuera de la app). Auditoría del servidor de ese día en el
+chat (fallos P1–P7, mejoras V1–V12). Orden:
+
+1. **Q1 · Quitar la reserva online 24/7 y los enlaces «anular desde aquí» de los recordatorios.** Hecho el
+   24-10-2026: fuera `src/booking/`, Ajustes › Reserva online, la confirmación de reservas en Envíos y las rutas y
+   tablas del servidor. Los enlaces antiguos dicen que se hable con la clínica. «Cerrar la agenda» se queda. No se
+   borra ningún dato de la base de la app. Falta que el usuario pegue el `worker.js` y borre las tablas
+   (`docs/pasos-pendientes.md`, paso 3), mejor después de Q3.
+2. **Q2 · Facturas fuera de la app.** «Para facturar»: los cobros con todos los datos y un Excel para pasarlos al
+   programa de facturación de la clínica; número de factura externo opcional. Las facturas ya hechas se quedan en
+   solo lectura. Preguntas para la gestoría: si la app tiene que cumplir Verifactu solo por exportar los cobros, y
+   qué columnas necesitan.
+3. **Q3 · Servidor limpio:** formularios repetidos en carrera (P4), lotes de cambios que se leen de más (P6),
+   tiempo límite con Google (V5), cabecera `nosniff` (V7), limpiezas fuera de las rutas que se repiten cada minuto.
+   Luego el usuario pega `worker.js` una sola vez.
+4. **Q4 · Limpieza general:** código, exportaciones y dependencias sin usar; repeticiones; partir los archivos de
+   pantallas gigantes sin cambiar lo que hacen; revisar las pruebas e2e (menos tiempo y menos falsas alarmas);
+   dejar tres documentos vivos.
+
 ## Propuestos por el usuario (23-10-2026)
 
 1. **Bandeja de envíos automáticos por WhatsApp.** La app prepara sola lo que toca mandar (anamnesis el día
@@ -38,7 +60,8 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
    anamnesis, revisando antes de guardar. Resumir una consulta entera necesitaría una IA de pago: no por ahora.
    Estado: pendiente.
 
-5. **Reserva online 24/7 (prioridad alta para el usuario).** Página pública de la clínica donde un paciente ve
+5. **Reserva online 24/7 — QUITADA el 24-10-2026 por decisión del usuario (ver Q1 arriba).** Lo que sigue es
+   la historia de cómo se hizo. Página pública de la clínica donde un paciente ve
    los huecos libres según los turnos del equipo y reserva sin cuenta.
    - Cómo, sin exponer datos: la app calcula los huecos (turnos menos citas) y sube al servidor de Cloudflare
      **solo horas libres y nombre del profesional**, nunca pacientes. Se actualiza al cambiar la agenda.
@@ -189,7 +212,7 @@ máquina de 4 núcleos) a veces cae 1 de 170 y en solitario pasa siempre:
   en 30 segundos. Solo con la máquina saturada; 30 de 30 en solitario. Desde ahora la tanda guarda una traza de cada
   fallo (`--trace retain-on-failure`) para verlo la próxima vez. No se ha visto fuera de las pruebas.
 
-**R3. Reserva online, para que no dé sorpresas:**
+**R3. Reserva online — ya no aplica: la reserva online se quitó el 24-10-2026.**
 - ~~Días cerrados y festivos~~ **hecho el 24-10-2026:** «Cerrar la agenda» (de un fisio o de toda la clínica; una
   tarde, un día o varios), se ve rayado en la agenda y la reserva no ofrece esos ratos.
 - ~~Una sesión que ya ha empezado no cuenta como ocupada~~ **hecho el 24-10-2026.**

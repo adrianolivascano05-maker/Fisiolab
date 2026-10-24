@@ -24,8 +24,8 @@ const addDay = (day: string, n: number) => {
 export async function loadOutbox(db: Db, granted: readonly string[], now = new Date()): Promise<{ items: OutboxItem[]; settings: OutboxSettings }> {
   const iso = now.toISOString();
   const settings = outboxSettings(await getSetting<Partial<OutboxSettings>>(db, OUTBOX_SETTINGS_KEY));
-  // Dos meses vista: las reservas por internet se confirman en cuanto llegan, aunque sean para dentro de semanas.
-  const until = new Date(now.getTime() + 62 * 86_400_000).toISOString();
+  // Lo más lejano que mira una regla: la anamnesis (hasta 72 horas antes); los recordatorios, mañana.
+  const until = new Date(now.getTime() + Math.max(settings.anamnesisHours, 48) * 3_600_000).toISOString();
   const today = madridDay(iso);
   const [upcoming, seen, withAnamnesis, forms, reviews, questionnaires, marks] = await Promise.all([
     remindersBetween(db, iso, until),

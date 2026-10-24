@@ -1,7 +1,7 @@
 // Google de mentira para las pruebas de la nube: la pantalla de entrada (vuelve a la app con un token), el nombre
 // y correo de la cuenta, y la carpeta de la app en Drive (en memoria, una por cuenta). Así se prueba todo el ir y
 // venir sin cuentas reales ni red.
-import { createHash, randomUUID, webcrypto } from "node:crypto";
+import { randomUUID, webcrypto } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import type { BrowserContext, Request, Route } from "@playwright/test";
 
@@ -9,9 +9,6 @@ export type FakeUser = { sub: string; email: string; name: string };
 type File = { id: string; owner: string; bytes: Buffer; version: number; modifiedTime: string; name: string; mimeType: string; parents: string[]; trashed?: boolean };
 export type FakeEvent = { id: string; status: string; summary: string; description: string; start: { dateTime: string }; end: { dateTime: string } };
 type Calendar = { id: string; owner: string; summary: string; events: Map<string, FakeEvent> };
-type BookingWindow = { pro: string; from: string; to: string };
-export type FakeBooking = { clinic: string; startsAt: string; minutes: number; pro: string; kind: string; payload: string | null; cancelHash: string; collectedAt?: number; cancelledAt: string | null; cancelSeen: boolean };
-type FakeCancelLink = { clinic: string; ref: string; startsAt: string; label: string; minutes: number; pro: string | null; cancelledAt: string | null; cancelSeen: boolean };
 
 const cors = {
   "access-control-allow-origin": "*",
@@ -105,19 +102,6 @@ export class FakeGoogle {
   static SERVER = "https://cenit-datos.pruebas.workers.dev";
   /** Formularios para el paciente (como cloudflare/worker.js): cifrados; el paciente los abre y responde sin sesión. */
   forms = new Map<string, { clinic: string; request: string; expiresAt: string; response?: string; answeredAt?: string }>();
-  /** Reserva online (como cloudflare/worker.js): la página de cada clínica, las reservas y los enlaces para anular. */
-  bookingPages = new Map<
-    string,
-    {
-      slug: string;
-      publicKey: unknown;
-      page: { clinic?: string; kinds?: { id: string; minutes: number }[]; minNoticeHours?: number; step?: number; pros?: { id: string; name: string }[]; disabled?: boolean };
-      windows: BookingWindow[];
-      envelope?: BookingWindow[];
-    }
-  >();
-  bookings = new Map<string, FakeBooking>();
-  cancelLinks = new Map<string, FakeCancelLink>();
 
   /** La copia de una clínica, buscada por su nombre. */
   clinicCopy(name: string) {
@@ -182,9 +166,6 @@ export class FakeGoogle {
     };
     const send = (status: number, json?: unknown) => route.fulfill(json === undefined ? { status, headers } : { status, headers, json });
     if (req.method() === "OPTIONS") return send(204);
-    // Reservar y anular una cita: sin sesión.
-    const booking = await this.publicBooking(req, send);
-    if (booking !== false) return booking;
     // Lo que abre el paciente con su enlace: sin sesión.
     const pub = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})(\/respuesta)?$/.exec(new URL(req.url()).pathname);
     if (pub) {
@@ -321,7 +302,6 @@ export class FakeGoogle {
       if (clinic.deleted) return send(410, { error: "Esta clínica está borrada." });
       if (clinic.suspended && method !== "GET" && rest !== "") return send(423, { error: "La clínica está suspendida: no se guardan cambios en el servidor." });
       const admins = () => [...clinic.members.values()].filter((r) => r === "admin").length;
-      if (rest === "/reservas" || rest === "/reservas/recogidas" || rest === "/enlaces") return this.clinicBookings(id, rest, method, body, send);
       if (rest === "/formularios" && method === "POST") {
         const b = body<{ id: string; request: string; expiresAt: string }>();
         this.forms.set(b.id, { clinic: id, request: b.request, expiresAt: b.expiresAt });
@@ -438,173 +418,6 @@ export class FakeGoogle {
       return route.fulfill({ status: 200, headers: { ...headers, etag: `"${copy.version}"` }, json: { ...meta(copy), epoch: b.epoch, base: b.seq } });
     }
     return route.fulfill({ status: 200, headers: { ...headers, etag: `"${copy.version}"` }, json: meta(copy) });
-  }
-
-  /** Las franjas publicadas menos las reservas que no se han anulado. */
-  private openWindows(clinic: string, windows: BookingWindow[]): BookingWindow[] {
-    let out = windows.filter((w) => Date.parse(w.to) > Date.now());
-    for (const b of this.bookings.values()) {
-      // Las que no se han anulado ni recogido (o se acaban de recoger: 15 minutos).
-      if (b.clinic !== clinic || b.cancelledAt || (b.collectedAt !== undefined && b.collectedAt < Date.now() - 15 * 60_000)) continue;
-      const b0 = Date.parse(b.startsAt);
-      const b1 = b0 + b.minutes * 60_000;
-      out = out.flatMap((w) => {
-        const f0 = Date.parse(w.from);
-        const f1 = Date.parse(w.to);
-        if (w.pro !== b.pro || b1 <= f0 || b0 >= f1) return [w];
-        return [...(b0 > f0 ? [{ pro: w.pro, from: w.from, to: new Date(b0).toISOString() }] : []), ...(b1 < f1 ? [{ pro: w.pro, from: new Date(b1).toISOString(), to: w.to }] : [])];
-      });
-    }
-    return out;
-  }
-
-  /** …/v1/reservas/<dirección> y …/v1/citas/<código>[/anular]. `false` si la ruta no es de estas. */
-  private async publicBooking(req: Request, send: (status: number, json?: unknown) => Promise<void>): Promise<void | false> {
-    const path = new URL(req.url()).pathname;
-    const method = req.method();
-    const reserva = /^\/v1\/reservas\/([a-z0-9-]{3,40})$/.exec(path);
-    if (reserva) {
-      const entry = [...this.bookingPages].find(([, p]) => p.slug === reserva[1]);
-      if (!entry || this.clinics.get(entry[0])?.deleted || entry[1].page.disabled) return send(404, { error: "Esta clínica no tiene reserva por internet ahora mismo. Llama o escribe a la clínica para pedir cita." });
-      const [clinic, p] = entry;
-      if (method === "GET") return send(200, { page: p.page, publicKey: p.publicKey, windows: this.openWindows(clinic, p.windows) });
-      const b = JSON.parse(req.postData() ?? "{}") as { kind?: string; startsAt?: string; pro?: string; payload?: string; cancelHash?: string };
-      const kind = p.page.kinds?.find((k) => k.id === b.kind);
-      if (!kind) return send(400, { error: "Elige el tipo de cita." });
-      const at = Date.parse(b.startsAt ?? "");
-      if (!Number.isFinite(at) || at < Date.now() + (p.page.minNoticeHours ?? 0) * 3_600_000 - 60_000) return send(400, { error: "Esa hora ya no se puede reservar: elige otra." });
-      if (p.page.step && at % (p.page.step * 60_000) !== 0) return send(400, { error: "Esa hora ya no se puede reservar: elige otra." });
-      if (!/^CB1\.[A-Za-z0-9+/]{40,120}={0,2}\.[A-Za-z0-9+/]{16}\.[A-Za-z0-9+/]{24,}={0,2}$/.test(b.payload ?? "") || !/^[0-9a-f]{64}$/.test(b.cancelHash ?? "")) return send(400, { error: "Faltan tus datos." });
-      const free = this.openWindows(clinic, p.windows);
-      const fits = (pro: string) => free.some((w) => w.pro === pro && Date.parse(w.from) <= at && at + kind.minutes * 60_000 <= Date.parse(w.to));
-      const pro = b.pro ? (fits(b.pro) ? b.pro : null) : ([...new Set(free.map((w) => w.pro))].find(fits) ?? null);
-      if (pro === null) return send(409, { error: "Ese hueco se acaba de ocupar: elige otra hora." });
-      const id = randomUUID();
-      const startsAt = new Date(at).toISOString();
-      this.bookings.set(id, { clinic, startsAt, minutes: kind.minutes, pro, kind: kind.id, payload: b.payload, cancelHash: b.cancelHash!, cancelledAt: null, cancelSeen: false });
-      return send(201, { id, startsAt, minutes: kind.minutes, pro });
-    }
-    const cita = /^\/v1\/citas\/([A-Za-z0-9_-]{20,64})(\/anular)?$/.exec(path);
-    if (!cita) return false;
-    const hash = createHash("sha256").update(cita[1]!).digest("hex");
-    const fromBooking = [...this.bookings.values()].find((b) => b.cancelHash === hash);
-    const link = this.cancelLinks.get(hash);
-    const row = link ?? fromBooking;
-    if (!row || this.clinics.get(row.clinic)?.deleted) return send(404, { error: "Este enlace no es válido o la cita ya pasó. Si quieres cambiar algo, escribe a la clínica." });
-    const page = this.bookingPages.get(row.clinic);
-    const past = Date.parse(row.startsAt) <= Date.now();
-    if (!cita[2]) {
-      const label = link ? link.label : (page?.page.pros?.find((x) => x.id === fromBooking!.pro)?.name ?? "");
-      return send(200, {
-        startsAt: row.startsAt,
-        with: label,
-        clinic: page?.page.clinic || this.clinics.get(row.clinic)!.name,
-        cancelled: !!row.cancelledAt,
-        past,
-        slug: page && !page.page.disabled ? page.slug : null,
-        pro: link ? link.pro : fromBooking!.pro,
-      });
-    }
-    if (row.cancelledAt) return send(200, { cancelled: true });
-    if (past) return send(409, { error: "La cita ya ha pasado: no se puede anular desde aquí." });
-    const now = new Date().toISOString();
-    if (fromBooking) fromBooking.cancelledAt = now;
-    if (link) link.cancelledAt = now;
-    // El hueco, libre en la página al momento.
-    const minutes = link ? link.minutes : fromBooking!.minutes;
-    const pro = link ? link.pro : fromBooking!.pro;
-    if (page && !page.page.disabled && pro !== null && minutes > 0) this.free(page, pro, row.startsAt, minutes);
-    return send(200, { cancelled: true });
-  }
-
-  /** Deja libre en la página publicada lo que ocupaba una cita anulada (solo dentro de cuándo se reserva con ese fisio). */
-  private free(page: { windows: BookingWindow[]; envelope?: BookingWindow[] }, pro: string, startsAt: string, minutes: number) {
-    const from = Date.parse(startsAt);
-    const to = from + minutes * 60_000;
-    const pieces = (page.envelope ?? [{ pro, from: startsAt, to: new Date(to).toISOString() }])
-      .filter((w) => w.pro === pro)
-      .map((w) => ({ pro, from: new Date(Math.max(from, Date.parse(w.from))).toISOString(), to: new Date(Math.min(to, Date.parse(w.to))).toISOString() }))
-      .filter((w) => w.to > w.from);
-    const spans = [...page.windows.filter((w) => w.pro === pro), ...pieces]
-      .map((w) => [Date.parse(w.from), Date.parse(w.to)] as [number, number])
-      .sort((x, y) => x[0] - y[0]);
-    const merged: [number, number][] = [];
-    for (const [a, b] of spans) {
-      const last = merged[merged.length - 1];
-      if (last && a <= last[1]) last[1] = Math.max(last[1], b);
-      else merged.push([a, b]);
-    }
-    page.windows = [...page.windows.filter((w) => w.pro !== pro), ...merged.map(([a, b]) => ({ pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() }))];
-  }
-
-  /** Lo del equipo: publicar la página, recoger reservas y anulaciones y dar enlaces para anular. */
-  private clinicBookings(clinic: string, rest: string, method: string, body: <T>() => T, send: (status: number, json?: unknown) => Promise<void>) {
-    if (rest === "/reservas" && method === "PUT") {
-      const b = body<{ enabled?: boolean; slug?: string; publicKey?: unknown; page?: never; windows?: BookingWindow[]; envelope?: BookingWindow[] }>();
-      if (b.enabled === false) {
-        const had = this.bookingPages.get(clinic);
-        if (had) Object.assign(had, { page: { disabled: true }, windows: [], envelope: [] });
-        return send(200, { enabled: false });
-      }
-      if (!/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(b.slug ?? "")) return send(400, { error: "La dirección de la página solo puede llevar letras sin tilde, números y guiones (de 3 a 40)." });
-      if ([...this.bookingPages].some(([c, p]) => p.slug === b.slug && c !== clinic)) return send(409, { error: "Esa dirección ya la usa otra clínica: elige otra." });
-      const page = { slug: b.slug!, publicKey: b.publicKey, page: b.page ?? {}, windows: b.windows ?? [], envelope: b.envelope };
-      // Lo anulado que la clínica aún no ha recogido sigue libre aunque la app lo publique ocupado.
-      const now = new Date().toISOString();
-      for (const x of this.bookings.values())
-        if (x.clinic === clinic && x.collectedAt !== undefined && x.cancelledAt && !x.cancelSeen && x.startsAt > now) this.free(page, x.pro, x.startsAt, x.minutes);
-      for (const l of this.cancelLinks.values()) if (l.clinic === clinic && l.cancelledAt && !l.cancelSeen && l.pro !== null && l.startsAt > now) this.free(page, l.pro, l.startsAt, l.minutes);
-      this.bookingPages.set(clinic, page);
-      return send(200, { enabled: true, slug: b.slug });
-    }
-    if (rest === "/reservas") {
-      return send(200, {
-        slug: this.bookingPages.get(clinic)?.slug ?? null,
-        bookings: [...this.bookings]
-          .filter(([, b]) => b.clinic === clinic && (b.payload !== null || (b.cancelledAt && !b.cancelSeen)))
-          .map(([id, b]) => ({ id, startsAt: b.startsAt, minutes: b.minutes, pro: b.pro, kind: b.kind, payload: b.payload, createdAt: b.startsAt, collected: b.payload === null, cancelledAt: b.cancelledAt })),
-        cancels: [...this.cancelLinks]
-          .filter(([, l]) => l.clinic === clinic && l.cancelledAt && !l.cancelSeen)
-          .map(([hash, l]) => ({ hash, ref: l.ref, startsAt: l.startsAt, cancelledAt: l.cancelledAt })),
-      });
-    }
-    if (rest === "/reservas/recogidas") {
-      const b = body<{ bookings?: string[]; cancels?: string[] }>();
-      for (const id of b.bookings ?? []) {
-        const x = this.bookings.get(id);
-        if (x?.clinic !== clinic) continue;
-        x.payload = null;
-        x.collectedAt ??= Date.now();
-        if (x.cancelledAt) x.cancelSeen = true;
-      }
-      for (const h of b.cancels ?? []) {
-        const l = this.cancelLinks.get(h);
-        if (l?.clinic === clinic) l.cancelSeen = true;
-      }
-      return send(204);
-    }
-    const links = body<{ links?: { hash: string; ref: string; startsAt: string; label: string; minutes?: number; pro?: string | null; cancelled?: boolean }[] }>().links ?? [];
-    for (const l of links) {
-      if (!/^[0-9a-f]{64}$/.test(l.hash)) return send(400, { error: "Hay un enlace que no es válido." });
-      const prev = this.cancelLinks.get(l.hash);
-      if (prev && prev.clinic !== clinic) continue;
-      const now = new Date().toISOString();
-      this.cancelLinks.set(l.hash, {
-        clinic,
-        ref: l.ref,
-        startsAt: l.startsAt,
-        label: l.label,
-        minutes: l.minutes ?? 0,
-        pro: l.pro ?? null,
-        cancelledAt: prev?.cancelledAt ?? (l.cancelled ? now : null),
-        cancelSeen: (prev?.cancelSeen ?? false) || !!l.cancelled,
-      });
-      // Anulada por la clínica: también su reserva, si vino de internet.
-      if (l.cancelled)
-        for (const b of this.bookings.values())
-          if (b.clinic === clinic && b.cancelHash === l.hash) Object.assign(b, { cancelledAt: b.cancelledAt ?? now, cancelSeen: true });
-    }
-    return send(200, { saved: links.length });
   }
 
   private user(req: Request) {

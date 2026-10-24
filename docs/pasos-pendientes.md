@@ -61,39 +61,25 @@ Después, en **cada** dispositivo de la clínica:
 Cuando estén mudados todos los dispositivos, la versión de GitHub puede quedarse como está (sigue funcionando) o
 puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dímelo y lo preparo.
 
-## 3. Cloudflare: volver a pegar `worker.js` (cuando quieras)
+## 3. Cloudflare: pegar el `worker.js` nuevo y borrar las tablas de la reserva (unos 10 minutos)
 
-El servidor tiene un cambio pequeño: la limpieza de formularios caducados ahora solo la hace la clínica al buscar
-respuestas, no cualquier petición anónima. Lo de ahora funciona; esto es para dejarlo más limpio.
+La reserva online se ha quitado (24-10-2026). El servidor nuevo ya no tiene sus rutas, y sus tres tablas sobran.
+**Espera a que te avise de que el bloque 3 (servidor limpio) está hecho**, así lo pegas una sola vez. El paso 1 sí
+puedes hacerlo ya.
 
-1. <https://dash.cloudflare.com> → **Workers & Pages** → el servidor (`cenit-datos`) → **Edit code**.
-2. Borra todo y pega el contenido de `cloudflare/worker.js` del repositorio. **Deploy**.
-3. Comprueba en la app que «Buscar respuestas» de un formulario sigue funcionando.
-
-## 4. Cloudflare: la reserva online (unos 10 minutos, antes de encenderla)
-
-La reserva online necesita tres tablas nuevas en la base y el `worker.js` nuevo. Sin esto la app funciona igual,
-pero al guardar en **Ajustes › Reserva online** saldrá un error.
-
-1. <https://dash.cloudflare.com> → **Storage & Databases** → **D1** → la base (`cenit-datos`) → **Console**.
-   Pega el contenido entero de `cloudflare/schema.sql` y ejecútalo. Crea las tablas que falten y no borra nada. Si
-   dice «No SQL statements detected», pega solo las sentencias `CREATE` (sin las líneas que empiezan por `--`).
+1. Comprueba que no queda ninguna reserva sin recoger. <https://dash.cloudflare.com> → **Storage & Databases** →
+   **D1** → la base (`cenit-datos`) → **Console**. Pega y ejecuta:
+   `SELECT count(*) AS n FROM bookings WHERE collected_at IS NULL;`
+   - Si dice `n = 0`, o «no such table» (la reserva nunca se llegó a instalar), sigue.
+   - Si dice otro número, **para y dímelo**: son reservas que nadie ha recogido y aún se pueden rescatar.
 2. **Workers & Pages** → el servidor (`cenit-datos`) → **Edit code**. Borra todo, pega el contenido de
    `cloudflare/worker.js` del repositorio y **Deploy**.
-3. Comprueba: abre la dirección del servidor terminada en `/v1/salud`. Debe decir que todo está bien (si faltan
-   tablas, lo dice).
-4. En la app: **Ajustes › Reserva online** → enciéndela, revisa la dirección, los tipos de cita y el horario →
-   **Guardar**. Abre **Ver la página** en el móvil y haz una reserva de prueba con tus datos; en un par de minutos
-   entra en la agenda. Anúlala con el enlace para comprobar que también funciona.
-5. Revisa con tu asesoría el texto «Tus datos: quién los recibe y para qué» de la página de reservas (sale de los
-   datos de **Ajustes › Clínica y protección de datos**): es un resumen informativo, no un texto legal revisado.
+3. Abre la dirección del servidor terminada en `/v1/salud`: debe decir que todo está bien.
+4. Vuelve a la **Console** de la base y ejecuta (se puede pegar todo junto):
+   `DROP TABLE IF EXISTS booking_pages; DROP TABLE IF EXISTS bookings; DROP TABLE IF EXISTS cancel_links;`
+5. En la app, comprueba que «Buscar respuestas» de un formulario y la sincronización siguen funcionando.
 
-**Actualización del 24-10-2026 (agenda cerrada, reserva con elección de fisio y arreglos de la reserva: dos personas
-a la vez en el mismo hueco, reservas que no son de verdad):** cambia solo `worker.js` (no `schema.sql`). Si ya habías
-hecho el paso 4, vuelve a pegar el `worker.js` del repositorio (**Edit code** → **Deploy**). Si aún no lo habías
-hecho, el paso 4 tal cual ya lo incluye.
-
-## 5. Probar en un iPhone (unos 10 minutos, antes de ofrecer la app a una clínica con iPhone)
+## 4. Probar en un iPhone (unos 10 minutos, antes de ofrecer la app a una clínica con iPhone)
 
 Las pruebas automáticas usan el motor de Safari en Linux, que no es igual que un iPhone. Esto solo se puede
 comprobar a mano. Usa siempre pacientes inventados.

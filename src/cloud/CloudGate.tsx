@@ -55,8 +55,8 @@ export type Cloud = {
   /** Quien ha entrado gestiona el servidor: ve Ajustes → Proveedor. */
   operator: boolean;
   /**
-   * Se está dejando la clínica (borrada, cambio de clínica, cerrar sesión): lo que trabaja en segundo plano (reserva,
-   * formularios, enlaces) no vuelve a llamar al servidor, que ya puede contestar que la clínica no existe.
+   * Se está dejando la clínica (borrada, cambio de clínica, cerrar sesión): lo que trabaja en segundo plano (los
+   * formularios) no vuelve a llamar al servidor, que ya puede contestar que la clínica no existe.
    */
   closing?: boolean;
   /** Ir a la pantalla de elegir clínica (los datos de esta se quedan en el dispositivo). */

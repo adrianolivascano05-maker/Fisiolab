@@ -55,15 +55,6 @@
 //                                              respondió) o anulado (se borra entero) (equipo; 204 aunque no estuviera)
 //   GET    /v1/formularios/:fid                { request, expiresAt, answered } SIN sesión: lo abre el paciente
 //   POST   /v1/formularios/:fid/respuesta      { response } SIN sesión: sus respuestas, cifradas, una sola vez
-//   Reserva online y enlaces para anular (la app sube solo franjas libres; los datos del paciente van cifrados):
-//   PUT    /v1/clinicas/:id/reservas           { enabled, slug, publicKey, page, windows, envelope } → publica la página (equipo)
-//   GET    /v1/clinicas/:id/reservas           { slug, bookings, cancels }: reservas sin recoger y anulaciones nuevas
-//   POST   /v1/clinicas/:id/reservas/recogidas { bookings: [id], cancels: [hash] } → ya están en la app
-//   POST   /v1/clinicas/:id/enlaces            { links: [{ hash, ref, startsAt, label, minutes, pro, cancelled? }] } → enlaces para anular citas
-//   GET    /v1/reservas/:slug                  SIN sesión: la página (nombre, tipos de cita, fisios, franjas libres)
-//   POST   /v1/reservas/:slug                  SIN sesión: { kind, pro, startsAt, payload, cancelHash } → reserva
-//   GET    /v1/citas/:codigo                   SIN sesión: la cita del enlace para anular (cuándo, con quién, estado)
-//   POST   /v1/citas/:codigo/anular            SIN sesión: la anula
 //   /v1/copia y /v1/copia/info                 lo mismo con la copia personal de cada cuenta de ALLOWED_EMAILS
 //                                              (versiones anteriores de la app, sin clínicas)
 // Una clínica tiene siempre al menos un administrador: no se puede quitar ni bajar al último.
@@ -146,25 +137,6 @@ const MAX_FORM_DAYS = 30;
 const KEEP_ANSWERS_DAYS = 60;
 /** Formularios sin recoger a la vez en una clínica. */
 const MAX_OPEN_FORMS = 500;
-// Reserva online.
-const SLUG = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
-const CANCEL_HASH = /^[0-9a-f]{64}$/;
-const BOOKING_ID = /^[A-Za-z0-9_-]{16,64}$/;
-/** La página pública (JSON) y las franjas libres (JSON), como mucho. */
-const MAX_PAGE_CHARS = 20_000;
-/** Durante cuánto tiempo, después de recogerla, una reserva sigue ocupando su hueco en la página (15 minutos). */
-const FRESH_COLLECTED_MS = 15 * 60_000;
-const MAX_WINDOWS_CHARS = 400_000;
-/** Los datos cifrados de una reserva. */
-const MAX_BOOKING_CHARS = 8_000;
-/** Lo cifrado del paciente: «CB1.<clave de un uso>.<iv>.<datos>», en base64. Lo demás no es una reserva. */
-const BOOKING_PAYLOAD = /^CB1\.[A-Za-z0-9+/]{40,120}={0,2}\.[A-Za-z0-9+/]{16}\.[A-Za-z0-9+/]{24,}={0,2}$/;
-/** Reservas desde un mismo origen en 24 horas, y reservas sin recoger a la vez en una clínica. */
-const MAX_BOOKINGS_PER_CLIENT = 3;
-const MAX_OPEN_BOOKINGS = 300;
-/** Enlaces por petición; las reservas y los enlaces se borran 30 días después de la cita. */
-const MAX_LINKS_PER_TRIP = 200;
-const KEEP_AFTER_DAYS = 30;
 /** Tokens comprobados que se recuerdan, y durante cuánto como mucho (segundos). */
 const CACHE_ENTRIES = 200;
 const CACHE_SECONDS = 300;
@@ -243,12 +215,6 @@ async function route(request, env, deps, originAllowed) {
   const pub = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})(\/respuesta)?$/.exec(path);
   if (pub) return publicForm(request, database(env), /** @type {string} */ (pub[1]), pub[2] !== undefined, deps.now);
 
-  // La reserva online y los enlaces para anular: sin sesión (el paciente no tiene cuenta).
-  const booking = /^\/v1\/reservas\/([a-z0-9-]{3,40})$/.exec(path);
-  if (booking) return publicBooking(request, database(env), /** @type {string} */ (booking[1]), deps.now);
-  const cita = /^\/v1\/citas\/([A-Za-z0-9_-]{16,64})(\/anular)?$/.exec(path);
-  if (cita) return publicCancel(request, database(env), /** @type {string} */ (cita[1]), cita[2] !== undefined, deps.now);
-
   // La copia personal (versiones anteriores de la app): solo las cuentas de ALLOWED_EMAILS.
   if (path === "/v1/copia" || path === "/v1/copia/info") {
     if (!copyMethod(path.slice(3), method)) throw notFound();
@@ -281,10 +247,7 @@ async function route(request, env, deps, originAllowed) {
     copyMethod(rest, method) ||
     (rest === "/copia/cambios" && ["GET", "POST"].includes(method)) ||
     (rest === "/formularios" && ["GET", "POST"].includes(method)) ||
-    (form !== null && method === "DELETE") ||
-    (rest === "/reservas" && ["GET", "PUT"].includes(method)) ||
-    (rest === "/reservas/recogidas" && method === "POST") ||
-    (rest === "/enlaces" && method === "POST");
+    (form !== null && method === "DELETE");
   if (!known) throw notFound();
 
   const who = await authenticate(request, env, deps);
@@ -371,7 +334,6 @@ async function route(request, env, deps, originAllowed) {
     return removeMember(db, id, email);
   }
   if (rest === "/formularios" || form) return clinicForms(request, db, id, form?.[1] ?? null, who, deps.now);
-  if (rest === "/reservas" || rest === "/reservas/recogidas" || rest === "/enlaces") return clinicBookings(request, db, id, rest, deps.now);
   // La copia de la clínica: todo el equipo la baja y la sube; borrarla, solo quien administra.
   if (method === "DELETE") admin();
   return clinicCopy(request, db, clinicOwner(id), rest, deps.now);
@@ -1042,404 +1004,6 @@ async function publicForm(request, db, id, answer, now) {
   return json(200, { ok: true });
 }
 
-// ---------- Reserva online y enlaces para anular ----------
-
-/**
- * @typedef {{ pro: string, from: string, to: string }} BookingWindow
- * @typedef {{ id: string, label: string, minutes: number }} BookingKind
- */
-
-/**
- * Las franjas libres que publicó la clínica, sin lo que ya se ha reservado (y no se ha anulado) desde entonces.
- * @param {D1Database} db
- * @param {string} clinicId
- * @param {BookingWindow[]} windows
- * @param {number} now
- * @returns {Promise<BookingWindow[]>}
- */
-async function openWindows(db, clinicId, windows, now) {
-  const { results = [] } = await db
-    // Las reservas que la clínica aún no ha recogido (o que acaba de recoger: puede que otro de sus dispositivos aún no
-    // tenga la cita y publique sin ella). Pasado ese rato manda lo que publica la app, que ya sabe si la cita se movió
-    // o se anuló.
-    .prepare("SELECT starts_at, minutes, pro FROM bookings WHERE clinic_id = ? AND cancelled_at IS NULL AND starts_at > ? AND (collected_at IS NULL OR collected_at > ?)")
-    .bind(clinicId, new Date(now - 86_400_000).toISOString(), new Date(now - FRESH_COLLECTED_MS).toISOString())
-    .all();
-  /** @type {BookingWindow[]} */
-  let out = windows.filter((w) => Date.parse(w.to) > now);
-  for (const b of results) {
-    const b0 = Date.parse(String(b.starts_at));
-    const b1 = b0 + Number(b.minutes) * 60_000;
-    /** @type {BookingWindow[]} */
-    const next = [];
-    for (const w of out) {
-      const f0 = Date.parse(w.from);
-      const f1 = Date.parse(w.to);
-      if (w.pro !== String(b.pro) || b1 <= f0 || b0 >= f1) next.push(w);
-      else {
-        if (b0 > f0) next.push({ pro: w.pro, from: w.from, to: new Date(b0).toISOString() });
-        if (b1 < f1) next.push({ pro: w.pro, from: new Date(b1).toISOString(), to: w.to });
-      }
-    }
-    out = next;
-  }
-  return out;
-}
-
-/**
- * La página pública de reservas (GET) o una reserva nueva (POST), sin sesión.
- * @param {Request} request
- * @param {D1Database} db
- * @param {string} slug
- * @param {() => number} now
- */
-async function publicBooking(request, db, slug, now) {
-  if (!["GET", "POST"].includes(request.method)) throw notFound();
-  const gone = () => new HttpError(404, "Esta clínica no tiene reserva por internet ahora mismo. Llama o escribe a la clínica para pedir cita.");
-  const row = await db.prepare("SELECT clinic_id, public_key, page, windows FROM booking_pages WHERE slug = ?").bind(slug).first();
-  if (!row) throw gone();
-  const clinicId = String(row.clinic_id);
-  const status = await clinicStatus(db, clinicId);
-  if (status?.deletedAt) throw gone();
-  /** @type {{ kinds?: BookingKind[], minNoticeHours?: number, step?: number, pros?: { id: string, name: string }[], envelope?: BookingWindow[], disabled?: boolean }} */
-  const page = JSON.parse(String(row.page));
-  // Apagada: la dirección sigue siendo de la clínica (nadie más puede quedársela), pero no se puede reservar.
-  if (page.disabled) throw gone();
-  /** @type {BookingWindow[]} */
-  const windows = JSON.parse(String(row.windows));
-  const at = now();
-  if (request.method === "GET") {
-    const { envelope: _envelope, ...shown } = page;
-    return json(200, { page: shown, publicKey: JSON.parse(String(row.public_key)), windows: await openWindows(db, clinicId, windows, at) });
-  }
-  if (status?.suspendedAt) throw new HttpError(423, "Ahora mismo la clínica no puede recibir reservas. Llama o escribe a la clínica.");
-  const body = await readBigJson(request, MAX_BOOKING_CHARS + 2000);
-  const kind = (page.kinds ?? []).find((k) => k.id === body.kind);
-  if (!kind) throw new HttpError(400, "Elige el tipo de cita.");
-  const startsAt = typeof body.startsAt === "string" ? Date.parse(body.startsAt) : NaN;
-  if (!Number.isFinite(startsAt) || startsAt < at + Number(page.minNoticeHours ?? 0) * 3_600_000 - 60_000) {
-    throw new HttpError(400, "Esa hora ya no se puede reservar: elige otra.");
-  }
-  // Solo las horas de la lista (10:00, 10:15…): una hora suelta partiría los huecos en trozos que no sirven.
-  const stepMs = Number(page.step) > 0 ? Number(page.step) * 60_000 : 0;
-  if (stepMs && startsAt % stepMs !== 0) throw new HttpError(400, "Esa hora ya no se puede reservar: elige otra.");
-  if (typeof body.payload !== "string" || !BOOKING_PAYLOAD.test(body.payload) || body.payload.length > MAX_BOOKING_CHARS) throw new HttpError(400, "Faltan tus datos.");
-  const cancelHash = typeof body.cancelHash === "string" ? body.cancelHash : "";
-  if (!CANCEL_HASH.test(cancelHash)) throw new HttpError(400, "Falta el código para anular.");
-  // Un mismo origen no puede reservar sin parar (la huella cambia cada día y no guarda la dirección).
-  const ip = request.headers.get("CF-Connecting-IP") ?? "";
-  const client = await sha256Hex(`${clinicId}|${ip}|${new Date(at).toISOString().slice(0, 10)}`);
-  const counts = await db.batch([
-    db.prepare("SELECT COUNT(*) AS n FROM bookings WHERE client = ? AND created_at > ?").bind(client, new Date(at - 86_400_000).toISOString()),
-    db.prepare("SELECT COUNT(*) AS n FROM bookings WHERE clinic_id = ? AND collected_at IS NULL").bind(clinicId),
-  ]);
-  if (Number(counts[0]?.results?.[0]?.n) >= MAX_BOOKINGS_PER_CLIENT) throw new HttpError(429, "Ya has hecho varias reservas hoy. Si necesitas otra, llama o escribe a la clínica.");
-  if (Number(counts[1]?.results?.[0]?.n) >= MAX_OPEN_BOOKINGS) throw new HttpError(429, "La clínica tiene muchas reservas por revisar. Inténtalo más tarde o llama a la clínica.");
-  // Con quién: el que se ha elegido o, con «cualquiera», el primero que esté libre a esa hora.
-  const free = await openWindows(db, clinicId, windows, at);
-  const wanted = typeof body.pro === "string" ? body.pro : "";
-  const fits = (/** @type {string} */ pro) => free.some((w) => w.pro === pro && Date.parse(w.from) <= startsAt && startsAt + kind.minutes * 60_000 <= Date.parse(w.to));
-  const pro = wanted ? (fits(wanted) ? wanted : null) : ([...new Set(free.map((w) => w.pro))].find(fits) ?? null);
-  if (pro === null) throw new HttpError(409, "Ese hueco se acaba de ocupar: elige otra hora.");
-  const id = crypto.randomUUID();
-  const endsAt = startsAt + kind.minutes * 60_000;
-  /** @type {D1Result} */
-  let saved;
-  try {
-    // Solo si nadie ha cogido ese rato con esa persona entre la comprobación de arriba y ahora (dos que reservan a la
-    // vez la misma hora): la comprobación y el guardado van en la misma orden, y D1 las hace una detrás de otra.
-    saved = await db
-      .prepare(
-        `INSERT INTO bookings (id, clinic_id, starts_at, minutes, pro, kind, payload, cancel_hash, client, created_at)
-         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-         WHERE NOT EXISTS (
-           SELECT 1 FROM bookings WHERE clinic_id = ? AND pro = ? AND cancelled_at IS NULL AND (collected_at IS NULL OR collected_at > ?)
-             AND starts_at < ? AND CAST(strftime('%s', starts_at) AS INTEGER) + minutes * 60 > ?
-         )`,
-      )
-      .bind(
-        id,
-        clinicId,
-        new Date(startsAt).toISOString(),
-        kind.minutes,
-        pro,
-        kind.id,
-        body.payload,
-        cancelHash,
-        client,
-        new Date(at).toISOString(),
-        clinicId,
-        pro,
-        new Date(at - FRESH_COLLECTED_MS).toISOString(),
-        new Date(endsAt).toISOString(),
-        Math.floor(startsAt / 1000),
-      )
-      .run();
-  } catch {
-    throw new HttpError(409, "Esa reserva ya está hecha.");
-  }
-  if (!saved.meta?.changes) throw new HttpError(409, "Ese hueco se acaba de ocupar: elige otra hora.");
-  return json(201, { id, startsAt: new Date(startsAt).toISOString(), minutes: kind.minutes, pro });
-}
-
-/**
- * El enlace para anular: la cita (GET) o anularla (POST …/anular), sin sesión. El código del enlace hace de llave.
- * @param {Request} request
- * @param {D1Database} db
- * @param {string} token
- * @param {boolean} cancel
- * @param {() => number} now
- */
-async function publicCancel(request, db, token, cancel, now) {
-  if (request.method !== (cancel ? "POST" : "GET")) throw notFound();
-  const hash = await sha256Hex(token);
-  const gone = () => new HttpError(404, "Este enlace no es válido o la cita ya pasó. Si quieres cambiar algo, escribe a la clínica.");
-  const [fromBooking, fromLink] = await db.batch([
-    db.prepare("SELECT clinic_id, starts_at, minutes, pro, cancelled_at FROM bookings WHERE cancel_hash = ?").bind(hash),
-    db.prepare("SELECT clinic_id, starts_at, label, minutes, pro, cancelled_at FROM cancel_links WHERE hash = ?").bind(hash),
-  ]);
-  const b = fromBooking?.results?.[0];
-  const l = fromLink?.results?.[0];
-  // Si la clínica ha movido una cita reservada por internet, su enlace lleva la hora nueva: manda el enlace.
-  const row = l ?? b;
-  if (!row) throw gone();
-  const clinicId = String(row.clinic_id);
-  const status = await clinicStatus(db, clinicId);
-  if (status?.deletedAt) throw gone();
-  const page = await db.prepare("SELECT slug, page FROM booking_pages WHERE clinic_id = ?").bind(clinicId).first();
-  const clinic = await db.prepare("SELECT name FROM clinics WHERE id = ?").bind(clinicId).first();
-  /** @type {{ clinic?: string, pros?: { id: string, name: string }[], envelope?: BookingWindow[], disabled?: boolean }} */
-  const info = page ? JSON.parse(String(page.page)) : {};
-  const label = l ? String(l.label) : b ? (info.pros?.find((p) => p.id === String(b.pro))?.name ?? "") : "";
-  const startsAt = String(row.starts_at);
-  const past = Date.parse(startsAt) <= now();
-  if (!cancel) {
-    return json(200, {
-      startsAt,
-      with: label,
-      clinic: info.clinic || (clinic ? String(clinic.name) : ""),
-      cancelled: row.cancelled_at !== null,
-      past,
-      slug: page && !info.disabled ? String(page.slug) : null,
-      // Con quién (id público), para «pedir otra cita con…».
-      pro: l ? (l.pro === null ? null : String(l.pro)) : b ? String(b.pro) : null,
-    });
-  }
-  if (row.cancelled_at !== null) return json(200, { cancelled: true });
-  if (past) throw new HttpError(409, "La cita ya ha pasado: no se puede anular desde aquí.");
-  const at = new Date(now()).toISOString();
-  /** @type {D1Statement[]} */
-  const steps = [
-    db.prepare("UPDATE bookings SET cancelled_at = ? WHERE cancel_hash = ? AND cancelled_at IS NULL").bind(at, hash),
-    db.prepare("UPDATE cancel_links SET cancelled_at = ? WHERE hash = ? AND cancelled_at IS NULL").bind(at, hash),
-  ];
-  // El hueco queda libre en la página al momento, sin esperar a que la clínica abra la app.
-  const minutes = l ? Number(l.minutes) : b ? Number(b.minutes) : 0;
-  const pro = l ? (l.pro === null ? null : String(l.pro)) : b ? String(b.pro) : null;
-  if (page && !info.disabled && pro !== null && minutes > 0) {
-    const pieces = freedPieces(info.envelope, pro, startsAt, minutes);
-    if (pieces.length) {
-      const published = await db.prepare("SELECT windows FROM booking_pages WHERE clinic_id = ?").bind(clinicId).first();
-      if (published) {
-        /** @type {BookingWindow[]} */
-        let windows = JSON.parse(String(published.windows));
-        for (const piece of pieces) windows = withWindow(windows, piece);
-        steps.push(db.prepare("UPDATE booking_pages SET windows = ? WHERE clinic_id = ?").bind(JSON.stringify(windows), clinicId));
-      }
-    }
-  }
-  await db.batch(steps);
-  return json(200, { cancelled: true });
-}
-
-/**
- * Lo que queda libre al anular una cita: solo lo que cae dentro de cuándo se puede reservar con ese fisio (nunca un
- * rato cerrado ni fuera de horario). Sin ese contorno (una app antigua), la cita entera.
- * @param {BookingWindow[] | null | undefined} envelope
- * @param {string} pro
- * @param {string} startsAt
- * @param {number} minutes
- * @returns {BookingWindow[]}
- */
-function freedPieces(envelope, pro, startsAt, minutes) {
-  const from = Date.parse(startsAt);
-  const to = from + minutes * 60_000;
-  const spans = Array.isArray(envelope)
-    ? envelope
-        .filter((w) => w.pro === pro)
-        .map((w) => [Math.max(from, Date.parse(w.from)), Math.min(to, Date.parse(w.to))])
-        .filter(([a = 0, b = 0]) => b > a)
-    : [[from, to]];
-  return spans.map(([a = 0, b = 0]) => ({ pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() }));
-}
-
-/**
- * Las franjas libres con una más, juntando las del mismo fisio que se tocan (para que quepan citas largas).
- * @param {BookingWindow[]} windows
- * @param {BookingWindow} add
- * @returns {BookingWindow[]}
- */
-function withWindow(windows, add) {
-  const spans = windows
-    .filter((w) => w.pro === add.pro)
-    .concat(add)
-    .map((w) => [Date.parse(w.from), Date.parse(w.to)])
-    .sort((x, y) => (x[0] ?? 0) - (y[0] ?? 0));
-  /** @type {number[][]} */
-  const merged = [];
-  for (const [a = 0, b = 0] of spans) {
-    const last = merged[merged.length - 1];
-    if (last && a <= (last[1] ?? 0)) last[1] = Math.max(last[1] ?? 0, b);
-    else merged.push([a, b]);
-  }
-  return windows.filter((w) => w.pro !== add.pro).concat(merged.map(([a = 0, b = 0]) => ({ pro: add.pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() })));
-}
-
-/**
- * Lo del equipo: publicar la página, recoger reservas y anulaciones, marcarlas como recogidas y dar enlaces para anular.
- * @param {Request} request
- * @param {D1Database} db
- * @param {string} clinicId
- * @param {string} rest
- * @param {() => number} now
- */
-async function clinicBookings(request, db, clinicId, rest, now) {
-  const at = now();
-  const iso = new Date(at).toISOString();
-  if (rest === "/reservas" && request.method === "PUT") {
-    const body = await readBigJson(request, MAX_WINDOWS_CHARS + MAX_PAGE_CHARS + 2000);
-    if (body.enabled === false) {
-      // Se apaga sin soltar la dirección: sus enlaces y códigos QR no pueden acabar en otra clínica.
-      await db.prepare("UPDATE booking_pages SET page = ?, windows = '[]', updated_at = ? WHERE clinic_id = ?").bind(JSON.stringify({ disabled: true }), iso, clinicId).run();
-      return json(200, { enabled: false });
-    }
-    const slug = typeof body.slug === "string" ? body.slug : "";
-    if (!SLUG.test(slug)) throw new HttpError(400, "La dirección de la página solo puede llevar letras sin tilde, números y guiones (de 3 a 40).");
-    const key = body.publicKey;
-    if (typeof key !== "object" || key === null || /** @type {Record<string, unknown>} */ (key).kty !== "EC") throw new HttpError(400, "Falta la clave pública de la clínica.");
-    const shown = JSON.stringify(body.page ?? {});
-    const envelope = Array.isArray(body.envelope)
-      ? body.envelope.filter((w) => typeof w === "object" && w !== null && typeof w.pro === "string" && typeof w.from === "string" && typeof w.to === "string")
-      : null;
-    /** @type {BookingWindow[]} */
-    let open = Array.isArray(body.windows) ? body.windows : [];
-    // Lo que han anulado los pacientes y la clínica aún no ha recogido: la app aún tiene la cita y lo publicaría
-    // ocupado. (Una reserva que la clínica nunca recogió no cuenta: la app no la tenía y ese rato ya va libre.)
-    const { results: unseen = [] } = await db
-      .prepare(
-        `SELECT starts_at, minutes, pro FROM bookings WHERE clinic_id = ? AND collected_at IS NOT NULL AND cancelled_at IS NOT NULL AND cancel_seen_at IS NULL AND starts_at > ?
-         UNION ALL
-         SELECT starts_at, minutes, pro FROM cancel_links WHERE clinic_id = ? AND cancelled_at IS NOT NULL AND cancel_seen_at IS NULL AND pro IS NOT NULL AND starts_at > ?`,
-      )
-      .bind(clinicId, iso, clinicId, iso)
-      .all();
-    for (const u of unseen) for (const piece of freedPieces(envelope, String(u.pro), String(u.starts_at), Number(u.minutes))) open = withWindow(open, piece);
-    const windows = JSON.stringify(open);
-    if (shown.length > MAX_PAGE_CHARS || windows.length > MAX_WINDOWS_CHARS || JSON.stringify(envelope ?? []).length > MAX_WINDOWS_CHARS) {
-      throw new HttpError(413, "La página es demasiado grande.");
-    }
-    // Lo que se enseña y, aparte (no sale en la página pública), cuándo se puede reservar con cada fisio.
-    const page = JSON.stringify({ ...(body.page ?? {}), ...(envelope ? { envelope } : {}) });
-    const taken = await db.prepare("SELECT clinic_id FROM booking_pages WHERE slug = ?").bind(slug).first();
-    if (taken && String(taken.clinic_id) !== clinicId) throw new HttpError(409, "Esa dirección ya la usa otra clínica: elige otra.");
-    await db
-      .prepare(
-        `INSERT INTO booking_pages (clinic_id, slug, public_key, page, windows, updated_at) VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT (clinic_id) DO UPDATE SET slug = excluded.slug, public_key = excluded.public_key, page = excluded.page,
-           windows = excluded.windows, updated_at = excluded.updated_at`,
-      )
-      .bind(clinicId, slug, JSON.stringify(key), page, windows, iso)
-      .run();
-    return json(200, { enabled: true, slug });
-  }
-  if (rest === "/reservas") {
-    // Se limpia lo viejo: reservas y enlaces de citas de hace más de 30 días.
-    const old = new Date(at - KEEP_AFTER_DAYS * 86_400_000).toISOString();
-    await db.batch([
-      db.prepare("DELETE FROM bookings WHERE clinic_id = ? AND starts_at < ?").bind(clinicId, old),
-      db.prepare("DELETE FROM cancel_links WHERE clinic_id = ? AND starts_at < ?").bind(clinicId, old),
-    ]);
-    const [page, bookings, cancels] = await db.batch([
-      db.prepare("SELECT slug FROM booking_pages WHERE clinic_id = ?").bind(clinicId),
-      db
-        .prepare(
-          `SELECT id, starts_at, minutes, pro, kind, payload, created_at, collected_at, cancelled_at FROM bookings
-            WHERE clinic_id = ? AND (collected_at IS NULL OR (cancelled_at IS NOT NULL AND cancel_seen_at IS NULL)) ORDER BY created_at LIMIT 100`,
-        )
-        .bind(clinicId),
-      db.prepare("SELECT hash, ref, starts_at, cancelled_at FROM cancel_links WHERE clinic_id = ? AND cancelled_at IS NOT NULL AND cancel_seen_at IS NULL LIMIT 100").bind(clinicId),
-    ]);
-    return json(200, {
-      slug: page?.results?.[0] ? String(page.results[0].slug) : null,
-      bookings: (bookings?.results ?? []).map((r) => ({
-        id: String(r.id),
-        startsAt: String(r.starts_at),
-        minutes: Number(r.minutes),
-        pro: String(r.pro),
-        kind: String(r.kind),
-        payload: r.payload === null ? null : String(r.payload),
-        createdAt: String(r.created_at),
-        collected: r.collected_at !== null,
-        cancelledAt: r.cancelled_at === null ? null : String(r.cancelled_at),
-      })),
-      cancels: (cancels?.results ?? []).map((r) => ({ hash: String(r.hash), ref: String(r.ref), startsAt: String(r.starts_at), cancelledAt: String(r.cancelled_at) })),
-    });
-  }
-  if (rest === "/reservas/recogidas") {
-    const body = await readJson(request);
-    const ids = typeof body === "object" && body !== null && "bookings" in body && Array.isArray(body.bookings) ? body.bookings.filter((x) => typeof x === "string" && BOOKING_ID.test(x)) : [];
-    const hashes = typeof body === "object" && body !== null && "cancels" in body && Array.isArray(body.cancels) ? body.cancels.filter((x) => typeof x === "string" && CANCEL_HASH.test(x)) : [];
-    /** @type {D1Statement[]} */
-    const steps = [];
-    for (const id of ids.slice(0, 100)) {
-      // Recogida: se borran los datos cifrados del paciente; si estaba anulada, también se da por vista la anulación.
-      steps.push(
-        db
-          .prepare("UPDATE bookings SET collected_at = COALESCE(collected_at, ?), payload = NULL, cancel_seen_at = CASE WHEN cancelled_at IS NOT NULL THEN ? ELSE cancel_seen_at END WHERE clinic_id = ? AND id = ?")
-          .bind(iso, iso, clinicId, id),
-      );
-    }
-    for (const h of hashes.slice(0, 100)) steps.push(db.prepare("UPDATE cancel_links SET cancel_seen_at = ? WHERE clinic_id = ? AND hash = ?").bind(iso, clinicId, h));
-    if (steps.length) await db.batch(steps);
-    return new Response(null, { status: 204 });
-  }
-  // /enlaces: enlaces para anular citas que da la clínica. Si ya existe (la misma cita), se pone al día la hora (o se
-  // marca anulada, si la ha anulado la clínica).
-  const body = await readBigJson(request, 100_000);
-  const links = Array.isArray(body.links) ? body.links.slice(0, MAX_LINKS_PER_TRIP) : [];
-  /** @type {D1Statement[]} */
-  const steps = [];
-  for (const l of links) {
-    if (typeof l !== "object" || l === null) continue;
-    const hash = typeof l.hash === "string" ? l.hash : "";
-    const ref = typeof l.ref === "string" ? l.ref : "";
-    const startsAt = typeof l.startsAt === "string" ? Date.parse(l.startsAt) : NaN;
-    const label = typeof l.label === "string" ? l.label.slice(0, 80) : "";
-    // Lo que dura y con quién (id público de la reserva; null si no sale en ella): para dejar libre el hueco al anular.
-    const minutes = Number.isInteger(l.minutes) && l.minutes > 0 && l.minutes <= 600 ? l.minutes : 0;
-    const pro = typeof l.pro === "string" && l.pro.length <= 32 ? l.pro : null;
-    if (!CANCEL_HASH.test(hash) || !ref || ref.length > 64 || !Number.isFinite(startsAt)) throw new HttpError(400, "Hay un enlace que no es válido.");
-    steps.push(
-      db
-        .prepare(
-          `INSERT INTO cancel_links (hash, clinic_id, ref, starts_at, label, minutes, pro, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT (hash) DO UPDATE SET starts_at = excluded.starts_at, label = excluded.label, minutes = excluded.minutes, pro = excluded.pro
-           WHERE cancel_links.clinic_id = excluded.clinic_id`,
-        )
-        .bind(hash, clinicId, ref, new Date(startsAt).toISOString(), label, minutes, pro, iso),
-    );
-    // La ha anulado la clínica: el paciente lo ve en su enlace y ya no la puede anular él (ni vuelve como aviso).
-    if (l.cancelled === true) {
-      steps.push(
-        db.prepare("UPDATE cancel_links SET cancelled_at = COALESCE(cancelled_at, ?), cancel_seen_at = COALESCE(cancel_seen_at, ?) WHERE hash = ? AND clinic_id = ?").bind(iso, iso, hash, clinicId),
-        db.prepare("UPDATE bookings SET cancelled_at = COALESCE(cancelled_at, ?), cancel_seen_at = COALESCE(cancel_seen_at, ?) WHERE cancel_hash = ? AND clinic_id = ?").bind(iso, iso, hash, clinicId),
-      );
-    }
-  }
-  if (steps.length) await db.batch(steps);
-  return json(200, { saved: steps.length });
-}
-
 // ---------- Comprobación de la instalación ----------
 
 /** @param {Env} env */
@@ -1449,7 +1013,7 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests", "patient_forms", "booking_pages", "bookings", "cancel_links"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
+      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests", "patient_forms"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }
@@ -1805,7 +1369,7 @@ const CONTRACT_HTML = `
 <li><strong>Tratamientos:</strong> conservación y transmisión de una copia cifrada; gestión de cuentas de acceso (correos del equipo).</li>
 </ul>
 <h3>4. Cifrado y acceso a los datos</h3>
-<p>La copia de los datos se cifra en los dispositivos de la clínica (AES-256) con una contraseña que solo conoce la clínica, antes de llegar al servidor. El Encargado no conoce esa contraseña ni la del código de recuperación y no puede leer los datos de los pacientes. El Encargado sí trata, para prestar el servicio, el nombre de la clínica, los correos de su equipo, el tamaño de la copia y las fechas de uso. Si la clínica usa los formularios para el paciente o la reserva online, el servidor guarda además, hasta que la clínica los recoge, lo que envía el paciente, cifrado en su navegador para la clínica (el Encargado no puede leerlo); y, para la reserva online, las franjas libres que publica la clínica, los nombres de los profesionales que salen en ella, los datos de contacto de la clínica, el día, la hora y el tipo de cada reserva, y una huella de la dirección de red de quien reserva, que cambia cada día, para limitar abusos. La clínica custodia su contraseña y su código de recuperación: si los pierde, el Encargado no puede recuperar los datos.</p>
+<p>La copia de los datos se cifra en los dispositivos de la clínica (AES-256) con una contraseña que solo conoce la clínica, antes de llegar al servidor. El Encargado no conoce esa contraseña ni la del código de recuperación y no puede leer los datos de los pacientes. El Encargado sí trata, para prestar el servicio, el nombre de la clínica, los correos de su equipo, el tamaño de la copia y las fechas de uso. Si la clínica usa los formularios para el paciente, el servidor guarda además, hasta que la clínica los recoge, lo que envía el paciente, cifrado en su navegador para la clínica (el Encargado no puede leerlo). La clínica custodia su contraseña y su código de recuperación: si los pierde, el Encargado no puede recuperar los datos.</p>
 <h3>5. Obligaciones del Encargado</h3>
 <ol>
 <li>Tratar los datos solo para prestar el servicio y siguiendo las instrucciones documentadas del Responsable, incluidas las de este contrato.</li>

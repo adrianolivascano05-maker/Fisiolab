@@ -18,10 +18,6 @@ export type Appointment = {
   /** Cuándo se le recordó y cuándo confirmó que viene (migración 018). Se borran al mover la cita. */
   remindedAt?: string | null;
   confirmedAt?: string | null;
-  /** «online» si la reservó el paciente por internet (src/booking). */
-  source?: string;
-  /** El código de su enlace para anular, si ya se le ha dado (src/booking). */
-  cancelToken?: string | null;
 };
 /** Una cita con el nombre de su paciente, para la agenda. */
 export type AgendaItem = Appointment & { name: string };
@@ -37,8 +33,6 @@ type Row = {
   assigned_to: string | null;
   reminded_at?: string | null;
   confirmed_at?: string | null;
-  source?: string;
-  cancel_token?: string | null;
   name?: string;
 };
 const toAppointment = (r: Row): Appointment => ({
@@ -50,8 +44,6 @@ const toAppointment = (r: Row): Appointment => ({
   assignedTo: r.assigned_to,
   remindedAt: r.reminded_at ?? null,
   confirmedAt: r.confirmed_at ?? null,
-  source: r.source ?? "",
-  cancelToken: r.cancel_token ?? null,
 });
 const now = () => new Date().toISOString();
 
@@ -96,33 +88,6 @@ export async function updateAppointment(
       bind: [startsAt, minutes, status, assignedTo, now(), id],
     },
   ]);
-}
-
-/**
- * Una cita reservada por el paciente por internet (src/booking). El id es el de la reserva: si dos dispositivos la
- * recogen a la vez, la segunda no la duplica.
- */
-export async function createOnlineAppointment(
-  db: Db,
-  input: { id: string; patientId: string; startsAt: string; minutes: number; assignedTo: string | null; cancelToken: string | null },
-): Promise<boolean> {
-  checkAppointment(input.startsAt, input.minutes);
-  const t = now();
-  const [exists] = await db.query<{ id: string }>("select id from appointments where id = ?", [input.id]);
-  if (exists) return false;
-  await db.transaction([
-    {
-      sql: `insert or ignore into appointments (id, patient_id, starts_at, minutes, status, created_by, assigned_to, created_at, updated_at, source, cancel_token)
-            values (?, ?, ?, ?, 'scheduled', ?, ?, ?, ?, 'online', ?)`,
-      bind: [input.id, input.patientId, new Date(input.startsAt).toISOString(), input.minutes, member(), input.assignedTo, t, t, input.cancelToken],
-    },
-  ]);
-  return true;
-}
-
-/** El código del enlace para anular de una cita (ya registrado en el servidor). */
-export async function setCancelToken(db: Db, id: string, token: string): Promise<void> {
-  await db.transaction([{ sql: "update appointments set cancel_token = ? where id = ? and cancel_token is null", bind: [token, id] }]);
 }
 
 /** Se le ha recordado la cita (por WhatsApp o correo). */

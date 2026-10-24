@@ -117,8 +117,8 @@ variables y el enlace se conservan. Si además cambia `schema.sql`, vuelve a eje
 de la base (paso 3): crea las tablas que falten y no borra nada. Así se pasó, en octubre de 2026, a la versión
 con clínicas (tablas `clinics` y `members`), después a la sincronización por cambios (tablas `deltas` y
 `delta_base`), a las solicitudes de acceso (`access_requests`), a los formularios para el paciente
-(`patient_forms`) y a la reserva online (`booking_pages`, `bookings` y `cancel_links`). Ejecuta el SQL **antes** de
-pegar el `worker.js` nuevo. La consola junta en una línea lo que se pega: si dice «No SQL statements detected», pega solo las sentencias
+(`patient_forms`). Ejecuta el SQL **antes** de pegar el `worker.js` nuevo. La reserva online se quitó el 24-10-2026:
+sus tablas (`booking_pages`, `bookings` y `cancel_links`) ya no se usan y se pueden borrar (`docs/pasos-pendientes.md`). La consola junta en una línea lo que se pega: si dice «No SQL statements detected», pega solo las sentencias
 `CREATE`, sin las líneas de comentario (las que empiezan por `--`).
 
 ## La app en Cloudflare Pages (para los enlaces de los pacientes)
@@ -190,11 +190,6 @@ respondidos). Cada cosa que se guarda añade una más. Con la pantalla apagada o
 | --- | --- | --- |
 | Abierta 10 horas seguidas, uso normal | unas 1.300 | unos 75 |
 | Abierta 5 horas en total (lo habitual en una clínica) | unas 650 | unos 150 |
-
-Con la **reserva online** encendida (o con citas que llevan enlace para anular), cada dispositivo mira además cada
-dos minutos si hay reservas o anulaciones: media petición más por minuto (unas 2,4 en total). Con la app abierta 10
-horas, unos 60 dispositivos. Las visitas de los pacientes a la página de reservas también cuentan: unas 3 o 4
-peticiones por cada reserva.
 
 Es decir, con el plan gratuito caben unas **25 clínicas pequeñas de 3 dispositivos** en un mismo servidor, o cada
 clínica monta el suyo (es gratis y no comparte nada con las demás). Si se pasa de ahí, el plan de pago de Workers
