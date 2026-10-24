@@ -137,14 +137,13 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await expect(page.getByRole("button", { name: "Cargar datos de ejemplo" })).toBeVisible();
   });
 
-  test("F15-E2 dos pestañas: la segunda avisa y no trabaja en vacío; al cerrar la primera, funciona", async ({ page, context }) => {
+  test("F15-E2 dos pestañas: la segunda avisa y no trabaja en vacío; al cerrar la primera, sigue sola", async ({ page, context }) => {
     await createPatient(page, { name: "Pestaña uno" });
     const second = await context.newPage();
     await second.goto("./");
     await expect(second.getByText("Cénit ya está abierta en otra pestaña")).toBeVisible();
     await expect(second.getByRole("link", { name: "Nuevo paciente" })).toHaveCount(0);
     await page.close();
-    await second.getByRole("button", { name: "Reintentar" }).click();
     await expect(second.getByRole("link", { name: /Pestaña uno/ })).toBeVisible();
   });
 });

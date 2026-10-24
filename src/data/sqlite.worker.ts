@@ -14,25 +14,28 @@ const FILE = account ? `/${account}.sqlite3` : LEGACY;
 const flag = (name: string) => flags.find((f) => f === name || f.startsWith(`${name}=`))?.slice(name.length + 1);
 
 /**
- * Solo una pestaña puede tener abierta la base en OPFS. Se reserva con un Web Lock que dura lo
- * que dure este worker (se suelta al cerrar la pestaña). Si otra pestaña lo tiene, esta lo dice
- * en vez de trabajar en una base vacía en memoria y perder lo que se escriba.
+ * Solo una pestaña puede tener abierta la base en OPFS. Se reserva con un Web Lock que dura lo que dure este worker
+ * (se suelta al cerrar la pestaña). Se espera lo que haga falta: al recargar o al cambiar de página, la anterior puede
+ * tardar unos segundos en soltarla (en un móvil lento). Si a los 3 s aún no se tiene, se avisa de que está en otra
+ * pestaña (en vez de trabajar en una base vacía en memoria y perder lo que se escriba), y en cuanto se suelta, sigue.
  */
-function acquireTabLock(): Promise<boolean> {
-  if (!("locks" in navigator)) return Promise.resolve(true);
-  // Al recargar, la página anterior tarda un momento en soltarla: se espera hasta 3 s antes de decir que está ocupada.
+const LOCK_NOTICE_MS = 3000;
+let waitingLock = false;
+function acquireTabLock(): Promise<void> {
+  if (!("locks" in navigator)) return Promise.resolve();
   return new Promise((resolve) => {
-    navigator.locks
-      .request("fisiolab-db", { signal: AbortSignal.timeout(3000) }, () => {
-        resolve(true);
-        return new Promise<void>(() => {});
-      })
-      .catch(() => resolve(false));
+    const slow = setTimeout(() => (waitingLock = true), LOCK_NOTICE_MS);
+    void navigator.locks.request("fisiolab-db", () => {
+      clearTimeout(slow);
+      waitingLock = false;
+      resolve();
+      return new Promise<void>(() => {});
+    });
   });
 }
 
-async function start(): Promise<Engine | "locked"> {
-  if (!(await acquireTabLock())) return "locked";
+async function start(): Promise<Engine> {
+  await acquireTabLock();
   let adoptFrom: { bytes: Uint8Array; member: string; done: () => void } | null = null;
   const sqlite3 = await sqlite3InitModule();
   let storage: Storage;
@@ -75,16 +78,26 @@ async function start(): Promise<Engine | "locked"> {
 }
 
 const ready = start();
+let started = false;
+void ready.then(
+  () => (started = true),
+  () => {},
+);
+const noticeAfter = new Promise<void>((resolve) => setTimeout(resolve, LOCK_NOTICE_MS));
 
 self.onmessage = async (e: MessageEvent<{ id: number; req: Request }>) => {
   const { id, req } = e.data;
   try {
-    const engine = await ready;
-    if (engine === "locked") {
-      if (req.op !== "info") throw new Error("La app está abierta en otra pestaña.");
-      self.postMessage({ id, result: { persistent: false, sqliteVersion: "", schemaVersion: 0, locked: true } });
-      return;
+    if (!started) {
+      // Aún sin la base: hasta 3 s se espera; si sigue en otra pestaña, se dice (y se sigue esperando por detrás).
+      await Promise.race([ready, noticeAfter]);
+      if (!started && waitingLock) {
+        if (req.op !== "info") throw new Error("La app está abierta en otra pestaña.");
+        self.postMessage({ id, result: { persistent: false, sqliteVersion: "", schemaVersion: 0, locked: true } });
+        return;
+      }
     }
+    const engine = await ready;
     const result = await engine.handle(req);
     self.postMessage({ id, result });
   } catch (err) {

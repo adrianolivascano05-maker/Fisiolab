@@ -133,9 +133,20 @@ salga «Estable», el número grande puede decir 37° y la lectura guardarse com
 37,5) y luego se redondea otra vez al enseñarla. Con la lectura estable no pasa. Arreglarlo (guardar sin redondear
 antes, o enseñar el decimal) cambia cómo se guarda la medición: decidirlo antes.
 
-**R2. iPhone:** la prueba automática con el motor de Safari (WebKit) falla en GitHub (24 de 40): la app no llega a
-abrir la ficha de paciente nuevo. Puede ser el Safari de pruebas de Linux o un fallo real: hay que mirarlo y probar
-en un iPhone de verdad antes de ofrecer la app a clínicas con iPhone.
+**R2. iPhone** — **en marcha el 24-10-2026:**
+- Lo que fallaba en la prueba con el motor de Safari (WebKit): la primera vez que se abre la app va bien, pero en la
+  segunda carga de página en la misma pestaña salía «Cénit ya está abierta en otra pestaña». Safari guarda la
+  página anterior «congelada» (para volver atrás deprisa) con su base de datos abierta. En un iPhone puede pasar al
+  volver de entrar con Google, al cambiar de clínica, al cerrar sesión o al recargar.
+- ~~Arreglo~~ **hecho:** la app cierra su base al dejar la página y, si Safari devuelve la congelada, la recarga.
+  Prueba nueva PWA-H3 (recargar, otra dirección y volver atrás: los datos siguen).
+- **Hecho también:** si la página anterior tarda más de 3 segundos en soltar la base (un móvil lento), el aviso «ya
+  está abierta en otra pestaña» ya no se queda para siempre: en cuanto se suelta, la app sigue sola. Lo mismo al
+  cerrar la otra pestaña de verdad.
+- Las pruebas de gestos con dos dedos y la de leer el portapapeles no se pueden hacer en el WebKit de pruebas de
+  Linux (no deja simular toques ni da permiso de portapapeles): ahí se saltan; en Chromium siguen.
+- **Falta:** ver el resultado del trabajo «webkit» en GitHub después de subirlo, y probar en un iPhone de verdad
+  (pasos en docs/pasos-pendientes.md, «Probar en un iPhone»).
 
 **R3. Reserva online, para que no dé sorpresas:**
 - ~~Días cerrados y festivos~~ **hecho el 24-10-2026:** «Cerrar la agenda» (de un fisio o de toda la clínica; una

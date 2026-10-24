@@ -20,6 +20,22 @@ test.describe("PWA: instalable y sin conexión", () => {
     expect((await request.get("icons/apple-touch-icon.png")).status()).toBe(200);
   });
 
+  test("PWA-H3 los datos se guardan en el dispositivo: siguen al recargar y al abrir otra dirección en la misma pestaña", async ({ page }) => {
+    await page.goto("./ajustes");
+    await expect(page.getByText(/guardado en el dispositivo/)).toBeVisible();
+    await createPatient(page, { name: "Sara Sigue" });
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Sara Sigue" })).toBeVisible();
+    // Otra dirección en la misma pestaña (como al volver de entrar con Google): Safari guarda la página anterior
+    // congelada; la nueva tiene que poder abrir los datos (no «ya está abierta en otra pestaña»).
+    await page.goto("./");
+    await expect(page.getByRole("link", { name: /Sara Sigue/ })).toBeVisible();
+    await page.goto("./agenda");
+    await page.goBack();
+    await expect(page.getByRole("link", { name: /Sara Sigue/ })).toBeVisible();
+    await expect(page.getByText("ya está abierta en otra pestaña")).toHaveCount(0);
+  });
+
   test("PWA-H2 sin conexión: abre, conserva los datos y mide un CMJ entero", async ({ page, context }) => {
     await page.goto("./");
     await controlledBySw(page);
@@ -43,8 +59,9 @@ test.describe("PWA: instalable y sin conexión", () => {
     await context.setOffline(false);
   });
 
-  test("PWA-E3 otros dispositivos: enlace, código QR y pasos para cada sistema", async ({ page, context, baseURL }) => {
-    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  test("PWA-E3 otros dispositivos: enlace, código QR y pasos para cada sistema", async ({ page, context, baseURL, browserName }) => {
+    // Safari no tiene estos permisos: copia con el toque de la persona, sin preguntar (y la prueba no puede leerlo).
+    if (browserName === "chromium") await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("./ajustes");
     await page.getByRole("link", { name: /Instalar la app/ }).click();
     await expect(page.getByRole("heading", { name: "Instalar la app" })).toBeVisible();
@@ -54,7 +71,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     await expectAccessible(page);
     await page.getByRole("button", { name: "Copiar enlace" }).click();
     await expect(page.getByRole("button", { name: "Enlace copiado" })).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
+    if (browserName === "chromium") expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(url);
   });
 
   test("PWA-E1 barra de abajo: cuatro pestañas que recuerdan dónde estabas; un punto en Ajustes si faltan datos", async ({ page }) => {

@@ -333,6 +333,9 @@ test.describe("Agenda y seguimiento", () => {
   });
   test.describe("en un móvil táctil", () => {
     test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+    // Los gestos se simulan creando toques desde la página (new Touch), y el WebKit de pruebas de Linux no lo permite:
+    // ahí no se puede probar el gesto (sí en Chromium, y en un iPhone de verdad a mano).
+    test.skip(({ browserName }) => browserName === "webkit", "El WebKit de pruebas no deja simular toques con varios dedos.");
 
     test("AG10 pellizco: se centra en el día que queda entre los dedos (el viernes, no hoy)", async ({ page }) => {
       await createPatient(page, { name: "Pablo Pellizco" });

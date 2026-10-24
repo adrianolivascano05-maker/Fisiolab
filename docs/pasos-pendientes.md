@@ -1,7 +1,7 @@
 # Pasos pendientes (los hace quien administra la app)
 
-Cuatro tareas que no se pueden hacer desde el código porque son en las cuentas de Google y Cloudflare. Ninguna es
-urgente: la app funciona igual mientras tanto. Los menús son los de octubre de 2026; si alguno cambia de nombre, el
+Cinco tareas que no se pueden hacer desde el código: cuatro son en las cuentas de Google y Cloudflare y la última,
+en un iPhone de verdad. Ninguna es urgente: la app funciona igual mientras tanto. Los menús son los de octubre de 2026; si alguno cambia de nombre, el
 orden es el mismo.
 
 ## 1. Google: sacar la app de «en pruebas» (unos 5 minutos)
@@ -92,3 +92,21 @@ pero al guardar en **Ajustes › Reserva online** saldrá un error.
 a la vez en el mismo hueco, reservas que no son de verdad):** cambia solo `worker.js` (no `schema.sql`). Si ya habías
 hecho el paso 4, vuelve a pegar el `worker.js` del repositorio (**Edit code** → **Deploy**). Si aún no lo habías
 hecho, el paso 4 tal cual ya lo incluye.
+
+## 5. Probar en un iPhone (unos 10 minutos, antes de ofrecer la app a una clínica con iPhone)
+
+Las pruebas automáticas usan el motor de Safari en Linux, que no es igual que un iPhone. Esto solo se puede
+comprobar a mano. Usa siempre pacientes inventados.
+
+1. En el iPhone, abre la app en **Safari** (la dirección de siempre).
+2. Crea un paciente de prueba, por ejemplo «Prueba iPhone».
+3. Recarga la página (la flecha circular de la barra de Safari). El paciente tiene que seguir ahí.
+4. **Ajustes**: abajo del todo tiene que poner «guardado en el dispositivo» (si pone «en memoria», apúntalo).
+5. Si usas cuenta de Google: **Ajustes › Cuenta de Google** → **Entrar con Google**. Al volver de Google **no**
+   tiene que salir «Cénit ya está abierta en otra pestaña».
+6. Instálala: botón **Compartir** → **Añadir a pantalla de inicio**, y ábrela desde el icono. En iPhone, la app
+   instalada guarda sus datos aparte de Safari: el paciente de Safari puede no salir. Crea otro de prueba.
+7. Cierra la app del todo (desliza hacia arriba desde abajo y quítala) y vuelve a abrirla. El paciente sigue.
+8. Borra los pacientes de prueba.
+
+Si algo de esto falla: **Ajustes › Algo no funciona**, y cuéntame en qué paso y qué salía en la pantalla.

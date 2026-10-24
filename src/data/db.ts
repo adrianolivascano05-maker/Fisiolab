@@ -81,9 +81,22 @@ export function getDb(): Db {
     if (e.data.error) p.reject(new Error(e.data.error));
     else p.resolve(e.data.result);
   };
+  // Al dejar la página se cierra la base. Safari guarda la página anterior «congelada» para volver atrás deprisa, con
+  // su base abierta: la página nueva (al volver de entrar con Google, al cambiar de clínica, al recargar) la
+  // encontraría ocupada y diría que la app está abierta en otra pestaña. Si se vuelve a la congelada, se recarga.
+  // Lo que estuviera a medias se queda sin respuesta (la página ya no se ve): avisar de un error ahí solo haría ruido.
+  let closed = false;
+  addEventListener("pagehide", () => {
+    closed = true;
+    worker.terminate();
+  });
+  addEventListener("pageshow", (e) => {
+    if (e.persisted && closed) location.reload();
+  });
   const base = dbFromHandler(
     (req) =>
       new Promise((resolve, reject) => {
+        if (closed) return;
         const id = next++;
         pending.set(id, { resolve, reject });
         worker.postMessage({ id, req });

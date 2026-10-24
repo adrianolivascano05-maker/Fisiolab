@@ -47,7 +47,8 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Dice que la app ya está abierta en otra pestaña",
-    a: <>Solo una pestaña puede guardar datos a la vez. Cierra las otras pestañas o ventanas de Cénit y pulsa Reintentar.</>,
+    a: <>Solo una pestaña puede guardar datos a la vez. Cierra las otras pestañas o ventanas de Cénit: esta seguirá sola en
+        unos segundos (si no, pulsa Reintentar).</>,
   },
   {
     q: "He olvidado el PIN",
