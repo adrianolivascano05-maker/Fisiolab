@@ -21,9 +21,18 @@ export async function withoutCloud(ctx: BrowserContext) {
 
 /** Todo test falla si la página escribe un error en consola o lanza una excepción. */
 export const test = base.extend<{ consoleErrors: string[] }>({
-  context: async ({ context }, use) => {
-    await withoutCloud(context);
-    await use(context);
+  context: async ({ context, browserName, playwright }, use, testInfo) => {
+    if (browserName !== "webkit") {
+      await withoutCloud(context);
+      return use(context);
+    }
+    // WebKit sin perfil en disco (la sesión efímera de las pruebas, como una ventana privada de Safari) no da el
+    // almacenamiento privado (OPFS) y la app iría en memoria. Con un perfil, como Safari de verdad: uno nuevo por prueba.
+    const { baseURL, viewport, locale, timezoneId, isMobile, hasTouch } = testInfo.project.use;
+    const persistent = await playwright.webkit.launchPersistentContext(testInfo.outputPath("perfil"), { baseURL, viewport, locale, timezoneId, isMobile, hasTouch });
+    await withoutCloud(persistent);
+    await use(persistent);
+    await persistent.close();
   },
   consoleErrors: [
     async ({ page }, use) => {

@@ -24,6 +24,8 @@ async function look(page: Page, label: string) {
   console.log(`[diagnóstico ${label}] ${JSON.stringify(seen)}`);
 }
 
+// Estos dos abren su propio contexto efímero (browser.newContext), no el perfil en disco de fixtures.ts: en WebKit
+// se espera «en memoria» aquí y «guardado en el dispositivo» en el resto de pruebas.
 for (const sw of ["allow", "block"] as const) {
   test(`D1 dos cargas seguidas en la misma pestaña (service worker: ${sw})`, async ({ browser }) => {
     test.setTimeout(90_000);
