@@ -150,8 +150,14 @@ antes, o enseñar el decimal) cambia cómo se guarda la medición: decidirlo ant
   ha añadido una prueba de diagnóstico (e2e/webkit-diagnostico.spec.ts, solo en WebKit) que apunta en el registro de
   GitHub qué pasa en cada carga. **Aún no se sabe si en un iPhone de verdad pasa lo mismo**: el Safari de pruebas de
   Linux no es igual que el del iPhone.
-- **Falta:** leer ese diagnóstico, arreglar lo que diga, y probar en un iPhone de verdad (pasos en
-  docs/pasos-pendientes.md, «Probar en un iPhone»).
+- **Lo que dijo el diagnóstico:** (1) el WebKit de Linux no tiene almacenamiento privado (OPFS): ahí la app solo
+  puede ir en memoria, y por eso se pierde todo al recargar; es del navegador de pruebas, no de la app. (2) La
+  segunda carga ya se ve bien (el arreglo de la base funciona); lo que salía era la pantalla de entrar con Google,
+  porque el service worker pedía la configuración de verdad sin pasar por el ajuste de la prueba.
+- **Cambiado:** la prueba de Safari pasa a un Mac (WebKit con OPFS, más parecido al iPhone; gratis en un repositorio
+  público) y el servidor de pruebas sirve la configuración sin Google en esa prueba.
+- **Falta:** ver el resultado en el Mac y probar en un iPhone de verdad (pasos en docs/pasos-pendientes.md,
+  «Probar en un iPhone»).
 
 **R3. Reserva online, para que no dé sorpresas:**
 - ~~Días cerrados y festivos~~ **hecho el 24-10-2026:** «Cerrar la agenda» (de un fisio o de toda la clínica; una

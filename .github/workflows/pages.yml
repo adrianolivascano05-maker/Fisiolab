@@ -74,9 +74,10 @@ jobs:
 
   # Las pantallas principales en WebKit, el motor de Safari (iPhone y iPad). De momento solo informa: no para la
   # publicación, porque no se puede probar antes en el entorno de desarrollo. Si sale en rojo, mira el detalle del
-  # paso; el trabajo sale en verde igualmente.
+  # paso; el trabajo sale en verde igualmente. En un Mac: el WebKit de Linux no tiene el almacenamiento privado
+  # (OPFS) que usa la app y todo iría en memoria (en un repositorio público, las máquinas de GitHub no se cobran).
   webkit:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 30
     continue-on-error: true
     steps:
@@ -88,6 +89,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps webkit
       - name: Pantallas principales en WebKit (Safari)
+        env:
+          SIN_GOOGLE: "1"
         run: npx playwright test --browser=webkit e2e/webkit-diagnostico.spec.ts e2e/f01-patients.spec.ts e2e/f16-ficha-clinica.spec.ts e2e/agenda.spec.ts e2e/pwa.spec.ts e2e/mobile-layout.spec.ts
       - if: failure()
         uses: actions/upload-artifact@v4

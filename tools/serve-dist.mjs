@@ -3,6 +3,8 @@
 //   cualquier ruta ("not_found_handling: single-page-application" de wrangler.jsonc);
 // - con GHPAGES=1, como GitHub Pages: sin cabeceras propias, la app bajo BASE (p. ej. /Fisiolab/)
 //   y las rutas desconocidas con 404.html y estado 404.
+// Con SIN_GOOGLE=1, cloud.json sin ID de Google: la app sin cuenta. Las pruebas lo cambian en el navegador, pero en
+// WebKit lo que pide el service worker no pasa por ahí (y traería el de verdad).
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
@@ -11,6 +13,7 @@ const root = new URL("../dist/", import.meta.url).pathname;
 const port = Number(process.env.PORT ?? 4173);
 const base = process.env.BASE ?? "/";
 const ghPages = process.env.GHPAGES === "1";
+const noGoogle = process.env.SIN_GOOGLE === "1";
 const types = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript",
@@ -56,6 +59,7 @@ createServer(async (req, res) => {
   const full = decodeURIComponent(new URL(req.url, "http://x").pathname);
   if (!full.startsWith(base) && full + "/" !== base) return res.writeHead(404).end("Fuera de la app");
   const path = "/" + full.slice(base.length);
+  if (noGoogle && path === "/cloud.json") return res.writeHead(200, { "Content-Type": "application/json" }).end('{"googleClientId":""}');
   let file = normalize(join(root, path));
   if (!file.startsWith(root)) return res.writeHead(403).end();
   if (path.endsWith("/")) file = join(file, "index.html");
