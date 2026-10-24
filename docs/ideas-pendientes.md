@@ -102,6 +102,66 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
      de peticiones (1,9 por minuto por dispositivo: unos 75 dispositivos todo el día en el plan gratuito) y
      problemas frecuentes. Falta: el piloto con clínicas reales (lo hace una persona) y formatear el código.
 
+## Revisión de lo hecho la noche del 23 al 24-10-2026 (pendiente de arreglar)
+
+Revisado el código de los cuatro bloques (con dos revisiones independientes). Todo lo de abajo está comprobado en el
+código salvo lo marcado «a confirmar». Orden propuesto por bloques.
+
+**R1. Fallos que pueden perder datos o mensajes (primero):**
+- Facturas: restaurar una copia de seguridad borra las facturas hechas después y vuelve a dar sus números. Hay
+  que conservar las facturas al restaurar (o no dejar restaurar si hay facturas más nuevas).
+- Facturas: la misma persona facturando en dos dispositivos casi a la vez (o sin conexión) puede repetir número.
+  Dos personas que hacen su primera factura a la vez pueden quedarse las dos con la serie A.
+- Bandeja: al enseñar un envío de anamnesis o cuestionario ya se apunta como enviado; si se pulsa «Saltar por
+  ahora» o se cierra la hoja, no vuelve a salir y el paciente no lo recibe.
+- Reserva: una reserva que no se puede abrir (por ejemplo, basura enviada a propósito) se queda para siempre en el
+  servidor, ocupa su hueco y puede tapar a las reservas buenas.
+- Reserva: si el paciente anula y el dispositivo que lo recoge aún no tiene la cita, la anulación se da por vista y
+  la cita se queda «pendiente» en la agenda.
+- Reserva: al borrar una cita que tenía enlace para anular, el enlace sigue funcionando.
+- Reserva: dos pacientes que reservan el mismo hueco en el mismo instante pueden quedarse los dos con él; la cita de
+  internet no avisa si choca con otra.
+
+**R2. iPhone:** la prueba automática con el motor de Safari (WebKit) falla en GitHub (24 de 40): la app no llega a
+abrir la ficha de paciente nuevo. Puede ser el Safari de pruebas de Linux o un fallo real: hay que mirarlo y probar
+en un iPhone de verdad antes de ofrecer la app a clínicas con iPhone.
+
+**R3. Reserva online, para que no dé sorpresas:**
+- Días cerrados y festivos (hoy se puede reservar el 25 de diciembre).
+- Una sesión que ya ha empezado no cuenta como ocupada (se puede ofrecer una hora que se solapa con ella).
+- Al anular, el hueco se libera aunque esté fuera de horario o se solape con otra cita del mismo fisio.
+- Un fisio sin turnos puestos sale con todo el horario de la clínica (también si está de vacaciones o ya no está
+  en el equipo); poner un solo turno quita el resto del mes.
+- El paciente se une a una ficha solo por el móvil o el correo (una madre que reserva para su marido con su móvil
+  cae en su ficha). El motivo que escribe solo se guarda si es paciente nuevo.
+- El permiso de contacto que da al reservar no se guarda; si un paciente tenía «no contactar», no recibe la
+  confirmación y nadie lo avisa.
+- Al apagar la reserva, otra clínica del mismo servidor puede quedarse con su dirección.
+- Límite de reservas por día fácil de saltar; horas fuera de la rejilla (10:07) rompen los huecos.
+- Política de anulación (no dejar anular a menos de X horas) y «cambiar la hora» además de anular.
+
+**R4. Bandeja de envíos:**
+- Recordatorios y Envíos hacen lo mismo en dos sitios: juntarlos en uno.
+- El recordatorio es solo «mañana»: los lunes y después de un festivo no sale el día antes.
+- Una reserva para mañana manda dos WhatsApp seguidos (confirmación y recordatorio).
+- Pacientes sin el permiso de contacto apuntado entran en la tanda; el aviso solo sale en la lista.
+- «No enviar» no se puede deshacer; si se mueve la cita, el «No enviar» se queda.
+- Lo enviado por un compañero no se ve hasta refrescar la bandeja.
+
+**R5. Facturas, más detalles:**
+- Desde un cobro con IVA puede salir 1 céntimo distinto de lo cobrado; cambiar el IVA no recalcula el precio.
+- El libro en CSV no neutraliza textos que empiezan por = + - @ (Excel podría ejecutarlos como fórmula).
+- Al entrar en una clínica, las facturas hechas por tu cuenta se mezclan con las de la clínica.
+- El aviso de número repetido no se puede quitar y puede dar «cadena rota» de más.
+- Mejor: que el servidor de la clínica dé los números (una serie para toda la clínica, sin repetidos) y las series
+  por dispositivo solo sin conexión. IVA distinto por línea.
+
+**R6. General:**
+- Cada dispositivo pregunta al servidor por tres cosas por separado (cambios, formularios y reservas): unas 2,5
+  peticiones por minuto. Con una sola pregunta «¿hay algo nuevo?» bajaría a 1.
+- Si la página de reservas no se puede publicar, solo se apunta el fallo: avisar en la app.
+- Las pruebas usan una copia del servidor escrita aparte; mejor probar con el servidor de verdad.
+
 ## Del análisis de la competencia (plan de acción)
 
 - Corto plazo: captura de errores en producción guardada en el dispositivo; linter y formateador; prueba
