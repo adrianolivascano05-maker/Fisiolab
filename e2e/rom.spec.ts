@@ -52,6 +52,8 @@ test.describe("F11 Movilidad", () => {
     for (const [beta, shown] of [[52, "38°"], [51, "39°"], [53, "37°"]] as const) {
       await tilt(page, beta);
       await expect(current(page)).toContainText(shown);
+      // Como el fisio: se registra cuando la lectura se ha quedado quieta (mientras se asienta puede ir por 37,5).
+      await expect(page.getByText("Estable")).toBeVisible();
       await page.getByRole("button", { name: "Registrar lectura" }).click();
     }
     await expect(page.getByText("Media: 38°")).toBeVisible();

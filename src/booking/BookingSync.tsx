@@ -70,7 +70,18 @@ export function BookingSync() {
         }
         const got = await collectBookings(db, latest.current.cloud);
         if (!got) return;
-        for (const b of got.booked) latest.current.toast(`Nueva reserva por internet: ${b.name}, ${dayText(b.startsAt)} a las ${hourText(b.startsAt)}`, "success");
+        for (const b of got.booked)
+          latest.current.toast(
+            `Nueva reserva por internet: ${b.name}, ${dayText(b.startsAt)} a las ${hourText(b.startsAt)}${b.clash ? `. Ojo: se solapa con la cita de ${b.clash}` : ""}`,
+            b.clash ? "danger" : "success",
+          );
+        if (got.unreadable)
+          latest.current.toast(
+            got.unreadable === 1
+              ? "Ha llegado una reserva que no se puede abrir y se ha descartado (puede ser falsa). Si alguien dice que reservó y no le ves, llámale."
+              : `Han llegado ${got.unreadable} reservas que no se pueden abrir y se han descartado (pueden ser falsas).`,
+            "danger",
+          );
         if (got.cancelled.length) {
           // Un hueco libre: buen momento para mirar la lista de espera.
           const waiting = (await listWaitlist(db)).length;

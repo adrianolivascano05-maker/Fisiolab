@@ -94,9 +94,17 @@ test.describe("Bandeja de envíos", () => {
     await expect(second.getByLabel("Mensaje")).toContainText("Tu primera cita de fisioterapia en Consulta Ana", { timeout: 15_000 });
     await expect(second.getByLabel("Mensaje")).toContainText("/formulario/");
     expect(google.forms.size).toBe(1);
-    [popup] = await Promise.all([page.waitForEvent("popup"), second.getByRole("link", { name: "Enviar por WhatsApp" }).click()]);
+    // «Saltar por ahora»: no cuenta como enviada (ni en su ficha) y vuelve a salir.
+    await second.getByRole("button", { name: "Saltar por ahora" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Terminar" }).click();
+    await expect(page.getByRole("button", { name: "Enviar el mensaje" })).toBeVisible();
+    await page.getByRole("button", { name: "Enviar el mensaje" }).click();
+    const again = page.getByRole("dialog", { name: "Enviar" });
+    await expect(again.getByLabel("Mensaje")).toContainText("/formulario/", { timeout: 15_000 });
+    [popup] = await Promise.all([page.waitForEvent("popup"), again.getByRole("link", { name: "Enviar por WhatsApp" }).click()]);
     expect(decodeURIComponent(popup.url())).toContain("/formulario/");
     await popup.close();
+    expect(google.forms.size).toBe(1);
     await expect(page.getByRole("dialog").getByText("Hecho: no queda nada por enviar en esta tanda.")).toBeVisible();
     await page.getByRole("dialog").getByRole("button", { name: "Terminar" }).click();
     await expect(page.getByText("Nada que enviar ahora")).toBeVisible();
@@ -107,7 +115,7 @@ test.describe("Bandeja de envíos", () => {
     await page.getByRole("link", { name: /Luis Nuevo/ }).click();
     await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Anamnesis" }).click();
     await page.goto(page.url().replace(/\/anamnesis$/, "/formularios"));
-    await expect(page.getByText("Anamnesis (su parte)")).toBeVisible();
-    await expect(page.getByText("Esperando respuesta")).toBeVisible();
+    await expect(page.getByText("Anamnesis (su parte)")).toHaveCount(1);
+    await expect(page.getByText("Esperando respuesta")).toHaveCount(1);
   });
 });

@@ -12,7 +12,7 @@ import { getDb } from "../data/db";
 import {
   checkInvoices,
   getInvoiceSettings,
-  getSeriesMap,
+  mySeriesLetter,
   invoicesCsv,
   KIND_LABELS,
   listInvoices,
@@ -20,7 +20,6 @@ import {
   setSeriesLetter,
   type InvoiceSettings,
 } from "../data/invoices";
-import { memberEmail } from "../data/member";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -36,7 +35,7 @@ function download(text: string, name: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function SettingsCard({ settings, letter, who }: { settings: InvoiceSettings; letter: string | null; who: string }) {
+function SettingsCard({ settings, letter }: { settings: InvoiceSettings; letter: string | null }) {
   const toast = useToast();
   const [draft, setDraft] = useState<InvoiceSettings | null>(null);
   const [series, setSeries] = useState(letter ?? "");
@@ -46,7 +45,7 @@ function SettingsCard({ settings, letter, who }: { settings: InvoiceSettings; le
     setError(null);
     try {
       await saveInvoiceSettings(getDb(), s);
-      if (series.trim() && series.trim().toUpperCase() !== letter) await setSeriesLetter(getDb(), who, series);
+      if (series.trim() && series.trim().toUpperCase() !== letter) await setSeriesLetter(getDb(), series);
       setDraft(null);
       bumpData();
       toast("Guardado", "success");
@@ -73,8 +72,12 @@ function SettingsCard({ settings, letter, who }: { settings: InvoiceSettings; le
         ))}
       </SelectField>
       <TextField
-        label="Tu serie"
-        hint={letter ? "Tus facturas se numeran en esta serie (más el año). Solo se puede cambiar a una letra que no use nadie más." : "Se te asigna sola con tu primera factura (A, B, C…). Si prefieres otra, escríbela aquí."}
+        label="Serie de este dispositivo"
+        hint={
+          letter
+            ? "Las facturas que se hacen aquí se numeran en esta serie (más el año). Cada dispositivo tiene la suya: así nunca se repite un número, ni sin conexión. Solo se puede cambiar a una letra que no use nadie más."
+            : "Se asigna sola con la primera factura de este dispositivo (A, B, C…). Si prefieres otra, escríbela aquí."
+        }
         maxLength={3}
         autoCapitalize="characters"
         value={series}
@@ -89,12 +92,11 @@ function SettingsCard({ settings, letter, who }: { settings: InvoiceSettings; le
 export function InvoicesPage() {
   const thisYear = Number(new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }).slice(0, 4));
   const [year, setYear] = useState(thisYear);
-  const who = memberEmail() ?? "";
   const data = useAsync(async () => {
     const db = getDb();
-    const [all, settings, series] = await Promise.all([listInvoices(db), getInvoiceSettings(db), getSeriesMap(db)]);
-    return { all, settings, letter: series[who] ?? null, problems: await checkInvoices(all) };
-  }, [who]);
+    const [all, settings, letter] = await Promise.all([listInvoices(db), getInvoiceSettings(db), mySeriesLetter(db)]);
+    return { all, settings, letter, problems: await checkInvoices(all) };
+  }, []);
 
   if (data.error) return <Page title="Facturas" backTo="/ajustes"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Facturas" backTo="/ajustes"><Loading /></Page>;
@@ -191,12 +193,12 @@ export function InvoicesPage() {
         )}
       </Card>
 
-      <SettingsCard settings={settings} letter={letter} who={who} />
+      <SettingsCard settings={settings} letter={letter} />
 
       <Card className="flex flex-col gap-2 text-sm">
         <h2 className="text-lg font-semibold">Qué hace y qué no</h2>
         <ul className="flex list-disc flex-col gap-1.5 pl-5">
-          <li>Numera cada factura de forma correlativa dentro de su serie: una por persona y año (A2026, B2026…) y las rectificativas aparte (RA2026…).</li>
+          <li>Numera cada factura de forma correlativa dentro de su serie: una por dispositivo y año (A2026, B2026…) y las rectificativas aparte (RA2026…). Así dos dispositivos nunca repiten número, ni sin conexión.</li>
           <li>Guarda cada factura tal como se emitió, con una huella encadenada a la anterior: si alguien la cambia, aquí arriba sale el aviso.</li>
           <li>
             <b>No está adaptada a Verifactu</b> (el registro con el formato de Hacienda, su código QR y el envío a la AEAT). Cuando te toque, habrá que

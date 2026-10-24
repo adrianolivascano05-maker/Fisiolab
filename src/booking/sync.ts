@@ -4,7 +4,7 @@
 import { logError } from "../app/errorLog";
 import { getToken } from "../cloud/auth";
 import type { Cloud } from "../cloud/CloudGate";
-import { agenda, createOnlineAppointment, getAppointment, setCancelToken, updateAppointment, type Appointment } from "../data/appointments";
+import { agenda, clashes, createOnlineAppointment, getAppointment, setCancelToken, updateAppointment, type Appointment } from "../data/appointments";
 import type { Db } from "../data/db";
 import { memberEmail } from "../data/member";
 import { getClinic } from "../data/privacy";
@@ -108,46 +108,79 @@ async function patientFor(db: Db, p: BookingPayload): Promise<{ id: string; isNe
   return { id, isNew: true };
 }
 
-export type Collected = { booked: { name: string; startsAt: string }[]; cancelled: { name: string; startsAt: string }[] };
+export type Collected = {
+  /** Reservas nuevas; `clash`: con quién se solapa, si ya había otra cita a esa hora. */
+  booked: { name: string; startsAt: string; clash?: string }[];
+  cancelled: { name: string; startsAt: string }[];
+  /** Reservas que no se han podido abrir (falsas o de otra clave): se descartan para que no atasquen las demás. */
+  unreadable: number;
+};
+
+/** Lo que manda el paciente, comprobado: si no tiene esta forma, no es una reserva de verdad. */
+function validPayload(p: unknown): p is BookingPayload {
+  const x = p as Partial<BookingPayload> | null;
+  return !!x && typeof x.name === "string" && typeof x.phone === "string" && typeof x.email === "string" && typeof x.note === "string" && typeof x.cancelToken === "string" && x.cancelToken.length >= 20;
+}
 
 /** Recoge las reservas y anulaciones nuevas y las pone en la agenda. */
 export async function collectBookings(db: Db, cloud: Cloud | null): Promise<Collected | null> {
   const token = getToken();
   if (!token || !cloud?.clinic || !cloud.clinics) return null;
   const inbox = await cloud.clinics.booking.inbox(token, cloud.clinic.id);
-  const out: Collected = { booked: [], cancelled: [] };
+  const out: Collected = { booked: [], cancelled: [], unreadable: 0 };
   if (!inbox.bookings.length && !inbox.cancels.length) return out;
   const settings = await getBookingSettings(db);
   const keys = await bookingKeys(db);
   const done = { bookings: [] as string[], cancels: [] as string[] };
-  const cancel = async (id: string) => {
+  /**
+   * Anula la cita. Si este dispositivo aún no la tiene (la recogió otro y no ha llegado con la sincronización), no se da
+   * por vista: se mira otra vez la próxima vez. Si ya pasó, no hay nada que hacer.
+   */
+  const cancel = async (id: string, startsAt: string): Promise<boolean> => {
     const a = await getAppointment(db, id);
-    if (a && a.status === "scheduled") {
+    if (!a) return Date.parse(startsAt) < Date.now();
+    if (a.status === "scheduled") {
       await updateAppointment(db, id, { status: "cancelled" });
       const name = (await db.query<{ name: string }>("select name from patients where id = ?", [a.patientId]))[0]?.name ?? "";
       out.cancelled.push({ name, startsAt: a.startsAt });
     }
+    return true;
   };
   for (const b of inbox.bookings) {
     try {
       if (!b.collected && !b.cancelledAt && b.payload) {
-        const p = await openFromPatient<BookingPayload>(keys.privateJwk, b.payload);
+        let p: BookingPayload;
+        try {
+          const opened = await openFromPatient<unknown>(keys.privateJwk, b.payload);
+          if (!validPayload(opened)) throw new Error("La reserva no trae los datos del paciente.");
+          p = opened;
+        } catch (e) {
+          // No se puede abrir o no es una reserva de verdad: se descarta (si se quedara, ocuparía su hueco y taparía las buenas).
+          logError("reserva online (no se puede abrir)", e);
+          out.unreadable++;
+          done.bookings.push(b.id);
+          continue;
+        }
         const patient = await patientFor(db, p);
         const pro = settings.pros.find((x) => x.id === b.pro)?.email ?? null;
-        const made = await createOnlineAppointment(db, { id: b.id, patientId: patient.id, startsAt: b.startsAt, minutes: b.minutes, assignedTo: pro ?? (cloud.clinic && !settings.pros.length ? memberEmail() : null), cancelToken: p.cancelToken });
-        if (made) out.booked.push({ name: p.name, startsAt: b.startsAt });
+        const assignedTo = pro ?? (cloud.clinic && !settings.pros.length ? memberEmail() : null);
+        const made = await createOnlineAppointment(db, { id: b.id, patientId: patient.id, startsAt: b.startsAt, minutes: b.minutes, assignedTo, cancelToken: p.cancelToken });
+        if (made) {
+          const other = (await clashes(db, b.startsAt, b.minutes, assignedTo ?? undefined, b.id))[0];
+          out.booked.push({ name: p.name, startsAt: b.startsAt, ...(other ? { clash: other.name } : {}) });
+        }
       } else if (b.cancelledAt) {
-        await cancel(b.id);
+        // Si nadie la había recogido, no hay cita que esperar: basta con darla por vista.
+        if (!(await cancel(b.id, b.startsAt)) && b.collected) continue;
       }
       done.bookings.push(b.id);
     } catch (e) {
-      // No se puede abrir (otra clave): se deja en el servidor y se apunta el fallo.
+      // Un fallo de esta app (no de la reserva): se deja en el servidor para la próxima vez y se apunta.
       logError("reserva online", e);
     }
   }
   for (const c of inbox.cancels) {
-    await cancel(c.ref);
-    done.cancels.push(c.hash);
+    if (await cancel(c.ref, c.startsAt)) done.cancels.push(c.hash);
   }
   if (done.bookings.length || done.cancels.length) await cloud.clinics.booking.collected(token, cloud.clinic.id, done);
   return out;
@@ -180,10 +213,23 @@ export async function ensureCancelLink(db: Db, cloud: Cloud | null, a: Appointme
 /** Lo último que se mandó al servidor de cada cita con enlace (en este dispositivo), para mandar solo lo que cambia. */
 const linksKey = (clinic: string) => `cenit.enlaces.${clinic}`;
 
+/** Olvida qué enlaces se han mandado (al restaurar una copia: lo que no esté en ella no se da por borrado). */
+export function forgetSentLinks() {
+  try {
+    for (const k of Object.keys(localStorage)) if (k.startsWith("cenit.enlaces.")) localStorage.removeItem(k);
+  } catch {
+    /* nada */
+  }
+}
+
+type Link = Parameters<NonNullable<Cloud["clinics"]>["booking"]["links"]>[2][number];
+type SentLink = { sig: string; link: Link };
+
 /**
  * Pone al día en el servidor los enlaces para anular de las citas que han cambiado desde la última vez: si la
- * clínica mueve una cita, el paciente ve la hora nueva en su enlace; si la anula, la ve anulada.
+ * clínica mueve una cita, el paciente ve la hora nueva en su enlace; si la anula (o la borra), la ve anulada.
  */
+
 export async function syncCancelLinks(db: Db, cloud: Cloud | null, team: boolean): Promise<number> {
   const token = getToken();
   if (!token || !cloud?.clinic || !cloud.clinics) return 0;
@@ -191,30 +237,40 @@ export async function syncCancelLinks(db: Db, cloud: Cloud | null, team: boolean
     "select id, starts_at, minutes, status, assigned_to, cancel_token from appointments where cancel_token is not null and starts_at > ?",
     [new Date(Date.now() - DAY).toISOString()],
   );
-  if (!rows.length) return 0;
   const key = linksKey(cloud.clinic.id);
-  let sent: Record<string, string> = {};
+  // Lo último que se mandó de cada cita (antes solo la firma; ahora también el enlace, para anularlo si la borran).
+  let sent: Record<string, string | SentLink> = {};
   try {
-    sent = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, string>;
+    sent = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, string | SentLink>;
   } catch {
     /* sin almacenamiento: se manda todo */
   }
   const [settings, staff] = await Promise.all([getBookingSettings(db), team ? listStaff(db) : Promise.resolve([])]);
-  const changed: { id: string; sig: string; link: Parameters<NonNullable<Cloud["clinics"]>["booking"]["links"]>[2][number] }[] = [];
+  const changed: { id: string; sig: string; link: Link }[] = [];
   for (const r of rows) {
     const pro = proFor(settings, team, r.assigned_to);
     const label = team && r.assigned_to ? `con ${staff.find((m) => m.email === r.assigned_to)?.name ?? r.assigned_to.split("@")[0]}` : "";
     const cancelled = r.status === "cancelled";
     const sig = [r.starts_at, r.minutes, cancelled, pro, label].join("|");
-    if (sent[r.id] === sig) continue;
+    const before = sent[r.id];
+    if ((typeof before === "string" ? before : before?.sig) === sig) continue;
     changed.push({ id: r.id, sig, link: { hash: await tokenHash(r.cancel_token), ref: r.id, startsAt: r.starts_at, label, minutes: r.minutes, pro, cancelled } });
   }
-  if (!changed.length) return 0;
-  const batch = changed.slice(0, 200);
-  await cloud.clinics.booking.links(token, cloud.clinic.id, batch.map((c) => c.link));
+  // Citas con enlace que ya no están (borradas, o el paciente entero): su enlace se anula para que no siga «viva».
   const keep = new Set(rows.map((r) => r.id));
-  const next = Object.fromEntries(Object.entries(sent).filter(([id]) => keep.has(id)));
-  for (const c of batch) next[c.id] = c.sig;
+  const gone: string[] = [];
+  for (const [id, before] of Object.entries(sent)) {
+    if (keep.has(id)) continue;
+    if (typeof before === "string" || Date.parse(before.link.startsAt) < Date.now() || (await getAppointment(db, id))) gone.push(id);
+    else if (!before.link.cancelled) changed.push({ id, sig: "borrada", link: { ...before.link, cancelled: true } });
+    else gone.push(id);
+  }
+  if (!changed.length && !gone.length) return 0;
+  const next = { ...sent };
+  for (const id of gone) delete next[id];
+  const batch = changed.slice(0, 200);
+  if (batch.length) await cloud.clinics.booking.links(token, cloud.clinic.id, batch.map((c) => c.link));
+  for (const c of batch) next[c.id] = { sig: c.sig, link: c.link };
   try {
     localStorage.setItem(key, JSON.stringify(next));
   } catch {

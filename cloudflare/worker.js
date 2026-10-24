@@ -157,6 +157,8 @@ const FRESH_COLLECTED_MS = 15 * 60_000;
 const MAX_WINDOWS_CHARS = 400_000;
 /** Los datos cifrados de una reserva. */
 const MAX_BOOKING_CHARS = 8_000;
+/** Lo cifrado del paciente: «CB1.<clave de un uso>.<iv>.<datos>», en base64. Lo demás no es una reserva. */
+const BOOKING_PAYLOAD = /^CB1\.[A-Za-z0-9+/]{40,120}={0,2}\.[A-Za-z0-9+/]{16}\.[A-Za-z0-9+/]{24,}={0,2}$/;
 /** Reservas desde un mismo origen en 24 horas, y reservas sin recoger a la vez en una clínica. */
 const MAX_BOOKINGS_PER_CLIENT = 3;
 const MAX_OPEN_BOOKINGS = 300;
@@ -1121,7 +1123,7 @@ async function publicBooking(request, db, slug, now) {
   // Solo las horas de la lista (10:00, 10:15…): una hora suelta partiría los huecos en trozos que no sirven.
   const stepMs = Number(page.step) > 0 ? Number(page.step) * 60_000 : 0;
   if (stepMs && startsAt % stepMs !== 0) throw new HttpError(400, "Esa hora ya no se puede reservar: elige otra.");
-  if (typeof body.payload !== "string" || !body.payload.startsWith("CB1.") || body.payload.length > MAX_BOOKING_CHARS) throw new HttpError(400, "Faltan tus datos.");
+  if (typeof body.payload !== "string" || !BOOKING_PAYLOAD.test(body.payload) || body.payload.length > MAX_BOOKING_CHARS) throw new HttpError(400, "Faltan tus datos.");
   const cancelHash = typeof body.cancelHash === "string" ? body.cancelHash : "";
   if (!CANCEL_HASH.test(cancelHash)) throw new HttpError(400, "Falta el código para anular.");
   // Un mismo origen no puede reservar sin parar (la huella cambia cada día y no guarda la dirección).
@@ -1140,14 +1142,43 @@ async function publicBooking(request, db, slug, now) {
   const pro = wanted ? (fits(wanted) ? wanted : null) : ([...new Set(free.map((w) => w.pro))].find(fits) ?? null);
   if (pro === null) throw new HttpError(409, "Ese hueco se acaba de ocupar: elige otra hora.");
   const id = crypto.randomUUID();
+  const endsAt = startsAt + kind.minutes * 60_000;
+  /** @type {D1Result} */
+  let saved;
   try {
-    await db
-      .prepare("INSERT INTO bookings (id, clinic_id, starts_at, minutes, pro, kind, payload, cancel_hash, client, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(id, clinicId, new Date(startsAt).toISOString(), kind.minutes, pro, kind.id, body.payload, cancelHash, client, new Date(at).toISOString())
+    // Solo si nadie ha cogido ese rato con esa persona entre la comprobación de arriba y ahora (dos que reservan a la
+    // vez la misma hora): la comprobación y el guardado van en la misma orden, y D1 las hace una detrás de otra.
+    saved = await db
+      .prepare(
+        `INSERT INTO bookings (id, clinic_id, starts_at, minutes, pro, kind, payload, cancel_hash, client, created_at)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE NOT EXISTS (
+           SELECT 1 FROM bookings WHERE clinic_id = ? AND pro = ? AND cancelled_at IS NULL AND (collected_at IS NULL OR collected_at > ?)
+             AND starts_at < ? AND CAST(strftime('%s', starts_at) AS INTEGER) + minutes * 60 > ?
+         )`,
+      )
+      .bind(
+        id,
+        clinicId,
+        new Date(startsAt).toISOString(),
+        kind.minutes,
+        pro,
+        kind.id,
+        body.payload,
+        cancelHash,
+        client,
+        new Date(at).toISOString(),
+        clinicId,
+        pro,
+        new Date(at - FRESH_COLLECTED_MS).toISOString(),
+        new Date(endsAt).toISOString(),
+        Math.floor(startsAt / 1000),
+      )
       .run();
   } catch {
     throw new HttpError(409, "Esa reserva ya está hecha.");
   }
+  if (!saved.meta?.changes) throw new HttpError(409, "Ese hueco se acaba de ocupar: elige otra hora.");
   return json(201, { id, startsAt: new Date(startsAt).toISOString(), minutes: kind.minutes, pro });
 }
 
@@ -1206,27 +1237,40 @@ async function publicCancel(request, db, token, cancel, now) {
   const minutes = l ? Number(l.minutes) : b ? Number(b.minutes) : 0;
   const pro = l ? (l.pro === null ? null : String(l.pro)) : b ? String(b.pro) : null;
   if (page && !info.disabled && pro !== null && minutes > 0) {
-    const from = Date.parse(startsAt);
-    const to = from + minutes * 60_000;
-    // Solo lo que cae dentro de cuándo se puede reservar con ese fisio (nunca un rato cerrado ni fuera de horario).
-    const pieces = Array.isArray(info.envelope)
-      ? info.envelope
-          .filter((w) => w.pro === pro)
-          .map((w) => [Math.max(from, Date.parse(w.from)), Math.min(to, Date.parse(w.to))])
-          .filter(([a = 0, b = 0]) => b > a)
-      : [[from, to]];
+    const pieces = freedPieces(info.envelope, pro, startsAt, minutes);
     if (pieces.length) {
       const published = await db.prepare("SELECT windows FROM booking_pages WHERE clinic_id = ?").bind(clinicId).first();
       if (published) {
         /** @type {BookingWindow[]} */
         let windows = JSON.parse(String(published.windows));
-        for (const [a = 0, b = 0] of pieces) windows = withWindow(windows, { pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() });
+        for (const piece of pieces) windows = withWindow(windows, piece);
         steps.push(db.prepare("UPDATE booking_pages SET windows = ? WHERE clinic_id = ?").bind(JSON.stringify(windows), clinicId));
       }
     }
   }
   await db.batch(steps);
   return json(200, { cancelled: true });
+}
+
+/**
+ * Lo que queda libre al anular una cita: solo lo que cae dentro de cuándo se puede reservar con ese fisio (nunca un
+ * rato cerrado ni fuera de horario). Sin ese contorno (una app antigua), la cita entera.
+ * @param {BookingWindow[] | null | undefined} envelope
+ * @param {string} pro
+ * @param {string} startsAt
+ * @param {number} minutes
+ * @returns {BookingWindow[]}
+ */
+function freedPieces(envelope, pro, startsAt, minutes) {
+  const from = Date.parse(startsAt);
+  const to = from + minutes * 60_000;
+  const spans = Array.isArray(envelope)
+    ? envelope
+        .filter((w) => w.pro === pro)
+        .map((w) => [Math.max(from, Date.parse(w.from)), Math.min(to, Date.parse(w.to))])
+        .filter(([a = 0, b = 0]) => b > a)
+    : [[from, to]];
+  return spans.map(([a = 0, b = 0]) => ({ pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() }));
 }
 
 /**
@@ -1274,10 +1318,23 @@ async function clinicBookings(request, db, clinicId, rest, now) {
     const key = body.publicKey;
     if (typeof key !== "object" || key === null || /** @type {Record<string, unknown>} */ (key).kty !== "EC") throw new HttpError(400, "Falta la clave pública de la clínica.");
     const shown = JSON.stringify(body.page ?? {});
-    const windows = JSON.stringify(Array.isArray(body.windows) ? body.windows : []);
     const envelope = Array.isArray(body.envelope)
       ? body.envelope.filter((w) => typeof w === "object" && w !== null && typeof w.pro === "string" && typeof w.from === "string" && typeof w.to === "string")
       : null;
+    /** @type {BookingWindow[]} */
+    let open = Array.isArray(body.windows) ? body.windows : [];
+    // Lo que han anulado los pacientes y la clínica aún no ha recogido: la app aún tiene la cita y lo publicaría
+    // ocupado. (Una reserva que la clínica nunca recogió no cuenta: la app no la tenía y ese rato ya va libre.)
+    const { results: unseen = [] } = await db
+      .prepare(
+        `SELECT starts_at, minutes, pro FROM bookings WHERE clinic_id = ? AND collected_at IS NOT NULL AND cancelled_at IS NOT NULL AND cancel_seen_at IS NULL AND starts_at > ?
+         UNION ALL
+         SELECT starts_at, minutes, pro FROM cancel_links WHERE clinic_id = ? AND cancelled_at IS NOT NULL AND cancel_seen_at IS NULL AND pro IS NOT NULL AND starts_at > ?`,
+      )
+      .bind(clinicId, iso, clinicId, iso)
+      .all();
+    for (const u of unseen) for (const piece of freedPieces(envelope, String(u.pro), String(u.starts_at), Number(u.minutes))) open = withWindow(open, piece);
+    const windows = JSON.stringify(open);
     if (shown.length > MAX_PAGE_CHARS || windows.length > MAX_WINDOWS_CHARS || JSON.stringify(envelope ?? []).length > MAX_WINDOWS_CHARS) {
       throw new HttpError(413, "La página es demasiado grande.");
     }

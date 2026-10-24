@@ -41,6 +41,7 @@ import { CloudSettings, syncText, useCloud, useSyncState } from "../cloud/CloudG
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { getBookingSettings } from "../booking/settings";
+import { forgetSentLinks } from "../booking/sync";
 import { getDb } from "../data/db";
 import { FullExportButton } from "../export/FullExportButton";
 import { clinicComplete, getClinic } from "../data/privacy";
@@ -378,6 +379,7 @@ export function DataSettingsPage() {
               const bytes = new Uint8Array(await pending!.arrayBuffer());
               setPending(null);
               await getDb().importBytes(bytes);
+              forgetSentLinks();
               toast("Copia restaurada", "success");
             })
           }

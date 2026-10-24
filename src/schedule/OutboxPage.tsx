@@ -18,7 +18,7 @@ import { memberEmail } from "../data/member";
 import { getClinic } from "../data/privacy";
 import { useGranted } from "../data/questionnairePermissions";
 import { getSetting, setSetting } from "../data/repo";
-import { createPatientForm } from "../patientForm/createForm";
+import { recordSentForms, uploadPatientForm, type UploadedForm } from "../patientForm/createForm";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -54,8 +54,8 @@ const SUBJECT: Record<OutboxRule, string> = {
   seguimiento: "Antes de tu revisión",
 };
 
-/** El mensaje de cada envío, ya con sus enlaces. */
-type Prepared = { text: string } | { error: string };
+/** El mensaje de cada envío, ya con sus enlaces (y los formularios que lleva, que se apuntan al enviarlo). */
+type Prepared = { text: string; forms?: UploadedForm[] } | { error: string };
 
 export function OutboxPage() {
   const toast = useToast();
@@ -108,21 +108,22 @@ export function OutboxPage() {
         // Si ya tiene código (lo creó el móvil del paciente al reservar), se pone al día su hora en el servidor.
         const url = (await cancelLink()) ?? (a!.cancelToken ? cancelUrl(formsBase(), a!.cancelToken) : null);
         if (!url) return { error: "No se ha podido crear el enlace para anular: revisa la conexión y vuelve a intentarlo." };
-        const anamnesisUrl = i.withAnamnesis
-          ? (await createPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections })).url
+        const anamnesis = i.withAnamnesis
+          ? await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections })
           : undefined;
-        return { text: confirmationText({ name: i.name, clinic: clinicName, startsAt: a!.startsAt, professional, cancelUrl: url, anamnesisUrl }) };
+        return {
+          text: confirmationText({ name: i.name, clinic: clinicName, startsAt: a!.startsAt, professional, cancelUrl: url, anamnesisUrl: anamnesis?.url }),
+          forms: anamnesis ? [anamnesis] : [],
+        };
       }
       if (i.rule === "anamnesis") {
-        const f = await createPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections });
-        return { text: anamnesisText({ name: i.name, clinic: clinicName, startsAt: i.appointment!.startsAt, url: f.url }) };
+        const f = await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections });
+        return { text: anamnesisText({ name: i.name, clinic: clinicName, startsAt: i.appointment!.startsAt, url: f.url }), forms: [f] };
       }
-      const links = [];
-      for (const kind of i.kinds ?? []) {
-        const f = await createPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind, clinicName, sections });
-        links.push({ title: formTitle(kind), url: f.url });
-      }
-      return { text: followUpText({ name: i.name, clinic: clinicName, reviewOn: i.reviewOn!, links }) };
+      const forms: UploadedForm[] = [];
+      for (const kind of i.kinds ?? []) forms.push(await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind, clinicName, sections }));
+      const links = forms.map((f) => ({ title: formTitle(f.record.kind), url: f.url }));
+      return { text: followUpText({ name: i.name, clinic: clinicName, reviewOn: i.reviewOn!, links }), forms };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -130,6 +131,9 @@ export function OutboxPage() {
 
   async function sent(i: OutboxItem) {
     const db = getDb();
+    // Los formularios que llevaba el mensaje se apuntan ahora, al enviarlo (si se salta, no cuentan como enviados).
+    const p = prepared[i.id];
+    if (p && "forms" in p && p.forms?.length) await recordSentForms(db, p.forms);
     if (i.rule === "recordatorio") await markReminded(db, i.appointment!.id);
     else await markOutbox(db, { id: i.id, patientId: i.patientId, rule: i.rule, status: "sent", by: memberEmail() ?? "" });
     // La confirmación que llevaba la anamnesis cuenta también como la anamnesis enviada.

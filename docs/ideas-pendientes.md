@@ -107,20 +107,31 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
 Revisado el código de los cuatro bloques (con dos revisiones independientes). Todo lo de abajo está comprobado en el
 código salvo lo marcado «a confirmar». Orden propuesto por bloques.
 
-**R1. Fallos que pueden perder datos o mensajes (primero):**
-- Facturas: restaurar una copia de seguridad borra las facturas hechas después y vuelve a dar sus números. Hay
-  que conservar las facturas al restaurar (o no dejar restaurar si hay facturas más nuevas).
-- Facturas: la misma persona facturando en dos dispositivos casi a la vez (o sin conexión) puede repetir número.
-  Dos personas que hacen su primera factura a la vez pueden quedarse las dos con la serie A.
-- Bandeja: al enseñar un envío de anamnesis o cuestionario ya se apunta como enviado; si se pulsa «Saltar por
-  ahora» o se cierra la hoja, no vuelve a salir y el paciente no lo recibe.
-- Reserva: una reserva que no se puede abrir (por ejemplo, basura enviada a propósito) se queda para siempre en el
-  servidor, ocupa su hueco y puede tapar a las reservas buenas.
-- Reserva: si el paciente anula y el dispositivo que lo recoge aún no tiene la cita, la anulación se da por vista y
-  la cita se queda «pendiente» en la agenda.
-- Reserva: al borrar una cita que tenía enlace para anular, el enlace sigue funcionando.
-- Reserva: dos pacientes que reservan el mismo hueco en el mismo instante pueden quedarse los dos con él; la cita de
-  internet no avisa si choca con otra.
+**R1. Fallos que pueden perder datos o mensajes** — **hecho el 24-10-2026:**
+- ~~Restaurar una copia borra las facturas hechas después~~: al restaurar se conservan todas las facturas (las de la
+  copia y las de este dispositivo), así no se vuelven a dar sus números.
+- ~~La misma persona en dos dispositivos puede repetir número~~: ahora cada dispositivo tiene su serie (A, B…), no
+  cada persona. Si dos dispositivos sin conexión cogen la misma letra a la vez, uno se la deja al otro en su próxima
+  factura. Lo que se hubiera emitido ya con números repetidos lo avisa la lista de facturas («Número repetido…»).
+- ~~La bandeja apunta la anamnesis como enviada al enseñarla~~: se apunta al pulsar «Enviar»; con «Saltar por ahora»
+  vuelve a salir.
+- ~~Una reserva que no se puede abrir se queda para siempre~~: se descarta y la app avisa («puede ser falsa»).
+  Además el servidor ya no acepta lo que no tenga la forma de una reserva cifrada.
+- ~~Una anulación se da por vista aunque el dispositivo no tenga la cita~~: se queda en el servidor hasta que llega la
+  cita (o hasta que ya ha pasado).
+- ~~Al borrar una cita con enlace para anular, el enlace sigue funcionando~~: se desactiva. Al restaurar una copia no
+  se desactiva nada (lo que falta en la copia puede seguir en otros dispositivos).
+- ~~Dos pacientes que reservan el mismo hueco a la vez~~: el servidor comprueba y guarda en un solo paso; el segundo
+  ve «Ese hueco se acaba de ocupar». Si una reserva cae encima de una cita dada a mano, el aviso lo dice en rojo.
+- ~~Si la app vuelve a publicar los huecos antes de recoger una anulación, el hueco anulado se vuelve a tapar~~: el
+  servidor lo mantiene libre hasta que la clínica recoge la anulación (lo encontró una prueba automática).
+- Lo que queda: si dos dispositivos emiten facturas **sin conexión** con la misma letra antes de sincronizar, pueden
+  repetir número (se avisa; se arregla con una rectificativa). Con conexión no pasa.
+
+**Medición con el inclinómetro (visto el 24-10-2026, sin tocar):** si se pulsa «Registrar lectura» antes de que
+salga «Estable», el número grande puede decir 37° y la lectura guardarse como 38°: se guarda con un decimal (37,46 →
+37,5) y luego se redondea otra vez al enseñarla. Con la lectura estable no pasa. Arreglarlo (guardar sin redondear
+antes, o enseñar el decimal) cambia cómo se guarda la medición: decidirlo antes.
 
 **R2. iPhone:** la prueba automática con el motor de Safari (WebKit) falla en GitHub (24 de 40): la app no llega a
 abrir la ficha de paciente nuevo. Puede ser el Safari de pruebas de Linux o un fallo real: hay que mirarlo y probar

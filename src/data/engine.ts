@@ -148,12 +148,16 @@ export class Engine {
     };
   }
 
-  /** Restaura una copia de seguridad. Si el archivo no es válido, deja la base como estaba. */
+  /**
+   * Restaura una copia de seguridad. Si el archivo no es válido, deja la base como estaba. Las facturas no se pierden:
+   * las emitidas después de la copia se vuelven a poner (una factura emitida no se borra y su número no se repite).
+   */
   private async importBytes(bytes: Uint8Array) {
     if (!this.storage.replace) throw new Error("Este navegador no permite restaurar copias.");
     const header = new TextDecoder().decode(bytes.slice(0, 16));
     if (header !== SQLITE_HEADER) throw new Error("El archivo no es una copia de seguridad válida.");
     const previous = this.sqlite3.capi.sqlite3_js_db_export(this.db) as Uint8Array;
+    const invoices = this.query("select * from invoices") as Record<string, Bind[number]>[];
     this.db.close();
     try {
       await this.storage.replace(bytes);
@@ -161,6 +165,12 @@ export class Engine {
       const ok = this.db.selectValue("pragma integrity_check");
       const hasPatients = this.db.selectValue("select count(*) from sqlite_master where name = 'patients'");
       if (ok !== "ok" || !hasPatients) throw new Error("La copia está dañada o no es de esta app.");
+      // Las facturas que no estaban en la copia, tal cual (y se sincronizan como un cambio de este dispositivo).
+      if (invoices.length) {
+        const cols = Object.keys(invoices[0]!);
+        const sql = `insert or ignore into invoices (${cols.join(", ")}) values (${cols.map(() => "?").join(", ")})`;
+        this.transaction(invoices.map((r) => ({ sql, bind: cols.map((c) => r[c] ?? null) })));
+      }
     } catch (err) {
       try {
         this.db?.close();

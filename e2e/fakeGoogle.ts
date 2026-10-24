@@ -474,7 +474,7 @@ export class FakeGoogle {
       const at = Date.parse(b.startsAt ?? "");
       if (!Number.isFinite(at) || at < Date.now() + (p.page.minNoticeHours ?? 0) * 3_600_000 - 60_000) return send(400, { error: "Esa hora ya no se puede reservar: elige otra." });
       if (p.page.step && at % (p.page.step * 60_000) !== 0) return send(400, { error: "Esa hora ya no se puede reservar: elige otra." });
-      if (!b.payload?.startsWith("CB1.") || !/^[0-9a-f]{64}$/.test(b.cancelHash ?? "")) return send(400, { error: "Faltan tus datos." });
+      if (!/^CB1\.[A-Za-z0-9+/]{40,120}={0,2}\.[A-Za-z0-9+/]{16}\.[A-Za-z0-9+/]{24,}={0,2}$/.test(b.payload ?? "") || !/^[0-9a-f]{64}$/.test(b.cancelHash ?? "")) return send(400, { error: "Faltan tus datos." });
       const free = this.openWindows(clinic, p.windows);
       const fits = (pro: string) => free.some((w) => w.pro === pro && Date.parse(w.from) <= at && at + kind.minutes * 60_000 <= Date.parse(w.to));
       const pro = b.pro ? (fits(b.pro) ? b.pro : null) : ([...new Set(free.map((w) => w.pro))].find(fits) ?? null);
@@ -513,26 +513,28 @@ export class FakeGoogle {
     // El hueco, libre en la página al momento.
     const minutes = link ? link.minutes : fromBooking!.minutes;
     const pro = link ? link.pro : fromBooking!.pro;
-    if (page && !page.page.disabled && pro !== null && minutes > 0) {
-      const from = Date.parse(row.startsAt);
-      const to = from + minutes * 60_000;
-      // Solo dentro de cuándo se puede reservar con ese fisio.
-      const pieces = (page.envelope ?? [{ pro, from: row.startsAt, to: new Date(to).toISOString() }])
-        .filter((w) => w.pro === pro)
-        .map((w) => ({ pro, from: new Date(Math.max(from, Date.parse(w.from))).toISOString(), to: new Date(Math.min(to, Date.parse(w.to))).toISOString() }))
-        .filter((w) => w.to > w.from);
-      const spans = [...page.windows.filter((w) => w.pro === pro), ...pieces]
-        .map((w) => [Date.parse(w.from), Date.parse(w.to)] as [number, number])
-        .sort((x, y) => x[0] - y[0]);
-      const merged: [number, number][] = [];
-      for (const [a, b] of spans) {
-        const last = merged[merged.length - 1];
-        if (last && a <= last[1]) last[1] = Math.max(last[1], b);
-        else merged.push([a, b]);
-      }
-      page.windows = [...page.windows.filter((w) => w.pro !== pro), ...merged.map(([a, b]) => ({ pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() }))];
-    }
+    if (page && !page.page.disabled && pro !== null && minutes > 0) this.free(page, pro, row.startsAt, minutes);
     return send(200, { cancelled: true });
+  }
+
+  /** Deja libre en la página publicada lo que ocupaba una cita anulada (solo dentro de cuándo se reserva con ese fisio). */
+  private free(page: { windows: BookingWindow[]; envelope?: BookingWindow[] }, pro: string, startsAt: string, minutes: number) {
+    const from = Date.parse(startsAt);
+    const to = from + minutes * 60_000;
+    const pieces = (page.envelope ?? [{ pro, from: startsAt, to: new Date(to).toISOString() }])
+      .filter((w) => w.pro === pro)
+      .map((w) => ({ pro, from: new Date(Math.max(from, Date.parse(w.from))).toISOString(), to: new Date(Math.min(to, Date.parse(w.to))).toISOString() }))
+      .filter((w) => w.to > w.from);
+    const spans = [...page.windows.filter((w) => w.pro === pro), ...pieces]
+      .map((w) => [Date.parse(w.from), Date.parse(w.to)] as [number, number])
+      .sort((x, y) => x[0] - y[0]);
+    const merged: [number, number][] = [];
+    for (const [a, b] of spans) {
+      const last = merged[merged.length - 1];
+      if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+      else merged.push([a, b]);
+    }
+    page.windows = [...page.windows.filter((w) => w.pro !== pro), ...merged.map(([a, b]) => ({ pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() }))];
   }
 
   /** Lo del equipo: publicar la página, recoger reservas y anulaciones y dar enlaces para anular. */
@@ -546,7 +548,13 @@ export class FakeGoogle {
       }
       if (!/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(b.slug ?? "")) return send(400, { error: "La dirección de la página solo puede llevar letras sin tilde, números y guiones (de 3 a 40)." });
       if ([...this.bookingPages].some(([c, p]) => p.slug === b.slug && c !== clinic)) return send(409, { error: "Esa dirección ya la usa otra clínica: elige otra." });
-      this.bookingPages.set(clinic, { slug: b.slug!, publicKey: b.publicKey, page: b.page ?? {}, windows: b.windows ?? [], envelope: b.envelope });
+      const page = { slug: b.slug!, publicKey: b.publicKey, page: b.page ?? {}, windows: b.windows ?? [], envelope: b.envelope };
+      // Lo anulado que la clínica aún no ha recogido sigue libre aunque la app lo publique ocupado.
+      const now = new Date().toISOString();
+      for (const x of this.bookings.values())
+        if (x.clinic === clinic && x.collectedAt !== undefined && x.cancelledAt && !x.cancelSeen && x.startsAt > now) this.free(page, x.pro, x.startsAt, x.minutes);
+      for (const l of this.cancelLinks.values()) if (l.clinic === clinic && l.cancelledAt && !l.cancelSeen && l.pro !== null && l.startsAt > now) this.free(page, l.pro, l.startsAt, l.minutes);
+      this.bookingPages.set(clinic, page);
       return send(200, { enabled: true, slug: b.slug });
     }
     if (rest === "/reservas") {

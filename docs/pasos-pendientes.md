@@ -88,6 +88,7 @@ pero al guardar en **Ajustes › Reserva online** saldrá un error.
 5. Revisa con tu asesoría el texto «Tus datos: quién los recibe y para qué» de la página de reservas (sale de los
    datos de **Ajustes › Clínica y protección de datos**): es un resumen informativo, no un texto legal revisado.
 
-**Actualización del 24-10-2026 (agenda cerrada y reserva con elección de fisio):** cambia solo `worker.js` (no
-`schema.sql`). Si ya habías hecho el paso 4, vuelve a pegar el `worker.js` del repositorio (**Edit code** → **Deploy**).
-Si aún no lo habías hecho, el paso 4 tal cual ya lo incluye.
+**Actualización del 24-10-2026 (agenda cerrada, reserva con elección de fisio y arreglos de la reserva: dos personas
+a la vez en el mismo hueco, reservas que no son de verdad):** cambia solo `worker.js` (no `schema.sql`). Si ya habías
+hecho el paso 4, vuelve a pegar el `worker.js` del repositorio (**Edit code** → **Deploy**). Si aún no lo habías
+hecho, el paso 4 tal cual ya lo incluye.

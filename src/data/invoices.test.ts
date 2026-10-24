@@ -10,6 +10,7 @@ import {
   invoicesOfPayments,
   issueInvoice,
   listInvoices,
+  mySeriesLetter,
   rectifyInvoice,
   setSeriesLetter,
   totalsOf,
@@ -58,24 +59,52 @@ describe("facturas", () => {
     expect(invoiceProblem(input({ kind: "simplificada", lines: [{ concept: "Bono", qty: 1, unitCents: 40_001 }] }), clinic, TODAY)).toMatch(/400 €/);
   });
 
-  it("numeración correlativa por serie y año, cada persona con su letra; la fecha no puede ir hacia atrás", async () => {
+  it("numeración correlativa por serie y año, cada dispositivo con su letra; la fecha no puede ir hacia atrás", async () => {
+    const otherDevice = (id: string) => db.transaction([{ sql: "update sync_state set device = ?", bind: [id] }]);
+    await otherDevice("recepcion");
     const a1 = await issueInvoice(db, input(), clinic, "", TODAY);
-    const a2 = await issueInvoice(db, input({ issuedOn: "2026-10-21" }), clinic, "", TODAY);
+    const a2 = await issueInvoice(db, input({ issuedOn: "2026-10-21" }), clinic, "laura@clinica.test", TODAY);
+    // En el mismo dispositivo, la misma serie aunque factura otra persona.
     expect([a1.code, a2.code]).toEqual(["A2026-0001", "A2026-0002"]);
     expect(a1.recipient.taxId).toBe("12345678Z");
-    // Otra persona de la clínica: su propia serie, desde el 1.
+    // Otro dispositivo (aunque sea de la misma persona): su propia serie, desde el 1.
+    await otherDevice("movil-de-laura");
     const b1 = await issueInvoice(db, input(), clinic, "laura@clinica.test", TODAY);
     expect(b1.code).toBe("B2026-0001");
     // No se puede emitir con fecha anterior a la última de su serie.
+    await otherDevice("recepcion");
     await expect(issueInvoice(db, input({ issuedOn: "2026-10-19" }), clinic, "", TODAY)).rejects.toThrow(/anterior a la de la última factura de la serie A2026/);
     // Año nuevo, número 1 otra vez.
     const next = await issueInvoice(db, input({ issuedOn: "2027-01-02" }), clinic, "", "2027-01-02");
     expect(next.code).toBe("A2027-0001");
     // La letra se puede cambiar si nadie más la usa.
-    await expect(setSeriesLetter(db, "laura@clinica.test", "A")).rejects.toThrow(/otra persona/);
-    await expect(setSeriesLetter(db, "laura@clinica.test", "R")).rejects.toThrow(/rectificativas/);
-    await setSeriesLetter(db, "laura@clinica.test", "LG");
+    await otherDevice("movil-de-laura");
+    await expect(setSeriesLetter(db, "A")).rejects.toThrow(/otro dispositivo/);
+    await expect(setSeriesLetter(db, "R")).rejects.toThrow(/rectificativas/);
+    await setSeriesLetter(db, "LG");
     expect((await issueInvoice(db, input({ issuedOn: "2026-10-22" }), clinic, "laura@clinica.test", TODAY)).code).toBe("LG2026-0001");
+  });
+
+  it("dos dispositivos que cogen la misma letra a la vez (sin conexión): uno se la deja al otro en su próxima factura", async () => {
+    const device = (id: string) => db.transaction([{ sql: "update sync_state set device = ?", bind: [id] }]);
+    // Así queda tras sincronizar: los dos con la A y una factura cada uno.
+    await device("zz-movil");
+    expect((await issueInvoice(db, input(), clinic, "", TODAY)).code).toBe("A2026-0001");
+    await db.transaction([{ sql: "insert into settings (key, value) values ('invoice_series:aa-recepcion', ?)", bind: [JSON.stringify("A")] }]);
+    expect(await mySeriesLetter(db)).toBeNull(); // la cede: el formulario no promete la A
+    expect((await issueInvoice(db, input(), clinic, "", TODAY)).code).toBe("B2026-0001");
+    expect(await mySeriesLetter(db)).toBe("B");
+    // El otro sigue con la suya.
+    await device("aa-recepcion");
+    expect(await mySeriesLetter(db)).toBe("A");
+    expect((await issueInvoice(db, input(), clinic, "", TODAY)).code).toBe("A2026-0002");
+  });
+
+  it("quien ya facturaba con la primera versión (una letra por persona) sigue con su letra en su primer dispositivo", async () => {
+    await db.transaction([{ sql: "insert into settings (key, value) values ('invoice_series', ?)", bind: [JSON.stringify({ "pablo@clinica.test": "C" })] }]);
+    expect((await issueInvoice(db, input(), clinic, "pablo@clinica.test", TODAY)).code).toBe("C2026-0001");
+    await db.transaction([{ sql: "update sync_state set device = 'otro'", bind: [] }]);
+    expect((await issueInvoice(db, input(), clinic, "pablo@clinica.test", TODAY)).code).toBe("A2026-0001");
   });
 
   it("un cobro solo tiene una factura; se guarda tal cual estaba la clínica al emitirla", async () => {
@@ -107,6 +136,16 @@ describe("facturas", () => {
     await expect(rectifyInvoice(db, f.id, "otra vez", clinic, "", TODAY)).rejects.toThrow(/ya tiene su rectificativa/);
     await expect(rectifyInvoice(db, r.id, "x", clinic, "", TODAY)).rejects.toThrow(/no se rectifica/);
     await expect(rectifyInvoice(db, (await issueInvoice(db, input(), clinic, "", TODAY)).id, " ", clinic, "", TODAY)).rejects.toThrow(/motivo/);
+  });
+
+  it("restaurar una copia antigua no borra las facturas hechas después ni deja repetir sus números", async () => {
+    await issueInvoice(db, input(), clinic, "", TODAY);
+    const backup = await db.exportBytes();
+    await issueInvoice(db, input({ issuedOn: "2026-10-21" }), clinic, "", TODAY);
+    await db.importBytes(backup);
+    expect((await listInvoices(db)).map((i) => i.code)).toEqual(["A2026-0001", "A2026-0002"]);
+    expect((await issueInvoice(db, input({ issuedOn: "2026-10-22" }), clinic, "", TODAY)).code).toBe("A2026-0003");
+    expect(await checkInvoices(await listInvoices(db))).toEqual([]);
   });
 
   it("la cadena de huellas: en orden, avisa si alguien cambia una factura o si hay números repetidos", async () => {

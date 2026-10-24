@@ -82,31 +82,79 @@ export async function saveInvoiceSettings(db: Db, s: InvoiceSettings): Promise<v
   await setSetting(db, INVOICE_SETTINGS_KEY, { ...s, exemption: s.exemption.trim() });
 }
 
-/** La letra de serie de cada persona de la clínica («» sin clínica). Se asigna sola la primera vez que factura. */
+/**
+ * La serie de cada dispositivo: una letra (A, B, C…) que se asigna sola la primera vez que factura y se guarda en su
+ * propio ajuste («invoice_series:<dispositivo>»), sincronizado. Así dos dispositivos (aunque sean de la misma persona)
+ * nunca se quitan un número, ni aunque trabajen sin conexión a la vez. (La primera versión guardaba una letra por
+ * persona en «invoice_series»: se respeta para no cambiar la serie de quien ya facturaba.)
+ */
 export const SERIES_MAP_KEY = "invoice_series";
+const SERIES_PREFIX = "invoice_series:";
 const LETTERS = /^[A-Z]{1,3}$/;
 
-export async function getSeriesMap(db: Db): Promise<Record<string, string>> {
-  return (await getSetting<Record<string, string>>(db, SERIES_MAP_KEY)) ?? {};
+/** Este dispositivo, como lo conoce la sincronización. */
+async function deviceOf(db: Db): Promise<string> {
+  return (await db.query<{ device: string }>("select device from sync_state"))[0]?.device ?? "local";
 }
 
-/** La letra de serie de `who`: la suya o la primera libre (A, B, C…), que se guarda para siempre. */
-export async function seriesLetterOf(db: Db, who: string): Promise<string> {
+/** Las letras de cada dispositivo (y las de la primera versión, por persona, con «persona:» delante). */
+export async function getSeriesMap(db: Db): Promise<Record<string, string>> {
+  const rows = await db.query<{ key: string; value: string }>("select key, value from settings where key like ?", [`${SERIES_PREFIX}%`]);
+  const out: Record<string, string> = {};
+  for (const r of rows) out[r.key.slice(SERIES_PREFIX.length)] = JSON.parse(r.value) as string;
+  for (const [who, l] of Object.entries((await getSetting<Record<string, string>>(db, SERIES_MAP_KEY)) ?? {})) out[`persona:${who}`] = l;
+  return out;
+}
+
+/**
+ * Dos dispositivos que cogieron la misma letra a la vez (los dos sin conexión): se la queda el de nombre menor y el
+ * otro coge otra en su próxima factura. Lo ya emitido se queda como está (si se repitió algún número, lo avisa la lista).
+ */
+const twinOf = (map: Record<string, string>, device: string, letter: string) => Object.entries(map).some(([k, l]) => l === letter && !k.startsWith("persona:") && k < device);
+
+/** La letra de este dispositivo, si ya tiene (y no se la tiene que dejar a otro). */
+export async function mySeriesLetter(db: Db): Promise<string | null> {
+  const device = await deviceOf(db);
+  const mine = await getSetting<string>(db, `${SERIES_PREFIX}${device}`);
+  return mine && !twinOf(await getSeriesMap(db), device, mine) ? mine : null;
+}
+
+/** Las letras que ya usa alguien: las de otros dispositivos y las que salen en las facturas. */
+async function usedLetters(db: Db, except: string): Promise<Set<string>> {
   const map = await getSeriesMap(db);
-  if (map[who]) return map[who];
-  const used = new Set([...Object.values(map), ...(await db.query<{ series: string }>("select distinct series from invoices")).map((r) => r.series.replace(/^R/, "").replace(/\d{4}$/, ""))]);
-  const letter = [..."ABCDEFGHIJKLMNOPQSTUVWXYZ"].find((l) => !used.has(l)) ?? "Z";
-  await setSetting(db, SERIES_MAP_KEY, { ...map, [who]: letter });
+  return new Set([
+    ...Object.entries(map)
+      .filter(([k]) => k !== except)
+      .map(([, l]) => l),
+    ...(await db.query<{ series: string }>("select distinct series from invoices")).map((r) => r.series.replace(/^R/, "").replace(/\d{4}$/, "")),
+  ]);
+}
+
+/**
+ * La letra de serie de este dispositivo: la suya o, la primera vez (o si otro dispositivo cogió la misma a la vez), la
+ * de la primera versión de `who` si nadie la ha cogido aún, o la primera libre. Se guarda para siempre.
+ */
+export async function seriesLetterOf(db: Db, who: string): Promise<string> {
+  const device = await deviceOf(db);
+  const mine = await getSetting<string>(db, `${SERIES_PREFIX}${device}`);
+  const map = await getSeriesMap(db);
+  if (mine && !twinOf(map, device, mine)) return mine;
+  const claimed = new Set(Object.entries(map).filter(([k]) => !k.startsWith("persona:")).map(([, l]) => l));
+  const legacy = map[`persona:${who}`];
+  const used = await usedLetters(db, device);
+  const letter = legacy && !claimed.has(legacy) ? legacy : ([..."ABCDEFGHIJKLMNOPQSTUVWXYZ"].find((l) => !used.has(l)) ?? "Z");
+  await setSetting(db, `${SERIES_PREFIX}${device}`, letter);
   return letter;
 }
 
-/** Cambiar la letra de alguien (solo si aún no la ha usado nadie más). */
-export async function setSeriesLetter(db: Db, who: string, letter: string): Promise<void> {
+/** Cambiar la letra de este dispositivo (solo a una que no use nadie más). */
+export async function setSeriesLetter(db: Db, letter: string): Promise<void> {
   const l = letter.trim().toUpperCase();
   if (!LETTERS.test(l) || l.startsWith("R")) throw new RangeError("La serie son de 1 a 3 letras sin tilde, y no puede empezar por R (es la de las rectificativas).");
-  const map = await getSeriesMap(db);
-  if (Object.entries(map).some(([w, x]) => w !== who && x === l)) throw new RangeError("Esa serie ya la usa otra persona de la clínica.");
-  await setSetting(db, SERIES_MAP_KEY, { ...map, [who]: l });
+  const device = await deviceOf(db);
+  if ((await getSetting<string>(db, `${SERIES_PREFIX}${device}`)) === l) return;
+  if ((await usedLetters(db, device)).has(l)) throw new RangeError("Esa serie ya la usa otro dispositivo o ya tiene facturas.");
+  await setSetting(db, `${SERIES_PREFIX}${device}`, l);
 }
 
 // ---------- Cuentas ----------

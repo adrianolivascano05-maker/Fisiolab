@@ -11,7 +11,7 @@ import { centsText } from "../clinical/billingForms";
 import { todayDay } from "../clinical/pageKit";
 import { euros, getPayment, parseEuros } from "../data/billing";
 import { getDb } from "../data/db";
-import { getInvoiceSettings, getSeriesMap, invoiceProblem, issueInvoice, totalsOf, type InvoiceInput, type InvoiceLine } from "../data/invoices";
+import { getInvoiceSettings, invoiceProblem, issueInvoice, mySeriesLetter, totalsOf, type InvoiceInput, type InvoiceLine } from "../data/invoices";
 import { memberEmail } from "../data/member";
 import { getClinic } from "../data/privacy";
 import { getPatient } from "../data/repo";
@@ -38,14 +38,14 @@ export function InvoiceFormPage() {
   const who = memberEmail() ?? "";
   const loaded = useAsync(async () => {
     const db = getDb();
-    const [clinic, settings, patient, payment, series] = await Promise.all([
+    const [clinic, settings, patient, payment, letter] = await Promise.all([
       getClinic(db),
       getInvoiceSettings(db),
       patientId ? getPatient(db, patientId) : Promise.resolve(null),
       paymentId ? getPayment(db, paymentId) : Promise.resolve(null),
-      getSeriesMap(db),
+      mySeriesLetter(db),
     ]);
-    return { clinic, settings, patient, payment, letter: series[who] ?? null };
+    return { clinic, settings, patient, payment, letter };
   }, [patientId, paymentId]);
   const [draft, setDraft] = useState<{
     kind: InvoiceInput["kind"];
@@ -237,7 +237,7 @@ export function InvoiceFormPage() {
             {d.name.trim() ? ` a ${d.name.trim()}` : ""}, con fecha {d.issuedOn.split("-").reverse().join("/")}.
           </p>
           <p>
-            Lleva el siguiente número de {letter ? `tu serie ${letter}${d.issuedOn.slice(0, 4)}` : "tu serie (se te asigna una letra la primera vez)"}. Una vez
+            Lleva el siguiente número de {letter ? `la serie ${letter}${d.issuedOn.slice(0, 4)} de este dispositivo` : "la serie de este dispositivo (se le asigna una letra la primera vez)"}. Una vez
             emitida no se puede cambiar ni borrar: si hay un error, se anula con una factura rectificativa.
           </p>
           <Button size="lg" block loading={saving} onClick={() => void issue()}>

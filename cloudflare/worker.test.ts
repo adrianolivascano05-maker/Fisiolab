@@ -771,12 +771,14 @@ describe("clínicas", () => {
     ];
     const key = { kty: "EC", crv: "P-256", x: "x", y: "y" };
     const hash = (n: number) => String(n).repeat(64).slice(0, 64).replace(/[^0-9a-f]/g, "a");
+    // Con la forma de lo que cifra el móvil del paciente (el servidor no lo puede abrir, solo mira la forma).
+    const SEALED = `CB1.${"A".repeat(87)}=.${"B".repeat(16)}.${"C".repeat(40)}`;
     const pub = (method: string, path: string, data?: unknown, now = () => T, ip = "1.2.3.4") =>
       handle(request(method, path, { body: data === undefined ? undefined : JSON.stringify(data), headers: { "CF-Connecting-IP": ip } }), env(), { verifyToken, now });
     const team = (method: string, path: string, token: string, data?: unknown, now = () => T) =>
       handle(request(method, path, { token, body: data === undefined ? undefined : JSON.stringify(data) }), env(), { verifyToken, now });
     const book = (over: Record<string, unknown> = {}, ip?: string) =>
-      pub("POST", "/v1/reservas/fisiolab-centro", { kind: "primera", pro: "p1", startsAt: at(3), payload: "CB1.a.b.c", cancelHash: hash(1), ...over }, () => T, ip);
+      pub("POST", "/v1/reservas/fisiolab-centro", { kind: "primera", pro: "p1", startsAt: at(3), payload: SEALED, cancelHash: hash(1), ...over }, () => T, ip);
 
     it("el equipo publica la página con franjas libres; el paciente reserva sin sesión y el hueco se ocupa", async () => {
       const c = await clinic();
@@ -795,6 +797,7 @@ describe("clínicas", () => {
       // Datos que faltan, una hora que no está libre o sin la antelación mínima: no.
       expect((await book({ kind: "otra" })).status).toBe(400);
       expect((await book({ payload: "en claro" })).status).toBe(400);
+      expect((await book({ payload: "CB1.a.b.c" })).status).toBe(400);
       expect((await book({ cancelHash: "corto" })).status).toBe(400);
       expect((await book({ startsAt: at(1) })).status).toBe(400);
       expect((await book({ startsAt: at(4.5) })).status).toBe(409); // la cita acabaría a las 5,5 h, fuera de su franja
@@ -811,6 +814,43 @@ describe("clínicas", () => {
       expect(JSON.stringify(after)).not.toContain("CB1.");
     });
 
+    it("dos personas que reservan a la vez la misma hora con el mismo fisio: solo una se la queda", async () => {
+      const c = await clinic();
+      await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows });
+      // La otra persona guarda su reserva justo después de que esta haya mirado los huecos y antes de que guarde la suya.
+      const other = (start: string) =>
+        db
+          .prepare("INSERT INTO bookings (id, clinic_id, starts_at, minutes, pro, kind, payload, cancel_hash, client, created_at) VALUES (?, ?, ?, 60, 'p1', 'primera', 'x', ?, 'otro', ?)")
+          .bind(crypto.randomUUID(), c.id, start, hash(Math.floor(Math.random() * 1e9)), at(0))
+          .run();
+      const racing = (start: string) => ({
+        prepare(sql: string) {
+          const st = db.prepare(sql);
+          if (!sql.startsWith("INSERT INTO bookings")) return st;
+          return {
+            bind: (...v: unknown[]) => {
+              const b = st.bind(...v);
+              return {
+                run: async () => {
+                  await other(start);
+                  return b.run();
+                },
+              };
+            },
+          };
+        },
+        batch: (steps: Parameters<typeof db.batch>[0]) => db.batch(steps),
+      });
+      const post = (start: string, n: number) =>
+        handle(request("POST", "/v1/reservas/fisiolab-centro", { body: JSON.stringify({ kind: "primera", pro: "p1", startsAt: at(3), payload: SEALED, cancelHash: hash(n) }) }), env({ DB: racing(start) }), { verifyToken, now: () => T });
+      // Se solapa (empieza media hora después): no.
+      expect((await post(at(3.5), 5)).status).toBe(409);
+      expect(await count("SELECT count(*) AS n FROM bookings WHERE client <> 'otro'")).toBe(0);
+      // La otra acaba justo cuando empieza esta: sí.
+      await db.prepare("DELETE FROM bookings").run();
+      expect((await post(at(2), 6)).status).toBe(201);
+    });
+
     it("el equipo recoge las reservas (se borran los datos cifrados) y ve las anulaciones; el paciente anula con su enlace", async () => {
       const c = await clinic();
       await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows });
@@ -825,7 +865,7 @@ describe("clínicas", () => {
       expect((await team("GET", `/v1/clinicas/${c.id}/reservas`, "tok-eva")).status).toBe(403);
       const first = await inbox();
       expect(first.slug).toBe("fisiolab-centro");
-      expect(first.bookings).toEqual([expect.objectContaining({ id, payload: "CB1.a.b.c", collected: false, cancelledAt: null, kind: "primera", minutes: 60, pro: "p1" })]);
+      expect(first.bookings).toEqual([expect.objectContaining({ id, payload: SEALED, collected: false, cancelledAt: null, kind: "primera", minutes: 60, pro: "p1" })]);
       expect((await team("POST", `/v1/clinicas/${c.id}/reservas/recogidas`, "tok-ana", { bookings: [id] })).status).toBe(204);
       expect((await inbox()).bookings).toEqual([]);
       expect(await count("SELECT count(*) AS n FROM bookings WHERE payload IS NOT NULL")).toBe(0);
@@ -908,6 +948,31 @@ describe("clínicas", () => {
       expect((await pub("POST", `/v1/citas/${token}/anular`)).status).toBe(200);
       const after = (await (await pub("GET", "/v1/reservas/fisiolab-centro")).json()) as { windows: unknown[] };
       expect(after.windows).toEqual([{ pro: "p1", from: at(3), to: at(5) }, { pro: "p2", from: at(4), to: at(7) }]);
+    });
+
+    it("si la app vuelve a publicar antes de recoger una anulación, ese hueco sigue libre (la app aún tiene la cita)", async () => {
+      const c = await clinic();
+      const sha = async (t: string) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map((b) => b.toString(16).padStart(2, "0")).join("");
+      const envelope = [{ pro: "p1", from: at(3), to: at(5) }, { pro: "p2", from: at(4), to: at(7) }];
+      const publish = (w: unknown[]) => team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows: w, envelope });
+      const shown = async () => ((await (await pub("GET", "/v1/reservas/fisiolab-centro")).json()) as { windows: unknown[] }).windows;
+      await publish(windows);
+      // Una reserva por internet que la clínica ya ha recogido (la app la tiene en la agenda y publica sin ese rato).
+      const { id } = (await (await book({ cancelHash: await sha("codigo-de-la-reserva-de-marta") })).json()) as { id: string };
+      await team("POST", `/v1/clinicas/${c.id}/reservas/recogidas`, "tok-ana", { bookings: [id] });
+      // Y una cita que dio la clínica a Pablo, de 6 a 7.
+      await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: await sha("codigo-de-la-cita-de-luis"), ref: "cita-9", startsAt: at(6), label: "con Pablo", minutes: 60, pro: "p2" }] });
+      const busy = [{ pro: "p1", from: at(4), to: at(5) }, { pro: "p2", from: at(4), to: at(6) }];
+      await publish(busy);
+      // Los dos pacientes anulan; la app aún no lo ha visto y vuelve a publicar con sus citas: los huecos siguen libres.
+      expect((await pub("POST", "/v1/citas/codigo-de-la-reserva-de-marta/anular")).status).toBe(200);
+      expect((await pub("POST", "/v1/citas/codigo-de-la-cita-de-luis/anular")).status).toBe(200);
+      await publish(busy);
+      expect(await shown()).toEqual([{ pro: "p1", from: at(3), to: at(5) }, { pro: "p2", from: at(4), to: at(7) }]);
+      // Cuando la clínica las recoge, manda lo que publica la app (que ya sabe que están anuladas).
+      await team("POST", `/v1/clinicas/${c.id}/reservas/recogidas`, "tok-ana", { bookings: [id], cancels: [await sha("codigo-de-la-cita-de-luis")] });
+      await publish(busy);
+      expect(await shown()).toEqual(busy);
     });
 
     it("solo las horas de la lista; al apagar la reserva, la dirección sigue siendo de la clínica", async () => {

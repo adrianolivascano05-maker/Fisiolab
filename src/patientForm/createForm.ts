@@ -9,12 +9,18 @@ import { currentEpisode } from "../data/episodes";
 import { addSentForm, type SentForm } from "../data/patientForms";
 
 export type CreatedForm = SentForm & { url: string };
+/** Un formulario ya subido al servidor que aún no se ha apuntado en la ficha (hasta que se manda de verdad). */
+export type UploadedForm = { record: Pick<SentForm, "id" | "patientId" | "episodeId" | "kind" | "key" | "expiresAt">; url: string };
 
-export async function createPatientForm(
+/**
+ * Sube un formulario al servidor (cifrado con una clave nueva) sin apuntarlo aún en la ficha: la bandeja lo apunta
+ * solo cuando se envía. Si al final no se manda, el del servidor caduca solo y no lo tiene nadie.
+ */
+export async function uploadPatientForm(
   db: Db,
   cloud: Cloud | null,
   p: { patientId: string; patientName: string; kind: string; clinicName: string; sections: Section[] },
-): Promise<CreatedForm> {
+): Promise<UploadedForm> {
   const token = getToken();
   if (!token || !cloud?.clinic || !cloud.clinics) throw new Error("Tu sesión de Google ha caducado: vuelve a entrar en Ajustes → Cuenta y prueba otra vez.");
   const id = newFormId();
@@ -30,20 +36,21 @@ export async function createPatientForm(
   };
   await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt });
   const episodeId = await currentEpisode(db, p.patientId);
-  await addSentForm(db, { id, patientId: p.patientId, episodeId, kind: p.kind, key, expiresAt });
-  return {
-    id,
-    patientId: p.patientId,
-    episodeId,
-    kind: p.kind,
-    key,
-    expiresAt,
-    sentAt: new Date().toISOString(),
-    answeredAt: null,
-    importedAt: null,
-    cancelledAt: null,
-    answers: null,
-    skipped: [],
-    url: formLink(id, key),
-  };
+  return { record: { id, patientId: p.patientId, episodeId, kind: p.kind, key, expiresAt }, url: formLink(id, key) };
+}
+
+/** Apunta en la ficha los formularios que se acaban de mandar (para recoger sus respuestas). */
+export async function recordSentForms(db: Db, forms: UploadedForm[]): Promise<void> {
+  for (const f of forms) await addSentForm(db, f.record);
+}
+
+/** Sube el formulario y lo apunta ya en la ficha (cuando se crea para mandarlo en ese momento). */
+export async function createPatientForm(
+  db: Db,
+  cloud: Cloud | null,
+  p: { patientId: string; patientName: string; kind: string; clinicName: string; sections: Section[] },
+): Promise<CreatedForm> {
+  const f = await uploadPatientForm(db, cloud, p);
+  await addSentForm(db, f.record);
+  return { ...f.record, sentAt: new Date().toISOString(), answeredAt: null, importedAt: null, cancelledAt: null, answers: null, skipped: [], url: f.url };
 }
