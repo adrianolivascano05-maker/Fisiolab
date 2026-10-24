@@ -19,7 +19,18 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
 2. **Facturación y Verifactu.** Primero facturas con numeración legal desde cobros y bonos; después Verifactu
    (registro encadenado, QR, declaración responsable del fabricante, certificado digital de la clínica).
    Confirmar requisitos y fechas (aplazadas a 2027) con una asesoría. Mirar si sirve mientras tanto la
-   aplicación gratuita de facturación de la AEAT. Estado: pendiente.
+   aplicación gratuita de facturación de la AEAT.
+   - **Hecho el 24-10-2026 (primera parte):** Ajustes › Facturas y «Hacer la factura» en cada cobro del paciente
+     (`src/data/invoices.ts`, migración 028). Factura completa o simplificada (hasta 400 €), numeración
+     correlativa por serie y año (una letra por persona: A2026-0001…; rectificativas aparte: RA2026-0001…),
+     IVA exento con su motivo o con tipo, retención de IRPF opcional, varias líneas, PDF e impresión, libro de
+     facturas en CSV para la gestoría y hoja «Facturas» en la exportación completa. Una factura emitida no se
+     cambia ni se borra (ni al borrar el paciente): se anula con una rectificativa. Cada una guarda los datos de
+     la clínica y del destinatario de ese momento y una huella encadenada; la app avisa si una factura se ha
+     tocado, si falta un número o si hay dos iguales (dos dispositivos con la misma serie sin conexión).
+   - Pendiente: Verifactu (formato de registro de la AEAT, código QR, envío y declaración responsable). No está
+     hecho y la app lo dice. Confirmar con la asesoría: exención de IVA de cada servicio, cuándo retener IRPF,
+     qué datos del paciente deben salir y si las series por persona les valen.
 3. **Firma de consentimientos con más prueba.** Hoy es firma simple (dibujo en pantalla o papel). Paso gratis:
    guardar con cada firma la fecha, el dispositivo y una huella del documento. Firma avanzada (tipo Viafirma)
    solo si la asesoría lo ve necesario, sobre todo para técnicas invasivas. Estado: pendiente.

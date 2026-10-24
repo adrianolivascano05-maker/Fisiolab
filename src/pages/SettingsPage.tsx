@@ -19,6 +19,7 @@ import {
   Lock,
   MonitorSmartphone,
   Palette,
+  ReceiptText,
   ShieldCheck,
   UserRound,
   UsersRound,
@@ -107,6 +108,7 @@ export function SettingsPage() {
           />
         )}
         <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, bonos, lo cobrado y lo pendiente" />
+        <RowLink to="/facturas" icon={ReceiptText} title="Facturas" subtitle="Las emitidas, el libro para la gestoría y el IVA" />
         <RowLink
           to="/ajustes/reservas"
           icon={CalendarCheck}

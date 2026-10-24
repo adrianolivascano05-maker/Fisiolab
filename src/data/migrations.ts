@@ -25,6 +25,7 @@ import patientForms024 from "./migrations/024_patient_forms.sql?raw";
 import patientDni025 from "./migrations/025_patient_dni.sql?raw";
 import outbox026 from "./migrations/026_outbox.sql?raw";
 import booking027 from "./migrations/027_booking.sql?raw";
+import invoices028 from "./migrations/028_invoices.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -55,4 +56,5 @@ export const migrations: Migration[] = [
   { version: 25, sql: patientDni025 },
   { version: 26, sql: outbox026 },
   { version: 27, sql: booking027 },
+  { version: 28, sql: invoices028 },
 ];

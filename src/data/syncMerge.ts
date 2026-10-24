@@ -32,6 +32,7 @@ export const SYNC_TABLES: { name: string; pk: string[]; unique?: string[][] }[] 
   { name: "consents", pk: ["id"] },
   { name: "packs", pk: ["id"] },
   { name: "payments", pk: ["id"] },
+  { name: "invoices", pk: ["id"] },
   { name: "waitlist", pk: ["id"], unique: [["patient_id"]] },
   { name: "exercises", pk: ["id"] },
   { name: "exercise_plans", pk: ["id"] },

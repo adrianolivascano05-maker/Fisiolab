@@ -69,6 +69,9 @@ const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ de
 const PublicFormPage = lazy(() => import("./patientForm/PublicFormPage").then((m) => ({ default: m.PublicFormPage })));
 const PublicBookingPage = lazy(() => import("./booking/PublicBookingPage").then((m) => ({ default: m.PublicBookingPage })));
 const PublicCancelPage = lazy(() => import("./booking/PublicCancelPage").then((m) => ({ default: m.PublicCancelPage })));
+const InvoicesPage = lazy(() => import("./invoices/InvoicesPage").then((m) => ({ default: m.InvoicesPage })));
+const InvoiceFormPage = lazy(() => import("./invoices/InvoiceFormPage").then((m) => ({ default: m.InvoiceFormPage })));
+const InvoicePage = lazy(() => import("./invoices/InvoicePage").then((m) => ({ default: m.InvoicePage })));
 const BookingSettingsPage = lazy(() => import("./booking/BookingSettingsPage").then((m) => ({ default: m.BookingSettingsPage })));
 const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
@@ -128,6 +131,9 @@ const routes = [
   { path: "/ajustes/ejercicios", element: l(<ExerciseLibraryPage />) },
   { path: "/ajustes/anamnesis", element: l(<CustomFieldsPage />) },
   { path: "/ajustes/reservas", element: l(<BookingSettingsPage />) }, // Reserva online
+  { path: "/facturas", element: l(<InvoicesPage />) }, // Facturas emitidas, libro y ajustes
+  { path: "/facturas/nueva", element: l(<InvoiceFormPage />) },
+  { path: "/facturas/:id", element: l(<InvoicePage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa
   { path: "/ayuda/fallos", element: l(<ReportProblemPage />) }, // Algo no funciona: problemas frecuentes e informe de fallo
   { path: "/privacidad", element: l(<PrivacyPage />) },

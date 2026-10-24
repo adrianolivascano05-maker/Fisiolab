@@ -1,6 +1,6 @@
 // Ficha → Bonos y cobros (src/data/billing.ts): lo que el paciente tiene pendiente, sus bonos (cuántas sesiones le
 // quedan) y lo que ha pagado. Vender un bono y cobrar, en una hoja. No son facturas.
-import { FileText, Pencil, Plus, RotateCw, Trash, Wallet } from "lucide-react";
+import { FileText, Pencil, Plus, ReceiptText, RotateCw, Trash, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -9,6 +9,7 @@ import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { addPayment, createPack, deletePack, deletePayment, euros, getPackPresets, getPricing, methodLabel, parseEuros, patientAccount, setSessionPrice, updatePack, type PackState, type Payment } from "../data/billing";
 import { getDb } from "../data/db";
+import { invoicesOfPayments } from "../data/invoices";
 import { getPatient } from "../data/repo";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -32,7 +33,8 @@ export function BillingPage() {
   const data = useAsync(async () => {
     const db = getDb();
     const [patient, account, pricing, presets] = await Promise.all([getPatient(db, id), patientAccount(db, id, today), getPricing(db), getPackPresets(db)]);
-    return { patient, account, pricing, presets };
+    const invoices = await invoicesOfPayments(db, account.payments.map((p) => p.id));
+    return { patient, account, pricing, presets, invoices };
   }, [id, version, today]);
   const [sheet, setSheet] = useState<"pack" | "payment" | null>(null);
   /** El bono que se cambia (corregir un dato) o el que se renueva (uno igual desde hoy). */
@@ -42,7 +44,7 @@ export function BillingPage() {
 
   if (data.error) return <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}><Loading /></Page>;
-  const { patient, account: a, pricing, presets } = data.data;
+  const { patient, account: a, pricing, presets, invoices } = data.data;
   if (!patient) return <Page title="Bonos y cobros" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const packsCents = a.packs.reduce((n, p) => n + (p.priceCents ?? 0), 0);
   // Sin precio de la sesión nunca puesto, las sueltas no cuentan: «Al día» engañaría.
@@ -152,6 +154,19 @@ export function BillingPage() {
                     {day(p.paidOn)} · {methodLabel(p.method)}
                     {p.concept ? ` · ${p.concept}` : ""}
                   </p>
+                  {invoices.get(p.id) ? (
+                    <Link to={`/facturas/${invoices.get(p.id)!.id}`} className="tap inline-flex items-center gap-1.5 text-sm font-semibold text-accent">
+                      <ReceiptText aria-hidden="true" className="size-4" /> Factura {invoices.get(p.id)!.code}
+                    </Link>
+                  ) : (
+                    <Link
+                      to={`/facturas/nueva?paciente=${id}&cobro=${p.id}`}
+                      aria-label={`Hacer la factura del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
+                      className="tap inline-flex items-center gap-1.5 text-sm font-semibold text-accent"
+                    >
+                      <ReceiptText aria-hidden="true" className="size-4" /> Hacer la factura
+                    </Link>
+                  )}
                 </div>
                 <Link
                   to={`/pacientes/${id}/recibo/${p.id}`}
@@ -176,7 +191,13 @@ export function BillingPage() {
           Cobrar
         </Button>
       </section>
-      <p className="text-sm text-text-muted">Es un registro de lo cobrado para llevar las cuentas de la consulta. No sustituye a las facturas.</p>
+      <p className="text-sm text-text-muted">
+        Es un registro de lo cobrado para llevar las cuentas de la consulta. Las facturas se hacen desde cada cobro y están todas en{" "}
+        <Link to="/facturas" className="font-semibold text-accent underline">
+          Ajustes › Facturas
+        </Link>
+        .
+      </p>
 
       <Sheet open={sheet === "pack" || !!renewing} onClose={() => (setSheet(null), setRenewing(null))} title={renewing ? `Renovar «${renewing.title}»` : "Vender un bono"}>
         {(sheet === "pack" || renewing) && (
@@ -229,7 +250,7 @@ export function BillingPage() {
           {dropping?.kind === "pack"
             ? `Se borrará «${dropping.item.title}». Sus sesiones pasan a contar como sueltas; si se cobró, el cobro se queda.`
             : dropping
-              ? `Se borrará el cobro de ${euros(dropping.item.amountCents)} del ${day(dropping.item.paidOn)}.`
+              ? `Se borrará el cobro de ${euros(dropping.item.amountCents)} del ${day(dropping.item.paidOn)}.${invoices.get(dropping.item.id) ? ` Su factura ${invoices.get(dropping.item.id)!.code} no se borra: si no vale, anúlala con una rectificativa.` : ""}`
               : ""}
         </p>
         <Button variant="danger" block onClick={() => void drop()}>

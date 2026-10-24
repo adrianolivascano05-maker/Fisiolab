@@ -16,6 +16,7 @@ import { getBookingSettings } from "./settings";
 import { collectBookings, publishBooking, syncCancelLinks } from "./sync";
 
 const EVERY_MS = 120_000;
+const HOUR = 3_600_000;
 
 /** Si hay citas por venir con enlace para anular (el paciente puede anularlas desde su móvil). */
 const hasCancelLinks = async (db: Db) =>
@@ -30,6 +31,8 @@ export function BookingSync() {
   const active = !!cloud?.clinic && !!cloud.clinics && !locked;
   const latest = useRef({ cloud, team, toast });
   latest.current = { cloud, team, toast };
+  /** Cuándo se publicó la página por última vez: con la app abierta, se vuelve a publicar cada hora (los días vista avanzan). */
+  const publishedAt = useRef(0);
 
   // Publicar: al cambiar los datos (la agenda, los turnos o los ajustes), unos segundos después.
   useEffect(() => {
@@ -39,6 +42,9 @@ export function BookingSync() {
       if (!navigator.onLine) return;
       void getBookingSettings(getDb())
         .then((s) => (s.enabled ? publishBooking(getDb(), c, tm) : "off"))
+        .then((r) => {
+          if (r !== "off") publishedAt.current = Date.now();
+        })
         .catch((e) => logError("reserva online (publicar)", e));
       // Los enlaces para anular: la hora nueva si se ha movido una cita, o anulada si la ha anulado la clínica.
       void syncCancelLinks(getDb(), c, tm).catch((e) => logError("enlaces para anular", e));
@@ -56,7 +62,12 @@ export function BookingSync() {
       try {
         // Con la reserva apagada, solo si hay citas con enlace para anular (de los recordatorios) que vigilar.
         const db = getDb();
-        if (!(await getBookingSettings(db)).enabled && !(await hasCancelLinks(db))) return;
+        const enabled = (await getBookingSettings(db)).enabled;
+        if (!enabled && !(await hasCancelLinks(db))) return;
+        if (enabled && Date.now() - publishedAt.current > HOUR) {
+          await publishBooking(db, latest.current.cloud, latest.current.team);
+          publishedAt.current = Date.now();
+        }
         const got = await collectBookings(db, latest.current.cloud);
         if (!got) return;
         for (const b of got.booked) latest.current.toast(`Nueva reserva por internet: ${b.name}, ${dayText(b.startsAt)} a las ${hourText(b.startsAt)}`, "success");

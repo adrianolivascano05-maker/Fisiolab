@@ -231,6 +231,17 @@ export function buildSheets(c: Collected): Sheet[] {
       header: ["Paciente", "Día", "Cantidad (€)", "Forma de pago", "Concepto"],
       rows: [...T.payments!].sort(byDate("paid_on")).map((r) => [pn(r), day(r.paid_on), cents(r.amount_cents), methodLabel(s(r.method)), s(r.concept)]),
     });
+  if (T.invoices?.length)
+    sheets.push({
+      name: "Facturas",
+      header: ["Número", "Tipo", "Fecha", "Destinatario", "NIF del destinatario", "Base imponible (€)", "IVA (%)", "Cuota de IVA (€)", "Retención IRPF (€)", "Total (€)", "Exención o motivo"],
+      rows: [...T.invoices]
+        .sort((a, b) => s(a.issued_on).localeCompare(s(b.issued_on)) || s(a.code).localeCompare(s(b.code)))
+        .map((r) => {
+          const to = json<{ name?: string; taxId?: string }>(r.recipient, {});
+          return [s(r.code), s(r.kind), day(r.issued_on), s(to.name), s(to.taxId), cents(r.base_cents), n(r.vat_rate), cents(r.vat_cents), cents(r.irpf_cents), cents(r.total_cents), [s(r.exemption), s(r.reason)].filter(Boolean).join(" · ")];
+        }),
+    });
   if (T.exercise_plans!.length)
     sheets.push({
       name: "Ejercicios para casa",

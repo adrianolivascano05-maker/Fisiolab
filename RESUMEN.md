@@ -54,6 +54,12 @@ Fecha: 2026-10-17
 - Está toda en `src/free/`; sus mediciones se sincronizan con la nube (tabla `free_measurements`, migración 012). Cómo quitarla, en `src/free/README.md`.
 - Comprobado: abducción de 90° → 91,6° en una foto de ejemplo; temblor de unos 2° en imagen quieta.
 
+**Noche del 23 al 24-10-2026 (cuatro bloques pedidos por el usuario):**
+- **Preparar la app para otras clínicas:** registro de fallos en el dispositivo y «Algo no funciona» con el informe para mandar (`src/app/errorLog.ts`, `ReportProblemPage.tsx`), pantalla de error en vez de blanco (`RouteError.tsx`), linter oxlint en la integración continua, pruebas en WebKit (aviso), simulacro de recuperación (`e2e/simulacro.spec.ts`) y medida de carga del servidor (`e2e/capacidad.spec.ts`, 1,9 peticiones por minuto por dispositivo). Soporte en `docs/soporte.md`.
+- **Bandeja de envíos (Agenda › Hoy › Envíos):** recordatorios del día antes, anamnesis 48 h antes de la primera cita, cuestionarios antes de reevaluar y confirmaciones de reservas, uno tras otro por WhatsApp (`src/schedule/outbox.ts`, migración 026).
+- **Reserva online 24/7:** Ajustes › Reserva online, página pública `…/reservar/<clínica>` y enlace para anular `…/cita/<código>` (`src/booking/`, migración 027, tablas `booking_pages`, `bookings` y `cancel_links` en el servidor). Los datos del paciente van cifrados para la clínica; al anular, el hueco queda libre al momento. Antes de usarla, el administrador ejecuta `schema.sql` y pega el `worker.js` nuevo (`docs/pasos-pendientes.md`, paso 4).
+- **Facturas:** Ajustes › Facturas y «Hacer la factura» en cada cobro (`src/data/invoices.ts`, migración 028): series por persona y año, rectificativas, huella encadenada, libro en CSV. No es Verifactu.
+
 ## 3. Decisiones tomadas (y por qué)
 
 1. **Por fases, saltos primero.** El usuario pidió «toda la app»; se construye por fases. Las fases 1 a 4 están hechas.
