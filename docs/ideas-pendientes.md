@@ -145,8 +145,13 @@ antes, o enseñar el decimal) cambia cómo se guarda la medición: decidirlo ant
   cerrar la otra pestaña de verdad.
 - Las pruebas de gestos con dos dedos y la de leer el portapapeles no se pueden hacer en el WebKit de pruebas de
   Linux (no deja simular toques ni da permiso de portapapeles): ahí se saltan; en Chromium siguen.
-- **Falta:** ver el resultado del trabajo «webkit» en GitHub después de subirlo, y probar en un iPhone de verdad
-  (pasos en docs/pasos-pendientes.md, «Probar en un iPhone»).
+- **Resultado en GitHub tras el arreglo (24-10-2026): sigue fallando (22 de 41).** En ese Safari de pruebas la base
+  ya trabaja «en memoria» desde la primera carga (no guarda nada) y la segunda carga de página no llega a verse. Se
+  ha añadido una prueba de diagnóstico (e2e/webkit-diagnostico.spec.ts, solo en WebKit) que apunta en el registro de
+  GitHub qué pasa en cada carga. **Aún no se sabe si en un iPhone de verdad pasa lo mismo**: el Safari de pruebas de
+  Linux no es igual que el del iPhone.
+- **Falta:** leer ese diagnóstico, arreglar lo que diga, y probar en un iPhone de verdad (pasos en
+  docs/pasos-pendientes.md, «Probar en un iPhone»).
 
 **R3. Reserva online, para que no dé sorpresas:**
 - ~~Días cerrados y festivos~~ **hecho el 24-10-2026:** «Cerrar la agenda» (de un fisio o de toda la clínica; una
