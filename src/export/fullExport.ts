@@ -228,8 +228,8 @@ export function buildSheets(c: Collected): Sheet[] {
   if (T.payments!.length)
     sheets.push({
       name: "Cobros",
-      header: ["Paciente", "Día", "Cantidad (€)", "Forma de pago", "Concepto"],
-      rows: [...T.payments!].sort(byDate("paid_on")).map((r) => [pn(r), day(r.paid_on), cents(r.amount_cents), methodLabel(s(r.method)), s(r.concept)]),
+      header: ["Paciente", "Día", "Cantidad (€)", "Forma de pago", "Concepto", "Nº de factura"],
+      rows: [...T.payments!].sort(byDate("paid_on")).map((r) => [pn(r), day(r.paid_on), cents(r.amount_cents), methodLabel(s(r.method)), s(r.concept), s(r.invoice_ref)]),
     });
   if (T.invoices?.length)
     sheets.push({
@@ -453,8 +453,8 @@ export function patientHtml(c: Collected, p: R, exportedAt = new Date()): string
   if (payments.length)
     parts.push(
       `<h2>Cobros</h2>${table(
-        ["Día", "Cantidad", "Forma de pago", "Concepto"],
-        payments.map((r) => [day(r.paid_on), euros(Number(r.amount_cents)), methodLabel(s(r.method)), s(r.concept)]),
+        ["Día", "Cantidad", "Forma de pago", "Concepto", "Nº de factura"],
+        payments.map((r) => [day(r.paid_on), euros(Number(r.amount_cents)), methodLabel(s(r.method)), s(r.concept), s(r.invoice_ref)]),
       )}`,
     );
 

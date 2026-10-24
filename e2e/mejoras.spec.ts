@@ -258,6 +258,8 @@ test.describe("Mejoras frente a la competencia", () => {
     // Para la gestoría: los cobros del mes en Excel.
     await page.goto("./ajustes/cobros");
     await expect(page.getByText(/Cobrado en octubre/).locator("..")).toContainText("220,00");
+    await page.getByRole("link", { name: /Cobros para la gestoría/ }).click();
+    await expect(page.getByRole("heading", { name: "Para facturar" })).toBeVisible();
     const [xlsx] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en Excel" }).click()]);
     expect(xlsx.suggestedFilename()).toBe("Cobros 2026-10.xlsx");
   });

@@ -10,6 +10,7 @@ import { useAsync } from "../app/useAsync";
 import { addPayment, createPack, deletePack, deletePayment, euros, getPackPresets, getPricing, methodLabel, parseEuros, patientAccount, setSessionPrice, updatePack, type PackState, type Payment } from "../data/billing";
 import { getDb } from "../data/db";
 import { invoicesOfPayments } from "../data/invoices";
+import { InvoiceRefSheet, type RefTarget } from "../invoices/InvoiceRefSheet";
 import { getPatient } from "../data/repo";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -41,6 +42,8 @@ export function BillingPage() {
   const [editing, setEditing] = useState<PackState | null>(null);
   const [renewing, setRenewing] = useState<PackState | null>(null);
   const [dropping, setDropping] = useState<{ kind: "pack"; item: PackState } | { kind: "payment"; item: Payment } | null>(null);
+  /** El cobro al que se le apunta el número de su factura (hecha con el programa de facturación de la clínica). */
+  const [billing, setBilling] = useState<RefTarget | null>(null);
 
   if (data.error) return <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}><Loading /></Page>;
@@ -159,13 +162,18 @@ export function BillingPage() {
                       <ReceiptText aria-hidden="true" className="size-4" /> Factura {invoices.get(p.id)!.code}
                     </Link>
                   ) : (
-                    <Link
-                      to={`/facturas/nueva?paciente=${id}&cobro=${p.id}`}
-                      aria-label={`Hacer la factura del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
+                    <button
+                      type="button"
+                      aria-label={
+                        p.invoiceRef
+                          ? `Factura ${p.invoiceRef} del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}: cambiar`
+                          : `Apuntar nº de factura del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`
+                      }
                       className="tap inline-flex items-center gap-1.5 text-sm font-semibold text-accent"
+                      onClick={() => setBilling({ id: p.id, amountCents: p.amountCents, paidOn: p.paidOn, invoiceRef: p.invoiceRef })}
                     >
-                      <ReceiptText aria-hidden="true" className="size-4" /> Hacer la factura
-                    </Link>
+                      <ReceiptText aria-hidden="true" className="size-4" /> {p.invoiceRef ? `Factura ${p.invoiceRef}` : "Apuntar nº de factura"}
+                    </button>
                   )}
                 </div>
                 <Link
@@ -192,11 +200,12 @@ export function BillingPage() {
         </Button>
       </section>
       <p className="text-sm text-text-muted">
-        Es un registro de lo cobrado para llevar las cuentas de la consulta. Las facturas se hacen desde cada cobro y están todas en{" "}
+        Es un registro de lo cobrado para llevar las cuentas de la consulta. La app no hace facturas: los cobros, con los datos del paciente, se
+        descargan en{" "}
         <Link to="/facturas" className="font-semibold text-accent underline">
-          Ajustes › Facturas
-        </Link>
-        .
+          Ajustes › Para facturar
+        </Link>{" "}
+        para hacerlas con tu programa de facturación.
       </p>
 
       <Sheet open={sheet === "pack" || !!renewing} onClose={() => (setSheet(null), setRenewing(null))} title={renewing ? `Renovar «${renewing.title}»` : "Vender un bono"}>
@@ -245,12 +254,13 @@ export function BillingPage() {
           />
         )}
       </Sheet>
+      <InvoiceRefSheet target={billing} onClose={() => setBilling(null)} />
       <Sheet open={!!dropping} onClose={() => setDropping(null)} title={dropping?.kind === "pack" ? "¿Borrar este bono?" : "¿Borrar este cobro?"}>
         <p>
           {dropping?.kind === "pack"
             ? `Se borrará «${dropping.item.title}». Sus sesiones pasan a contar como sueltas; si se cobró, el cobro se queda.`
             : dropping
-              ? `Se borrará el cobro de ${euros(dropping.item.amountCents)} del ${day(dropping.item.paidOn)}.${invoices.get(dropping.item.id) ? ` Su factura ${invoices.get(dropping.item.id)!.code} no se borra: si no vale, anúlala con una rectificativa.` : ""}`
+              ? `Se borrará el cobro de ${euros(dropping.item.amountCents)} del ${day(dropping.item.paidOn)}.${invoices.get(dropping.item.id) ? ` Su factura ${invoices.get(dropping.item.id)!.code} no se borra.` : dropping.item.invoiceRef ? ` Tiene la factura ${dropping.item.invoiceRef}: si no vale, corrígela con tu programa de facturación.` : ""}`
               : ""}
         </p>
         <Button variant="danger" block onClick={() => void drop()}>

@@ -15,7 +15,6 @@ import {
   numberInWords,
   parseEuros,
   patientAccount,
-  paymentsBetween,
   pendingAccounts,
   setPackPresets,
   setSessionPrice,
@@ -158,12 +157,6 @@ describe("cobrar en el momento", () => {
     expect(expiryOf("2026-10-01", 3)).toBe("2026-12-31");
     expect(expiryOf("2026-10-21", 6)).toBe("2027-04-20");
     expect(expiryOf("2027-01-31", 1)).toBe("2027-02-27");
-  });
-
-  it("los cobros de un periodo, con el paciente, para la gestoría", async () => {
-    await addPayment(db, ana, { amountCents: 4000, method: "tarjeta", paidOn: "2026-10-05", concept: "Sesión" });
-    await addPayment(db, ana, { amountCents: 2000, method: "bizum", paidOn: "2026-11-01", concept: "" });
-    expect((await paymentsBetween(db, "2026-10-01", "2026-11-01")).map((p) => [p.name, p.amountCents, p.method])).toEqual([["Ana Ruiz", 4000, "tarjeta"]]);
   });
 
   it("las cantidades en letra, para el recibo", () => {

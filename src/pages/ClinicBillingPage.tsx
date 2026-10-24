@@ -16,7 +16,6 @@ import {
   getPricing,
   methodLabel,
   parseEuros,
-  paymentsBetween,
   pendingAccounts,
   setPackPresets,
   setSessionPrice,
@@ -37,7 +36,6 @@ const monthStart = (d: string, back = 0) => {
   return new Date(Date.UTC(y, m - 1 - back, 1)).toISOString().slice(0, 10);
 };
 const monthName = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("es-ES", { month: "long" });
-const monthYear = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
 
 export function ClinicBillingPage() {
   const toast = useToast();
@@ -59,8 +57,6 @@ export function ClinicBillingPage() {
   const [typed, setPrice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<PackPreset | null>(null);
-  const [month, setMonth] = useState(monthStart(today));
-  const [downloading, setDownloading] = useState(false);
   const saved = data.data?.pricing;
   const price = typed ?? (saved?.sessionCents != null ? centsText(saved.sessionCents) : "");
 
@@ -82,37 +78,9 @@ export function ClinicBillingPage() {
     toast(done, "success");
   }
 
-  async function download() {
-    setDownloading(true);
-    try {
-      const [y, m] = month.split("-").map(Number) as [number, number];
-      const to = new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
-      const rows = await paymentsBetween(getDb(), month, to);
-      const { writeXlsx } = await import("../export/files");
-      const total = rows.reduce((n, r) => n + r.amountCents, 0);
-      const bytes = await writeXlsx([
-        {
-          name: "Cobros",
-          header: ["Día", "Paciente", "Concepto", "Forma de pago", "Cantidad (€)"],
-          rows: [...rows.map((r) => [r.paidOn.split("-").reverse().join("/"), r.name, r.concept, methodLabel(r.method), r.amountCents / 100]), ["", "", "", "Total", total / 100]],
-        },
-      ]);
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Cobros ${month.slice(0, 7)}.xlsx`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
-      toast(rows.length ? `${rows.length === 1 ? "1 cobro" : `${rows.length} cobros`} de ${monthYear(month)}` : `Sin cobros en ${monthYear(month)}`, "success");
-    } finally {
-      setDownloading(false);
-    }
-  }
-
   const d = data.data;
   const pending = d?.debtors.reduce((n, x) => n + x.balanceCents, 0) ?? 0;
   const presets = d?.presets ?? [];
-  const months = Array.from({ length: 13 }, (_, i) => monthStart(today, i));
   return (
     <Page title="Precios y cobros" backTo="/ajustes">
       <p className="text-sm text-text-muted">
@@ -204,22 +172,9 @@ export function ClinicBillingPage() {
             />
           </Group>
 
-          <Card className="flex flex-col gap-3">
-            <h2 className="font-semibold">Cobros para la gestoría</h2>
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-semibold">Mes</span>
-              <select className="h-12 rounded-md border border-border-input bg-bg px-3" value={month} onChange={(e) => setMonth(e.target.value)}>
-                {months.map((m) => (
-                  <option key={m} value={m}>
-                    {monthYear(m)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button variant="secondary" loading={downloading} icon={<Download aria-hidden="true" className="size-5" />} onClick={() => void download()}>
-              Descargar en Excel
-            </Button>
-          </Card>
+          <Group>
+            <RowLink to="/facturas" icon={Download} title="Cobros para la gestoría" subtitle="Los de cada mes en Excel, con los datos del paciente, en Para facturar" />
+          </Group>
 
         </>
       )}

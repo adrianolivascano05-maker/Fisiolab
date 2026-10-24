@@ -67,8 +67,8 @@ const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ de
 // Lo que abre el paciente con su enlace: sin la base, sin PIN y sin cuenta.
 const PublicFormPage = lazy(() => import("./patientForm/PublicFormPage").then((m) => ({ default: m.PublicFormPage })));
 const OldLinkPage = lazy(() => import("./app/OldLinkPage").then((m) => ({ default: m.OldLinkPage })));
-const InvoicesPage = lazy(() => import("./invoices/InvoicesPage").then((m) => ({ default: m.InvoicesPage })));
-const InvoiceFormPage = lazy(() => import("./invoices/InvoiceFormPage").then((m) => ({ default: m.InvoiceFormPage })));
+const ToBillPage = lazy(() => import("./invoices/ToBillPage").then((m) => ({ default: m.ToBillPage })));
+const IssuedInvoicesPage = lazy(() => import("./invoices/IssuedInvoicesPage").then((m) => ({ default: m.IssuedInvoicesPage })));
 const InvoicePage = lazy(() => import("./invoices/InvoicePage").then((m) => ({ default: m.InvoicePage })));
 const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
@@ -128,8 +128,9 @@ const routes = [
   { path: "/ajustes/ejercicios", element: l(<ExerciseLibraryPage />) },
   { path: "/ajustes/anamnesis", element: l(<CustomFieldsPage />) },
   { path: "/ajustes/reservas", element: <Navigate to="/ajustes" replace /> }, // La reserva online ya no existe
-  { path: "/facturas", element: l(<InvoicesPage />) }, // Facturas emitidas, libro y ajustes
-  { path: "/facturas/nueva", element: l(<InvoiceFormPage />) },
+  { path: "/facturas", element: l(<ToBillPage />) }, // Para facturar: los cobros en Excel para el programa de facturación de la clínica
+  { path: "/facturas/emitidas", element: l(<IssuedInvoicesPage />) }, // Las hechas con la app antes del 24-10-2026, solo lectura
+  { path: "/facturas/nueva", element: <Navigate to="/facturas" replace /> }, // La app ya no hace facturas
   { path: "/facturas/:id", element: l(<InvoicePage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa
   { path: "/ayuda/fallos", element: l(<ReportProblemPage />) }, // Algo no funciona: problemas frecuentes e informe de fallo

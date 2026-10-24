@@ -72,8 +72,9 @@ const steps: { title: string; body: ReactNode }[] = [
     body: (
       <>
         También en el Resumen, en Cuenta: <b>Bonos y cobros</b> (vende un bono de sesiones, que se gasta solo al apuntar cada sesión, y apunta lo que te paga;
-        el precio de la sesión, en Ajustes → Precios y cobros; cada cobro tiene su recibo y, si hace falta, <b>Hacer la factura</b>, numerada; todas las
-        facturas y el libro para la gestoría, en Ajustes → Facturas) y <b>Ejercicios para casa</b> (su hoja, desde la biblioteca de la clínica, para
+        el precio de la sesión, en Ajustes → Precios y cobros; cada cobro tiene su recibo. La app no hace facturas: en Ajustes → <b>Para facturar</b> están
+        los cobros de cada mes con los datos del paciente, en Excel, para hacerlas con tu programa de facturación, y en cada cobro puedes apuntar el número
+        que te dio) y <b>Ejercicios para casa</b> (su hoja, desde la biblioteca de la clínica, para
         imprimir o enviar por WhatsApp). En Valoración › Cuestionarios, el <b>mapa del dolor</b>: toca en el dibujo dónde le duele. Tus propias preguntas en la
         anamnesis, en Ajustes → Anamnesis de la clínica. Con el servidor de la clínica, <b>Enviar al móvil</b> (en Cuestionarios) o <b>Mandar su parte al paciente</b>{" "}
         (en Anamnesis) le manda por WhatsApp un cuestionario o su parte de la anamnesis: lo rellena en su móvil, sin cuenta, y llega solo a su ficha.

@@ -1,28 +1,19 @@
-// Una factura emitida (src/data/invoices.ts), lista para imprimir, guardar en PDF o mandar a Drive. No se cambia: si
-// tiene un error, «Anular con una rectificativa» emite la rectificativa con su motivo (y después se puede hacer otra
-// factura bien hecha desde el mismo cobro o en blanco).
-import { Printer, Undo2 } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
-import { Link, useNavigate, useParams } from "react-router";
-import { bumpData } from "../app/dataVersion";
+// Una factura hecha con la app antes del 24-10-2026 (src/data/invoices.ts), en solo lectura: para verla, imprimirla,
+// guardarla en PDF o mandarla a Drive. Si tiene un error, se corrige con el programa de facturación de la clínica.
+import { Printer } from "lucide-react";
+import { useRef, type ReactNode } from "react";
+import { Link, useParams } from "react-router";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { TextArea } from "../clinical/parts";
-import { todayDay } from "../clinical/pageKit";
 import { SharePdf } from "../clinical/SharePdf";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { safeName } from "../cloud/saveToDrive";
 import { euros } from "../data/billing";
 import { getDb } from "../data/db";
-import { getInvoice, KIND_LABELS, rectificationOf, rectifyInvoice, type Party } from "../data/invoices";
-import { memberEmail } from "../data/member";
-import { getClinic } from "../data/privacy";
+import { getInvoice, KIND_LABELS, rectificationOf, type Party } from "../data/invoices";
 import { Alert } from "../ui/Alert";
 import { TopBar } from "../ui/AppBar";
 import { Button } from "../ui/Button";
-import { Sheet } from "../ui/Sheet";
-import { useToast } from "../ui/Toast";
-import { issuerOf } from "./issuer";
 
 const longDay = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
 
@@ -39,27 +30,20 @@ function PartyBlock({ title, party }: { title: string; party: Party }) {
 
 export function InvoicePage() {
   const { id = "" } = useParams();
-  const navigate = useNavigate();
-  const toast = useToast();
   const data = useAsync(async () => {
     const db = getDb();
     const invoice = await getInvoice(db, id);
-    const [rectification, original, clinic] = await Promise.all([
+    const [rectification, original] = await Promise.all([
       invoice ? rectificationOf(db, invoice.id) : Promise.resolve(null),
       invoice?.rectifiesId ? getInvoice(db, invoice.rectifiesId) : Promise.resolve(null),
-      getClinic(db),
     ]);
-    return { invoice, rectification, original, clinic };
+    return { invoice, rectification, original };
   }, [id]);
-  const [asking, setAsking] = useState(false);
-  const [reason, setReason] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const article = useRef<HTMLElement>(null);
 
   const bar = (
     <div className="print:hidden">
-      <TopBar title="Factura" backTo="/facturas" />
+      <TopBar title="Factura" backTo="/facturas/emitidas" />
     </div>
   );
   const shell = (body: ReactNode) => (
@@ -70,7 +54,7 @@ export function InvoicePage() {
   );
   if (data.error) return shell(<LoadError error={data.error} />);
   if (!data.data) return shell(<Loading />);
-  const { invoice: inv, rectification, original, clinic } = data.data;
+  const { invoice: inv, rectification, original } = data.data;
   if (!inv) return shell(<LoadError error={new Error("Esta factura no existe.")} />);
 
   const fileName = safeName(`Factura ${inv.code}.pdf`);
@@ -78,22 +62,6 @@ export function InvoicePage() {
     const { reportPdf } = await import("../clinical/reportPdf");
     return reportPdf(article.current!);
   }
-  const rectify = async () => {
-    setError(null);
-    setSaving(true);
-    try {
-      const r = await rectifyInvoice(getDb(), inv.id, reason, issuerOf(clinic), memberEmail() ?? "", todayDay());
-      bumpData();
-      toast(`Rectificativa ${r.code} emitida`, "success");
-      setAsking(false);
-      navigate(`/facturas/${r.id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "No se ha podido emitir la rectificativa.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="min-h-dvh bg-canvas print:bg-white">
       <style>{"@page { size: A4; margin: 18mm 18mm 20mm; } @media print { body { background: white; } }"}</style>
@@ -125,11 +93,6 @@ export function InvoicePage() {
             <Link className="tap inline-flex items-center font-semibold text-accent" to={`/pacientes/${inv.patientId}/cobros`}>
               Ir a los cobros del paciente
             </Link>
-          )}
-          {inv.kind !== "rectificativa" && !rectification && (
-            <Button variant="secondary" icon={<Undo2 aria-hidden="true" className="size-5" />} onClick={() => setAsking(true)}>
-              Anular con una rectificativa
-            </Button>
           )}
         </div>
 
@@ -203,21 +166,6 @@ export function InvoicePage() {
         </article>
       </main>
 
-      <Sheet open={asking} onClose={() => setAsking(false)} title="Anular con una rectificativa">
-        <div className="flex flex-col gap-3">
-          <p>
-            Se emite una factura rectificativa con los mismos importes en negativo que anula la {inv.code}. Después, si hace falta, haz otra factura bien hecha.
-          </p>
-          <TextArea label="Motivo" hint="Por ejemplo: «error en los datos del destinatario» o «la sesión no se hizo»." value={reason} onChange={setReason} />
-          {error && <Alert tone="danger" title={error} />}
-          <Button size="lg" block loading={saving} onClick={() => void rectify()}>
-            Emitir la rectificativa
-          </Button>
-          <Button variant="secondary" block onClick={() => setAsking(false)}>
-            No anularla
-          </Button>
-        </div>
-      </Sheet>
     </div>
   );
 }

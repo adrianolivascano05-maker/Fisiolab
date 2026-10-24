@@ -182,8 +182,9 @@ export async function deletePack(db: Db, id: string): Promise<void> {
 // ---------- Cobros ----------
 
 export type PaymentInput = { amountCents: number; method: Method; paidOn: string; concept: string; packId?: string | null };
-export type Payment = Required<PaymentInput> & { id: string; patientId: string };
-type PaymentRow = { id: string; patient_id: string; amount_cents: number; method: Method; paid_on: string; concept: string; pack_id: string | null };
+/** `invoiceRef`: el número de la factura que le hizo la clínica con su programa de facturación (vacío: sin facturar). */
+export type Payment = Required<PaymentInput> & { id: string; patientId: string; invoiceRef: string };
+type PaymentRow = { id: string; patient_id: string; amount_cents: number; method: Method; paid_on: string; concept: string; pack_id: string | null; invoice_ref?: string };
 const toPayment = (r: PaymentRow): Payment => ({
   id: r.id,
   patientId: r.patient_id,
@@ -192,6 +193,7 @@ const toPayment = (r: PaymentRow): Payment => ({
   paidOn: r.paid_on,
   concept: r.concept,
   packId: r.pack_id,
+  invoiceRef: r.invoice_ref ?? "",
 });
 
 export async function addPayment(db: Db, patientId: string, p: PaymentInput): Promise<string> {
@@ -208,6 +210,13 @@ export async function addPayment(db: Db, patientId: string, p: PaymentInput): Pr
     },
   ]);
   return id;
+}
+
+/** Apunta (o borra, con «») el número de la factura que la clínica hizo de este cobro con su programa. */
+export async function setInvoiceRef(db: Db, id: string, ref: string): Promise<void> {
+  const clean = ref.replace(/\s+/g, " ").trim();
+  if (clean.length > 60) throw new RangeError("El número de factura es demasiado largo.");
+  await db.transaction([{ sql: "update payments set invoice_ref = ?, updated_at = ? where id = ?", bind: [clean, now(), id] }]);
 }
 
 export async function deletePayment(db: Db, id: string): Promise<void> {
@@ -309,15 +318,6 @@ export function chargeText(c: SessionCharge): string | null {
 export async function getPayment(db: Db, id: string): Promise<Payment | null> {
   const [r] = await db.query<PaymentRow>("select * from payments where id = ?", [id]);
   return r ? toPayment(r) : null;
-}
-
-/** Los cobros entre dos días (AAAA-MM-DD, el segundo sin incluir) con el nombre del paciente: para la gestoría. */
-export async function paymentsBetween(db: Db, from: string, to: string): Promise<(Payment & { name: string })[]> {
-  const rows = await db.query<PaymentRow & { name: string }>(
-    "select y.*, p.name from payments y join patients p on p.id = y.patient_id where y.paid_on >= ? and y.paid_on < ? order by y.paid_on, y.created_at",
-    [from, to],
-  );
-  return rows.map((r) => ({ ...toPayment(r), name: r.name }));
 }
 
 // ---------- Cantidades en letra (para el recibo) ----------

@@ -14,9 +14,11 @@ chat (fallos P1–P7, mejoras V1–V12). Orden:
    tablas del servidor. Los enlaces antiguos dicen que se hable con la clínica. «Cerrar la agenda» se queda. No se
    borra ningún dato de la base de la app. Falta que el usuario pegue el `worker.js` y borre las tablas
    (`docs/pasos-pendientes.md`, paso 3), mejor después de Q3.
-2. **Q2 · Facturas fuera de la app.** «Para facturar»: los cobros con todos los datos y un Excel para pasarlos al
-   programa de facturación de la clínica; número de factura externo opcional. Las facturas ya hechas se quedan en
-   solo lectura. Preguntas para la gestoría: si la app tiene que cumplir Verifactu solo por exportar los cobros, y
+2. **Q2 · Facturas fuera de la app.** Hecho el 24-10-2026: Ajustes › Para facturar con los cobros del mes, los
+   datos del paciente y un Excel para el programa de facturación de la clínica; en cada cobro se apunta el número
+   de su factura (también desde la ficha). Fuera «Hacer la factura», las series y las rectificativas. Las facturas
+   ya hechas se quedan en solo lectura (ver, imprimir, PDF, libro). La descarga mensual de Precios y cobros lleva
+   ahora a Para facturar. Preguntas para la gestoría: si la app tiene que cumplir Verifactu solo por exportar los cobros, y
    qué columnas necesitan.
 3. **Q3 · Servidor limpio:** formularios repetidos en carrera (P4), lotes de cambios que se leen de más (P6),
    tiempo límite con Google (V5), cabecera `nosniff` (V7), limpiezas fuera de las rutas que se repiten cada minuto.
@@ -38,7 +40,8 @@ chat (fallos P1–P7, mejoras V1–V12). Orden:
      cuestionarios antes de reevaluar (los que rellenó hace 2 semanas o más), con «Enviar uno tras otro». Lo enviado
      o descartado se apunta y se sincroniza (migración 026). La anamnesis y los cuestionarios necesitan el servidor
      de la clínica. Los navegadores no dejan abrir varios WhatsApp a la vez: por eso es un toque por mensaje.
-2. **Facturación y Verifactu.** Primero facturas con numeración legal desde cobros y bonos; después Verifactu
+2. **Facturación y Verifactu — CAMBIADO el 24-10-2026: la app ya no hace facturas (ver Q2 arriba).** Lo que sigue
+   es la historia. Primero facturas con numeración legal desde cobros y bonos; después Verifactu
    (registro encadenado, QR, declaración responsable del fabricante, certificado digital de la clínica).
    Confirmar requisitos y fechas (aplazadas a 2027) con una asesoría. Mirar si sirve mientras tanto la
    aplicación gratuita de facturación de la AEAT.

@@ -1,157 +1,104 @@
+// Las facturas hechas con la app antes del 24-10-2026, en solo lectura. La app ya no las emite: aquí se ponen en la
+// base tal como las dejaba (con su huella encadenada) para comprobar que se leen, se revisan y no se pierden.
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "./db";
-import {
-  checkInvoices,
-  codeOf,
-  DEFAULT_EXEMPTION,
-  getInvoice,
-  invoiceProblem,
-  invoicesCsv,
-  invoicesOfPayments,
-  issueInvoice,
-  listInvoices,
-  mySeriesLetter,
-  rectifyInvoice,
-  setSeriesLetter,
-  totalsOf,
-  type InvoiceInput,
-} from "./invoices";
+import { checkInvoices, hashText, invoicesCsv, invoicesOfPayments, listInvoices, rectificationOf, sha256Hex, type Invoice } from "./invoices";
 import { createTestDb } from "./testDb";
 
+const EXEMPTION = "Operación exenta de IVA (artículo 20.Uno.3º de la Ley 37/1992, del IVA)";
 const clinic = { name: "Fisiolab Centro", taxId: "B12345678", address: "Calle Mayor 1, Sevilla" };
-const input = (over: Partial<InvoiceInput> = {}): InvoiceInput => ({
-  kind: "completa",
-  issuedOn: "2026-10-20",
-  operationOn: null,
-  patientId: "p1",
-  paymentId: null,
-  recipient: { name: "Ana Ruiz", taxId: "12345678z", address: "" },
-  lines: [{ concept: "Sesión de fisioterapia", qty: 1, unitCents: 4500 }],
-  vatRate: 0,
-  exemption: DEFAULT_EXEMPTION,
-  irpfRate: 0,
-  ...over,
-});
-const TODAY = "2026-10-24";
 
 let db: Db;
 beforeEach(async () => {
   db = await createTestDb();
 });
 
-describe("facturas", () => {
-  it("cuentas: base, IVA, retención y total, en céntimos y redondeados", () => {
-    expect(totalsOf([{ concept: "a", qty: 3, unitCents: 4000 }], 0, 0)).toEqual({ baseCents: 12000, vatCents: 0, irpfCents: 0, totalCents: 12000 });
-    expect(totalsOf([{ concept: "a", qty: 1, unitCents: 3333 }], 21, 15)).toEqual({ baseCents: 3333, vatCents: 700, irpfCents: 500, totalCents: 3533 });
-    expect(totalsOf([{ concept: "a", qty: 1, unitCents: -3333 }], 21, 0)).toEqual({ baseCents: -3333, vatCents: -700, irpfCents: 0, totalCents: -4033 });
-    expect(codeOf("A2026", 7)).toBe("A2026-0007");
-  });
+/** Una factura como las guardaba la app: número siguiente de su serie y huella encadenada con la anterior. */
+async function seed(over: Partial<Invoice> & { series?: string } = {}): Promise<Invoice> {
+  const series = over.series ?? "A2026";
+  const prev = (await listInvoices(db)).filter((i) => i.series === series).at(-1);
+  const number = (prev?.number ?? 0) + 1;
+  const sign = over.kind === "rectificativa" ? -1 : 1;
+  const base: Omit<Invoice, "hash"> = {
+    id: crypto.randomUUID(),
+    series,
+    number,
+    code: `${series}-${String(number).padStart(4, "0")}`,
+    kind: "completa",
+    issuedOn: "2026-10-20",
+    operationOn: null,
+    patientId: "p1",
+    paymentId: null,
+    rectifiesId: null,
+    issuer: clinic,
+    recipient: { name: "Ana Ruiz", taxId: "12345678Z", address: "" },
+    lines: [{ concept: "Sesión de fisioterapia", qty: 1, unitCents: sign * 4500 }],
+    baseCents: sign * 4500,
+    vatRate: 0,
+    vatCents: 0,
+    irpfRate: 0,
+    irpfCents: 0,
+    totalCents: sign * 4500,
+    exemption: EXEMPTION,
+    reason: "",
+    prevHash: prev?.hash ?? "",
+    createdBy: "",
+    createdAt: new Date(Date.UTC(2026, 9, 20, 10, number)).toISOString(),
+    ...over,
+  };
+  const inv: Invoice = { ...base, hash: await sha256Hex(hashText(base)) };
+  await db.transaction([
+    {
+      sql: `insert into invoices (id, series, number, code, kind, issued_on, operation_on, patient_id, payment_id, rectifies_id, issuer, recipient, lines,
+              base_cents, vat_rate, vat_cents, irpf_rate, irpf_cents, total_cents, exemption, reason, prev_hash, hash, created_by, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      bind: [
+        inv.id,
+        inv.series,
+        inv.number,
+        inv.code,
+        inv.kind,
+        inv.issuedOn,
+        inv.operationOn,
+        inv.patientId,
+        inv.paymentId,
+        inv.rectifiesId,
+        JSON.stringify(inv.issuer),
+        JSON.stringify(inv.recipient),
+        JSON.stringify(inv.lines),
+        inv.baseCents,
+        inv.vatRate,
+        inv.vatCents,
+        inv.irpfRate,
+        inv.irpfCents,
+        inv.totalCents,
+        inv.exemption,
+        inv.reason,
+        inv.prevHash,
+        inv.hash,
+        inv.createdBy,
+        inv.createdAt,
+        inv.createdAt,
+      ],
+    },
+  ]);
+  return inv;
+}
 
-  it("antes de emitir: datos de la clínica, fecha, destinatario, líneas, exención y el tope de la simplificada", () => {
-    expect(invoiceProblem(input(), { ...clinic, taxId: "" }, TODAY)).toMatch(/NIF de la clínica/);
-    expect(invoiceProblem(input({ issuedOn: "2026-10-25" }), clinic, TODAY)).toMatch(/aún no ha llegado/);
-    expect(invoiceProblem(input({ recipient: { name: " ", taxId: "", address: "" } }), clinic, TODAY)).toMatch(/a quién/);
-    expect(invoiceProblem(input({ kind: "simplificada", recipient: { name: "", taxId: "", address: "" } }), clinic, TODAY)).toBeNull();
-    expect(invoiceProblem(input({ lines: [] }), clinic, TODAY)).toMatch(/lo que se factura/);
-    expect(invoiceProblem(input({ lines: [{ concept: "x", qty: 0, unitCents: 100 }] }), clinic, TODAY)).toMatch(/unidades/);
-    expect(invoiceProblem(input({ exemption: "" }), clinic, TODAY)).toMatch(/exención/);
-    expect(invoiceProblem(input({ vatRate: 21, exemption: "" }), clinic, TODAY)).toBeNull();
-    expect(invoiceProblem(input({ kind: "simplificada", lines: [{ concept: "Bono", qty: 1, unitCents: 40_001 }] }), clinic, TODAY)).toMatch(/400 €/);
-  });
-
-  it("numeración correlativa por serie y año, cada dispositivo con su letra; la fecha no puede ir hacia atrás", async () => {
-    const otherDevice = (id: string) => db.transaction([{ sql: "update sync_state set device = ?", bind: [id] }]);
-    await otherDevice("recepcion");
-    const a1 = await issueInvoice(db, input(), clinic, "", TODAY);
-    const a2 = await issueInvoice(db, input({ issuedOn: "2026-10-21" }), clinic, "laura@clinica.test", TODAY);
-    // En el mismo dispositivo, la misma serie aunque factura otra persona.
-    expect([a1.code, a2.code]).toEqual(["A2026-0001", "A2026-0002"]);
-    expect(a1.recipient.taxId).toBe("12345678Z");
-    // Otro dispositivo (aunque sea de la misma persona): su propia serie, desde el 1.
-    await otherDevice("movil-de-laura");
-    const b1 = await issueInvoice(db, input(), clinic, "laura@clinica.test", TODAY);
-    expect(b1.code).toBe("B2026-0001");
-    // No se puede emitir con fecha anterior a la última de su serie.
-    await otherDevice("recepcion");
-    await expect(issueInvoice(db, input({ issuedOn: "2026-10-19" }), clinic, "", TODAY)).rejects.toThrow(/anterior a la de la última factura de la serie A2026/);
-    // Año nuevo, número 1 otra vez.
-    const next = await issueInvoice(db, input({ issuedOn: "2027-01-02" }), clinic, "", "2027-01-02");
-    expect(next.code).toBe("A2027-0001");
-    // La letra se puede cambiar si nadie más la usa.
-    await otherDevice("movil-de-laura");
-    await expect(setSeriesLetter(db, "A")).rejects.toThrow(/otro dispositivo/);
-    await expect(setSeriesLetter(db, "R")).rejects.toThrow(/rectificativas/);
-    await setSeriesLetter(db, "LG");
-    expect((await issueInvoice(db, input({ issuedOn: "2026-10-22" }), clinic, "laura@clinica.test", TODAY)).code).toBe("LG2026-0001");
-  });
-
-  it("dos dispositivos que cogen la misma letra a la vez (sin conexión): uno se la deja al otro en su próxima factura", async () => {
-    const device = (id: string) => db.transaction([{ sql: "update sync_state set device = ?", bind: [id] }]);
-    // Así queda tras sincronizar: los dos con la A y una factura cada uno.
-    await device("zz-movil");
-    expect((await issueInvoice(db, input(), clinic, "", TODAY)).code).toBe("A2026-0001");
-    await db.transaction([{ sql: "insert into settings (key, value) values ('invoice_series:aa-recepcion', ?)", bind: [JSON.stringify("A")] }]);
-    expect(await mySeriesLetter(db)).toBeNull(); // la cede: el formulario no promete la A
-    expect((await issueInvoice(db, input(), clinic, "", TODAY)).code).toBe("B2026-0001");
-    expect(await mySeriesLetter(db)).toBe("B");
-    // El otro sigue con la suya.
-    await device("aa-recepcion");
-    expect(await mySeriesLetter(db)).toBe("A");
-    expect((await issueInvoice(db, input(), clinic, "", TODAY)).code).toBe("A2026-0002");
-  });
-
-  it("quien ya facturaba con la primera versión (una letra por persona) sigue con su letra en su primer dispositivo", async () => {
-    await db.transaction([{ sql: "insert into settings (key, value) values ('invoice_series', ?)", bind: [JSON.stringify({ "pablo@clinica.test": "C" })] }]);
-    expect((await issueInvoice(db, input(), clinic, "pablo@clinica.test", TODAY)).code).toBe("C2026-0001");
-    await db.transaction([{ sql: "update sync_state set device = 'otro'", bind: [] }]);
-    expect((await issueInvoice(db, input(), clinic, "pablo@clinica.test", TODAY)).code).toBe("A2026-0001");
-  });
-
-  it("un cobro solo tiene una factura; se guarda tal cual estaba la clínica al emitirla", async () => {
-    const f = await issueInvoice(db, input({ paymentId: "cobro-1" }), clinic, "", TODAY);
-    await expect(issueInvoice(db, input({ paymentId: "cobro-1" }), clinic, "", TODAY)).rejects.toThrow(/ya tiene su factura/);
-    expect((await invoicesOfPayments(db, ["cobro-1", "otro"])).get("cobro-1")!.code).toBe(f.code);
-    expect((await getInvoice(db, f.id))!.issuer).toEqual(clinic);
-    // Anulada con una rectificativa, el cobro puede tener otra factura (la buena).
-    await rectifyInvoice(db, f.id, "datos mal", clinic, "", TODAY);
-    expect((await invoicesOfPayments(db, ["cobro-1"])).has("cobro-1")).toBe(false);
-    const again = await issueInvoice(db, input({ paymentId: "cobro-1" }), clinic, "", TODAY);
-    expect(again.code).toBe("A2026-0002");
-  });
-
-  it("rectificativa: en su propia serie, en negativo, con el motivo; solo una por factura", async () => {
-    const f = await issueInvoice(db, input({ vatRate: 21, exemption: "", lines: [{ concept: "Masaje deportivo", qty: 2, unitCents: 3000 }] }), clinic, "", TODAY);
-    const r = await rectifyInvoice(db, f.id, "el paciente no vino a la segunda", clinic, "", TODAY);
-    expect(r).toEqual(
-      expect.objectContaining({
-        code: "RA2026-0001",
-        kind: "rectificativa",
-        rectifiesId: f.id,
-        baseCents: -6000,
-        vatCents: -1260,
-        totalCents: -7260,
-        reason: "Rectifica la factura A2026-0001 del 20/10/2026: el paciente no vino a la segunda",
-      }),
-    );
-    await expect(rectifyInvoice(db, f.id, "otra vez", clinic, "", TODAY)).rejects.toThrow(/ya tiene su rectificativa/);
-    await expect(rectifyInvoice(db, r.id, "x", clinic, "", TODAY)).rejects.toThrow(/no se rectifica/);
-    await expect(rectifyInvoice(db, (await issueInvoice(db, input(), clinic, "", TODAY)).id, " ", clinic, "", TODAY)).rejects.toThrow(/motivo/);
-  });
-
-  it("restaurar una copia antigua no borra las facturas hechas después ni deja repetir sus números", async () => {
-    await issueInvoice(db, input(), clinic, "", TODAY);
-    const backup = await db.exportBytes();
-    await issueInvoice(db, input({ issuedOn: "2026-10-21" }), clinic, "", TODAY);
-    await db.importBytes(backup);
-    expect((await listInvoices(db)).map((i) => i.code)).toEqual(["A2026-0001", "A2026-0002"]);
-    expect((await issueInvoice(db, input({ issuedOn: "2026-10-22" }), clinic, "", TODAY)).code).toBe("A2026-0003");
-    expect(await checkInvoices(await listInvoices(db))).toEqual([]);
+describe("facturas hechas con la app (solo lectura)", () => {
+  it("se leen tal cual, por serie y número, y de un año", async () => {
+    await seed();
+    await seed({ issuedOn: "2026-10-21" });
+    await seed({ series: "A2025", issuedOn: "2025-12-30" });
+    expect((await listInvoices(db)).map((i) => i.code)).toEqual(["A2025-0001", "A2026-0001", "A2026-0002"]);
+    expect((await listInvoices(db, 2026)).map((i) => i.code)).toEqual(["A2026-0001", "A2026-0002"]);
+    expect((await listInvoices(db))[1]).toMatchObject({ issuer: clinic, recipient: { name: "Ana Ruiz" }, totalCents: 4500, exemption: EXEMPTION });
   });
 
   it("la cadena de huellas: en orden, avisa si alguien cambia una factura o si hay números repetidos", async () => {
-    await issueInvoice(db, input(), clinic, "", TODAY);
-    await issueInvoice(db, input(), clinic, "", TODAY);
-    await issueInvoice(db, input(), clinic, "", TODAY);
+    await seed();
+    await seed();
+    await seed();
     expect(await checkInvoices(await listInvoices(db))).toEqual([]);
     // Alguien cambia el importe de la segunda directamente en la base.
     await db.transaction([{ sql: "update invoices set total_cents = 100 where code = 'A2026-0002'", bind: [] }]);
@@ -163,14 +110,48 @@ describe("facturas", () => {
     expect(problems.some((p) => /Número repetido/.test(p.problem))).toBe(true);
   });
 
+  it("la factura de cada cobro es la que no se anuló; la rectificativa se encuentra desde la original", async () => {
+    const a = await seed({ paymentId: "cobro-1" });
+    const r = await seed({ series: "RA2026", kind: "rectificativa", rectifiesId: a.id, paymentId: "cobro-1", reason: "Rectifica la factura A2026-0001" });
+    const b = await seed({ paymentId: "cobro-1" });
+    const c = await seed({ paymentId: "cobro-2" });
+    const made = await invoicesOfPayments(db, ["cobro-1", "cobro-2", "cobro-3"]);
+    expect([...made].map(([k, v]) => [k, v.code])).toEqual([
+      ["cobro-1", b.code],
+      ["cobro-2", c.code],
+    ]);
+    expect((await rectificationOf(db, a.id))?.id).toBe(r.id);
+    expect(await rectificationOf(db, b.id)).toBeNull();
+  });
+
+  it("restaurar una copia antigua no borra las facturas hechas después", async () => {
+    await seed();
+    const backup = await db.exportBytes();
+    await seed({ issuedOn: "2026-10-21" });
+    await db.importBytes(backup);
+    expect((await listInvoices(db)).map((i) => i.code)).toEqual(["A2026-0001", "A2026-0002"]);
+    expect(await checkInvoices(await listInvoices(db))).toEqual([]);
+  });
+
   it("el libro de facturas para la gestoría: CSV para Excel con coma decimal", async () => {
-    const f = await issueInvoice(db, input({ recipient: { name: "Mutua; S.A.", taxId: "A11111111", address: "" }, irpfRate: 15 }), clinic, "", TODAY);
-    await rectifyInvoice(db, f.id, "error en el destinatario", clinic, "", TODAY);
+    const f = await seed({
+      recipient: { name: "Mutua; S.A.", taxId: "A11111111", address: "" },
+      irpfRate: 15,
+      irpfCents: 675,
+      totalCents: 3825,
+    });
+    await seed({
+      series: "RA2026",
+      kind: "rectificativa",
+      issuedOn: "2026-10-24",
+      rectifiesId: f.id,
+      reason: "Rectifica la factura A2026-0001: error en el destinatario",
+    });
     const csv = invoicesCsv(await listInvoices(db, 2026));
     expect(csv.charCodeAt(0)).toBe(0xfeff);
     const lines = csv.slice(1).trim().split("\r\n");
     expect(lines[0]).toContain("Número;Tipo;Fecha de expedición");
-    expect(lines[1]).toBe(`A2026-0001;Factura;20/10/2026;;"Mutua; S.A.";A11111111;45,00;0;0,00;15;6,75;38,25;${DEFAULT_EXEMPTION};;`);
+    expect(lines[1]).toBe(`A2026-0001;Factura;20/10/2026;;"Mutua; S.A.";A11111111;45,00;0;0,00;15;6,75;38,25;${EXEMPTION};;`);
     expect(lines[2]).toMatch(/^RA2026-0001;Factura rectificativa;24\/10\/2026;.*;-45,00;.*;A2026-0001;Rectifica la factura A2026-0001/);
   });
 });

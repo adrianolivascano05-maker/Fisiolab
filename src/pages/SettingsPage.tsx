@@ -106,7 +106,7 @@ export function SettingsPage() {
           />
         )}
         <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, bonos, lo cobrado y lo pendiente" />
-        <RowLink to="/facturas" icon={ReceiptText} title="Facturas" subtitle="Las emitidas, el libro para la gestoría y el IVA" />
+        <RowLink to="/facturas" icon={ReceiptText} title="Para facturar" subtitle="Los cobros en Excel para tu programa de facturación" />
         <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
         {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
         <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />

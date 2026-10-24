@@ -21,7 +21,7 @@ for (const width of [360, 412]) {
       "./ajustes/cobros",
       "./agenda/envios",
       "./facturas",
-      "./facturas/nueva",
+      "./facturas/emitidas",
       "./ajustes/estadisticas",
       "./ajustes/cuestionarios",
       patient,
