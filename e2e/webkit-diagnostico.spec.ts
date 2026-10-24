@@ -7,7 +7,8 @@ import { test, withoutCloud } from "./fixtures";
 test.skip(({ browserName }) => browserName !== "webkit", "Solo para el motor de Safari.");
 
 async function look(page: Page, label: string) {
-  await page.waitForTimeout(4000);
+  // Más de los 5 s que la app insiste en abrir el almacenamiento antes de rendirse: así se ve el estado final.
+  await page.waitForTimeout(8000);
   const seen = await page.evaluate(async () => {
     const locks = "locks" in navigator ? await navigator.locks.query() : null;
     const text = document.body.innerText;
@@ -25,7 +26,7 @@ async function look(page: Page, label: string) {
 
 for (const sw of ["allow", "block"] as const) {
   test(`D1 dos cargas seguidas en la misma pestaña (service worker: ${sw})`, async ({ browser }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(90_000);
     const { baseURL, viewport, locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
     const ctx = await browser.newContext({ baseURL, viewport, locale, timezoneId, isMobile, hasTouch, serviceWorkers: sw });
     await withoutCloud(ctx);

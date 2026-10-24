@@ -80,7 +80,9 @@ async function start(): Promise<Engine> {
         await pool.importDb(FILE, bytes);
       },
     };
-  } catch {
+  } catch (err) {
+    // Se ve en la consola del navegador (y en las pruebas): por qué no se guarda en el dispositivo.
+    console.warn("Sin almacenamiento privado (OPFS); los datos irán en memoria:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
     storage = { persistent: false, open: () => new sqlite3.oo1.DB(":memory:", "c") };
   }
   const engine = new Engine(sqlite3, storage, migrations);
