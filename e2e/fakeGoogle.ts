@@ -106,7 +106,16 @@ export class FakeGoogle {
   /** Formularios para el paciente (como cloudflare/worker.js): cifrados; el paciente los abre y responde sin sesión. */
   forms = new Map<string, { clinic: string; request: string; expiresAt: string; response?: string; answeredAt?: string }>();
   /** Reserva online (como cloudflare/worker.js): la página de cada clínica, las reservas y los enlaces para anular. */
-  bookingPages = new Map<string, { slug: string; publicKey: unknown; page: { clinic?: string; kinds?: { id: string; minutes: number }[]; minNoticeHours?: number; pros?: { id: string; name: string }[] }; windows: BookingWindow[] }>();
+  bookingPages = new Map<
+    string,
+    {
+      slug: string;
+      publicKey: unknown;
+      page: { clinic?: string; kinds?: { id: string; minutes: number }[]; minNoticeHours?: number; step?: number; pros?: { id: string; name: string }[]; disabled?: boolean };
+      windows: BookingWindow[];
+      envelope?: BookingWindow[];
+    }
+  >();
   bookings = new Map<string, FakeBooking>();
   cancelLinks = new Map<string, FakeCancelLink>();
 
@@ -456,7 +465,7 @@ export class FakeGoogle {
     const reserva = /^\/v1\/reservas\/([a-z0-9-]{3,40})$/.exec(path);
     if (reserva) {
       const entry = [...this.bookingPages].find(([, p]) => p.slug === reserva[1]);
-      if (!entry || this.clinics.get(entry[0])?.deleted) return send(404, { error: "Esta clínica no tiene reserva por internet ahora mismo. Llama o escribe a la clínica para pedir cita." });
+      if (!entry || this.clinics.get(entry[0])?.deleted || entry[1].page.disabled) return send(404, { error: "Esta clínica no tiene reserva por internet ahora mismo. Llama o escribe a la clínica para pedir cita." });
       const [clinic, p] = entry;
       if (method === "GET") return send(200, { page: p.page, publicKey: p.publicKey, windows: this.openWindows(clinic, p.windows) });
       const b = JSON.parse(req.postData() ?? "{}") as { kind?: string; startsAt?: string; pro?: string; payload?: string; cancelHash?: string };
@@ -464,6 +473,7 @@ export class FakeGoogle {
       if (!kind) return send(400, { error: "Elige el tipo de cita." });
       const at = Date.parse(b.startsAt ?? "");
       if (!Number.isFinite(at) || at < Date.now() + (p.page.minNoticeHours ?? 0) * 3_600_000 - 60_000) return send(400, { error: "Esa hora ya no se puede reservar: elige otra." });
+      if (p.page.step && at % (p.page.step * 60_000) !== 0) return send(400, { error: "Esa hora ya no se puede reservar: elige otra." });
       if (!b.payload?.startsWith("CB1.") || !/^[0-9a-f]{64}$/.test(b.cancelHash ?? "")) return send(400, { error: "Faltan tus datos." });
       const free = this.openWindows(clinic, p.windows);
       const fits = (pro: string) => free.some((w) => w.pro === pro && Date.parse(w.from) <= at && at + kind.minutes * 60_000 <= Date.parse(w.to));
@@ -485,7 +495,15 @@ export class FakeGoogle {
     const past = Date.parse(row.startsAt) <= Date.now();
     if (!cita[2]) {
       const label = link ? link.label : (page?.page.pros?.find((x) => x.id === fromBooking!.pro)?.name ?? "");
-      return send(200, { startsAt: row.startsAt, with: label, clinic: page?.page.clinic || this.clinics.get(row.clinic)!.name, cancelled: !!row.cancelledAt, past, slug: page?.slug ?? null });
+      return send(200, {
+        startsAt: row.startsAt,
+        with: label,
+        clinic: page?.page.clinic || this.clinics.get(row.clinic)!.name,
+        cancelled: !!row.cancelledAt,
+        past,
+        slug: page && !page.page.disabled ? page.slug : null,
+        pro: link ? link.pro : fromBooking!.pro,
+      });
     }
     if (row.cancelledAt) return send(200, { cancelled: true });
     if (past) return send(409, { error: "La cita ya ha pasado: no se puede anular desde aquí." });
@@ -495,9 +513,15 @@ export class FakeGoogle {
     // El hueco, libre en la página al momento.
     const minutes = link ? link.minutes : fromBooking!.minutes;
     const pro = link ? link.pro : fromBooking!.pro;
-    if (page && pro !== null && minutes > 0) {
+    if (page && !page.page.disabled && pro !== null && minutes > 0) {
       const from = Date.parse(row.startsAt);
-      const spans = [...page.windows.filter((w) => w.pro === pro), { pro, from: row.startsAt, to: new Date(from + minutes * 60_000).toISOString() }]
+      const to = from + minutes * 60_000;
+      // Solo dentro de cuándo se puede reservar con ese fisio.
+      const pieces = (page.envelope ?? [{ pro, from: row.startsAt, to: new Date(to).toISOString() }])
+        .filter((w) => w.pro === pro)
+        .map((w) => ({ pro, from: new Date(Math.max(from, Date.parse(w.from))).toISOString(), to: new Date(Math.min(to, Date.parse(w.to))).toISOString() }))
+        .filter((w) => w.to > w.from);
+      const spans = [...page.windows.filter((w) => w.pro === pro), ...pieces]
         .map((w) => [Date.parse(w.from), Date.parse(w.to)] as [number, number])
         .sort((x, y) => x[0] - y[0]);
       const merged: [number, number][] = [];
@@ -514,14 +538,15 @@ export class FakeGoogle {
   /** Lo del equipo: publicar la página, recoger reservas y anulaciones y dar enlaces para anular. */
   private clinicBookings(clinic: string, rest: string, method: string, body: <T>() => T, send: (status: number, json?: unknown) => Promise<void>) {
     if (rest === "/reservas" && method === "PUT") {
-      const b = body<{ enabled?: boolean; slug?: string; publicKey?: unknown; page?: never; windows?: BookingWindow[] }>();
+      const b = body<{ enabled?: boolean; slug?: string; publicKey?: unknown; page?: never; windows?: BookingWindow[]; envelope?: BookingWindow[] }>();
       if (b.enabled === false) {
-        this.bookingPages.delete(clinic);
+        const had = this.bookingPages.get(clinic);
+        if (had) Object.assign(had, { page: { disabled: true }, windows: [], envelope: [] });
         return send(200, { enabled: false });
       }
       if (!/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/.test(b.slug ?? "")) return send(400, { error: "La dirección de la página solo puede llevar letras sin tilde, números y guiones (de 3 a 40)." });
       if ([...this.bookingPages].some(([c, p]) => p.slug === b.slug && c !== clinic)) return send(409, { error: "Esa dirección ya la usa otra clínica: elige otra." });
-      this.bookingPages.set(clinic, { slug: b.slug!, publicKey: b.publicKey, page: b.page ?? {}, windows: b.windows ?? [] });
+      this.bookingPages.set(clinic, { slug: b.slug!, publicKey: b.publicKey, page: b.page ?? {}, windows: b.windows ?? [], envelope: b.envelope });
       return send(200, { enabled: true, slug: b.slug });
     }
     if (rest === "/reservas") {

@@ -56,7 +56,7 @@
 //   GET    /v1/formularios/:fid                { request, expiresAt, answered } SIN sesión: lo abre el paciente
 //   POST   /v1/formularios/:fid/respuesta      { response } SIN sesión: sus respuestas, cifradas, una sola vez
 //   Reserva online y enlaces para anular (la app sube solo franjas libres; los datos del paciente van cifrados):
-//   PUT    /v1/clinicas/:id/reservas           { enabled, slug, publicKey, page, windows } → publica la página (equipo)
+//   PUT    /v1/clinicas/:id/reservas           { enabled, slug, publicKey, page, windows, envelope } → publica la página (equipo)
 //   GET    /v1/clinicas/:id/reservas           { slug, bookings, cancels }: reservas sin recoger y anulaciones nuevas
 //   POST   /v1/clinicas/:id/reservas/recogidas { bookings: [id], cancels: [hash] } → ya están en la app
 //   POST   /v1/clinicas/:id/enlaces            { links: [{ hash, ref, startsAt, label, minutes, pro, cancelled? }] } → enlaces para anular citas
@@ -1099,13 +1099,16 @@ async function publicBooking(request, db, slug, now) {
   const clinicId = String(row.clinic_id);
   const status = await clinicStatus(db, clinicId);
   if (status?.deletedAt) throw gone();
-  /** @type {{ kinds?: BookingKind[], minNoticeHours?: number, pros?: { id: string, name: string }[] }} */
+  /** @type {{ kinds?: BookingKind[], minNoticeHours?: number, step?: number, pros?: { id: string, name: string }[], envelope?: BookingWindow[], disabled?: boolean }} */
   const page = JSON.parse(String(row.page));
+  // Apagada: la dirección sigue siendo de la clínica (nadie más puede quedársela), pero no se puede reservar.
+  if (page.disabled) throw gone();
   /** @type {BookingWindow[]} */
   const windows = JSON.parse(String(row.windows));
   const at = now();
   if (request.method === "GET") {
-    return json(200, { page, publicKey: JSON.parse(String(row.public_key)), windows: await openWindows(db, clinicId, windows, at) });
+    const { envelope: _envelope, ...shown } = page;
+    return json(200, { page: shown, publicKey: JSON.parse(String(row.public_key)), windows: await openWindows(db, clinicId, windows, at) });
   }
   if (status?.suspendedAt) throw new HttpError(423, "Ahora mismo la clínica no puede recibir reservas. Llama o escribe a la clínica.");
   const body = await readBigJson(request, MAX_BOOKING_CHARS + 2000);
@@ -1115,6 +1118,9 @@ async function publicBooking(request, db, slug, now) {
   if (!Number.isFinite(startsAt) || startsAt < at + Number(page.minNoticeHours ?? 0) * 3_600_000 - 60_000) {
     throw new HttpError(400, "Esa hora ya no se puede reservar: elige otra.");
   }
+  // Solo las horas de la lista (10:00, 10:15…): una hora suelta partiría los huecos en trozos que no sirven.
+  const stepMs = Number(page.step) > 0 ? Number(page.step) * 60_000 : 0;
+  if (stepMs && startsAt % stepMs !== 0) throw new HttpError(400, "Esa hora ya no se puede reservar: elige otra.");
   if (typeof body.payload !== "string" || !body.payload.startsWith("CB1.") || body.payload.length > MAX_BOOKING_CHARS) throw new HttpError(400, "Faltan tus datos.");
   const cancelHash = typeof body.cancelHash === "string" ? body.cancelHash : "";
   if (!CANCEL_HASH.test(cancelHash)) throw new HttpError(400, "Falta el código para anular.");
@@ -1171,7 +1177,7 @@ async function publicCancel(request, db, token, cancel, now) {
   if (status?.deletedAt) throw gone();
   const page = await db.prepare("SELECT slug, page FROM booking_pages WHERE clinic_id = ?").bind(clinicId).first();
   const clinic = await db.prepare("SELECT name FROM clinics WHERE id = ?").bind(clinicId).first();
-  /** @type {{ clinic?: string, pros?: { id: string, name: string }[] }} */
+  /** @type {{ clinic?: string, pros?: { id: string, name: string }[], envelope?: BookingWindow[], disabled?: boolean }} */
   const info = page ? JSON.parse(String(page.page)) : {};
   const label = l ? String(l.label) : b ? (info.pros?.find((p) => p.id === String(b.pro))?.name ?? "") : "";
   const startsAt = String(row.starts_at);
@@ -1183,7 +1189,9 @@ async function publicCancel(request, db, token, cancel, now) {
       clinic: info.clinic || (clinic ? String(clinic.name) : ""),
       cancelled: row.cancelled_at !== null,
       past,
-      slug: page ? String(page.slug) : null,
+      slug: page && !info.disabled ? String(page.slug) : null,
+      // Con quién (id público), para «pedir otra cita con…».
+      pro: l ? (l.pro === null ? null : String(l.pro)) : b ? String(b.pro) : null,
     });
   }
   if (row.cancelled_at !== null) return json(200, { cancelled: true });
@@ -1197,11 +1205,25 @@ async function publicCancel(request, db, token, cancel, now) {
   // El hueco queda libre en la página al momento, sin esperar a que la clínica abra la app.
   const minutes = l ? Number(l.minutes) : b ? Number(b.minutes) : 0;
   const pro = l ? (l.pro === null ? null : String(l.pro)) : b ? String(b.pro) : null;
-  if (page && pro !== null && minutes > 0) {
+  if (page && !info.disabled && pro !== null && minutes > 0) {
     const from = Date.parse(startsAt);
-    const freed = { pro, from: new Date(from).toISOString(), to: new Date(from + minutes * 60_000).toISOString() };
-    const published = await db.prepare("SELECT windows FROM booking_pages WHERE clinic_id = ?").bind(clinicId).first();
-    if (published) steps.push(db.prepare("UPDATE booking_pages SET windows = ? WHERE clinic_id = ?").bind(JSON.stringify(withWindow(JSON.parse(String(published.windows)), freed)), clinicId));
+    const to = from + minutes * 60_000;
+    // Solo lo que cae dentro de cuándo se puede reservar con ese fisio (nunca un rato cerrado ni fuera de horario).
+    const pieces = Array.isArray(info.envelope)
+      ? info.envelope
+          .filter((w) => w.pro === pro)
+          .map((w) => [Math.max(from, Date.parse(w.from)), Math.min(to, Date.parse(w.to))])
+          .filter(([a = 0, b = 0]) => b > a)
+      : [[from, to]];
+    if (pieces.length) {
+      const published = await db.prepare("SELECT windows FROM booking_pages WHERE clinic_id = ?").bind(clinicId).first();
+      if (published) {
+        /** @type {BookingWindow[]} */
+        let windows = JSON.parse(String(published.windows));
+        for (const [a = 0, b = 0] of pieces) windows = withWindow(windows, { pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() });
+        steps.push(db.prepare("UPDATE booking_pages SET windows = ? WHERE clinic_id = ?").bind(JSON.stringify(windows), clinicId));
+      }
+    }
   }
   await db.batch(steps);
   return json(200, { cancelled: true });
@@ -1243,16 +1265,24 @@ async function clinicBookings(request, db, clinicId, rest, now) {
   if (rest === "/reservas" && request.method === "PUT") {
     const body = await readBigJson(request, MAX_WINDOWS_CHARS + MAX_PAGE_CHARS + 2000);
     if (body.enabled === false) {
-      await db.prepare("DELETE FROM booking_pages WHERE clinic_id = ?").bind(clinicId).run();
+      // Se apaga sin soltar la dirección: sus enlaces y códigos QR no pueden acabar en otra clínica.
+      await db.prepare("UPDATE booking_pages SET page = ?, windows = '[]', updated_at = ? WHERE clinic_id = ?").bind(JSON.stringify({ disabled: true }), iso, clinicId).run();
       return json(200, { enabled: false });
     }
     const slug = typeof body.slug === "string" ? body.slug : "";
     if (!SLUG.test(slug)) throw new HttpError(400, "La dirección de la página solo puede llevar letras sin tilde, números y guiones (de 3 a 40).");
     const key = body.publicKey;
     if (typeof key !== "object" || key === null || /** @type {Record<string, unknown>} */ (key).kty !== "EC") throw new HttpError(400, "Falta la clave pública de la clínica.");
-    const page = JSON.stringify(body.page ?? {});
+    const shown = JSON.stringify(body.page ?? {});
     const windows = JSON.stringify(Array.isArray(body.windows) ? body.windows : []);
-    if (page.length > MAX_PAGE_CHARS || windows.length > MAX_WINDOWS_CHARS) throw new HttpError(413, "La página es demasiado grande.");
+    const envelope = Array.isArray(body.envelope)
+      ? body.envelope.filter((w) => typeof w === "object" && w !== null && typeof w.pro === "string" && typeof w.from === "string" && typeof w.to === "string")
+      : null;
+    if (shown.length > MAX_PAGE_CHARS || windows.length > MAX_WINDOWS_CHARS || JSON.stringify(envelope ?? []).length > MAX_WINDOWS_CHARS) {
+      throw new HttpError(413, "La página es demasiado grande.");
+    }
+    // Lo que se enseña y, aparte (no sale en la página pública), cuándo se puede reservar con cada fisio.
+    const page = JSON.stringify({ ...(body.page ?? {}), ...(envelope ? { envelope } : {}) });
     const taken = await db.prepare("SELECT clinic_id FROM booking_pages WHERE slug = ?").bind(slug).first();
     if (taken && String(taken.clinic_id) !== clinicId) throw new HttpError(409, "Esa dirección ya la usa otra clínica: elige otra.");
     await db

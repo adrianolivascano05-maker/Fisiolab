@@ -127,9 +127,17 @@ abrir la ficha de paciente nuevo. Puede ser el Safari de pruebas de Linux o un f
 en un iPhone de verdad antes de ofrecer la app a clínicas con iPhone.
 
 **R3. Reserva online, para que no dé sorpresas:**
-- Días cerrados y festivos (hoy se puede reservar el 25 de diciembre).
-- Una sesión que ya ha empezado no cuenta como ocupada (se puede ofrecer una hora que se solapa con ella).
-- Al anular, el hueco se libera aunque esté fuera de horario o se solape con otra cita del mismo fisio.
+- ~~Días cerrados y festivos~~ **hecho el 24-10-2026:** «Cerrar la agenda» (de un fisio o de toda la clínica; una
+  tarde, un día o varios), se ve rayado en la agenda y la reserva no ofrece esos ratos.
+- ~~Una sesión que ya ha empezado no cuenta como ocupada~~ **hecho el 24-10-2026.**
+- ~~Al anular, el hueco se libera aunque esté fuera de horario~~ **hecho el 24-10-2026:** solo se libera lo que cae
+  dentro del horario abierto de ese fisio. (Sigue pendiente: si se solapa con otra cita suya dada después.)
+- ~~Al apagar la reserva, otra clínica puede quedarse con su dirección~~ **hecho el 24-10-2026.**
+- ~~Horas fuera de la rejilla (10:07)~~ **hecho el 24-10-2026** (el servidor solo acepta las horas de la lista).
+- **Hecho el 24-10-2026, a petición del usuario:** página de reservas como en las apps de reservas (tipo de cita con
+  su precio, el fisio con su especialidad o «cualquiera», calendario del mes con los días libres, horas de mañana y
+  de tarde) y enlace personal de cada fisio (…/reservar/<clínica>?con=<fisio>) para que sus pacientes vuelvan con él;
+  al terminar y al anular, «pedir otra cita con…».
 - Un fisio sin turnos puestos sale con todo el horario de la clínica (también si está de vacaciones o ya no está
   en el equipo); poner un solo turno quita el resto del mes.
 - El paciente se une a una ficha solo por el móvil o el correo (una madre que reserva para su marido con su móvil

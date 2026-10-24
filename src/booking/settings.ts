@@ -8,9 +8,10 @@ import { newBookingKeys, url64, type BookingKeys } from "./crypto";
 export const BOOKING_SETTINGS_KEY = "booking_settings";
 export const BOOKING_KEYS_KEY = "booking_keys";
 
-export type BookingKind = { id: string; label: string; minutes: number };
+/** Un tipo de cita: lo que dura y, si se quiere enseñar, su precio (en céntimos). */
+export type BookingKind = { id: string; label: string; minutes: number; priceCents?: number | null };
 /** Un fisio que sale en la reserva: su correo (solo en la app), un id público al azar y el nombre que se enseña. */
-export type BookingPro = { email: string; id: string; name: string };
+export type BookingPro = { email: string; id: string; name: string; bio?: string };
 
 export type BookingSettings = {
   enabled: boolean;
@@ -90,6 +91,7 @@ export type PublicBookingInfo = {
   kinds: BookingKind[];
   minNoticeHours: number;
   step: number;
-  pros: { id: string; name: string }[];
+  /** Quién sale: id público, nombre, a qué se dedica (si se ha escrito) y su color en la agenda (para su inicial). */
+  pros: { id: string; name: string; bio?: string; color?: string }[];
   contact?: { phone: string; email: string; address: string; taxId: string; dpo: string };
 };

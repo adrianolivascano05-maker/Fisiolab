@@ -1,12 +1,14 @@
 // La rejilla de la agenda, como Google Calendar: las horas a la izquierda y una columna por día (o, en el día de una
 // clínica, por persona). Cada cita es un bloque que se arrastra para moverla: arriba y abajo cambia la hora (cada 15
 // minutos), a otra columna cambia el día o la persona. Con el ratón basta arrastrar; en el móvil, mantener pulsada la
-// cita un momento y moverla. Tocar un hueco vacío da una cita a esa hora. Los turnos se ven de fondo. Con dos dedos
+// cita un momento y moverla. Tocar un hueco vacío da una cita a esa hora. Los turnos se ven de fondo y los ratos con la
+// agenda cerrada (src/data/closures.ts), rayados. Con dos dedos
 // se cambia la vista: juntándolos se ven más días; separándolos, menos, centrando el día que queda entre los dedos.
 // Tocar el nombre de un día lo abre solo; deslizar la fila de los días a un lado pasa a la semana (o los días)
 // siguiente o anterior.
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TouchList } from "react";
 import type { AgendaItem } from "../data/appointments";
+import type { Closure } from "../data/closures";
 import { staffColor, type Shift, type Staff } from "../data/schedule";
 import { STATUS_LABELS } from "../data/appointments";
 import { cx } from "../ui/cx";
@@ -36,6 +38,7 @@ export function AgendaGrid({
   header,
   appointments,
   shifts,
+  closures = [],
   staff,
   today,
   showPerson,
@@ -43,6 +46,8 @@ export function AgendaGrid({
   onMove,
   onSlot,
   onShift,
+  onClosure,
+  canEditClosure,
   onHeader,
   onZoom,
   onSwipe,
@@ -52,6 +57,8 @@ export function AgendaGrid({
   header: (c: Column) => { title: string; subtitle?: string; color?: string; today?: boolean };
   appointments: AgendaItem[];
   shifts: Shift[];
+  /** Ratos con la agenda cerrada: de toda la clínica en todas las columnas; de una persona, en la suya. */
+  closures?: Closure[];
   staff: Staff[];
   today: string;
   /** Poner en cada cita con quién es (cuando las columnas no van por persona). */
@@ -62,6 +69,10 @@ export function AgendaGrid({
   onSlot: (column: Column, minutes: number) => void;
   /** Turno pulsado (solo si se puede cambiar). */
   onShift?: (s: Shift) => void;
+  /** Rato cerrado pulsado; null si ese no se puede cambiar (entonces no se puede pulsar). */
+  onClosure?: (c: Closure) => void;
+  /** Si se puede cambiar un cierre (el propio o, quien administra, cualquiera). */
+  canEditClosure?: (c: Closure) => boolean;
   /** Cabecera de una columna pulsada (para abrir ese día). */
   onHeader?: (c: Column) => void;
   /** Pellizco con dos dedos: +1 para ver más días, −1 para menos; con la columna que queda entre los dedos. */
@@ -328,6 +339,40 @@ export function AgendaGrid({
                   <div key={s.id} role="img" aria-label={label} title={label} className="absolute rounded-sm" style={style} />
                 );
               })}
+              {closures
+                .filter((k) => k.staffEmail === "" || c.person === undefined || c.person === k.staffEmail)
+                .map((k) => {
+                  // La parte del cierre que cae en este día, dentro de las horas que se ven.
+                  const d0 = dayOf(k.startsAt);
+                  const d1 = dayOf(k.endsAt);
+                  if (c.day < d0 || c.day > d1 || (c.day === d1 && minutesOf(k.endsAt) === 0)) return null;
+                  const startM = Math.max(c.day === d0 ? minutesOf(k.startsAt) : 0, range.from * 60);
+                  const endM = Math.min(c.day === d1 ? minutesOf(k.endsAt) : 24 * 60, range.to * 60);
+                  if (endM <= startM) return null;
+                  const whose = k.staffEmail ? (staff.find((p) => p.email === k.staffEmail)?.name ?? k.staffEmail) : "";
+                  const label = `Agenda cerrada${whose ? ` de ${whose}` : ""}${k.note ? `: ${k.note}` : ""}`;
+                  const style: CSSProperties = {
+                    top: top(startM),
+                    height: top(endM) - top(startM),
+                    left: 0,
+                    right: 0,
+                    background: "repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-text-muted) 22%, transparent) 0 2px, transparent 2px 9px)",
+                  };
+                  const text = (
+                    <span className="block truncate px-1 pt-0.5 text-left text-[11px] font-semibold text-text-muted">
+                      Cerrada{k.note ? ` · ${k.note}` : ""}
+                    </span>
+                  );
+                  return onClosure && canEditClosure?.(k) ? (
+                    <button key={k.id} type="button" aria-label={label} title={label} className="absolute rounded-sm" style={style} onClick={() => onClosure(k)}>
+                      {text}
+                    </button>
+                  ) : (
+                    <div key={k.id} role="img" aria-label={label} title={label} className="pointer-events-none absolute rounded-sm" style={style}>
+                      {text}
+                    </div>
+                  );
+                })}
               {c.day === today && nowMin >= range.from * 60 && nowMin <= range.to * 60 && (
                 <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-danger" style={{ top: top(nowMin) }} />
               )}

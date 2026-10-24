@@ -9,40 +9,59 @@ import type { Db } from "../data/db";
 import { memberEmail } from "../data/member";
 import { getClinic } from "../data/privacy";
 import { createPatient } from "../data/repo";
-import { listStaff, shiftsBetween } from "../data/schedule";
-import { freeWindows, type Span } from "./availability";
+import { closesFor, closuresBetween } from "../data/closures";
+import { listStaff, shiftsBetween, staffColor } from "../data/schedule";
+import { bookableSpans, freeWindows, type Span } from "./availability";
 import { newCancelToken, openFromPatient, tokenHash } from "./crypto";
 import { bookingKeys, getBookingSettings, type BookingPayload, type BookingSettings, type PublicBookingInfo } from "./settings";
 
 const DAY = 86_400_000;
 
-/** Lo que se publica: la página (sin correos ni pacientes) y las franjas libres. */
+/**
+ * Lo que se publica: la página (sin correos ni pacientes), las franjas libres y cuándo se puede reservar con cada fisio
+ * sin quitar las citas (`envelope`: al anular una cita, el servidor solo deja libre lo que cae dentro; nunca un rato
+ * cerrado ni fuera de horario).
+ */
 export async function bookingPage(db: Db, settings: BookingSettings, team: boolean, now = new Date()) {
   const from = now.toISOString();
   const to = new Date(now.getTime() + (settings.days + 2) * DAY).toISOString();
-  const [appointments, shifts, clinic] = await Promise.all([agenda(db, from, to), team ? shiftsBetween(db, from, to) : Promise.resolve([]), getClinic(db)]);
+  // Desde unas horas antes: una sesión que ya ha empezado también ocupa su hueco.
+  const since = new Date(now.getTime() - 12 * 3_600_000).toISOString();
+  const [appointments, shifts, closures, staff, clinic] = await Promise.all([
+    agenda(db, since, to),
+    team ? shiftsBetween(db, from, to) : Promise.resolve([]),
+    closuresBetween(db, from, to),
+    team ? listStaff(db) : Promise.resolve([]),
+    getClinic(db),
+  ]);
   const busyOf = (keep: (a: Appointment) => boolean): Span[] =>
     appointments.filter((a) => a.status !== "cancelled" && keep(a)).map((a) => ({ from: a.startsAt, to: new Date(Date.parse(a.startsAt) + a.minutes * 60_000).toISOString() }));
+  const closedFor = (email: string | null): Span[] => closures.filter((c) => (team ? closesFor(c, email) : true)).map((c) => ({ from: c.startsAt, to: c.endsAt }));
   const pros = team
     ? settings.pros.map((p) => ({
         id: p.id,
         shifts: shifts.filter((s) => s.staffEmail === p.email).map((s) => ({ from: s.startsAt, to: s.endsAt })),
         // Sus citas y las que no son de nadie (para no dar dos veces el mismo hueco).
         busy: busyOf((a) => a.assignedTo === p.email || !a.assignedTo),
+        closed: closedFor(p.email),
       }))
-    : [{ id: "", shifts: [], busy: busyOf(() => true) }];
-  const windows = freeWindows({ now: from, days: settings.days, minNoticeHours: settings.minNoticeHours, hours: settings.hours, pros });
+    : [{ id: "", shifts: [], busy: busyOf(() => true), closed: closedFor(null) }];
+  const input = { now: from, days: settings.days, minNoticeHours: settings.minNoticeHours, hours: settings.hours, pros };
+  const windows = freeWindows(input);
+  const envelope = bookableSpans(input);
   const page: PublicBookingInfo = {
     clinic: clinic.name,
     intro: settings.intro,
     kinds: settings.kinds,
     minNoticeHours: settings.minNoticeHours,
     step: settings.step,
-    pros: team ? settings.pros.map((p) => ({ id: p.id, name: p.name })) : [],
+    pros: team
+      ? settings.pros.map((p) => ({ id: p.id, name: p.name, ...(p.bio?.trim() ? { bio: p.bio.trim() } : {}), color: staffColor(staff.find((m) => m.email === p.email)) }))
+      : [],
     // Para que el paciente pueda llamar o escribir, y la información de protección de datos (quién recibe sus datos).
     contact: { phone: clinic.phone, email: clinic.email, address: clinic.address, taxId: clinic.taxId, dpo: clinic.dpo },
   };
-  return { page, windows };
+  return { page, windows, envelope };
 }
 
 let lastPublished = "";

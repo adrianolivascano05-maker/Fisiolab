@@ -69,12 +69,22 @@ export type AvailabilityInput = {
   /** Con cuántas horas de antelación como mínimo. */
   minNoticeHours: number;
   hours: WeeklyHours;
-  /** Los fisios que salen en la reserva: id público, sus turnos (si tiene) y sus citas. Sin equipo, uno con id «». */
-  pros: { id: string; shifts: Span[]; busy: Span[] }[];
+  /**
+   * Los fisios que salen en la reserva: id público, sus turnos (si tiene), sus citas y sus ratos con la agenda cerrada
+   * (los suyos y los de toda la clínica). Sin equipo, uno con id «».
+   */
+  pros: { id: string; shifts: Span[]; busy: Span[]; closed?: Span[] }[];
 };
 
-/** Las franjas libres de cada fisio desde ahora (más la antelación mínima) hasta dentro de `days` días. */
-export function freeWindows(input: AvailabilityInput): Window[] {
+const spans = (list: Span[]) => list.map((s): [number, number] => [Date.parse(s.from), Date.parse(s.to)]);
+const toWindow = (pro: string, [a, b]: [number, number]): Window => ({ pro, from: new Date(a).toISOString(), to: new Date(b).toISOString() });
+
+/**
+ * Cuándo se puede reservar con cada fisio, sin quitar las citas: sus turnos (o, si no tiene ninguno, el horario de la
+ * clínica) desde ahora más la antelación mínima hasta dentro de `days` días, sin los ratos con la agenda cerrada. Se
+ * publica también, para que al anular una cita el servidor solo deje libre lo que está dentro.
+ */
+export function bookableSpans(input: AvailabilityInput): Window[] {
   const start = Date.parse(input.now) + input.minNoticeHours * 3_600_000;
   const today = madridDayOf(input.now);
   const last = addDay(today, input.days);
@@ -82,15 +92,25 @@ export function freeWindows(input: AvailabilityInput): Window[] {
   const out: Window[] = [];
   for (const pro of input.pros) {
     // Con turnos en estas semanas, sus turnos; si no tiene ninguno, el horario de la clínica.
-    const shifts = pro.shifts.map((s): [number, number] => [Date.parse(s.from), Date.parse(s.to)]).filter(([a, b]) => b > start && a < lastMs);
+    const shifts = spans(pro.shifts).filter(([a, b]) => b > start && a < lastMs);
     let open: [number, number][] = [];
     if (shifts.length) open = shifts;
     else
       for (let day = today; day <= last; day = addDay(day, 1))
         for (const [a, b] of input.hours[weekdayOf(day)] ?? []) open.push([Date.parse(madridIso(day, a)), Date.parse(madridIso(day, b))]);
     open = open.map(([a, b]): [number, number] => [Math.max(a, start), Math.min(b, lastMs)]).filter(([a, b]) => b > a);
-    const busy = pro.busy.map((s): [number, number] => [Date.parse(s.from), Date.parse(s.to)]);
-    for (const [a, b] of subtract(open, busy).sort((x, y) => x[0] - y[0])) out.push({ pro: pro.id, from: new Date(a).toISOString(), to: new Date(b).toISOString() });
+    for (const w of subtract(open, spans(pro.closed ?? [])).sort((x, y) => x[0] - y[0])) out.push(toWindow(pro.id, w));
+  }
+  return out;
+}
+
+/** Las franjas libres de cada fisio: cuándo se puede reservar con él (`bookableSpans`) menos las citas que ya tiene. */
+export function freeWindows(input: AvailabilityInput): Window[] {
+  const bookable = bookableSpans(input);
+  const out: Window[] = [];
+  for (const pro of input.pros) {
+    const open = spans(bookable.filter((w) => w.pro === pro.id).map((w) => ({ from: w.from, to: w.to })));
+    for (const w of subtract(open, spans(pro.busy)).sort((x, y) => x[0] - y[0])) out.push(toWindow(pro.id, w));
   }
   return out;
 }

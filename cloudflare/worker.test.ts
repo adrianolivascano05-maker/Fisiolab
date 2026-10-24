@@ -837,7 +837,7 @@ describe("clínicas", () => {
 
       // El paciente ve su cita con su enlace y la anula; la clínica lo ve una vez.
       const seen = (await (await pub("GET", `/v1/citas/${token}`)).json()) as Record<string, unknown>;
-      expect(seen).toEqual({ startsAt: at(3), with: "Laura", clinic: "Fisiolab Centro", cancelled: false, past: false, slug: "fisiolab-centro" });
+      expect(seen).toEqual({ startsAt: at(3), with: "Laura", clinic: "Fisiolab Centro", cancelled: false, past: false, slug: "fisiolab-centro", pro: "p1" });
       expect((await pub("GET", `/v1/citas/${"x".repeat(24)}`)).status).toBe(404);
       expect((await pub("POST", `/v1/citas/${token}/anular`)).status).toBe(200);
       expect(((await (await pub("GET", `/v1/citas/${token}`)).json()) as { cancelled: boolean }).cancelled).toBe(true);
@@ -857,7 +857,7 @@ describe("clínicas", () => {
       expect((await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: h, ref: "cita-1", startsAt: at(24), label: "con Pablo" }] })).status).toBe(200);
       // La cita se mueve: el mismo enlace, con la hora nueva.
       await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: h, ref: "cita-1", startsAt: at(48), label: "con Pablo" }] });
-      expect(await (await pub("GET", `/v1/citas/${token}`)).json()).toEqual({ startsAt: at(48), with: "con Pablo", clinic: "Fisiolab Centro", cancelled: false, past: false, slug: null });
+      expect(await (await pub("GET", `/v1/citas/${token}`)).json()).toEqual({ startsAt: at(48), with: "con Pablo", clinic: "Fisiolab Centro", cancelled: false, past: false, slug: null, pro: null });
       expect((await pub("POST", `/v1/citas/${token}/anular`, undefined, () => T + 49 * hour)).status).toBe(409);
       expect((await pub("POST", `/v1/citas/${token}/anular`)).status).toBe(200);
       const inbox = (await (await team("GET", `/v1/clinicas/${c.id}/reservas`, "tok-ana")).json()) as { cancels: { hash: string; ref: string }[] };
@@ -891,6 +891,37 @@ describe("clínicas", () => {
       expect(shown.windows).toEqual([{ pro: "p1", from: at(3), to: at(5) }, { pro: "p2", from: at(4), to: at(7) }]);
       // Y ya se puede reservar esa hora con él.
       expect((await book({ pro: "p2", startsAt: at(6), cancelHash: hash(8) })).status).toBe(201);
+    });
+
+    it("agenda cerrada: al anular, solo queda libre lo que está dentro de cuándo se puede reservar; la página no enseña ese contorno", async () => {
+      const c = await clinic();
+      // Pablo cierra su agenda a partir de la hora 7: se puede reservar con él de 4 a 7.
+      const envelope = [{ pro: "p1", from: at(3), to: at(5) }, { pro: "p2", from: at(4), to: at(7) }];
+      await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows, envelope });
+      const shown = (await (await pub("GET", "/v1/reservas/fisiolab-centro")).json()) as { page: Record<string, unknown> };
+      expect(shown.page).toEqual(page);
+      const token = "cita-de-pablo-que-cruza-su-cierre";
+      const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+      const h = [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+      // Una cita de 6 a 8 (dada antes de cerrar): al anularla, solo sale libre de 6 a 7.
+      await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: h, ref: "cita-5", startsAt: at(6), label: "con Pablo", minutes: 120, pro: "p2" }] });
+      expect((await pub("POST", `/v1/citas/${token}/anular`)).status).toBe(200);
+      const after = (await (await pub("GET", "/v1/reservas/fisiolab-centro")).json()) as { windows: unknown[] };
+      expect(after.windows).toEqual([{ pro: "p1", from: at(3), to: at(5) }, { pro: "p2", from: at(4), to: at(7) }]);
+    });
+
+    it("solo las horas de la lista; al apagar la reserva, la dirección sigue siendo de la clínica", async () => {
+      const c = await clinic();
+      await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page: { ...page, step: 15 }, windows });
+      expect((await book({ startsAt: new Date(T + 3 * hour + 7 * 60_000).toISOString() })).status).toBe(400);
+      expect((await book({ startsAt: new Date(T + 3 * hour + 15 * 60_000).toISOString() })).status).toBe(201);
+      expect((await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: false })).status).toBe(200);
+      expect((await pub("GET", "/v1/reservas/fisiolab-centro")).status).toBe(404);
+      const otra = await clinic("tok-luis", "Otra");
+      expect((await team("PUT", `/v1/clinicas/${otra.id}/reservas`, "tok-luis", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows })).status).toBe(409);
+      // Al volver a encenderla, la misma dirección.
+      expect((await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows })).status).toBe(200);
+      expect((await pub("GET", "/v1/reservas/fisiolab-centro")).status).toBe(200);
     });
 
     it("límites: tres reservas al día desde un mismo origen; sin página, nada; apagar la reserva quita la página", async () => {

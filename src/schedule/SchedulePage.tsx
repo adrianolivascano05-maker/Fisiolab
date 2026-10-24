@@ -4,7 +4,7 @@
 // equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
 // compartida: cada compañero ve los cambios de los demás en su dispositivo, solo.
 import { useTeamMode } from "../cloud/teamMode";
-import { CalendarClock, ChevronLeft, ChevronRight, CopyPlus, Plus, Undo2 } from "lucide-react";
+import { CalendarClock, CalendarOff, ChevronLeft, ChevronRight, CopyPlus, Plus, Undo2 } from "lucide-react";
 import { useSearchParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { bumpData } from "../app/dataVersion";
@@ -15,6 +15,7 @@ import { fmtVisit } from "../clinical/calendar";
 import { addDays, localInput, todayDay } from "../clinical/pageKit";
 import { useCloud, useSyncState } from "../cloud/CloudGate";
 import { agenda, updateAppointment, type AgendaItem } from "../data/appointments";
+import { closuresBetween, type Closure } from "../data/closures";
 import { getDb } from "../data/db";
 import { copyWeekForward, shiftsBetween, staffColor, type Shift } from "../data/schedule";
 import { Button, IconButton } from "../ui/Button";
@@ -25,6 +26,7 @@ import { AgendaGrid, type Move } from "./AgendaGrid";
 import { TodayView } from "./TodayView";
 import { atMinutes, dayColumns, personColumns, type Column } from "./layout";
 import { ShiftSheet } from "./ShiftSheet";
+import { ClosureSheet } from "./ClosureSheet";
 import { useMediaQuery } from "../app/useMediaQuery";
 import { staffName, useStaff } from "./useStaff";
 
@@ -109,6 +111,8 @@ export function SchedulePage() {
   const [who, setWho] = useState("");
   const [creating, setCreating] = useState<Creating | null>(null);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  /** El cierre que se pone (con su día y, desde la columna de una persona, de quién) o el que se cambia. */
+  const [closing, setClosing] = useState<{ closure: Closure | null; day: string; person?: string | null } | null>(null);
   const [managing, setManaging] = useState<AgendaItem | null>(null);
   const [undo, setUndo] = useState<{ text: string; back: () => Promise<void> } | null>(null);
   const [copying, setCopying] = useState(false);
@@ -118,7 +122,10 @@ export function SchedulePage() {
   const days = useMemo(() => Array.from({ length: span }, (_, i) => addDays(first, i)), [first, span]);
   const from = new Date(`${days[0]}T00:00:00`).toISOString();
   const to = new Date(`${addDays(days.at(-1)!, 1)}T00:00:00`).toISOString();
-  const data = useAsync(async () => ({ shifts: await shiftsBetween(getDb(), from, to), appointments: await agenda(getDb(), from, to) }), [from, to]);
+  const data = useAsync(
+    async () => ({ shifts: await shiftsBetween(getDb(), from, to), appointments: await agenda(getDb(), from, to), closures: await closuresBetween(getDb(), from, to) }),
+    [from, to],
+  );
 
   useEffect(() => {
     try {
@@ -130,7 +137,7 @@ export function SchedulePage() {
 
   // Con la agenda a la vista, lo que cambian los compañeros se enseña solo (si no se está escribiendo nada).
   const newData = !!sync?.newData;
-  const sheetOpen = !!(creating || editingShift || managing);
+  const sheetOpen = !!(creating || editingShift || managing || closing);
   useEffect(() => {
     if (newData && !sheetOpen && cloud) {
       cloud.sync.seenNewData();
@@ -148,6 +155,12 @@ export function SchedulePage() {
   const filter = who === "-" ? null : who || undefined;
   const shifts = useMemo(() => (data.data?.shifts ?? []).filter((s) => filter === undefined || s.staffEmail === filter), [data.data, filter]);
   const appointments = useMemo(() => (data.data?.appointments ?? []).filter((a) => filter === undefined || a.assignedTo === filter), [data.data, filter]);
+  // Los cierres de toda la clínica, siempre; los de una persona, en su columna o viendo solo a esa persona.
+  const closures = useMemo(
+    () => (data.data?.closures ?? []).filter((k) => !team || k.staffEmail === "" || (team && view === "day" && who === "") || k.staffEmail === filter),
+    [data.data, team, view, who, filter],
+  );
+  const canEditClosure = (k: Closure) => !team || admin || k.staffEmail === me;
   // En el día de una clínica, una columna por persona: quien trabaja o tiene citas ese día (y tú), y «sin asignar».
   const byPerson = team && view === "day" && who === "";
   const columns: Column[] = useMemo(() => {
@@ -302,6 +315,9 @@ export function SchedulePage() {
             Añadir turno
           </Button>
         )}
+        <Button variant="secondary" icon={<CalendarOff aria-hidden="true" className="size-5" />} onClick={() => setClosing({ closure: null, day: firstDay })}>
+          Cerrar la agenda
+        </Button>
         {team && admin && view === "week" && (
           <Button
             variant="ghost"
@@ -348,6 +364,9 @@ export function SchedulePage() {
         header={header}
         appointments={appointments}
         shifts={team ? shifts : []}
+        closures={closures}
+        canEditClosure={canEditClosure}
+        onClosure={(k) => setClosing({ closure: k, day: k.startsAt.slice(0, 10) })}
         staff={team ? staff : []}
         today={today}
         showPerson={team && !byPerson && filter === undefined}
@@ -416,6 +435,19 @@ export function SchedulePage() {
           staff={staff}
           me={me}
           admin={admin}
+        />
+      )}
+      {closing && (
+        <ClosureSheet
+          open
+          onClose={() => setClosing(null)}
+          closure={closing.closure}
+          day={closing.day}
+          person={closing.person}
+          staff={staff}
+          me={me}
+          admin={admin}
+          team={team}
         />
       )}
       {managing && <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} backToToday={view === "today"} />}

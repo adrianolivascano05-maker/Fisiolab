@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Cloud } from "../cloud/CloudGate";
 import { createAppointment, getAppointment, updateAppointment } from "../data/appointments";
+import { createClosure } from "../data/closures";
 import type { Db } from "../data/db";
 import { createPatient } from "../data/repo";
 import { createTestDb } from "../data/testDb";
@@ -51,6 +52,20 @@ describe("reserva online desde la app", () => {
       { pro: "", from: "2026-10-27T08:00:00.000Z", to: "2026-10-27T09:00:00.000Z" },
       { pro: "", from: "2026-10-27T10:00:00.000Z", to: "2026-10-27T13:00:00.000Z" },
     ]);
+  });
+
+  it("lo publicado no ofrece los días cerrados, cuenta la sesión que ya ha empezado y lleva el contorno aparte", async () => {
+    const pid = await createPatient(db, person("Pepe"));
+    const now = new Date("2026-10-26T09:30:00.000Z"); // lunes, 10:30 en Madrid
+    await createAppointment(db, pid, { startsAt: "2026-10-26T09:00:00.000Z", minutes: 90 }); // 10:00–11:30, ya empezada
+    await createClosure(db, { staffEmail: "", startsAt: "2026-10-27T00:00:00.000+01:00", endsAt: "2026-10-28T00:00:00.000+01:00", note: "festivo" }, "");
+    const { windows, envelope } = await bookingPage(db, { ...DEFAULT_BOOKING, enabled: true, slug: "fisiolab", days: 2, minNoticeHours: 0 }, false, now);
+    // El lunes, desde que acaba la sesión empezada; el martes, nada (cerrado); el miércoles, su horario.
+    expect(windows.filter((w) => w.from.startsWith("2026-10-26"))).toEqual([{ pro: "", from: "2026-10-26T10:30:00.000Z", to: "2026-10-26T13:00:00.000Z" }, { pro: "", from: "2026-10-26T15:00:00.000Z", to: "2026-10-26T19:00:00.000Z" }]);
+    expect(windows.some((w) => w.from.startsWith("2026-10-27"))).toBe(false);
+    expect(windows.some((w) => w.from.startsWith("2026-10-28"))).toBe(true);
+    // El contorno: el horario sin lo cerrado, con la sesión dentro (al anularla se puede volver a ofrecer).
+    expect(envelope.filter((w) => w.from.startsWith("2026-10-26"))[0]).toEqual({ pro: "", from: "2026-10-26T09:30:00.000Z", to: "2026-10-26T13:00:00.000Z" });
   });
 
   it("recoge una reserva: abre lo cifrado, crea el paciente y la cita, y avisa al servidor; la anulación la anula", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fitsWindow, freeWindows, madridIso, startTimes, weekdayOf } from "./availability";
+import { bookableSpans, fitsWindow, freeWindows, madridIso, startTimes, weekdayOf } from "./availability";
 
 // Lunes 26 de octubre de 2026 (ya en horario de invierno, UTC+1), a las 8:00 de Madrid.
 const NOW = "2026-10-26T07:00:00.000Z";
@@ -61,5 +61,50 @@ describe("franjas libres", () => {
     expect(fitsWindow(windows, "a", madridIso("2026-10-26", "10:00"), 60)).toBe(true);
     expect(fitsWindow(windows, "a", madridIso("2026-10-26", "10:15"), 60)).toBe(false);
     expect(fitsWindow(windows, "b", madridIso("2026-10-26", "10:00"), 60)).toBe(false);
+  });
+});
+
+describe("agenda cerrada", () => {
+  const hours = { 1: [["09:00", "14:00"]] as [string, string][], 2: [["09:00", "14:00"], ["16:00", "20:00"]] as [string, string][] };
+  const at = (day: string, hm: string) => madridIso(day, hm);
+
+  it("los ratos cerrados no se ofrecen; el contorno no quita las citas pero sí lo cerrado", () => {
+    const input = {
+      now: NOW,
+      days: 1,
+      minNoticeHours: 0,
+      hours,
+      pros: [
+        {
+          id: "",
+          shifts: [],
+          busy: [{ from: at("2026-10-26", "10:00"), to: at("2026-10-26", "11:00") }],
+          // El lunes cerrado entero y el martes por la tarde.
+          closed: [
+            { from: at("2026-10-26", "00:00"), to: at("2026-10-27", "00:00") },
+            { from: at("2026-10-27", "15:00"), to: at("2026-10-27", "21:00") },
+          ],
+        },
+      ],
+    };
+    expect(freeWindows(input)).toEqual([{ pro: "", from: at("2026-10-27", "09:00"), to: at("2026-10-27", "14:00") }]);
+    expect(bookableSpans(input)).toEqual([{ pro: "", from: at("2026-10-27", "09:00"), to: at("2026-10-27", "14:00") }]);
+  });
+
+  it("cada fisio con sus cierres: el de uno no quita los huecos del otro", () => {
+    const w = freeWindows({
+      now: NOW,
+      days: 0,
+      minNoticeHours: 0,
+      hours,
+      pros: [
+        { id: "laura", shifts: [], busy: [], closed: [{ from: at("2026-10-26", "12:00"), to: at("2026-10-26", "14:00") }] },
+        { id: "pablo", shifts: [], busy: [], closed: [] },
+      ],
+    });
+    expect(w).toEqual([
+      { pro: "laura", from: at("2026-10-26", "09:00"), to: at("2026-10-26", "12:00") },
+      { pro: "pablo", from: at("2026-10-26", "09:00"), to: at("2026-10-26", "14:00") },
+    ]);
   });
 });

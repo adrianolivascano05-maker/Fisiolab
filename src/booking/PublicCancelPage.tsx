@@ -9,13 +9,17 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Logo } from "../ui/Logo";
 
-type Cita = { startsAt: string; with: string; clinic: string; cancelled: boolean; past: boolean; slug: string | null };
+type Cita = { startsAt: string; with: string; clinic: string; cancelled: boolean; past: boolean; slug: string | null; pro?: string | null };
 type Phase = { kind: "loading" } | { kind: "error"; text: string } | { kind: "ready"; cita: Cita };
 
 const BASE = import.meta.env.BASE_URL;
 const TZ = "Europe/Madrid";
 const when = (iso: string) =>
   `${new Date(iso).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: TZ })} a las ${new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: TZ })}`;
+
+/** Su página de reservas, con el mismo fisio ya elegido si se sabe. */
+const bookAgain = (c: Cita) => `${BASE}reservar/${c.slug}${c.pro ? `?con=${encodeURIComponent(c.pro)}` : ""}`;
+const withName = (c: Cita) => c.with.replace(/^con /, "");
 
 const tokenFromUrl = () => /\/cita\/([A-Za-z0-9_-]{20,64})\/?$/.exec(location.pathname)?.[1] ?? "";
 
@@ -85,8 +89,8 @@ export function PublicCancelPage() {
                   <>
                     {" "}
                     Si quieres otra,{" "}
-                    <a className="text-accent underline" href={`${BASE}reservar/${cita.slug}`}>
-                      pide cita aquí
+                    <a className="text-accent underline" href={bookAgain(cita)}>
+                      {cita.pro && cita.with ? `pide otra cita con ${withName(cita)}` : "pide cita aquí"}
                     </a>
                     .
                   </>
@@ -119,8 +123,8 @@ export function PublicCancelPage() {
                 {cita.slug && (
                   <p className="text-sm text-text-muted">
                     ¿Prefieres otro día? Anula esta y{" "}
-                    <a className="text-accent underline" href={`${BASE}reservar/${cita.slug}`}>
-                      pide otra cita
+                    <a className="text-accent underline" href={bookAgain(cita)}>
+                      {cita.pro && cita.with ? `pide otra con ${withName(cita)}` : "pide otra cita"}
                     </a>
                     .
                   </p>

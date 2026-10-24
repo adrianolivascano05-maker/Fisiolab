@@ -89,8 +89,9 @@ const steps: { title: string; body: ReactNode }[] = [
         una cita. <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya escrito: los recordatorios de mañana y, con el servidor de la clínica, la
         anamnesis 48 horas antes de la primera cita y los cuestionarios antes de reevaluar. Pulsa «Enviar uno tras otro» y manda cada WhatsApp con un
         toque. Si alguien quiere venir antes, apúntalo en la <b>Lista de espera</b>: al anular una cita, la app te ofrece su hueco. Con la{" "}
-        <b>Reserva online</b> (Ajustes) tus pacientes piden cita a cualquier hora en los huecos libres; la reserva entra en la agenda y la
-        confirmación, con un enlace para anularla, sale en Envíos.
+        <b>Reserva online</b> (Ajustes) tus pacientes piden cita a cualquier hora en los huecos libres, eligiendo fisio o «cualquiera»; la reserva
+        entra en la agenda y la confirmación, con un enlace para anularla, sale en Envíos. Para que no se reserve una tarde, un día o unas
+        vacaciones, <b>Cerrar la agenda</b> (en la Agenda): cada fisio la suya y quien administra, la de cualquiera o la de toda la clínica.
       </>
     ),
   },

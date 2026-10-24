@@ -1,20 +1,24 @@
 // Ajustes › Reserva online: encenderla, la dirección de la página, los tipos de cita, el horario (o los turnos de cada
 // fisio), la antelación y quién sale. Se guarda en la base de la clínica (para todo el equipo) y se publica en su
 // servidor: solo los tipos de cita, los nombres de los fisios y las franjas libres, nunca citas ni pacientes.
-import { CalendarCheck, Copy, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { CalendarCheck, CalendarOff, Copy, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
 import { logError } from "../app/errorLog";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
+import { centsText } from "../clinical/billingForms";
 import { TextArea } from "../clinical/parts";
 import { formsBase } from "../clinical/patientForms";
 import { useCloud } from "../cloud/CloudGate";
 import { useTeamMode } from "../cloud/teamMode";
+import { parseEuros } from "../data/billing";
+import { closuresBetween, type Closure } from "../data/closures";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
-import { useStaff } from "../schedule/useStaff";
+import { ClosureSheet } from "../schedule/ClosureSheet";
+import { staffName, useStaff } from "../schedule/useStaff";
 import { Alert } from "../ui/Alert";
 import { Button, IconButton } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -35,6 +39,16 @@ const DAYS: { id: Weekday; name: string }[] = [
   { id: 7, name: "Domingo" },
 ];
 const MINUTES = [15, 20, 30, 40, 45, 50, 60, 75, 90, 120];
+
+const shortDay = (iso: string) => new Date(iso).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" });
+const hm = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+/** «lun 26 oct», «del lun 26 oct al vie 30 oct» o «lun 26 oct, de 15:00 a 21:00». */
+function closureWhen(k: Closure): string {
+  const end = new Date(Date.parse(k.endsAt) - 1).toISOString();
+  const allDay = hm(k.startsAt) === "00:00" && hm(k.endsAt) === "00:00";
+  if (!allDay) return `${shortDay(k.startsAt)}, de ${hm(k.startsAt)} a ${hm(k.endsAt)}`;
+  return shortDay(k.startsAt) === shortDay(end) ? shortDay(k.startsAt) : `Del ${shortDay(k.startsAt)} al ${shortDay(end)}`;
+}
 
 /** La dirección de la página de reservas de la clínica. */
 export const bookingUrl = (slug: string) => `${formsBase()}reservar/${slug}`;
@@ -107,6 +121,16 @@ export function BookingSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [published, setPublished] = useState<string | null>(null);
+  /** El precio de cada tipo tal como se escribe («45», «45,5»), hasta que se guarda. */
+  const [prices, setPrices] = useState<Record<string, string>>({});
+  const me = cloud?.account.email.trim().toLowerCase() ?? "";
+  const admin = cloud?.clinic?.role === "admin";
+  const upcoming = useAsync(async () => {
+    const from = new Date().toISOString();
+    return closuresBetween(getDb(), from, new Date(Date.now() + 400 * 86_400_000).toISOString());
+  }, []);
+  const closures = upcoming.data ?? [];
+  const [closing, setClosing] = useState<{ closure: Closure | null } | null>(null);
 
   if (loaded.error) return <Page title="Reserva online" backTo="/ajustes"><LoadError error={loaded.error} /></Page>;
   if (!loaded.data) return <Page title="Reserva online" backTo="/ajustes"><Loading /></Page>;
@@ -130,6 +154,8 @@ export function BookingSettingsPage() {
     if (!isSlug(s.slug)) return setError("La dirección solo puede llevar letras sin tilde, números y guiones (de 3 a 40), sin guion al principio ni al final.");
     const kinds = s.kinds.map((k) => ({ ...k, label: k.label.trim() })).filter((k) => k.label);
     if (s.enabled && !kinds.length) return setError("Pon al menos un tipo de cita.");
+    const badPrice = s.kinds.find((k) => (prices[k.id] ?? "").trim() && parseEuros(prices[k.id]!) === null);
+    if (badPrice) return setError(`El precio de «${badPrice.label || "un tipo de cita"}» no es una cantidad: escribe, por ejemplo, 45 o 45,50.`);
     if (s.enabled && team && !s.pros.length) return setError("Elige quién sale en la reserva.");
     if (s.enabled && !team && !Object.keys(s.hours).length) return setError("Pon el horario: al menos un día con mañana o tarde.");
     setSaving(true);
@@ -215,11 +241,17 @@ export function BookingSettingsPage() {
           <Card className="flex flex-col gap-3">
             <h2 className="text-lg font-semibold">Tipos de cita</h2>
             {s.kinds.map((k, i) => (
-              <div key={k.id} className="flex items-end gap-2">
-                <div className="min-w-0 flex-1">
-                  <TextField label={`Tipo ${i + 1}`} value={k.label} onChange={(e) => setKind(i, { label: e.target.value.slice(0, 60) })} />
+              <fieldset key={k.id} className="flex flex-col gap-2 border-b border-border pb-3 last:border-b-0">
+                <legend className="sr-only">Tipo {i + 1}</legend>
+                <div className="flex items-end gap-2">
+                  <div className="min-w-0 flex-1">
+                    <TextField label={`Tipo ${i + 1}`} value={k.label} onChange={(e) => setKind(i, { label: e.target.value.slice(0, 60) })} />
+                  </div>
+                  <IconButton label={`Quitar ${k.label || `el tipo ${i + 1}`}`} onClick={() => set({ kinds: s.kinds.filter((_, j) => j !== i) })}>
+                    <Trash2 aria-hidden="true" className="size-5" />
+                  </IconButton>
                 </div>
-                <div className="w-28 shrink-0">
+                <div className="grid grid-cols-2 gap-2">
                   <SelectField label="Duración" value={String(k.minutes)} onChange={(e) => setKind(i, { minutes: Number(e.target.value) })}>
                     {MINUTES.map((m) => (
                       <option key={m} value={m}>
@@ -227,11 +259,17 @@ export function BookingSettingsPage() {
                       </option>
                     ))}
                   </SelectField>
+                  <TextField
+                    label="Precio (si quieres)"
+                    inputMode="decimal"
+                    value={prices[k.id] ?? centsText(k.priceCents ?? null)}
+                    onChange={(e) => {
+                      setPrices({ ...prices, [k.id]: e.target.value });
+                      setKind(i, { priceCents: e.target.value.trim() ? parseEuros(e.target.value) : null });
+                    }}
+                  />
                 </div>
-                <IconButton label={`Quitar ${k.label || `el tipo ${i + 1}`}`} onClick={() => set({ kinds: s.kinds.filter((_, j) => j !== i) })}>
-                  <Trash2 aria-hidden="true" className="size-5" />
-                </IconButton>
-              </div>
+              </fieldset>
             ))}
             <Button
               variant="secondary"
@@ -249,19 +287,75 @@ export function BookingSettingsPage() {
               {staff.map((m) => {
                 const on = s.pros.find((p) => p.email === m.email);
                 return (
-                  <label key={m.email} className="flex min-h-11 items-center gap-3">
-                    <input
-                      type="checkbox"
-                      className="size-5 accent-accent"
-                      checked={!!on}
-                      onChange={(e) => set({ pros: e.target.checked ? [...s.pros, { email: m.email, id: newProId(), name: m.name }] : s.pros.filter((p) => p.email !== m.email) })}
-                    />
-                    {m.name}
-                  </label>
+                  <div key={m.email} className="flex flex-col gap-2 border-b border-border pb-2 last:border-b-0">
+                    <label className="flex min-h-11 items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="size-5 accent-accent"
+                        checked={!!on}
+                        onChange={(e) => set({ pros: e.target.checked ? [...s.pros, { email: m.email, id: newProId(), name: m.name }] : s.pros.filter((p) => p.email !== m.email) })}
+                      />
+                      {m.name}
+                    </label>
+                    {on && (
+                      <>
+                        <TextField
+                          label={`A qué se dedica ${m.name} (si quieres)`}
+                          hint="Sale en la reserva debajo de su nombre: «Fisioterapia deportiva», «Suelo pélvico»…"
+                          value={on.bio ?? ""}
+                          onChange={(e) => set({ pros: s.pros.map((p) => (p.email === m.email ? { ...p, bio: e.target.value.slice(0, 80) } : p)) })}
+                        />
+                        <Button
+                          variant="ghost"
+                          icon={<Copy aria-hidden="true" className="size-5" />}
+                          onClick={() => void navigator.clipboard?.writeText(`${bookingUrl(s.slug)}?con=${on.id}`).then(() => toast(`Enlace de ${m.name} copiado`, "success"))}
+                        >
+                          Copiar el enlace para reservar con {m.name}
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 );
               })}
             </Card>
           )}
+
+          <Card className="flex flex-col gap-2">
+            <h2 className="text-lg font-semibold">Agenda cerrada</h2>
+            <p className="text-sm text-text-muted">Días o ratos en los que no se puede reservar: vacaciones, festivos, una tarde libre. También se cierra desde la agenda.</p>
+            {closures.length === 0 ? (
+              <p className="text-sm">Nada cerrado en los próximos meses.</p>
+            ) : (
+              <ul aria-label="Agenda cerrada" className="flex flex-col divide-y divide-border">
+                {closures.map((k) => {
+                  const editable = !team || admin || k.staffEmail === me;
+                  const text = (
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">{closureWhen(k)}</span>
+                      <span className="block text-sm text-text-muted">
+                        {k.staffEmail ? staffName(staff, k.staffEmail) : team ? "Toda la clínica" : "Cerrada"}
+                        {k.note ? ` · ${k.note}` : ""}
+                      </span>
+                    </span>
+                  );
+                  return (
+                    <li key={k.id}>
+                      {editable ? (
+                        <button type="button" className="flex min-h-11 w-full items-center gap-2 py-2 text-left hover:bg-surface" onClick={() => setClosing({ closure: k })}>
+                          {text}
+                        </button>
+                      ) : (
+                        <div className="flex min-h-11 items-center py-2">{text}</div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <Button variant="secondary" icon={<CalendarOff aria-hidden="true" className="size-5" />} onClick={() => setClosing({ closure: null })}>
+              Cerrar la agenda
+            </Button>
+          </Card>
 
           <Card className="flex flex-col">
             <h2 className="text-lg font-semibold">Horario de la clínica</h2>
@@ -308,10 +402,24 @@ export function BookingSettingsPage() {
               <li>Lo que escribe el paciente sale cifrado de su móvil y solo lo puede abrir la clínica. El servidor no puede leerlo y lo borra en cuanto la app lo recoge.</li>
               <li>Las reservas entran en la agenda en cuanto hay un dispositivo de la clínica con la app abierta (se mira cada dos minutos). Si es un paciente nuevo, se le abre la ficha con lo que dejó.</li>
               <li>La confirmación por WhatsApp, con el enlace para anular y, si es su primera cita, su anamnesis, sale en Agenda › Envíos.</li>
-              <li>Si un paciente anula, el hueco vuelve a salir libre en la página al momento; si tienes lista de espera, es buen momento para mirarla.</li>
+              <li>Si un paciente anula, el hueco vuelve a salir libre en la página al momento (salvo que ese rato esté cerrado o fuera de horario); si tienes lista de espera, es buen momento para mirarla.</li>
+              <li>El paciente elige el tipo de cita, con quién (o «cualquiera») y el día en un calendario. Con el enlace de cada fisio, ya viene elegido: compártelo con sus pacientes para que vuelvan con él.</li>
+              <li>Para que no se reserve un rato (una tarde, un día, unas vacaciones, un festivo), «Cerrar la agenda», aquí o en la Agenda. Las citas que ya hay no se tocan.</li>
             </ul>
           </details>
         </>
+      )}
+      {closing && (
+        <ClosureSheet
+          open
+          onClose={() => setClosing(null)}
+          closure={closing.closure}
+          day={new Date().toLocaleDateString("sv-SE")}
+          staff={staff}
+          me={me}
+          admin={admin}
+          team={team}
+        />
       )}
     </Page>
   );
