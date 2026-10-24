@@ -9,6 +9,7 @@ import { FieldInput } from "../clinical/FieldInput";
 import { FormFill, formResult } from "../clinical/FormFill";
 import { formFor, type Answers as FormAnswers } from "../clinical/forms";
 import { ANAMNESIS_KIND, formWhat, seal, unseal, type FormRequest } from "../clinical/patientForms";
+import { errorText, serverUrl } from "../app/publicServer";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -30,21 +31,6 @@ const dropDraft = (id: string) => {
 function fromUrl() {
   const id = /\/formulario\/([A-Za-z0-9_-]{22,64})\/?$/.exec(location.pathname)?.[1] ?? "";
   return { id, key: location.hash.slice(1) };
-}
-
-async function serverUrl(): Promise<string> {
-  const res = await fetch(`${import.meta.env.BASE_URL}cloud.json`, { cache: "no-cache" });
-  const url = res.ok ? ((await res.json()) as { cloudflareUrl?: string }).cloudflareUrl?.trim() : "";
-  if (!url) throw new Error("Esta app no tiene servidor para formularios.");
-  return url.replace(/\/+$/, "");
-}
-
-async function errorText(res: Response): Promise<string> {
-  try {
-    return ((await res.json()) as { error?: string }).error ?? "";
-  } catch {
-    return "";
-  }
 }
 
 export function PublicFormPage() {

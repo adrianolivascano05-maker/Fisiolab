@@ -69,7 +69,12 @@ export function RemindersPage() {
   return (
     <Page title="Recordatorios" backTo="/agenda">
       <p className="text-sm text-text-muted">
-        Recuerda las citas por WhatsApp o por correo: el mensaje sale listo y lo envías tú con un toque desde este dispositivo. Sin coste por mensaje.
+        Recuerda las citas por WhatsApp o por correo: el mensaje sale listo y lo envías tú con un toque desde este dispositivo. Sin coste por mensaje. Para mandar
+        todos los de mañana seguidos (y la anamnesis de los pacientes nuevos), usa la{" "}
+        <Link to="/agenda/envios" className="py-3 font-semibold text-accent underline underline-offset-2">
+          bandeja de envíos
+        </Link>
+        .
       </p>
 
       <div role="group" aria-label="Día" className="flex flex-wrap items-center gap-2">

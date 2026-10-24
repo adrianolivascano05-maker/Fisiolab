@@ -154,7 +154,7 @@ export async function unseal<T>(blob: string, key: string): Promise<T> {
 // ---------- El enlace y el mensaje ----------
 
 /** Dónde se abren los formularios: «formsUrl» de cloud.json o, sin él, esta misma app. Acaba en «/». */
-function formsBase(): string {
+export function formsBase(): string {
   const url = cachedCloudConfig()?.formsUrl?.trim();
   return url ? url.replace(/\/*$/, "/") : `${location.origin}${import.meta.env.BASE_URL}`;
 }

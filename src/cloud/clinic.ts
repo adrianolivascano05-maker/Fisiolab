@@ -111,6 +111,14 @@ export function takeClinicNotice(): string | null {
   return text;
 }
 
+/** Lo que tiene el servidor de la reserva online de una clínica: reservas sin recoger y anulaciones nuevas. */
+export type BookingInbox = {
+  slug: string | null;
+  bookings: { id: string; startsAt: string; minutes: number; pro: string; kind: string; payload: string | null; createdAt: string; collected: boolean; cancelledAt: string | null }[];
+  cancels: { hash: string; ref: string; startsAt: string; cancelledAt: string }[];
+};
+const OLD_SERVER_BOOKING = "El servidor de la clínica aún no tiene la reserva online: hay que actualizarlo (cloudflare/README.md, «Al actualizar el servidor»).";
+
 const json = (data: unknown): RequestInit => ({ headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
 const path = (id: string, rest = "") => `/v1/clinicas/${encodeURIComponent(id)}${rest}`;
 
@@ -143,6 +151,29 @@ export function clinicApi(baseUrl: string) {
     getRecovery: async (t: Token, id: string) => ((await (await call(t, path(id, "/recuperacion"))).json()) as { blob: string | null }).blob,
     putRecovery: async (t: Token, id: string, blob: string) => {
       await call(t, path(id, "/recuperacion"), { method: "PUT", ...json({ blob }) });
+    },
+    /** Reserva online y enlaces para anular (src/booking): la página pública, las reservas y las anulaciones. */
+    booking: {
+      publish: async (t: Token, id: string, body: unknown) => {
+        try {
+          await call(t, path(id, "/reservas"), { method: "PUT", ...json(body) });
+        } catch (e) {
+          if (e instanceof ServerError && e.status === 404) throw new ServerError(OLD_SERVER_BOOKING, 404);
+          throw e;
+        }
+      },
+      inbox: async (t: Token, id: string) => (await (await call(t, path(id, "/reservas"))).json()) as BookingInbox,
+      collected: async (t: Token, id: string, done: { bookings: string[]; cancels: string[] }) => {
+        await call(t, path(id, "/reservas/recogidas"), { method: "POST", ...json(done) });
+      },
+      links: async (t: Token, id: string, links: { hash: string; ref: string; startsAt: string; label: string; minutes: number; pro: string | null; cancelled?: boolean }[]) => {
+        try {
+          await call(t, path(id, "/enlaces"), { method: "POST", ...json({ links }) });
+        } catch (e) {
+          if (e instanceof ServerError && e.status === 404) throw new ServerError(OLD_SERVER_BOOKING, 404);
+          throw e;
+        }
+      },
     },
     /** Formularios para el paciente (src/clinical/patientForms.ts): van y vuelven cifrados con la clave del enlace. */
     forms: {

@@ -6,6 +6,7 @@ import {
   BookOpenCheck,
   Briefcase,
   Building2,
+  CalendarCheck,
   ChartColumn,
   ClipboardCheck,
   Database,
@@ -38,6 +39,7 @@ import { ROLE_LABELS } from "../cloud/clinic";
 import { CloudSettings, syncText, useCloud, useSyncState } from "../cloud/CloudGate";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
+import { getBookingSettings } from "../booking/settings";
 import { getDb } from "../data/db";
 import { FullExportButton } from "../export/FullExportButton";
 import { clinicComplete, getClinic } from "../data/privacy";
@@ -77,7 +79,7 @@ export function SettingsPage() {
   const install = useInstall();
   const state = useAsync(async () => {
     const db = getDb();
-    return { clinic: await getClinic(db), lastBackup: await getSetting<string>(db, "last_backup_at"), info: await db.info() };
+    return { clinic: await getClinic(db), lastBackup: await getSetting<string>(db, "last_backup_at"), info: await db.info(), booking: await getBookingSettings(db) };
   }, []);
   const lock = getLock();
   const clinic = state.data?.clinic;
@@ -105,6 +107,12 @@ export function SettingsPage() {
           />
         )}
         <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, bonos, lo cobrado y lo pendiente" />
+        <RowLink
+          to="/ajustes/reservas"
+          icon={CalendarCheck}
+          title="Reserva online"
+          subtitle={state.data?.booking.enabled ? `Encendida · …/reservar/${state.data.booking.slug}` : "Que tus pacientes pidan cita por internet, a cualquier hora"}
+        />
         <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
         {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
         <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />

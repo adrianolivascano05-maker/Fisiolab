@@ -1,6 +1,6 @@
 # Pasos pendientes (los hace quien administra la app)
 
-Tres tareas que no se pueden hacer desde el código porque son en las cuentas de Google y Cloudflare. Ninguna es
+Cuatro tareas que no se pueden hacer desde el código porque son en las cuentas de Google y Cloudflare. Ninguna es
 urgente: la app funciona igual mientras tanto. Los menús son los de octubre de 2026; si alguno cambia de nombre, el
 orden es el mismo.
 
@@ -69,3 +69,21 @@ respuestas, no cualquier petición anónima. Lo de ahora funciona; esto es para 
 1. <https://dash.cloudflare.com> → **Workers & Pages** → el servidor (`cenit-datos`) → **Edit code**.
 2. Borra todo y pega el contenido de `cloudflare/worker.js` del repositorio. **Deploy**.
 3. Comprueba en la app que «Buscar respuestas» de un formulario sigue funcionando.
+
+## 4. Cloudflare: la reserva online (unos 10 minutos, antes de encenderla)
+
+La reserva online necesita tres tablas nuevas en la base y el `worker.js` nuevo. Sin esto la app funciona igual,
+pero al guardar en **Ajustes › Reserva online** saldrá un error.
+
+1. <https://dash.cloudflare.com> → **Storage & Databases** → **D1** → la base (`cenit-datos`) → **Console**.
+   Pega el contenido entero de `cloudflare/schema.sql` y ejecútalo. Crea las tablas que falten y no borra nada. Si
+   dice «No SQL statements detected», pega solo las sentencias `CREATE` (sin las líneas que empiezan por `--`).
+2. **Workers & Pages** → el servidor (`cenit-datos`) → **Edit code**. Borra todo, pega el contenido de
+   `cloudflare/worker.js` del repositorio y **Deploy**.
+3. Comprueba: abre la dirección del servidor terminada en `/v1/salud`. Debe decir que todo está bien (si faltan
+   tablas, lo dice).
+4. En la app: **Ajustes › Reserva online** → enciéndela, revisa la dirección, los tipos de cita y el horario →
+   **Guardar**. Abre **Ver la página** en el móvil y haz una reserva de prueba con tus datos; en un par de minutos
+   entra en la agenda. Anúlala con el enlace para comprobar que también funciona.
+5. Revisa con tu asesoría el texto «Tus datos: quién los recibe y para qué» de la página de reservas (sale de los
+   datos de **Ajustes › Clínica y protección de datos**): es un resumen informativo, no un texto legal revisado.

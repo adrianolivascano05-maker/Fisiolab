@@ -760,6 +760,151 @@ describe("clínicas", () => {
     expect(await count("SELECT count(*) AS n FROM patient_forms")).toBe(0);
   });
 
+  describe("reserva online", () => {
+    const hour = 3_600_000;
+    const T = Date.parse("2026-10-26T07:00:00.000Z");
+    const at = (h: number) => new Date(T + h * hour).toISOString();
+    const page = { clinic: "Fisiolab Centro", kinds: [{ id: "primera", label: "Primera visita", minutes: 60 }], minNoticeHours: 2, pros: [{ id: "p1", name: "Laura" }, { id: "p2", name: "Pablo" }] };
+    const windows = [
+      { pro: "p1", from: at(3), to: at(5) }, // de 3 a 5 horas desde ahora
+      { pro: "p2", from: at(4), to: at(6) },
+    ];
+    const key = { kty: "EC", crv: "P-256", x: "x", y: "y" };
+    const hash = (n: number) => String(n).repeat(64).slice(0, 64).replace(/[^0-9a-f]/g, "a");
+    const pub = (method: string, path: string, data?: unknown, now = () => T, ip = "1.2.3.4") =>
+      handle(request(method, path, { body: data === undefined ? undefined : JSON.stringify(data), headers: { "CF-Connecting-IP": ip } }), env(), { verifyToken, now });
+    const team = (method: string, path: string, token: string, data?: unknown, now = () => T) =>
+      handle(request(method, path, { token, body: data === undefined ? undefined : JSON.stringify(data) }), env(), { verifyToken, now });
+    const book = (over: Record<string, unknown> = {}, ip?: string) =>
+      pub("POST", "/v1/reservas/fisiolab-centro", { kind: "primera", pro: "p1", startsAt: at(3), payload: "CB1.a.b.c", cancelHash: hash(1), ...over }, () => T, ip);
+
+    it("el equipo publica la página con franjas libres; el paciente reserva sin sesión y el hueco se ocupa", async () => {
+      const c = await clinic();
+      expect((await call("GET", "/v1/reservas/fisiolab-centro")).status).toBe(404);
+      // Solo el equipo, con una dirección válida y la clave pública.
+      expect((await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-eva", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows })).status).toBe(403);
+      expect((await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "Fisiolab Centro", publicKey: key, page, windows })).status).toBe(400);
+      expect((await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", page, windows })).status).toBe(400);
+      expect((await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows })).status).toBe(200);
+      // Otra clínica no puede quedarse con la misma dirección.
+      const otra = await clinic("tok-luis", "Otra");
+      expect((await team("PUT", `/v1/clinicas/${otra.id}/reservas`, "tok-luis", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows })).status).toBe(409);
+
+      const shown = (await (await pub("GET", "/v1/reservas/fisiolab-centro")).json()) as { page: typeof page; publicKey: unknown; windows: unknown[] };
+      expect(shown).toEqual({ page, publicKey: key, windows });
+      // Datos que faltan, una hora que no está libre o sin la antelación mínima: no.
+      expect((await book({ kind: "otra" })).status).toBe(400);
+      expect((await book({ payload: "en claro" })).status).toBe(400);
+      expect((await book({ cancelHash: "corto" })).status).toBe(400);
+      expect((await book({ startsAt: at(1) })).status).toBe(400);
+      expect((await book({ startsAt: at(4.5) })).status).toBe(409); // la cita acabaría a las 5,5 h, fuera de su franja
+      const ok = await book();
+      expect(ok.status).toBe(201);
+      expect(await ok.json()).toEqual({ id: expect.any(String), startsAt: at(3), minutes: 60, pro: "p1" });
+      // Ese hueco ya no sale y no se puede volver a coger; con «cualquiera», el siguiente fisio libre.
+      const after = (await (await pub("GET", "/v1/reservas/fisiolab-centro")).json()) as { windows: { pro: string; from: string; to: string }[] };
+      expect(after.windows).toEqual([{ pro: "p1", from: at(4), to: at(5) }, { pro: "p2", from: at(4), to: at(6) }]);
+      expect((await book({ cancelHash: hash(2) }, "5.6.7.8")).status).toBe(409);
+      const any = await book({ pro: "", startsAt: at(4), cancelHash: hash(3) }, "5.6.7.8");
+      expect(((await any.json()) as { pro: string }).pro).toBe("p1");
+      // Lo cifrado del paciente nunca sale por la ruta pública.
+      expect(JSON.stringify(after)).not.toContain("CB1.");
+    });
+
+    it("el equipo recoge las reservas (se borran los datos cifrados) y ve las anulaciones; el paciente anula con su enlace", async () => {
+      const c = await clinic();
+      await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows });
+      const token = "codigo-para-anular-123456";
+      const cancelHash = await (async () => {
+        const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+        return [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+      })();
+      const { id } = (await (await book({ cancelHash })).json()) as { id: string };
+      type Inbox = { slug: string | null; bookings: { id: string; payload: string | null; collected: boolean; cancelledAt: string | null }[]; cancels: { ref: string }[] };
+      const inbox = async () => (await (await team("GET", `/v1/clinicas/${c.id}/reservas`, "tok-ana")).json()) as Inbox;
+      expect((await team("GET", `/v1/clinicas/${c.id}/reservas`, "tok-eva")).status).toBe(403);
+      const first = await inbox();
+      expect(first.slug).toBe("fisiolab-centro");
+      expect(first.bookings).toEqual([expect.objectContaining({ id, payload: "CB1.a.b.c", collected: false, cancelledAt: null, kind: "primera", minutes: 60, pro: "p1" })]);
+      expect((await team("POST", `/v1/clinicas/${c.id}/reservas/recogidas`, "tok-ana", { bookings: [id] })).status).toBe(204);
+      expect((await inbox()).bookings).toEqual([]);
+      expect(await count("SELECT count(*) AS n FROM bookings WHERE payload IS NOT NULL")).toBe(0);
+      // Recién recogida, su hueco sigue ocupado (otro dispositivo de la clínica puede no tener aún la cita); pasado un
+      // rato manda lo que publica la app.
+      const slots = async (now: () => number) => ((await (await pub("GET", "/v1/reservas/fisiolab-centro", undefined, now)).json()) as { windows: { pro: string }[] }).windows;
+      expect((await slots(() => T + 60_000)).filter((w) => w.pro === "p1")).toEqual([{ pro: "p1", from: at(4), to: at(5) }]);
+      expect((await slots(() => T + 16 * 60_000)).filter((w) => w.pro === "p1")).toEqual([{ pro: "p1", from: at(3), to: at(5) }]);
+
+      // El paciente ve su cita con su enlace y la anula; la clínica lo ve una vez.
+      const seen = (await (await pub("GET", `/v1/citas/${token}`)).json()) as Record<string, unknown>;
+      expect(seen).toEqual({ startsAt: at(3), with: "Laura", clinic: "Fisiolab Centro", cancelled: false, past: false, slug: "fisiolab-centro" });
+      expect((await pub("GET", `/v1/citas/${"x".repeat(24)}`)).status).toBe(404);
+      expect((await pub("POST", `/v1/citas/${token}/anular`)).status).toBe(200);
+      expect(((await (await pub("GET", `/v1/citas/${token}`)).json()) as { cancelled: boolean }).cancelled).toBe(true);
+      expect((await inbox()).bookings).toEqual([expect.objectContaining({ id, collected: true, cancelledAt: expect.any(String) })]);
+      await team("POST", `/v1/clinicas/${c.id}/reservas/recogidas`, "tok-ana", { bookings: [id] });
+      expect((await inbox()).bookings).toEqual([]);
+      // Anulada, el hueco vuelve a estar libre.
+      expect((await book({ cancelHash: hash(4) }, "9.9.9.9")).status).toBe(201);
+    });
+
+    it("enlaces para anular citas que da la clínica, y no se anula una cita que ya ha pasado", async () => {
+      const c = await clinic();
+      const token = "otro-codigo-para-anular-99";
+      const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+      const h = [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+      expect((await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: "malo", ref: "cita-1", startsAt: at(24), label: "" }] })).status).toBe(400);
+      expect((await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: h, ref: "cita-1", startsAt: at(24), label: "con Pablo" }] })).status).toBe(200);
+      // La cita se mueve: el mismo enlace, con la hora nueva.
+      await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: h, ref: "cita-1", startsAt: at(48), label: "con Pablo" }] });
+      expect(await (await pub("GET", `/v1/citas/${token}`)).json()).toEqual({ startsAt: at(48), with: "con Pablo", clinic: "Fisiolab Centro", cancelled: false, past: false, slug: null });
+      expect((await pub("POST", `/v1/citas/${token}/anular`, undefined, () => T + 49 * hour)).status).toBe(409);
+      expect((await pub("POST", `/v1/citas/${token}/anular`)).status).toBe(200);
+      const inbox = (await (await team("GET", `/v1/clinicas/${c.id}/reservas`, "tok-ana")).json()) as { cancels: { hash: string; ref: string }[] };
+      expect(inbox.cancels).toEqual([expect.objectContaining({ hash: h, ref: "cita-1" })]);
+      await team("POST", `/v1/clinicas/${c.id}/reservas/recogidas`, "tok-ana", { cancels: [h] });
+      expect(((await (await team("GET", `/v1/clinicas/${c.id}/reservas`, "tok-ana")).json()) as { cancels: unknown[] }).cancels).toEqual([]);
+    });
+
+    it("si la clínica mueve o anula la cita, el paciente lo ve en su enlace (y no vuelve como aviso)", async () => {
+      const c = await clinic();
+      const token = "codigo-de-una-cita-movida-1";
+      const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+      const h = [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+      await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: h, ref: "cita-9", startsAt: at(24), label: "", minutes: 45, pro: null }] });
+      await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: h, ref: "cita-9", startsAt: at(26), label: "", minutes: 45, pro: null, cancelled: true }] });
+      expect(await (await pub("GET", `/v1/citas/${token}`)).json()).toEqual(expect.objectContaining({ startsAt: at(26), cancelled: true }));
+      expect(await (await pub("POST", `/v1/citas/${token}/anular`)).json()).toEqual({ cancelled: true });
+      expect(((await (await team("GET", `/v1/clinicas/${c.id}/reservas`, "tok-ana")).json()) as { cancels: unknown[] }).cancels).toEqual([]);
+    });
+
+    it("al anular una cita que dio la clínica, el hueco sale libre en la página al momento (junto al de al lado)", async () => {
+      const c = await clinic();
+      await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows });
+      const token = "codigo-de-una-cita-de-pablo";
+      const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token)));
+      const h = [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+      // Pablo tiene una cita justo después de su franja libre; otra cita sin nadie de la reserva no abre hueco.
+      await team("POST", `/v1/clinicas/${c.id}/enlaces`, "tok-ana", { links: [{ hash: h, ref: "cita-2", startsAt: at(6), label: "con Pablo", minutes: 60, pro: "p2" }, { hash: hash(7), ref: "cita-3", startsAt: at(8), label: "", minutes: 45, pro: null }] });
+      expect((await pub("POST", `/v1/citas/${token}/anular`)).status).toBe(200);
+      const shown = (await (await pub("GET", "/v1/reservas/fisiolab-centro")).json()) as { windows: unknown[] };
+      expect(shown.windows).toEqual([{ pro: "p1", from: at(3), to: at(5) }, { pro: "p2", from: at(4), to: at(7) }]);
+      // Y ya se puede reservar esa hora con él.
+      expect((await book({ pro: "p2", startsAt: at(6), cancelHash: hash(8) })).status).toBe(201);
+    });
+
+    it("límites: tres reservas al día desde un mismo origen; sin página, nada; apagar la reserva quita la página", async () => {
+      const c = await clinic();
+      const wide = [{ pro: "p1", from: at(3), to: at(30) }];
+      await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: true, slug: "fisiolab-centro", publicKey: key, page, windows: wide });
+      for (let i = 0; i < 3; i++) expect((await book({ startsAt: at(3 + i * 2), cancelHash: hash(10 + i) })).status).toBe(201);
+      expect((await book({ startsAt: at(12), cancelHash: hash(20) })).status).toBe(429);
+      expect((await book({ startsAt: at(12), cancelHash: hash(20) }, "8.8.8.8")).status).toBe(201);
+      expect((await team("PUT", `/v1/clinicas/${c.id}/reservas`, "tok-ana", { enabled: false })).status).toBe(200);
+      expect((await pub("GET", "/v1/reservas/fisiolab-centro")).status).toBe(404);
+    });
+  });
+
   it("la copia personal de antes sigue solo para ALLOWED_EMAILS", async () => {
     expect((await call("GET", "/v1/copia/info", { token: "tok-eva" })).status).toBe(403);
     expect((await call("GET", "/v1/copia/info", { token: "tok-ana" })).status).toBe(200);

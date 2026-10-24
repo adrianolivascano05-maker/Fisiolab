@@ -15,20 +15,15 @@ import {
   formLink,
   formMessage,
   formTitle,
-  newFormId,
-  newFormKey,
   patientSections,
   SENDABLE,
-  seal,
-  type FormRequest,
 } from "../clinical/patientForms";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
 import { useGranted } from "../data/questionnairePermissions";
-import { currentEpisode } from "../data/episodes";
-import { addSentForm, cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
+import { cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
 import { getClinic } from "../data/privacy";
 import { getPatient, type Patient } from "../data/repo";
 import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
@@ -39,6 +34,7 @@ import { cx } from "../ui/cx";
 import { SelectField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { createPatientForm } from "./createForm";
 import { useCollectForms } from "./FormInbox";
 
 const firstName = (p: Patient) => p.name.trim().split(/\s+/)[0] ?? "";
@@ -129,25 +125,10 @@ export function SendFormsPage() {
           <ChooseForm
             initial={choosing}
             onCreate={async (kind) => {
-              const token = getToken();
-              if (!token || !cloud?.clinic || !cloud.clinics) throw new Error("Tu sesión de Google ha caducado: vuelve a entrar en Ajustes → Cuenta y prueba otra vez.");
-              const db = getDb();
-              const formId = newFormId();
-              const key = newFormKey();
-              const expiresAt = new Date(Date.now() + FORM_DAYS * 86_400_000).toISOString();
-              const request: FormRequest = {
-                v: 1,
-                clinic: clinicName,
-                name: firstName(patient),
-                kind,
-                ...(kind === ANAMNESIS_KIND ? { sections: patientSections(sections) } : {}),
-                expiresAt,
-              };
-              await cloud.clinics.forms.create(token, cloud.clinic.id, { id: formId, request: await seal(request, key), expiresAt });
-              await addSentForm(db, { id: formId, patientId: id, episodeId: await currentEpisode(db, id), kind, key, expiresAt });
+              const created = await createPatientForm(getDb(), cloud, { patientId: id, patientName: patient.name, kind, clinicName, sections });
               bumpData();
               closeChooser();
-              setSharing({ id: formId, patientId: id, episodeId: id, kind, key, expiresAt, sentAt: new Date().toISOString(), answeredAt: null, importedAt: null, cancelledAt: null, answers: null, skipped: [] });
+              setSharing(created);
             }}
           />
         )}

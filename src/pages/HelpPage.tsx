@@ -85,8 +85,11 @@ const steps: { title: string; body: ReactNode }[] = [
       <>
         <b>Hoy</b> es el día en una lista: cada cita con <b>Atender</b> (apunta la sesión y vuelve aquí) y <b>Cobrar</b>; debajo, lo pendiente
         (reevaluaciones, lo que queda sin cobrar y quién tiene que firmar algo). <b>Día</b> y <b>Semana</b> son la rejilla: toca un hueco para dar
-        una cita. <b>Recordatorios</b> prepara el WhatsApp o el correo de las citas de mañana. Si alguien quiere venir antes, apúntalo en la{" "}
-        <b>Lista de espera</b>: al anular una cita, la app te ofrece su hueco.
+        una cita. <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya escrito: los recordatorios de mañana y, con el servidor de la clínica, la
+        anamnesis 48 horas antes de la primera cita y los cuestionarios antes de reevaluar. Pulsa «Enviar uno tras otro» y manda cada WhatsApp con un
+        toque. Si alguien quiere venir antes, apúntalo en la <b>Lista de espera</b>: al anular una cita, la app te ofrece su hueco. Con la{" "}
+        <b>Reserva online</b> (Ajustes) tus pacientes piden cita a cualquier hora en los huecos libres; la reserva entra en la agenda y la
+        confirmación, con un enlace para anularla, sale en Envíos.
       </>
     ),
   },

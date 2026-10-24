@@ -112,3 +112,52 @@ CREATE TABLE IF NOT EXISTS patient_forms (
   answered_at TEXT
 );
 CREATE INDEX IF NOT EXISTS patient_forms_by_clinic ON patient_forms (clinic_id, answered_at);
+
+-- Reserva online: la página pública de cada clínica. La app sube su clave PÚBLICA (con la que el móvil del paciente
+-- cifra sus datos), lo que se enseña (nombre, tipos de cita, fisios por su nombre de pila) y las franjas libres.
+-- Nunca las citas ni los pacientes.
+CREATE TABLE IF NOT EXISTS booking_pages (
+  clinic_id TEXT PRIMARY KEY,
+  slug TEXT NOT NULL UNIQUE,
+  public_key TEXT NOT NULL,
+  page TEXT NOT NULL,
+  windows TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Las reservas: hora, duración, con quién y el tipo, en claro (para no dar dos veces el mismo hueco); los datos del
+-- paciente, cifrados para la clínica, y se borran al recogerlos. «cancel_hash»: la huella del código del enlace para
+-- anular (el código solo lo tienen el paciente y la clínica). «client»: huella del origen, para limitar abusos.
+CREATE TABLE IF NOT EXISTS bookings (
+  id TEXT PRIMARY KEY,
+  clinic_id TEXT NOT NULL,
+  starts_at TEXT NOT NULL,
+  minutes INTEGER NOT NULL,
+  pro TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  payload TEXT,
+  cancel_hash TEXT NOT NULL UNIQUE,
+  client TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  collected_at TEXT,
+  cancelled_at TEXT,
+  cancel_seen_at TEXT
+);
+CREATE INDEX IF NOT EXISTS bookings_by_clinic ON bookings (clinic_id, starts_at);
+CREATE INDEX IF NOT EXISTS bookings_by_client ON bookings (client, created_at);
+
+-- Enlaces para anular las citas que da la clínica (los de las reservas van en «bookings»): a qué cita de la app van
+-- («ref», su id), cuándo es y con quién, para enseñarlo al paciente. Nada más.
+CREATE TABLE IF NOT EXISTS cancel_links (
+  hash TEXT PRIMARY KEY,
+  clinic_id TEXT NOT NULL,
+  ref TEXT NOT NULL,
+  starts_at TEXT NOT NULL,
+  label TEXT NOT NULL,
+  minutes INTEGER NOT NULL DEFAULT 0,
+  pro TEXT,
+  created_at TEXT NOT NULL,
+  cancelled_at TEXT,
+  cancel_seen_at TEXT
+);
+CREATE INDEX IF NOT EXISTS cancel_links_by_clinic ON cancel_links (clinic_id, cancelled_at);

@@ -11,7 +11,11 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
    - Descartado: automatizar WhatsApp Web con un programa (va contra sus normas; riesgo de bloqueo del número).
    - Más adelante, si se quiere envío 100 % automático: API oficial de WhatsApp Business (Meta cobra por
      mensaje) con un servidor que solo conozca teléfono y hora. Es de pago: decidirlo antes.
-   - Estado: propuesto como lo primero que hacer.
+   - **Hecho el 24-10-2026** (Agenda › Hoy › Envíos, `src/schedule/outbox.ts`): recordatorios del día antes,
+     anamnesis 48 horas antes de la primera cita (o en cuanto se da, si queda menos; antelación configurable) y
+     cuestionarios antes de reevaluar (los que rellenó hace 2 semanas o más), con «Enviar uno tras otro». Lo enviado
+     o descartado se apunta y se sincroniza (migración 026). La anamnesis y los cuestionarios necesitan el servidor
+     de la clínica. Los navegadores no dejan abrir varios WhatsApp a la vez: por eso es un toque por mensaje.
 2. **Facturación y Verifactu.** Primero facturas con numeración legal desde cobros y bonos; después Verifactu
    (registro encadenado, QR, declaración responsable del fabricante, certificado digital de la clínica).
    Confirmar requisitos y fechas (aplazadas a 2027) con una asesoría. Mirar si sirve mientras tanto la
@@ -48,7 +52,29 @@ Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61E
        horas, se manda en cuanto se reserva (junto a la confirmación).
      - Ojo: los envíos de la bandeja salen cuando alguien abre la app y pulsa «Enviar». El de las 48 horas
        aparece en la bandeja ese día; si nadie la abre, sale más tarde.
-   - Estado: pendiente; empezaría después de la bandeja de envíos, porque la usa.
+   - **Hecho el 24-10-2026** (Ajustes › Reserva online, `src/booking/`, página `…/reservar/<clínica>` y enlace
+     `…/cita/<código>`):
+     - Huecos según el horario de la clínica o los turnos de cada fisio, menos las citas; tipos de cita con su
+       duración; antelación mínima, días vista y cada cuánto empiezan las citas, configurables. En una clínica
+       con equipo, la clínica elige quién sale y el paciente puede elegir fisio o «me da igual».
+     - Reserva directa (no «solicitud»): el hueco se bloquea al momento en el servidor. Límite de 3 reservas al
+       día desde una misma conexión y 300 sin recoger por clínica. Sin verificación del teléfono (necesitaría SMS,
+       de pago).
+     - Los datos del paciente se cifran en su móvil para la clínica (el servidor no puede leerlos y los borra al
+       recogerlos). La app crea la cita y, si no existe, el paciente (por móvil o correo).
+     - Confirmación en Agenda › Envíos con el enlace para anular (y la anamnesis si su primera cita es en menos de
+       48 horas; si no, sale 48 horas antes). Al reservar, el paciente ve el enlace y puede añadir la cita a su
+       calendario.
+     - Anular: abrir el enlace, «Anular la cita», confirmar. El hueco sale libre en la página al momento. La app
+       anula la cita al recogerlo y, si hay lista de espera, lo recuerda en el aviso.
+     - Si la clínica mueve o anula una cita con enlace, el paciente ve la hora nueva o «anulada» en su enlace.
+   - Limitaciones: las reservas entran en la agenda cuando hay un dispositivo de la clínica con la app abierta (se
+     mira cada dos minutos). El WhatsApp de confirmación lo manda la clínica con un toque, no sale solo. La lista de
+     espera no se apunta desde la página (el paciente ve el teléfono de la clínica).
+   - Ideas para después: que el paciente se apunte a la lista de espera desde la página; avisar por correo; varias
+     sedes.
+   - Antes de encenderla: el administrador ejecuta `schema.sql` y pega el `worker.js` nuevo
+     (`docs/pasos-pendientes.md`, paso 4). El texto «Tus datos» de la página conviene revisarlo con la asesoría.
 
 6. **Preparar la app para otras clínicas (soporte y fiabilidad).** Antes de abrirla fuera de Fisiolab:
    - Registro de errores dentro de la app (sin servicios externos) y botón «Enviar informe de fallo» que copia

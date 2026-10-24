@@ -3,7 +3,7 @@
 // WhatsApp, llamar). Debajo, lo pendiente de la clínica (solo si hay algo): reevaluaciones de hoy o atrasadas, lo que
 // queda sin cobrar y los pacientes de hoy a los que les falta firmar algo; después, las citas de mañana con sus
 // recordatorios y la lista de espera.
-import { CalendarCheck, CalendarClock, CalendarX2, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserX, Wallet, BellRing } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarX2, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserX, Wallet, BellRing, Send } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -27,6 +27,7 @@ import { Group, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { cx } from "../ui/cx";
+import { useOutboxCount } from "./useOutboxCount";
 
 /** «10:00», en la hora de Madrid. */
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
@@ -45,6 +46,7 @@ async function unsignedOf(patientId: string): Promise<string[]> {
 
 export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
   const version = useDataVersion();
+  const outbox = useOutboxCount();
   const today = todayDay();
   const tomorrow = addDays(today, 1);
   const data = useAsync(async () => {
@@ -125,6 +127,16 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
           ))}
         </Group>
       )}
+
+      <Group title="Envíos">
+        <RowLink
+          to="/agenda/envios"
+          icon={Send}
+          tone={outbox ? "warning" : "accent"}
+          title={outbox === null ? "Bandeja de envíos" : outbox === 0 ? "Nada que enviar" : outbox === 1 ? "1 mensaje por enviar" : `${outbox} mensajes por enviar`}
+          subtitle="Recordatorios, anamnesis y cuestionarios, listos para WhatsApp"
+        />
+      </Group>
 
       <Group title="Mañana">
         <RowLink

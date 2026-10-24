@@ -13,6 +13,7 @@ import { PatientsLayout } from "./app/PatientsLayout";
 import { RouteError } from "./app/RouteError";
 import { useDesktop } from "./app/useMediaQuery";
 import { FormInbox } from "./patientForm/FormInbox"; // Respuestas de los pacientes a sus formularios (src/clinical/patientForms.ts)
+import { BookingSync } from "./booking/BookingSync"; // Reserva online: publicar huecos libres y recoger reservas y anulaciones
 
 // Al abrir la app solo se carga la lista de pacientes; cada pantalla se carga al entrar en ella (el service worker
 // ya las tiene guardadas, así que es inmediato también sin conexión).
@@ -28,6 +29,7 @@ const ImportPatientsPage = lazy(() => import("./pages/ImportPatientsPage").then(
 const ProviderPage = lazy(() => import("./cloud/ProviderPage").then((m) => ({ default: m.ProviderPage })));
 const SchedulePage = lazy(() => import("./schedule/SchedulePage").then((m) => ({ default: m.SchedulePage })));
 const RemindersPage = lazy(() => import("./schedule/RemindersPage").then((m) => ({ default: m.RemindersPage })));
+const OutboxPage = lazy(() => import("./schedule/OutboxPage").then((m) => ({ default: m.OutboxPage })));
 const WaitlistPage = lazy(() => import("./schedule/WaitlistPage").then((m) => ({ default: m.WaitlistPage })));
 const DebtorsPage = lazy(() => import("./schedule/DebtorsPage").then((m) => ({ default: m.DebtorsPage })));
 const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m.TeamPage })));
@@ -65,6 +67,9 @@ const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default:
 const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
 // Lo que abre el paciente con su enlace: sin la base, sin PIN y sin cuenta.
 const PublicFormPage = lazy(() => import("./patientForm/PublicFormPage").then((m) => ({ default: m.PublicFormPage })));
+const PublicBookingPage = lazy(() => import("./booking/PublicBookingPage").then((m) => ({ default: m.PublicBookingPage })));
+const PublicCancelPage = lazy(() => import("./booking/PublicCancelPage").then((m) => ({ default: m.PublicCancelPage })));
+const BookingSettingsPage = lazy(() => import("./booking/BookingSettingsPage").then((m) => ({ default: m.BookingSettingsPage })));
 const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 // En GitHub Pages la app vive en /Fisiolab/; en la raíz del dominio, en /.
@@ -110,6 +115,7 @@ const routes = [
   { path: "/ajustes/proveedor", element: l(<ProviderPage />) },
   { path: "/agenda", element: l(<SchedulePage />) },
   { path: "/agenda/recordatorios", element: l(<RemindersPage />) },
+  { path: "/agenda/envios", element: l(<OutboxPage />) }, // Bandeja de envíos por WhatsApp
   { path: "/agenda/espera", element: l(<WaitlistPage />) },
   { path: "/agenda/cobros", element: l(<DebtorsPage />) },
   { path: "/horario", element: <Navigate to="/agenda" replace /> },
@@ -121,6 +127,7 @@ const routes = [
   { path: "/ajustes/cobros", element: l(<ClinicBillingPage />) },
   { path: "/ajustes/ejercicios", element: l(<ExerciseLibraryPage />) },
   { path: "/ajustes/anamnesis", element: l(<CustomFieldsPage />) },
+  { path: "/ajustes/reservas", element: l(<BookingSettingsPage />) }, // Reserva online
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa
   { path: "/ayuda/fallos", element: l(<ReportProblemPage />) }, // Algo no funciona: problemas frecuentes e informe de fallo
   { path: "/privacidad", element: l(<PrivacyPage />) },
@@ -147,20 +154,27 @@ function Router() {
   return <RouterProvider router={router} />;
 }
 
-/** El enlace de un formulario para el paciente (…/formulario/<id>#<clave>). */
-const isPublicForm = () => location.pathname.startsWith(`${BASENAME === "/" ? "" : BASENAME}/formulario/`);
+/**
+ * Las páginas que abre el paciente sin cuenta: su formulario (…/formulario/<id>#<clave>), pedir cita
+ * (…/reservar/<clínica>) y su cita para anularla (…/cita/<código>). Van sin la base, sin PIN y sin la app.
+ */
+const PUBLIC_PAGES = { formulario: PublicFormPage, reservar: PublicBookingPage, cita: PublicCancelPage };
+const publicPage = () => {
+  const first = location.pathname.slice((BASENAME === "/" ? "" : BASENAME).length).split("/")[1] ?? "";
+  return Object.hasOwn(PUBLIC_PAGES, first) ? PUBLIC_PAGES[first as keyof typeof PUBLIC_PAGES] : null;
+};
 
 export function App() {
-  const [publicForm] = useState(isPublicForm);
+  const [Public] = useState(publicPage);
   useEffect(() => {
     // Pide al navegador que no borre los datos de la app por falta de espacio o por inactividad.
-    if (!publicForm) void navigator.storage?.persist?.();
-  }, [publicForm]);
-  if (publicForm) {
+    if (!Public) void navigator.storage?.persist?.();
+  }, [Public]);
+  if (Public) {
     return (
       <ToastProvider>
         <Suspense fallback={null}>
-          <PublicFormPage />
+          <Public />
         </Suspense>
       </ToastProvider>
     );
@@ -173,6 +187,7 @@ export function App() {
           <DbGate>
             <Router />
             <FormInbox />
+            <BookingSync />
           </DbGate>
         </CloudGate>
       </AppLock>
