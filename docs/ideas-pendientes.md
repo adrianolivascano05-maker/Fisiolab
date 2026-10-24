@@ -163,8 +163,21 @@ antes, o enseñar el decimal) cambia cómo se guarda la medición: decidirlo ant
   la app caía a «en memoria» sin avisar y lo que se escribiera se perdía al cerrar; ahora insiste hasta 5 segundos
   antes de rendirse. Y mientras abre los datos, si tarda más de segundo y medio, pone «Abriendo tus datos…» en vez de
   una pantalla en blanco.
-- **Falta:** ver el resultado en el Mac y probar en un iPhone de verdad (pasos en docs/pasos-pendientes.md,
-  «Probar en un iPhone»).
+- **Resultado en el Mac (24-10-2026, por la tarde):** la app compila y arranca; pasan 17 de 41. Las que fallan son
+  las que recargan o cambian de página: el almacenamiento existe pero al abrirlo Safari responde «UnknownError: The
+  operation failed for an unknown transient reason» y la app va en memoria. Es **del navegador de pruebas**: el
+  WebKit de Playwright usa una sesión efímera (como una ventana privada de Safari), y en ese modo WebKit no da el
+  almacenamiento privado; con un perfil persistente sí ([playwright #18235](https://github.com/microsoft/playwright/issues/18235),
+  [LumiLab #282](https://github.com/radiantlab/LumiLab/issues/282), [tallyui #304](https://github.com/TallyUI/tallyui/pull/304)).
+  Pero el WebKit de **Playwright 1.56** (la versión del proyecto) no arranca con perfil persistente en Mac («Browser
+  started with no default context», [playwright-rust #39](https://github.com/padamson/playwright-rust/issues/39));
+  está arreglado en versiones posteriores, y otros proyectos necesitaron la 1.64 ([maibuk #514](https://github.com/M4ss1ck/maibuk/pull/514)).
+  Las pruebas ya intentan el perfil persistente y, si no pueden, siguen como antes avisando.
+- **Siguiente paso para tener una señal fiable de Safari:** subir Playwright a la 1.64 o posterior. Cambia el
+  Chromium de todas las pruebas, así que hay que pasar la tanda completa en los dos modos después (una hora larga)
+  y revisar los fallos que salgan. Hasta entonces, el trabajo «webkit» de GitHub sigue siendo solo informativo.
+- **Lo más importante sigue siendo probar en un iPhone de verdad** (pasos en docs/pasos-pendientes.md, «Probar en
+  un iPhone»): un iPhone real tiene almacenamiento persistente, así que nada de lo anterior tiene por qué pasar ahí.
 
 **Pruebas automáticas que fallan de vez en cuando (24-10-2026):** en la tanda completa (4 navegadores a la vez en una
 máquina de 4 núcleos) a veces cae 1 de 170 y en solitario pasa siempre:

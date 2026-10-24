@@ -27,13 +27,19 @@ export const test = base.extend<{ consoleErrors: string[] }>({
       return use(context);
     }
     // El contexto efímero de las pruebas en WebKit (como una ventana privada de Safari) no da el almacenamiento privado
-    // (OPFS) y la app iría en memoria. Un contexto «persistente» sí lo da, aunque la carpeta de perfil vaya vacía
-    // (Playwright no escribe nada y cada prueba empieza limpia). Con una carpeta de verdad, WebKit no arranca.
+    // (OPFS): la app va en memoria y pierde los datos al recargar. Un contexto «persistente» sí lo da, pero el WebKit
+    // de Playwright 1.56 no arranca así en Mac («Browser started with no default context»; arreglado en versiones
+    // posteriores). Se intenta y, si no puede, se sigue con el efímero, avisando.
     const { baseURL, viewport, locale, timezoneId, isMobile, hasTouch } = testInfo.project.use;
-    const persistent = await playwright.webkit.launchPersistentContext("", { baseURL, viewport, locale, timezoneId, isMobile, hasTouch });
-    await withoutCloud(persistent);
-    await use(persistent);
-    await persistent.close();
+    let persistent: BrowserContext | null = null;
+    try {
+      persistent = await playwright.webkit.launchPersistentContext("", { baseURL, viewport, locale, timezoneId, isMobile, hasTouch });
+    } catch (e) {
+      console.warn(`WebKit sin contexto persistente (${e instanceof Error ? e.message.split("\n")[0] : String(e)}): la app irá en memoria.`);
+    }
+    await withoutCloud(persistent ?? context);
+    await use(persistent ?? context);
+    await persistent?.close();
   },
   consoleErrors: [
     async ({ page }, use) => {
