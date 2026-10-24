@@ -88,6 +88,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps webkit
+      # Aparte, para que si falla en el Mac se vea por qué (dentro de las pruebas no sale).
+      - name: Construir la app en el Mac
+        run: npm run build
       - name: Pantallas principales en WebKit (Safari)
         env:
           SIN_GOOGLE: "1"
