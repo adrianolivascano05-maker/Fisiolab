@@ -364,7 +364,11 @@ describe("comprobación con Google", () => {
   const tokenInfo = vi.fn<(url: string) => Response>();
   beforeEach(() => {
     tokenInfo.mockReset();
-    vi.stubGlobal("fetch", async (url: string) => tokenInfo(url));
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      // Siempre con tiempo límite: si Google se cuelga, la petición no se queda esperando.
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      return tokenInfo(url);
+    });
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -396,6 +400,11 @@ describe("comprobación con Google", () => {
   it("si Google no responde, 503 (no es culpa de la sesión)", async () => {
     google(500, {});
     expect((await info("g-caida")).status).toBe(503);
+    // Se ha cortado por tardar demasiado.
+    tokenInfo.mockImplementationOnce(() => {
+      throw new DOMException("The operation timed out.", "TimeoutError");
+    });
+    expect((await info("g-lenta")).status).toBe(503);
   });
 });
 
@@ -758,6 +767,108 @@ describe("clínicas", () => {
     // Lo borra el equipo al mirar (una petición sin sesión no hace trabajar a la base).
     await handle(request("GET", `/v1/clinicas/${c.id}/formularios`, { token: "tok-ana" }), env(), { verifyToken, now: later });
     expect(await count("SELECT count(*) AS n FROM patient_forms")).toBe(0);
+  });
+
+  it("dos dispositivos que mandan el mismo formulario a la vez: el segundo recibe 409, no un error interno", async () => {
+    const c = await clinic();
+    const body = { id: "a".repeat(22), request: "UkVRVQ==", expiresAt: new Date(Date.now() + 86_400_000).toISOString() };
+    // El otro guarda el suyo justo antes de que este lo guarde.
+    let done = false;
+    const DB = {
+      prepare(sql: string) {
+        const st = db.prepare(sql);
+        if (!sql.startsWith("INSERT INTO patient_forms") || done) return st;
+        done = true;
+        return {
+          bind: (...v: unknown[]) => {
+            const bound = st.bind(...v);
+            return {
+              run: async () => {
+                await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", body);
+                return bound.run();
+              },
+            };
+          },
+        };
+      },
+      batch: (x: D1Statement[]) => db.batch(x),
+    };
+    const res = await handle(request("POST", `/v1/clinicas/${c.id}/formularios`, { token: "tok-ana", body: JSON.stringify(body) }), env({ DB }), { verifyToken });
+    expect(res.status).toBe(409);
+    expect(await count("SELECT count(*) AS n FROM patient_forms")).toBe(1);
+  });
+
+  it("los formularios caducados se limpian como mucho cada 10 minutos, no en cada consulta", async () => {
+    const c = await clinic();
+    const deletes: string[] = [];
+    const DB = {
+      prepare(sql: string) {
+        if (sql.startsWith("DELETE FROM patient_forms")) deletes.push(sql);
+        return db.prepare(sql);
+      },
+      batch: (x: D1Statement[]) => db.batch(x),
+    };
+    const t0 = Date.parse("2030-01-01T10:00:00Z");
+    const ask = (t: number) => handle(request("GET", `/v1/clinicas/${c.id}/formularios`, { token: "tok-ana" }), env({ DB }), { verifyToken, now: () => t });
+    for (const m of [0, 1, 2, 9]) expect((await ask(t0 + m * 60_000)).status).toBe(200);
+    expect(deletes).toHaveLength(1);
+    await ask(t0 + 11 * 60_000);
+    expect(deletes).toHaveLength(2);
+  });
+
+  it("las respuestas llevan nosniff: el navegador no ejecuta como otra cosa lo que dice ser texto o JSON", async () => {
+    const c = await clinic();
+    expect((await call("GET", `/v1/clinicas/${c.id}/miembros`, { token: "tok-ana" })).headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect((await call("GET", "/v1/no-existe")).headers.get("X-Content-Type-Options")).toBe("nosniff");
+  });
+
+  it("los cambios se mandan por tandas de 3 MB sin leer de la base los que no caben; con 100 justos, no hay más", async () => {
+    const c = await clinic();
+    const base = `/v1/clinicas/${c.id}/copia`;
+    await call("PUT", `${base}?v=2&seq=0`, { token: "tok-ana", body: encrypted(3000), headers: { "If-None-Match": "*" } });
+    for (let i = 0; i < 8; i++) expect((await call("POST", `${base}/cambios?v=2`, { token: "tok-ana", body: encrypted(700_000, 10 + i) })).status).toBe(200);
+    // Cuántos lotes enteros se leen de la base.
+    let read = 0;
+    const DB = {
+      prepare(sql: string) {
+        const st = db.prepare(sql);
+        if (!sql.startsWith("SELECT seq, data FROM deltas")) return st;
+        return {
+          bind: (...v: unknown[]) => {
+            const bound = st.bind(...v);
+            return {
+              all: async () => {
+                const r = await bound.all();
+                read += r.results.length;
+                return r;
+              },
+            };
+          },
+        };
+      },
+      batch: (x: D1Statement[]) => db.batch(x),
+    };
+    type Got = { deltas: { seq: number; data: string }[]; more: boolean };
+    const since = async (n: number) => (await (await handle(request("GET", `${base}/cambios?v=2&desde=${n}`, { token: "tok-ana" }), env({ DB }), { verifyToken })).json()) as Got;
+    const first = await since(0);
+    expect(first.deltas.map((d) => d.seq)).toEqual([1, 2, 3]);
+    expect(first.deltas.reduce((n, d) => n + d.data.length, 0)).toBeLessThanOrEqual(3_000_000);
+    expect(first.more).toBe(true);
+    expect(read).toBe(3);
+    // Lo que queda, en orden, hasta el final.
+    const seen = [...first.deltas];
+    for (let page = first; page.more; ) {
+      page = await since(seen.at(-1)!.seq);
+      seen.push(...page.deltas);
+    }
+    expect(seen.map((d) => d.seq)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    expect(seen[4]!.data).toBe(encrypted(700_000, 14));
+
+    // Exactamente 100 lotes pequeños desde el último: una tanda y no hay más.
+    for (let i = 0; i < 100; i++) await call("POST", `${base}/cambios?v=2`, { token: "tok-ana", body: encrypted(50, 200 + i) });
+    const all = await since(8);
+    expect(all.deltas).toHaveLength(100);
+    expect(all.more).toBe(false);
   });
 
   it("la reserva online y los enlaces para anular ya no existen: 404", async () => {

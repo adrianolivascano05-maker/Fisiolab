@@ -63,9 +63,10 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 
 ## 3. Cloudflare: pegar el `worker.js` nuevo y borrar las tablas de la reserva (unos 10 minutos)
 
-La reserva online se ha quitado (24-10-2026). El servidor nuevo ya no tiene sus rutas, y sus tres tablas sobran.
-**Espera a que te avise de que el bloque 3 (servidor limpio) está hecho**, así lo pegas una sola vez. El paso 1 sí
-puedes hacerlo ya.
+La reserva online se ha quitado (24-10-2026) y el servidor se ha dejado más limpio (bloque 3: formularios repetidos
+a la vez, lotes de cambios que se leían de más, tiempo límite con Google, menos limpiezas en cada consulta). El
+servidor nuevo ya no tiene las rutas de la reserva, y sus tres tablas sobran. **Ya está listo para pegarlo.** No
+cambia `schema.sql` en nada que tengas que ejecutar.
 
 1. Comprueba que no queda ninguna reserva sin recoger. <https://dash.cloudflare.com> → **Storage & Databases** →
    **D1** → la base (`cenit-datos`) → **Console**. Pega y ejecuta:

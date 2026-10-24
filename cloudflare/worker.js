@@ -190,6 +190,8 @@ export async function handle(request, env, deps = {}) {
     }
   }
   response.headers.set("Cache-Control", "no-store");
+  // El navegador no adivina el tipo: lo que dice ser texto o JSON no se ejecuta nunca como otra cosa.
+  response.headers.set("X-Content-Type-Options", "nosniff");
   if (cors) for (const [name, value] of Object.entries(cors)) response.headers.set(name, value);
   return response;
 }
@@ -253,12 +255,17 @@ async function route(request, env, deps, originAllowed) {
   const who = await authenticate(request, env, deps);
   const db = database(env);
   // Quien no es del equipo no sabe ni si la clínica existe.
-  const role = await roleIn(db, id, who.email);
-  if (!role) throw new HttpError(403, "Tu cuenta no forma parte de esta clínica.");
+  // El papel y el estado de la clínica, en un solo viaje a la base (esta ruta la usa cada dispositivo cada minuto).
+  const row = await db
+    .prepare("SELECT m.role, s.suspended_at, s.deleted_at FROM members m LEFT JOIN clinic_status s ON s.clinic_id = m.clinic_id WHERE m.clinic_id = ? AND m.email = ?")
+    .bind(id, who.email.trim().toLowerCase())
+    .first();
+  if (!row) throw new HttpError(403, "Tu cuenta no forma parte de esta clínica.");
+  const role = row.role === "admin" ? "admin" : "member";
   const admin = () => {
     if (role !== "admin") throw new HttpError(403, "Solo quien administra la clínica puede hacerlo.");
   };
-  const status = await clinicStatus(db, id);
+  const status = { suspendedAt: row.suspended_at ? String(row.suspended_at) : null, deletedAt: row.deleted_at ? String(row.deleted_at) : null };
   if (rest === "/recuperar") {
     admin();
     if (!status?.deletedAt) return json(200, { restored: false });
@@ -412,19 +419,25 @@ async function clinicCopy(request, db, owner, rest, now) {
     if (!Number.isSafeInteger(since) || since < 0) throw new HttpError(400, "«desde» tiene que ser un número.");
     // Si la copia entera ya lleva lo que pide (y lo anterior se ha borrado), tiene que bajarse la copia.
     if (since < base.seq) return json(200, { epoch: base.epoch, base: base.seq, deltas: [], more: false });
-    const { results = [] } = await db
-      .prepare("SELECT seq, data FROM deltas WHERE owner = ? AND seq > ? ORDER BY seq LIMIT ?")
-      .bind(owner, since, DELTAS_PER_TRIP)
+    // Primero solo cuánto ocupa cada lote (uno más de los que caben, para saber si quedan), y después se leen solo los
+    // que caben en este viaje: así nunca se cargan en memoria lotes que no se van a mandar.
+    const { results: sizes = [] } = await db
+      .prepare("SELECT seq, length(data) AS chars FROM deltas WHERE owner = ? AND seq > ? ORDER BY seq LIMIT ?")
+      .bind(owner, since, DELTAS_PER_TRIP + 1)
       .all();
-    const deltas = [];
+    let take = 0;
     let chars = 0;
-    for (const r of results) {
-      const data = String(r.data);
-      if (deltas.length && chars + data.length > DELTA_TRIP_CHARS) break;
-      deltas.push({ seq: Number(r.seq), data });
-      chars += data.length;
+    for (const r of sizes.slice(0, DELTAS_PER_TRIP)) {
+      if (take && chars + Number(r.chars) > DELTA_TRIP_CHARS) break;
+      take++;
+      chars += Number(r.chars);
     }
-    return json(200, { epoch: base.epoch, base: base.seq, deltas, more: deltas.length < results.length || results.length === DELTAS_PER_TRIP });
+    const last = take ? Number(sizes[take - 1]?.seq) : since;
+    const { results = [] } = take
+      ? await db.prepare("SELECT seq, data FROM deltas WHERE owner = ? AND seq > ? AND seq <= ? ORDER BY seq").bind(owner, since, last).all()
+      : { results: [] };
+    const deltas = results.map((r) => ({ seq: Number(r.seq), data: String(r.data) }));
+    return json(200, { epoch: base.epoch, base: base.seq, deltas, more: take < sizes.length });
   }
 
   if (request.method === "PUT") {
@@ -912,6 +925,10 @@ async function readBigJson(request, max) {
   throw new HttpError(400, "La petición no es JSON válido.");
 }
 
+/** Cuándo se limpiaron los formularios por última vez en esta instancia del servidor (ms), y cada cuánto como mucho. */
+let lastFormsPurge = -Infinity;
+const PURGE_EVERY_MS = 10 * 60_000;
+
 /** Texto base64 (lo cifrado), de 1 a `max` caracteres. */
 const isBase64 = (/** @type {unknown} */ v, /** @type {number} */ max) => typeof v === "string" && v.length > 0 && v.length <= max && /^[A-Za-z0-9+/]+={0,2}$/.test(v);
 
@@ -923,6 +940,10 @@ const isBase64 = (/** @type {unknown} */ v, /** @type {number} */ max) => typeof
  */
 async function purgeForms(db, now) {
   const at = now();
+  // Cada dispositivo pregunta cada minuto: con limpiar como mucho cada 10 minutos basta (lo caducado no se puede
+  // abrir de todos modos, publicForm lo mira).
+  if (Math.abs(at - lastFormsPurge) < PURGE_EVERY_MS) return;
+  lastFormsPurge = at;
   await db
     .prepare("DELETE FROM patient_forms WHERE ((answered_at IS NULL OR response IS NULL) AND expires_at < ?) OR (answered_at IS NOT NULL AND answered_at < ?)")
     .bind(new Date(at).toISOString(), new Date(at - KEEP_ANSWERS_DAYS * 86_400_000).toISOString())
@@ -964,12 +985,13 @@ async function clinicForms(request, db, clinicId, formId, who, now) {
   if (!(expires > now() && expires <= now() + MAX_FORM_DAYS * 86_400_000)) throw new HttpError(400, `El enlace tiene que caducar en ${MAX_FORM_DAYS} días como mucho.`);
   const open = await db.prepare("SELECT COUNT(*) AS n FROM patient_forms WHERE clinic_id = ? AND (answered_at IS NULL OR response IS NOT NULL)").bind(clinicId).first();
   if (Number(open?.n) >= MAX_OPEN_FORMS) throw new HttpError(429, "La clínica tiene demasiados formularios sin recoger. Abre la app para recoger las respuestas.");
-  const exists = await db.prepare("SELECT 1 FROM patient_forms WHERE id = ?").bind(id).first();
-  if (exists) throw new HttpError(409, "Ese formulario ya existe.");
-  await db
-    .prepare("INSERT INTO patient_forms (id, clinic_id, created_by, created_at, expires_at, request) VALUES (?, ?, ?, ?, ?, ?)")
+  // Comprobar y guardar en una sola orden: si dos dispositivos mandan el mismo formulario a la vez, el segundo
+  // recibe 409 (no un error interno).
+  const { meta } = await db
+    .prepare("INSERT INTO patient_forms (id, clinic_id, created_by, created_at, expires_at, request) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING")
     .bind(id, clinicId, normalEmail(who.email), new Date(now()).toISOString(), new Date(expires).toISOString(), body.request)
     .run();
+  if (!meta?.changes) throw new HttpError(409, "Ese formulario ya existe.");
   return json(201, { id });
 }
 
@@ -1103,7 +1125,8 @@ async function verifyGoogleToken(token, env) {
   /** @type {Response} */
   let res;
   try {
-    res = await fetch("https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=" + encodeURIComponent(token));
+    // Si Google tarda, mejor un 503 a los 8 segundos que dejar la petición colgada.
+    res = await fetch("https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=" + encodeURIComponent(token), { signal: AbortSignal.timeout(8000) });
   } catch {
     throw unavailable();
   }

@@ -20,9 +20,14 @@ chat (fallos P1–P7, mejoras V1–V12). Orden:
    ya hechas se quedan en solo lectura (ver, imprimir, PDF, libro). La descarga mensual de Precios y cobros lleva
    ahora a Para facturar. Preguntas para la gestoría: si la app tiene que cumplir Verifactu solo por exportar los cobros, y
    qué columnas necesitan.
-3. **Q3 · Servidor limpio:** formularios repetidos en carrera (P4), lotes de cambios que se leen de más (P6),
-   tiempo límite con Google (V5), cabecera `nosniff` (V7), limpiezas fuera de las rutas que se repiten cada minuto.
-   Luego el usuario pega `worker.js` una sola vez.
+3. **Q3 · Servidor limpio.** Hecho el 24-10-2026: formularios repetidos a la vez dan 409 y no un error (P4); los
+   cambios se leen de la base solo los que caben en la tanda de 3 MB y `more` ya no da un viaje de más con 100
+   justos (P6, V11); tiempo límite de 8 s con Google (V5); cabecera `nosniff` (V7); el papel y el estado de la
+   clínica en una sola consulta (un viaje menos en cada petición de una clínica) y la limpieza de formularios como
+   mucho cada 10 minutos (V3). Falta que el usuario pegue `worker.js` y borre las tablas de la reserva
+   (`docs/pasos-pendientes.md`, paso 3).
+   - Pendiente (no hecho, para más adelante si crecen las copias): la subida con `?v=2&seq=N` no es atómica con
+     la de `delta_base` (V1) y bajar una copia de 50 MB podría pasar de la memoria del Worker (V2).
 4. **Q4 · Limpieza general:** código, exportaciones y dependencias sin usar; repeticiones; partir los archivos de
    pantallas gigantes sin cambiar lo que hacen; revisar las pruebas e2e (menos tiempo y menos falsas alarmas);
    dejar tres documentos vivos.
