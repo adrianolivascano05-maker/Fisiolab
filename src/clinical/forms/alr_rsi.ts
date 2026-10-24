@@ -5,7 +5,7 @@ import { form as aclRsi } from "./acl_rsi";
 import { answered, round1, type Answers, type QuestionForm } from "./types";
 
 /** «rodilla» → «tobillo», como dice la ficha (con el artículo en masculino). */
-export const toAnkle = (text: string) => text.replace(/\bla rodilla\b/g, "el tobillo").replace(/\brodilla\b/g, "tobillo");
+const toAnkle = (text: string) => text.replace(/\bla rodilla\b/g, "el tobillo").replace(/\brodilla\b/g, "tobillo");
 
 // Los 12 ítems del ACL-RSI por su id, con sus mismos extremos (de peor a mejor, ninguno invertido); solo cambia el texto.
 const IDS = Array.from({ length: 12 }, (_, i) => `i${i + 1}`);

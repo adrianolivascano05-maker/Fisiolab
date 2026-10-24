@@ -4,7 +4,7 @@
 import { CalendarDays, FileSpreadsheet, FileUp, NotebookPen, Undo2, Users } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
-import { fmtDate, fmtDateTime } from "../app/format";
+import { fmtDate, fmtDateTime, plural } from "../app/format";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { STATUS_LABELS } from "../data/appointments";
@@ -22,7 +22,6 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 type Kind = "patients" | RecordKind;
 const KINDS: { id: Kind; title: string; text: string; icon: typeof Users; one: string; many: string }[] = [

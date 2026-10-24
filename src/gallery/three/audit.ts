@@ -14,7 +14,7 @@ import type { Pose3, Side } from "./rig";
 export type Issue = { t: number; what: string; depth: number };
 
 /** Cuánto (cm) se tolera que algo se meta en otra cosa: la piel cede un poco donde se apoya o se aprieta. */
-export const TOLERANCE = {
+const TOLERANCE = {
   /** Cuerpo, cabeza y piernas del examinador; sus brazos fuera de la toma. */
   body: 0.6,
   /** La mano sobre la parte que toca (aprieta la piel). */
@@ -31,7 +31,7 @@ export const TOLERANCE = {
 };
 
 /** Instantes que se revisan de una figura: toda la vuelta (y, con guion, el final y la mitad de cada paso). */
-export function auditMoments(spec: FigureSpec, step = 0.025): { t: number; tl: Moment & ClockMoment }[] {
+function auditMoments(spec: FigureSpec, step = 0.025): { t: number; tl: Moment & ClockMoment }[] {
   const clock = clockOf(spec, spec.script ? keysOf(spec) : undefined);
   return sampleTimes(clock, step).map((t) => ({ t, tl: clock.at(t) }));
 }
@@ -41,7 +41,7 @@ const isHand = (p: string) => /hand/.test(p);
 const sideOf = (p: string) => p.slice(0, 1);
 
 /** Problemas en un instante (lo más hondo de cada tipo). */
-export function auditPoses(spec: FigureSpec, L: Layout, pat: Pose3, ex: Pose3 | null, contactParts: string[], t = 0): Issue[] {
+function auditPoses(spec: FigureSpec, L: Layout, pat: Pose3, ex: Pose3 | null, contactParts: string[], t = 0): Issue[] {
   const out = new Map<string, Issue>();
   const add = (what: string, depth: number, tol: number) => {
     if (depth <= tol) return;
@@ -90,7 +90,7 @@ export function auditPoses(spec: FigureSpec, L: Layout, pat: Pose3, ex: Pose3 | 
  * Lo que los brazos del examinador pasan de los topes de sus articulaciones en una pose (grados): rotación del
  * hombro, hombro muy atrás o cruzado, codo doblado del todo y muñeca (flexión, desviación y pronosupinación).
  */
-export function jointExcess(ex: Pose3, sides: Side[]): { what: string; deg: number }[] {
+function jointExcess(ex: Pose3, sides: Side[]): { what: string; deg: number }[] {
   const out: { what: string; deg: number }[] = [];
   for (const s of sides) {
     const st = { S: ex.pt[`${s}_shoulder`]!, E: ex.pt[`${s}_elbow`]!, uaQ: ex.seg[`${s}_upperarm`].q };

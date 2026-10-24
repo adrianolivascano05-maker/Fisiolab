@@ -4,6 +4,7 @@
 // hora, nada de su historia clínica. Con la cuenta de Google conectada, la app apunta además las citas sola en un
 // calendario suyo (src/cloud/googleCalendar.ts), con estos mismos eventos.
 import type { Session } from "../data/clinical";
+import { saveFile } from "../app/download";
 
 export type CalendarEvent = {
   /** Estable para la misma cita: si se vuelve a añadir, el calendario la reconoce. */
@@ -109,12 +110,5 @@ export function openIcs(e: CalendarEvent, fileName: string) {
     window.location.href = `data:text/calendar;charset=utf-8,${encodeURIComponent(text)}`;
     return;
   }
-  const url = URL.createObjectURL(new Blob([text], { type: "text/calendar;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  saveFile(fileName, text, "text/calendar;charset=utf-8");
 }

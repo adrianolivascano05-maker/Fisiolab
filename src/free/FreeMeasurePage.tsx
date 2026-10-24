@@ -24,6 +24,7 @@ import { angleSeries, choosePreset, movementWindow, spread, toConfig } from "./a
 import { detectPose, grabFrame, loadPoseDetector, type Detector } from "../ai/pose";
 import { listMeasurements, reportCsv, saveMeasurement } from "./store";
 import type { AnatomicalPlane, BiomechanicalMeasurement, FramePose, KeyframeData } from "./types";
+import { saveFile } from "../app/download";
 
 /** Máximo de fotogramas que se analizan en un movimiento (se salta alguno si el tramo es largo). */
 const MAX_ANALYZED = 240;
@@ -40,12 +41,7 @@ const planeLabels: Record<AnatomicalPlane | "screen", string> = {
 };
 
 export function download(name: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  saveFile(name, text, "text/csv;charset=utf-8");
 }
 
 /** Lista de mediciones del paciente y botón para empezar una nueva. */

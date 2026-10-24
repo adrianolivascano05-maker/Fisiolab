@@ -25,7 +25,7 @@ export function lowItems(s: WellnessScores): WellnessItem[] {
 }
 
 /** Registros previos necesarios para comparar con la media del paciente. */
-export const MIN_BASELINE = 3;
+const MIN_BASELINE = 3;
 
 export type Baseline = { mean: number; sd: number; n: number; diff: number; z: number | null; low: boolean };
 

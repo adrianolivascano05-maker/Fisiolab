@@ -33,7 +33,7 @@ type ScrubberProps = {
   rangeEnd?: number;
 };
 
-export function formatTime(seconds: number) {
+function formatTime(seconds: number) {
   return seconds.toLocaleString("es-ES", { minimumFractionDigits: 3, maximumFractionDigits: 3 }) + " s";
 }
 

@@ -85,7 +85,7 @@ export type ClinicInfo = {
 export const MIN_RETENTION_YEARS = 5;
 const CLINIC_KEY = "clinic_privacy";
 /** En una clínica con equipo, el nombre y el nº de colegiado son de cada fisioterapeuta (memberKey). */
-export const PROFESSIONAL_KEY = "professional";
+const PROFESSIONAL_KEY = "professional";
 type Professional = Pick<ClinicInfo, "professional" | "license">;
 export const emptyClinic: ClinicInfo = {
   name: "",
@@ -103,7 +103,7 @@ export const emptyClinic: ClinicInfo = {
 };
 
 export async function getClinic(db: Db): Promise<ClinicInfo> {
-  const clinic = { ...emptyClinic, ...((await getSetting<Partial<ClinicInfo>>(db, CLINIC_KEY)) ?? {}) };
+  const clinic = { ...emptyClinic, ...(await getSetting<Partial<ClinicInfo>>(db, CLINIC_KEY)) };
   if (!member()) return clinic;
   const mine = await getSetting<Partial<Professional>>(db, memberKey(PROFESSIONAL_KEY));
   return { ...clinic, professional: mine?.professional ?? "", license: mine?.license ?? "" };

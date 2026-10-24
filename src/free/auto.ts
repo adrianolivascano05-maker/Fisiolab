@@ -47,7 +47,7 @@ export function angleSeries(poses: FramePose[], cfg: MeasureConfig, size: { w: n
 }
 
 /** Por debajo de esta amplitud no se considera que haya un movimiento claro. */
-export const MIN_MOVEMENT_DEG = 10;
+const MIN_MOVEMENT_DEG = 10;
 
 /**
  * La medición preparada que más se mueve en el vídeo (la que el paciente está haciendo).

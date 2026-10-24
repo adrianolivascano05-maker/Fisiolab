@@ -12,7 +12,7 @@ import { EmptyState } from "../ui/EmptyState";
 const day = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 /** Última medición de cada lado y, si se midieron el mismo día, la diferencia. */
-export function latestBySide(entries: RomEntry[]) {
+function latestBySide(entries: RomEntry[]) {
   const left = entries.find((e) => e.side === "left") ?? null;
   const right = entries.find((e) => e.side === "right") ?? null;
   const both = entries.find((e) => e.side === null) ?? null;

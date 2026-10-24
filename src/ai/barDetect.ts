@@ -8,7 +8,7 @@ import type { Landmark3D } from "./types";
 export type BarSample = { frame: number; y: number | null };
 
 /** Qué puntos siguen a la barra en cada ejercicio. */
-export function barPoints(exercise: string): number[] {
+function barPoints(exercise: string): number[] {
   return exercise === "hip_thrust" ? [23, 24] : [15, 16];
 }
 

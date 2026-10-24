@@ -19,7 +19,7 @@ let catalog: Promise<CifEntry[]> | null = null;
 export const loadCatalog = () => (catalog ??= import("./cifData").then((m) => parseCatalog(m.CIF_TSV)));
 
 /** Nivel de una categoría: 1 el capítulo (b2), 2 (b280), 3 (b2801), 4 (b28013). */
-export const levelOf = (code: string) => (code.length <= 2 ? 1 : code.length - 2);
+const levelOf = (code: string) => (code.length <= 2 ? 1 : code.length - 2);
 
 export function parseCatalog(tsv: string): CifEntry[] {
   return tsv.split("\n").map((line) => {
@@ -159,7 +159,7 @@ const BY_REGION: Record<string, string[]> = {
   tobillo_pie: ["b28015", "s75021"],
 };
 /** Habituales en fisioterapia musculoesquelética (sugerencia de la app, no un «core set» oficial). */
-export const COMMON = ["b280", "b710", "b730", "b740", "b770", "d410", "d415", "d430", "d450", "d850", "d920", "e310", "e355"];
+const COMMON = ["b280", "b710", "b730", "b740", "b770", "d410", "d415", "d430", "d450", "d850", "d920", "e310", "e355"];
 
 export function suggestedCodes(regions: string[]): string[] {
   return [...new Set([...regions.flatMap((r) => BY_REGION[r] ?? []), ...COMMON])];

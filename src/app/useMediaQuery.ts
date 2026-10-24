@@ -14,5 +14,5 @@ export function useMediaQuery(query: string): boolean {
 }
 
 /** Ordenador o tableta apaisada: desde 1024 px (el mismo corte que `lg:` en las clases). */
-export const DESKTOP = "(min-width: 1024px)";
+const DESKTOP = "(min-width: 1024px)";
 export const useDesktop = () => useMediaQuery(DESKTOP);

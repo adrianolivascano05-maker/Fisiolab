@@ -15,7 +15,7 @@ export const CUSTOM_TYPES: { id: CustomFieldType; label: string }[] = [
 ];
 /** Un campo propio: en qué apartado de la anamnesis va, su pregunta y su tipo (con sus opciones). */
 export type CustomField = { id: string; section: string; label: string; type: CustomFieldType; options?: string[] };
-export const CUSTOM_FIELDS_KEY = "anamnesis_custom_fields";
+const CUSTOM_FIELDS_KEY = "anamnesis_custom_fields";
 
 export async function getCustomFields(db: Db): Promise<CustomField[]> {
   return (await getSetting<CustomField[]>(db, CUSTOM_FIELDS_KEY)) ?? [];

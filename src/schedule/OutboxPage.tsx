@@ -40,8 +40,8 @@ import {
 } from "./outbox";
 import { DEFAULT_TEMPLATE, mailtoUrl, REMINDER_TEMPLATE_KEY, reminderText, waPhone, whatsappUrl } from "./reminders";
 import { staffName, useStaff } from "./useStaff";
+import { plural } from "../app/format";
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const SUBJECT: Record<OutboxRule, string> = {
   recordatorio: "Recordatorio de tu cita",
   anamnesis: "Antes de tu primera cita",

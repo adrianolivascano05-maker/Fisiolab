@@ -169,7 +169,7 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
 ## 5. Marca (texto final)
 
 - **Nombre:** «Cénit» (completo «Cénit · Fisiolab»). Antes «Impulso».
-- **Colores (`src/styles/tokens.json`), paleta «papel y bosque»** (desde el bloque B8 de `docs/plan-limpieza.md`):
+- **Colores (`src/styles/tokens.json`), paleta «papel y bosque»** (desde el bloque B8 de `docs/archivo/plan-limpieza.md`):
   - claro: fondo `#F2F4F1` (papel gris verdoso), tarjetas `#FFFFFF`, texto `#16201B`, secundario `#55625A`,
     acción `#1F6B4F`; peligro `#A63F2A`, aviso `#865409`
   - oscuro (sigue el ajuste del teléfono): fondo `#0F1512`, tarjetas `#171F1B`, texto `#E7ECE8`, secundario

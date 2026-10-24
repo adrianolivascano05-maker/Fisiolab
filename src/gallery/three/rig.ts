@@ -13,7 +13,7 @@ export type Side = "r" | "l";
 export const sgn = (s: Side) => (s === "l" ? 1 : -1);
 export type LimbSeg = "upperarm" | "forearm" | "hand" | "thigh" | "shank" | "foot";
 export type SegKey = `${Side}_${LimbSeg}`;
-export const LIMBS: LimbSeg[] = ["upperarm", "forearm", "hand", "thigh", "shank", "foot"];
+const LIMBS: LimbSeg[] = ["upperarm", "forearm", "hand", "thigh", "shank", "foot"];
 
 /** Medidas (tablas antropométricas de Drillis y Contini, redondeadas). */
 export const DIM = {
@@ -225,10 +225,10 @@ export const HEAD: [number, number, number, number][] = [
   [12.6, 3.0, 2.7, -3.9],
   [13.1, 1.3, 1.0, -1.9],
 ];
-export const HEAD_EXT = { x: 7.7, up: 13, down: 11.3, front: 9.4, back: 9.9 };
+const HEAD_EXT = { x: 7.7, up: 13, down: 11.3, front: 9.4, back: 9.9 };
 
 /** Eje de la mandíbula (las dos ATM, delante de las orejas), en coordenadas de la cabeza. */
-export const JAW_PIVOT = { y: -1.6, z: 0.6 };
+const JAW_PIVOT = { y: -1.6, z: 0.6 };
 /** Altura de los labios (comisura) en la cara. */
 export const LIPS_Y = -6.2;
 
@@ -241,7 +241,7 @@ export function jawPoint(v: Vector3, deg: number): Vector3 {
 }
 
 /** Superficie de la cara (z) en la línea media a una altura de la cabeza. */
-export const faceZ = (y: number) => profileAt(HEAD, y)[1]!;
+const faceZ = (y: number) => profileAt(HEAD, y)[1]!;
 
 /** Depresor lingual entre los molares derechos: extremo de dentro y de fuera, en coordenadas de la cabeza. */
 export const DEPRESSOR = { inner: new Vector3(-2, LIPS_Y - 0.05, 4), outer: new Vector3(-3.2, LIPS_Y - 0.05, 17) };
@@ -276,7 +276,7 @@ export const FINGERS: [number, number, number, number][] = [
   [-2.85, 7.0, 0.8, 6],
 ];
 /** Curvatura de cada dedo respecto a la de la mano (relajada: el meñique más doblado). */
-export const FINGER_CURL: Record<HandState["grip"], number[]> = {
+const FINGER_CURL: Record<HandState["grip"], number[]> = {
   rest: [1.05, 1, 0.9, 0.78],
   press: [1, 1, 1, 1],
   grasp: [1, 1, 1, 1],

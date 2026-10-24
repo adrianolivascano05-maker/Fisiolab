@@ -21,12 +21,12 @@ const TZ = "Europe/Madrid";
  * Ajustes sincronizados: si se apuntan las citas y cómo sale el paciente; y el id del calendario de la app. En una
  * clínica, de cada persona (memberKey): cada una tiene su calendario y en él solo van las citas que da ella.
  */
-export const CALENDAR_SETTINGS = "calendar_auto";
+const CALENDAR_SETTINGS = "calendar_auto";
 const CALENDAR_ID = "calendar_id";
 export type CalendarSettings = { enabled: boolean; names: EventNames };
 // Por defecto, solo las iniciales: el nombre completo de un paciente no tiene por qué estar en Google. Y desactivado
 // salvo para quien ya dio el permiso (el permiso se pide al activarlo: auth.ts, wantCalendar).
-export const defaultCalendarSettings: CalendarSettings = { enabled: false, names: "initials" };
+const defaultCalendarSettings: CalendarSettings = { enabled: false, names: "initials" };
 
 export async function getCalendarSettings(db: Db): Promise<CalendarSettings> {
   const saved = (await getSetting<Partial<CalendarSettings>>(db, memberKey(CALENDAR_SETTINGS))) ?? {};
@@ -52,7 +52,7 @@ export function eventId(sessionId: string): string {
 const json = { "Content-Type": "application/json; charset=UTF-8" };
 
 /** El calendario de la app: el guardado si sigue existiendo; si no, uno nuevo. */
-export async function ensureCalendar(token: string, id: string | null): Promise<string> {
+async function ensureCalendar(token: string, id: string | null): Promise<string> {
   if (id) {
     try {
       await call(token, `${API}/calendars/${encodeURIComponent(id)}`);
@@ -104,7 +104,7 @@ export type CalendarChanges = { added: number; updated: number; removed: number 
  * Deja el calendario de la app con estas citas futuras (id → evento): crea las que faltan, cambia las que han
  * cambiado y quita las que ya no están (una cita cambiada de sesión o de paciente borrado). Solo eventos futuros.
  */
-export async function syncEvents(token: string, cal: string, wanted: Map<string, CalendarEvent>, now = new Date()): Promise<CalendarChanges> {
+async function syncEvents(token: string, cal: string, wanted: Map<string, CalendarEvent>, now = new Date()): Promise<CalendarChanges> {
   const changes: CalendarChanges = { added: 0, updated: 0, removed: 0 };
   const existing = new Map((await listFuture(token, cal, now)).map((g) => [g.id, g]));
   const base = `${API}/calendars/${encodeURIComponent(cal)}/events`;

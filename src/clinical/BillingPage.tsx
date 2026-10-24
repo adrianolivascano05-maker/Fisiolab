@@ -4,7 +4,7 @@ import { FileText, Pencil, Plus, ReceiptText, RotateCw, Trash, Wallet } from "lu
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
-import { fmtDate } from "../app/format";
+import { fmtDate, plural } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { addPayment, createPack, deletePack, deletePayment, euros, getPackPresets, getPricing, methodLabel, parseEuros, patientAccount, setSessionPrice, updatePack, type PackState, type Payment } from "../data/billing";
@@ -22,7 +22,6 @@ import { PackForm, PaymentForm } from "./billingForms";
 import { todayDay } from "./pageKit";
 
 const day = (d: string) => fmtDate(`${d}T12:00:00`);
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 /** Cuántos meses duraba un bono (para renovarlo igual); null si no caducaba. */
 const monthsOf = (p: PackState) => (p.expiresOn ? Math.max(1, Math.round((Date.parse(p.expiresOn) - Date.parse(p.boughtOn)) / (30.44 * 86_400_000))) : null);
 

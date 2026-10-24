@@ -7,11 +7,12 @@ import { methodLabel, type Payment } from "./billing";
 import type { Db } from "./db";
 import { invoicesOfPayments } from "./invoices";
 import { getSetting, setSetting } from "./repo";
+import { dayDmy } from "../app/format";
 
 /** Lo que va en el Excel sobre el IVA y la retención: lo decide la clínica con su asesoría. */
 export type BillingDefaults = { vatRate: number; exemption: string; irpfRate: number };
 /** El mismo ajuste que usaban las facturas de la app: quien ya lo tenía puesto no tiene que volver a hacerlo. */
-export const BILLING_DEFAULTS_KEY = "invoice_settings";
+const BILLING_DEFAULTS_KEY = "invoice_settings";
 export const DEFAULT_EXEMPTION = "Operación exenta de IVA (artículo 20.Uno.3º de la Ley 37/1992, del IVA)";
 export const DEFAULT_BILLING: BillingDefaults = { vatRate: 0, exemption: DEFAULT_EXEMPTION, irpfRate: 0 };
 
@@ -91,8 +92,6 @@ export async function toBillBetween(db: Db, from: string, to: string): Promise<T
 /** El concepto de la factura: el que se escribió al cobrar o, si no hay, el genérico. */
 export const conceptOf = (p: Pick<Payment, "concept">) => p.concept.trim() || "Sesión de fisioterapia";
 
-const ddmmyyyy = (d: string) => d.split("-").reverse().join("/");
-
 /**
  * La hoja de Excel para el programa de facturación de la clínica: un cobro por fila, con el paciente y lo que la
  * clínica tiene puesto de IVA y retención. Los importes, como números (lo cobrado, tal cual).
@@ -117,7 +116,7 @@ export function toBillSheet(rows: ToBill[], d: BillingDefaults) {
       "Referencia del cobro",
     ],
     rows: rows.map((r) => [
-      ddmmyyyy(r.paidOn),
+      dayDmy(r.paidOn),
       r.name,
       r.dni.toUpperCase(),
       r.address,

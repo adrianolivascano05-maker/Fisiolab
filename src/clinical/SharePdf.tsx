@@ -4,15 +4,7 @@ import { Download, Share2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
-
-function download(bytes: Uint8Array, fileName: string) {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = fileName;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
+import { saveFile } from "../app/download";
 
 /** Si este navegador puede compartir un PDF (móviles, sobre todo). */
 function canShareFile(fileName: string): boolean {
@@ -40,7 +32,7 @@ export function SharePdf({ make, fileName, title }: { make: () => Promise<Uint8A
           if (e instanceof DOMException && e.name === "AbortError") return; // lo cerró sin enviar
           throw e;
         }
-      } else download(bytes, fileName);
+      } else saveFile(fileName, bytes, "application/pdf");
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), "danger");
     } finally {

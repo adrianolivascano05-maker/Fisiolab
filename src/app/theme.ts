@@ -6,7 +6,7 @@ export type Theme = "auto" | "light" | "dark";
 const KEY = "fisiolab.theme";
 export const THEME_LABELS: Record<Theme, string> = { auto: "Automático", light: "Claro", dark: "Oscuro" };
 
-export function getTheme(): Theme {
+function getTheme(): Theme {
   try {
     const v = localStorage.getItem(KEY);
     return v === "light" || v === "dark" ? v : "auto";

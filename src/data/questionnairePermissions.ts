@@ -7,9 +7,9 @@ import type { Db } from "./db";
 import { getDb } from "./db";
 import { getSetting, setSetting } from "./repo";
 
-export const PERMISSIONS_KEY = "questionnaire_permissions";
+const PERMISSIONS_KEY = "questionnaire_permissions";
 
-export async function getGranted(db: Db): Promise<string[]> {
+async function getGranted(db: Db): Promise<string[]> {
   const v = await getSetting<unknown>(db, PERMISSIONS_KEY);
   return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
 }

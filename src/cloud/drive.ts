@@ -7,7 +7,7 @@ import type { Account } from "./account";
 const FILES = "https://www.googleapis.com/drive/v3/files";
 const UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
 const USERINFO = "https://www.googleapis.com/oauth2/v3/userinfo";
-export const FILE_NAME = "cenit-fisiolab.sqlite3";
+const FILE_NAME = "cenit-fisiolab.sqlite3";
 /** Hasta aquí, subida en una sola petición; por encima, subida reanudable (Drive no acepta más de 5 MB de golpe). */
 const SIMPLE_LIMIT = 4.5 * 1024 * 1024;
 

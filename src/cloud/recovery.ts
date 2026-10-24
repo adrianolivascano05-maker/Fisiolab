@@ -8,7 +8,7 @@ import type { Cloud } from "./CloudGate";
 import { decrypt, deriveKeyBytes, ENCRYPTION_KEY, isEncrypted, newRecoveryCode, openWithCode, saltOf, sealForRecovery, storeKey, WrongPassword, type EncryptionSetting } from "./crypt";
 
 /** Ajuste sincronizado: el código de la contraseña de sal `salt` está guardado (quién lo confirmó y cuándo). */
-export const RECOVERY_SAVED = "recovery_saved";
+const RECOVERY_SAVED = "recovery_saved";
 type Saved = { salt: string; at: string; by: string };
 
 const token = () => {

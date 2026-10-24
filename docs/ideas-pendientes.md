@@ -28,9 +28,18 @@ chat (fallos P1–P7, mejoras V1–V12). Orden:
    (`docs/pasos-pendientes.md`, paso 3).
    - Pendiente (no hecho, para más adelante si crecen las copias): la subida con `?v=2&seq=N` no es atómica con
      la de `delta_base` (V1) y bajar una copia de 50 MB podría pasar de la memoria del Worker (V2).
-4. **Q4 · Limpieza general:** código, exportaciones y dependencias sin usar; repeticiones; partir los archivos de
-   pantallas gigantes sin cambiar lo que hacen; revisar las pruebas e2e (menos tiempo y menos falsas alarmas);
-   dejar tres documentos vivos.
+4. **Q4 · Limpieza general.** Hecho el 24-10-2026, sin cambiar lo que hace la app:
+   - Fuera 5 piezas que nadie usaba (una tarjeta de mediciones, una lista de etiquetas, dos funciones de datos y
+     un texto de error de la reserva) y `export` quitado a 75 nombres que solo se usan en su archivo (comprobado
+     con `knip` y con el compilador).
+   - Repeticiones a una sola: guardar un archivo (`src/app/download.ts`, antes 11 copias), la fecha «dd/mm/aaaa»,
+     el primer día del mes, «1 cobro / 3 cobros» y el nombre de pila (`src/app/format.ts`, `schedule/reminders.ts`).
+   - `ClinicalPages.tsx` (1 395 líneas) partido en `AnamnesisPage.tsx`, `AssessmentSections.tsx`,
+     `SessionPages.tsx` y `QuestionnaireFormPage.tsx`; cada pantalla carga solo lo suyo.
+   - Avisos del linter de «relleno inútil» arreglados. Quedan los de React (estado puesto dentro de un efecto,
+     `Date` al pintar): cambiarlos puede cambiar cuándo se pinta algo; se dejan para hacerlos uno a uno con pruebas.
+   - Documentos: `docs/README.md` con lo que es cada uno; los planes cumplidos, a `docs/archivo/`.
+   - Pendiente: revisar las pruebas e2e para que tarden menos (hoy unos 25 minutos por modo).
 
 ## Propuestos por el usuario (23-10-2026)
 

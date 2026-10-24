@@ -117,10 +117,6 @@ export async function listPlans(db: Db, patientId: string): Promise<Plan[]> {
   return (await db.query<PlanRow>("select * from exercise_plans where patient_id = ? order by created_at desc", [patientId])).map(toPlan);
 }
 
-export async function getPlan(db: Db, id: string): Promise<Plan | null> {
-  const [r] = await db.query<PlanRow>("select * from exercise_plans where id = ?", [id]);
-  return r ? toPlan(r) : null;
-}
 
 const clean = (p: PlanInput) => {
   const items = p.items
@@ -165,7 +161,7 @@ export function planText(p: PlanInput, patientName: string, clinic: string): str
 
 /** Una hoja con nombre para darla a otros pacientes («Lumbalgia, fase 1»). Ajuste de la clínica (se sincroniza). */
 export type PlanTemplate = PlanInput & { id: string; title: string };
-export const PLAN_TEMPLATES_KEY = "exercise_templates";
+const PLAN_TEMPLATES_KEY = "exercise_templates";
 
 export async function listTemplates(db: Db): Promise<PlanTemplate[]> {
   return ((await getSetting<PlanTemplate[]>(db, PLAN_TEMPLATES_KEY)) ?? []).sort((a, b) => a.title.localeCompare(b.title, "es"));

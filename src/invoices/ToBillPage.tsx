@@ -21,24 +21,15 @@ import { SelectField, TextField } from "../ui/Field";
 import { Group, RowLink } from "../ui/Grouped";
 import { useToast } from "../ui/Toast";
 import { InvoiceRefSheet, type RefTarget } from "./InvoiceRefSheet";
+import { saveFile } from "../app/download";
+import { dayDmy, monthStart } from "../app/format";
 
-/** El día 1 del mes de `d` (AAAA-MM-DD), `back` meses antes. */
-const monthStart = (d: string, back = 0) => {
-  const [y, m] = d.split("-").map(Number) as [number, number];
-  return new Date(Date.UTC(y, m - 1 - back, 1)).toISOString().slice(0, 10);
-};
 const monthYear = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-const day = (d: string) => d.split("-").reverse().join("/");
 
 async function downloadXlsx(rows: ToBill[], defaults: BillingDefaults, month: string) {
   const { writeXlsx } = await import("../export/files");
   const bytes = await writeXlsx([toBillSheet(rows, defaults)]);
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Cobros ${month.slice(0, 7)}.xlsx`;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  saveFile(`Cobros ${month.slice(0, 7)}.xlsx`, bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 }
 
 function DefaultsCard({ defaults }: { defaults: BillingDefaults }) {
@@ -155,7 +146,7 @@ export function ToBillPage() {
                     {r.name}
                   </Link>
                   <span className="block text-sm text-text-muted">
-                    {day(r.paidOn)} · {conceptOf(r)} · {methodLabel(r.method)}
+                    {dayDmy(r.paidOn)} · {conceptOf(r)} · {methodLabel(r.method)}
                   </span>
                   {!r.dni && <span className="block text-sm text-warning">Sin DNI en su ficha</span>}
                 </span>
@@ -169,7 +160,7 @@ export function ToBillPage() {
                 <button
                   type="button"
                   className="tap inline-flex items-center gap-1.5 self-start text-sm font-semibold text-accent"
-                  aria-label={r.invoice ? `Factura ${r.invoice} del cobro de ${r.name}: cambiar` : `Apuntar nº de factura del cobro de ${r.name} del ${day(r.paidOn)}`}
+                  aria-label={r.invoice ? `Factura ${r.invoice} del cobro de ${r.name}: cambiar` : `Apuntar nº de factura del cobro de ${r.name} del ${dayDmy(r.paidOn)}`}
                   onClick={() => setTarget({ id: r.id, amountCents: r.amountCents, paidOn: r.paidOn, invoiceRef: r.invoiceRef, name: r.name })}
                 >
                   <FileText aria-hidden="true" className="size-4" /> {r.invoice ? `Factura ${r.invoice}` : "Apuntar nº de factura"}

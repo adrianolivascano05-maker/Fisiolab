@@ -88,7 +88,7 @@ describe("leer el archivo", () => {
   it("CSV con comas o tabuladores; y uno de Windows (no UTF-8) con tildes", async () => {
     expect(parseCsv("a,b,c\n1,2,3")).toEqual([["a", "b", "c"], ["1", "2", "3"]]);
     expect(parseCsv("a\tb\n1\t2")).toEqual([["a", "b"], ["1", "2"]]);
-    const latin1 = Uint8Array.from([...("Nombre;Dirección\nMaría;Calle Ñandú").split("").map((c) => c.charCodeAt(0))]);
+    const latin1 = Uint8Array.from("Nombre;Dirección\nMaría;Calle Ñandú".split("").map((c) => c.charCodeAt(0)));
     expect(await readTable(latin1, "x.csv")).toEqual([["Nombre", "Dirección"], ["María", "Calle Ñandú"]]);
   });
 

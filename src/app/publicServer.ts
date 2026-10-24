@@ -16,6 +16,3 @@ export async function errorText(res: Response): Promise<string> {
   }
 }
 
-/** El texto de un fallo de red o del servidor, para el paciente. */
-export const failText = (e: unknown, offline = "No hay conexión. Prueba otra vez en un momento.") =>
-  e instanceof Error && e.message !== "Failed to fetch" && e.message !== "Load failed" ? e.message : offline;

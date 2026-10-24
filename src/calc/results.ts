@@ -41,7 +41,7 @@ export type JumpOutput = { results: ComputedResult[]; warnings: string[]; missin
 /** Tipos que se miden con vídeo y una sola fase de vuelo. */
 const singleJump: JumpType[] = ["cmj", "cmj_arms", "sj", "dj", "single_leg"];
 
-export function isSeries(type: JumpType) {
+function isSeries(type: JumpType) {
   return type === "rj_10_5";
 }
 

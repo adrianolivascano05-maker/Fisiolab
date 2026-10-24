@@ -272,7 +272,7 @@ export function TeamPage() {
 }
 
 /** Lo que declara quien borra la clínica (queda guardado en el servidor con su correo y la fecha). */
-export const DELETE_DECLARATION =
+const DELETE_DECLARATION =
   "Declaro que la clínica conserva una copia de seguridad de sus historias clínicas y se responsabiliza de custodiarlas durante el plazo que marca la ley. Entiendo que la clínica, su equipo y su copia se borrarán del servidor y que solo podrán recuperarse durante los 30 días siguientes.";
 
 /**

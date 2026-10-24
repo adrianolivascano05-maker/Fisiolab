@@ -328,7 +328,7 @@ const distal: Record<string, string[]> = {
 const jointSeg: Record<string, string> = { elbow: "forearm", wrist: "hand", knee: "shank", ankle: "foot", handtip: "hand", foottip: "foot" };
 
 /** Coordenadas de un anclaje en la pose. */
-export function anchorPoint(p: Pose, anchor: Anchor): V | null {
+function anchorPoint(p: Pose, anchor: Anchor): V | null {
   const [name, t] = anchor.split("@");
   if (!name) return null;
   if (t !== undefined) {

@@ -25,7 +25,7 @@ export const baseJoints: { id: string; label: string; index: number }[] = [
 ];
 
 /** Puntos derivados: el modelo no tiene C7 ni sacro; se aproximan con los puntos medios. */
-export const derivedJoints: { id: string; label: string; from: [number, number] }[] = [
+const derivedJoints: { id: string; label: string; from: [number, number] }[] = [
   { id: "mid_ear", label: "Centro de la cabeza (orejas)", from: [7, 8] },
   { id: "mid_shoulder", label: "Base del cuello (≈ C7)", from: [11, 12] },
   { id: "mid_hip", label: "Centro de la pelvis (≈ sacro)", from: [23, 24] },

@@ -13,7 +13,7 @@ import { useToast } from "../ui/Toast";
 export type SensorCheck = { at: string; flat: number; turned: number; vertical: number; spread: number; ok: boolean };
 
 /** Tolerancia de cada comprobación, en grados (lo habitual que se exige a un inclinómetro clínico). */
-export const SENSOR_TOL = 1;
+const SENSOR_TOL = 1;
 
 type Step = "flat" | "turned" | "vertical" | "repeat";
 

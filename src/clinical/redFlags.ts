@@ -78,7 +78,7 @@ export type Pattern = {
 
 const FINUCANE = { cite: "Finucane et al., JOSPT 2020", doi: "10.2519/jospt.2020.9971" };
 
-export const PATTERNS: Pattern[] = [
+const PATTERNS: Pattern[] = [
   {
     id: "cauda_equina",
     name: "Posible síndrome de cola de caballo",
@@ -269,7 +269,7 @@ export function findFlags(a: Answers, labelOf: (fieldId: string) => string = (id
 export type Context = { regions: string[]; age: number | null; osteoporosis: boolean };
 
 /** Los cuadros que forman las banderas rojas encontradas: primero los urgentes. */
-export function findPatterns(hits: FlagHit[], ctx: Context): PatternHit[] {
+function findPatterns(hits: FlagHit[], ctx: Context): PatternHit[] {
   const has = new Set(hits.map((h) => h.flag.id));
   const neck = ctx.regions.some((r) => r === "cervical" || r === "atm");
   const back = ctx.regions.some((r) => r === "lumbar" || r === "sacroiliaca" || r === "dorsal");

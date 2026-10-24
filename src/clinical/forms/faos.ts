@@ -8,7 +8,7 @@ import type { QuestionForm, Section } from "./types";
  * concuerda con él en masculino («el pie/tobillo… al moverlo», «lesionado», «del»). Solo la palabra suelta: «Arrodillarse»
  * se queda como está.
  */
-export function toFootAnkle(text: string): string {
+function toFootAnkle(text: string): string {
   return text
     .replace(/\bla rodilla al moverla\b/g, "el pie/tobillo al moverlo")
     .replace(/\bla rodilla lesionada\b/g, "el pie/tobillo lesionado")

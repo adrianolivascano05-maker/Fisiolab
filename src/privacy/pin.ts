@@ -26,7 +26,7 @@ export const LOCK_AFTER: { ms: number; label: string }[] = [
   { ms: 30 * 60_000, label: "Al cabo de 30 minutos" },
   { ms: 60 * 60_000, label: "Al cabo de 1 hora" },
 ];
-export const DEFAULT_LOCK_AFTER = 15 * 60_000;
+const DEFAULT_LOCK_AFTER = 15 * 60_000;
 /** Antes era 1 hora por defecto: los que la tenían pasan una vez a 15 minutos (se puede volver a elegir 1 hora). */
 const OLD_DEFAULT = 60 * 60_000;
 /** Fallos seguidos tras los que, con cuenta, hay que volver a entrar con Google. */

@@ -150,7 +150,7 @@ type Ctx = {
   now?: Date;
 };
 
-export const recordKey = (patientId: string, startsAt: string) => `${patientId}|${new Date(startsAt).toISOString()}`;
+const recordKey = (patientId: string, startsAt: string) => `${patientId}|${new Date(startsAt).toISOString()}`;
 const norm = (t: string) => fold(t).replace(/\s+/g, " ").trim();
 
 export function planRecords(kind: RecordKind, table: string[][], fields: RecordField[], ctx: Ctx): RecordPlan {

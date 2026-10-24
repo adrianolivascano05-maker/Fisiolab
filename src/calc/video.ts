@@ -1,7 +1,7 @@
 // Conversión de fotogramas a tiempo real. El cálculo usa los fps de GRABACIÓN, no los del archivo:
 // un vídeo a cámara lenta exportado a 30 fps sigue teniendo cada fotograma separado 1/240 s en la realidad.
 
-export function framesToSeconds(frames: number, captureFps: number): number {
+function framesToSeconds(frames: number, captureFps: number): number {
   if (!(captureFps > 0)) throw new RangeError("Los fps deben ser mayores que cero");
   return frames / captureFps;
 }

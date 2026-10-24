@@ -22,9 +22,9 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { DEFAULT_TEMPLATE, hourText, mailtoUrl, REMINDER_TEMPLATE_KEY, reminderText, TEMPLATE_WORDS, waPhone, whatsappUrl } from "./reminders";
 import { staffName, useStaff } from "./useStaff";
+import { plural } from "../app/format";
 
 const fmtDay = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 export function RemindersPage() {
   const toast = useToast();

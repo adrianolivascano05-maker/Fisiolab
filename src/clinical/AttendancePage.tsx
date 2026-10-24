@@ -20,6 +20,7 @@ import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { localInput } from "./pageKit";
 import { Letterhead, SignatureLine } from "./reportParts";
+import { saveFile } from "../app/download";
 
 const hour = (d: Date) => d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 const longDay = (d: Date) => d.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
@@ -118,12 +119,7 @@ export function AttendancePage() {
               setBusy(true);
               try {
                 const bytes = await pdf();
-                const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = fileName;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 2000);
+                saveFile(fileName, bytes, "application/pdf");
               } catch (e) {
                 toast(e instanceof Error ? e.message : String(e), "danger");
               } finally {

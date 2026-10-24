@@ -21,7 +21,7 @@ const LockContext = createContext<LockApi>({ lockNow: () => {}, required: false,
 export const useAppLock = () => useContext(LockContext);
 
 /** En una clínica (servidor de Cloudflare y clínica elegida) el PIN es obligatorio. */
-export function pinRequired(): boolean {
+function pinRequired(): boolean {
   const account = getAccount();
   return !!account && !!cachedCloudConfig()?.cloudflareUrl && !!chosenClinic(account);
 }

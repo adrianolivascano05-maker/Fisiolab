@@ -53,15 +53,7 @@ import { Card } from "../ui/Card";
 import { Group, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-
-function download(name: string, data: BlobPart, type: string) {
-  const url = URL.createObjectURL(new Blob([data], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+import { saveFile } from "../app/download";
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 
@@ -279,7 +271,7 @@ export function DataSettingsPage() {
             onClick={() =>
               run("backup", async () => {
                 const db = getDb();
-                download(`fisiolab-copia-${stamp()}.sqlite3`, (await db.exportBytes()) as BlobPart, "application/vnd.sqlite3");
+                saveFile(`fisiolab-copia-${stamp()}.sqlite3`, await db.exportBytes(), "application/vnd.sqlite3");
                 await setSetting(db, "last_backup_at", new Date().toISOString());
                 toast("Copia descargada. Guárdala fuera del móvil (correo, nube de la clínica…).", "success");
               })
@@ -313,7 +305,7 @@ export function DataSettingsPage() {
             loading={busy === "csv"}
             onClick={() =>
               run("csv", async () => {
-                download(`fisiolab-resultados-${stamp()}.csv`, await exportCsv(getDb()), "text/csv;charset=utf-8");
+                saveFile(`fisiolab-resultados-${stamp()}.csv`, await exportCsv(getDb()), "text/csv;charset=utf-8");
               })
             }
           >

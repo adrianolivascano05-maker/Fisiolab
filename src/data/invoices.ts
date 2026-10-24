@@ -7,6 +7,7 @@
 // cambia una factura en la base, la cadena deja de cuadrar y la lista lo avisa. No es Verifactu.
 // Las cantidades van en céntimos.
 import type { Db } from "./db";
+import { dayDmy } from "../app/format";
 
 export type InvoiceKind = "completa" | "simplificada" | "rectificativa";
 export const KIND_LABELS: Record<InvoiceKind, string> = { completa: "Factura", simplificada: "Factura simplificada", rectificativa: "Factura rectificativa" };
@@ -193,7 +194,6 @@ export async function checkInvoices(invoices: Invoice[]): Promise<ChainProblem[]
 
 const eurosCell = (c: number) => (c / 100).toFixed(2).replace(".", ",");
 const cell = (s: string) => (/[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-const ddmmyyyy = (d: string | null) => (d ? d.split("-").reverse().join("/") : "");
 
 /** El libro de facturas emitidas en CSV para Excel (punto y coma, coma decimal y BOM), para la gestoría. */
 export function invoicesCsv(invoices: Invoice[]): string {
@@ -220,8 +220,8 @@ export function invoicesCsv(invoices: Invoice[]): string {
     .map((i) => [
       i.code,
       KIND_LABELS[i.kind],
-      ddmmyyyy(i.issuedOn),
-      ddmmyyyy(i.operationOn),
+      dayDmy(i.issuedOn),
+      dayDmy(i.operationOn),
       i.recipient.name,
       i.recipient.taxId,
       eurosCell(i.baseCents),

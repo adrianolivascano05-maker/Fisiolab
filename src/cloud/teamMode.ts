@@ -10,7 +10,7 @@ import { getSetting, setSetting } from "../data/repo";
 import { useCloud } from "./CloudGate";
 
 export type ClinicMode = "solo" | "team";
-export const CLINIC_MODE_KEY = "clinic_mode";
+const CLINIC_MODE_KEY = "clinic_mode";
 const PENDING_KEY = "fisiolab.newClinicMode";
 
 /** Al dar de alta una clínica: lo que se eligió, para guardarlo en su base cuando se abra (aún no existe). */

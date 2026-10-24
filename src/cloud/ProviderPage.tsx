@@ -20,6 +20,7 @@ import { useToast } from "../ui/Toast";
 import { getToken } from "./auth";
 import type { OperatorClinic } from "./clinic";
 import { useCloud } from "./CloudGate";
+import { saveFile } from "../app/download";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const mb = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`);
@@ -287,12 +288,7 @@ export function ProviderPage() {
                 el.style.maxHeight = "none";
                 try {
                   const bytes = await reportPdf(el);
-                  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "Cenit-contrato-encargado-BORRADOR.pdf";
-                  a.click();
-                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  saveFile("Cenit-contrato-encargado-BORRADOR.pdf", bytes, "application/pdf");
                 } catch (e) {
                   toast(errText(e), "danger");
                 } finally {

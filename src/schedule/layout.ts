@@ -5,7 +5,7 @@ import { localInput } from "../clinical/pageKit";
 /** Altura de una hora en la rejilla, en píxeles. */
 export const HOUR_PX = 56;
 /** Al arrastrar, las citas encajan cada 15 minutos. */
-export const SNAP_MIN = 15;
+const SNAP_MIN = 15;
 
 /** AAAA-MM-DD del instante, en la hora del dispositivo. */
 export const dayOf = (iso: string) => localInput(iso).slice(0, 10);

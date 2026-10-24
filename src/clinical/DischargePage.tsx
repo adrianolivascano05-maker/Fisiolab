@@ -121,7 +121,7 @@ export function DischargePage() {
   async function saveAdvice() {
     setSaving(true);
     try {
-      await saveAnamnesis(getDb(), id, { ...(anamnesis?.answers ?? {}), alta_recomendaciones: advice.trim() });
+      await saveAnamnesis(getDb(), id, { ...anamnesis?.answers, alta_recomendaciones: advice.trim() });
       toast("Recomendaciones guardadas", "success");
       data.reload();
     } catch (e) {

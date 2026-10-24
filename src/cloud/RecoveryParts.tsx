@@ -12,17 +12,9 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useCloud } from "./CloudGate";
 import { checkPassword, confirmRecoverySaved, createRecovery, recoverWithCode, recoveryPending, WrongPassword } from "./recovery";
+import { saveFile } from "../app/download";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
-
-function download(name: string, bytes: Uint8Array) {
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 /** El kit de recuperación recién creado: el código, para guardarlo en PDF o imprimirlo, y confirmar que está guardado. */
 export function RecoveryKit({ code, salt, onClose }: { code: string; salt: string; onClose: () => void }) {
@@ -57,7 +49,7 @@ export function RecoveryKit({ code, salt, onClose }: { code: string; salt: strin
           if (!kit.current) return;
           setBusy(true);
           try {
-            download(`Cenit-kit-recuperacion-${clinic.replace(/[^\p{L}\p{N}]+/gu, "-")}.pdf`, await reportPdf(kit.current));
+            saveFile(`Cenit-kit-recuperacion-${clinic.replace(/[^\p{L}\p{N}]+/gu, "-")}.pdf`, await reportPdf(kit.current), "application/pdf");
           } catch (e) {
             toast(errText(e), "danger");
           } finally {

@@ -7,7 +7,7 @@ import { cx } from "./cx";
 import { Logo, LogoMark } from "./Logo";
 
 /** Nombre de la pantalla a la que lleva «volver», para escribirlo junto a la flecha (como en el iPhone). */
-export function parentLabel(backTo: string | undefined): string {
+function parentLabel(backTo: string | undefined): string {
   if (!backTo) return "";
   const path = backTo.split(/[?#]/)[0]!;
   if (path === "/") return "Pacientes";

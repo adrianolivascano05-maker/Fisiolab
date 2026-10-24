@@ -31,6 +31,7 @@ import { Card, MetricCard } from "../ui/Card";
 import { NumberField, SelectField, TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import type { SensorCheck } from "./SensorCheckPage";
+import { saveFile } from "../app/download";
 
 /** Nombres de los dos valores de cada par según lo que se compara. */
 export const sides: Record<Comparison, { a: string; b: string }> = {
@@ -38,15 +39,6 @@ export const sides: Record<Comparison, { a: string; b: string }> = {
   remark: { a: "2.ª marcación", b: "1.ª marcación" },
   ai: { a: "IA", b: "Tus marcas" },
 };
-
-function download(name: string, text: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 /** Validación: cuánto se parece Cénit a otra herramienta y cuánto se repite al volver a marcar. */
 export function ValidationPage() {
@@ -156,7 +148,7 @@ function KindPanel({
             <h2 id="h-pares" className="text-lg">
               Pares ({pairs.length})
             </h2>
-            <Button size="sm" variant="secondary" icon={<Download aria-hidden="true" className="size-4" />} onClick={() => download(`validacion-${kind.id}-${comparison}-${new Date().toISOString().slice(0, 10)}.csv`, pairsCsv(pairs, kind.unit))}>
+            <Button size="sm" variant="secondary" icon={<Download aria-hidden="true" className="size-4" />} onClick={() => saveFile(`validacion-${kind.id}-${comparison}-${new Date().toISOString().slice(0, 10)}.csv`, pairsCsv(pairs, kind.unit), "text/csv;charset=utf-8")}>
               CSV
             </Button>
           </div>

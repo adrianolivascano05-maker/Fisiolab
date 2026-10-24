@@ -86,7 +86,7 @@ export function IconButton({ label, tone = "default", size = "md", className, ch
   );
 }
 
-export function Spinner() {
+function Spinner() {
   return (
     <span
       aria-hidden="true"

@@ -43,6 +43,7 @@ import { useToast } from "../ui/Toast";
 import { BODY_REGIONS, clinicalSummary, regionLabel } from "./anamnesis";
 import { TextArea } from "./parts";
 import { Letterhead } from "./reportParts";
+import { saveFile } from "../app/download";
 
 const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
 const fold = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -165,12 +166,7 @@ export function ExercisesPage() {
             icon={<Download aria-hidden="true" className="size-5" />}
             onClick={async () => {
               const bytes = await pdf();
-              const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = fileName;
-              a.click();
-              setTimeout(() => URL.revokeObjectURL(url), 2000);
+              saveFile(fileName, bytes, "application/pdf");
             }}
           >
             Guardar en PDF

@@ -18,7 +18,7 @@ export type YellowFlag = {
   ask: string;
 };
 
-export const YELLOW_FLAGS: YellowFlag[] = [
+const YELLOW_FLAGS: YellowFlag[] = [
   {
     id: "miedo",
     label: "Miedo al movimiento o a hacerse daño",

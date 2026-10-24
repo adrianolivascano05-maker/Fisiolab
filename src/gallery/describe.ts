@@ -140,7 +140,7 @@ export function mirrorText(s: string): string {
 
 /** Lo que afirma una etiqueta escrita a mano: qué grado de libertad y en qué sentido (convenio). */
 export type Claim = { dof: Dof; sign: number; axial?: boolean; what: string };
-export function labelClaims(label: string): Claim[] {
+function labelClaims(label: string): Claim[] {
   const out: Claim[] = [];
   const has = (re: RegExp) => re.test(label);
   if (has(/\bRI\b|rotaci[oó]n interna/i)) out.push({ dof: "rot", sign: 1, what: "rotación interna" });

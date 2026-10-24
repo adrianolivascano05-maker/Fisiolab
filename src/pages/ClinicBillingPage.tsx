@@ -4,7 +4,7 @@
 import { Download, Pencil, Plus, Trash, Wallet } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { bumpData, useDataVersion } from "../app/dataVersion";
-import { fmtDate } from "../app/format";
+import { fmtDate, monthStart } from "../app/format";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { centsText } from "../clinical/billingForms";
@@ -30,11 +30,6 @@ import { NumberField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 
-/** El día 1 del mes de `d` (AAAA-MM-DD), `back` meses antes (negativo: después). */
-const monthStart = (d: string, back = 0) => {
-  const [y, m] = d.split("-").map(Number) as [number, number];
-  return new Date(Date.UTC(y, m - 1 - back, 1)).toISOString().slice(0, 10);
-};
 const monthName = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("es-ES", { month: "long" });
 
 export function ClinicBillingPage() {

@@ -7,13 +7,13 @@ export type Staff = { email: string; name: string; color: number };
 export type Shift = { id: string; staffEmail: string; startsAt: string; endsAt: string; note: string };
 
 /** Colores del equipo en el horario: distintos entre sí y legibles en claro y en oscuro (solo marcas, nunca texto). */
-export const STAFF_COLORS = ["#2563eb", "#d97706", "#059669", "#db2777", "#7c3aed", "#0891b2", "#65a30d", "#dc2626"];
+const STAFF_COLORS = ["#2563eb", "#d97706", "#059669", "#db2777", "#7c3aed", "#0891b2", "#65a30d", "#dc2626"];
 export const staffColor = (s: Pick<Staff, "color"> | undefined) => STAFF_COLORS[(s?.color ?? 0) % STAFF_COLORS.length]!;
 
 const now = () => new Date().toISOString();
 const clean = (email: string) => email.trim().toLowerCase();
 /** El nombre que se pone a alguien de quien solo se sabe el correo: lo de antes de la arroba. */
-export const nameFromEmail = (email: string) => clean(email).split("@")[0]!;
+const nameFromEmail = (email: string) => clean(email).split("@")[0]!;
 
 export async function listStaff(db: Db): Promise<Staff[]> {
   return db.query<Staff>("select email, name, color from staff order by name collate nocase, email");
@@ -35,7 +35,7 @@ export async function ensureStaff(db: Db, email: string, name: string, own = fal
   await db.transaction([{ sql: "insert into staff (email, name, color, updated_at) values (?, ?, ?, ?)", bind: [e, wanted, n % STAFF_COLORS.length, now()] }]);
 }
 
-export async function renameStaff(db: Db, email: string, name: string): Promise<void> {
+async function renameStaff(db: Db, email: string, name: string): Promise<void> {
   if (!name.trim()) throw new RangeError("Escribe el nombre.");
   await db.transaction([{ sql: "update staff set name = ?, updated_at = ? where email = ?", bind: [name.trim(), now(), clean(email)] }]);
 }
@@ -68,7 +68,7 @@ export async function shiftsBetween(db: Db, from: string, to: string): Promise<S
 
 export type ShiftInput = { staffEmail: string; startsAt: string; endsAt: string; note: string };
 
-export function checkShift(s: ShiftInput) {
+function checkShift(s: ShiftInput) {
   if (!s.staffEmail.trim()) throw new RangeError("Elige de quién es el turno.");
   const start = Date.parse(s.startsAt);
   const end = Date.parse(s.endsAt);

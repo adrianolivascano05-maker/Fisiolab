@@ -75,7 +75,7 @@ export function handAt(arm: Pick<ArmPlan, "spin" | "wrap" | "spin1" | "wrap1">, 
 }
 
 /** Hacia dónde apunta el codo en el momento m (curva suave por los valores del plan). */
-export function poleAt(arm: Pick<ArmPlan, "pole">, m: number): number {
+function poleAt(arm: Pick<ArmPlan, "pole">, m: number): number {
   const P = arm.pole;
   const n = P.length;
   if (n === 1) return P[0]!;

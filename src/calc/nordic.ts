@@ -13,7 +13,7 @@ import type { PhotoSpec } from "./rom";
 import { G } from "./jump";
 
 export const ABOVE_KNEE_MASS = 1 - 2 * (0.0465 + 0.0145);
-export const KNEE_TO_COM_HEIGHT = 0.322;
+const KNEE_TO_COM_HEIGHT = 0.322;
 
 /** Marcado sobre el fotograma de la rotura: de la rodilla a la cadera, respecto a la vertical. */
 export const nordicPhoto: PhotoSpec = {

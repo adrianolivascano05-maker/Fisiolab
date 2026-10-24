@@ -13,15 +13,8 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { SelectField } from "../ui/Field";
-
-function download(text: string, name: string) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
+import { saveFile } from "../app/download";
+import { dayDmy } from "../app/format";
 
 export function IssuedInvoicesPage() {
   const thisYear = Number(new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }).slice(0, 4));
@@ -66,7 +59,7 @@ export function IssuedInvoicesPage() {
           variant="secondary"
           icon={<Download aria-hidden="true" className="size-5" />}
           disabled={!shown.length}
-          onClick={() => download(invoicesCsv(shown), `Facturas ${year}.csv`)}
+          onClick={() => saveFile(`Facturas ${year}.csv`, invoicesCsv(shown), "text/csv;charset=utf-8")}
         >
           Descargar el libro de {year} (Excel)
         </Button>
@@ -108,7 +101,7 @@ export function IssuedInvoicesPage() {
                         {i.kind !== "completa" && <span className="font-normal text-text-muted"> · {KIND_LABELS[i.kind].replace("Factura ", "")}</span>}
                       </span>
                       <span className="block truncate text-sm text-text-muted">
-                        {i.issuedOn.split("-").reverse().join("/")} · {i.recipient.name || "Sin destinatario"}
+                        {dayDmy(i.issuedOn)} · {i.recipient.name || "Sin destinatario"}
                       </span>
                     </span>
                     <span className="font-semibold tabular-nums">{euros(i.totalCents)}</span>

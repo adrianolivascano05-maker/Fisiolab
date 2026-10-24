@@ -9,10 +9,9 @@ import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { dayDmy } from "../app/format";
 
 export type RefTarget = { id: string; amountCents: number; paidOn: string; invoiceRef: string; name?: string };
-
-const day = (d: string) => d.split("-").reverse().join("/");
 
 export function InvoiceRefSheet({ target, onClose }: { target: RefTarget | null; onClose: () => void }) {
   return (
@@ -53,7 +52,7 @@ function RefForm({ target, onDone }: { target: RefTarget; onDone: () => void }) 
       }}
     >
       <p className="text-text-muted">
-        Cobro de {euros(target.amountCents)} del {day(target.paidOn)}
+        Cobro de {euros(target.amountCents)} del {dayDmy(target.paidOn)}
         {target.name ? ` · ${target.name}` : ""}. Escribe el número que le dio tu programa de facturación.
       </p>
       <TextField label="Número de la factura" maxLength={60} value={ref} onChange={(e) => setRef(e.target.value)} />

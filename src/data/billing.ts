@@ -41,7 +41,7 @@ export function parseEuros(text: string): number | null {
 
 // ---------- Precios ----------
 
-export const PRICING_KEY = "billing_pricing";
+const PRICING_KEY = "billing_pricing";
 /** Un precio de la sesión suelta desde un día (AAAA-MM-DD); null: desde ese día las sueltas no cuentan. */
 export type PricePeriod = { since: string; cents: number | null };
 /**
@@ -60,7 +60,7 @@ export function pricingOf(stored: StoredPricing | null): Pricing {
 }
 
 /** Lo que vale una sesión suelta de ese día (null: no cuenta para cobrar). */
-export function priceOn(p: Pricing, day: string): number | null {
+function priceOn(p: Pricing, day: string): number | null {
   let price: number | null = null;
   for (const x of p.periods) if (x.since <= day) price = x.cents;
   return price;
@@ -86,7 +86,7 @@ export async function setSessionPrice(db: Db, cents: number | null, day: string)
 
 /** Los bonos que vende la clínica, para venderlos con un toque. `months`: caducan a los N meses de la compra. */
 export type PackPreset = { id: string; title: string; sessions: number; priceCents: number | null; months: number | null };
-export const PACK_PRESETS_KEY = "billing_pack_presets";
+const PACK_PRESETS_KEY = "billing_pack_presets";
 
 export async function getPackPresets(db: Db): Promise<PackPreset[]> {
   return (await getSetting<PackPreset[]>(db, PACK_PRESETS_KEY)) ?? [];
@@ -270,11 +270,11 @@ export function allocate(packs: Pack[], sessions: { id: string; performedAt: str
   return { packs: states, bySession, loose: { count: loose, cents: looseCents } };
 }
 
-export async function listPacks(db: Db, patientId: string): Promise<Pack[]> {
+async function listPacks(db: Db, patientId: string): Promise<Pack[]> {
   return (await db.query<PackRow>("select * from packs where patient_id = ? order by bought_on, id", [patientId])).map(toPack);
 }
 
-export async function listPayments(db: Db, patientId: string): Promise<Payment[]> {
+async function listPayments(db: Db, patientId: string): Promise<Payment[]> {
   return (await db.query<PaymentRow>("select * from payments where patient_id = ? order by paid_on desc, created_at desc", [patientId])).map(toPayment);
 }
 

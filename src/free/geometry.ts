@@ -72,7 +72,7 @@ export type MeasureConfig = {
 };
 
 /** Por debajo de esta visibilidad, el fotograma no se mide (punto tapado o fuera de cuadro). */
-export const MIN_VISIBILITY = 0.3;
+const MIN_VISIBILITY = 0.3;
 
 /**
  * Ángulo de un fotograma. En "screen", en la imagen (píxeles, plomada = vertical de la pantalla).

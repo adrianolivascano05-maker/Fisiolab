@@ -156,7 +156,7 @@ export function newRecoveryCode(): string {
 }
 
 /** El código tal como lo escriba la persona: sin espacios ni guiones, en mayúsculas, O → 0, I/L → 1. */
-export const normalCode = (code: string) =>
+const normalCode = (code: string) =>
   code
     .toUpperCase()
     .replace(/[\s-]/g, "")

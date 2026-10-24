@@ -5,6 +5,7 @@ import { useState } from "react";
 import { getDb } from "../data/db";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
+import { saveFile } from "../app/download";
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 
@@ -32,12 +33,7 @@ export function FullExportButton({
     try {
       const { buildPackage } = await import("./fullExport");
       const { bytes, patients } = await buildPackage(getDb(), { progress: (d, total) => setProgress(`Preparando ${d} de ${total} pacientes…`) });
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/zip" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Cenit-${name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "datos"}-${stamp()}.zip`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      saveFile(`Cenit-${name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "datos"}-${stamp()}.zip`, bytes, "application/zip");
       setDone(true);
       toast(`Descargado: ${patients === 1 ? "1 paciente" : `${patients} pacientes`} con toda su historia. Guárdalo fuera de este dispositivo.`, "success");
       onDone?.();

@@ -13,8 +13,8 @@ export type Shift = { seg: SegName; dir: Direction; cm: number };
 export type Key = { pose: BodyPose; shift: Shift | null };
 
 const DOFS: (keyof Joint3D)[] = ["flex", "abd", "rot", "lat", "pron", "inv"];
-export const STEP_DUR = 1.6;
-export const STEP_HOLD = 0.6;
+const STEP_DUR = 1.6;
+const STEP_HOLD = 0.6;
 const SETUP = 1.6;
 const LOOK = 1.8;
 const BACK = 1.4;

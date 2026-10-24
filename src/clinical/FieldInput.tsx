@@ -1,5 +1,5 @@
 // Un campo de la anamnesis para rellenar: texto, fecha, escala del dolor, opciones o número. Lo usan la ficha
-// (src/clinical/ClinicalPages.tsx) y la página que rellena el paciente desde su móvil (src/patientForm).
+// (src/clinical/AnamnesisPage.tsx) y la página que rellena el paciente desde su móvil (src/patientForm).
 import type { AnswerValue } from "../data/clinical";
 import { NumberField, TextField } from "../ui/Field";
 import { regionLabel, type Field } from "./anamnesis";

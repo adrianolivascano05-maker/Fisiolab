@@ -64,7 +64,7 @@ export function captureGlobalErrors() {
 }
 
 /** Lo que se sabe del dispositivo, para el informe (sin nada del paciente). */
-export function deviceSummary() {
+function deviceSummary() {
   const nav = typeof navigator !== "undefined" ? navigator : undefined;
   const standalone = typeof window !== "undefined" && window.matchMedia?.("(display-mode: standalone)").matches;
   return [

@@ -3,14 +3,14 @@
 import { lazy, Suspense } from "react";
 import { Navigate, useParams } from "react-router";
 
-const pages = () => import("./ClinicalPages");
-const AnamnesisPage = lazy(() => pages().then((m) => ({ default: m.AnamnesisPage })));
+const AnamnesisPage = lazy(() => import("./AnamnesisPage").then((m) => ({ default: m.AnamnesisPage })));
 const exploration = () => import("./ExplorationPages");
 const AssessmentPage = lazy(() => exploration().then((m) => ({ default: m.AssessmentPage })));
 const FindingFormPage = lazy(() => exploration().then((m) => ({ default: m.FindingFormPage })));
-const SessionsPage = lazy(() => pages().then((m) => ({ default: m.SessionsPage })));
-const SessionFormPage = lazy(() => pages().then((m) => ({ default: m.SessionFormPage })));
-const QuestionnaireFormPage = lazy(() => pages().then((m) => ({ default: m.QuestionnaireFormPage })));
+const sessions = () => import("./SessionPages");
+const SessionsPage = lazy(() => sessions().then((m) => ({ default: m.SessionsPage })));
+const SessionFormPage = lazy(() => sessions().then((m) => ({ default: m.SessionFormPage })));
+const QuestionnaireFormPage = lazy(() => import("./QuestionnaireFormPage").then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
 const ReferralPage = lazy(() => import("./ReferralPage").then((m) => ({ default: m.ReferralPage })));
 const AttendancePage = lazy(() => import("./AttendancePage").then((m) => ({ default: m.AttendancePage })));

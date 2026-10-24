@@ -12,7 +12,7 @@ import { madridDay } from "../app/format";
 import { ANAMNESIS_KIND, SENDABLE } from "../clinical/patientForms";
 import type { ReminderItem } from "../data/appointments";
 import type { OutboxMark } from "../data/outbox";
-import { dayText, hourText } from "./reminders";
+import { dayText, firstName, hourText } from "./reminders";
 
 export type OutboxRule = "recordatorio" | "anamnesis" | "seguimiento";
 
@@ -26,7 +26,7 @@ export const RULE_LABELS: Record<OutboxRule, { title: string; when: string }> = 
 export const OUTBOX_SETTINGS_KEY = "outbox_settings";
 export type OutboxSettings = { reminders: boolean; anamnesis: boolean; anamnesisHours: number; followUp: boolean; followUpDays: number };
 export const DEFAULT_OUTBOX: OutboxSettings = { reminders: true, anamnesis: true, anamnesisHours: 48, followUp: true, followUpDays: 2 };
-export const outboxSettings = (s: Partial<OutboxSettings> | null | undefined): OutboxSettings => ({ ...DEFAULT_OUTBOX, ...(s ?? {}) });
+export const outboxSettings = (s: Partial<OutboxSettings> | null | undefined): OutboxSettings => ({ ...DEFAULT_OUTBOX, ...s });
 
 /** Un paciente, con lo que hace falta para escribirle. */
 export type Contact = { patientId: string; name: string; phone: string; email: string; contact: boolean | null };
@@ -132,8 +132,6 @@ export function buildOutbox(input: OutboxInput): OutboxItem[] {
   const when = (i: OutboxItem) => i.appointment?.startsAt ?? `${i.reviewOn}T09:00:00`;
   return out.sort((a, b) => order[a.rule] - order[b.rule] || when(a).localeCompare(when(b)) || a.name.localeCompare(b.name, "es"));
 }
-
-const firstName = (full: string) => full.trim().split(/\s+/)[0] ?? full;
 
 /** El mensaje con el enlace de su anamnesis, antes de la primera cita. */
 export function anamnesisText(p: { name: string; clinic: string; startsAt: string; url: string }): string {

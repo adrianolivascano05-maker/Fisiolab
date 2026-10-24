@@ -130,7 +130,7 @@ const fmtNum = (v: unknown) => {
 
 // ---------- Excel ----------
 
-export function buildSheets(c: Collected): Sheet[] {
+function buildSheets(c: Collected): Sheet[] {
   const T = c.tables;
   const name = new Map(T.patients!.map((p) => [s(p.id), s(p.name)]));
   const staff = new Map(T.staff!.map((p) => [s(p.email), s(p.name)]));
@@ -299,7 +299,7 @@ function page(title: string, body: string): string {
 const table = (header: string[], rows: Cell[][]) =>
   rows.length ? `<table><thead><tr>${header.map((x) => `<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((v) => `<td>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>` : "";
 
-export function patientHtml(c: Collected, p: R, exportedAt = new Date()): string {
+function patientHtml(c: Collected, p: R, exportedAt = new Date()): string {
   const T = c.tables;
   const pid = s(p.id);
   const mine = (t: string) => T[t]!.filter((r) => r.patient_id === pid);

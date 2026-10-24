@@ -12,7 +12,8 @@ export const TEMPLATE_WORDS = ["{nombre}", "{dia}", "{hora}", "{clinica}", "{con
 export type ReminderVars = { name: string; startsAt: string; clinic: string; professional?: string | null };
 
 /** El nombre de pila: «Ana» de «Ana Ruiz López». */
-const firstName = (full: string) => full.trim().split(/\s+/)[0] ?? full;
+/** El nombre de pila: lo primero del nombre completo. */
+export const firstName = (full: string) => full.trim().split(/\s+/)[0] ?? full;
 
 /** «martes 21 de octubre» y «10:30», en la hora de Madrid. */
 export function dayText(iso: string): string {

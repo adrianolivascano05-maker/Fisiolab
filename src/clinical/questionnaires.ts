@@ -169,7 +169,6 @@ export function psfsScore(activities: { name: string; score: number }[]): number
   return valid.reduce((s, a) => s + a.score, 0) / valid.length;
 }
 
-export const GROC_LABELS: Record<number, string> = { [-7]: "Muchísimo peor", 0: "Igual", 7: "Muchísimo mejor" };
 
 /** Texto de una puntuación: «62/100», «4,3/10», «+3». */
 export function scoreText(k: QuestionnaireKind, score: number): string {

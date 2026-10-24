@@ -25,7 +25,3 @@ export async function markOutbox(db: Db, m: { id: string; patientId: string; rul
   ]);
 }
 
-/** Deshacer una marca (vuelve a salir en la bandeja). */
-export async function unmarkOutbox(db: Db, id: string): Promise<void> {
-  await db.transaction([{ sql: "delete from outbox where id = ?", bind: [id] }]);
-}

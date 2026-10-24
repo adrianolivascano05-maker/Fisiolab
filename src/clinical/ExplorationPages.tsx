@@ -3,7 +3,7 @@
 import { ExternalLink, Plus, Search } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
-import { MeasurementsSection, QuestionnairesSection } from "./ClinicalPages";
+import { MeasurementsSection, QuestionnairesSection } from "./AssessmentSections";
 import { formStatus, listSentForms } from "../data/patientForms";
 import { fmt, fmtDate } from "../app/format";
 import { LoadError, Page } from "../app/Page";

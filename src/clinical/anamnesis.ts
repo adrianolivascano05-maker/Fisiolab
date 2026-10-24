@@ -43,7 +43,7 @@ export const BODY_REGIONS: { id: string; label: string }[] = [
 export const regionLabel = (id: string) => BODY_REGIONS.find((r) => r.id === id)?.label ?? id;
 
 /** La lista de banderas rojas del fisioterapeuta (src/clinical/redFlags.ts, con los cuadros que forman). */
-export const RED_FLAGS = RED_FLAG_LABELS;
+const RED_FLAGS = RED_FLAG_LABELS;
 
 export const ANAMNESIS: Section[] = [
   {

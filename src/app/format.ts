@@ -26,6 +26,18 @@ export const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu,
 /** AAAA-MM-DD de un instante en la hora de Madrid. */
 export const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
+/** Un día AAAA-MM-DD como «24/10/2026»; vacío si no hay. */
+export const dayDmy = (day: string | null | undefined) => (day ? day.split("-").reverse().join("/") : "");
+
+/** El día 1 del mes del día `day` (AAAA-MM-DD), `back` meses antes (negativo: después). */
+export const monthStart = (day: string, back = 0) => {
+  const [y, m] = day.split("-").map(Number) as [number, number];
+  return new Date(Date.UTC(y, m - 1 - back, 1)).toISOString().slice(0, 10);
+};
+
+/** «1 cobro», «3 cobros». */
+export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
 export function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Madrid" });
 }

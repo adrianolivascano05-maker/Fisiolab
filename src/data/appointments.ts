@@ -47,7 +47,7 @@ const toAppointment = (r: Row): Appointment => ({
 });
 const now = () => new Date().toISOString();
 
-export function checkAppointment(startsAt: string, minutes: number) {
+function checkAppointment(startsAt: string, minutes: number) {
   if (Number.isNaN(Date.parse(startsAt))) throw new RangeError("Pon el día y la hora de la cita.");
   if (!(Number.isInteger(minutes) && minutes >= 5 && minutes <= 480)) throw new RangeError("Elige cuánto dura la cita.");
 }
