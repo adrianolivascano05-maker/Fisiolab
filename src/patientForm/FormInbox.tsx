@@ -60,7 +60,7 @@ export function FormInbox() {
   useEffect(() => {
     if (!active) return;
     const run = () => {
-      if (document.visibilityState === "visible") void latest.current();
+      if (document.visibilityState === "visible" && !cloud?.closing) void latest.current();
     };
     const first = setTimeout(run, 3000);
     const every = setInterval(run, 60_000);

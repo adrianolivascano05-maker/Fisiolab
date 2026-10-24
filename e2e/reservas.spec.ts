@@ -115,7 +115,8 @@ test.describe("Reserva online", () => {
     // (Si la app de la clínica ya la ha recogido, el servidor la ha borrado.)
     const booking = [...google.bookings.values()][0]!;
     expect(booking.payload === null || booking.payload.startsWith("CB1.")).toBe(true);
-    expect(JSON.stringify([...google.bookings.values()])).not.toMatch(/Marta|611/);
+    // El móvil entero: el código de anular es un número al azar y puede contener «611» por casualidad.
+    expect(JSON.stringify([...google.bookings.values()])).not.toMatch(/Marta|611 ?222 ?333/);
 
     // La clínica la recoge: cita en la agenda y paciente nuevo con lo que escribió.
     await collectNow(page);

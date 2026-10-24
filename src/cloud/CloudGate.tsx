@@ -54,6 +54,11 @@ export type Cloud = {
   clinics: ClinicApi | null;
   /** Quien ha entrado gestiona el servidor: ve Ajustes → Proveedor. */
   operator: boolean;
+  /**
+   * Se está dejando la clínica (borrada, cambio de clínica, cerrar sesión): lo que trabaja en segundo plano (reserva,
+   * formularios, enlaces) no vuelve a llamar al servidor, que ya puede contestar que la clínica no existe.
+   */
+  closing?: boolean;
   /** Ir a la pantalla de elegir clínica (los datos de esta se quedan en el dispositivo). */
   switchClinic: () => Promise<void>;
   /** La clínica ha cambiado de nombre, o quien ha entrado de papel: se recuerda y se vuelve a pintar la pantalla. */
@@ -157,6 +162,7 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void, 
     operator: !!config.cloudflareUrl && isOperator(account),
     switchClinic: async () => {
       if (sync.current.pending) await sync.sync();
+      cloud.closing = true;
       sync.stop();
       forgetClinic(account);
       home();
@@ -167,6 +173,7 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void, 
       remount();
     },
     leaveClinic: async (notice) => {
+      cloud.closing = true;
       sync.stop();
       await wipe();
       forgetClinic(account);
@@ -177,6 +184,7 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void, 
     calendar,
     reconnect: () => startLogin(config.googleClientId, { hint: account.email }),
     logout: async (wipeData) => {
+      cloud.closing = true;
       sync.stop();
       if (wipeData) await wipe();
       await revokeToken();

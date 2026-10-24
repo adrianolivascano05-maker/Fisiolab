@@ -34,13 +34,32 @@ function acquireTabLock(): Promise<void> {
   });
 }
 
+type Sqlite3 = Awaited<ReturnType<typeof sqlite3InitModule>>;
+
+/**
+ * El almacenamiento privado (OPFS) solo lo puede tener abierto un contexto a la vez. La página anterior lo suelta al
+ * morir, pero puede tardar un instante: se insiste unos segundos antes de rendirse y trabajar en memoria (donde se
+ * perdería lo que se escriba). Si el navegador no tiene OPFS, no hay nada que esperar.
+ */
+async function openPool(sqlite3: Sqlite3) {
+  const until = Date.now() + 5000;
+  for (;;) {
+    try {
+      return await sqlite3.installOpfsSAHPoolVfs({ name: "fisiolab-pool", forceReinitIfPreviouslyFailed: true } as { name: string });
+    } catch (err) {
+      if (Date.now() >= until || (err instanceof Error && err.message.includes("Missing required OPFS APIs"))) throw err;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+  }
+}
+
 async function start(): Promise<Engine> {
   await acquireTabLock();
   let adoptFrom: { bytes: Uint8Array; member: string; done: () => void } | null = null;
   const sqlite3 = await sqlite3InitModule();
   let storage: Storage;
   try {
-    const pool = await sqlite3.installOpfsSAHPoolVfs({ name: "fisiolab-pool" });
+    const pool = await openPool(sqlite3);
     // Cada base ocupa dos huecos (el archivo y su diario): sitio para varias cuentas en el mismo dispositivo.
     if (pool.getCapacity() - pool.getFileCount() < 4) await pool.addCapacity(4);
     const files: string[] = pool.getFileNames();

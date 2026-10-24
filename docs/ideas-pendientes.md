@@ -156,8 +156,25 @@ antes, o enseñar el decimal) cambia cómo se guarda la medición: decidirlo ant
   porque el service worker pedía la configuración de verdad sin pasar por el ajuste de la prueba.
 - **Cambiado:** la prueba de Safari pasa a un Mac (WebKit con OPFS, más parecido al iPhone; gratis en un repositorio
   público) y el servidor de pruebas sirve la configuración sin Google en esa prueba.
+- **En el Mac, primer tropiezo (arreglado):** la app no compilaba porque había dos archivos cuyo nombre solo cambiaba
+  en una mayúscula (`BodyMap.tsx` y `bodyMap.ts`); en Linux conviven, en Mac y Windows son el mismo. Renombrado a
+  `BodyMapParts.tsx` y una prueba nueva (`src/nombresDeArchivo.test.ts`) impide que vuelva a pasar.
+- **Repasando el arranque (24-10-2026):** si la página anterior aún tiene cogido el almacenamiento (OPFS) un instante,
+  la app caía a «en memoria» sin avisar y lo que se escribiera se perdía al cerrar; ahora insiste hasta 5 segundos
+  antes de rendirse. Y mientras abre los datos, si tarda más de segundo y medio, pone «Abriendo tus datos…» en vez de
+  una pantalla en blanco.
 - **Falta:** ver el resultado en el Mac y probar en un iPhone de verdad (pasos en docs/pasos-pendientes.md,
   «Probar en un iPhone»).
+
+**Pruebas automáticas que fallan de vez en cuando (24-10-2026):** en la tanda completa (4 navegadores a la vez en una
+máquina de 4 núcleos) a veces cae 1 de 170 y en solitario pasa siempre:
+- ~~RS1 (reserva)~~ arreglada: comprobaba que el servidor no guardara «611» y el código de anular, que es al azar,
+  lo contenía por casualidad; ahora busca el móvil entero.
+- ~~CL8 (borrar una clínica)~~ arreglada: una tarea de fondo (reserva o formularios) llamaba al servidor justo después de
+  borrar la clínica y el navegador apuntaba el «410» como error; al salir de una clínica ya no se llama al servidor.
+- AG7 (justificante) y antes F15-H3 (importar CSV): tras guardar algo y cambiar de página, la página no llega a pintarse
+  en 30 segundos. Solo con la máquina saturada; 30 de 30 en solitario. Desde ahora la tanda guarda una traza de cada
+  fallo (`--trace retain-on-failure`) para verlo la próxima vez. No se ha visto fuera de las pruebas.
 
 **R3. Reserva online, para que no dé sorpresas:**
 - ~~Días cerrados y festivos~~ **hecho el 24-10-2026:** «Cerrar la agenda» (de un fisio o de toda la clínica; una

@@ -19,7 +19,7 @@ import { safeName } from "../cloud/saveToDrive";
 import { Button } from "../ui/Button";
 import { answerText } from "./anamnesis";
 import { useAnamnesisSections } from "./useAnamnesis";
-import { BodyFigures, BodyMapLegend } from "./BodyMap";
+import { BodyFigures, BodyMapLegend } from "./BodyMapParts";
 import { marksText, parseMarks } from "./bodyMap";
 import { findTest, resultMeaning } from "./galleryLink";
 import { trends } from "./measures";

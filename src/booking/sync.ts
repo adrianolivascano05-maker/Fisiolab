@@ -69,7 +69,7 @@ let lastPublished = "";
 /** Publica la página si ha cambiado algo desde la última vez. `force`: aunque no haya cambiado. */
 export async function publishBooking(db: Db, cloud: Cloud | null, team: boolean, force = false): Promise<"off" | "same" | "published"> {
   const token = getToken();
-  if (!token || !cloud?.clinic || !cloud.clinics) return "off";
+  if (!token || !cloud?.clinic || !cloud.clinics || cloud.closing) return "off";
   const settings = await getBookingSettings(db);
   if (!settings.enabled || !settings.slug) {
     if (force) await cloud.clinics.booking.publish(token, cloud.clinic.id, { enabled: false });
@@ -125,7 +125,7 @@ function validPayload(p: unknown): p is BookingPayload {
 /** Recoge las reservas y anulaciones nuevas y las pone en la agenda. */
 export async function collectBookings(db: Db, cloud: Cloud | null): Promise<Collected | null> {
   const token = getToken();
-  if (!token || !cloud?.clinic || !cloud.clinics) return null;
+  if (!token || !cloud?.clinic || !cloud.clinics || cloud.closing) return null;
   const inbox = await cloud.clinics.booking.inbox(token, cloud.clinic.id);
   const out: Collected = { booked: [], cancelled: [], unreadable: 0 };
   if (!inbox.bookings.length && !inbox.cancels.length) return out;
@@ -202,7 +202,7 @@ const proFor = (settings: BookingSettings, team: boolean, assignedTo: string | n
  */
 export async function ensureCancelLink(db: Db, cloud: Cloud | null, a: Appointment, label: string, team: boolean): Promise<string | null> {
   const token = getToken();
-  if (!token || !cloud?.clinic || !cloud.clinics) return null;
+  if (!token || !cloud?.clinic || !cloud.clinics || cloud.closing) return null;
   const code = a.cancelToken ?? newCancelToken();
   const pro = proFor(await getBookingSettings(db), team, a.assignedTo);
   await cloud.clinics.booking.links(token, cloud.clinic.id, [{ hash: await tokenHash(code), ref: a.id, startsAt: a.startsAt, label, minutes: a.minutes, pro }]);
@@ -232,7 +232,7 @@ type SentLink = { sig: string; link: Link };
 
 export async function syncCancelLinks(db: Db, cloud: Cloud | null, team: boolean): Promise<number> {
   const token = getToken();
-  if (!token || !cloud?.clinic || !cloud.clinics) return 0;
+  if (!token || !cloud?.clinic || !cloud.clinics || cloud.closing) return 0;
   const rows = await db.query<{ id: string; starts_at: string; minutes: number; status: string; assigned_to: string | null; cancel_token: string }>(
     "select id, starts_at, minutes, status, assigned_to, cancel_token from appointments where cancel_token is not null and starts_at > ?",
     [new Date(Date.now() - DAY).toISOString()],

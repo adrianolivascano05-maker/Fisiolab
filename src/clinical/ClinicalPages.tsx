@@ -52,7 +52,7 @@ import { draftDiagnosis, personalFactors } from "./cif/prose";
 import { evidenceFrom } from "./cif/suggest";
 import { YellowFlagPanel } from "./YellowFlagPanel";
 import { useAnamnesisSections } from "./useAnamnesis";
-import { BodyMapInput } from "./BodyMap";
+import { BodyMapInput } from "./BodyMapParts";
 import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
 import { parseMarks } from "./bodyMap";
 import { AnalysisNav, TestList } from "./measureParts";

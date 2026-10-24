@@ -360,10 +360,13 @@ function DeleteClinicSheet({ onClose }: { onClose: () => void }) {
               try {
                 // Un servidor de antes de la papelera borraría la clínica de golpe: se comprueba primero.
                 if (!("deleted" in (await cloud.clinics!.me(token)))) throw new Error("El servidor de la clínica está sin actualizar: hasta que se actualice no se puede borrar una clínica.");
+                // Desde ya, nada en segundo plano llama al servidor por esta clínica (contestaría que está borrada).
+                cloud.closing = true;
                 const until = await cloud.clinics!.remove(token, current.id, `${DELETE_DECLARATION} — ${cloud.account.email}`);
                 const date = new Date(until).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
                 await cloud.leaveClinic(`«${current.name}» está en la papelera: puedes recuperarla aquí hasta el ${date}.`);
               } catch (e) {
+                cloud.closing = false;
                 toast(errText(e), "danger");
                 setBusy(false);
               }

@@ -10,6 +10,12 @@ import { EmptyState } from "../ui/EmptyState";
  */
 export function DbGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<"checking" | "ok" | "locked">("checking");
+  // Si abrir los datos tarda (un móvil lento, el almacenamiento aún ocupado), que se vea que la app está en ello.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSlow(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
   useEffect(() => {
     let alive = true;
     let timer = 0;
@@ -30,7 +36,16 @@ export function DbGate({ children }: { children: ReactNode }) {
       clearTimeout(timer);
     };
   }, []);
-  if (state === "checking") return null;
+  if (state === "checking") {
+    if (!slow) return null;
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-[var(--layout-content-max)] flex-col justify-center p-4">
+        <p aria-busy="true" className="text-center text-text-muted">
+          Abriendo tus datos…
+        </p>
+      </main>
+    );
+  }
   if (state === "locked") {
     return (
       <main className="mx-auto flex min-h-dvh max-w-[var(--layout-content-max)] flex-col justify-center gap-4 p-4">

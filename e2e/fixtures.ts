@@ -32,7 +32,8 @@ export const test = base.extend<{ consoleErrors: string[] }>({
       // funciona igual. Solo esos 404 de navegación se toleran, y solo en ese modo.
       let pageNav404 = 0;
       const ghPages = (process.env.E2E_BASE ?? "/") !== "/";
-      page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+      // Con la dirección: «Failed to load resource: 410» solo no dice qué petición fue.
+      page.on("console", (m) => m.type() === "error" && errors.push(m.location().url ? `${m.text()} ← ${m.location().url}` : m.text()));
       page.on("pageerror", (e) => errors.push(e.message));
       page.on("response", (r) => {
         if (r.status() >= 500) errors.push(`${r.status()} ${r.url()}`);
