@@ -2,7 +2,7 @@
 // WhatsApp uno tras otro. Recordatorios del día antes y, con el servidor de la clínica, la anamnesis antes de la
 // primera cita.
 import type { Page } from "@playwright/test";
-import { expect, expectAccessible, test } from "./fixtures";
+import { createPatient, expect, expectAccessible, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
 
 /** Mañana, en la hora de Madrid, a las 10:00 («AAAA-MM-DDT10:00» para el campo de fecha y hora). */
@@ -117,5 +117,13 @@ test.describe("Bandeja de envíos", () => {
     await page.goto(page.url().replace(/\/anamnesis$/, "/formularios"));
     await expect(page.getByText("Anamnesis (su parte)")).toHaveCount(1);
     await expect(page.getByText("Esperando respuesta")).toHaveCount(1);
+  });
+
+  test("EN4 en una anamnesis aún sin rellenar, «Enviar al móvil del paciente» abre el envío con la anamnesis elegida", async ({ page }) => {
+    const url = await createPatient(page, { name: "Ana Envío" });
+    await page.goto(`${url}/anamnesis`);
+    await page.getByRole("link", { name: "Enviar al móvil del paciente" }).click();
+    await expect(page).toHaveURL(/\/formularios\?enviar=anamnesis$/);
+    await expectAccessible(page);
   });
 });

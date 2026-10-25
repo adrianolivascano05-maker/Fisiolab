@@ -190,6 +190,12 @@ export function AnamnesisPage() {
         <h2 className="text-xl">{anamnesis ? "Editar anamnesis" : "Anamnesis"}</h2>
         {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
         <p className="text-sm text-text-muted">Ficha de anamnesis de fisioterapia: historia clínica y valoración inicial. Rellena lo que necesites; todo se puede completar más tarde.</p>
+        {/* Aún sin anamnesis: mandarle su parte al móvil, como en Cuestionarios, sin tener que buscarlo. */}
+        {!anamnesis && (
+          <Link to={`/pacientes/${id}/formularios?enviar=anamnesis`} className="inline-flex min-h-12 items-center justify-center gap-1.5 self-start rounded-md border border-border bg-bg px-4 text-sm font-semibold text-accent hover:bg-surface">
+            <Send aria-hidden="true" className="size-4 shrink-0" /> Enviar al móvil del paciente
+          </Link>
+        )}
         {/* En ancho (el ordenador), el índice fijo a la izquierda y los apartados a la derecha; en el móvil, el índice arriba. */}
         <div className="flex flex-col gap-4 @2xl:grid @2xl:grid-cols-[13rem_minmax(0,1fr)] @2xl:items-start @2xl:gap-x-6">
         {/* Índice: la ficha es larga; cada apartado a un toque. */}
