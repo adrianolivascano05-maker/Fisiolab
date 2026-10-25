@@ -56,3 +56,20 @@
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+/* El logo de la clínica sobre placa blanca (src/ui/Logo.tsx): siempre en la barra (.logo-plate-on) y, en el resto,
+   solo en modo oscuro. En los documentos (.theme-light) nunca. */
+.logo-plate-on {
+  background: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-plate {
+    background: #ffffff;
+  }
+}
+:root[data-theme="dark"] .logo-plate {
+  background: #ffffff;
+}
+.theme-light .logo-plate {
+  background: transparent;
+}

@@ -1,5 +1,6 @@
 import { CopyX } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { loadBrand } from "../brand/brand";
 import { getDb } from "../data/db";
 import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
@@ -23,7 +24,10 @@ export function DbGate({ children }: { children: ReactNode }) {
       getDb()
         .info()
         .then(
-          (info) => {
+          async (info) => {
+            if (!alive) return;
+            // La marca de la clínica, antes de pintar nada (si no, se vería Cénit un instante).
+            if (!info.locked) await loadBrand(getDb());
             if (!alive) return;
             setState(info.locked ? "locked" : "ok");
             if (info.locked) timer = window.setTimeout(check, 1000);

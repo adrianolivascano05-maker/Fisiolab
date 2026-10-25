@@ -71,6 +71,19 @@ El usuario quiere poder facturar algún día desde la app, aunque haya que pagar
 
 Nada se contrata sin que lo decida el usuario. Estado: pendiente.
 
+## Marca por clínica (en marcha desde el 25-10-2026)
+
+Decidido con los borradores y el plan (fase 2 y 3): cada clínica pone su nombre, dos colores y su logo en Ajustes ›
+Marca de la clínica; la app, la página del paciente y los documentos se visten con ello. Sin dominios, sin planes y sin
+«Powered by» por ahora. Bloques: 1 motor y pantalla (hecho), 2 documentos y marca de agua, 3 mensajes editables,
+4 página del paciente, 5 pie legal y documentación.
+
+- Hecho en el bloque 1: `src/brand/` (motor OKLCH con contraste AA probado con cientos de colores, hoja de marca
+  encima de tokens.css, sin parpadeo al abrir, favicon, título y color de la barra del móvil), Logo.tsx con el logo
+  de la clínica, fila «Marca de la clínica» en Ajustes › Clínica.
+- Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
+  texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
+
 ## Propuestos por el usuario (23-10-2026)
 
 1. **Bandeja de envíos automáticos por WhatsApp.** La app prepara sola lo que toca mandar (anamnesis el día

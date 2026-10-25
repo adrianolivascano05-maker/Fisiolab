@@ -20,6 +20,7 @@ import {
   Palette,
   ReceiptText,
   ShieldCheck,
+  SunMoon,
   UserRound,
   UsersRound,
   Wallet,
@@ -32,6 +33,7 @@ import { Page } from "../app/Page";
 import { useInstall } from "../app/pwa";
 import { THEME_LABELS, useTheme, type Theme } from "../app/theme";
 import { useAsync } from "../app/useAsync";
+import { useBrand } from "../brand/brand";
 import { AccountCard } from "../cloud/AccountPages";
 import { CalendarSettings } from "../cloud/CalendarSettings";
 import { getToken } from "../cloud/auth";
@@ -75,6 +77,7 @@ export function SettingsPage() {
   const lock = getLock();
   const clinic = state.data?.clinic;
   const [theme] = useTheme();
+  const brand = useBrand();
 
   return (
     <Page title="Ajustes" tabs>
@@ -88,6 +91,12 @@ export function SettingsPage() {
           subtitle={!clinic ? "…" : clinicComplete(clinic) ? clinic.name : "Faltan los datos de la clínica"}
           warn={!!clinic && !clinicComplete(clinic)}
           tone={clinic && !clinicComplete(clinic) ? "warning" : "accent"}
+        />
+        <RowLink
+          to="/ajustes/marca"
+          icon={Palette}
+          title="Marca de la clínica"
+          subtitle={brand ? `${brand.name} · tus colores y tu logo` : "La marca de Cénit · tus colores, tu logo y la marca de agua de los documentos"}
         />
         {cloud?.clinic && (
           <RowLink
@@ -147,7 +156,7 @@ export function SettingsPage() {
           title="Instalar la app"
           subtitle={install.state === "installed" ? "Instalada en este dispositivo" : "En este y en otros dispositivos"}
         />
-        <RowLink to="/ajustes/aspecto" icon={Palette} title="Aspecto" subtitle={theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} />
+        <RowLink to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} />
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
         <RowLink to="/ayuda/fallos" icon={LifeBuoy} title="Algo no funciona" subtitle={errorCount(readErrors().length)} />
         <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
@@ -398,6 +407,13 @@ export function AppearancePage() {
           </label>
         ))}
       </fieldset>
+      <p className="text-sm text-text-muted">
+        Los colores, el nombre y el logo de la clínica se cambian en{" "}
+        <Link to="/ajustes/marca" className="font-semibold text-accent underline">
+          Marca de la clínica
+        </Link>
+        .
+      </p>
     </Page>
   );
 }

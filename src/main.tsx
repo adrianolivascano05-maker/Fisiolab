@@ -5,10 +5,12 @@ import "@fontsource-variable/bricolage-grotesque/opsz.css";
 import "./styles/index.css";
 import { App } from "./App";
 import { applyTheme } from "./app/theme";
+import { applyCachedBrand } from "./brand/brand";
 import { captureGlobalErrors } from "./app/errorLog";
 
 captureGlobalErrors();
 applyTheme();
+applyCachedBrand();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

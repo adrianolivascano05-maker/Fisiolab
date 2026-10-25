@@ -26,6 +26,9 @@ export function LockSettings() {
     void passkeyAvailable().then(setBio);
   }, []);
   const [mode, setMode] = useState<Mode | null>(null);
+  // Lo que enseña la hoja: se fija al abrirla y no cambia al cerrarla. Si dependiera de `mode`, en el instante en
+  // que se cierra el botón de «Quitar el bloqueo» pasaría a decir «Activar el bloqueo» a la vez que el de la pantalla.
+  const [shown, setShown] = useState<Mode>("set");
   const [current, setCurrent] = useState("");
   const [pin, setPinText] = useState("");
   const [repeat, setRepeat] = useState("");
@@ -34,6 +37,7 @@ export function LockSettings() {
 
   const open = (m: Mode) => {
     setMode(m);
+    setShown(m);
     setCurrent("");
     setPinText("");
     setRepeat("");
@@ -145,7 +149,7 @@ export function LockSettings() {
         </p>
       </Card>
 
-      <Sheet open={mode !== null} onClose={() => setMode(null)} title={mode ? titles[mode] : ""}>
+      <Sheet open={mode !== null} onClose={() => setMode(null)} title={titles[shown]}>
         <form
           className="flex flex-col gap-3"
           noValidate
@@ -154,7 +158,7 @@ export function LockSettings() {
             void confirm();
           }}
         >
-          {mode !== "set" && (
+          {shown !== "set" && (
             <TextField
               label="PIN actual"
               {...pinProps}
@@ -163,10 +167,10 @@ export function LockSettings() {
               onChange={(e) => setCurrent(digits(e.target.value))}
             />
           )}
-          {mode !== "remove" && (
+          {shown !== "remove" && (
             <>
               <TextField
-                label={mode === "change" ? "PIN nuevo" : "PIN"}
+                label={shown === "change" ? "PIN nuevo" : "PIN"}
                 hint="De 4 a 8 cifras. No uses tu fecha de nacimiento ni el PIN del móvil."
                 {...pinProps}
                 value={pin}
@@ -182,15 +186,15 @@ export function LockSettings() {
               />
             </>
           )}
-          {mode === "set" && (
+          {shown === "set" && (
             <p className="text-sm text-text-muted">
               {getAccount()
                 ? "Si lo olvidas, vuelves a entrar con tu cuenta de Google y eliges otro."
                 : "Si lo olvidas, para volver a entrar hay que borrar los datos de este dispositivo."}
             </p>
           )}
-          <Button type="submit" block loading={busy} variant={mode === "remove" ? "danger" : "primary"}>
-            {mode === "remove" ? "Quitar el bloqueo" : mode === "change" ? "Cambiar el PIN" : "Activar el bloqueo"}
+          <Button type="submit" block loading={busy} variant={shown === "remove" ? "danger" : "primary"}>
+            {titles[shown]}
           </Button>
         </form>
       </Sheet>

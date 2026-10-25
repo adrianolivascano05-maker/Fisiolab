@@ -1,6 +1,7 @@
 // Aspecto de la app: automático (sigue al teléfono u ordenador), claro u oscuro. Se guarda en este dispositivo; los
 // colores de cada modo están en src/styles/tokens.css (data-theme en <html>).
 import { useState } from "react";
+import { syncThemeColor } from "../brand/brand";
 
 export type Theme = "auto" | "light" | "dark";
 const KEY = "fisiolab.theme";
@@ -18,6 +19,7 @@ function getTheme(): Theme {
 /** Pone el aspecto en la página. Se llama al arrancar (antes de pintar) y al cambiarlo. */
 export function applyTheme(theme: Theme = getTheme()) {
   document.documentElement.dataset.theme = theme;
+  syncThemeColor();
 }
 
 export function useTheme(): [Theme, (t: Theme) => void] {

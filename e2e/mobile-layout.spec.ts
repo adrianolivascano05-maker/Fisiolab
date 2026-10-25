@@ -19,6 +19,7 @@ for (const width of [360, 412]) {
       "./biblioteca/hombro",
       "./biblioteca/hombro/hom-cluster-murrell-walton",
       "./ajustes/cobros",
+      "./ajustes/marca",
       "./agenda/envios",
       "./facturas",
       "./facturas/emitidas",

@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { getDb } from "../data/db";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { cx } from "./cx";
+import { useBrand } from "../brand/brand";
 import { Logo, LogoMark } from "./Logo";
 
 /** Nombre de la pantalla a la que lleva «volver», para escribirlo junto a la flecha (como en el iPhone). */
@@ -217,13 +218,14 @@ export function SideNav() {
     lastIn.set(current.root, pathname + search);
   }, [current.root, pathname, search]);
   const pending = useSettingsPending();
+  const brand = useBrand();
   useSearchShortcut();
   return (
     <nav aria-label="Principal" className="fixed inset-y-0 left-0 z-20 hidden w-[var(--layout-side)] flex-col border-r border-border bg-bg lg:flex">
       {/* El logo lleva al inicio. Su nombre accesible es el texto visible («Cénit Fisiolab»); en la franja de iconos, el símbolo con su nombre. */}
       <Link to="/" title="Inicio" className="flex h-[var(--layout-header)] shrink-0 items-center justify-center border-b-2 border-highlight bg-brand xl:justify-start xl:px-4">
         <span className="xl:hidden">
-          <LogoMark size={34} bordered title="Cénit Fisiolab" />
+          <LogoMark size={34} bordered title={brand?.name ?? "Cénit Fisiolab"} />
         </span>
         <span className="hidden xl:block">
           <Logo onDark />
