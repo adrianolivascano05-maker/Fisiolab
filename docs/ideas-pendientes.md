@@ -41,6 +41,36 @@ chat (fallos P1–P7, mejoras V1–V12). Orden:
    - Documentos: `docs/README.md` con lo que es cada uno; los planes cumplidos, a `docs/archivo/`.
    - Pendiente: revisar las pruebas e2e para que tarden menos (hoy unos 25 minutos por modo).
 
+## Facturación dentro de la app (futuro, apuntado el 25-10-2026)
+
+El usuario quiere poder facturar algún día desde la app, aunque haya que pagar algo. Son dos cosas distintas:
+
+1. **El proveedor (el usuario) factura a las clínicas su cuota.** Recomendación: fuera de la app. Un programa de
+   facturación español que ya cumpla Verifactu (cada clínica, un cliente; factura mensual automática) y cobro por
+   domiciliación SEPA o tarjeta con una pasarela de pago. Opcional después: que el panel del Proveedor enseñe si cada
+   clínica está al día (sin facturar desde la app; suspender ya existe). Sin programación.
+2. **Las clínicas facturan a sus pacientes desde la app.** Recomendación: conectar con un servicio que ya cumpla
+   Verifactu (con API), no hacerlo nosotros (eso exige declaración responsable de fabricante, el formato de Hacienda,
+   los certificados de cada clínica y mantenerlo; el riesgo sería del usuario).
+   - Cómo: vuelve «Hacer la factura» en cada cobro → la app manda los datos (los de `src/data/toBill.ts`) al servidor
+     de Cloudflare → este llama al servicio con la clave guardada en el servidor (nunca en los móviles) → el servicio
+     numera, registra, pone el QR y envía a Hacienda y devuelve número y PDF → la app los guarda en el cobro
+     (`payments.invoice_ref`, migración 030) y enseña el PDF para imprimir o mandar.
+   - Los números ya no se repiten (los pone el servicio). Sin conexión no se emite: queda pendiente hasta que vuelva.
+   - Trabajo estimado: 2 o 3 bloques.
+
+**Pasos, en orden:**
+1. Con la gestoría o asesoría: si contrata el servicio el proveedor para todas las clínicas o cada clínica el suyo;
+   contrato de encargado del tratamiento con el servicio (la factura lleva nombre y DNI del paciente, y «fisioterapia»
+   revela un servicio de salud); fechas de Verifactu que aplican (aplazadas a 2027 según lo último sabido: confirmar).
+2. Comparativa de 3 o 4 servicios con API y Verifactu, con precios mirados en sus webs ese día (no dar nombres ni
+   precios de memoria).
+3. Conexión contra su entorno de pruebas (gratis, normalmente), con pacientes inventados.
+4. Primera clínica real (Fisiolab), con su NIF y la autorización que pida el servicio; un mes con pocas facturas.
+5. Abrirlo al resto de clínicas y repercutir el coste en su cuota.
+
+Nada se contrata sin que lo decida el usuario. Estado: pendiente.
+
 ## Propuestos por el usuario (23-10-2026)
 
 1. **Bandeja de envíos automáticos por WhatsApp.** La app prepara sola lo que toca mandar (anamnesis el día
