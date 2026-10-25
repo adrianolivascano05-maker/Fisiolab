@@ -181,6 +181,7 @@ test.describe("Ordenador", () => {
   test("ES3 a 1024 px el menú es una franja de iconos con nombre accesible; en una ventana estrecha, la app del móvil", async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 });
     await page.goto("./");
+    await expect(menu(page)).toBeVisible();
     expect((await menu(page).boundingBox())!.width).toBe(72);
     await expect(menu(page).getByRole("link", { name: "Biblioteca" })).toBeVisible();
     await expect(list(page)).toBeVisible();
@@ -188,8 +189,12 @@ test.describe("Ordenador", () => {
     await expectAccessible(page);
     // Estrechando la ventana (o una tableta en vertical): la barra de abajo y Pacientes como pantalla propia.
     await page.setViewportSize({ width: 800, height: 900 });
-    const bar = (await menu(page).boundingBox())!;
-    expect([bar.x, bar.width, bar.y + bar.height]).toEqual([0, 800, 900]);
+    // La barra de abajo tarda un instante en pintarse tras cambiar el ancho: esperarla antes de medirla.
+    await expect(menu(page)).toBeVisible();
+    await expect.poll(async () => {
+      const bar = await menu(page).boundingBox();
+      return bar && [bar.x, bar.width, bar.y + bar.height];
+    }).toEqual([0, 800, 900]);
     await expect(list(page)).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Pacientes" })).toBeVisible();
     await expect(page.getByLabel("Buscar paciente")).toBeVisible();
