@@ -22,6 +22,7 @@ import type { Db } from "../data/db";
 import { STATUS_LABELS, type AppointmentStatus } from "../data/appointments";
 import { getClinic, type ClinicInfo } from "../data/privacy";
 import { euros, methodLabel } from "../data/billing";
+import { preferText, type PreferTime } from "../data/waitlist";
 import { SYNC_TABLES } from "../data/syncMerge";
 import { escapeXml, writeXlsx, zip, type Cell, type Sheet, type ZipFile } from "./files";
 
@@ -253,8 +254,23 @@ function buildSheets(c: Collected): Sheet[] {
   if (T.waitlist!.length)
     sheets.push({
       name: "Lista de espera",
-      header: ["Paciente", "Desde", "Le viene bien", "Con quién"],
-      rows: [...T.waitlist!].sort((a, b) => s(a.created_at).localeCompare(s(b.created_at))).map((r) => [pn(r), when(r.created_at), s(r.note), r.assigned_to ? (staff.get(s(r.assigned_to)) ?? s(r.assigned_to)) : ""]),
+      header: ["Paciente", "Esperando desde", "Cuándo le viene bien", "Nota", "Con quién", "Preferente", "Puede a partir del"],
+      rows: [...T.waitlist!]
+        .sort((a, b) => s(a.created_at).localeCompare(s(b.created_at)))
+        .map((r) => [
+          pn(r),
+          when(r.created_at),
+          preferText({
+            preferTime: (s(r.prefer_time) || "") as PreferTime,
+            preferDays: s(r.prefer_days).split(",").map(Number).filter((d) => d >= 1 && d <= 7),
+            fromMin: typeof r.from_min === "number" ? r.from_min : null,
+            toMin: typeof r.to_min === "number" ? r.to_min : null,
+          }),
+          s(r.note),
+          r.assigned_to ? (staff.get(s(r.assigned_to)) ?? s(r.assigned_to)) : "Con cualquiera",
+          r.priority === 1 ? "Sí" : "",
+          s(r.available_from),
+        ]),
     });
   if (T.exercises!.length)
     sheets.push({

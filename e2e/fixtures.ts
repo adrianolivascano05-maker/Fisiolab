@@ -179,3 +179,15 @@ export async function smallTargets(page: Page): Promise<string[]> {
   });
 }
 
+/** Importa pacientes (y, si se dan, citas) desde CSV, como en Ajustes › Importar. */
+export async function importData(page: Page, patients: string, appointments?: string) {
+  await page.goto("./ajustes/importar");
+  await page.getByLabel("Elegir el archivo de pacientes").setInputFiles({ name: "p.csv", mimeType: "text/csv", buffer: Buffer.from(patients, "utf8") });
+  await page.getByRole("button", { name: /^Importar \d+ pacientes?$/ }).click();
+  await expect(page.getByText(/pacientes? importados?/)).toBeVisible();
+  if (!appointments) return;
+  await page.getByRole("radio", { name: /Citas/ }).click();
+  await page.getByLabel("Elegir el archivo de citas").setInputFiles({ name: "c.csv", mimeType: "text/csv", buffer: Buffer.from(appointments, "utf8") });
+  await page.getByRole("button", { name: /^Importar \d+ citas?$/ }).click();
+  await expect(page.getByText(/citas? importadas?/)).toBeVisible();
+}

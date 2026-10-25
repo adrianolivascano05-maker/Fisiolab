@@ -1,10 +1,12 @@
-// Agenda → Lista de espera (src/data/waitlist.ts): quién quiere un hueco antes, cuándo le viene bien (mañanas o
-// tardes, qué días) y, en un equipo, con quién. Desde una cita anulada o borrada se llega con el hueco libre
-// (?hueco=…&min=…&con=…): primero salen a quienes les encaja; a cada uno se le ofrece por WhatsApp o correo, con el
-// mensaje listo (queda apuntado), y se le da la cita con un toque. Desde la ficha se llega con ?paciente=… para
-// apuntarlo.
+// Agenda → Lista de espera (src/data/waitlist.ts): quién quiere un hueco antes, cuándo le viene bien (mañanas,
+// tardes o unas horas concretas, qué días), desde qué día puede, si es preferente y, en un equipo, con quién. Se
+// ordena (por tiempo de espera, prioridad, cita, ofrecido o nombre) y se filtra por todo eso a la vez; el orden y los
+// filtros van en la dirección (?orden=…&franja=…&dias=…), así que se conservan al volver. Desde una cita anulada o
+// borrada se llega con el hueco libre (?hueco=…&min=…&con=…): primero salen a quienes les encaja; a cada uno se le
+// ofrece por WhatsApp o correo, con el mensaje listo (queda apuntado), y se le da la cita con un toque. Desde la ficha
+// se llega con ?paciente=… para apuntarlo.
 import { useTeamMode } from "../cloud/teamMode";
-import { CalendarPlus, Mail, MessageCircle, Pencil, Plus, Trash } from "lucide-react";
+import { CalendarPlus, Mail, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Trash, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -16,7 +18,28 @@ import { clashes, createAppointment, updateAppointment } from "../data/appointme
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
 import { getPatient } from "../data/repo";
-import { addToWaitlist, fits, listWaitlist, markOffered, preferText, removeFromWaitlist, updateWaitlist, WEEKDAY_NAMES, WEEKDAYS, type PreferTime, type WaitInput, type WaitItem } from "../data/waitlist";
+import type { Staff } from "../data/schedule";
+import {
+  activeFilters,
+  addToWaitlist,
+  filterWaitlist,
+  fits,
+  listWaitlist,
+  markOffered,
+  minText,
+  preferText,
+  removeFromWaitlist,
+  sortWaitlist,
+  updateWaitlist,
+  WAIT_SORTS,
+  WEEKDAY_NAMES,
+  WEEKDAYS,
+  type PreferTime,
+  type WaitFilters,
+  type WaitInput,
+  type WaitItem,
+  type WaitSort,
+} from "../data/waitlist";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -33,6 +56,33 @@ const waiting = (iso: string) => {
   return days < 1 ? "Esperando desde hoy" : days === 1 ? "Esperando desde ayer" : `Esperando desde hace ${days} días`;
 };
 const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
+const longDay = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "long" });
+
+const WAITED: [number, string][] = [
+  [7, "Más de una semana"],
+  [14, "Más de dos semanas"],
+  [30, "Más de un mes"],
+];
+
+/** El orden y los filtros, leídos de la dirección. */
+function readView(p: URLSearchParams): { sort: WaitSort; filters: WaitFilters } {
+  const sort = WAIT_SORTS.some((x) => x.id === p.get("orden")) ? (p.get("orden") as WaitSort) : "espera";
+  const pick = <T extends string>(key: string, ok: readonly T[]) => (ok.includes(p.get(key) as T) ? (p.get(key) as T) : null);
+  return {
+    sort,
+    filters: {
+      q: p.get("q") ?? "",
+      band: pick("franja", ["manana", "tarde"] as const),
+      days: (p.get("dias") ?? "").split(",").map(Number).filter((d) => d >= 1 && d <= 7),
+      who: p.get("fisio") || null,
+      priority: p.get("pref") === "1",
+      offered: pick("ofrecido", ["si", "no"] as const),
+      cita: pick("cita", ["si", "no"] as const),
+      ready: p.get("ya") === "1",
+      minDays: WAITED.some(([d]) => d === Number(p.get("espera"))) ? Number(p.get("espera")) : null,
+    },
+  };
+}
 
 export function WaitlistPage() {
   const { team } = useTeamMode();
@@ -49,10 +99,26 @@ export function WaitlistPage() {
   const data = useAsync(async () => {
     const db = getDb();
     const [items, clinic, patient, messages] = await Promise.all([listWaitlist(db, free && team ? slotWho : undefined), getClinic(db), forPatient ? getPatient(db, forPatient) : null, loadMessages(db)]);
-    return { items, clinic: clinic.name, patient, messages };
+    return { items, clinic: clinic.name, patient, messages, today: madridDay(new Date().toISOString()) };
   }, [version, free, slotWho, team, forPatient]);
   /** Añadir (sin `item`) o cambiar una entrada. */
   const [form, setForm] = useState<{ item?: WaitItem } | null>(null);
+  const [filtering, setFiltering] = useState(false);
+  const { sort, filters } = readView(params);
+  /** Cambia (o quita, con null) varios datos de la dirección sin tocar los demás. */
+  const setView = (change: Record<string, string | null>) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [k, v] of Object.entries(change)) {
+          if (v) next.set(k, v);
+          else next.delete(k);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  const clearFilters = () => setView({ q: null, franja: null, dias: null, fisio: null, pref: null, ofrecido: null, cita: null, ya: null, espera: null });
 
   const [giving, setGiving] = useState<string | null>(null);
   /** Ya tiene una cita más tarde: ¿se anula al darle este hueco? */
@@ -89,10 +155,14 @@ export function WaitlistPage() {
     bumpData();
   }
 
-  // Con un hueco libre, primero a quienes les encaja (y entre ellos, quien más lleva esperando).
-  const items = [...(data.data?.items ?? [])].filter((w) => !free || w.patientId !== params.get("sin")).sort((a, b) => (free ? Number(fits(b, free)) - Number(fits(a, free)) : 0) || a.createdAt.localeCompare(b.createdAt));
+  // Todos (sin quien dejó el hueco), filtrados y en el orden elegido; con un hueco libre, primero a quienes les encaja.
+  const all = (data.data?.items ?? []).filter((w) => !free || w.patientId !== params.get("sin"));
+  const sorted = sortWaitlist(filterWaitlist(all, filters), sort);
+  const items = free ? [...sorted].sort((a, b) => Number(fits(b, free, slotMinutes)) - Number(fits(a, free, slotMinutes))) : sorted;
+  const nFilters = activeFilters(filters);
+  const chips = filterChips(filters, team ? staff : [], setView);
   const patient = data.data?.patient;
-  const already = patient ? items.find((w) => w.patientId === patient.id) : undefined;
+  const already = patient ? all.find((w) => w.patientId === patient.id) : undefined;
   const opening = !!patient && !already && !form;
 
   return (
@@ -107,13 +177,69 @@ export function WaitlistPage() {
         </p>
       )}
 
-      {data.data && items.length === 0 && <p className="text-sm text-text-muted">No hay nadie esperando.</p>}
+      {data.data && all.length === 0 && <p className="text-sm text-text-muted">No hay nadie esperando.</p>}
+      {all.length > 0 && (
+        <section aria-label="Ordenar y filtrar" className="flex flex-col gap-2">
+          <div className="relative">
+            <label htmlFor="waitlist-search" className="sr-only">
+              Buscar en la lista de espera
+            </label>
+            <Search aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 size-5 -translate-y-1/2 text-text-muted" />
+            <input
+              id="waitlist-search"
+              type="search"
+              placeholder="Buscar por nombre, nota o teléfono"
+              value={filters.q ?? ""}
+              onChange={(e) => setView({ q: e.target.value })}
+              className="h-11 w-full rounded-lg border border-transparent bg-surface pr-3 pl-10 text-base placeholder:text-text-muted focus:border-border-input"
+            />
+          </div>
+          <div className="flex items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <SelectField label="Ordenar por" value={sort} onChange={(e) => setView({ orden: e.target.value === "espera" ? null : e.target.value })}>
+                {WAIT_SORTS.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
+            <Button variant="secondary" icon={<SlidersHorizontal aria-hidden="true" className="size-5" />} onClick={() => setFiltering(true)}>
+              {nFilters ? `Filtros (${nFilters})` : "Filtros"}
+            </Button>
+          </div>
+          {chips.length > 0 && (
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtros puestos">
+              {chips.map((c) => (
+                <button key={c.label} type="button" aria-label={`Quitar el filtro: ${c.label}`} onClick={c.clear} className="inline-flex min-h-11 items-center gap-1 rounded-pill border border-accent bg-accent-soft px-3 text-sm font-semibold text-accent">
+                  {c.label} <X aria-hidden="true" className="size-4" />
+                </button>
+              ))}
+              <button type="button" onClick={clearFilters} className="inline-flex min-h-11 items-center px-2 text-sm font-semibold text-accent underline underline-offset-2">
+                Quitar todos
+              </button>
+            </div>
+          )}
+          <p className="text-sm text-text-muted" aria-live="polite">
+            {items.length === all.length ? `${all.length === 1 ? "1 paciente" : `${all.length} pacientes`} esperando` : `${items.length} de ${all.length} pacientes`}
+          </p>
+          {items.length === 0 && (
+            <p className="text-sm">
+              Nadie cumple estos filtros.{" "}
+              <button type="button" onClick={clearFilters} className="inline-flex min-h-11 items-center font-semibold text-accent underline underline-offset-2">
+                Quitar los filtros
+              </button>
+            </p>
+          )}
+        </section>
+      )}
       <ul aria-label="Lista de espera" className="flex flex-col gap-2">
         {items.map((w) => {
           const phone = waPhone(w.phone);
           const vars = { name: w.name, startsAt: free ?? "", clinic: data.data!.clinic, professional: team && slotWho ? staffName(staff, slotWho) : null };
           const text = free ? offerText(vars, data.data!.messages) : "";
-          const ok = free ? fits(w, free) : null;
+          const ok = free ? fits(w, free, slotMinutes) : null;
+          const later = w.availableFrom && w.availableFrom > data.data!.today ? w.availableFrom : null;
           return (
             <li key={w.id}>
               <Card role="group" aria-label={w.name} className={cx("flex flex-col gap-2", ok === false && "opacity-80")}>
@@ -122,7 +248,9 @@ export function WaitlistPage() {
                   <p className="text-sm text-text-muted">{waiting(w.createdAt)}</p>
                 </div>
                 <div className="flex flex-wrap gap-1.5 text-xs">
+                  {w.priority && <span className="rounded-full bg-warning-soft px-2 py-0.5 font-semibold">Preferente</span>}
                   <span className="rounded-full bg-surface px-2 py-0.5">{preferText(w)}</span>
+                  {later && <span className="rounded-full bg-surface px-2 py-0.5">Puede desde el {longDay(later)}</span>}
                   {ok === true && <span className="rounded-full bg-success-soft px-2 py-0.5 font-semibold text-success">Le encaja este hueco</span>}
                   {ok === false && <span className="rounded-full bg-warning-soft px-2 py-0.5">No es su horario</span>}
                   {w.offeredAt && <span className="rounded-full bg-accent-soft px-2 py-0.5">Ofrecido el {dayText(w.offeredAt)}, {hourText(w.offeredAt)}</span>}
@@ -202,7 +330,7 @@ export function WaitlistPage() {
         open={!!form || opening}
         onClose={() => {
           setForm(null);
-          if (forPatient) setParams({}, { replace: true });
+          if (forPatient) setView({ paciente: null });
         }}
         title={form?.item ? `Lista de espera: ${form.item.name}` : "Añadir a la lista de espera"}
       >
@@ -216,14 +344,152 @@ export function WaitlistPage() {
               if (form?.item) await updateWaitlist(getDb(), form.item.id, input);
               else await addToWaitlist(getDb(), patientId, input);
               setForm(null);
-              if (forPatient) setParams({}, { replace: true });
+              if (forPatient) setView({ paciente: null });
               bumpData();
               toast(form?.item ? "Cambiado" : "Añadido a la lista de espera", "success");
             }}
           />
         )}
       </Sheet>
+      <Sheet open={filtering} onClose={() => setFiltering(false)} title="Filtrar la lista de espera">
+        <FilterForm filters={filters} team={team} staff={staff} setView={setView} />
+        <Button block onClick={() => setFiltering(false)}>
+          {items.length === 1 ? "Ver 1 paciente" : `Ver ${items.length} pacientes`}
+        </Button>
+        {nFilters > 0 && (
+          <Button variant="secondary" block onClick={clearFilters}>
+            Quitar los filtros
+          </Button>
+        )}
+      </Sheet>
     </Page>
+  );
+}
+
+type SetView = (change: Record<string, string | null>) => void;
+
+/** Lo filtrado, en palabras, cada uno con cómo quitarlo. */
+function filterChips(f: WaitFilters, staff: Staff[], setView: SetView): { label: string; clear: () => void }[] {
+  const out: { label: string; clear: () => void }[] = [];
+  if (f.q?.trim()) out.push({ label: `«${f.q.trim()}»`, clear: () => setView({ q: null }) });
+  if (f.band) out.push({ label: f.band === "manana" ? "Mañanas" : "Tardes", clear: () => setView({ franja: null }) });
+  if (f.days?.length) {
+    const names = f.days.map((d) => WEEKDAY_NAMES[d - 1]!);
+    const text = names.length === 1 ? names[0]! : `${names.slice(0, -1).join(", ")} o ${names.at(-1)}`;
+    out.push({ label: text.charAt(0).toUpperCase() + text.slice(1), clear: () => setView({ dias: null }) });
+  }
+  if (f.who) out.push({ label: `Puede con ${staffName(staff, f.who)}`, clear: () => setView({ fisio: null }) });
+  if (f.priority) out.push({ label: "Preferentes", clear: () => setView({ pref: null }) });
+  if (f.ready) out.push({ label: "Ya pueden venir", clear: () => setView({ ya: null }) });
+  if (f.offered) out.push({ label: f.offered === "no" ? "Sin ofrecer" : "Ya ofrecido", clear: () => setView({ ofrecido: null }) });
+  if (f.cita) out.push({ label: f.cita === "no" ? "Sin cita" : "Con cita", clear: () => setView({ cita: null }) });
+  if (f.minDays) out.push({ label: `${WAITED.find(([d]) => d === f.minDays)?.[1] ?? ""} esperando`, clear: () => setView({ espera: null }) });
+  return out;
+}
+
+/** Una fila de opciones que se marcan con un toque (una sola, o varias con `multi`). */
+function Choices<T extends string>({ legend, hint, options, value, onChange, name }: { legend: string; hint?: string; options: [T, string][]; value: T; onChange: (v: T) => void; name: string }) {
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-2">
+      <legend className="pb-1 text-sm font-semibold">{legend}</legend>
+      <div className="flex flex-wrap gap-2">
+        {options.map(([v, label]) => (
+          <label key={v} className="relative">
+            <input type="radio" name={name} checked={value === v} onChange={() => onChange(v)} className="peer sr-only" />
+            <span className={chip(value === v)}>{label}</span>
+          </label>
+        ))}
+      </div>
+      {hint && <p className="text-xs text-text-muted">{hint}</p>}
+    </fieldset>
+  );
+}
+
+/** La hoja de filtros: cada cambio se ve al momento en la lista (y en la dirección). */
+function FilterForm({ filters: f, team, staff, setView }: { filters: WaitFilters; team: boolean; staff: { email: string; name: string }[]; setView: SetView }) {
+  const days = f.days ?? [];
+  return (
+    <div className="flex flex-col gap-4">
+      <Choices
+        legend="Franja"
+        name="filtro-franja"
+        hint="Quien puede a cualquier hora sale en las dos."
+        options={[["", "Cualquiera"], ["manana", "Mañanas"], ["tarde", "Tardes"]]}
+        value={f.band ?? ""}
+        onChange={(v) => setView({ franja: v || null })}
+      />
+      <fieldset className="flex min-w-0 flex-col gap-2">
+        <legend className="pb-1 text-sm font-semibold">Días</legend>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Días que puede">
+          {WEEKDAYS.map((d, i) => (
+            <label key={d} className="relative">
+              <input
+                type="checkbox"
+                aria-label={`Puede el ${WEEKDAY_NAMES[i]}`}
+                checked={days.includes(i + 1)}
+                onChange={() => {
+                  const next = days.includes(i + 1) ? days.filter((x) => x !== i + 1) : [...days, i + 1].sort();
+                  setView({ dias: next.length ? next.join(",") : null });
+                }}
+                className="peer sr-only"
+              />
+              <span aria-hidden="true" className={chip(days.includes(i + 1))}>
+                {d}
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-text-muted">Con varios días, los que pueden alguno de ellos. Quien puede cualquier día sale siempre.</p>
+      </fieldset>
+      {team && (
+        <SelectField label="Puede con" hint="Los que esperan a esa persona y los que van con cualquiera." value={f.who ?? ""} onChange={(e) => setView({ fisio: e.target.value || null })}>
+          <option value="">Todo el equipo</option>
+          {staff.map((s) => (
+            <option key={s.email} value={s.email}>
+              {s.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
+      <fieldset className="flex min-w-0 flex-col gap-2">
+        <legend className="pb-1 text-sm font-semibold">Solo</legend>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["pref", "Preferentes", f.priority],
+              ["ya", "Ya pueden venir", f.ready],
+            ] as const
+          ).map(([key, label, on]) => (
+            <label key={key} className="relative">
+              <input type="checkbox" checked={!!on} onChange={() => setView({ [key]: on ? null : "1" })} className="peer sr-only" />
+              <span className={chip(!!on)}>{label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      <Choices
+        legend="Ofrecido"
+        name="filtro-ofrecido"
+        options={[["", "Todos"], ["no", "Sin ofrecer"], ["si", "Ya ofrecido"]]}
+        value={f.offered ?? ""}
+        onChange={(v) => setView({ ofrecido: v || null })}
+      />
+      <Choices
+        legend="Cita"
+        name="filtro-cita"
+        hint="Con cita: quieren adelantarla."
+        options={[["", "Todos"], ["no", "Sin cita"], ["si", "Con cita"]]}
+        value={f.cita ?? ""}
+        onChange={(v) => setView({ cita: v || null })}
+      />
+      <Choices
+        legend="Lleva esperando"
+        name="filtro-espera"
+        options={[["", "Cualquier tiempo"], ...WAITED.map(([d, label]): [string, string] => [String(d), label])]}
+        value={f.minDays ? String(f.minDays) : ""}
+        onChange={(v) => setView({ espera: v || null })}
+      />
+    </div>
   );
 }
 
@@ -250,8 +516,14 @@ function WaitForm({
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(item ? { id: item.patientId, name: item.name } : patient);
   const [note, setNote] = useState(item?.note ?? "");
   const [who, setWho] = useState(item?.assignedTo ?? "");
-  const [time, setTime] = useState<PreferTime>(item?.preferTime ?? "");
+  const ranged = item?.fromMin != null && item?.toMin != null;
+  /** La franja, o «horas» con unas horas concretas. */
+  const [time, setTime] = useState<PreferTime | "horas">(ranged ? "horas" : (item?.preferTime ?? ""));
+  const [from, setFrom] = useState(ranged ? minText(item.fromMin!) : "16:00");
+  const [to, setTo] = useState(ranged ? minText(item.toMin!) : "20:00");
   const [days, setDays] = useState<number[]>(item?.preferDays ?? []);
+  const [since, setSince] = useState(item?.availableFrom ?? "");
+  const [priority, setPriority] = useState(item?.priority ?? false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
@@ -264,7 +536,18 @@ function WaitForm({
         setBusy(true);
         setError(null);
         try {
-          await onSave(picked.id, { note, assignedTo: who || null, preferTime: time, preferDays: days });
+          const minutes = (hhmm: string) => (/^\d{2}:\d{2}$/.test(hhmm) ? Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3)) : null);
+          const hours = time === "horas" ? { fromMin: minutes(from), toMin: minutes(to) === 0 ? 1440 : minutes(to) } : { fromMin: null, toMin: null };
+          if (time === "horas" && (hours.fromMin === null || hours.toMin === null)) throw new RangeError("Pon desde qué hora y hasta qué hora le viene bien.");
+          await onSave(picked.id, {
+            note,
+            assignedTo: who || null,
+            preferTime: time === "horas" ? "" : time,
+            preferDays: days,
+            priority,
+            availableFrom: since || null,
+            ...hours,
+          });
         } catch (err) {
           setError(err instanceof Error ? err.message : String(err));
         } finally {
@@ -289,6 +572,7 @@ function WaitForm({
               ["", "Cualquier hora"],
               ["manana", "Mañanas"],
               ["tarde", "Tardes"],
+              ["horas", "Horas concretas"],
             ] as const
           ).map(([v, label]) => (
             <label key={v} className="relative">
@@ -297,6 +581,12 @@ function WaitForm({
             </label>
           ))}
         </div>
+        {time === "horas" && (
+          <div className="grid grid-cols-2 gap-2">
+            <TextField label="Desde" type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <TextField label="Hasta" type="time" value={to} onChange={(e) => setTo(e.target.value)} />
+          </div>
+        )}
         <div className="flex flex-wrap gap-2" role="group" aria-label="Días">
           {WEEKDAYS.map((d, i) => (
             <label key={d} className="relative">
@@ -315,6 +605,14 @@ function WaitForm({
         </div>
         <p className="text-xs text-text-muted">Sin días marcados: cualquier día. Mañanas, hasta las 14:00.</p>
       </fieldset>
+      <TextField label="Puede a partir del (opcional)" type="date" value={since} onChange={(e) => setSince(e.target.value)} hint="Si ahora no puede venir: un viaje, una operación… Hasta ese día no le encaja ningún hueco." />
+      <label className="flex min-h-11 items-start gap-3">
+        <input type="checkbox" checked={priority} onChange={(e) => setPriority(e.target.checked)} className="mt-1 size-5 shrink-0 accent-accent" />
+        <span>
+          <span className="font-semibold">Preferente</span>
+          <span className="block text-sm text-text-muted">Pasa delante al ordenar por prioridad: dolor agudo, postoperatorio…</span>
+        </span>
+      </label>
       <TextField label="Nota (opcional)" value={note} onChange={(e) => setNote(e.target.value)} placeholder="Quiere adelantar su cita, solo a partir de las 18:00…" />
       {team && (
         <SelectField label="Con quién" value={who} onChange={(e) => setWho(e.target.value)}>

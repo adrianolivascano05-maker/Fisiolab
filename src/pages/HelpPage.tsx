@@ -89,7 +89,7 @@ const steps: { title: string; body: ReactNode }[] = [
         (reevaluaciones, lo que queda sin cobrar y quién tiene que firmar algo). <b>Día</b> y <b>Semana</b> son la rejilla: toca un hueco para dar
         una cita. <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya escrito: los recordatorios de mañana y, con el servidor de la clínica, la
         anamnesis 48 horas antes de la primera cita y los cuestionarios antes de reevaluar. Pulsa «Enviar uno tras otro» y manda cada WhatsApp con un
-        toque. Lo que dice cada mensaje (y su firma) lo cambias en Ajustes → <b>Mensajes a pacientes</b>. Si alguien quiere venir antes, apúntalo en la <b>Lista de espera</b>: al anular una cita, la app te ofrece su hueco. Para
+        toque. Lo que dice cada mensaje (y su firma) lo cambias en Ajustes → <b>Mensajes a pacientes</b>. Si alguien quiere venir antes, apúntalo en la <b>Lista de espera</b> con cuándo le viene bien (mañanas, tardes o unas horas, qué días, desde qué día puede y si es preferente): al anular una cita, la app te ofrece su hueco, y la lista se ordena y se filtra por todo eso a la vez. Para
         marcar una tarde, un día o unas vacaciones sin citas, <b>Cerrar la agenda</b> (en la Agenda): sale rayado en la rejilla. Cada fisio
         cierra la suya y quien administra, la de cualquiera o la de toda la clínica.
       </>

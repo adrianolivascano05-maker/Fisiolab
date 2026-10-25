@@ -28,6 +28,7 @@ import booking027 from "./migrations/027_booking.sql?raw";
 import invoices028 from "./migrations/028_invoices.sql?raw";
 import closures029 from "./migrations/029_closures.sql?raw";
 import invoiceRef030 from "./migrations/030_invoice_ref.sql?raw";
+import waitlistMore031 from "./migrations/031_waitlist_more.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -61,4 +62,5 @@ export const migrations: Migration[] = [
   { version: 28, sql: invoices028 },
   { version: 29, sql: closures029 },
   { version: 30, sql: invoiceRef030 },
+  { version: 31, sql: waitlistMore031 },
 ];

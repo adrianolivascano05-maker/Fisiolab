@@ -1,22 +1,9 @@
 // Mejoras frente a la competencia (replica/fixes.md): mapa del dolor (cuestionario), bonos y cobros, lista de espera
 // y hoja de ejercicios para casa.
 import type { Page } from "@playwright/test";
-import { add, createPatient, expect, expectAccessible, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, importData, test } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
-
-/** Pacientes (con teléfono) y citas desde un CSV: lo más rápido para la prueba. */
-async function importData(page: Page, patients: string, appointments?: string) {
-  await page.goto("./ajustes/importar");
-  await page.getByLabel("Elegir el archivo de pacientes").setInputFiles({ name: "p.csv", mimeType: "text/csv", buffer: Buffer.from(patients, "utf8") });
-  await page.getByRole("button", { name: /^Importar \d+ pacientes?$/ }).click();
-  await expect(page.getByText(/pacientes? importados?/)).toBeVisible();
-  if (!appointments) return;
-  await page.getByRole("radio", { name: /Citas/ }).click();
-  await page.getByLabel("Elegir el archivo de citas").setInputFiles({ name: "c.csv", mimeType: "text/csv", buffer: Buffer.from(appointments, "utf8") });
-  await page.getByRole("button", { name: /^Importar \d+ citas?$/ }).click();
-  await expect(page.getByText(/citas? importadas?/)).toBeVisible();
-}
 
 test.describe("Mejoras frente a la competencia", () => {
   // Un martes a las 10:00 en Madrid.

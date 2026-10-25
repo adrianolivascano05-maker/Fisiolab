@@ -97,6 +97,25 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
   texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
 
+## Lista de espera para ordenar y filtrar (hecha el 25-10-2026)
+
+Pedido por el usuario: poder ordenar la lista de espera por tiempo de espera y filtrarla por mañanas, tardes, días de
+la semana y varias cosas a la vez, pensando en todas las variables.
+
+- Hecho: cada paciente de la lista lleva además si es **preferente**, desde qué día **puede** venir y, si hace falta,
+  unas **horas concretas** (de 18:00 a 20:00) en vez de mañanas o tardes (migración 031). Un hueco le encaja si es uno
+  de sus días, en su franja u horas (y cabe entero) y ya puede venir.
+- **Ordenar por:** más tiempo esperando (lo de siempre), menos tiempo esperando, preferentes primero, sin cita primero
+  (y después la más lejana), sin ofrecer primero, nombre.
+- **Filtros que se combinan:** buscar (nombre, nota o teléfono), franja (quien puede a cualquier hora sale en las dos),
+  días (alguno de los marcados), con quién puede (en un equipo), solo preferentes, solo los que ya pueden venir,
+  ofrecido o no, con cita o sin ella, y cuánto lleva esperando (más de una semana, dos o un mes). Se ven arriba como
+  etiquetas que se quitan de una en una; el orden y los filtros van en la dirección y se conservan al volver.
+- Con un hueco libre, primero salen a quienes les encaja, y dentro de eso, el orden elegido.
+- La exportación completa lleva las columnas nuevas; la clínica de prueba trae de todo para probarlo.
+- Pendiente para después, si se pide: que el propio paciente se apunte desde su página; ordenar por «le encaja el
+  próximo hueco libre» sin venir de una cita anulada.
+
 ## Clínica de prueba con volumen (hecha el 25-10-2026)
 
 Pedido por el usuario: muchos pacientes inventados en su perfil para probar la app «viva» y ver qué pasa al

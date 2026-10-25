@@ -376,12 +376,18 @@ export async function generateDemo(
         target = addDays(got.day, gaps[v]!);
       }
       if (waiting || (opts.mode === "normal" && visits.some((v) => v.status === "scheduled") && r.chance(0.06))) {
-        await addToWaitlist(db, pid, {
+        // De todo un poco, para ordenar y filtrar: horas concretas, preferentes, quien aún no puede y días distintos esperando.
+        const hours = r.chance(0.2) ? (fisio.shift === SHIFTS[0] ? { fromMin: 9 * 60, toMin: 11 * 60 + 30 } : { fromMin: 18 * 60, toMin: 20 * 60 + 30 }) : {};
+        const wid = await addToWaitlist(db, pid, {
           note: waiting ? "Sin hueco con su fisio: quiere la primera cita que se libere." : "Si se libera un hueco antes, prefiere adelantar.",
-          assignedTo: fisio.email,
-          preferTime: fisio.shift === SHIFTS[0] ? "manana" : "tarde",
-          preferDays: r.some([1, 2, 3, 4, 5], r.int(2, 4)),
+          assignedTo: r.chance(0.8) ? fisio.email : null,
+          preferTime: r.chance(0.2) ? "" : fisio.shift === SHIFTS[0] ? "manana" : "tarde",
+          preferDays: r.chance(0.25) ? [] : r.some([1, 2, 3, 4, 5], r.int(2, 4)),
+          priority: r.chance(0.15),
+          availableFrom: r.chance(0.1) ? addDays(today, r.int(3, 14)) : null,
+          ...hours,
         });
+        await db.transaction([{ sql: "update waitlist set created_at = ? where id = ?", bind: [atMinutes(addDays(today, -r.int(0, 45)), r.int(9 * 60, 20 * 60)), wid] }]);
         summary.waitlist++;
       }
 

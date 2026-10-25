@@ -31,6 +31,8 @@ volumen y ver cómo responde, y los borra de una vez.
   banderas rojas.
 - Citas pasadas atendidas, alguna sin venir o anulada; las de los próximos dos días, algunas recordadas y
   confirmadas.
+- La lista de espera, variada para ordenarla y filtrarla: días distintos esperando, algunos preferentes, con horas
+  concretas o que aún no pueden venir.
 
 ## Cuidados
 
