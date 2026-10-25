@@ -4,6 +4,7 @@
 // recogerlas (src/patientForm/FormInbox.tsx), se rellena lo que estaba vacío en la anamnesis o se guarda el
 // cuestionario con su nota. El servidor (cloudflare/worker.js) solo ve bytes ilegibles.
 import type { AnswerValue, Answers } from "../data/clinical";
+import type { FormBrand } from "../brand/form";
 import type { Db } from "../data/db";
 import { messageText, type MessageSettings } from "../messages/templates";
 import { cachedCloudConfig } from "../cloud/config";
@@ -28,6 +29,8 @@ export type FormRequest = {
   /** La anamnesis: sus apartados con las preguntas para el paciente. */
   sections?: Section[];
   expiresAt: string;
+  /** La marca de la clínica para la página del paciente (src/brand/form.ts); sin ella, la de Cénit. */
+  brand?: FormBrand;
 };
 /** Lo que vuelve cifrado: las respuestas por id de campo (anamnesis) o de ítem (cuestionario). */
 export type FormResponse = { v: 1; answers: Record<string, unknown> };

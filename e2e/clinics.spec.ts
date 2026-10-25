@@ -673,8 +673,15 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await createClinic(page, "Fisiolab Centro");
     await patients(page);
     await createPatient(page, { name: "Nora Enlace" });
+    const noraUrl = page.url();
+    // La marca de la clínica: viaja dentro del sobre cifrado y viste la página del paciente.
+    await page.goto("./ajustes/marca");
+    await page.getByLabel("Nombre de la clínica").fill("Clínica Aurora");
+    await page.getByLabel("Color principal en hexadecimal").fill("#7A1F3D");
+    await page.getByRole("button", { name: "Guardar la marca" }).click();
+    await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
     // Lo enviado y su estado: la pantalla de formularios del paciente.
-    await page.goto(`${page.url()}/formularios`);
+    await page.goto(`${noraUrl}/formularios`);
     await expect(page.getByText("Todavía no le has mandado ninguno.")).toBeVisible();
     await expectAccessible(page);
 
@@ -707,6 +714,11 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await phone.goto(anamnesisLink);
     await expect(phone.getByRole("heading", { name: "Hola, Nora" })).toBeVisible({ timeout: 15_000 });
     await expect(phone.getByText("Fisiolab Centro te pide que rellenes unas preguntas sobre tu salud")).toBeVisible();
+    // Con la marca de la clínica: su nombre en la cabecera, sus colores y su título; el servidor no la ve.
+    await expect(phone.getByRole("banner")).toContainText("Clínica Aurora");
+    expect(await phone.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--color-brand").trim().toUpperCase())).not.toBe("#0E3B2E");
+    await expect(phone).toHaveTitle("Formulario · Clínica Aurora");
+    expect(JSON.stringify([...google.forms.values()])).not.toContain("Clínica Aurora");
     // Lo del fisioterapeuta no se le pregunta.
     await expect(phone.getByText("Banderas rojas")).toHaveCount(0);
     await phone.getByLabel("¿Por qué vienes? Cuéntanos qué te pasa").fill("Me duele la rodilla al bajar escaleras");

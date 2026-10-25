@@ -10,6 +10,8 @@ import { FormFill, formResult } from "../clinical/FormFill";
 import { formFor, type Answers as FormAnswers } from "../clinical/forms";
 import { ANAMNESIS_KIND, formWhat, seal, unseal, type FormRequest } from "../clinical/patientForms";
 import { errorText, serverUrl } from "../app/publicServer";
+import { applyBrand } from "../brand/brand";
+import { brandFromForm } from "../brand/form";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -68,6 +70,10 @@ export function PublicFormPage() {
         } catch {
           throw new Error("El enlace está incompleto o mal copiado. Ábrelo tal como te llegó, entero.");
         }
+        // La marca de la clínica que trae el formulario (o la de Cénit): colores, logo, favicon y título.
+        const brand = brandFromForm(request.brand);
+        applyBrand(brand, false);
+        document.title = `Formulario · ${brand?.name ?? "Cénit"}`;
         setPhase({ kind: "form", request });
       } catch (e) {
         setPhase({ kind: "error", text: e instanceof Error && e.message !== "Failed to fetch" ? e.message : "No hay conexión. Prueba otra vez en un momento." });
@@ -124,7 +130,8 @@ export function PublicFormPage() {
       <header className="border-b-2 border-highlight bg-brand text-on-brand">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <Logo onDark />
-          {request?.clinic && <p className="min-w-0 truncate font-semibold">{request.clinic}</p>}
+          {/* Con marca, el nombre ya va en el logo; si la clínica se llama distinto en Ajustes › Clínica, también. */}
+          {request?.clinic && request.clinic !== request.brand?.name && <p className="min-w-0 truncate font-semibold">{request.clinic}</p>}
         </div>
       </header>
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-5 pb-16">

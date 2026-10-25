@@ -19,4 +19,8 @@ es Cénit tal cual.
   dibuja él en cada página. Un consentimiento guarda la marca con la que se firmó (`ConsentDocument.brand`) y se
   pinta siempre con esa; los de antes de haber marca, con la de Cénit.
 
-Lo que aún no usa la marca (bloques siguientes): la página del paciente y los mensajes editables.
+- `form.ts`: la marca en la página que abre el paciente. El nombre, los colores y el logo reducido a 160 px viajan
+  dentro del sobre cifrado del formulario (`FormRequest.brand`); `PublicFormPage` la aplica al descifrarlo. Los
+  formularios de antes no la llevan y se abren con la de Cénit. El servidor no la ve.
+
+Los mensajes de WhatsApp y correo se editan aparte, en `src/messages/`.

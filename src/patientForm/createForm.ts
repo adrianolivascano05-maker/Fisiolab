@@ -2,6 +2,8 @@
 // se sube al servidor de la clínica y se apunta en su ficha. Lo usan la ficha (SendFormsPage) y la bandeja de envíos.
 import { ANAMNESIS_KIND, FORM_DAYS, formLink, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
 import type { Section } from "../clinical/anamnesis";
+import { currentBrand } from "../brand/brand";
+import { formBrand } from "../brand/form";
 import { getToken } from "../cloud/auth";
 import type { Cloud } from "../cloud/CloudGate";
 import type { Db } from "../data/db";
@@ -26,6 +28,7 @@ export async function uploadPatientForm(
   const id = newFormId();
   const key = newFormKey();
   const expiresAt = new Date(Date.now() + FORM_DAYS * 86_400_000).toISOString();
+  const brand = await formBrand(currentBrand());
   const request: FormRequest = {
     v: 1,
     clinic: p.clinicName,
@@ -33,6 +36,7 @@ export async function uploadPatientForm(
     kind: p.kind,
     ...(p.kind === ANAMNESIS_KIND ? { sections: patientSections(p.sections) } : {}),
     expiresAt,
+    ...(brand ? { brand } : {}),
   };
   await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt });
   const episodeId = await currentEpisode(db, p.patientId);

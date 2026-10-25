@@ -76,3 +76,16 @@ export async function logoColors(dataUrl: string): Promise<string[]> {
     .slice(0, 2)
     .map((b) => fromLch({ L: b.L / b.n, C: b.C / b.n, h: b.h / b.n }));
 }
+
+/** Un logo ya guardado, más pequeño (PNG de `maxSide` de lado como mucho); un SVG se queda como está, que ya pesa poco. */
+export async function shrinkLogo(dataUrl: string, maxSide: number): Promise<string> {
+  if (dataUrl.startsWith("data:image/svg+xml")) return dataUrl;
+  const img = await loadImage(dataUrl);
+  const k = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+  if (k === 1) return dataUrl;
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(img.naturalWidth * k));
+  c.height = Math.max(1, Math.round(img.naturalHeight * k));
+  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL("image/png");
+}

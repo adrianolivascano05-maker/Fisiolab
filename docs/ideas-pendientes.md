@@ -87,6 +87,8 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
 - Hecho en el bloque 3: Ajustes › Mensajes a pacientes (`src/messages/`): los seis mensajes con texto y asunto
   editables, fichas que se insertan, vista previa y firma común; los seis sitios de la app leen de ahí; el texto del
   recordatorio que ya hubiera se conserva. Agenda › Recordatorios enlaza a esa pantalla.
+- Hecho en el bloque 4: la página del paciente lleva la marca de la clínica (nombre, colores, logo pequeño) dentro
+  del sobre cifrado del formulario; los enlaces antiguos se abren con la de Cénit.
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
   texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
 
