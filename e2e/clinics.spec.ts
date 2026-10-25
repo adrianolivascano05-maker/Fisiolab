@@ -680,6 +680,10 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByLabel("Color principal en hexadecimal").fill("#7A1F3D");
     await page.getByRole("button", { name: "Guardar la marca" }).click();
     await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
+    // Privacidad, con el servidor de la clínica: dónde están los datos y quién puede verlos.
+    await page.goto("./privacidad");
+    await expect(page.getByText(/cifrados, en el servidor de la clínica \(Cloudflare, en la Unión Europea\)/)).toBeVisible();
+    await expect(page.getByText(/encargado del tratamiento: la clínica tiene que firmar con él un contrato de encargado/)).toBeVisible();
     // Lo enviado y su estado: la pantalla de formularios del paciente.
     await page.goto(`${noraUrl}/formularios`);
     await expect(page.getByText("Todavía no le has mandado ninguno.")).toBeVisible();

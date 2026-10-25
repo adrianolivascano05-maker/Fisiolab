@@ -160,7 +160,7 @@ function Editor({ saved, clinicName, onSaved }: { saved: MessageSettings; clinic
             <h2 className="text-lg">{spec.label}</h2>
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Fichas que se sustituyen solas">
               {spec.vars.map((v) => (
-                <button key={v} type="button" title={VAR_HELP[v]} onClick={() => insert(v)} className="min-h-9 rounded-full bg-accent-soft px-2.5 font-mono text-sm font-semibold text-accent hover:bg-accent-hover hover:text-on-accent">
+                <button key={v} type="button" title={VAR_HELP[v]} onClick={() => insert(v)} className="min-h-11 rounded-full bg-accent-soft px-3 font-mono text-sm font-semibold text-accent hover:bg-accent-hover hover:text-on-accent">
                   {v}
                 </button>
               ))}

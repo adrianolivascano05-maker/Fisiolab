@@ -62,7 +62,7 @@ function Phone({ brand, tokens, label }: { brand: Brand; tokens: Tokens; label: 
           </div>
         </div>
       </div>
-      <figcaption className="text-sm text-text-muted">{label}</figcaption>
+      <figcaption className="rounded-full bg-canvas px-2 text-sm text-text-muted">{label}</figcaption>
     </figure>
   );
 }

@@ -190,6 +190,16 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
   - «Paciente añadido»
   - «Ten Cénit a un toque»
   - «El vídeo no sale de tu galería: Cénit solo guarda las marcas y el resultado.»
+- **Marca de cada clínica (25-10-2026):** cada clínica puede poner su nombre, dos colores y su logo en Ajustes ›
+  Marca de la clínica (`src/brand/`). De los dos colores salen todos los de la app en claro y en oscuro (OKLCH, con
+  el contraste AA corregido solo y probado con cientos de colores), como una hoja de estilos encima de `tokens.css`;
+  sin marca guardada, Cénit tal cual. Llevan la marca la app (barra, favicon, título), los documentos (membrete y
+  marca de agua en pantalla, al imprimir y en cada página del PDF; los consentimientos guardan la marca con la que
+  se firmaron) y la página que abre el paciente (dentro del sobre cifrado del formulario). Al pie de cada documento,
+  «Documento generado con Cénit», y en Privacidad, siempre, quién hace el programa.
+- **Mensajes a pacientes (25-10-2026):** Ajustes › Mensajes a pacientes (`src/messages/`): los seis mensajes de
+  WhatsApp y correo con texto y asunto editables, fichas como {nombre} o {hora}, vista previa y firma común. El
+  ajuste antiguo `reminder_template` se sigue leyendo y escribiendo.
 
 ## 6. Código: mapa y comandos
 

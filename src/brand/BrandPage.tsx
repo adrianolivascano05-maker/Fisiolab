@@ -67,9 +67,11 @@ function Swatches({ hex, label }: { hex: string; label: string }) {
       <p className="mb-1 text-sm text-text-muted">{label}</p>
       <div className="grid grid-cols-10 gap-1" aria-hidden="true">
         {scale(hex).map((s) => {
+          // ✓: sirve para texto sobre blanco. El número, en blanco o negro, el que más se lea (siempre más de 4,5:1).
           const onWhite = contrast(s.hex, "#FFFFFF") >= 4.5;
+          const ink = contrast(s.hex, "#FFFFFF") >= contrast(s.hex, "#000000") ? "#FFFFFF" : "#000000";
           return (
-            <span key={s.step} title={s.hex} className="flex h-9 items-end justify-center rounded-sm pb-0.5 font-mono text-[10px]" style={{ background: s.hex, color: onWhite ? "#fff" : "#16201B" }}>
+            <span key={s.step} title={s.hex} className="flex h-9 items-end justify-center rounded-sm pb-0.5 font-mono text-[10px]" style={{ background: s.hex, color: ink }}>
               {s.step}
               {onWhite ? "✓" : ""}
             </span>

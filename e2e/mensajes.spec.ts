@@ -1,6 +1,6 @@
 // Mensajes a pacientes (src/messages): en Ajustes, cada mensaje con su texto, su asunto y la firma común; lo que se
 // escribe es lo que sale por WhatsApp y correo en el resto de la app.
-import { expect, expectAccessible, test } from "./fixtures";
+import { expect, expectAccessible, smallTargets, test } from "./fixtures";
 
 test.describe("Mensajes a pacientes", () => {
   test("MS1 se edita un mensaje con fichas y firma, se ve en la vista previa, se guarda y lo usa la agenda", async ({ page }) => {
@@ -47,6 +47,7 @@ test.describe("Mensajes a pacientes", () => {
     await expect(list.getByRole("button", { name: /Recordatorio de cita/ })).toHaveAttribute("aria-pressed", "true");
     await page.setViewportSize({ width: 360, height: 780 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    expect(await smallTargets(page)).toEqual([]);
     await expectAccessible(page);
   });
 });

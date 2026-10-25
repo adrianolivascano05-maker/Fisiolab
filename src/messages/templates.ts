@@ -77,7 +77,6 @@ export type MessageSettings = { texts: MessageTexts; signature: string };
 export const MESSAGES_KEY = "message_templates";
 /** El ajuste anterior, solo del recordatorio: se sigue leyendo (y escribiendo) para no perder lo que ya estaba. */
 export const REMINDER_TEMPLATE_KEY = "reminder_template";
-export const EMPTY_MESSAGES: MessageSettings = { texts: {}, signature: "" };
 
 /** Junta lo guardado con el ajuste antiguo del recordatorio, si lo había y no hay texto nuevo. */
 export function mergeLegacy(raw: Partial<MessageSettings> | null, legacyReminder: string | null): MessageSettings {

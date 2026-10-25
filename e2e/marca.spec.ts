@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 import type { Locator, Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, test } from "./fixtures";
+import { createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
 
 /** Un PNG de un solo color, para subirlo como logo. */
 function png(w: number, h: number, rgb: [number, number, number]): Buffer {
@@ -179,7 +179,16 @@ test.describe("Marca de la clínica", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
     await page.goto("./ajustes/marca");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    await page.getByText("Avanzado: los tonos y el color de los botones").click();
+    expect(await smallTargets(page)).toEqual([]);
     await expectAccessible(page);
+
+    // Privacidad dice siempre quién hace el programa, aunque la app lleve la marca de la clínica.
+    await page.goto("./privacidad");
+    await expect(page.getByRole("heading", { name: "Quién hace el programa" })).toBeVisible();
+    await expect(page.getByText(/Esta app es Cénit · Fisiolab, aunque lleve el nombre, los colores o el logo de/)).toBeVisible();
+    await expectAccessible(page);
+    await page.goto("./ajustes/marca");
 
     // Volver a Cénit.
     await page.getByRole("button", { name: "Volver a la marca de Cénit" }).click();

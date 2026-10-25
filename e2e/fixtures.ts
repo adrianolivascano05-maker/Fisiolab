@@ -158,3 +158,24 @@ export async function loadSeed(page: Page) {
   await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
   await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
 }
+
+/**
+ * Lo que se toca en la pantalla y mide menos de 44 px de alto (o de ancho): botones, enlaces, campos y desplegables.
+ * Una casilla o un botón de opción cuenta por su etiqueta, que es lo que se toca. Los enlaces dentro de un párrafo
+ * no cuentan (se tocan por la línea entera). Devuelve la descripción de cada uno que no llega.
+ */
+export async function smallTargets(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const out: string[] = [];
+    const els = document.querySelectorAll<HTMLElement>("main button, main a[href], main input, main select, main textarea, main summary");
+    for (const el of els) {
+      if (el.closest("[aria-hidden=true]") || el.closest("p") || (el instanceof HTMLInputElement && el.type === "file")) continue;
+      const target = el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio") ? (el.closest("label") ?? el) : el;
+      const r = target.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      if (r.height < 43.5 || r.width < 43.5) out.push(`${el.tagName.toLowerCase()} «${(el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 40)}» ${Math.round(r.width)}×${Math.round(r.height)}`);
+    }
+    return out;
+  });
+}
+

@@ -4,12 +4,14 @@ import { useAsync } from "../app/useAsync";
 import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
+import { SUPPORT_EMAIL } from "../app/contact";
 
 /** Privacidad: qué datos trata la app y dónde están. Texto propio de Fisiolab. */
 export function PrivacyPage() {
   const cloud = useCloud();
   const clinic = useAsync(() => getClinic(getDb()), []);
   const owner = clinic.data?.name || "la clínica Fisiolab";
+  const server = cloud?.sync.store.kind === "server";
   return (
     <Page title="Privacidad" backTo="/ajustes">
       <article className="flex flex-col gap-3 text-base">
@@ -23,7 +25,14 @@ export function PrivacyPage() {
           opcionales dio. Los vídeos <b>no</b> se guardan: se quedan en la galería del móvil.
         </p>
         <h2 className="text-lg">Dónde están</h2>
-        {cloud ? (
+        {server ? (
+          <p>
+            En el almacenamiento de este dispositivo y, cifrados, en el servidor de la clínica (Cloudflare, en la Unión Europea). Antes de salir del
+            dispositivo se cifran con la contraseña de la clínica: ni el servidor ni quien lo gestiona pueden leerlos; solo ven el nombre de la clínica y el
+            correo de cada persona del equipo. Cada uno entra con su cuenta de Google. Las copias de seguridad y los CSV son archivos que descarga quien usa la
+            app y que la clínica debe guardar con las mismas precauciones que la historia clínica.
+          </p>
+        ) : cloud ? (
           <p>
             En el almacenamiento de este dispositivo y en el Google Drive de cada fisioterapeuta, en una carpeta oculta que solo usa esta app (cada uno
             entra con su cuenta de Google y solo ve sus pacientes). Esa copia se puede cifrar con una contraseña de la clínica (Ajustes → Cuenta de Google). La app no
@@ -40,8 +49,25 @@ export function PrivacyPage() {
         <p>
           El alojamiento web solo sirve los archivos de la app. Como cualquier web, registra la dirección IP de quien la descarga. No recibe datos de
           pacientes. No hay analítica, ni publicidad, ni cookies.
+          {server &&
+            " Cloudflare aloja el servidor de la clínica en la Unión Europea y solo guarda copias cifradas y los formularios cifrados de los pacientes; su contrato de encargado del tratamiento (DPA) forma parte de sus condiciones. Google solo sirve para entrar (ve el nombre y el correo de quien entra) y, si se usan, para guardar informes en el Drive de cada fisioterapeuta y las citas en su Google Calendar."}
           {cloud &&
+            !server &&
             " Google guarda la copia de la carpeta de la app en el Drive de cada fisioterapeuta, los informes y resultados que se guardan a la vista en su carpeta «Cénit · Fisiolab», y el día, la hora y el nombre (o las iniciales) de las citas en el calendario «Cénit · Citas»; para entrar, Google ve el nombre y el correo de quien entra. Para historias clínicas hace falta un contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace de la clínica y no las de Gmail normales."}
+        </p>
+        {/* Siempre, aunque la app lleve la marca de la clínica: quién hace el programa y qué puede ver. */}
+        <h2 className="text-lg">Quién hace el programa</h2>
+        <p>
+          Esta app es Cénit · Fisiolab, aunque lleve el nombre, los colores o el logo de {owner}. Cénit · Fisiolab hace el programa y no puede ver los
+          datos de los pacientes.{" "}
+          {server
+            ? "Si el servidor de la clínica lo gestiona Cénit · Fisiolab (u otra persona o empresa que no sea la clínica), quien lo gestione es encargado del tratamiento: la clínica tiene que firmar con él un contrato de encargado (artículo 28 del RGPD)."
+            : "Si la clínica pasa a usar un servidor que gestiona otra persona o empresa, esa persona o empresa será encargada del tratamiento y habrá que firmar con ella un contrato de encargado (artículo 28 del RGPD)."}{" "}
+          Contacto:{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="py-3 font-semibold text-accent underline underline-offset-2">
+            {SUPPORT_EMAIL}
+          </a>
+          .
         </p>
         <h2 className="text-lg">Seguridad</h2>
         <p>

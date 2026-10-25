@@ -3,7 +3,7 @@
 // (y los de los demás mensajes) los cambia la clínica en Ajustes › Mensajes a pacientes (src/messages/templates.ts).
 import { DEFAULT_TEMPLATE, dayText, fillTemplate, firstName, hourText, messageText, withWho, type MessageSettings, type MessageVars } from "../messages/templates";
 
-export { DEFAULT_TEMPLATE, dayText, firstName, hourText, REMINDER_TEMPLATE_KEY } from "../messages/templates";
+export { DEFAULT_TEMPLATE, dayText, hourText } from "../messages/templates";
 
 export type ReminderVars = { name: string; startsAt: string; clinic: string; professional?: string | null };
 

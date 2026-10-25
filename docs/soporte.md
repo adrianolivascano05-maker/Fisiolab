@@ -31,6 +31,11 @@ que la app no falle: sirve para que falle menos, enterarse pronto y arreglarlo r
 4. Si hay riesgo de perder datos: pedir antes de nada que descargue una copia de seguridad (Ajustes › Copias y
    exportar) y que no borre la app.
 
+Si una clínica dice que la app «se ve rara» o no se lee algo después de poner su marca: Ajustes › Marca de la clínica
+› «Volver a la marca de Cénit» la deja como estaba sin tocar ningún dato; luego se prueba su marca de nuevo y, si un
+color da problemas, se apunta para revisar el motor (`src/brand/engine.ts`). Si un mensaje sale con llaves
+({precio}), es una ficha que no existe: la pantalla de Mensajes a pacientes lo avisa al escribirlo.
+
 Plazos que proponemos: dudas en 2 días laborables; un fallo que impide trabajar, el mismo día. Hay que decidir quién
 responde el correo `cenitfisiolab@gmail.com` y quién le sustituye en vacaciones.
 

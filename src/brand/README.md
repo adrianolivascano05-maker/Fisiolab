@@ -23,4 +23,5 @@ es Cénit tal cual.
   dentro del sobre cifrado del formulario (`FormRequest.brand`); `PublicFormPage` la aplica al descifrarlo. Los
   formularios de antes no la llevan y se abren con la de Cénit. El servidor no la ve.
 
-Los mensajes de WhatsApp y correo se editan aparte, en `src/messages/`.
+Los mensajes de WhatsApp y correo se editan aparte, en `src/messages/`. En Privacidad (`src/pages/PrivacyPage.tsx`)
+hay siempre un apartado «Quién hace el programa», aunque la app lleve la marca de la clínica.

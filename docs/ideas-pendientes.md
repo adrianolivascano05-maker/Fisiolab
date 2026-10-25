@@ -71,7 +71,7 @@ El usuario quiere poder facturar algún día desde la app, aunque haya que pagar
 
 Nada se contrata sin que lo decida el usuario. Estado: pendiente.
 
-## Marca por clínica (en marcha desde el 25-10-2026)
+## Marca por clínica (hecha el 25-10-2026)
 
 Decidido con los borradores y el plan (fase 2 y 3): cada clínica pone su nombre, dos colores y su logo en Ajustes ›
 Marca de la clínica; la app, la página del paciente y los documentos se visten con ello. Sin dominios, sin planes y sin
@@ -89,6 +89,11 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
   recordatorio que ya hubiera se conserva. Agenda › Recordatorios enlaza a esa pantalla.
 - Hecho en el bloque 4: la página del paciente lleva la marca de la clínica (nombre, colores, logo pequeño) dentro
   del sobre cifrado del formulario; los enlaces antiguos se abren con la de Cénit.
+- Hecho en el bloque 5: Privacidad dice siempre quién hace el programa y, con el servidor de la clínica, explica
+  dónde están los datos (antes decía, por error, que la app hablaba solo con Google Drive) y quién es encargado del
+  tratamiento; la ayuda dice dónde se cambian los mensajes; fichas de Mensajes a 44 px; prueba de 44 px en las
+  pantallas nuevas; documentación (RESUMEN, soporte, índice). El texto legal no está revisado por un abogado:
+  revisarlo con la asesoría o el delegado de protección de datos.
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
   texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
 
