@@ -97,6 +97,24 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
   texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
 
+## Clínica de prueba con volumen (hecha el 25-10-2026)
+
+Pedido por el usuario: muchos pacientes inventados en su perfil para probar la app «viva» y ver qué pasa al
+saturarla, con varios fisios repartidos por igual, y poder borrarlo todo después. Decidido: en una clínica de prueba
+aparte (opción A), con modo estrés y teléfonos falsos.
+
+- Hecho: Ajustes › Copias y exportar › Clínica de prueba (`src/demo/`). 100 pacientes (o 500 en modo estrés) con
+  anamnesis, CIF, exploración, cuestionarios con la nota de la app, mapa del dolor, PSFS, movilidad, saltos en los
+  deportistas, sesiones, bonos, cobros, consentimientos, lista de espera y algún motivo de consulta anterior; cinco
+  fisios inventados (más quien lo carga) con turnos de mañana o de tarde, unas vacaciones y la agenda desde hace dos
+  meses (seis en estrés) hasta final del mes que viene, repartida por igual. Teléfonos +44 7700 900xxx (reservados
+  por el regulador británico para la ficción). Solo en una clínica vacía y solo quien la administra; se borra entero
+  (y los ajustes que tocó vuelven a como estaban). Las citas inventadas no van al Google Calendar de quien las carga.
+- Medido en las pruebas: 100 pacientes, unas 700 citas en unos segundos; 500 pacientes, unas 3000 citas en unos
+  35 s, 17 MB en el navegador, y cada pantalla (pacientes, búsqueda, ficha, agenda, recordatorios, lista de espera,
+  cobros) abre en un segundo o menos. Con el servidor, los 500 suben cifrados en unos 10 s más.
+- Pendiente: probarlo el usuario en su clínica de prueba real y decir qué pantalla se le hace lenta.
+
 ## Propuestos por el usuario (23-10-2026)
 
 1. **Bandeja de envíos automáticos por WhatsApp.** La app prepara sola lo que toca mandar (anamnesis el día

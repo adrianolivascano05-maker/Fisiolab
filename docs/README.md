@@ -9,7 +9,8 @@
 | [archivo/](archivo/) | Planes ya cumplidos (limpieza de pantallas, versión de ordenador), por si hace falta ver qué se decidió. |
 
 La marca de cada clínica y los mensajes editables se explican en [../src/brand/README.md](../src/brand/README.md) y
-[../src/messages/README.md](../src/messages/README.md).
+[../src/messages/README.md](../src/messages/README.md). La clínica de prueba (cientos de pacientes inventados para probar la app con
+volumen), en [../src/demo/README.md](../src/demo/README.md).
 
 El resumen técnico de toda la app está en [../RESUMEN.md](../RESUMEN.md) y la instalación del servidor en
 [../cloudflare/README.md](../cloudflare/README.md).

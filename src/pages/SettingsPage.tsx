@@ -47,6 +47,7 @@ import { FullExportButton } from "../export/FullExportButton";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
 import { hasSeed, loadSeed, removeSeed } from "../data/seed";
+import { DemoSection } from "../demo/DemoSection";
 import { ClinicSettings } from "../privacy/ClinicSettings";
 import { LockSettings } from "../privacy/LockSettings";
 import { getLock } from "../privacy/pin";
@@ -219,7 +220,7 @@ export function LockSettingsPage() {
   );
 }
 
-/** Ajustes → Copias y exportar (y los datos de ejemplo). */
+/** Ajustes → Copias y exportar (y los datos de ejemplo y la clínica de prueba). */
 export function DataSettingsPage() {
   const toast = useToast();
   const cloud = useCloud();
@@ -361,6 +362,8 @@ export function DataSettingsPage() {
           </Button>
         )}
       </section>
+
+      <DemoSection />
 
       <Sheet open={!!pending} onClose={() => setPending(null)} title="¿Restaurar esta copia?">
         <p>Los datos actuales de este dispositivo se sustituirán por los de «{pending?.name}». Si no tienes copia de lo actual, descárgala antes.</p>

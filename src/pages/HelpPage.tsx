@@ -169,7 +169,8 @@ export function HelpPage() {
             <Link to="/ajustes/datos" className={link}>
               datos de ejemplo
             </Link>{" "}
-            y bórralos después.
+            y bórralos después. Para probarla con volumen, en una clínica de prueba vacía, carga la <b>«Clínica de prueba»</b> del
+            mismo sitio: 100 pacientes inventados (o 500) con su agenda.
           </li>
           <li>
             ¿Medir a alguien sin crear su ficha? En la Biblioteca, <b>«Medir ahora, sin ficha»</b>.

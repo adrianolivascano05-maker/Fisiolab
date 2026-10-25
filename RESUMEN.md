@@ -38,7 +38,7 @@ Fecha: 2026-10-17
 - Exportación CSV para Excel, y copia de seguridad que se puede restaurar.
 - App instalable que funciona sin conexión.
 - Ayuda ilustrada.
-- Datos de ejemplo.
+- Datos de ejemplo, y una clínica de prueba con 100 o 500 pacientes inventados para probarla con volumen (`src/demo/`).
 - Marca propia.
 
 **Pendiente:**
