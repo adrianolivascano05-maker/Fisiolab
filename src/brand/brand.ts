@@ -178,22 +178,22 @@ export function syncThemeColor() {
   meta.content = (dark ? t.dark.brand : t.light.brand) ?? "#0E3B2E";
 }
 
-/** Un icono de 64 px con la inicial del nombre sobre el color principal, para la pestaña cuando no hay logo. */
-export function initialIcon(b: Pick<Brand, "name" | "primary" | "secondary" | "accentOverride">): string {
+/** Un icono con la inicial del nombre sobre el color principal: la pestaña (64 px) o la marca de agua (512 px) sin logo. */
+export function initialIcon(b: Pick<Brand, "name" | "primary" | "secondary" | "accentOverride">, size = 64): string {
   const t = brandTokens(b.primary, b.secondary, { accentOverride: b.accentOverride });
   const c = document.createElement("canvas");
-  c.width = c.height = 64;
+  c.width = c.height = size;
   const x = c.getContext("2d");
   if (!x) return "";
   x.fillStyle = t.light.accent!;
   x.beginPath();
-  x.roundRect(0, 0, 64, 64, 16);
+  x.roundRect(0, 0, size, size, size / 4);
   x.fill();
   x.fillStyle = t.light["on-accent"]!;
-  x.font = "700 38px 'Bricolage Grotesque', system-ui, sans-serif";
+  x.font = `700 ${Math.round(size * 0.6)}px 'Bricolage Grotesque', system-ui, sans-serif`;
   x.textAlign = "center";
   x.textBaseline = "middle";
-  x.fillText(initialOf(b.name), 32, 35);
+  x.fillText(initialOf(b.name), size / 2, size * 0.55);
   return c.toDataURL("image/png");
 }
 

@@ -63,3 +63,8 @@ anamnesis de forma predecible. El mismo paciente con la misma anamnesis tiene si
 - Consentimiento informado en fisioterapia: revisión en *Enfermería Clínica* (Elsevier), congreso «Fisioterapia y
   práctica clínica diaria», y el modelo de la Junta de Andalucía para la electroestimulación del suelo pélvico.
 - Reglamento (UE) 910/2014 (eIDAS) y Ley 6/2020 de servicios electrónicos de confianza.
+
+**Marca de la clínica (25-10-2026).** El documento guarda en `brand` la marca con la que se firmó (nombre, colores,
+logo, placa y si llevaba marca de agua; null si era la de Cénit): `ConsentDocumentView` lo pinta siempre con esa,
+aunque la clínica cambie de marca después. Los firmados antes de haber marca no llevan el campo y se ven como
+entonces, con la de Cénit (`src/brand/docs.tsx`).

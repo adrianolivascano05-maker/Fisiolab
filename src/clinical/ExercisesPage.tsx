@@ -188,7 +188,7 @@ export function ExercisesPage() {
         <article
           ref={article}
           aria-label="Hoja de ejercicios"
-          className="flex flex-col gap-5 theme-light rounded-lg border border-border bg-white p-6 text-base leading-relaxed text-text shadow-card sm:p-8 print:rounded-none print:border-0 print:p-0 print:shadow-none"
+          className="flex flex-col gap-5 relative theme-light rounded-lg border border-border bg-white p-6 text-base leading-relaxed text-text shadow-card sm:p-8 print:rounded-none print:border-0 print:p-0 print:shadow-none"
         >
           <Letterhead clinic={clinic} title="Ejercicios para casa" subtitle={`${patient.name} · ${fmtDate(plan.updatedAt)}`} />
           <ol className="flex flex-col gap-4">

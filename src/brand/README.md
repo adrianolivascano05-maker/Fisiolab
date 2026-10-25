@@ -13,5 +13,10 @@ es Cénit tal cual.
 - `BrandPage.tsx` y `BrandPreview.tsx`: la pantalla de Ajustes con la vista previa en vivo.
 - `src/ui/Logo.tsx` pinta el logo de la clínica (o su inicial) donde antes iba solo el de Cénit.
 
-Lo que aún no usa la marca (bloques siguientes): los documentos y la marca de agua, la página del paciente y los
-mensajes editables.
+- `docs.tsx`: la marca en los documentos. `Watermark` (el logo en gris al 7 %, en el tercio superior; al imprimir,
+  en cada hoja) y `docVars` (los colores de un documento como variables en su recuadro). El membrete común está en
+  `src/clinical/reportParts.tsx`; el PDF (`src/clinical/reportPdf.ts`) esconde la marca de agua de la pantalla y la
+  dibuja él en cada página. Un consentimiento guarda la marca con la que se firmó (`ConsentDocument.brand`) y se
+  pinta siempre con esa; los de antes de haber marca, con la de Cénit.
+
+Lo que aún no usa la marca (bloques siguientes): la página del paciente y los mensajes editables.

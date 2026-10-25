@@ -1,20 +1,35 @@
-// Piezas comunes de los informes imprimibles (el informe de fisioterapia y el de alta): el membrete con los datos de
-// la clínica (o la marca de la app si aún no están en Ajustes) y los apartados con su título.
+// Piezas comunes de los documentos imprimibles (informes, alta, derivación, justificante, recibo, ejercicios): el
+// membrete con la marca y los datos de la clínica (o la marca de la app si aún no están en Ajustes), la marca de
+// agua y los apartados con su título. Los documentos se generan cada vez: llevan la marca que haya ahora.
 import type { ReactNode } from "react";
+import { useBrand } from "../brand/brand";
+import { MADE_WITH, Watermark } from "../brand/docs";
 import type { ClinicInfo } from "../data/privacy";
 import { LogoMark } from "../ui/Logo";
 
 export function Letterhead({ clinic, title, subtitle }: { clinic: ClinicInfo; title: string; subtitle: string }) {
+  const brand = useBrand();
   const details = [clinic.taxId && `NIF ${clinic.taxId}`, clinic.address, clinic.phone, clinic.email].filter(Boolean).join(" · ");
   return (
     <header className="flex items-start justify-between gap-4 border-b border-border pb-3">
+      <Watermark brand={brand} />
       <div className="flex flex-col">
         <span className="text-xl font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
           {title}
         </span>
         <span className="text-sm text-text-muted">{subtitle}</span>
       </div>
-      {clinic.name ? (
+      {brand ? (
+        <span className="flex max-w-[55%] items-start justify-end gap-2 text-right">
+          <span className="flex min-w-0 flex-col items-end">
+            <span className="text-lg leading-tight font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
+              {brand.name}
+            </span>
+            {details && <span className="text-xs text-text-muted">{details}</span>}
+          </span>
+          <LogoMark size={40} brand={brand} />
+        </span>
+      ) : clinic.name ? (
         <span className="flex max-w-[55%] flex-col items-end text-right">
           <span className="text-lg font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
             {clinic.name}
@@ -59,7 +74,9 @@ export function SignatureLine({ name, license, date }: { name: string; license: 
         </span>
         <span>Fecha: {date}</span>
       </div>
-      <p className="text-xs text-text-muted">{RECORD_ONLY}</p>
+      <p className="text-xs text-text-muted">
+        {MADE_WITH} {RECORD_ONLY}
+      </p>
     </footer>
   );
 }

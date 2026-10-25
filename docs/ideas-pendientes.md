@@ -81,6 +81,9 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
 - Hecho en el bloque 1: `src/brand/` (motor OKLCH con contraste AA probado con cientos de colores, hoja de marca
   encima de tokens.css, sin parpadeo al abrir, favicon, título y color de la barra del móvil), Logo.tsx con el logo
   de la clínica, fila «Marca de la clínica» en Ajustes › Clínica.
+- Hecho en el bloque 2: membrete con la marca en informe, alta, derivación, justificante, recibo y hoja de
+  ejercicios; marca de agua en pantalla, al imprimir y en cada página del PDF; pie «Documento generado con Cénit»;
+  los consentimientos guardan la marca con la que se firmaron. Las facturas antiguas (solo lectura) no cambian.
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
   texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
 

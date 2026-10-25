@@ -75,7 +75,7 @@ export function ReceiptPage() {
         <article
           ref={article}
           aria-label="Recibo"
-          className="flex flex-col gap-6 theme-light rounded-lg border border-border bg-white p-8 text-base leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none"
+          className="flex flex-col gap-6 relative theme-light rounded-lg border border-border bg-white p-8 text-base leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none"
         >
           <Letterhead clinic={clinic} title="Recibo" subtitle={fmtDate(new Date().toISOString())} />
           <p>

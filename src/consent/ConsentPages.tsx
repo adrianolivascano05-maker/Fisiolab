@@ -20,6 +20,7 @@ import { Group, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { SignaturePad } from "../ui/SignaturePad";
 import { useToast } from "../ui/Toast";
+import { currentBrand } from "../brand/brand";
 import { ConsentDocumentView } from "./ConsentDocumentView";
 import { consentContext } from "./context";
 import { precautionLabel } from "./precautions";
@@ -163,6 +164,7 @@ export function ConsentNewPage() {
       sections: buildSections(t, ctx, techniques),
       date: form.date || today(),
       place: form.place.trim(),
+      brand: currentBrand(),
     };
   }, [data.data, t, techniques, form, withRep]);
 

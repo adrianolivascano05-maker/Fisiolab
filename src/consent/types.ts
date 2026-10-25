@@ -3,6 +3,8 @@
 // por escrito en los procedimientos invasores o con riesgos notorios, y su art. 10 pide informar de las
 // consecuencias, los riesgos frecuentes, los riesgos por las circunstancias personales y las contraindicaciones:
 // esos últimos son los que salen de la anamnesis.
+import type { Brand } from "../brand/brand";
+
 
 /** Lo que dice la anamnesis (y la ficha) que importa para los consentimientos. */
 export type ConsentContext = {
@@ -71,4 +73,6 @@ export type ConsentDocument = {
   /** Fecha del documento (AAAA-MM-DD) y lugar. */
   date: string;
   place: string;
+  /** La marca de la clínica con la que se firmó (null: la de Cénit); los firmados antes de haber marca no la llevan. */
+  brand?: Brand | null;
 };

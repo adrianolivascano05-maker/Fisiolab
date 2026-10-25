@@ -1,7 +1,9 @@
 // La marca de la clínica (src/brand): nombre, dos colores y logo en Ajustes › Marca de la clínica. Se aplica a toda
 // la app con contraste suficiente en claro y en oscuro, no parpadea al abrir, y «Volver a la marca de Cénit» la quita.
+import { readFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
-import { expect, expectAccessible, test } from "./fixtures";
+import type { Locator, Page } from "@playwright/test";
+import { createPatient, expect, expectAccessible, test } from "./fixtures";
 
 /** Un PNG de un solo color, para subirlo como logo. */
 function png(w: number, h: number, rgb: [number, number, number]): Buffer {
@@ -48,7 +50,77 @@ function contrast(a: string, b: string) {
   return (hi! + 0.05) / (lo! + 0.05);
 }
 
+/** Firma de mentira: un garabato con el ratón. */
+async function scribble(page: Page, pad: Locator) {
+  const box = (await pad.boundingBox())!;
+  await page.mouse.move(box.x + 30, box.y + box.height * 0.6);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + 30 + i * 20, box.y + box.height * (0.6 + 0.2 * Math.sin(i)));
+  await page.mouse.up();
+}
+
+/** Guarda una marca desde Ajustes. */
+async function setBrand(page: Page, name: string, primary: string, secondary: string, watermark: boolean) {
+  await page.goto("./ajustes/marca");
+  await page.getByLabel("Nombre de la clínica").fill(name);
+  await page.getByLabel("Color principal en hexadecimal").fill(primary);
+  await page.getByLabel("Color de acento en hexadecimal").fill(secondary);
+  await page.getByRole("checkbox", { name: /Marca de agua/ }).setChecked(watermark);
+  await page.getByRole("button", { name: "Guardar la marca" }).click();
+  await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
+}
+
 test.describe("Marca de la clínica", () => {
+  test("MB2 los documentos llevan la marca y la marca de agua; un consentimiento firmado se queda con la suya", async ({ page }) => {
+    test.setTimeout(120_000);
+    await setBrand(page, "Clínica Aurora", "#7A1F3D", "#D9A441", true);
+    await createPatient(page, { name: "Marta Marca" });
+    const patient = page.url().replace(/^.*\/pacientes\//, "./pacientes/");
+
+    // El informe: membrete con la marca y la marca de agua.
+    await page.goto(`${patient}/informe`);
+    const report = page.getByRole("article", { name: "Informe" });
+    await expect(report).toContainText("Clínica Aurora");
+    await expect(report).toContainText("Documento generado con Cénit.");
+    await expect(report.locator("[data-watermark] img")).toHaveCount(1);
+    await expectAccessible(page);
+
+    // El justificante en PDF se genera (con la marca de agua dibujada en cada página).
+    await page.goto(`${patient}/justificante`);
+    await page.getByLabel("Día y hora de la consulta").fill("2026-10-20T10:00");
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Guardar en PDF" }).click()]);
+    expect(dl.suggestedFilename()).toMatch(/^Justificante Marta Marca 2026-10-20\.pdf$/);
+    const pdf = readFileSync((await dl.path())!);
+    expect(pdf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    expect(pdf.length).toBeGreaterThan(5000);
+
+    // Un consentimiento firmado con esta marca.
+    await page.goto(`${patient}/consentimientos`);
+    await page.getByRole("region", { name: "Propuestos para este paciente" }).getByRole("link", { name: /Valoración y tratamiento/ }).click();
+    const doc = page.locator("article");
+    await expect(doc).toContainText("Clínica Aurora");
+    await expect(doc.locator("[data-watermark] img")).toHaveCount(1);
+    await page.getByLabel("Fisioterapeuta que informa").fill("Laura Ruiz");
+    await page.getByRole("button", { name: "Firmar en la pantalla" }).click();
+    await scribble(page, page.getByRole("img", { name: /Firma de Marta Marca/ }));
+    await scribble(page, page.getByRole("img", { name: /Firma del fisioterapeuta/ }));
+    await page.getByRole("button", { name: "Guardar el consentimiento firmado" }).click();
+    await expect(page.getByText(/Firmado el .* en la pantalla/)).toBeVisible();
+    const signed = page.url().replace(/^.*\/pacientes\//, "./pacientes/");
+
+    // La clínica cambia de marca y quita la marca de agua: los documentos nuevos cambian; el firmado, no.
+    await setBrand(page, "Clínica Boreal", "#2B2F2B", "#B5D334", false);
+    await page.goto(`${patient}/informe`);
+    await expect(report).toContainText("Clínica Boreal");
+    await expect(report.locator("[data-watermark]")).toHaveCount(0);
+    await page.goto(signed);
+    await expect(doc).toContainText("Clínica Aurora");
+    await expect(doc).not.toContainText("Clínica Boreal");
+    await expect(doc.locator("[data-watermark] img")).toHaveCount(1);
+    await expect(page.getByRole("img", { name: "Firma: Marta Marca" })).toBeVisible();
+    await expectAccessible(page);
+  });
+
   test("MB1 dos colores y un nombre visten toda la app, con contraste, sin parpadeo, y se quitan", async ({ page }) => {
     test.setTimeout(120_000);
     await page.goto("./ajustes");

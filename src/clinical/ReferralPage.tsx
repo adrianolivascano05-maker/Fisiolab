@@ -185,7 +185,7 @@ export function ReferralPage() {
           />
         </div>
 
-        <article ref={article} aria-label="Carta de derivación" className="flex flex-col gap-5 theme-light rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
+        <article ref={article} aria-label="Carta de derivación" className="flex flex-col gap-5 relative theme-light rounded-lg border border-border bg-white p-6 text-[0.9375rem] leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
           <Letterhead clinic={clinic} title="Informe de derivación" subtitle={fmtDate(today)} />
           <p>
             <span className="text-text-muted">A la atención de:</span> <span className="font-semibold">{to.trim() || "—"}</span>

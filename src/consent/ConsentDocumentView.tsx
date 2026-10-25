@@ -1,7 +1,9 @@
 // Un consentimiento tal como se lee y se imprime: la clínica, el paciente (y su representante), quién informa, lo
 // que se va a hacer, sus riesgos, la declaración, las firmas y el recuadro para retirarlo.
 import { fmtDate } from "../app/format";
+import { docVars, MADE_WITH, Watermark } from "../brand/docs";
 import type { Signatures } from "../data/consents";
+import { LogoMark } from "../ui/Logo";
 import type { ConsentDocument } from "./types";
 
 const day = (iso: string) => fmtDate(iso.length === 10 ? `${iso}T12:00:00` : iso);
@@ -31,8 +33,18 @@ export function ConsentDocumentView({
 }) {
   const signer = doc.representative ? `${doc.representative.name} (${doc.representative.relation || "representante legal"})` : doc.patient.name;
   return (
-    <article className="flex flex-col gap-4 text-[15px] leading-relaxed print:text-[11pt]">
+    // Con los colores de la marca con la que se firmó (o los de Cénit): aunque la clínica cambie de marca, este no cambia.
+    <article className="relative flex flex-col gap-4 text-[15px] leading-relaxed print:text-[11pt]" style={docVars(doc.brand)}>
+      <Watermark brand={doc.brand} />
       <header className="flex flex-col gap-1 border-b border-border pb-3">
+        {doc.brand && (
+          <p className="flex items-center gap-2 pb-1">
+            <LogoMark size={32} brand={doc.brand} />
+            <span className="text-lg leading-tight font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
+              {doc.brand.name}
+            </span>
+          </p>
+        )}
         <p className="text-sm text-text-muted">{[doc.clinic.name, doc.clinic.taxId && `NIF ${doc.clinic.taxId}`, doc.clinic.address].filter(Boolean).join(" · ") || "[Datos de la clínica]"}</p>
         <h2 className="text-xl text-brand-ink">Consentimiento informado: {doc.title}</h2>
         <p className="text-sm text-text-muted">Documento de información y consentimiento por escrito (Ley 41/2002, arts. 8 y 10) · versión {doc.version}</p>
@@ -111,6 +123,7 @@ export function ConsentDocumentView({
         </p>
         <SignatureBox label={doc.representative ? "Firma del representante" : "Firma del paciente"} name={doc.representative?.name ?? doc.patient.name} image={signatures.revocation} />
       </section>
+      <p className="text-xs text-text-muted">{MADE_WITH}</p>
     </article>
   );
 }
