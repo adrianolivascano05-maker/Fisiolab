@@ -26,6 +26,7 @@ import { useGranted } from "../data/questionnairePermissions";
 import { cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
 import { getClinic } from "../data/privacy";
 import { getPatient, type Patient } from "../data/repo";
+import { loadMessages, messageSubject, type MessageSettings } from "../messages/templates";
 import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -55,8 +56,8 @@ export function SendFormsPage() {
   const collect = useCollectForms();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, forms, clinic] = await Promise.all([getPatient(db, id), listSentForms(db, id), getClinic(db)]);
-    return { patient, forms, clinicName: clinic.name || cloud?.clinic?.name || "" };
+    const [patient, forms, clinic, messages] = await Promise.all([getPatient(db, id), listSentForms(db, id), getClinic(db), loadMessages(db)]);
+    return { patient, forms, clinicName: clinic.name || cloud?.clinic?.name || "", messages };
   }, [id, version]);
   const [choosing, setChoosing] = useState<string | null>(params.get("enviar"));
   const [sharing, setSharing] = useState<SentForm | null>(null);
@@ -66,7 +67,7 @@ export function SendFormsPage() {
 
   if (data.error) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Formularios para el paciente" backTo={back}><Loading /></Page>;
-  const { patient, forms, clinicName } = data.data;
+  const { patient, forms, clinicName, messages } = data.data;
   if (!patient) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const online = !!(cloud?.clinic && cloud.clinics);
   const closeChooser = () => {
@@ -135,7 +136,7 @@ export function SendFormsPage() {
       </Sheet>
 
       <Sheet open={!!sharing} onClose={() => setSharing(null)} title="Mandar el enlace">
-        {sharing && <ShareForm f={sharing} patient={patient} clinicName={clinicName} />}
+        {sharing && <ShareForm f={sharing} patient={patient} clinicName={clinicName} messages={messages} />}
       </Sheet>
 
       <Sheet open={!!cancelling} onClose={() => setCancelling(null)} title="¿Anular el enlace?">
@@ -215,10 +216,10 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
 }
 
 /** El mensaje con el enlace y por dónde mandarlo. */
-function ShareForm({ f, patient, clinicName }: { f: SentForm; patient: Patient; clinicName: string }) {
+function ShareForm({ f, patient, clinicName, messages }: { f: SentForm; patient: Patient; clinicName: string; messages: MessageSettings }) {
   const toast = useToast();
   const url = formLink(f.id, f.key);
-  const text = formMessage({ name: firstName(patient), clinic: clinicName, kind: f.kind, url, expiresAt: f.expiresAt });
+  const text = formMessage({ name: firstName(patient), clinic: clinicName, kind: f.kind, url, expiresAt: f.expiresAt }, messages);
   const phone = waPhone(patient.phone);
   const consent = patient.privacy.consents?.contact;
   const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
@@ -240,7 +241,7 @@ function ShareForm({ f, patient, clinicName }: { f: SentForm; patient: Patient; 
           </a>
         )}
         {patient.email && consent !== false && (
-          <a href={mailtoUrl(patient.email, `${clinicName || "Tu clínica"}: un formulario para ti`, text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
+          <a href={mailtoUrl(patient.email, messageSubject("formulario", messages, { clinica: clinicName }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
             <Mail aria-hidden="true" className="size-5" /> Correo
           </a>
         )}

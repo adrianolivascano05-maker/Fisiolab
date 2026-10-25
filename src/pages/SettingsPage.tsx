@@ -16,6 +16,7 @@ import {
   FileUp,
   LifeBuoy,
   Lock,
+  MessageSquareText,
   MonitorSmartphone,
   Palette,
   ReceiptText,
@@ -98,6 +99,7 @@ export function SettingsPage() {
           title="Marca de la clínica"
           subtitle={brand ? `${brand.name} · tus colores y tu logo` : "La marca de Cénit · tus colores, tu logo y la marca de agua de los documentos"}
         />
+        <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle="Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre, ejercicios" />
         {cloud?.clinic && (
           <RowLink
             to="/ajustes/equipo"

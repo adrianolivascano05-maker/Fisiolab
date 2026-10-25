@@ -42,6 +42,7 @@ const LoadVelocityPage = lazy(() => import("./pages/LoadVelocityPage").then((m) 
 const LockSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.LockSettingsPage })));
 const AppearancePage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.AppearancePage })));
 const BrandPage = lazy(() => import("./brand/BrandPage").then((m) => ({ default: m.BrandPage })));
+const MessagesPage = lazy(() => import("./messages/MessagesPage").then((m) => ({ default: m.MessagesPage })));
 const MarkPage = lazy(() => import("./pages/MarkPage").then((m) => ({ default: m.MarkPage })));
 const NordicSetupPage = lazy(() => import("./pages/NordicSetupPage").then((m) => ({ default: m.NordicSetupPage })));
 const NotFoundPage = lazy(() => import("./pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage })));
@@ -123,6 +124,7 @@ const routes = [
   { path: "/ajustes/bloqueo", element: l(<LockSettingsPage />) },
   { path: "/ajustes/aspecto", element: l(<AppearancePage />) },
   { path: "/ajustes/marca", element: l(<BrandPage />) },
+  { path: "/ajustes/mensajes", element: l(<MessagesPage />) },
   { path: "/ajustes/datos", element: l(<DataSettingsPage />) },
   { path: "/ajustes/importar", element: l(<ImportPatientsPage />) },
   { path: "/ajustes/estadisticas", element: l(<StatsPage />) },

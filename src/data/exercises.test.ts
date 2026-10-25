@@ -43,7 +43,7 @@ describe("ejercicios para casa", () => {
   it("en texto, para WhatsApp", () => {
     expect(
       planText({ items: [{ title: "Puente", dose: "3 × 10", instructions: "Sube la cadera." }, { title: "Caminar", dose: "", instructions: "" }], note: "Sin dolor." }, "Elena Ruiz", "Fisiolab"),
-    ).toBe("Hola, Elena. Tus ejercicios para casa (Fisiolab):\n\n1. Puente — 3 × 10\nSube la cadera.\n\n2. Caminar\n\nSin dolor.");
+    ).toBe("Hola, Elena. Tus ejercicios para casa de Fisiolab:\n\n1. Puente — 3 × 10\nSube la cadera.\n\n2. Caminar\n\nSin dolor.");
   });
 
   it("vídeo de cada ejercicio: enlaces web, en la hoja y en el texto", async () => {

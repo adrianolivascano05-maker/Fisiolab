@@ -12,15 +12,14 @@ import { addDays, todayDay } from "../clinical/pageKit";
 import { markConfirmed, markReminded, remindersBetween, type ReminderItem } from "../data/appointments";
 import { getDb } from "../data/db";
 import { getClinic, setContactConsent } from "../data/privacy";
-import { getSetting, setSetting } from "../data/repo";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
 import { SelectField } from "../ui/Field";
-import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { DEFAULT_TEMPLATE, hourText, mailtoUrl, REMINDER_TEMPLATE_KEY, reminderText, TEMPLATE_WORDS, waPhone, whatsappUrl } from "./reminders";
+import { loadMessages, messageSubject } from "../messages/templates";
+import { appointmentVars, hourText, mailtoUrl, reminderMessage, waPhone, whatsappUrl } from "./reminders";
 import { staffName, useStaff } from "./useStaff";
 import { plural } from "../app/format";
 
@@ -34,8 +33,6 @@ export function RemindersPage() {
   const today = todayDay();
   const [day, setDay] = useState(addDays(today, 1));
   const [who, setWho] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
   /** Para enseñar el mensaje como le llega: mañana a las 10:00. */
   const sample = new Date(`${addDays(today, 1)}T10:00:00`).toISOString();
   const data = useAsync(async () => {
@@ -44,7 +41,7 @@ export function RemindersPage() {
     const to = new Date(`${addDays(day, 1)}T00:00:00`).toISOString();
     return {
       items: await remindersBetween(db, from, to),
-      template: (await getSetting<string>(db, REMINDER_TEMPLATE_KEY)) ?? DEFAULT_TEMPLATE,
+      messages: await loadMessages(db),
       clinic: (await getClinic(db)).name,
     };
   }, [day, version]);
@@ -53,13 +50,9 @@ export function RemindersPage() {
   const reminded = items.filter((a) => a.remindedAt).length;
   const confirmed = items.filter((a) => a.confirmedAt).length;
   const unknown = new Set(items.filter((a) => a.contact === null).map((a) => a.patientId)).size;
-  const text = (a: ReminderItem) =>
-    reminderText(data.data?.template ?? DEFAULT_TEMPLATE, {
-      name: a.name,
-      startsAt: a.startsAt,
-      clinic: data.data?.clinic ?? "",
-      professional: team && a.assignedTo ? staffName(staff, a.assignedTo) : null,
-    });
+  const varsOf = (a: ReminderItem) => ({ name: a.name, startsAt: a.startsAt, clinic: data.data?.clinic ?? "", professional: team && a.assignedTo ? staffName(staff, a.assignedTo) : null });
+  const text = (a: ReminderItem) => reminderMessage(data.data?.messages, varsOf(a));
+  const subjectOf = (a: ReminderItem) => messageSubject("recordatorio", data.data?.messages, appointmentVars(varsOf(a)));
 
   async function sent(a: ReminderItem) {
     await markReminded(getDb(), a.id);
@@ -134,6 +127,7 @@ export function RemindersPage() {
             key={a.id}
             a={a}
             text={text(a)}
+            subject={subjectOf(a)}
             withWhom={team ? staffName(staff, a.assignedTo) : null}
             onSent={() => void sent(a)}
             onConfirm={async (yes) => {
@@ -153,65 +147,13 @@ export function RemindersPage() {
       <Card className="flex flex-col gap-2">
         <h2 className="font-semibold">El mensaje</h2>
         <p className="text-sm whitespace-pre-line text-text-muted">
-          {reminderText(data.data?.template ?? DEFAULT_TEMPLATE, { name: "Ana Ruiz", startsAt: sample, clinic: data.data?.clinic ?? "", professional: team ? (staff[0]?.name ?? null) : null })}
+          {reminderMessage(data.data?.messages, { name: "Ana Ruiz", startsAt: sample, clinic: data.data?.clinic ?? "", professional: team ? (staff[0]?.name ?? null) : null })}
         </p>
-        <Button
-          variant="secondary"
-          icon={<Pencil aria-hidden="true" className="size-5" />}
-          onClick={() => {
-            // Se empieza siempre por el mensaje guardado (lo escrito y no guardado no se queda).
-            setDraft(data.data?.template ?? DEFAULT_TEMPLATE);
-            setEditing(true);
-          }}
-        >
-          Cambiar el mensaje
-        </Button>
+        {/* El texto es de la clínica y se cambia, con los demás mensajes, en Ajustes. */}
+        <Link to="/ajustes/mensajes" className="inline-flex h-11 items-center justify-center gap-2 self-start rounded-md border border-border-input bg-bg px-4 font-semibold hover:bg-surface">
+          <Pencil aria-hidden="true" className="size-5" /> Cambiar el mensaje
+        </Link>
       </Card>
-
-      <Sheet open={editing} onClose={() => setEditing(false)} title="El mensaje del recordatorio">
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            await setSetting(getDb(), REMINDER_TEMPLATE_KEY, draft.trim() || DEFAULT_TEMPLATE);
-            setEditing(false);
-            data.reload();
-            toast("Mensaje guardado: es el mismo para toda la clínica", "success");
-          }}
-        >
-          <label className="flex flex-col gap-1">
-            <span className="text-sm font-semibold">Texto</span>
-            <textarea
-              rows={6}
-              className="w-full rounded-md border border-border-input bg-bg p-3 text-base"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-            />
-          </label>
-          <p className="text-sm text-text-muted">
-            Se sustituyen solas: {TEMPLATE_WORDS.join(", ")} (el nombre de pila, el día, la hora, la clínica y, en un equipo, «con» quién es).
-          </p>
-          <div className="flex flex-col gap-1 rounded-md bg-surface p-3">
-            <span className="text-xs font-semibold text-text-muted uppercase">Así le llega</span>
-            <p className="text-sm whitespace-pre-line">{reminderText(draft, { name: "Ana Ruiz", startsAt: sample, clinic: data.data?.clinic ?? "", professional: team ? (staff[0]?.name ?? null) : null })}</p>
-          </div>
-          {!data.data?.clinic && (
-            <p className="text-sm text-warning">
-              Falta el nombre de la clínica (sale «la clínica»):{" "}
-              <Link to="/ajustes/clinica" className="font-semibold underline">
-                ponlo en Ajustes → Clínica
-              </Link>
-              .
-            </p>
-          )}
-          <Button type="submit" block>
-            Guardar el mensaje
-          </Button>
-          <Button variant="ghost" block onClick={() => setDraft(DEFAULT_TEMPLATE)}>
-            Volver al mensaje de siempre
-          </Button>
-        </form>
-      </Sheet>
     </Page>
   );
 }
@@ -219,6 +161,7 @@ export function RemindersPage() {
 function ReminderRow({
   a,
   text,
+  subject,
   withWhom,
   onSent,
   onConfirm,
@@ -226,6 +169,7 @@ function ReminderRow({
 }: {
   a: ReminderItem;
   text: string;
+  subject: string;
   withWhom: string | null;
   onSent: () => void;
   onConfirm: (yes: boolean) => void;
@@ -263,7 +207,7 @@ function ReminderRow({
             </a>
           ) : null}
           {a.email ? (
-            <a href={mailtoUrl(a.email, "Recordatorio de tu cita", text)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={onSent}>
+            <a href={mailtoUrl(a.email, subject, text)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={onSent}>
               <Mail aria-hidden="true" className="size-5" /> Correo
             </a>
           ) : null}

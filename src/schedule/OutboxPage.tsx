@@ -17,7 +17,7 @@ import { markOutbox } from "../data/outbox";
 import { memberEmail } from "../data/member";
 import { getClinic } from "../data/privacy";
 import { useGranted } from "../data/questionnairePermissions";
-import { getSetting, setSetting } from "../data/repo";
+import { setSetting } from "../data/repo";
 import { recordSentForms, uploadPatientForm, type UploadedForm } from "../patientForm/createForm";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -38,15 +38,13 @@ import {
   type OutboxRule,
   type OutboxSettings,
 } from "./outbox";
-import { DEFAULT_TEMPLATE, mailtoUrl, REMINDER_TEMPLATE_KEY, reminderText, waPhone, whatsappUrl } from "./reminders";
+import { loadMessages, messageSubject, type MessageKind } from "../messages/templates";
+import { mailtoUrl, reminderMessage, waPhone, whatsappUrl } from "./reminders";
 import { staffName, useStaff } from "./useStaff";
 import { plural } from "../app/format";
 
-const SUBJECT: Record<OutboxRule, string> = {
-  recordatorio: "Recordatorio de tu cita",
-  anamnesis: "Antes de tu primera cita",
-  seguimiento: "Antes de tu revisión",
-};
+/** El mensaje de cada regla de la bandeja (Ajustes › Mensajes a pacientes). */
+const KIND: Record<OutboxRule, MessageKind> = { recordatorio: "recordatorio", anamnesis: "anamnesis", seguimiento: "seguimiento" };
 
 /** El mensaje de cada envío, ya con sus enlaces (y los formularios que lleva, que se apuntan al enviarlo). */
 type Prepared = { text: string; forms?: UploadedForm[] } | { error: string };
@@ -61,8 +59,8 @@ export function OutboxPage() {
   const { team } = useTeamMode();
   const data = useAsync(async () => {
     const db = getDb();
-    const [out, template, clinic] = await Promise.all([loadOutbox(db, granted), getSetting<string>(db, REMINDER_TEMPLATE_KEY), getClinic(db)]);
-    return { ...out, template: template ?? DEFAULT_TEMPLATE, clinicName: clinic.name || cloud?.clinic?.name || "" };
+    const [out, messages, clinic] = await Promise.all([loadOutbox(db, granted), loadMessages(db), getClinic(db)]);
+    return { ...out, messages, clinicName: clinic.name || cloud?.clinic?.name || "" };
   }, [version, granted.join(",")]);
   /** Los envíos que se están mandando (uno o todos seguidos) y por cuál va. */
   const [run, setRun] = useState<{ ids: string[]; at: number } | null>(null);
@@ -71,7 +69,7 @@ export function OutboxPage() {
 
   if (data.error) return <Page title="Envíos" backTo="/agenda?vista=hoy"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Envíos" backTo="/agenda?vista=hoy"><Loading /></Page>;
-  const { items, settings, template, clinicName } = data.data;
+  const { items, settings, messages, clinicName } = data.data;
   const byId = new Map(items.map((i) => [i.id, i]));
   const ready = items.filter((i) => !i.needsForms || online);
   const blocked = items.length - ready.length;
@@ -81,16 +79,16 @@ export function OutboxPage() {
     const db = getDb();
     const a = i.appointment;
     const professional = team && a?.assignedTo ? staffName(staff, a.assignedTo) : null;
-    if (i.rule === "recordatorio") return { text: reminderText(template, { name: i.name, startsAt: a!.startsAt, clinic: clinicName, professional }) };
+    if (i.rule === "recordatorio") return { text: reminderMessage(messages, { name: i.name, startsAt: a!.startsAt, clinic: clinicName, professional }) };
     try {
       if (i.rule === "anamnesis") {
         const f = await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections });
-        return { text: anamnesisText({ name: i.name, clinic: clinicName, startsAt: i.appointment!.startsAt, url: f.url }), forms: [f] };
+        return { text: anamnesisText({ name: i.name, clinic: clinicName, startsAt: i.appointment!.startsAt, url: f.url }, messages), forms: [f] };
       }
       const forms: UploadedForm[] = [];
       for (const kind of i.kinds ?? []) forms.push(await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind, clinicName, sections }));
       const links = forms.map((f) => ({ title: formTitle(f.record.kind), url: f.url }));
-      return { text: followUpText({ name: i.name, clinic: clinicName, reviewOn: i.reviewOn!, links }), forms };
+      return { text: followUpText({ name: i.name, clinic: clinicName, reviewOn: i.reviewOn!, links }, messages), forms };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
@@ -185,6 +183,7 @@ export function OutboxPage() {
             key={run.ids[run.at] ?? "fin"}
             item={byId.get(run.ids[run.at] ?? "") ?? null}
             prepared={prepared[run.ids[run.at] ?? ""]}
+            subjectOf={(i) => messageSubject(KIND[i.rule], messages, { clinica: clinicName })}
             onPrepare={async (i) => {
               const p = await prepare(i);
               setPrepared((m) => ({ ...m, [i.id]: p }));
@@ -215,6 +214,7 @@ export function OutboxPage() {
 function SendStep({
   item,
   prepared,
+  subjectOf,
   onPrepare,
   onSent,
   onSkip,
@@ -223,6 +223,8 @@ function SendStep({
 }: {
   item: OutboxItem | null;
   prepared: Prepared | undefined;
+  /** El asunto del correo de un envío (Ajustes › Mensajes a pacientes). */
+  subjectOf: (i: OutboxItem) => string;
   onPrepare: (i: OutboxItem) => Promise<void>;
   onSent: (i: OutboxItem) => Promise<void>;
   onSkip: () => void;
@@ -276,7 +278,7 @@ function SendStep({
             </a>
           )}
           {email && (
-            <a href={mailtoUrl(email, SUBJECT[item.rule], prepared.text)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={() => void onSent(item)}>
+            <a href={mailtoUrl(email, subjectOf(item), prepared.text)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={() => void onSent(item)}>
               <Mail aria-hidden="true" className="size-5" /> Enviar por correo
             </a>
           )}

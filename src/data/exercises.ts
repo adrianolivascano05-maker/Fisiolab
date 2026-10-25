@@ -3,6 +3,7 @@
 // la biblioteca no cambia lo que ya se le dio a nadie. La biblioteca empieza vacía; se pueden añadir unos ejemplos para
 // editarlos. Las plantillas (una hoja con nombre: «Lumbalgia, fase 1») se guardan en un ajuste de la clínica.
 import type { Db } from "./db";
+import { firstName, messageText, withSignature, type MessageSettings } from "../messages/templates";
 import { getSetting, setSetting } from "./repo";
 
 const newId = () => crypto.randomUUID();
@@ -144,9 +145,8 @@ export async function deletePlan(db: Db, id: string): Promise<void> {
 }
 
 /** La hoja en texto, para WhatsApp o correo. */
-export function planText(p: PlanInput, patientName: string, clinic: string): string {
-  const first = patientName.trim().split(/\s+/)[0] ?? patientName;
-  const lines = [`Hola, ${first}. Tus ejercicios para casa${clinic.trim() ? ` (${clinic.trim()})` : ""}:`, ""];
+export function planText(p: PlanInput, patientName: string, clinic: string, s?: MessageSettings | null): string {
+  const lines = [messageText("ejercicios", s, { nombre: firstName(patientName), clinica: clinic }, { signature: false }), ""];
   p.items.forEach((i, n) => {
     lines.push(`${n + 1}. ${i.title}${i.dose ? ` — ${i.dose}` : ""}`);
     if (i.instructions) lines.push(i.instructions);
@@ -154,7 +154,7 @@ export function planText(p: PlanInput, patientName: string, clinic: string): str
     lines.push("");
   });
   if (p.note.trim()) lines.push(p.note.trim());
-  return lines.join("\n").trim();
+  return withSignature(lines.join("\n").trim(), s);
 }
 
 // ---------- Plantillas ----------

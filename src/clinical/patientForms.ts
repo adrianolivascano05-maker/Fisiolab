@@ -5,6 +5,7 @@
 // cuestionario con su nota. El servidor (cloudflare/worker.js) solo ve bytes ilegibles.
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { Db } from "../data/db";
+import { messageText, type MessageSettings } from "../messages/templates";
 import { cachedCloudConfig } from "../cloud/config";
 import { ALL_FIELDS, type Field, type Section } from "./anamnesis";
 import { formResult } from "./FormFill";
@@ -164,14 +165,10 @@ export function formLink(id: string, key: string, base = formsBase()): string {
   return `${base}formulario/${id}#${key}`;
 }
 
-/** El mensaje de WhatsApp o del correo. */
-export function formMessage(p: { name: string; clinic: string; kind: string; url: string; expiresAt: string }): string {
+/** El mensaje de WhatsApp o del correo (el texto de la clínica o el de siempre, src/messages/templates.ts). */
+export function formMessage(p: { name: string; clinic: string; kind: string; url: string; expiresAt: string }, s?: MessageSettings | null): string {
   const until = new Date(p.expiresAt).toLocaleDateString("es-ES", { day: "numeric", month: "long", timeZone: "Europe/Madrid" });
-  return [
-    `Hola${p.name ? ` ${p.name}` : ""}: desde ${p.clinic || "la clínica"} te pedimos que rellenes ${formWhat(p.kind)} antes de tu próxima visita. Es aquí:`,
-    p.url,
-    `Tus respuestas van cifradas y solo las verá tu fisioterapeuta. El enlace vale hasta el ${until}.`,
-  ].join("\n");
+  return messageText("formulario", s, { nombre: p.name, clinica: p.clinic, formulario: formWhat(p.kind), enlace: p.url, caduca: until });
 }
 
 // ---------- Al recoger las respuestas ----------

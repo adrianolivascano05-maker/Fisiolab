@@ -24,7 +24,8 @@ import { cx } from "../ui/cx";
 import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { dayText, hourText, mailtoUrl, offerText, waPhone, whatsappUrl } from "./reminders";
+import { loadMessages, messageSubject } from "../messages/templates";
+import { appointmentVars, dayText, hourText, mailtoUrl, offerText, waPhone, whatsappUrl } from "./reminders";
 import { staffName, useStaff } from "./useStaff";
 
 const waiting = (iso: string) => {
@@ -47,8 +48,8 @@ export function WaitlistPage() {
   const forPatient = params.get("paciente");
   const data = useAsync(async () => {
     const db = getDb();
-    const [items, clinic, patient] = await Promise.all([listWaitlist(db, free && team ? slotWho : undefined), getClinic(db), forPatient ? getPatient(db, forPatient) : null]);
-    return { items, clinic: clinic.name, patient };
+    const [items, clinic, patient, messages] = await Promise.all([listWaitlist(db, free && team ? slotWho : undefined), getClinic(db), forPatient ? getPatient(db, forPatient) : null, loadMessages(db)]);
+    return { items, clinic: clinic.name, patient, messages };
   }, [version, free, slotWho, team, forPatient]);
   /** Añadir (sin `item`) o cambiar una entrada. */
   const [form, setForm] = useState<{ item?: WaitItem } | null>(null);
@@ -110,7 +111,8 @@ export function WaitlistPage() {
       <ul aria-label="Lista de espera" className="flex flex-col gap-2">
         {items.map((w) => {
           const phone = waPhone(w.phone);
-          const text = free ? offerText({ name: w.name, startsAt: free, clinic: data.data!.clinic, professional: team && slotWho ? staffName(staff, slotWho) : null }) : "";
+          const vars = { name: w.name, startsAt: free ?? "", clinic: data.data!.clinic, professional: team && slotWho ? staffName(staff, slotWho) : null };
+          const text = free ? offerText(vars, data.data!.messages) : "";
           const ok = free ? fits(w, free) : null;
           return (
             <li key={w.id}>
@@ -145,7 +147,7 @@ export function WaitlistPage() {
                       </a>
                     )}
                     {w.contact !== false && w.email && (
-                      <a href={mailtoUrl(w.email, "Hueco libre para tu fisioterapia", text)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={() => void offered(w)}>
+                      <a href={mailtoUrl(w.email, messageSubject("hueco", data.data!.messages, appointmentVars(vars)), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={() => void offered(w)}>
                         <Mail aria-hidden="true" className="size-5" /> Correo
                       </a>
                     )}

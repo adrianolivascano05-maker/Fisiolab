@@ -7,12 +7,13 @@ import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
 import { madridDay } from "../app/format";
 import { getClinic } from "../data/privacy";
-import { DEFAULT_TEMPLATE, mailtoUrl, REMINDER_TEMPLATE_KEY, reminderText, waPhone, whatsappUrl } from "../schedule/reminders";
+import { loadMessages, messageSubject } from "../messages/templates";
+import { appointmentVars, mailtoUrl, reminderMessage, waPhone, whatsappUrl } from "../schedule/reminders";
 import { clashes, createAppointment, createWeekly, deleteAppointment, markConfirmed, markReminded, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
 import { useAsync } from "../app/useAsync";
 import { accountLine, addPayment, euros, getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
-import { createPatient, getPatient, getSetting, listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
+import { createPatient, getPatient, listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
 import { editText, lastEditOf } from "../data/editors";
 import { memberEmail } from "../data/member";
 import { listWaitlist } from "../data/waitlist";
@@ -75,13 +76,19 @@ export function AppointmentSheet({
   const extra = useAsync(async () => {
     if (!open || !appointment) return null;
     const db = getDb();
-    const [a, pricing, patient, clinic, template] = await Promise.all([
+    const [a, pricing, patient, clinic, messages] = await Promise.all([
       patientAccount(db, appointment.patientId, todayDay()),
       getPricing(db),
       getPatient(db, appointment.patientId),
       getClinic(db),
-      getSetting<string>(db, REMINDER_TEMPLATE_KEY),
+      loadMessages(db),
     ]);
+    const vars = {
+      name: patient?.name ?? "",
+      startsAt: appointment.startsAt,
+      clinic: clinic.name,
+      professional: staff.length && appointment.assignedTo ? staffName(staff, appointment.assignedTo) : null,
+    };
     return {
       a,
       pricing,
@@ -90,12 +97,8 @@ export function AppointmentSheet({
       email: patient?.email ?? "",
       contact: patient?.privacy.consents?.contact ?? null,
       event: patient ? visitEvent({ id: appointment.id, nextAt: appointment.startsAt, nextMinutes: appointment.minutes }, patient) : null,
-      reminder: reminderText(template ?? DEFAULT_TEMPLATE, {
-        name: patient?.name ?? "",
-        startsAt: appointment.startsAt,
-        clinic: clinic.name,
-        professional: staff.length && appointment.assignedTo ? staffName(staff, appointment.assignedTo) : null,
-      }),
+      reminder: reminderMessage(messages, vars),
+      subject: messageSubject("recordatorio", messages, appointmentVars(vars)),
     };
   }, [open, appointment?.id, appointment?.startsAt]);
   const [paying, setPaying] = useState(false);
@@ -346,7 +349,7 @@ export function AppointmentSheet({
                 )}
                 {extra.data.contact !== false && extra.data.email && (
                   <a
-                    href={mailtoUrl(extra.data.email, "Recordatorio de tu cita", extra.data.reminder)}
+                    href={mailtoUrl(extra.data.email, extra.data.subject, extra.data.reminder)}
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
                     onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData())}
                   >

@@ -12,7 +12,7 @@ import { madridDay } from "../app/format";
 import { ANAMNESIS_KIND, SENDABLE } from "../clinical/patientForms";
 import type { ReminderItem } from "../data/appointments";
 import type { OutboxMark } from "../data/outbox";
-import { dayText, firstName, hourText } from "./reminders";
+import { dayText, firstName, hourText, messageText, type MessageSettings } from "../messages/templates";
 
 export type OutboxRule = "recordatorio" | "anamnesis" | "seguimiento";
 
@@ -134,24 +134,19 @@ export function buildOutbox(input: OutboxInput): OutboxItem[] {
 }
 
 /** El mensaje con el enlace de su anamnesis, antes de la primera cita. */
-export function anamnesisText(p: { name: string; clinic: string; startsAt: string; url: string }): string {
-  return [
-    `Hola, ${firstName(p.name)}. Tu primera cita de fisioterapia en ${p.clinic.trim() || "la clínica"} es el ${dayText(p.startsAt)} a las ${hourText(p.startsAt)}.`,
-    "Para aprovecharla al máximo, rellena antes unas preguntas sobre tu salud:",
-    p.url,
-    "Tus respuestas van cifradas y solo las verá tu fisioterapeuta.",
-  ].join("\n");
+export function anamnesisText(p: { name: string; clinic: string; startsAt: string; url: string }, s?: MessageSettings | null): string {
+  return messageText("anamnesis", s, { nombre: firstName(p.name), dia: dayText(p.startsAt), hora: hourText(p.startsAt), clinica: p.clinic, enlace: p.url });
 }
 
 /** El mensaje con los cuestionarios antes de reevaluar. */
-export function followUpText(p: { name: string; clinic: string; reviewOn: string; links: { title: string; url: string }[] }): string {
-  const day = new Date(`${p.reviewOn}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid" });
-  return [
-    `Hola, ${firstName(p.name)}. El ${day} toca revisar cómo vas en ${p.clinic.trim() || "la clínica"}.`,
-    p.links.length === 1 ? "Antes, rellena este cuestionario:" : "Antes, rellena estos cuestionarios:",
-    ...p.links.map((l) => `${l.title}: ${l.url}`),
-    "Tus respuestas van cifradas y solo las verá tu fisioterapeuta.",
-  ].join("\n");
+export function followUpText(p: { name: string; clinic: string; reviewOn: string; links: { title: string; url: string }[] }, s?: MessageSettings | null): string {
+  return messageText("seguimiento", s, {
+    nombre: firstName(p.name),
+    dia: dayText(`${p.reviewOn}T12:00:00Z`),
+    clinica: p.clinic,
+    cuestionarios: p.links.length === 1 ? "este cuestionario" : "estos cuestionarios",
+    enlaces: p.links.map((l) => `${l.title}: ${l.url}`).join("\n"),
+  });
 }
 
 /** Lo que se cuenta de cada envío en la lista: a quién, de qué y cuándo. */

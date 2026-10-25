@@ -31,6 +31,7 @@ import {
 } from "../data/exercises";
 import { getClinic, type ClinicInfo } from "../data/privacy";
 import { getPatient } from "../data/repo";
+import { loadMessages, messageSubject } from "../messages/templates";
 import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
 import { TopBar } from "../ui/AppBar";
 import { Alert } from "../ui/Alert";
@@ -55,15 +56,16 @@ export function ExercisesPage() {
   const version = useDataVersion();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, plans, clinic, library, templates, anamnesis] = await Promise.all([
+    const [patient, plans, clinic, library, templates, anamnesis, messages] = await Promise.all([
       getPatient(db, id),
       listPlans(db, id),
       getClinic(db),
       listExercises(db),
       listTemplates(db),
       getAnamnesis(db, id),
+      loadMessages(db),
     ]);
-    return { patient, plans, clinic, library, templates, regions: anamnesis ? clinicalSummary(anamnesis.answers).regions : [] };
+    return { patient, plans, clinic, library, templates, messages, regions: anamnesis ? clinicalSummary(anamnesis.answers).regions : [] };
   }, [id, version]);
   /** Hoja que se está escribiendo; `of`: la que se cambia (sin él, una nueva). */
   const [draft, setDraft] = useState<(PlanInput & { of?: string }) | null>(null);
@@ -85,7 +87,7 @@ export function ExercisesPage() {
   );
   if (data.error) return shell(<LoadError error={data.error} />);
   if (!data.data) return shell(<Loading />);
-  const { patient, plans, clinic, library, templates, regions } = data.data;
+  const { patient, plans, clinic, library, templates, regions, messages } = data.data;
   if (!patient) return shell(<LoadError error={new Error("Este paciente no existe.")} />);
 
   const shown = plans.find((p) => p.id === params.get("hoja")) ?? plans[0] ?? null;
@@ -138,7 +140,7 @@ export function ExercisesPage() {
   const plan = shown!;
   const phone = waPhone(patient.phone);
   const contact = patient.privacy.consents?.contact;
-  const text = planText(plan, patient.name, clinic.name);
+  const text = planText(plan, patient.name, clinic.name, messages);
   return (
     <div className="min-h-dvh bg-canvas print:bg-white">
       <style>{"@page { size: A4; margin: 16mm 16mm 18mm; } @media print { body { background: white; } }"}</style>
@@ -152,7 +154,7 @@ export function ExercisesPage() {
               </a>
             )}
             {contact !== false && patient.email && (
-              <a href={mailtoUrl(patient.email, "Tus ejercicios para casa", text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
+              <a href={mailtoUrl(patient.email, messageSubject("ejercicios", messages, { clinica: clinic.name }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
                 <Mail aria-hidden="true" className="size-5" /> Correo
               </a>
             )}

@@ -247,10 +247,13 @@ test.describe("Agenda y seguimiento", () => {
     await expect(luis.getByText("Confirmada")).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "2 citas pendientes" })).toContainText("1 recordada · 1 confirmada");
 
-    // El mensaje es de la clínica: se cambia una vez.
-    await page.getByRole("button", { name: "Cambiar el mensaje" }).click();
-    await page.getByRole("dialog").getByLabel("Texto").fill("Cita el {dia} a las {hora}, {nombre}");
-    await page.getByRole("dialog").getByRole("button", { name: "Guardar el mensaje" }).click();
+    // El mensaje es de la clínica: se cambia una vez, en Ajustes › Mensajes a pacientes.
+    await page.getByRole("link", { name: "Cambiar el mensaje" }).click();
+    await expect(page.getByRole("heading", { name: "Mensajes a pacientes" })).toBeVisible();
+    await page.getByLabel("Texto del mensaje").fill("Cita el {dia} a las {hora}, {nombre}");
+    await page.getByRole("button", { name: "Guardar", exact: true }).click();
+    await expect(page.getByText("Mensajes guardados: son los mismos para toda la clínica")).toBeVisible();
+    await page.goBack();
     await expect(wa).toHaveAttribute("href", /text=Cita%20el%20mi%C3%A9rcoles%2C%2021%20de%20octubre%20a%20las%2010%3A00%2C%20Ana$/);
 
     // En la agenda, la cita dice que está confirmada.
