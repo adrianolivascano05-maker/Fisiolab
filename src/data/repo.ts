@@ -120,7 +120,7 @@ export async function listPatients(db: Db, search = "", now = new Date()): Promi
                union all select max(performed_at) from questionnaires where patient_id = p.id
                union all select max(performed_at) from wellness where patient_id = p.id)) as lastAt,
             (select min(a.starts_at) from appointments a where a.patient_id = p.id and a.status = 'scheduled' and a.starts_at > ?) as nextAt,
-            concat_ws(' ', p.phone, p.email, p.notes,
+            concat_ws(' ', p.phone, p.email, p.dni, p.notes,
               (select concat_ws(' ', a.answers ->> '$.motivo', a.answers ->> '$.diagnostico_funcional') from anamnesis a where a.patient_id = p.id),
               (select group_concat(concat_ws(' ', e.title, e.answers ->> '$.motivo', e.answers ->> '$.diagnostico_funcional'), ' ')
                  from episodes e where e.patient_id = p.id)) as searchText

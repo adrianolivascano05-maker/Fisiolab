@@ -66,7 +66,7 @@ function PatientSearch({ list, compact }: { list: PatientList; compact?: boolean
       <input
         id="patient-search"
         type="search"
-        placeholder={compact ? "Buscar paciente" : "Buscar por nombre, teléfono o motivo"}
+        placeholder={compact ? "Buscar paciente" : "Buscar por nombre, DNI, teléfono o motivo"}
         value={list.search}
         onChange={(e) => list.setSearch(e.target.value)}
         className="h-11 w-full rounded-lg border border-transparent bg-surface pr-3 pl-10 text-base placeholder:text-text-muted focus:border-border-input"

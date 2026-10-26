@@ -84,13 +84,14 @@ describe("base de datos", () => {
     expect((await listPatients(db, "jor")).map((p) => p.name)).toEqual(["Jorge Ruiz"]);
   });
 
-  it("busca sin tildes y también por teléfono, motivo y diagnóstico", async () => {
-    const lucia = await createPatient(db, { ...ana, name: "Lucía Pérez", phone: "612 34 56 78" });
+  it("busca sin tildes y también por teléfono, DNI, motivo y diagnóstico", async () => {
+    const lucia = await createPatient(db, { ...ana, name: "Lucía Pérez", phone: "612 34 56 78", dni: "12345678Z" });
     await createPatient(db, { ...ana, name: "Jorge Ruiz" });
     await saveAnamnesis(db, lucia, { motivo: "Dolor de hombro al nadar", diagnostico_funcional: "Tendinopatía del supraespinoso" });
     const names = async (q: string) => (await listPatients(db, q)).map((p) => p.name);
     expect(await names("lucia perez")).toEqual(["Lucía Pérez"]);
     expect(await names("612345")).toEqual(["Lucía Pérez"]);
+    expect(await names("12345678z")).toEqual(["Lucía Pérez"]);
     expect(await names("hombro")).toEqual(["Lucía Pérez"]);
     expect(await names("tendinopatia")).toEqual(["Lucía Pérez"]);
     expect(await names("rodilla")).toEqual([]);

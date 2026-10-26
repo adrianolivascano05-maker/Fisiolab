@@ -116,6 +116,60 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
   texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
 
+## Clínicas grandes y muchas clínicas (medido el 26-10-2026)
+
+Pregunta del usuario: qué pasa si da servicio a 10 clínicas de 10.000 pacientes cada una. Lo que más le importa: que
+la sincronización nunca dé problemas, también cuando varias personas cambian cosas a la vez. Nada de esto está hecho
+salvo el DNI en la búsqueda.
+
+- **Medido** (ordenador de pruebas, clínica inventada de 10.000 pacientes con 57.000 citas y 32.000 sesiones, unos
+  3 años de 10 fisios): base de 174 MB en cada dispositivo; copia comprimida de 54 MB; lista de pacientes 0,4 s;
+  agenda de una semana 0,05 s. Con 500 pacientes: 10 MB, copia de 2,9 MB. Exportación completa de los 10.000 (sin
+  PDF): .zip de 120 MB, 3,5 minutos y unos 3.200 MB de memoria a la vez. Importar 10.000 pacientes, 2 s; 30.000
+  sesiones de un CSV de 14 MB, 10 s.
+- **Límites de hoy:**
+  - La copia de la clínica (la base entera, cifrada) tiene un tope de 50 MB en el servidor (`MAX_CHARS` en
+    `cloudflare/worker.js`), porque viaja como texto y el servidor tiene 128 MB de memoria por petición en todos los
+    planes. Pasado el tope: una clínica nueva que empieza ya grande (importada) no puede empezar a sincronizar; una
+    que crece sigue subiendo sus cambios, pero cada vuelta intenta subir la copia entera, falla y lo vuelve a intentar
+    (error en pantalla, datos y batería), y los cambios se acumulan en el servidor.
+  - Hacer la copia en el móvil junta en memoria la base, la comprimida, la cifrada y el texto (unos 355 MB con 10.000
+    pacientes): en iPhone puede cerrarse la página.
+  - La lista de pacientes carga y dibuja todos.
+  - La exportación completa monta el .zip en memoria.
+  - Plan gratuito: base de 500 MB para todas las clínicas; 100.000 peticiones al día; 10 ms de proceso por petición.
+- **Sincronización a la vez (cómo es hoy):** cada cosa es una fila (cada sesión, cita, cobro, cuestionario o
+  archivo): dos personas que añaden cosas a la vez nunca se pisan. Si dos cambian la misma fila (los datos del
+  paciente, la misma anamnesis, la misma cita), gana el último cambio entero y el otro dispositivo ve «Editado por»
+  si lo había cambiado en el último cuarto de hora; lo anterior no se guarda. Dos citas a la misma hora de la misma
+  persona pueden quedar las dos si se dan a la vez en dos dispositivos.
+- **Propuesto (por bloques, a la espera del usuario):**
+  - A. La copia de la clínica a R2, por trozos (sin tope de 50 MB, sin juntarlo todo en memoria, en binario), y
+    copia entera menos a menudo en las clínicas grandes. Pacientes con buscador (nombre, DNI, teléfono, correo,
+    notas, motivo, diagnóstico; filtros por definir con el usuario) y «todos de la A a la Z» por páginas. El tope
+    de los PDF lo pone el administrador desde Cloudflare.
+  - B. Sincronización que nunca pierde nada: juntar campo a campo (si uno cambia el teléfono y otro las notas, se
+    quedan los dos), guardar la versión que pierde para poder recuperarla, y aviso de citas dobles tras sincronizar.
+  - C. Exportación por partes: escribir en el disco paciente a paciente (Chrome o Edge de ordenador) o varios .zip
+    de tamaño fijo, cada uno completo, que se puede reanudar.
+  - D. Más adelante: archivar los pacientes inactivos (en los dispositivos queda una ficha mínima para buscarlos; su
+    historia se baja al abrirlos o al tener cita).
+  - iPhone: probar la app instalada en un iPhone de verdad (`docs/pasos-pendientes.md`, paso 5). Si da problemas,
+    la alternativa es una app de la App Store hecha con la misma web (Capacitor): 99 € al año de Apple y un Mac o un
+    servicio que la compile.
+
+## Precios y márgenes (ideas para cuando se facture)
+
+El usuario pidió tener presentes estas ideas para más adelante.
+
+- Cloudflare de pago (Workers Paid, unos 5 $ al mes): base de 10 GB, 5 GB incluidos y después 0,75 $ por GB al mes;
+  10 millones de peticiones al mes; más tiempo de proceso. Conviene en cuanto se facture.
+- R2 (archivos y, si se hace el bloque A, copias): 10 GB gratis y después 0,015 $ por GB al mes (500 GB, unos 7,35 $;
+  1 TB, unos 15 $). Bajar archivos no se cobra.
+- Cupo de archivos por clínica (por ejemplo, 20 GB incluidos en su cuota, unos 0,30 $ al mes de coste) y planes por
+  tamaño de clínica.
+- Si un día hace falta app en la App Store: 99 € al año de Apple; en Google Play, 25 $ una vez.
+
 ## Archivos del paciente: informes y pruebas en PDF (hecho el 26-10-2026)
 
 Pedido por el usuario: guardar en la ficha los informes que trae el paciente (le llegan al ordenador y por WhatsApp
