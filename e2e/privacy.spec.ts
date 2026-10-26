@@ -85,8 +85,9 @@ test.describe("Protección de datos", () => {
     await expect(page.getByText("Esta app pide PIN en este dispositivo")).toBeVisible();
 
     // Recargar dentro del tiempo elegido no lo pide (como el móvil); con «en cuanto salgo», sí.
+    // Al recargar, la base vuelve a arrancar: con la máquina ocupada por otra prueba tarda más de 5 s.
     await page.reload();
-    await expect(page.getByText("Esta app pide PIN en este dispositivo")).toBeVisible();
+    await expect(page.getByText("Esta app pide PIN en este dispositivo")).toBeVisible({ timeout: 15_000 });
     await page.getByLabel("Pedir el PIN al volver").selectOption({ label: "En cuanto salgo de la app" });
     // Al volver a abrir la app no se ve nada de los pacientes hasta poner el PIN (con el teclado del ordenador).
     await page.goto("./");
