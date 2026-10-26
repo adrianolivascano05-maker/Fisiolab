@@ -28,14 +28,20 @@ describe("registro de cambios", () => {
     tables.splice(tables.indexOf("document_trash"), 1);
     expect(tables.sort()).toEqual(SYNC_TABLES.map((t) => t.name).sort());
     for (const t of SYNC_TABLES) {
-      const triggers = await a.query("select name from sqlite_master where type = 'trigger' and tbl_name = ? and name like 'sync_%'", [t.name]);
-      expect(triggers, t.name).toHaveLength(3);
       const pk = (await a.query<{ name: string; pk: number }>(`select name, pk from pragma_table_info('${t.name}') where pk > 0 order by pk`)).map((c) => c.name);
       expect(pk, t.name).toEqual(t.pk);
+      const cols = (await a.query<{ name: string }>(`select name from pragma_table_info('${t.name}')`)).map((c) => c.name).filter((c) => c !== "updated_at");
+      const fields = cols.filter((c) => !t.pk.includes(c));
+      // Alta, cambio y borrado; y, si tiene algo más que la clave, qué campos cambia cada cambio (migración 033).
+      const triggers = await a.query("select name from sqlite_master where type = 'trigger' and tbl_name = ? and name like 'sync_%'", [t.name]);
+      expect(triggers, t.name).toHaveLength(fields.length ? 4 : 3);
       // Guardar sin cambiar nada no cuenta (migración 016): el disparador mira todas las columnas menos updated_at.
       const [update] = await a.query<{ sql: string }>("select sql from sqlite_master where name = ?", [`sync_${t.name}_update`]);
-      const cols = (await a.query<{ name: string }>(`select name from pragma_table_info('${t.name}')`)).map((c) => c.name).filter((c) => c !== "updated_at");
       for (const c of cols) expect(update!.sql, `${t.name}.${c}`).toContain(`old.${c} is not new.${c}`);
+      // Una columna nueva tiene que estar también en el disparador de los campos, o no se juntaría campo a campo.
+      if (!fields.length) continue;
+      const [byField] = await a.query<{ sql: string }>("select sql from sqlite_master where name = ?", [`sync_fields_${t.name}`]);
+      for (const c of fields) expect(byField!.sql, `campos de ${t.name}.${c}`).toContain(`'${c}'${c === fields[0] ? " as f" : ""} where old.${c} is not new.${c}`);
     }
   });
 

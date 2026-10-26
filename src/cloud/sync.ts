@@ -34,6 +34,13 @@ export type SyncState = {
   lastSyncAt: string | null;
   /** Hay cambios hechos aquí que aún no están en la nube. */
   pending: boolean;
+  /** Desde cuándo hay cambios sin subir (para avisar si no salen). */
+  pendingSince?: string | null;
+  /**
+   * Cómo acabó la última vuelta si algo lo impidió (error, sin sesión o sin conexión): se mantiene mientras se vuelve
+   * a intentar, para que el aviso no desaparezca y vuelva a cada intento.
+   */
+  failing?: SyncStatus | null;
   /** Han llegado datos de otro dispositivo que la pantalla abierta aún no enseña. */
   newData: boolean;
   error: string | null;
@@ -171,7 +178,7 @@ export class SyncController {
     this.stops.push(
       onDbChange(() => {
         if (this.ownWrite) return;
-        this.set({ pending: true });
+        this.setPending(true);
         this.schedule(AFTER_CHANGE_MS);
       }),
     );
@@ -202,9 +209,13 @@ export class SyncController {
     this.timer = setTimeout(() => void this.sync(), ms);
   }
 
+  private setPending(pending: boolean) {
+    this.set({ pending, pendingSince: pending ? (this.state.pendingSince ?? new Date().toISOString()) : null });
+  }
+
   private async refreshPending() {
     const [s] = await this.db.query<{ changes: number; pushed: number }>("select changes, pushed from sync_state");
-    this.set({ pending: !!s && s.changes > s.pushed });
+    this.setPending(!!s && s.changes > s.pushed);
   }
 
   /** Una sincronización completa. Si ya hay una en marcha, se repite al terminar. */
@@ -239,14 +250,14 @@ export class SyncController {
 
   private async once() {
     const token = getToken();
-    if (!token) return this.set({ status: "needs-auth" });
-    if (!navigator.onLine) return this.set({ status: "offline" });
-    this.set({ status: "syncing", error: null });
+    if (!token) return this.set({ status: "needs-auth", failing: "needs-auth" });
+    if (!navigator.onLine) return this.set({ status: "offline", failing: "offline" });
+    this.set({ status: "syncing" });
     try {
       const info = this.store.deltas && (await this.store.deltas.info(token));
       const pulled = info ? await this.deltaRound(token, info, this.store.deltas!) : await this.wholeRound(token);
       await this.refreshPending();
-      this.set({ status: "idle", lastSyncAt: this.meta()?.lastSyncAt ?? null, newData: this.state.newData || pulled > 0, keySalt: null });
+      this.set({ status: "idle", lastSyncAt: this.meta()?.lastSyncAt ?? null, newData: this.state.newData || pulled > 0, keySalt: null, error: null, failing: null });
     } catch (e) {
       if (e instanceof RemoteConflict) {
         // Otro dispositivo ha subido entre medias: otra vuelta, que baja lo suyo, lo junta y sube.
@@ -257,12 +268,12 @@ export class SyncController {
         this.set({ status: "needs-key", keySalt: e.salt });
       } else if (e instanceof AuthError) {
         clearToken();
-        this.set({ status: "needs-auth" });
+        this.set({ status: "needs-auth", failing: "needs-auth" });
       } else if (!navigator.onLine || (e instanceof TypeError && /fetch|network|load failed/i.test(e.message))) {
-        this.set({ status: "offline" }); // fetch sin red
+        this.set({ status: "offline", failing: "offline" }); // fetch sin red
       } else {
         logError("sincronización", e);
-        this.set({ status: "error", error: e instanceof Error ? e.message : String(e) });
+        this.set({ status: "error", error: e instanceof Error ? e.message : String(e), failing: "error" });
       }
     }
   }

@@ -78,6 +78,17 @@ const steps: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    title: "Varias personas a la vez (en una clínica)",
+    body: (
+      <>
+        Lo que cada uno guarda llega a los demás solo, en un minuto. Si dos personas cambian datos distintos de la misma ficha (una el teléfono, otra
+        las notas), se quedan los dos. Si cambian el mismo dato, se queda el último y lo otro se guarda en <b>Ajustes › Cuenta › Cambios sustituidos</b>,
+        para recuperarlo. Si algo impide sincronizar, sale abajo un aviso fijo con <b>Pulsa para sincronizar</b>; y si dos personas dan la misma hora a
+        la vez, sale arriba <b>Cita doble</b>.
+      </>
+    ),
+  },
+  {
     title: "Bonos, cobros y ejercicios para casa",
     body: (
       <>

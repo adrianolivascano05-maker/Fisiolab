@@ -239,3 +239,43 @@ export async function markAttended(db: Db, patientId: string, performedAt: strin
   const t = now();
   await db.transaction(ids.map((id) => ({ sql: "update appointments set status = 'done', updated_at = ? where id = ?", bind: [t, id] })));
 }
+
+/** Dos citas pendientes que se pisan. `who`: de quién son (la persona del equipo), si se sabe. */
+export type DoubleBooking = { key: string; first: AgendaItem; second: AgendaItem; who: string | null };
+
+/**
+ * Citas dobles llegadas de otro dispositivo: dos citas pendientes, de ahora en adelante, que se pisan, de la misma
+ * persona del equipo (sin equipo, de cualquiera) o del mismo paciente, y al menos una dada o cambiada en otro
+ * dispositivo en los últimos `days` días. Para avisar en cuanto se sincroniza: dos personas pueden dar la misma hora a
+ * la vez sin verlo.
+ */
+export async function doubleBookingsFromOthers(db: Db, now = new Date(), days = 2): Promise<DoubleBooking[]> {
+  const pairs = await db.query<{ x: string; y: string }>(
+    `select x.id as x, y.id as y
+       from sync_changes c
+       join appointments x on x.id = c.pk and x.status = 'scheduled' and x.starts_at >= ?1
+       join appointments y on y.id <> x.id and y.status = 'scheduled' and y.starts_at >= ?1
+        and y.starts_at > strftime('%Y-%m-%dT%H:%M:%fZ', julianday(x.starts_at) - 1)
+        and y.starts_at < strftime('%Y-%m-%dT%H:%M:%fZ', julianday(x.starts_at) + x.minutes / 1440.0)
+        and julianday(y.starts_at) + y.minutes / 1440.0 > julianday(x.starts_at)
+      where c.tbl = 'appointments' and c.op = 'upsert' and c.at > ?2 and c.device <> (select device from sync_state)
+        and (x.patient_id = y.patient_id or not exists (select 1 from staff) or (x.assigned_to is not null and x.assigned_to = y.assigned_to))`,
+    [now.toISOString(), new Date(now.getTime() - days * 86_400_000).toISOString()],
+  );
+  const out: DoubleBooking[] = [];
+  const seen = new Set<string>();
+  for (const { x, y } of pairs) {
+    const key = [x, y].sort().join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const rows = await db.query<Row & { who: string | null }>(
+      `select a.*, p.name, s.name as who from appointments a join patients p on p.id = a.patient_id left join staff s on s.email = a.assigned_to
+        where a.id in (?, ?) order by a.starts_at, a.id`,
+      [x, y],
+    );
+    if (rows.length !== 2) continue;
+    const [first, second] = rows.map((r) => ({ ...toAppointment(r), name: r.name! }));
+    out.push({ key, first: first!, second: second!, who: rows[0]!.assigned_to && rows[0]!.assigned_to === rows[1]!.assigned_to ? rows[0]!.who : null });
+  }
+  return out.sort((a, b) => a.first.startsAt.localeCompare(b.first.startsAt));
+}

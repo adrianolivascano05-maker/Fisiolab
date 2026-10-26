@@ -18,6 +18,7 @@ import { DocSync } from "./documents/DocSync"; // Archivos del paciente: subir l
 // Al abrir la app solo se carga la lista de pacientes; cada pantalla se carga al entrar en ella (el service worker
 // ya las tiene guardadas, así que es inmediato también sin conexión).
 const AccountSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.AccountSettingsPage })));
+const LostChangesPage = lazy(() => import("./cloud/LostChangesPage").then((m) => ({ default: m.LostChangesPage })));
 const AsymmetryPage = lazy(() => import("./pages/AsymmetryPage").then((m) => ({ default: m.AsymmetryPage })));
 const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.ClinicSettingsPage })));
 const DataSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.DataSettingsPage })));
@@ -116,6 +117,7 @@ const routes = [
   { path: "/validacion/sensor", element: l(<SensorCheckPage />) },
   { path: "/ajustes", element: l(<SettingsPage />) }, // S24
   { path: "/ajustes/cuenta", element: l(<AccountSettingsPage />) },
+  { path: "/ajustes/sustituidos", element: l(<LostChangesPage />) }, // Cambios sustituidos (src/data/conflicts.ts)
   { path: "/ajustes/clinica", element: l(<ClinicSettingsPage />) },
   { path: "/ajustes/equipo", element: l(<TeamPage />) },
   { path: "/ajustes/proveedor", element: l(<ProviderPage />) },

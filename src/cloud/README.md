@@ -81,12 +81,25 @@ de la última cuenta que entró en él.
 - **A mitad de uso**, el token caduca a la hora. Si hay cambios sin subir, sale un aviso con «Entrar con Google».
   No se va a Google sin pulsar, para no perder lo que se esté escribiendo.
 - **Juntar copias.** Cada alta, cambio o borrado de una fila deja su hora en `sync_changes`, mediante los
-  disparadores de la migración 008. Al juntar la copia del dispositivo con la de Drive gana, fila a fila, el
-  cambio más reciente, también si es un borrado. Si la nube ha cambiado, primero se baja y se junta, y luego se
-  sube. Nunca se pisa sin más lo que subió otro dispositivo.
+  disparadores de la migración 008. Si la nube ha cambiado, primero se baja y se junta, y luego se sube. Nunca se
+  pisa sin más lo que subió otro dispositivo.
+- **Campo a campo** (migración 033, `mergeRow` en `syncMerge.ts`, desde el 26-10-2026). Cada cambio apunta también
+  qué campos toca y cuándo (`sync_fields`; en la anamnesis y en los motivos de consulta, cada respuesta por separado:
+  `answers.motivo`), y cuándo nació la fila (`sync_changes.born`). Si los dos lados han cambiado la misma fila, de
+  cada campo se queda el cambiado más tarde: si uno cambia el teléfono y otro las notas, se quedan los dos. Si el
+  resultado mezcla los dos lados, es un cambio nuevo del dispositivo que junta (hora nueva, por subir) y los demás
+  se quedan con todo. Un borrado contra un cambio: gana el más reciente de la fila. Con lo que llega de un
+  dispositivo sin actualizar (sin campos), cada campo tiene la hora del cambio: se junta como antes, fila a fila.
+- **Lo que se pierde se guarda.** Si este dispositivo había cambiado un campo que otro cambia después con otro valor
+  (y los demás aún no lo habían visto, o hace menos de un cuarto de hora), se queda lo del otro, pero lo de aquí va a
+  `sync_conflicts` (solo de este dispositivo, tres meses): Ajustes › Cuenta › «Cambios sustituidos»
+  (`LostChangesPage.tsx`, `src/data/conflicts.ts`) deja recuperarlo o dejarlo. El aviso de arriba lleva allí.
+- **Avisos** (`SyncFloat.tsx`): una ventana fija abajo mientras algo impide sincronizar (error, sesión caducada, sin
+  conexión con cambios esperando, o cambios sin subir desde hace más de 2 minutos), con «Pulsa para sincronizar» o
+  «Pulsa para entrar». Y una cita doble que llega de otro dispositivo (dos citas pendientes a la vez de la misma
+  persona del equipo o del mismo paciente) sale arriba con «Ver en la agenda» (`doubleBookingsFromOthers`).
 - **Límites:**
-  - Se compara la fila entera. Si en dos dispositivos se cambian, sin sincronizar entre medias, dos campos
-    distintos del mismo paciente, se queda la versión del cambio más reciente.
+  - Dos cambios del mismo campo: se queda el más reciente (lo otro, en «Cambios sustituidos»).
   - La hora es la del reloj de cada dispositivo.
   - Drive no deja condicionar la subida a la versión anterior. Si dos dispositivos suben a la vez, el que pierde
     conserva sus cambios en su base y los vuelve a subir, ya juntos, en la siguiente sincronización.
@@ -153,8 +166,8 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
   de uso ocupa unos 26 MB (2,6 MB comprimida y cifrada): subirla y bajarla en cada cambio, en cada dispositivo, no
   escala. Así que cada dispositivo sube solo lo que ha cambiado desde la última vez (un lote cifrado con las filas
   cambiadas: `pendingChanges` en `syncMerge.ts`, lo que tiene en `sync_changes.n` un número mayor que
-  `sync_state.pushed`) y baja los lotes de los demás desde el último que tiene (`applyDelta`, con la misma regla:
-  gana el cambio más reciente de cada fila). La copia entera solo se baja la primera vez en un dispositivo o si se
+  `sync_state.pushed`, con sus campos) y baja los lotes de los demás desde el último que tiene (`applyDelta`, con la
+  misma regla: campo a campo). La copia entera solo se baja la primera vez en un dispositivo o si se
   ha quedado atrás; cuando se juntan 200 lotes (o 2 MB), un dispositivo sube una copia entera nueva y el servidor
   borra los anteriores. Cada lote dice con qué versión de la base se hizo: uno de una versión más nueva pide
   actualizar la app.

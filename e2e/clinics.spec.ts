@@ -773,4 +773,133 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await phone.context().close();
     expect(errors).toEqual([]);
   });
+
+  test("CL13 sincronizar sin perder nada: datos distintos a la vez se juntan; lo mismo, se recupera; la ventana flotante avisa", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    google.creators = ["ana"];
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Paciente Sincro" });
+    await choosePassword(page);
+    await page.goto("./ajustes/equipo");
+    await page.getByLabel("Su correo de Google").fill("bruno@clinica.test");
+    await page.getByRole("button", { name: "Añadir al equipo" }).click();
+    await expect(page.getByRole("region", { name: "Equipo" }).getByRole("button", { name: /bruno@clinica\.test/ })).toBeVisible();
+    await inServer(google, "Paciente Sincro");
+
+    const bruno = await device(browser, google, "bruno", errors, [/status of 500/, /sincronización.*Fallo de prueba/]);
+    await enter(bruno);
+    await patients(bruno);
+    await unlock(bruno);
+    await expect(bruno.getByRole("link", { name: /Paciente Sincro/ })).toBeVisible();
+
+    /** El formulario de los datos de la ficha, sin recargar la página (también sin conexión). */
+    const openForm = async (p: Page) => {
+      // En el formulario no está la barra de abajo: atrás, a la ficha.
+      if (await p.getByRole("button", { name: "Guardar cambios" }).isVisible()) await p.goBack();
+      await p.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Pacientes" }).click();
+      await p.getByRole("link", { name: /Paciente Sincro/ }).click();
+      await p.getByRole("link", { name: "Editar datos" }).click();
+    };
+    /** Cambia un dato de la ficha y guarda. */
+    const edit = async (p: Page, label: string, value: string) => {
+      await openForm(p);
+      await p.getByLabel(label, { exact: true }).fill(value);
+      await p.getByRole("button", { name: "Guardar cambios" }).click();
+      await expect(p.getByRole("button", { name: "Guardar cambios" })).toBeHidden();
+    };
+    const syncNow = async (p: Page) => {
+      await p.goto("./ajustes/cuenta");
+      await p.getByRole("button", { name: "Sincronizar ahora" }).click();
+      await expect(p.getByText(/Guardado en el servidor de la clínica/)).toBeVisible({ timeout: 15_000 });
+    };
+    const value = async (p: Page, label: string) => {
+      await openForm(p);
+      return p.getByLabel(label, { exact: true }).inputValue();
+    };
+
+    // A la vez, Ana cambia el teléfono y Bruno las notas: se quedan los dos.
+    await edit(page, "Teléfono", "612 000 111");
+    await edit(bruno, "Notas", "Viene en bici");
+    for (const p of [page, bruno, page]) await syncNow(p);
+    for (const p of [page, bruno]) {
+      expect(await value(p, "Teléfono")).toBe("612 000 111");
+      expect(await value(p, "Notas")).toBe("Viene en bici");
+    }
+
+    // Ana, sin conexión, cambia el teléfono: la ventana flotante lo dice y no se va.
+    await page.context().setOffline(true);
+    await edit(page, "Teléfono", "611 111 111");
+    const float = page.getByRole("status", { name: "Sincronización" });
+    await expect(float).toContainText("Sin conexión: hay cambios esperando.", { timeout: 15_000 });
+    await page.setViewportSize({ width: 360, height: 780 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    const box = await float.getByRole("button", { name: "Pulsa para sincronizar" }).boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(43.5);
+    await expectAccessible(page);
+
+    // Mientras, Bruno pone otro teléfono (más tarde). Al volver la conexión, se queda el de Bruno y Ana puede recuperar el suyo.
+    await edit(bruno, "Teléfono", "699 999 999");
+    await syncNow(bruno);
+    // Al volver la conexión se sube solo (y la ventana se va).
+    await page.context().setOffline(false);
+    await expect(float).toBeHidden({ timeout: 15_000 });
+    const notice = page.getByRole("status").filter({ hasText: "Otra persona ha cambiado a la vez lo mismo" });
+    await expect(notice).toContainText("los datos de Paciente Sincro (lo cambió Bruno Gil)");
+    await notice.getByRole("link", { name: "Ver y recuperar lo mío" }).click();
+    await expect(page.getByRole("heading", { name: "Cambios sustituidos" })).toBeVisible();
+    const lost = page.getByRole("list", { name: "Cambios sustituidos" }).getByRole("listitem");
+    await expect(lost).toHaveCount(1);
+    await expect(lost).toContainText("Teléfono · Paciente Sincro");
+    await expect(lost).toContainText("Lo tuyo611 111 111");
+    await expect(lost).toContainText("Se quedó699 999 999 (de Bruno Gil,");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    await expectAccessible(page);
+    await lost.getByRole("button", { name: "Recuperar lo mío" }).click();
+    await expect(page.getByText("Teléfono: se ha vuelto a poner lo tuyo")).toBeVisible();
+    await expect(lost).toHaveCount(0);
+    await syncNow(page);
+    await syncNow(bruno);
+    expect(await value(bruno, "Teléfono")).toBe("611 111 111");
+
+    // Cita doble: Ana y Bruno dan cita al mismo paciente a la misma hora, casi a la vez (cada uno sin ver la del otro);
+    // al sincronizar, los dos lo ven.
+    const giveAt = async (p: Page, when: string) => {
+      if (await p.getByRole("button", { name: "Guardar cambios" }).isVisible()) await p.goBack();
+      await p.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Pacientes" }).click();
+      await p.getByRole("link", { name: /Paciente Sincro/ }).click();
+      await p.getByRole("button", { name: "Dar cita" }).click();
+      const give = p.getByRole("dialog", { name: "Dar cita a Paciente Sincro" });
+      await give.getByLabel("Día y hora").fill(when);
+      await give.getByRole("button", { name: "Dar la cita" }).click();
+      await expect(give).toBeHidden();
+    };
+    const tomorrow = new Date(Date.now() + 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+    await giveAt(page, `${tomorrow}T10:00`);
+    await giveAt(bruno, `${tomorrow}T10:15`);
+    for (const p of [bruno, page]) await syncNow(p);
+    const double = page.getByRole("status").filter({ hasText: "Cita doble." });
+    await expect(double).toContainText("Paciente Sincro tiene dos citas a la vez", { timeout: 20_000 });
+    await expect(double).toContainText("Se han dado a la vez en dos dispositivos.");
+    await expectAccessible(page);
+    await double.getByRole("link", { name: "Ver en la agenda" }).click();
+    await expect(page.getByRole("heading", { name: "Agenda", exact: true })).toBeVisible();
+    await expect(double).toBeHidden();
+
+    // Si el servidor falla, la ventana flotante lo dice hasta que se arregla (en el móvil de Bruno).
+    await bruno.route(`${FakeGoogle.SERVER}/**`, (r) => r.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ error: "Fallo de prueba" }) }));
+    await edit(bruno, "Notas", "Viene andando");
+    const brunoFloat = bruno.getByRole("status", { name: "Sincronización" });
+    await expect(brunoFloat).toContainText("No se ha podido sincronizar", { timeout: 15_000 });
+    await expect(brunoFloat).toContainText("Fallo de prueba");
+    await bruno.unroute(`${FakeGoogle.SERVER}/**`);
+    await brunoFloat.getByRole("button", { name: "Pulsa para sincronizar" }).click();
+    await expect(brunoFloat).toBeHidden({ timeout: 15_000 });
+    expect(errors).toEqual([]);
+  });
+
 });

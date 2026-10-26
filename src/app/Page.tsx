@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SyncNotice } from "../cloud/CloudGate";
+import { SyncFloat } from "../cloud/SyncFloat";
 import { Alert } from "../ui/Alert";
 import { SideNav, TabBar, TopBar } from "../ui/AppBar";
 import { useInPane } from "./pane";
@@ -66,6 +67,7 @@ export function Page({ title, backTo, backLabel, action, tabs = true, tone = "de
         {big && <div ref={ref} aria-hidden="true" className="-mt-4 h-0" />}
         <SyncNotice />
         {children}
+        {tone !== "media" && <SyncFloat tabs={showTabs} />}
       </main>
       {showTabs && <TabBar />}
       {showSide && <SideNav />}

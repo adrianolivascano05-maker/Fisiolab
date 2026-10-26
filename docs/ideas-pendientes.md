@@ -145,11 +145,21 @@ salvo el DNI en la búsqueda.
   persona pueden quedar las dos si se dan a la vez en dos dispositivos.
 - **Propuesto (por bloques, a la espera del usuario):**
   - A. La copia de la clínica a R2, por trozos (sin tope de 50 MB, sin juntarlo todo en memoria, en binario), y
-    copia entera menos a menudo en las clínicas grandes. Pacientes con buscador (nombre, DNI, teléfono, correo,
-    notas, motivo, diagnóstico; filtros por definir con el usuario) y «todos de la A a la Z» por páginas. El tope
-    de los PDF lo pone el administrador desde Cloudflare.
-  - B. Sincronización que nunca pierde nada: juntar campo a campo (si uno cambia el teléfono y otro las notas, se
-    quedan los dos), guardar la versión que pierde para poder recuperarla, y aviso de citas dobles tras sincronizar.
+    copia entera menos a menudo en las clínicas grandes. Aviso en el panel del proveedor al 70 % de cualquier
+    límite. Pacientes con buscador (sobre todo nombre, teléfono o DNI) y filtros que eligió el usuario: edad, sexo,
+    fisio, con cita próxima, último día que vino y con algo pendiente de cobrar o de firmar (no zona ni motivo, ni
+    activos/antiguos/alta); «todos de la A a la Z» por páginas. El tope de los PDF lo pone el administrador desde
+    Cloudflare. Aprobado por el usuario; pendiente.
+  - Visto al revisar el código: para enviar la copia entera, el servidor la junta en memoria; con una copia de
+    40-50 MB podría pasarse de los 128 MB antes del tope de 50 MB. Lo arregla el bloque A.
+  - B. **Hecho el 26-10-2026** (el usuario la puso primero): sincronización campo a campo (migración 033; si uno
+    cambia el teléfono y otro las notas, se quedan los dos; en la anamnesis, respuesta a respuesta), lo que pierde se
+    guarda tres meses para recuperarlo (Ajustes › Cuenta › «Cambios sustituidos»), aviso de cita doble al
+    sincronizar y una ventana fija abajo mientras algo impide sincronizar («Pulsa para sincronizar»). Medido con
+    10.000 pacientes: un móvil nuevo tarda 44 s en juntar la copia (antes, 118 s); aplicar un lote de 400 cambios,
+    0,12 s (antes, 0,10 s); ningún cambio perdido (antes, si dos personas tocaban la misma ficha, uno se perdía).
+    Pruebas: `src/data/fieldMerge.test.ts` (tres dispositivos al azar con 12 semillas acaban iguales) y CL13 en
+    `e2e/clinics.spec.ts`.
   - C. Exportación por partes: escribir en el disco paciente a paciente (Chrome o Edge de ordenador) o varios .zip
     de tamaño fijo, cada uno completo, que se puede reanudar.
   - D. Más adelante: archivar los pacientes inactivos (en los dispositivos queda una ficha mínima para buscarlos; su
@@ -168,7 +178,14 @@ El usuario pidió tener presentes estas ideas para más adelante.
   1 TB, unos 15 $). Bajar archivos no se cobra.
 - Cupo de archivos por clínica (por ejemplo, 20 GB incluidos en su cuota, unos 0,30 $ al mes de coste) y planes por
   tamaño de clínica.
-- Si un día hace falta app en la App Store: 99 € al año de Apple; en Google Play, 25 $ una vez.
+- Si un día hace falta app en la App Store: 99 € al año de Apple; en Google Play, 25 $ una vez (según guías de
+  2026; las cuentas personales quizá necesiten 14 días de prueba con 12 personas). En Mac no hace falta tienda
+  (Safari «Añadir al Dock», Chrome o Edge la instalan). En iPhone, fuera de la web instalada, siempre hace falta la
+  cuenta de Apple; las tiendas alternativas de la UE piden requisitos de empresa.
+- Recordatorios automáticos (sin pulsar): SMS, unos 0,09 $ cada uno (Twilio, España); WhatsApp de empresa (Meta),
+  unos 2-3 céntimos según webs de terceros, más el margen del intermediario. Una clínica con 100 citas a la semana:
+  unos 38 $ al mes por SMS u 11 $ por WhatsApp. Se podría cobrar como extra. Exige que el servidor conozca el
+  teléfono y la hora de cada cita (decisión de privacidad).
 
 ## Archivos del paciente: informes y pruebas en PDF (hecho el 26-10-2026)
 

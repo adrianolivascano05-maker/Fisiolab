@@ -3,9 +3,13 @@
 // servidor de Cloudflare, cada cuenta elige su clínica (clinic.ts) y trabaja con la base que comparte su equipo.
 // Sin la nube activada no hace nada: la app funciona solo en el dispositivo, como siempre.
 import { setPendingMode, type ClinicMode } from "./teamMode";
-import { Building2, ChevronRight, CloudOff, LogIn, Plus, RefreshCw, TriangleAlert } from "lucide-react";
+import { Building2, ChevronRight, CloudOff, History, LogIn, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router";
+import { useAsync } from "../app/useAsync";
+import { fmtDateTime } from "../app/format";
+import { doubleBookingsFromOthers } from "../data/appointments";
+import { lostCount } from "../data/conflicts";
 import { configureDb, getDb } from "../data/db";
 import { setMember } from "../data/member";
 import { ensureDevice } from "../data/editors";
@@ -718,8 +722,84 @@ export function syncText(s: SyncState): string {
   }
 }
 
-/** Aviso arriba de cada pantalla cuando hay algo que hacer: volver a entrar, ver datos nuevos o reintentar. */
+/**
+ * Aviso arriba de cada pantalla cuando hay algo que hacer: ver datos nuevos, lo que otro ha cambiado a la vez o la
+ * contraseña de cifrado. Lo que impide sincronizar (error, sesión caducada) va en la ventana flotante (SyncFloat.tsx).
+ */
 export function SyncNotice() {
+  return (
+    <>
+      <DoubleBookingNotice />
+      <SyncNoticeRow />
+    </>
+  );
+}
+
+const SEEN_DOUBLES = "cenit.citas-dobles-vistas";
+/** AAAA-MM-DD en la hora del dispositivo, como la agenda (src/schedule/layout.ts, dayOf). */
+const localDay = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const seenDoubles = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_DOUBLES) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+};
+
+/**
+ * Cita doble llegada al sincronizar (src/data/appointments.ts, doubleBookingsFromOthers): dos personas han dado la
+ * misma hora a la vez en dos dispositivos. Sale hasta que se ve o se pulsa «Entendido».
+ */
+function DoubleBookingNotice() {
+  const cloud = useCloud();
+  const s = useSyncState();
+  const found = useAsync(() => (cloud ? doubleBookingsFromOthers(getDb()) : Promise.resolve([])), [cloud, s?.lastSyncAt]);
+  const [seen, setSeen] = useState(seenDoubles);
+  const list = (found.data ?? []).filter((d) => !seen.includes(d.key));
+  const d = list[0];
+  if (!d) return null;
+  const done = () => {
+    const next = [...seen, ...list.map((x) => x.key)].slice(-200);
+    try {
+      localStorage.setItem(SEEN_DOUBLES, JSON.stringify(next));
+    } catch {
+      /* sin almacenamiento: vuelve a salir la próxima vez */
+    }
+    setSeen(next);
+  };
+  const when = fmtDateTime(d.first.startsAt);
+  const text = d.who
+    ? `${d.who} tiene dos citas a la vez (${when}): ${d.first.name} y ${d.second.name}.`
+    : d.first.patientId === d.second.patientId
+      ? `${d.first.name} tiene dos citas a la vez (${when}).`
+      : `Hay dos citas a la vez (${when}): ${d.first.name} y ${d.second.name}.`;
+  return (
+    <div role="status" className="flex flex-col gap-2 rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
+      <span>
+        <span className="font-semibold">Cita doble. </span>
+        {text} Se han dado a la vez en dos dispositivos.
+        {list.length > 1 && ` Y ${list.length - 1 === 1 ? "otra más" : `${list.length - 1} más`}.`}
+      </span>
+      <div className="flex flex-wrap gap-2">
+        <Link
+          to={`/agenda?dia=${localDay(d.first.startsAt)}`}
+          onClick={done}
+          className="tap inline-flex items-center rounded-md bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+        >
+          Ver en la agenda
+        </Link>
+        <Button size="sm" variant="secondary" onClick={done}>
+          Entendido
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function SyncNoticeRow() {
   const cloud = useCloud();
   const s = useSyncState();
   if (!cloud || !s) return null;
@@ -733,7 +813,7 @@ export function SyncNotice() {
     return (
       <div role="status" className="flex flex-col gap-2 rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
         <span>
-          Otra persona ha cambiado a la vez algo que acababas de guardar; se ha quedado su versión: {s.overwritten.join("; ")}.
+          Otra persona ha cambiado a la vez lo mismo que acababas de guardar; se ha quedado su versión, y la tuya está guardada: {s.overwritten.join("; ")}.
         </span>
         <div className="flex flex-wrap gap-2">
           {s.newData && (
@@ -741,6 +821,13 @@ export function SyncNotice() {
               Mostrar
             </Button>
           )}
+          <Link
+            to="/ajustes/sustituidos"
+            onClick={() => cloud.sync.seenOverwritten()}
+            className="tap inline-flex items-center rounded-md bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover"
+          >
+            Ver y recuperar lo mío
+          </Link>
           <Button size="sm" variant="secondary" onClick={() => cloud.sync.seenOverwritten()}>
             Entendido
           </Button>
@@ -754,13 +841,6 @@ export function SyncNotice() {
         Mostrar
       </Button>,
     );
-  if (s.status === "needs-auth" && s.pending)
-    return row(
-      syncText(s),
-      <Button size="sm" onClick={cloud.reconnect}>
-        Entrar con Google
-      </Button>,
-    );
   if (s.status === "needs-key") return row(syncText(s), <KeyPrompt size="sm" />);
   if (s.status === "needs-password")
     return row(
@@ -768,13 +848,6 @@ export function SyncNotice() {
       <Link to="/ajustes/cuenta" className="tap inline-flex items-center rounded-md bg-accent px-3 text-sm font-semibold text-on-accent hover:bg-accent-hover">
         Elegir contraseña
       </Link>,
-    );
-  if (s.status === "error")
-    return row(
-      syncText(s),
-      <Button size="sm" variant="secondary" onClick={() => void cloud.sync.sync()}>
-        Reintentar
-      </Button>,
     );
   return null;
 }
@@ -814,6 +887,7 @@ export function CloudSettings() {
             Sincronizar ahora
           </Button>
         )}
+        <LostChangesLink />
         <Button variant="secondary" onClick={() => setConfirm("logout")}>
           Cerrar sesión
         </Button>
@@ -849,6 +923,18 @@ export function CloudSettings() {
         </Button>
       </Sheet>
     </section>
+  );
+}
+
+/** Lo que se ha sustituido en este dispositivo (src/data/conflicts.ts), si hay algo. */
+function LostChangesLink() {
+  const count = useAsync(() => lostCount(getDb()), []);
+  if (!count.data) return null;
+  return (
+    <Link to="/ajustes/sustituidos" className="inline-flex min-h-11 items-center gap-2 font-semibold text-accent underline">
+      <History aria-hidden="true" className="size-5" />
+      {count.data === 1 ? "1 cambio sustituido" : `${count.data} cambios sustituidos`}: ver y recuperar
+    </Link>
   );
 }
 
