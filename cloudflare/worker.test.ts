@@ -885,3 +885,202 @@ describe("clínicas", () => {
     expect((await call("GET", "/v1/copia/info", { token: "tok-ana" })).status).toBe(200);
   });
 });
+
+/** Un almacén R2 de prueba: put, get y delete en memoria. */
+class FakeR2 {
+  readonly objects = new Map<string, Uint8Array>();
+  async put(key: string, value: Uint8Array) {
+    this.objects.set(key, new Uint8Array(value));
+    return { key };
+  }
+  async get(key: string) {
+    const b = this.objects.get(key);
+    return b ? { body: new Blob([b as BlobPart]).stream(), size: b.byteLength } : null;
+  }
+  async delete(keys: string | string[]) {
+    for (const k of [keys].flat()) this.objects.delete(k);
+  }
+}
+
+/** Un documento «cifrado» de `size` bytes, como lo sube la app: CENITDOC1 y después bytes de relleno. */
+function sealedDoc(size: number, seed = 1) {
+  const bytes = new Uint8Array(size);
+  let x = seed;
+  for (let i = 0; i < size; i++) {
+    x = (x * 1103515245 + 12345) >>> 0;
+    bytes[i] = x >>> 24;
+  }
+  bytes.set(new TextEncoder().encode("CENITDOC1"), 0);
+  return bytes;
+}
+
+describe("documentos", () => {
+  let r2: FakeR2;
+  beforeEach(() => {
+    r2 = new FakeR2();
+  });
+  type Opts = { token?: string; body?: Uint8Array; json?: unknown };
+  const go = (method: string, path: string, { token, body, json }: Opts = {}, over: Record<string, unknown> = {}, now?: () => number) =>
+    handle(
+      new Request(BASE + path, {
+        method,
+        body: json !== undefined ? JSON.stringify(json) : (body as BodyInit | undefined),
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { "Content-Type": "application/octet-stream" } : {}) },
+      }),
+      env({ DOCS: r2, ...over }),
+      { verifyToken, now },
+    );
+  async function clinic(token = "tok-ana") {
+    const res = await go("POST", "/v1/clinicas", { token, json: { name: "Fisiolab Centro" } });
+    expect(res.status).toBe(201);
+    return ((await res.json()) as { id: string }).id;
+  }
+  const usage = async (id: string) => (await (await go("GET", `/v1/clinicas/${id}/documentos`, { token: "tok-ana" })).json()) as Record<string, unknown>;
+  const DOC = "d".repeat(22);
+  const expiresAt = () => new Date(Date.now() + 14 * 86_400_000).toISOString();
+
+  it("sin R2 la app sabe que no hay documentos, y las rutas dicen qué falta", async () => {
+    const id = await clinic();
+    expect(await (await go("GET", `/v1/clinicas/${id}/documentos`, { token: "tok-ana" }, { DOCS: undefined })).json()).toEqual({ enabled: false });
+    const res = await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(100) }, { DOCS: undefined });
+    expect(res.status).toBe(501);
+    expect(((await res.json()) as { error: string }).error).toContain("R2");
+  });
+
+  it("el equipo sube, baja y borra; quien no es del equipo, no; si ya está, no se vuelve a guardar", async () => {
+    const id = await clinic();
+    const doc = sealedDoc(1000);
+    expect((await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-eva", body: doc })).status).toBe(403);
+    const res = await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: doc });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ id: DOC, size: 1000 });
+    expect([...r2.objects.keys()]).toEqual([`${id}/${DOC}`]);
+    expect((await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(1000, 2) })).status).toBe(200);
+    expect(r2.objects.get(`${id}/${DOC}`)).toEqual(doc);
+
+    expect((await go("GET", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-eva" })).status).toBe(403);
+    const got = await go("GET", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana" });
+    expect(got.status).toBe(200);
+    expect(got.headers.get("Content-Type")).toBe("application/octet-stream");
+    expect(new Uint8Array(await got.arrayBuffer())).toEqual(doc);
+    expect(await usage(id)).toEqual({ enabled: true, count: 1, used: 1000, total: 1000, cap: 10_000_000_000, warnAt: 8_000_000_000, maxBytes: 5 * 1024 * 1024 });
+
+    expect((await go("DELETE", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana" })).status).toBe(204);
+    expect(r2.objects.size).toBe(0);
+    expect((await go("GET", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana" })).status).toBe(404);
+    expect((await go("DELETE", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana" })).status).toBe(204);
+    expect((await usage(id)).count).toBe(0);
+  });
+
+  it("solo documentos cifrados, de 5 MB como mucho y con un id válido", async () => {
+    const id = await clinic();
+    const put = (doc: string, body: Uint8Array) => go("PUT", `/v1/clinicas/${id}/documentos/${doc}`, { token: "tok-ana", body });
+    expect((await put(DOC, new TextEncoder().encode("%PDF-1.7 sin cifrar"))).status).toBe(415);
+    expect((await put(DOC, sealedDoc(5 * 1024 * 1024 + 70 * 1024))).status).toBe(413);
+    expect((await put("corto", sealedDoc(100))).status).toBe(400);
+    expect((await put(`${DOC}.1`, sealedDoc(100))).status).toBe(400);
+    expect((await put(DOC, sealedDoc(5 * 1024 * 1024))).status).toBe(201);
+    expect(r2.objects.size).toBe(1);
+  });
+
+  it("el almacén entero no pasa de 10 GB: al llegar al tope no se guarda nada más", async () => {
+    const id = await clinic();
+    await db.prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES ('otra', ?, NULL, ?, '2026-10-01')").bind(DOC, 9_999_999_500).run();
+    const res = await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(1000) });
+    expect(res.status).toBe(507);
+    expect(((await res.json()) as { error: string }).error).toContain("10 GB");
+    expect(r2.objects.size).toBe(0);
+    expect(await usage(id)).toMatchObject({ used: 0, total: 9_999_999_500 });
+    expect((await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(400) })).status).toBe(201);
+  });
+
+  it("suspendida: los documentos se bajan, pero no se suben ni se borran", async () => {
+    const id = await clinic();
+    await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(100) });
+    await db.prepare("INSERT INTO clinic_status (clinic_id, suspended_at) VALUES (?, '2026-10-01')").bind(id).run();
+    expect((await go("GET", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana" })).status).toBe(200);
+    expect((await go("PUT", `/v1/clinicas/${id}/documentos/${"e".repeat(22)}`, { token: "tok-ana", body: sealedDoc(100) })).status).toBe(423);
+    expect((await go("DELETE", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana" })).status).toBe(423);
+    expect(r2.objects.size).toBe(1);
+  });
+
+  it("el paciente sube sus documentos con el enlace (sin sesión) y la clínica se queda con los que quiere", async () => {
+    const id = await clinic();
+    const fid = "p".repeat(24);
+    const form = (body: Record<string, unknown>) => go("POST", `/v1/clinicas/${id}/formularios`, { token: "tok-ana", json: { id: fid, request: "QUJD", expiresAt: expiresAt(), ...body } });
+    expect((await form({ maxDocs: 11 })).status).toBe(400);
+    expect((await form({ maxDocs: 1.5 })).status).toBe(400);
+    expect((await form({ maxDocs: 2 })).status).toBe(201);
+    const upload = (n: number, body: Uint8Array) => go("PUT", `/v1/formularios/${fid}/documentos/${n}`, { body });
+    expect((await upload(1, sealedDoc(300))).status).toBe(200);
+    expect((await upload(3, sealedDoc(300))).status).toBe(400);
+    expect((await upload(2, sealedDoc(500))).status).toBe(200);
+    // Mientras no envía, puede cambiarlo: se sustituye.
+    expect((await upload(2, sealedDoc(200, 7))).status).toBe(200);
+    expect([...r2.objects.keys()].sort()).toEqual([`${id}/${fid}.1`, `${id}/${fid}.2`]);
+    expect(await usage(id)).toMatchObject({ count: 0, used: 0, total: 500 });
+    // La clínica los baja con su id (para abrirlos con la clave del enlace).
+    expect(new Uint8Array(await (await go("GET", `/v1/clinicas/${id}/documentos/${fid}.2`, { token: "tok-ana" })).arrayBuffer())).toEqual(sealedDoc(200, 7));
+    // Enviado: ya no se pueden subir más.
+    expect((await go("POST", `/v1/formularios/${fid}/respuesta`, { json: { response: "UkVTUA==" } })).status).toBe(200);
+    expect((await upload(1, sealedDoc(300))).status).toBe(409);
+    // Se queda con el primero; al recoger el formulario, el otro se borra.
+    expect((await go("POST", `/v1/clinicas/${id}/documentos/${fid}.1/guardar`, { token: "tok-eva" })).status).toBe(403);
+    expect((await go("POST", `/v1/clinicas/${id}/documentos/${fid}.1/guardar`, { token: "tok-ana" })).status).toBe(200);
+    expect((await go("POST", `/v1/clinicas/${id}/documentos/${"z".repeat(22)}/guardar`, { token: "tok-ana" })).status).toBe(404);
+    expect((await go("DELETE", `/v1/clinicas/${id}/formularios/${fid}`, { token: "tok-ana" })).status).toBe(204);
+    expect([...r2.objects.keys()]).toEqual([`${id}/${fid}.1`]);
+    expect(await usage(id)).toMatchObject({ count: 1, used: 300, total: 300 });
+    expect(await count("SELECT count(*) AS n FROM doc_requests")).toBe(0);
+  });
+
+  it("un formulario que no pide documentos no admite subidas, y sin R2 no se pueden pedir", async () => {
+    const id = await clinic();
+    const fid = "q".repeat(24);
+    await go("POST", `/v1/clinicas/${id}/formularios`, { token: "tok-ana", json: { id: fid, request: "QUJD", expiresAt: expiresAt() } });
+    expect((await go("PUT", `/v1/formularios/${fid}/documentos/1`, { body: sealedDoc(100) })).status).toBe(400);
+    expect((await go("GET", `/v1/formularios/${fid}/documentos/1`)).status).toBe(404);
+    expect((await go("PUT", `/v1/formularios/${"x".repeat(30)}/documentos/1`, { body: sealedDoc(100) })).status).toBe(404);
+    const other = { id: "r".repeat(24), request: "QUJD", expiresAt: expiresAt(), maxDocs: 1 };
+    expect((await go("POST", `/v1/clinicas/${id}/formularios`, { token: "tok-ana", json: other }, { DOCS: undefined })).status).toBe(501);
+    expect(r2.objects.size).toBe(0);
+  });
+
+  it("los documentos de un enlace que caduca sin recoger se borran al limpiar los formularios", async () => {
+    const id = await clinic();
+    const fid = "s".repeat(24);
+    await go("POST", `/v1/clinicas/${id}/formularios`, { token: "tok-ana", json: { id: fid, request: "QUJD", expiresAt: expiresAt(), maxDocs: 1 } });
+    await go("PUT", `/v1/formularios/${fid}/documentos/1`, { body: sealedDoc(100) });
+    expect(r2.objects.size).toBe(1);
+    const later = () => Date.parse("2033-01-01T10:00:00Z");
+    expect((await go("GET", `/v1/clinicas/${id}/formularios`, { token: "tok-ana" }, {}, later)).status).toBe(200);
+    expect(r2.objects.size).toBe(0);
+    expect(await count("SELECT count(*) AS n FROM documents")).toBe(0);
+    expect(await count("SELECT count(*) AS n FROM doc_requests")).toBe(0);
+  });
+
+  it("al borrar la clínica para siempre se borran sus documentos; el proveedor ve cuánto ocupan", async () => {
+    const id = await clinic();
+    await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(1000) });
+    const panel = (await (await go("GET", "/v1/proveedor", { token: "tok-ana" }, { OPERATOR_EMAILS: "ana@clinica.es" })).json()) as {
+      clinics: { id: string; docs: number }[];
+      documents: Record<string, unknown>;
+    };
+    expect(panel.clinics.find((c) => c.id === id)?.docs).toBe(1000);
+    expect(panel.documents).toEqual({ enabled: true, total: 1000, cap: 10_000_000_000, warnAt: 8_000_000_000 });
+
+    const declaration = "Conservo la copia descargada de la clínica.";
+    expect((await go("DELETE", `/v1/clinicas/${id}`, { token: "tok-ana", json: { declaration } })).status).toBe(200);
+    expect(r2.objects.size).toBe(1); // 30 días en la papelera
+    const later = () => Date.now() + 31 * 86_400_000;
+    await go("GET", "/v1/yo", { token: "tok-ana" }, {}, later);
+    expect(r2.objects.size).toBe(0);
+    expect(await count("SELECT count(*) AS n FROM documents")).toBe(0);
+  });
+
+  it("la comprobación de la instalación avisa si faltan las tablas de los documentos", async () => {
+    db.db.exec("DROP TABLE documents");
+    const body = (await (await go("GET", "/v1/salud")).json()) as { error: string };
+    expect(body.error).toContain("schema.sql");
+  });
+});

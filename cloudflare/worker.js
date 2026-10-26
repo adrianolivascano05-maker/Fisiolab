@@ -55,6 +55,16 @@
 //                                              respondió) o anulado (se borra entero) (equipo; 204 aunque no estuviera)
 //   GET    /v1/formularios/:fid                { request, expiresAt, answered } SIN sesión: lo abre el paciente
 //   POST   /v1/formularios/:fid/respuesta      { response } SIN sesión: sus respuestas, cifradas, una sola vez
+//   Documentos (los informes en PDF de cada paciente), cifrados en el dispositivo y guardados en R2 (si hay enlace DOCS):
+//   GET    /v1/clinicas/:id/documentos         { enabled, count, used, total, cap, warnAt, maxBytes } (equipo):
+//                                              lo que ocupan los de la clínica y el almacén entero (el tope es de todo)
+//   PUT    /v1/clinicas/:id/documentos/:did    guarda un documento cifrado (bytes; equipo); si ya está, no lo repite
+//   GET    /v1/clinicas/:id/documentos/:did    lo baja (bytes; equipo; también suspendida)
+//   DELETE /v1/clinicas/:id/documentos/:did    lo borra (equipo; 204 aunque no estuviera)
+//   POST   /v1/clinicas/:id/documentos/:did/guardar  se queda con uno que subió un paciente (si no, se borra al
+//                                              recoger o anular su formulario)
+//   PUT    /v1/formularios/:fid/documentos/:n  SIN sesión: el documento n (1, 2…) del paciente, cifrado con la clave
+//                                              del enlace; solo en los formularios que piden documentos (maxDocs)
 //   /v1/copia y /v1/copia/info                 lo mismo con la copia personal de cada cuenta de ALLOWED_EMAILS
 //                                              (versiones anteriores de la app, sin clínicas)
 // Una clínica tiene siempre al menos un administrador: no se puede quitar ni bajar al último.
@@ -67,8 +77,9 @@
 // nueva de la app sincroniza una clínica, la pasa a este modo (sube la copia con ?v=2&seq=0); desde entonces las
 // versiones anteriores de la app reciben 426 («actualiza la app») en las rutas de la copia.
 //
-// Enlace a la base D1: DB. Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS y OPERATOR_EMAILS (quien
-// gestiona el servidor: ve el panel del proveedor).
+// Enlace a la base D1: DB. Enlace a R2 (opcional): DOCS, el almacén de los documentos; sin él, la app no los ofrece.
+// Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS y OPERATOR_EMAILS (quien gestiona el servidor: ve el
+// panel del proveedor).
 // Nunca se escribe en el registro el contenido de una petición ni el token.
 
 /**
@@ -86,8 +97,17 @@
  */
 /** @typedef {{ prepare(sql: string): D1Statement, batch(statements: D1Statement[]): Promise<D1Result[]> }} D1Database */
 /**
+ * La parte de un almacén R2 que se usa.
+ * @typedef {{
+ *   put(key: string, value: Uint8Array): Promise<unknown>,
+ *   get(key: string): Promise<{ body: ReadableStream, size: number } | null>,
+ *   delete(keys: string | string[]): Promise<void>,
+ * }} R2Bucket
+ */
+/**
  * @typedef {object} Env
  * @property {D1Database} DB
+ * @property {R2Bucket} [DOCS] el almacén de los documentos (R2, en la UE); sin él no hay documentos
  * @property {string} [GOOGLE_CLIENT_ID] el ID de cliente de Google de la app
  * @property {string} [ALLOWED_EMAILS] correos que pueden crear clínicas, separados por comas o espacios (vacío: nadie)
  * @property {string} [ALLOWED_ORIGINS] direcciones de la app, separadas por comas
@@ -137,6 +157,22 @@ const MAX_FORM_DAYS = 30;
 const KEEP_ANSWERS_DAYS = 60;
 /** Formularios sin recoger a la vez en una clínica. */
 const MAX_OPEN_FORMS = 500;
+// Documentos: la app los cifra antes de subirlos («CENITDOC1», vector de inicio y AES-GCM) con una clave que solo está
+// en la base de la clínica (o en el enlace del paciente), así que en R2 solo hay bytes ilegibles. Cada uno se guarda
+// en R2 como «<clínica>/<id>» y en la tabla documents se apunta lo que ocupa, para el tope de todo el almacén.
+const DOC_MAGIC = new TextEncoder().encode("CENITDOC1");
+/** Id de un documento: el que pone la app al azar, o «<formulario>.<n>» si lo subió un paciente con su enlace. */
+const DOC_ID = /^[A-Za-z0-9_-]{22,64}(\.(?:[1-9]|10))?$/;
+/** Un documento, como mucho: 5 MB y lo que añade el cifrado (con margen). */
+const MAX_DOC_BYTES = 5 * 1024 * 1024 + 64 * 1024;
+/** Tope de todo el almacén (el nivel gratuito de R2 es de 10 GB al mes) y desde cuándo se avisa. */
+const DOCS_CAP_BYTES = 10_000_000_000;
+const DOCS_WARN_BYTES = 8_000_000_000;
+/** Documentos que puede subir un paciente con un mismo enlace, como mucho. */
+const MAX_DOCS_PER_FORM = 10;
+/** Documentos de pacientes sin recoger que se limpian en cada pasada. */
+const DOC_PURGE_BATCH = 100;
+
 /** Tokens comprobados que se recuerdan, y durante cuánto como mucho (segundos). */
 const CACHE_ENTRIES = 200;
 const CACHE_SECONDS = 300;
@@ -216,6 +252,11 @@ async function route(request, env, deps, originAllowed) {
   // Lo que abre el paciente con su enlace: sin sesión (no tiene cuenta), con el id del formulario.
   const pub = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})(\/respuesta)?$/.exec(path);
   if (pub) return publicForm(request, database(env), /** @type {string} */ (pub[1]), pub[2] !== undefined, deps.now);
+  const pubDoc = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})\/documentos\/([1-9]|10)$/.exec(path);
+  if (pubDoc) {
+    if (method !== "PUT") throw notFound();
+    return publicFormDoc(request, env, /** @type {string} */ (pubDoc[1]), Number(pubDoc[2]), deps.now);
+  }
 
   // La copia personal (versiones anteriores de la app): solo las cuentas de ALLOWED_EMAILS.
   if (path === "/v1/copia" || path === "/v1/copia/info") {
@@ -240,6 +281,7 @@ async function route(request, env, deps, originAllowed) {
   const rest = m[2] ?? "";
   const member = /^\/miembros\/([^/]+)$/.exec(rest);
   const form = /^\/formularios\/([A-Za-z0-9_-]{22,64})$/.exec(rest);
+  const doc = /^\/documentos\/([^/]+?)(\/guardar)?$/.exec(rest);
   const known =
     (rest === "" && ["PATCH", "DELETE"].includes(method)) ||
     (rest === "/miembros" && method === "GET") ||
@@ -249,7 +291,10 @@ async function route(request, env, deps, originAllowed) {
     copyMethod(rest, method) ||
     (rest === "/copia/cambios" && ["GET", "POST"].includes(method)) ||
     (rest === "/formularios" && ["GET", "POST"].includes(method)) ||
-    (form !== null && method === "DELETE");
+    (form !== null && method === "DELETE") ||
+    (rest === "/documentos" && method === "GET") ||
+    (doc !== null && !doc[2] && ["GET", "PUT", "DELETE"].includes(method)) ||
+    (doc !== null && !!doc[2] && method === "POST");
   if (!known) throw notFound();
 
   const who = await authenticate(request, env, deps);
@@ -340,7 +385,9 @@ async function route(request, env, deps, originAllowed) {
     if (email !== normalEmail(who.email)) admin();
     return removeMember(db, id, email);
   }
-  if (rest === "/formularios" || form) return clinicForms(request, db, id, form?.[1] ?? null, who, deps.now);
+  if (rest === "/formularios" || form) return clinicForms(request, db, env.DOCS, id, form?.[1] ?? null, who, deps.now);
+  if (rest === "/documentos") return docsUsage(db, env.DOCS, id);
+  if (doc) return clinicDoc(request, db, env.DOCS, id, /** @type {string} */ (doc[1]), !!doc[2], deps.now);
   // La copia de la clínica: todo el equipo la baja y la sube; borrarla, solo quien administra.
   if (method === "DELETE") admin();
   return clinicCopy(request, db, clinicOwner(id), rest, deps.now);
@@ -551,23 +598,29 @@ async function clinicStatus(db, id) {
  * Borra para siempre las clínicas que llevan más de 30 días en la papelera.
  * @param {D1Database} db
  * @param {() => number} now
+ * @param {R2Bucket} [docs]
  */
-async function purgeExpired(db, now) {
+async function purgeExpired(db, now, docs) {
   const { results = [] } = await db
     .prepare("SELECT clinic_id FROM clinic_status WHERE deleted_at IS NOT NULL AND purge_after < ?")
     .bind(new Date(now()).toISOString())
     .all();
-  for (const r of results) await removeClinic(db, String(r.clinic_id));
+  for (const r of results) await removeClinic(db, String(r.clinic_id), docs);
 }
 
 /**
- * Borra una clínica del todo: su copia, su equipo, su clave de recuperación y su estado.
+ * Borra una clínica del todo: su copia, su equipo, su clave de recuperación, sus documentos y su estado.
  * @param {D1Database} db
  * @param {string} id
+ * @param {R2Bucket} [docs]
  */
-async function removeClinic(db, id) {
+async function removeClinic(db, id, docs) {
   const owner = clinicOwner(id);
+  const { results: files = [] } = await db.prepare("SELECT id FROM documents WHERE clinic_id = ?").bind(id).all();
+  await deleteDocs(docs, files.map((r) => docKey(id, String(r.id))));
   await db.batch([
+    db.prepare("DELETE FROM documents WHERE clinic_id = ?").bind(id),
+    db.prepare("DELETE FROM doc_requests WHERE form_id IN (SELECT id FROM patient_forms WHERE clinic_id = ?)").bind(id),
     db.prepare("DELETE FROM heads WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM deltas WHERE owner = ?").bind(owner),
@@ -601,7 +654,7 @@ async function roleIn(db, id, email) {
  * @param {() => number} now
  */
 async function me(db, env, who, now) {
-  await purgeExpired(db, now);
+  await purgeExpired(db, now, env.DOCS);
   const email = who.email.trim().toLowerCase();
   const { results = [] } = await db
     .prepare(
@@ -760,13 +813,14 @@ async function operatorRoute(request, env, deps, rest) {
     return json(200, { suspended });
   }
 
-  await purgeExpired(db, deps.now);
+  await purgeExpired(db, deps.now, env.DOCS);
   const { results: clinics = [] } = await db
     .prepare(
       `SELECT c.id, c.name, c.created_by, c.created_at,
               (SELECT count(*) FROM members m WHERE m.clinic_id = c.id) AS members,
               (SELECT group_concat(m.email, ', ') FROM members m WHERE m.clinic_id = c.id AND m.role = 'admin') AS admins,
               h.size + coalesce((SELECT sum(length(d.data)) FROM deltas d WHERE d.owner = h.owner), 0) AS size,
+              (SELECT coalesce(sum(f.size), 0) FROM documents f WHERE f.clinic_id = c.id) AS docs,
               max(h.updated_at, coalesce((SELECT max(d.created_at) FROM deltas d WHERE d.owner = h.owner), '')) AS updated_at, s.suspended_at, s.deleted_at, s.deleted_by, s.declaration, s.purge_after
          FROM clinics c LEFT JOIN heads h ON h.owner = 'clinic:' || c.id LEFT JOIN clinic_status s ON s.clinic_id = c.id
         ORDER BY c.name COLLATE NOCASE`,
@@ -777,7 +831,9 @@ async function operatorRoute(request, env, deps, rest) {
     .prepare("SELECT email, clinic, note, status, created_at, answered_at FROM access_requests ORDER BY status = 'pending' DESC, created_at")
     .all();
   const str = (/** @type {unknown} */ v) => (v === null || v === undefined ? null : String(v));
+  const stored = await db.prepare("SELECT coalesce(sum(size), 0) AS bytes FROM documents").first();
   return json(200, {
+    documents: { enabled: !!env.DOCS, total: Number(stored?.bytes ?? 0), cap: DOCS_CAP_BYTES, warnAt: DOCS_WARN_BYTES },
     clinics: clinics.map((r) => ({
       id: String(r.id),
       name: String(r.name),
@@ -786,6 +842,7 @@ async function operatorRoute(request, env, deps, rest) {
       members: Number(r.members),
       admins: str(r.admins)?.split(", ") ?? [],
       size: r.size === null || r.size === undefined ? 0 : approxBytes(Number(r.size)),
+      docs: Number(r.docs ?? 0),
       lastSync: str(r.updated_at),
       suspendedAt: str(r.suspended_at),
       deletedAt: str(r.deleted_at),
@@ -934,11 +991,12 @@ const isBase64 = (/** @type {unknown} */ v, /** @type {number} */ max) => typeof
 
 /**
  * Borra los formularios caducados sin responder, los ya recogidos al caducar y las respuestas que nadie ha recogido en
- * 60 días.
+ * 60 días; con ellos, los documentos que subieron los pacientes y nadie ha guardado.
  * @param {D1Database} db
  * @param {() => number} now
+ * @param {R2Bucket} [docs]
  */
-async function purgeForms(db, now) {
+async function purgeForms(db, now, docs) {
   const at = now();
   // Cada dispositivo pregunta cada minuto: con limpiar como mucho cada 10 minutos basta (lo caducado no se puede
   // abrir de todos modos, publicForm lo mira).
@@ -948,28 +1006,39 @@ async function purgeForms(db, now) {
     .prepare("DELETE FROM patient_forms WHERE ((answered_at IS NULL OR response IS NULL) AND expires_at < ?) OR (answered_at IS NOT NULL AND answered_at < ?)")
     .bind(new Date(at).toISOString(), new Date(at - KEEP_ANSWERS_DAYS * 86_400_000).toISOString())
     .run();
+  // Una tanda cada vez: si quedan más, se borran en la pasada siguiente.
+  const { results = [] } = await db
+    .prepare("SELECT clinic_id, id FROM documents WHERE form_id IS NOT NULL AND form_id NOT IN (SELECT id FROM patient_forms) LIMIT ?")
+    .bind(DOC_PURGE_BATCH)
+    .all();
+  await forgetDocs(db, docs, results.map((r) => ({ clinicId: String(r.clinic_id), id: String(r.id) })));
+  await db.prepare("DELETE FROM doc_requests WHERE form_id NOT IN (SELECT id FROM patient_forms)").run();
 }
 
 /**
  * El equipo deja un formulario, recoge las respuestas o lo borra.
  * @param {Request} request
  * @param {D1Database} db
+ * @param {R2Bucket | undefined} docs
  * @param {string} clinicId
  * @param {string | null} formId
  * @param {{ email: string }} who
  * @param {() => number} now
  */
-async function clinicForms(request, db, clinicId, formId, who, now) {
+async function clinicForms(request, db, docs, clinicId, formId, who, now) {
   if (formId) {
     // Recogido: se borra lo cifrado, pero se recuerda que se respondió (si el paciente vuelve a abrir el enlace, lo ve).
-    // Anulado sin responder: se borra entero.
+    // Anulado sin responder: se borra entero. Los documentos que subió y la clínica no ha guardado, fuera.
+    const { results = [] } = await db.prepare("SELECT id FROM documents WHERE clinic_id = ? AND form_id = ?").bind(clinicId, formId).all();
+    await forgetDocs(db, docs, results.map((r) => ({ clinicId, id: String(r.id) })));
     await db.batch([
       db.prepare("UPDATE patient_forms SET request = '', response = NULL WHERE clinic_id = ? AND id = ? AND answered_at IS NOT NULL").bind(clinicId, formId),
       db.prepare("DELETE FROM patient_forms WHERE clinic_id = ? AND id = ? AND answered_at IS NULL").bind(clinicId, formId),
+      db.prepare("DELETE FROM doc_requests WHERE form_id = ?").bind(formId),
     ]);
     return new Response(null, { status: 204 });
   }
-  await purgeForms(db, now);
+  await purgeForms(db, now, docs);
   if (request.method === "GET") {
     const { results = [] } = await db
       .prepare("SELECT id, response, answered_at FROM patient_forms WHERE clinic_id = ? AND response IS NOT NULL ORDER BY answered_at LIMIT 50")
@@ -983,6 +1052,10 @@ async function clinicForms(request, db, clinicId, formId, who, now) {
   if (!isBase64(body.request, MAX_FORM_CHARS)) throw new HttpError(400, "Falta el formulario cifrado, o es demasiado grande.");
   const expires = typeof body.expiresAt === "string" ? Date.parse(body.expiresAt) : NaN;
   if (!(expires > now() && expires <= now() + MAX_FORM_DAYS * 86_400_000)) throw new HttpError(400, `El enlace tiene que caducar en ${MAX_FORM_DAYS} días como mucho.`);
+  // Si pide documentos al paciente, cuántos como mucho (y solo si el servidor tiene dónde guardarlos).
+  const maxDocs = body.maxDocs === undefined ? 0 : Number(body.maxDocs);
+  if (!Number.isInteger(maxDocs) || maxDocs < 0 || maxDocs > MAX_DOCS_PER_FORM) throw new HttpError(400, `Un enlace puede pedir ${MAX_DOCS_PER_FORM} documentos como mucho.`);
+  if (maxDocs && !docs) throw noDocs();
   const open = await db.prepare("SELECT COUNT(*) AS n FROM patient_forms WHERE clinic_id = ? AND (answered_at IS NULL OR response IS NOT NULL)").bind(clinicId).first();
   if (Number(open?.n) >= MAX_OPEN_FORMS) throw new HttpError(429, "La clínica tiene demasiados formularios sin recoger. Abre la app para recoger las respuestas.");
   // Comprobar y guardar en una sola orden: si dos dispositivos mandan el mismo formulario a la vez, el segundo
@@ -992,6 +1065,7 @@ async function clinicForms(request, db, clinicId, formId, who, now) {
     .bind(id, clinicId, normalEmail(who.email), new Date(now()).toISOString(), new Date(expires).toISOString(), body.request)
     .run();
   if (!meta?.changes) throw new HttpError(409, "Ese formulario ya existe.");
+  if (maxDocs) await db.prepare("INSERT OR REPLACE INTO doc_requests (form_id, max_docs) VALUES (?, ?)").bind(id, maxDocs).run();
   return json(201, { id });
 }
 
@@ -1026,6 +1100,179 @@ async function publicForm(request, db, id, answer, now) {
   return json(200, { ok: true });
 }
 
+// ---------- Documentos (R2) ----------
+
+const noDocs = () =>
+  new HttpError(501, "El servidor de la clínica aún no tiene el almacén de documentos (R2): quien lo gestiona tiene que activarlo (cloudflare/README.md, «Documentos»).");
+const full = () => new HttpError(507, "El almacén de documentos está lleno (10 GB, el tope para no pagar): borra los documentos que ya no hagan falta.");
+
+/** Dónde está un documento en R2. */
+const docKey = (/** @type {string} */ clinicId, /** @type {string} */ id) => `${clinicId}/${id}`;
+
+/**
+ * Borra de R2, de mil en mil (lo que admite cada orden). Sin almacén no hay nada que borrar.
+ * @param {R2Bucket | undefined} docs
+ * @param {string[]} keys
+ */
+async function deleteDocs(docs, keys) {
+  if (!docs) return;
+  for (let i = 0; i < keys.length; i += 1000) await docs.delete(keys.slice(i, i + 1000));
+}
+
+/**
+ * Borra documentos de R2 y de la tabla.
+ * @param {D1Database} db
+ * @param {R2Bucket | undefined} docs
+ * @param {{ clinicId: string, id: string }[]} items
+ */
+async function forgetDocs(db, docs, items) {
+  if (!items.length) return;
+  await deleteDocs(docs, items.map((d) => docKey(d.clinicId, d.id)));
+  await db.batch(items.map((d) => db.prepare("DELETE FROM documents WHERE clinic_id = ? AND id = ?").bind(d.clinicId, d.id)));
+}
+
+/** Lo que ocupan todos los documentos del almacén: el tope es de todo (el nivel gratuito de R2 es de la cuenta). */
+async function storedBytes(/** @type {D1Database} */ db) {
+  const row = await db.prepare("SELECT coalesce(sum(size), 0) AS bytes FROM documents").first();
+  return Number(row?.bytes ?? 0);
+}
+
+/**
+ * Los bytes de un documento que se sube: cifrado por la app y de 5 MB como mucho. Se leen por trozos y se corta en
+ * cuanto pasa del máximo, aunque no diga cuánto ocupa.
+ * @param {Request} request
+ */
+async function readDoc(request) {
+  const tooBig = () => new HttpError(413, "El documento pasa de 5 MB, el máximo.");
+  if (Number(request.headers.get("Content-Length")) > MAX_DOC_BYTES) throw tooBig();
+  /** @type {Uint8Array[]} */
+  const chunks = [];
+  let size = 0;
+  const reader = request.body?.getReader();
+  for (;;) {
+    const part = reader ? await reader.read() : { done: true, value: undefined };
+    if (part.done || !part.value) break;
+    size += part.value.byteLength;
+    if (size > MAX_DOC_BYTES) {
+      await reader?.cancel();
+      throw tooBig();
+    }
+    chunks.push(part.value);
+  }
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.byteLength;
+  }
+  if (size <= DOC_MAGIC.length + 12 || !DOC_MAGIC.every((b, i) => bytes[i] === b)) throw new HttpError(415, "Solo se guardan documentos cifrados.");
+  return bytes;
+}
+
+/**
+ * Cuánto ocupan los documentos de la clínica y el almacén entero, para que la app lo enseñe y avise antes del tope.
+ * @param {D1Database} db
+ * @param {R2Bucket | undefined} docs
+ * @param {string} clinicId
+ */
+async function docsUsage(db, docs, clinicId) {
+  if (!docs) return json(200, { enabled: false });
+  const mine = await db.prepare("SELECT count(*) AS n, coalesce(sum(size), 0) AS bytes FROM documents WHERE clinic_id = ? AND form_id IS NULL").bind(clinicId).first();
+  return json(200, {
+    enabled: true,
+    count: Number(mine?.n ?? 0),
+    used: Number(mine?.bytes ?? 0),
+    total: await storedBytes(db),
+    cap: DOCS_CAP_BYTES,
+    warnAt: DOCS_WARN_BYTES,
+    maxBytes: 5 * 1024 * 1024,
+  });
+}
+
+/**
+ * Un documento de la clínica: subirlo (PUT), bajarlo (GET), borrarlo (DELETE) o quedarse con uno que subió un paciente
+ * (POST …/guardar: si no, se borra al recoger o anular su formulario).
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {R2Bucket | undefined} docs
+ * @param {string} clinicId
+ * @param {string} docId
+ * @param {boolean} keep
+ * @param {() => number} now
+ */
+async function clinicDoc(request, db, docs, clinicId, docId, keep, now) {
+  if (!DOC_ID.test(docId)) throw new HttpError(400, "El documento no tiene un id válido.");
+  if (!docs) throw noDocs();
+  const row = await db.prepare("SELECT size, form_id FROM documents WHERE clinic_id = ? AND id = ?").bind(clinicId, docId).first();
+  if (keep) {
+    if (!row) throw new HttpError(404, "Ese documento ya no está en el servidor.");
+    await db.prepare("UPDATE documents SET form_id = NULL WHERE clinic_id = ? AND id = ?").bind(clinicId, docId).run();
+    return json(200, { id: docId });
+  }
+  if (request.method === "DELETE") {
+    await forgetDocs(db, docs, [{ clinicId, id: docId }]);
+    return new Response(null, { status: 204 });
+  }
+  if (request.method === "GET") {
+    const object = row ? await docs.get(docKey(clinicId, docId)) : null;
+    if (!object) throw new HttpError(404, "Ese documento no está en el servidor.");
+    return new Response(object.body, { status: 200, headers: { "Content-Type": "application/octet-stream" } });
+  }
+  // PUT: los de la clínica (los de un paciente llegan por su enlace). Si ya está (otro intento tras un corte), no se
+  // vuelve a guardar: cada documento tiene su id al azar y nunca cambia.
+  if (docId.includes(".")) throw new HttpError(400, "Ese id es el de un documento que sube un paciente.");
+  const bytes = await readDoc(request);
+  if (row) return json(200, { id: docId, size: Number(row.size) });
+  if ((await storedBytes(db)) + bytes.byteLength > DOCS_CAP_BYTES) throw full();
+  await docs.put(docKey(clinicId, docId), bytes);
+  await db
+    .prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES (?, ?, NULL, ?, ?) ON CONFLICT (clinic_id, id) DO NOTHING")
+    .bind(clinicId, docId, bytes.byteLength, new Date(now()).toISOString())
+    .run();
+  return json(201, { id: docId, size: bytes.byteLength });
+}
+
+/**
+ * El paciente sube su documento n con el enlace (sin sesión), cifrado con la clave del enlace. Mientras no envía el
+ * formulario puede cambiarlo (se sustituye); después, ya no.
+ * @param {Request} request
+ * @param {Env} env
+ * @param {string} formId
+ * @param {number} n
+ * @param {() => number} now
+ */
+async function publicFormDoc(request, env, formId, n, now) {
+  const db = database(env);
+  const gone = () => new HttpError(404, "Este enlace ya no vale: ha caducado o la clínica lo ha anulado. Pide otro a tu fisioterapeuta.");
+  const row = await db
+    .prepare("SELECT f.clinic_id, f.expires_at, f.answered_at, r.max_docs FROM patient_forms f LEFT JOIN doc_requests r ON r.form_id = f.id WHERE f.id = ?")
+    .bind(formId)
+    .first();
+  if (!row || (row.answered_at === null && Date.parse(String(row.expires_at)) < now())) throw gone();
+  if (row.answered_at !== null) throw new HttpError(409, "Ya enviaste tus documentos. Si te falta alguno, díselo a tu fisioterapeuta.");
+  const clinicId = String(row.clinic_id);
+  const status = await clinicStatus(db, clinicId);
+  if (status?.deletedAt) throw gone();
+  if (status?.suspendedAt) throw new HttpError(423, "Ahora mismo la clínica no puede recibir documentos. Inténtalo más tarde o díselo a tu fisioterapeuta.");
+  if (!(n <= Number(row.max_docs ?? 0))) throw new HttpError(400, "Este enlace no admite más documentos.");
+  if (!env.DOCS) throw noDocs();
+  const bytes = await readDoc(request);
+  const id = `${formId}.${n}`;
+  const before = await db.prepare("SELECT size FROM documents WHERE clinic_id = ? AND id = ?").bind(clinicId, id).first();
+  if ((await storedBytes(db)) - Number(before?.size ?? 0) + bytes.byteLength > DOCS_CAP_BYTES) {
+    throw new HttpError(507, "Ahora mismo la clínica no puede recibir más documentos. Díselo a tu fisioterapeuta.");
+  }
+  await env.DOCS.put(docKey(clinicId, id), bytes);
+  await db
+    .prepare(
+      `INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (clinic_id, id) DO UPDATE SET size = excluded.size, created_at = excluded.created_at`,
+    )
+    .bind(clinicId, id, formId, bytes.byteLength, new Date(now()).toISOString())
+    .run();
+  return json(200, { ok: true });
+}
+
 // ---------- Comprobación de la instalación ----------
 
 /** @param {Env} env */
@@ -1035,7 +1282,7 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests", "patient_forms"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
+      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests", "patient_forms", "documents", "doc_requests"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }
@@ -1392,7 +1639,7 @@ const CONTRACT_HTML = `
 <li><strong>Tratamientos:</strong> conservación y transmisión de una copia cifrada; gestión de cuentas de acceso (correos del equipo).</li>
 </ul>
 <h3>4. Cifrado y acceso a los datos</h3>
-<p>La copia de los datos se cifra en los dispositivos de la clínica (AES-256) con una contraseña que solo conoce la clínica, antes de llegar al servidor. El Encargado no conoce esa contraseña ni la del código de recuperación y no puede leer los datos de los pacientes. El Encargado sí trata, para prestar el servicio, el nombre de la clínica, los correos de su equipo, el tamaño de la copia y las fechas de uso. Si la clínica usa los formularios para el paciente, el servidor guarda además, hasta que la clínica los recoge, lo que envía el paciente, cifrado en su navegador para la clínica (el Encargado no puede leerlo). La clínica custodia su contraseña y su código de recuperación: si los pierde, el Encargado no puede recuperar los datos.</p>
+<p>La copia de los datos se cifra en los dispositivos de la clínica (AES-256) con una contraseña que solo conoce la clínica, antes de llegar al servidor. El Encargado no conoce esa contraseña ni la del código de recuperación y no puede leer los datos de los pacientes. El Encargado sí trata, para prestar el servicio, el nombre de la clínica, los correos de su equipo, el tamaño de la copia y las fechas de uso. Si la clínica usa los formularios para el paciente, el servidor guarda además, hasta que la clínica los recoge, lo que envía el paciente, cifrado en su navegador para la clínica (el Encargado no puede leerlo). Si la clínica guarda documentos de sus pacientes (informes en PDF), se cifran igual antes de salir del dispositivo (o del navegador del paciente) y se guardan en un almacén de archivos de Cloudflare con jurisdicción en la Unión Europea; el Encargado solo ve cuánto ocupan. La clínica custodia su contraseña y su código de recuperación: si los pierde, el Encargado no puede recuperar los datos.</p>
 <h3>5. Obligaciones del Encargado</h3>
 <ol>
 <li>Tratar los datos solo para prestar el servicio y siguiendo las instrucciones documentadas del Responsable, incluidas las de este contrato.</li>
@@ -1426,6 +1673,7 @@ const CONTRACT_HTML = `
 <h3>Anexo I. Medidas de seguridad</h3>
 <ul>
 <li>Cifrado de la copia en el dispositivo (AES-256-GCM, clave derivada con PBKDF2-SHA-256 de 600 000 iteraciones) antes de enviarla; el servidor rechaza copias sin cifrar.</li>
+<li>Documentos de los pacientes cifrados en el dispositivo (AES-256-GCM, con una clave propia de cada documento que solo está en la copia cifrada de la clínica o en el enlace del paciente); el servidor rechaza documentos sin cifrar y no guarda más de 10 GB en total.</li>
 <li>Acceso al servidor solo con sesión de Google verificada y solo para el equipo de cada clínica; los permisos del equipo los gestiona su administrador.</li>
 <li>Conexiones cifradas (HTTPS). Registros de peticiones desactivados; nunca se registran el contenido ni los tokens.</li>
 <li>Control de versiones de la copia para que un dispositivo no pise los cambios de otro.</li>
@@ -1433,7 +1681,7 @@ const CONTRACT_HTML = `
 </ul>
 <h3>Anexo II. Subencargados autorizados</h3>
 <ul>
-<li>Cloudflare, Inc. (y sus filiales): alojamiento del servidor y de la base de datos (jurisdicción UE). Contrato: Cloudflare Customer DPA.</li>
+<li>Cloudflare, Inc. (y sus filiales): alojamiento del servidor, de la base de datos y de los documentos (jurisdicción UE). Contrato: Cloudflare Customer DPA.</li>
 <li>Google LLC / Google Ireland Ltd.: inicio de sesión con cuenta de Google y, si la clínica lo activa, Google Calendar y Google Drive de cada profesional.</li>
 <li>GitHub, Inc.: publicación de la aplicación web (no trata datos de pacientes).</li>
 </ul>

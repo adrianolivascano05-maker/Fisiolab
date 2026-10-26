@@ -112,3 +112,23 @@ CREATE TABLE IF NOT EXISTS patient_forms (
   answered_at TEXT
 );
 CREATE INDEX IF NOT EXISTS patient_forms_by_clinic ON patient_forms (clinic_id, answered_at);
+
+-- Documentos (informes en PDF de cada paciente): van cifrados en el dispositivo (o en el móvil del paciente, con la
+-- clave de su enlace) y se guardan en R2 (el enlace DOCS del Worker) como «<clínica>/<id>». Aquí, lo que ocupa cada
+-- uno, para no pasar del tope de todo el almacén. «form_id»: lo subió un paciente con ese enlace y la clínica aún no
+-- se ha quedado con él (si no lo hace, se borra al recoger o anular el formulario).
+CREATE TABLE IF NOT EXISTS documents (
+  clinic_id TEXT NOT NULL,
+  id TEXT NOT NULL,
+  form_id TEXT,
+  size INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (clinic_id, id)
+);
+CREATE INDEX IF NOT EXISTS documents_by_form ON documents (form_id);
+
+-- Los formularios que piden documentos al paciente y cuántos como mucho.
+CREATE TABLE IF NOT EXISTS doc_requests (
+  form_id TEXT PRIMARY KEY,
+  max_docs INTEGER NOT NULL
+);
