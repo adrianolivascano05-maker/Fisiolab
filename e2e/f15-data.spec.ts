@@ -96,6 +96,8 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
   });
 
   test("F15-H5 traer citas e historial de sesiones de otro programa, unidos a sus pacientes", async ({ page }) => {
+    // Un martes fijo: las citas del 27 y 28 de octubre caen siempre en «la semana siguiente».
+    await page.clock.setFixedTime(new Date("2026-10-20T08:00:00Z"));
     await createPatient(page, { name: "Ana Ruiz" });
     await page.goto("./ajustes/importar");
     // Citas: una que viene y una de un paciente que aún no está (se crea con su nombre).

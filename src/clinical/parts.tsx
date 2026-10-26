@@ -2,13 +2,15 @@
 // y gráficas pequeñas en SVG (sin librería: la ficha se abre al instante).
 import { CircleHelp, ClipboardList, LayoutDashboard, Minus, NotebookPen, Plus, Stethoscope } from "lucide-react";
 import { useId, type ReactNode } from "react";
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 import { fmtDateShort } from "../app/format";
 import type { FindingResult } from "../data/clinical";
 import { cx } from "../ui/cx";
 
 /** Pestañas dentro de la ficha de un paciente: las cuatro, con su nombre entero en el móvil. */
 export function PatientNav({ id }: { id: string }) {
+  // Si se llegó desde otra pantalla (la lista de espera), las pestañas lo conservan para volver a ella.
+  const { state } = useLocation();
   const tabs = [
     { to: `/pacientes/${id}`, label: "Resumen", icon: LayoutDashboard, end: true },
     { to: `/pacientes/${id}/anamnesis`, label: "Anamnesis", icon: ClipboardList },
@@ -24,6 +26,7 @@ export function PatientNav({ id }: { id: string }) {
             <NavLink
               to={to}
               end={end}
+              state={state}
               className={({ isActive }) =>
                 cx(
                   "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-md px-0.5 text-xs leading-tight font-semibold @2xl:min-h-11 @2xl:flex-row @2xl:gap-2 @2xl:text-sm",

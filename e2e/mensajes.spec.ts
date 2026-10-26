@@ -8,7 +8,7 @@ test.describe("Mensajes a pacientes", () => {
     await page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Mensajes a pacientes/ }).click();
     await expect(page.getByRole("heading", { name: "Mensajes a pacientes" })).toBeVisible();
     const list = page.getByRole("list", { name: "Mensajes" });
-    await expect(list.getByRole("button")).toHaveCount(6);
+    await expect(list.getByRole("button")).toHaveCount(7);
     await expect(list.getByRole("button", { name: /Recordatorio de cita/ })).toHaveAttribute("aria-pressed", "true");
     await expectAccessible(page);
 

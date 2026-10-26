@@ -3,17 +3,20 @@
 // ordena (por tiempo de espera, prioridad, cita, ofrecido o nombre) y se filtra por todo eso a la vez; el orden y los
 // filtros van en la dirección (?orden=…&franja=…&dias=…), así que se conservan al volver. Desde una cita anulada o
 // borrada se llega con el hueco libre (?hueco=…&min=…&con=…): primero salen a quienes les encaja; a cada uno se le
-// ofrece por WhatsApp o correo, con el mensaje listo (queda apuntado), y se le da la cita con un toque. Desde la ficha
-// se llega con ?paciente=… para apuntarlo.
+// ofrece por WhatsApp o correo, con el mensaje listo (queda apuntado), y se le da la cita con un toque. Con «Tengo un
+// hueco libre» se pone uno a mano. Sin hueco, cada paciente tiene su WhatsApp (el mensaje «Lista de espera» de Ajustes),
+// «Dar cita» (y después se pregunta si sale de la lista) y su ficha, que vuelve aquí con los filtros. Desde la ficha se
+// llega con ?paciente=… para apuntarlo.
 import { useTeamMode } from "../cloud/teamMode";
-import { CalendarPlus, Mail, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Trash, X } from "lucide-react";
+import { CalendarClock, CalendarPlus, Mail, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Trash, UserRound, X } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
 import { madridDay } from "../app/format";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { PatientPicker } from "../clinical/AppointmentSheet";
+import { AppointmentSheet, PatientPicker } from "../clinical/AppointmentSheet";
+import { localInput } from "../clinical/pageKit";
 import { clashes, createAppointment, updateAppointment } from "../data/appointments";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
@@ -47,7 +50,8 @@ import { cx } from "../ui/cx";
 import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { loadMessages, messageSubject } from "../messages/templates";
+import { firstName, loadMessages, messageSubject, messageText } from "../messages/templates";
+import { useLeaveWaitlist } from "./LeaveWaitlist";
 import { appointmentVars, dayText, hourText, mailtoUrl, offerText, waPhone, whatsappUrl } from "./reminders";
 import { staffName, useStaff } from "./useStaff";
 
@@ -86,6 +90,12 @@ function readView(p: URLSearchParams): { sort: WaitSort; filters: WaitFilters } 
 
 export function WaitlistPage() {
   const { team } = useTeamMode();
+  const location = useLocation();
+  /** Dar cita a alguien de la lista (sin un hueco concreto) y, después, preguntar si sale de ella. */
+  const [booking, setBooking] = useState<WaitItem | null>(null);
+  const leave = useLeaveWaitlist();
+  /** «Tengo un hueco libre»: ponerlo a mano para ver a quién le encaja. */
+  const [settingSlot, setSettingSlot] = useState(false);
   const staff = useStaff();
   const toast = useToast();
   const navigate = useNavigate();
@@ -168,13 +178,25 @@ export function WaitlistPage() {
   return (
     <Page title="Lista de espera" backTo="/agenda">
       {free ? (
-        <Alert tone="info" title={`Hueco libre: ${dayText(free)}, a las ${hourText(free)}`}>
-          {team && slotWho ? `Con ${staffName(staff, slotWho)}. ` : ""}Primero salen a quienes les encaja. Ofrécelo; si dice que sí, dale la cita aquí.
-        </Alert>
+        <div className="flex flex-col gap-2">
+          <Alert tone="info" title={`Hueco libre: ${dayText(free)}, a las ${hourText(free)}`}>
+            {team && slotWho ? `Con ${staffName(staff, slotWho)}. ` : ""}Primero salen a quienes les encaja. Ofrécelo; si dice que sí, dale la cita aquí.
+          </Alert>
+          <Button variant="secondary" size="sm" className="self-start" icon={<X aria-hidden="true" className="size-4" />} onClick={() => setView({ hueco: null, min: null, con: null, sin: null })}>
+            Ver la lista sin este hueco
+          </Button>
+        </div>
       ) : (
-        <p className="text-sm text-text-muted">
-          Apunta a quien quiere venir antes o espera un hueco, con cuándo le viene bien. Cuando se anule una cita, la app te enseñará esta lista para ofrecérselo.
-        </p>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-text-muted">
+            Apunta a quien quiere venir antes o espera un hueco, con cuándo le viene bien. Cuando se anule una cita, la app te enseñará esta lista para ofrecérselo.
+          </p>
+          {data.data && data.data.items.length > 0 && (
+            <Button variant="secondary" className="self-start" icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={() => setSettingSlot(true)}>
+              Tengo un hueco libre
+            </Button>
+          )}
+        </div>
       )}
 
       {data.data && all.length === 0 && <p className="text-sm text-text-muted">No hay nadie esperando.</p>}
@@ -238,6 +260,8 @@ export function WaitlistPage() {
           const phone = waPhone(w.phone);
           const vars = { name: w.name, startsAt: free ?? "", clinic: data.data!.clinic, professional: team && slotWho ? staffName(staff, slotWho) : null };
           const text = free ? offerText(vars, data.data!.messages) : "";
+          // Sin un hueco concreto: el mensaje «Lista de espera» de la clínica, para contarle el que tengas.
+          const general = free ? "" : messageText("espera", data.data!.messages, { nombre: firstName(w.name), clinica: data.data!.clinic });
           const ok = free ? fits(w, free, slotMinutes) : null;
           const later = w.availableFrom && w.availableFrom > data.data!.today ? w.availableFrom : null;
           return (
@@ -261,7 +285,7 @@ export function WaitlistPage() {
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
-                {free && (
+                {free ? (
                   <div className="flex flex-wrap gap-2">
                     {w.contact !== false && phone && (
                       <a
@@ -284,8 +308,32 @@ export function WaitlistPage() {
                       Darle la cita
                     </Button>
                   </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {w.contact !== false && phone && (
+                      <a href={whatsappUrl(phone, general)} target="_blank" rel="noopener noreferrer" className={cx(link, "bg-accent text-on-accent hover:bg-accent-hover")} onClick={() => void offered(w)}>
+                        <MessageCircle aria-hidden="true" className="size-5" /> WhatsApp
+                      </a>
+                    )}
+                    {w.contact !== false && w.email && (
+                      <a href={mailtoUrl(w.email, messageSubject("espera", data.data!.messages, { nombre: firstName(w.name), clinica: data.data!.clinic }), general)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={() => void offered(w)}>
+                        <Mail aria-hidden="true" className="size-5" /> Correo
+                      </a>
+                    )}
+                    {(w.contact === false || (!phone && !w.email)) && <p className="text-sm text-text-muted">Llámale{w.phone ? `: ${w.phone}` : ""}.</p>}
+                    <Button variant="secondary" icon={<CalendarPlus aria-hidden="true" className="size-5" />} onClick={() => setBooking(w)}>
+                      Dar cita
+                    </Button>
+                  </div>
                 )}
                 <div className="flex flex-wrap gap-1">
+                  <Link
+                    to={`/pacientes/${w.patientId}`}
+                    state={{ from: `${location.pathname}${location.search}` }}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md px-3 py-1 text-sm font-semibold text-accent hover:bg-accent-soft"
+                  >
+                    <UserRound aria-hidden="true" className="size-4" /> Ver ficha
+                  </Link>
                   <Button size="sm" variant="ghost" icon={<Pencil aria-hidden="true" className="size-4" />} onClick={() => setForm({ item: w })}>
                     Cambiar
                   </Button>
@@ -351,6 +399,28 @@ export function WaitlistPage() {
           />
         )}
       </Sheet>
+      <AppointmentSheet
+        open={!!booking}
+        onClose={() => setBooking(null)}
+        patientId={booking?.patientId}
+        patientName={booking?.name}
+        appointment={null}
+        person={team && booking?.assignedTo ? booking.assignedTo : undefined}
+        onCreated={(id) => void leave.ask(id)}
+      />
+      {leave.sheet}
+      <Sheet open={settingSlot} onClose={() => setSettingSlot(false)} title="Tengo un hueco libre">
+        {settingSlot && (
+          <SlotForm
+            team={team}
+            staff={staff}
+            onSet={(iso, minutes, who) => {
+              setSettingSlot(false);
+              setView({ hueco: iso, min: String(minutes), con: who, sin: null });
+            }}
+          />
+        )}
+      </Sheet>
       <Sheet open={filtering} onClose={() => setFiltering(false)} title="Filtrar la lista de espera">
         <FilterForm filters={filters} team={team} staff={staff} setView={setView} />
         <Button block onClick={() => setFiltering(false)}>
@@ -367,6 +437,56 @@ export function WaitlistPage() {
 }
 
 type SetView = (change: Record<string, string | null>) => void;
+
+/** Un hueco puesto a mano: día y hora, cuánto dura y, en un equipo, con quién. */
+function SlotForm({ team, staff, onSet }: { team: boolean; staff: Staff[]; onSet: (iso: string, minutes: number, who: string | null) => void }) {
+  // Por defecto, la próxima hora en punto.
+  const [when, setWhen] = useState(() => {
+    const d = new Date();
+    d.setHours(d.getHours() + 1, 0, 0, 0);
+    return localInput(d.toISOString());
+  });
+  const [minutes, setMinutes] = useState("45");
+  const [who, setWho] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <form
+      className="flex flex-col gap-3"
+      noValidate
+      onSubmit={(e) => {
+        e.preventDefault();
+        const t = Date.parse(when);
+        if (Number.isNaN(t)) return setError("Pon el día y la hora del hueco.");
+        if (t <= Date.now()) return setError("El hueco tiene que ser más adelante que ahora.");
+        onSet(new Date(when).toISOString(), Number(minutes), team && who ? who : null);
+      }}
+    >
+      <p className="text-sm text-text-muted">Primero saldrán a quienes les encaja ese día y a esa hora, con el WhatsApp listo para ofrecérselo.</p>
+      <TextField label="Día y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+      <SelectField label="Cuánto dura" value={minutes} onChange={(e) => setMinutes(e.target.value)}>
+        {["30", "45", "60", "90"].map((m) => (
+          <option key={m} value={m}>
+            {m} minutos
+          </option>
+        ))}
+      </SelectField>
+      {team && (
+        <SelectField label="Con quién" value={who} onChange={(e) => setWho(e.target.value)}>
+          <option value="">Con cualquiera</option>
+          {staff.map((x) => (
+            <option key={x.email} value={x.email}>
+              {x.name}
+            </option>
+          ))}
+        </SelectField>
+      )}
+      {error && <Alert tone="danger" title={error} />}
+      <Button type="submit" block>
+        Ver a quién le encaja
+      </Button>
+    </form>
+  );
+}
 
 /** Lo filtrado, en palabras, cada uno con cómo quitarlo. */
 function filterChips(f: WaitFilters, staff: Staff[], setView: SetView): { label: string; clear: () => void }[] {

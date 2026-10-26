@@ -1,9 +1,9 @@
-// Lo común a todas las pantallas de la ficha de un paciente: «‹ Pacientes» y «Editar» arriba, su cabecera (iniciales,
-// nombre, datos, el motivo de consulta que se está viendo y la próxima cita, o «Dar cita») y las pestañas, que se
-// quedan fijas arriba al bajar.
-import { CalendarCheck, CalendarPlus, Wallet } from "lucide-react";
+// Lo común a todas las pantallas de la ficha de un paciente: «‹ Pacientes» (o «‹ Lista de espera», si se llegó desde
+// ella) y «Editar» arriba, su cabecera (iniciales, nombre, datos, el motivo de consulta que se está viendo, la próxima
+// cita o «Dar cita», WhatsApp y lo que debe) y las pestañas, que se quedan fijas arriba al bajar.
+import { CalendarCheck, CalendarPlus, MessageCircle, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { fmt } from "../app/format";
 import { Page } from "../app/Page";
 import { rememberPatient } from "../app/recent";
@@ -20,6 +20,8 @@ import { fmtVisit } from "./calendar";
 import { AppointmentSheet } from "./AppointmentSheet";
 import { EpisodePicker } from "./EpisodePicker";
 import { PatientNav } from "./parts";
+import { useLeaveWaitlist } from "../schedule/LeaveWaitlist";
+import { waPhone, whatsappUrl } from "../schedule/reminders";
 
 export function PatientShell({ patient, id, tabs = true, children }: { patient: Patient | null | undefined; id: string; tabs?: boolean; children: ReactNode }) {
   useEffect(() => rememberPatient(id), [id]);
@@ -28,6 +30,11 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
   const team = !!useCloud()?.clinic;
   const edit = useAsync(async () => (team ? lastEditOfPatient(getDb(), id) : null), [id, team]);
   const [managing, setManaging] = useState(false);
+  const leave = useLeaveWaitlist();
+  // Desde la lista de espera, «‹» vuelve a ella con sus filtros.
+  const from = (useLocation().state as { from?: string } | null)?.from;
+  const fromWaitlist = typeof from === "string" && from.startsWith("/agenda/espera") ? from : null;
+  const wa = patient && patient.privacy.consents?.contact !== false ? waPhone(patient.phone) : null;
   const version = useDataVersion();
   const owes = useAsync(async () => {
     const a = await patientAccount(getDb(), id, new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }));
@@ -46,7 +53,8 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
   return (
     <Page
       title={name}
-      backTo="/"
+      backTo={fromWaitlist ?? "/"}
+      backLabel={fromWaitlist ? "Lista de espera" : undefined}
       tabs={tabs}
       width="record"
       action={
@@ -89,6 +97,16 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
                 </button>
               )
             )}
+            {wa && (
+              <a
+                href={whatsappUrl(wa, "")}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-border bg-bg px-3 text-sm font-semibold text-accent hover:bg-surface"
+              >
+                <MessageCircle aria-hidden="true" className="size-4" /> WhatsApp
+              </a>
+            )}
             {owes.data ? (
               <Link
                 to={`/pacientes/${id}/cobros`}
@@ -98,7 +116,17 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
               </Link>
             ) : null}
           </div>
-          {patient && <AppointmentSheet open={managing} onClose={() => setManaging(false)} patientId={id} patientName={patient.name} appointment={visit.data ?? null} />}
+          {patient && (
+            <AppointmentSheet
+              open={managing}
+              onClose={() => setManaging(false)}
+              patientId={id}
+              patientName={patient.name}
+              appointment={visit.data ?? null}
+              onCreated={(pid) => void leave.ask(pid)}
+            />
+          )}
+          {leave.sheet}
         </div>
       }
     >

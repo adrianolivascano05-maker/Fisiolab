@@ -113,8 +113,13 @@ la semana y varias cosas a la vez, pensando en todas las variables.
   etiquetas que se quitan de una en una; el orden y los filtros van en la dirección y se conservan al volver.
 - Con un hueco libre, primero salen a quienes les encaja, y dentro de eso, el orden elegido.
 - La exportación completa lleva las columnas nuevas; la clínica de prueba trae de todo para probarlo.
-- Pendiente para después, si se pide: que el propio paciente se apunte desde su página; ordenar por «le encaja el
-  próximo hueco libre» sin venir de una cita anulada.
+- Hecho después (mismo día), a petición del usuario: desde cada paciente de la lista, **WhatsApp** (con el mensaje
+  «Lista de espera» de Ajustes › Mensajes, editable; queda como ofrecido), **Dar cita** sin salir de la lista y **Ver
+  ficha**. La ficha tiene su WhatsApp en la cabecera y, si se llegó desde la lista, «‹ Lista de espera» vuelve a ella
+  con sus filtros (también tras cambiar de pestaña). Al dar cita a alguien de la lista (desde la lista o desde su
+  ficha) se pregunta si sale de ella o sigue esperando para adelantarla. **«Tengo un hueco libre»** pone un hueco a
+  mano (día, hora, duración y con quién) y la lista enseña a quién le encaja, con el WhatsApp del hueco listo.
+- Pendiente para después, si se pide: que el propio paciente se apunte desde su página.
 
 ## Clínica de prueba con volumen (hecha el 25-10-2026)
 

@@ -1,12 +1,12 @@
-// Los mensajes que la app prepara para WhatsApp y correo (recordatorio, hueco libre, anamnesis, cuestionarios antes
-// de revisar, formulario por enlace y hoja de ejercicios). Cada clínica puede cambiar su texto y su asunto en
+// Los mensajes que la app prepara para WhatsApp y correo (recordatorio, hueco libre, lista de espera, anamnesis,
+// cuestionarios antes de revisar, formulario por enlace y hoja de ejercicios). Cada clínica puede cambiar su texto y su asunto en
 // Ajustes › Mensajes a pacientes, y poner una firma común al final de todos. Las fichas como {nombre} o {dia} se
 // sustituyen al preparar cada mensaje. El ajuste va en la base de la clínica (cifrada y sincronizada). Nada se
 // envía solo: el mensaje se abre en el WhatsApp o el correo del dispositivo y lo manda la persona.
 import type { Db } from "../data/db";
 import { getSetting, setSetting } from "../data/repo";
 
-export type MessageKind = "recordatorio" | "hueco" | "anamnesis" | "seguimiento" | "formulario" | "ejercicios";
+export type MessageKind = "recordatorio" | "hueco" | "espera" | "anamnesis" | "seguimiento" | "formulario" | "ejercicios";
 
 export type MessageSpec = {
   kind: MessageKind;
@@ -34,6 +34,14 @@ export const MESSAGES: MessageSpec[] = [
     text: "Hola, {nombre}. Se ha quedado libre un hueco de fisioterapia{con} en {clinica} el {dia} a las {hora}. ¿Te viene bien? Responde a este mensaje y te lo guardamos.",
     subject: "Hueco libre para tu fisioterapia",
     vars: ["{nombre}", "{dia}", "{hora}", "{clinica}", "{con}"],
+  },
+  {
+    kind: "espera",
+    label: "Lista de espera",
+    where: "Agenda › Lista de espera, al escribir a alguien de la lista sin un hueco concreto (para contarle el que tengas)",
+    text: "Hola, {nombre}. Te escribimos de {clinica} porque estás en nuestra lista de espera de fisioterapia.",
+    subject: "Tu lista de espera en {clinica}",
+    vars: ["{nombre}", "{clinica}"],
   },
   {
     kind: "anamnesis",

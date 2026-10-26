@@ -24,7 +24,8 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByRole("button", { name: "Editar" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Alarmas: 1 cuadro a descartar" })).toBeVisible();
     await expect(page.getByRole("article", { name: "Posible infección" })).toContainText("Preferente");
-    await expect(page.getByText("6/10")).toBeVisible();
+    // Exacto: «6/10» también está dentro de «26/10/2026» si la prueba se pasa un día 26.
+    await expect(page.getByText("6/10", { exact: true })).toBeVisible();
     await expectAccessible(page);
 
     await tab(page, "Resumen").click();

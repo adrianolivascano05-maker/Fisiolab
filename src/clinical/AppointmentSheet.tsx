@@ -44,6 +44,7 @@ export function AppointmentSheet({
   person,
   onShiftInstead,
   backToToday,
+  onCreated,
 }: {
   open: boolean;
   onClose: () => void;
@@ -59,6 +60,8 @@ export function AppointmentSheet({
   onShiftInstead?: () => void;
   /** Abierta desde Agenda › Hoy: al atender, la sesión vuelve a Hoy. */
   backToToday?: boolean;
+  /** Al dar una cita nueva (después de guardarla): p. ej., preguntar si sale de la lista de espera. */
+  onCreated?: (patientId: string) => void;
 }) {
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null);
   const patientId = fixedPatient ?? picked?.id ?? "";
@@ -148,7 +151,7 @@ export function AppointmentSheet({
     setClash(null);
   }, [open, appointment, start, person]);
 
-  async function run(work: () => Promise<unknown>, done: string) {
+  async function run(work: () => Promise<unknown>, done: string, after?: () => void) {
     setBusy(true);
     setError(null);
     try {
@@ -156,6 +159,7 @@ export function AppointmentSheet({
       toast(done, "success");
       bumpData();
       onClose();
+      after?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -189,6 +193,7 @@ export function AppointmentSheet({
           ? updateAppointment(getDb(), appointment.id, { startsAt, minutes, ...who })
           : createWeekly(getDb(), patientId, { startsAt, minutes, ...who }, count),
       appointment ? "Cita cambiada" : count > 1 ? `${count} citas dadas, una por semana hasta el ${fmtVisit(last.toISOString()).replace(/,.*$/, "")}` : "Cita dada",
+      appointment ? undefined : () => onCreated?.(patientId),
     );
   };
   const setStatus = (status: AppointmentStatus, done: string) => run(() => updateAppointment(getDb(), appointment!.id, { status }), done);
