@@ -1,4 +1,4 @@
-import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Hourglass, ListChecks, NotebookPen, Scale, Send, ShieldAlert, ShieldCheck, Stethoscope, TriangleAlert, Wallet } from "lucide-react";
+import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Files, Hourglass, ListChecks, NotebookPen, Scale, Send, ShieldAlert, ShieldCheck, Stethoscope, TriangleAlert, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { SHOW_EXERCISES } from "../app/features";
@@ -6,6 +6,7 @@ import { fmtDate, testTitle } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { clinicalSummary, regionLabel } from "../clinical/anamnesis";
+import { useCloud } from "../cloud/CloudGate";
 import { mainValue } from "../clinical/measures";
 import { questionnaireGroups } from "../clinical/outcomeParts";
 import { PatientShell } from "../clinical/PatientShell";
@@ -17,6 +18,7 @@ import { TEMPLATES } from "../consent/templates";
 import { accountLine, patientAccount } from "../data/billing";
 import { getAnamnesis, listQuestionnaires, listSessions } from "../data/clinical";
 import { listConsents } from "../data/consents";
+import { countDocuments } from "../data/documents";
 import { getDb } from "../data/db";
 import { listPlans } from "../data/exercises";
 import { CONSENTS } from "../data/privacy";
@@ -36,7 +38,7 @@ export function PatientPage() {
   const data = useAsync(async () => {
     const db = getDb();
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
-    const [patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, waitlist] = await Promise.all([
+    const [patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, waitlist, files] = await Promise.all([
       getPatient(db, id),
       getAnamnesis(db, id),
       listSessions(db, id),
@@ -46,14 +48,16 @@ export function PatientPage() {
       patientAccount(db, id, today),
       listPlans(db, id),
       listWaitlist(db),
+      countDocuments(db, id),
     ]);
-    return { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, waiting: waitlist.find((w) => w.patientId === id) ?? null };
+    return { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting: waitlist.find((w) => w.patientId === id) ?? null };
   }, [id]);
   const [assessing, setAssessing] = useState(false);
+  const cloud = useCloud();
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Paciente" backTo="/"><Loading /></Page>;
-  const { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, waiting } = data.data;
+  const { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
 
   // Consentimientos: los firmados vigentes y los que su anamnesis pide por escrito y faltan.
@@ -197,6 +201,14 @@ export function PatientPage() {
         <RowLink to={`/pacientes/${id}/alta`} icon={FileCheck} title="Informe de alta" subtitle="Al cerrar el motivo de consulta" />
         <RowLink to={`/pacientes/${id}/derivacion`} icon={Send} title="Carta de derivación" subtitle="Pide otra valoración a su médico" />
         <RowLink to={`/pacientes/${id}/justificante`} icon={ClipboardList} title="Justificante de asistencia" subtitle="Para su trabajo o sus estudios" />
+        {(files > 0 || !!cloud?.clinic) && (
+          <RowLink
+            to={`/pacientes/${id}/archivos`}
+            icon={Files}
+            title="Archivos del paciente"
+            subtitle={files ? `${files === 1 ? "1 archivo" : `${files} archivos`} · informes y pruebas` : "Sus informes y pruebas, en PDF o foto"}
+          />
+        )}
         {SHOW_EXERCISES && (
           <RowLink
             to={`/pacientes/${id}/ejercicios`}

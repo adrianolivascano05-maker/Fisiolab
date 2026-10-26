@@ -74,6 +74,13 @@ export default defineConfig({
           { src: `${base}icons/icon-512.png`, sizes: "512x512", type: "image/png" },
           { src: `${base}icons/maskable-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
+        // Compartir → Cénit desde WhatsApp, el correo o la galería (Android): PDF y fotos para la ficha de un paciente.
+        share_target: {
+          action: `${base}compartir`,
+          method: "POST",
+          enctype: "multipart/form-data",
+          params: { title: "title", text: "text", files: [{ name: "archivos", accept: ["application/pdf", ".pdf", "image/*"] }] },
+        },
       },
       workbox: {
         // Todo lo necesario para abrir sin conexión, incluido el motor SQLite (.wasm) y sus workers.
@@ -85,6 +92,8 @@ export default defineConfig({
         runtimeCaching: [{ urlPattern: /\/assets\/(vision_|pose_landmarker)/, handler: "CacheFirst", options: { cacheName: "ia-pose" } }],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: `${base}index.html`,
+        // Lo que llega de Compartir → Cénit (public/compartir-sw.js).
+        importScripts: ["compartir-sw.js"],
         cleanupOutdatedCaches: true,
       },
     }),

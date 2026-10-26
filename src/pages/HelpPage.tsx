@@ -68,6 +68,16 @@ const steps: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    title: "Informes y pruebas del paciente (PDF o fotos)",
+    body: (
+      <>
+        Con el servidor de la clínica, en el Resumen, <b>Documentos › Archivos del paciente</b>: <b>Añadir PDF o fotos</b> (las fotos se juntan en un
+        PDF; hasta 5 MB cada archivo) o <b>Pedírselos al paciente</b>, que le manda un enlace para que los suba él. En Android también puedes
+        compartirlos desde WhatsApp o el correo y elegir <b>Cénit</b>. Se guardan cifrados; al abrir uno, se descarga en el dispositivo.
+      </>
+    ),
+  },
+  {
     title: "Bonos, cobros y ejercicios para casa",
     body: (
       <>

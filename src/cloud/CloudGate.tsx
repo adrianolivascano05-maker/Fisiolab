@@ -10,6 +10,7 @@ import { configureDb, getDb } from "../data/db";
 import { setMember } from "../data/member";
 import { ensureDevice } from "../data/editors";
 import { ensureStaff } from "../data/schedule";
+import { cacheDrop } from "../documents/cache";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -153,6 +154,7 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void, 
     await getDb().wipe();
     sync.forgetMeta();
     await forgetKey(sync.scope);
+    await cacheDrop(sync.scope); // los archivos de los pacientes guardados aquí (src/documents)
   };
   const cloud: Cloud = {
     config,

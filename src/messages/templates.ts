@@ -1,12 +1,12 @@
 // Los mensajes que la app prepara para WhatsApp y correo (recordatorio, hueco libre, lista de espera, anamnesis,
-// cuestionarios antes de revisar, formulario por enlace y hoja de ejercicios). Cada clínica puede cambiar su texto y su asunto en
+// cuestionarios antes de revisar, formulario por enlace, petición de informes y pruebas y hoja de ejercicios). Cada clínica puede cambiar su texto y su asunto en
 // Ajustes › Mensajes a pacientes, y poner una firma común al final de todos. Las fichas como {nombre} o {dia} se
 // sustituyen al preparar cada mensaje. El ajuste va en la base de la clínica (cifrada y sincronizada). Nada se
 // envía solo: el mensaje se abre en el WhatsApp o el correo del dispositivo y lo manda la persona.
 import type { Db } from "../data/db";
 import { getSetting, setSetting } from "../data/repo";
 
-export type MessageKind = "recordatorio" | "hueco" | "espera" | "anamnesis" | "seguimiento" | "formulario" | "ejercicios";
+export type MessageKind = "recordatorio" | "hueco" | "espera" | "anamnesis" | "seguimiento" | "formulario" | "archivos" | "ejercicios";
 
 export type MessageSpec = {
   kind: MessageKind;
@@ -66,6 +66,14 @@ export const MESSAGES: MessageSpec[] = [
     text: `Hola {nombre}: desde {clinica} te pedimos que rellenes {formulario} antes de tu próxima visita. Es aquí:\n{enlace}\n${PRIVATE} El enlace vale hasta el {caduca}.`,
     subject: "Un formulario de {clinica}",
     vars: ["{nombre}", "{clinica}", "{formulario}", "{enlace}", "{caduca}"],
+  },
+  {
+    kind: "archivos",
+    label: "Pedir sus informes y pruebas",
+    where: "Ficha › Archivos del paciente › Pedírselos al paciente",
+    text: "Hola {nombre}: desde {clinica} te pedimos que nos envíes tus informes o pruebas (en PDF o en foto) antes de tu próxima visita. Súbelos aquí:\n{enlace}\nVan cifrados y solo los verá tu fisioterapeuta. El enlace vale hasta el {caduca}.",
+    subject: "Tus informes para {clinica}",
+    vars: ["{nombre}", "{clinica}", "{enlace}", "{caduca}"],
   },
   {
     kind: "ejercicios",

@@ -10,6 +10,7 @@ import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { reportPdf } from "../clinical/reportPdf";
+import { sizeText } from "../data/documents";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -134,6 +135,16 @@ export function ProviderPage() {
 
       <Group title="Resumen" footer={data.data ? undefined : "Cargando…"}>
         <Row title={`${active.length === 1 ? "1 clínica" : `${active.length} clínicas`}`} subtitle={`${people === 1 ? "1 persona" : `${people} personas`} en sus equipos`} />
+        {data.data?.documents && (
+          <Row
+            title="Archivos de pacientes (R2)"
+            subtitle={
+              data.data.documents.enabled
+                ? `${sizeText(data.data.documents.total)} de ${sizeText(data.data.documents.cap)}${data.data.documents.total >= data.data.documents.warnAt ? " · casi lleno: al llegar al tope no se guardan más" : ""}`
+                : "Sin activar: falta el enlace DOCS del Worker (cloudflare/README.md, «Documentos»)"
+            }
+          />
+        )}
       </Group>
 
       <Group title="Clínicas">
@@ -310,6 +321,7 @@ function ClinicRow({ c, busy, onToggle }: { c: OperatorClinic; busy: boolean; on
   const facts = [
     `${c.members === 1 ? "1 persona" : `${c.members} personas`}`,
     c.size ? mb(c.size) : "sin copia aún",
+    c.docs ? `archivos ${sizeText(c.docs)}` : null,
     c.lastSync ? `último uso ${fmtDateTime(c.lastSync)}` : null,
     `administra ${c.admins.join(", ") || c.createdBy}`,
   ].filter(Boolean);

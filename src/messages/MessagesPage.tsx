@@ -1,4 +1,4 @@
-// Ajustes › Mensajes a pacientes (src/messages/templates.ts): los siete mensajes que la app prepara para WhatsApp y
+// Ajustes › Mensajes a pacientes (src/messages/templates.ts): los ocho mensajes que la app prepara para WhatsApp y
 // correo, cada uno con su texto y su asunto, y una firma común al final de todos. Las fichas ({nombre}, {dia}…) se
 // insertan donde está el cursor y la vista previa enseña el mensaje con un paciente de ejemplo. «?mensaje=» abre uno.
 import { useRef, useState } from "react";

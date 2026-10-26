@@ -29,10 +29,14 @@ export function useCollectForms(): () => Promise<number | null> {
       try {
         const got = await collectAnswered(
           getDb(),
-          { answered: () => api.forms.answered(token, clinic.id), remove: (id) => api.forms.remove(token, clinic.id, id) },
+          { answered: () => api.forms.answered(token, clinic.id), remove: (id) => api.forms.remove(token, clinic.id, id), keepDoc: (id) => api.docs.keep(token, clinic.id, id) },
           template,
         );
         for (const g of got) {
+          if (g.files !== undefined) {
+            toast(`${g.name || "Un paciente"} ha enviado ${g.files === 1 ? "1 archivo" : `${g.files} archivos`}: está${g.files === 1 ? "" : "n"} en sus archivos`, "success");
+            continue;
+          }
           const extra = g.incomplete ? " (incompleto: sin nota)" : g.skipped ? ` · ${g.skipped === 1 ? "1 respuesta no se puso" : `${g.skipped} no se pusieron`}: ya había algo escrito` : "";
           toast(`${g.name || "Un paciente"} ha rellenado: ${formTitle(g.kind)}${extra}`, "success");
         }

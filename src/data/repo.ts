@@ -179,7 +179,11 @@ export async function updatePatient(db: Db, id: string, input: PatientInput): Pr
 
 /** Borra el paciente y, en cascada, todos sus tests, marcas y resultados. */
 export async function deletePatient(db: Db, id: string): Promise<void> {
-  await db.transaction([{ sql: "delete from patients where id = ?", bind: [id] }]);
+  await db.transaction([
+    // Sus archivos se borran con él (en cascada): se apuntan para borrarlos también del servidor (src/documents).
+    { sql: "insert or ignore into document_trash (id, at) select id, ? from documents where patient_id = ?", bind: [new Date().toISOString(), id] },
+    { sql: "delete from patients where id = ?", bind: [id] },
+  ]);
 }
 
 // ---------- Tests ----------

@@ -1,7 +1,7 @@
 # Mensajes a pacientes
 
-Los siete mensajes que la app prepara para WhatsApp y correo: recordatorio de cita, hueco libre, lista de espera, anamnesis antes de la
-primera cita, cuestionarios antes de reevaluar, formulario por enlace y hoja de ejercicios. Nada se envía solo: el
+Los ocho mensajes que la app prepara para WhatsApp y correo: recordatorio de cita, hueco libre, lista de espera, anamnesis antes de la
+primera cita, cuestionarios antes de reevaluar, formulario por enlace, petición de informes y pruebas y hoja de ejercicios. Nada se envía solo: el
 mensaje se abre en el WhatsApp o el correo del dispositivo y lo manda la persona.
 
 - `templates.ts`: cada mensaje con su texto y su asunto de siempre y las fichas que admite ({nombre}, {dia}, {hora},

@@ -117,9 +117,59 @@ variables y el enlace se conservan. Si además cambia `schema.sql`, vuelve a eje
 de la base (paso 3): crea las tablas que falten y no borra nada. Así se pasó, en octubre de 2026, a la versión
 con clínicas (tablas `clinics` y `members`), después a la sincronización por cambios (tablas `deltas` y
 `delta_base`), a las solicitudes de acceso (`access_requests`), a los formularios para el paciente
-(`patient_forms`). Ejecuta el SQL **antes** de pegar el `worker.js` nuevo. La reserva online se quitó el 24-10-2026:
+(`patient_forms`) y a los archivos de los pacientes (`documents` y `doc_requests`). Ejecuta el SQL **antes** de pegar el `worker.js` nuevo. La reserva online se quitó el 24-10-2026:
 sus tablas (`booking_pages`, `bookings` y `cancel_links`) ya no se usan y se pueden borrar (`docs/pasos-pendientes.md`). La consola junta en una línea lo que se pega: si dice «No SQL statements detected», pega solo las sentencias
 `CREATE`, sin las líneas de comentario (las que empiezan por `--`).
+
+## Documentos (los archivos de los pacientes, en R2)
+
+Es opcional. Sin esto la app funciona igual, pero no ofrece **Archivos del paciente** ni el enlace para que el
+paciente envíe sus informes.
+
+**Qué guarda.** Los informes y pruebas de cada paciente: PDF, o fotos que la app junta en un PDF, de 5 MB como
+mucho cada uno. Cada archivo se cifra en el dispositivo (o en el navegador del paciente, si lo sube él con su
+enlace) con una clave propia, que solo está en la copia cifrada de la clínica. El servidor rechaza los archivos sin
+cifrar. Se guardan en R2, el almacén de archivos de Cloudflare, en la Unión Europea. En la base D1 solo queda
+cuánto ocupa cada uno.
+
+**Cuánto cuesta.** Son los precios de R2 en su web en octubre de 2026, en dólares. Gratis cada mes: 10 GB de
+espacio, 1 millón de subidas y 10 millones de descargas; bajar los archivos no se cobra. Por encima de 10 GB,
+0,015 $ por GB al mes. R2 pide una tarjeta para activarlo, aunque no se pase de lo gratis.
+
+**El tope.** El servidor no deja guardar más de 10 GB (10 000 000 000 bytes) entre todas las clínicas. La app avisa
+desde 8 GB, y el panel del proveedor enseña cuánto lleva cada clínica. Lo gratis es de la cuenta entera de
+Cloudflare: si usas R2 para otras cosas en la misma cuenta, también cuentan, y el tope del servidor no las ve.
+
+### Activarlo desde el panel (unos 10 minutos)
+
+1. **Activar R2.** En el menú de la izquierda, **Storage & Databases** → **R2 object storage**. La primera vez,
+   Cloudflare pide activar R2 y añadir una tarjeta.
+2. **Crear el almacén.** **Create bucket**:
+   - Nombre: `cenit-archivos`.
+   - **Location** → **Specify jurisdiction** → **European Union (EU)**.
+   - Si pregunta la clase de almacenamiento, **Standard** (lo gratis es para esa).
+   - **Create bucket**.
+
+   La jurisdicción no se puede cambiar después. No actives el acceso público ni un dominio para el almacén: los
+   archivos solo pasan por el servidor.
+3. **Tablas nuevas.** En la base (`cenit-datos`) → **Console**, pega todo `schema.sql` y pulsa **Execute**. Crea
+   las tablas `documents` y `doc_requests` y no borra nada. Hazlo **antes** del paso siguiente.
+4. **El servidor nuevo.** En el Worker, **Edit code**: borra todo, pega `worker.js` y pulsa **Deploy**.
+5. **Unir el servidor con el almacén.** En el Worker, **Settings** → **Bindings** → **Add binding** → **R2
+   bucket**:
+   - Variable name: `DOCS` (así, en mayúsculas).
+   - R2 bucket: `cenit-archivos`.
+   - **Add Binding** (o **Deploy**, si lo pide).
+6. **Comprobarlo.** Abre la dirección del servidor terminada en `/v1/salud`: debe salir `{"ok":true}`. En la app,
+   en **Ajustes** → **Copias y exportar** sale **Archivos de los pacientes** con lo que ocupan, y en la ficha de
+   cada paciente, **Archivos del paciente**. Pruébalo con un paciente inventado.
+
+Con Wrangler, el enlace va en `wrangler.toml` (está comentado, con `jurisdiction = "eu"`), y el almacén se crea con
+`npx wrangler r2 bucket create cenit-archivos --jurisdiction eu -c wrangler.toml`.
+
+**Para quitarlo,** borra el enlace `DOCS` del Worker. La app deja de ofrecer los archivos, pero los que ya están en
+R2 se quedan ahí (y siguen contando) hasta que borres el almacén. Antes, descarga la exportación completa de cada
+clínica (**Ajustes** → **Copias y exportar**): lleva los archivos de los pacientes.
 
 ## La app en Cloudflare Pages (para los enlaces de los pacientes)
 
@@ -174,8 +224,8 @@ En peticiones y espacio, para una clínica sobra:
   cada guardado es un lote pequeño (una fila), y de vez en cuando se sube una copia entera que deja borrar los
   lotes anteriores.
 - **Cada copia,** como mucho 50 MB.
-- **Sin tarjeta:** Workers y D1 no la piden. Por eso no se usa R2 (el almacén de archivos de Cloudflare), que sí
-  pide una tarjeta aunque no se pague nada.
+- **Sin tarjeta:** Workers y D1 no la piden. R2, el almacén de los archivos de los pacientes, sí (aunque no se
+  pague nada), y por eso es opcional: ver «Documentos».
 
 Si un día se pasa de algún límite, el servidor da error hasta el día siguiente. No se pierde nada: la app sigue
 funcionando en el dispositivo y sube la copia cuando puede.
@@ -206,13 +256,13 @@ nada más.
 | Archivo | Qué es |
 | --- | --- |
 | `worker.js` | el servidor. JavaScript sin dependencias, para pegarlo tal cual en el panel |
-| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica), `parts` (sus trozos, en texto base64), `deltas` (los lotes de cambios cifrados, numerados), `delta_base` (hasta qué lote lleva la copia entera, y su época) `access_requests` (las solicitudes de acceso: quién pide dar de alta qué clínica) y `patient_forms` (los formularios para el paciente y sus respuestas, cifrados con la clave del enlace) |
+| `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica), `parts` (sus trozos, en texto base64), `deltas` (los lotes de cambios cifrados, numerados), `delta_base` (hasta qué lote lleva la copia entera, y su época) `access_requests` (las solicitudes de acceso: quién pide dar de alta qué clínica) `patient_forms` (los formularios para el paciente y sus respuestas, cifrados con la clave del enlace), `documents` (cada archivo de un paciente guardado en R2: de qué clínica es y cuánto ocupa) y `doc_requests` (cuántos archivos puede subir el paciente con cada enlace) |
 | `wrangler.toml` | la configuración, solo para instalarlo con Wrangler (siempre con `-c wrangler.toml`) |
 | `worker.test.ts`, `d1shim.ts` | las pruebas (`npx vitest run cloudflare`), con una base D1 simulada sobre SQLite |
 
 ## Para quien mantenga la app
 
-Todas las rutas, salvo `/v1/salud` y las dos de `/v1/formularios/:fid` (las abre el paciente), piden
+Todas las rutas, salvo `/v1/salud` y las de `/v1/formularios/:fid` (las abre el paciente), piden
 `Authorization: Bearer <token de acceso de Google>`. El token debe ser
 del ID de cliente `GOOGLE_CLIENT_ID` y de un correo verificado. Lo que puede hacer cada cuenta depende de la ruta:
 dar de alta clínicas, si su correo está en `ALLOWED_EMAILS`; usar una clínica, si es de su equipo (tabla
@@ -240,11 +290,17 @@ Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "
 | `POST /v1/clinicas/:id/copia/cambios?v=2` | un lote cifrado en base64 (como mucho 1 000 000 caracteres): `200 { seq }`. Sin copia por cambios aún, `409` |
 | `GET /v1/clinicas/:id/copia/cambios?v=2&desde=N` | `200 { epoch, base, deltas: [{ seq, data }], more }`: los lotes después de `N`, por tandas de 100 (o 3 millones de caracteres). Si `N` es menor que `base`, sin lotes: hay que bajar la copia entera |
 | las rutas de la copia sin `?v=2`, con la clínica ya por cambios | `426 { error }`: una versión anterior de la app tiene que actualizarse |
-| `POST /v1/clinicas/:id/formularios` + `{ id, request, expiresAt }` | `201 { id }`: un formulario para el paciente, cifrado en el dispositivo con una clave que solo va en el enlace (`id` de 22 a 64 caracteres al azar; caduca en 30 días como mucho; 500 sin recoger por clínica). Cualquiera del equipo |
+| `POST /v1/clinicas/:id/formularios` + `{ id, request, expiresAt, maxDocs? }` | `201 { id }`: un formulario para el paciente, cifrado en el dispositivo con una clave que solo va en el enlace (`id` de 22 a 64 caracteres al azar; caduca en 30 días como mucho; 500 sin recoger por clínica). Con `maxDocs` (de 1 a 10), el paciente puede subir hasta ese número de archivos; sin el enlace `DOCS`, `501`. Cualquiera del equipo |
 | `GET /v1/clinicas/:id/formularios` | `200 { forms: [{ id, response, answeredAt }] }`: los ya contestados (de 50 en 50). Cualquiera del equipo |
 | `DELETE /v1/clinicas/:id/formularios/:fid` | `204`: recogido o anulado; se borra. Cualquiera del equipo |
 | `GET /v1/formularios/:fid` | `200 { request, expiresAt, answered }`, **sin sesión**: lo abre el paciente con su enlace. Caducado, anulado o de una clínica borrada: `404` |
 | `POST /v1/formularios/:fid/respuesta` + `{ response }` | `200`, **sin sesión**: las respuestas cifradas, una sola vez (después, `409`). Los que caducan sin responder se borran; las respuestas que nadie recoge, a los 60 días |
+| `GET /v1/clinicas/:id/documentos` | `200 { enabled, count, used, total, cap, warnAt, maxBytes }`: cuántos archivos tiene la clínica y cuánto ocupan, lo que lleva el almacén entero, el tope (10 GB), desde cuándo se avisa (8 GB) y el máximo por archivo (5 MB). Sin el enlace `DOCS`, `200 { enabled: false }`. Cualquiera del equipo |
+| `PUT /v1/clinicas/:id/documentos/:did` | `200`: guarda un archivo (el cuerpo, en bytes, debe empezar por `CENITDOC1`, si no `415`; de 5 MB como mucho, si no `413`). Si ya estaba, no lo repite. Con el almacén lleno, `507`. Cualquiera del equipo |
+| `GET /v1/clinicas/:id/documentos/:did` | `200` con los bytes cifrados (también con la clínica suspendida); si no está, `404`. Cualquiera del equipo |
+| `DELETE /v1/clinicas/:id/documentos/:did` | `204`, aunque no estuviera. Cualquiera del equipo |
+| `POST /v1/clinicas/:id/documentos/:did/guardar` | `200`: la clínica se queda con un archivo que subió un paciente (`:did` es `<id del formulario>.<n>`). Los que no se guardan se borran al recoger o anular el formulario. Cualquiera del equipo |
+| `PUT /v1/formularios/:fid/documentos/:n` | `200`, **sin sesión**: el archivo `n` (de 1 a 10) que sube el paciente, cifrado con la clave del enlace. Solo si el formulario pide archivos (`maxDocs` al crearlo, hasta 10) y aún no se ha enviado (si no, `400` o `409`) |
 
 Las rutas de la copia (aquí con `/v1/copia`, la copia personal de versiones anteriores de la app, solo para
 `ALLOWED_EMAILS`; con clínica, igual bajo `/v1/clinicas/:id`):
@@ -268,6 +324,8 @@ Más respuestas de error:
 - `413`: la copia pasa de 50 MB: más de 69 905 068 caracteres de base64.
 - `415`: la copia no empieza por `Q0VOSVRFTkMx` (`CENITENC1` en base64), es decir, no está cifrada.
 - `428`: un `PUT` sin `If-Match` ni `If-None-Match: *`.
+- `501`: el servidor no tiene el almacén de archivos (el enlace `DOCS`, «Documentos»).
+- `507`: el almacén de archivos ha llegado al tope de 10 GB.
 - `503`: Google no responde, o la copia está cambiando justo en ese momento. Hay que reintentar.
 
 La copia va y vuelve en base64 y se guarda así, en trozos de 1 000 000 caracteres: el servidor nunca convierte

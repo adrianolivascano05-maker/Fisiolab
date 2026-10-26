@@ -8,7 +8,7 @@ test.describe("Mensajes a pacientes", () => {
     await page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Mensajes a pacientes/ }).click();
     await expect(page.getByRole("heading", { name: "Mensajes a pacientes" })).toBeVisible();
     const list = page.getByRole("list", { name: "Mensajes" });
-    await expect(list.getByRole("button")).toHaveCount(7);
+    await expect(list.getByRole("button")).toHaveCount(8);
     await expect(list.getByRole("button", { name: /Recordatorio de cita/ })).toHaveAttribute("aria-pressed", "true");
     await expectAccessible(page);
 
@@ -40,8 +40,9 @@ test.describe("Mensajes a pacientes", () => {
     await expect(text).toHaveValue(/Se ha quedado libre un hueco/);
 
     // El recordatorio: la firma sale también en la agenda, y desde Recordatorios se llega aquí.
+    // Tras cargar la página entera, la app espera a que la anterior suelte la base: con la máquina cargada, más de 5 s.
     await page.goto("./agenda/recordatorios");
-    await expect(page.getByText(/Fisioterapia Ruiz · 954 000 000/)).toBeVisible();
+    await expect(page.getByText(/Fisioterapia Ruiz · 954 000 000/)).toBeVisible({ timeout: 15_000 });
     await page.getByRole("link", { name: "Cambiar el mensaje" }).click();
     await expect(page.getByRole("heading", { name: "Mensajes a pacientes" })).toBeVisible();
     await expect(list.getByRole("button", { name: /Recordatorio de cita/ })).toHaveAttribute("aria-pressed", "true");

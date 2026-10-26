@@ -24,6 +24,7 @@ const ConsentListPage = lazy(() => consents().then((m) => ({ default: m.ConsentL
 const ConsentNewPage = lazy(() => consents().then((m) => ({ default: m.ConsentNewPage })));
 const ConsentViewPage = lazy(() => consents().then((m) => ({ default: m.ConsentViewPage })));
 const SendFormsPage = lazy(() => import("../patientForm/SendFormsPage").then((m) => ({ default: m.SendFormsPage })));
+const DocumentsPage = lazy(() => import("../documents/DocumentsPage").then((m) => ({ default: m.DocumentsPage })));
 const l = (el: React.ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
 function ToAssessment({ block }: { block: string }) {
@@ -34,6 +35,7 @@ function ToAssessment({ block }: { block: string }) {
 export const clinicalRoutes = [
   { path: "/pacientes/:id/anamnesis", element: l(<AnamnesisPage />) },
   { path: "/pacientes/:id/formularios", element: l(<SendFormsPage />) },
+  { path: "/pacientes/:id/archivos", element: l(<DocumentsPage />) }, // src/documents
   { path: "/pacientes/:id/valoracion", element: l(<AssessmentPage />) },
   // Las direcciones de antes (Exploración, Mediciones y Cuestionarios eran pestañas): abren Valoración en su bloque.
   { path: "/pacientes/:id/exploracion", element: <ToAssessment block="exploracion" /> },

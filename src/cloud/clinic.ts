@@ -42,6 +42,8 @@ export type OperatorClinic = {
   members: number;
   admins: string[];
   size: number;
+  /** Lo que ocupan sus archivos de pacientes (bytes cifrados). */
+  docs?: number;
   lastSync: string | null;
   suspendedAt: string | null;
   deletedAt: string | null;
@@ -51,6 +53,8 @@ export type OperatorClinic = {
 };
 export type Creator = { email: string; source: "variable" | "panel"; addedBy?: string; addedAt?: string };
 export type Member = { email: string; role: Role; addedAt: string };
+/** Lo que ocupan los archivos (cloudflare/worker.js, GET /documentos): los de la clínica y todo el almacén, con su tope. */
+export type DocsUsage = { enabled: false } | { enabled: true; count: number; used: number; total: number; cap: number; warnAt: number; maxBytes: number };
 
 export const ROLE_LABELS: Record<Role, string> = { admin: "Administra", member: "Equipo" };
 
@@ -146,7 +150,8 @@ export function clinicApi(baseUrl: string) {
     },
     /** Formularios para el paciente (src/clinical/patientForms.ts): van y vuelven cifrados con la clave del enlace. */
     forms: {
-      create: async (t: Token, id: string, form: { id: string; request: string; expiresAt: string }) => {
+      /** `maxDocs`: si pide archivos al paciente, cuántos como mucho. */
+      create: async (t: Token, id: string, form: { id: string; request: string; expiresAt: string; maxDocs?: number }) => {
         try {
           await call(t, path(id, "/formularios"), { method: "POST", ...json(form) });
         } catch (e) {
@@ -163,10 +168,30 @@ export function clinicApi(baseUrl: string) {
         await call(t, path(id, `/formularios/${encodeURIComponent(formId)}`), { method: "DELETE" });
       },
     },
+    /** Archivos del paciente (src/documents): van y vienen cifrados por la app; el servidor los guarda en R2. */
+    docs: {
+      usage: async (t: Token, id: string) => (await (await call(t, path(id, "/documentos"))).json()) as DocsUsage,
+      put: async (t: Token, id: string, docId: string, sealed: Uint8Array) => {
+        await call(t, path(id, `/documentos/${encodeURIComponent(docId)}`), { method: "PUT", headers: { "Content-Type": "application/octet-stream" }, body: sealed as BodyInit });
+      },
+      get: async (t: Token, id: string, docId: string) => new Uint8Array(await (await call(t, path(id, `/documentos/${encodeURIComponent(docId)}`))).arrayBuffer()),
+      remove: async (t: Token, id: string, docId: string) => {
+        await call(t, path(id, `/documentos/${encodeURIComponent(docId)}`), { method: "DELETE" });
+      },
+      /** Quedarse con uno que subió un paciente (si no, se borra al recoger su formulario). */
+      keep: async (t: Token, id: string, docId: string) => {
+        await call(t, path(id, `/documentos/${encodeURIComponent(docId)}/guardar`), { method: "POST" });
+      },
+    },
     /** Panel del proveedor: solo para OPERATOR_EMAILS. */
     operator: {
       overview: async (t: Token) =>
-        (await (await call(t, "/v1/proveedor")).json()) as { clinics: OperatorClinic[]; creators: Creator[]; requests?: OperatorRequest[] },
+        (await (await call(t, "/v1/proveedor")).json()) as {
+          clinics: OperatorClinic[];
+          creators: Creator[];
+          requests?: OperatorRequest[];
+          documents?: { enabled: boolean; total: number; cap: number; warnAt: number };
+        },
       /** Aceptar (podrá dar de alta su clínica) o rechazar una solicitud; o borrarla (podrá volver a pedirlo). */
       answer: async (t: Token, email: string, accept: boolean) => {
         await call(t, `/v1/proveedor/solicitudes/${encodeURIComponent(email)}`, { method: "POST", ...json({ accept }) });

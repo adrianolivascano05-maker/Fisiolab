@@ -13,6 +13,7 @@ import { PatientsLayout } from "./app/PatientsLayout";
 import { RouteError } from "./app/RouteError";
 import { useDesktop } from "./app/useMediaQuery";
 import { FormInbox } from "./patientForm/FormInbox"; // Respuestas de los pacientes a sus formularios (src/clinical/patientForms.ts)
+import { DocSync } from "./documents/DocSync"; // Archivos del paciente: subir lo pendiente y borrar lo borrado (src/documents)
 
 // Al abrir la app solo se carga la lista de pacientes; cada pantalla se carga al entrar en ella (el service worker
 // ya las tiene guardadas, así que es inmediato también sin conexión).
@@ -68,6 +69,8 @@ const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default:
 const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
 // Lo que abre el paciente con su enlace: sin la base, sin PIN y sin cuenta.
 const PublicFormPage = lazy(() => import("./patientForm/PublicFormPage").then((m) => ({ default: m.PublicFormPage })));
+// Compartir → Cénit (Android): archivos que llegan de otra app para la ficha de un paciente.
+const SharedFilesPage = lazy(() => import("./documents/SharedFilesPage").then((m) => ({ default: m.SharedFilesPage })));
 const OldLinkPage = lazy(() => import("./app/OldLinkPage").then((m) => ({ default: m.OldLinkPage })));
 const ToBillPage = lazy(() => import("./invoices/ToBillPage").then((m) => ({ default: m.ToBillPage })));
 const IssuedInvoicesPage = lazy(() => import("./invoices/IssuedInvoicesPage").then((m) => ({ default: m.IssuedInvoicesPage })));
@@ -108,6 +111,7 @@ const routes = [
   ...galleryRoutes, // Biblioteca: tests de exploración, cuestionarios y mediciones
   { path: "/tests/:id/marcar", element: l(<MarkPage />) }, // S07
   { path: "/tests/:id", element: l(<ResultPage />) }, // S08
+  { path: "/compartir", element: l(<SharedFilesPage />) }, // src/documents
   { path: "/validacion", element: l(<ValidationPage />) },
   { path: "/validacion/sensor", element: l(<SensorCheckPage />) },
   { path: "/ajustes", element: l(<SettingsPage />) }, // S24
@@ -195,6 +199,7 @@ export function App() {
           <DbGate>
             <Router />
             <FormInbox />
+            <DocSync />
           </DbGate>
         </CloudGate>
       </AppLock>

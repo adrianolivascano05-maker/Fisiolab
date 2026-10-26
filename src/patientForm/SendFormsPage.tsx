@@ -11,6 +11,8 @@ import { useAsync } from "../app/useAsync";
 import { answerText } from "../clinical/anamnesis";
 import {
   ANAMNESIS_KIND,
+  DOCS_KIND,
+  DOCS_PER_LINK,
   FORM_DAYS,
   formLink,
   formMessage,
@@ -35,6 +37,7 @@ import { cx } from "../ui/cx";
 import { SelectField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { useDocsUsage } from "../documents/DocSync";
 import { createPatientForm } from "./createForm";
 import { useCollectForms } from "./FormInbox";
 
@@ -172,7 +175,9 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
   // Los pendientes del permiso de su titular, solo si la clínica ha marcado que lo tiene.
   const granted = useGranted();
   const sendable = SENDABLE.filter((k) => k.license !== "comprobar" || granted.includes(k.id));
-  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || SENDABLE.some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
+  // Pedirle archivos, solo si el servidor de la clínica los guarda.
+  const docs = useDocsUsage().usage?.enabled === true;
+  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || SENDABLE.some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
@@ -193,6 +198,7 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
     >
       <SelectField label="Qué le mandas" value={kind} onChange={(e) => setKind(e.target.value)}>
         <option value={ANAMNESIS_KIND}>Su parte de la anamnesis</option>
+        {(docs || kind === DOCS_KIND) && <option value={DOCS_KIND}>Sus informes y pruebas (PDF o fotos)</option>}
         <optgroup label="Cuestionarios">
           {sendable.map((k) => (
             <option key={k.id} value={k.id}>
@@ -202,9 +208,11 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
         </optgroup>
       </SelectField>
       <p className="text-sm text-text-muted">
-        {kind === ANAMNESIS_KIND
-          ? "Sus datos, lo que le pasa, su salud, su familia y su día a día, con preguntas dichas para el paciente (y las propias de tu clínica). La zona, el lado, las banderas rojas, las precauciones, la exploración y el plan son tuyos."
-          : "El cuestionario entero, con sus instrucciones. Al recibirlo, se guarda en sus cuestionarios con la nota calculada."}{" "}
+        {kind === DOCS_KIND
+          ? `Sube desde su móvil hasta ${DOCS_PER_LINK} informes o pruebas, en PDF o en foto (las fotos se pasan a PDF), de 5 MB como mucho cada uno. Llegan cifrados a sus archivos.`
+          : kind === ANAMNESIS_KIND
+            ? "Sus datos, lo que le pasa, su salud, su familia y su día a día, con preguntas dichas para el paciente (y las propias de tu clínica). La zona, el lado, las banderas rojas, las precauciones, la exploración y el plan son tuyos."
+            : "El cuestionario entero, con sus instrucciones. Al recibirlo, se guarda en sus cuestionarios con la nota calculada."}{" "}
         El enlace vale {FORM_DAYS} días.
       </p>
       {error && <Alert tone="danger" title={error} />}
@@ -241,7 +249,7 @@ function ShareForm({ f, patient, clinicName, messages }: { f: SentForm; patient:
           </a>
         )}
         {patient.email && consent !== false && (
-          <a href={mailtoUrl(patient.email, messageSubject("formulario", messages, { clinica: clinicName }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
+          <a href={mailtoUrl(patient.email, messageSubject(f.kind === DOCS_KIND ? "archivos" : "formulario", messages, { clinica: clinicName }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
             <Mail aria-hidden="true" className="size-5" /> Correo
           </a>
         )}
@@ -311,7 +319,12 @@ function SentRow({
             </Button>
           </div>
         )}
-        {status === "done" && f.kind !== ANAMNESIS_KIND && (
+        {status === "done" && f.kind === DOCS_KIND && (
+          <Link to={`/pacientes/${patientId}/archivos`} className="self-start text-sm font-semibold text-accent">
+            {Array.isArray(f.answers?.docs) ? `Envió ${f.answers.docs.length === 1 ? "1 archivo" : `${f.answers.docs.length} archivos`}: ver sus archivos` : "Ver sus archivos"}
+          </Link>
+        )}
+        {status === "done" && f.kind !== ANAMNESIS_KIND && f.kind !== DOCS_KIND && (
           <Link to={`/pacientes/${patientId}/cuestionarios`} className="self-start text-sm font-semibold text-accent">
             Ver en sus cuestionarios
           </Link>

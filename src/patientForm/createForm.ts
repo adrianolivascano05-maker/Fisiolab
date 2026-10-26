@@ -1,6 +1,6 @@
 // Crear un formulario para el paciente (su parte de la anamnesis o un cuestionario): se cifra con una clave nueva,
 // se sube al servidor de la clínica y se apunta en su ficha. Lo usan la ficha (SendFormsPage) y la bandeja de envíos.
-import { ANAMNESIS_KIND, FORM_DAYS, formLink, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
 import type { Section } from "../clinical/anamnesis";
 import { currentBrand } from "../brand/brand";
 import { formBrand } from "../brand/form";
@@ -37,8 +37,9 @@ export async function uploadPatientForm(
     ...(p.kind === ANAMNESIS_KIND ? { sections: patientSections(p.sections) } : {}),
     expiresAt,
     ...(brand ? { brand } : {}),
+    ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}),
   };
-  await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt });
+  await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt, ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}) });
   const episodeId = await currentEpisode(db, p.patientId);
   return { record: { id, patientId: p.patientId, episodeId, kind: p.kind, key, expiresAt }, url: formLink(id, key) };
 }

@@ -24,6 +24,8 @@ describe("registro de cambios", () => {
     const tables = (await a.query<{ name: string }>("select name from sqlite_master where type = 'table' and name not like 'sync_%' and name not like 'sqlite_%'")).map((t) => t.name);
     // El motivo que se está viendo es de cada dispositivo (migración 010).
     tables.splice(tables.indexOf("episode_focus"), 1);
+    // Los archivos que este dispositivo tiene que borrar del servidor (migración 032): los borra el que los borró.
+    tables.splice(tables.indexOf("document_trash"), 1);
     expect(tables.sort()).toEqual(SYNC_TABLES.map((t) => t.name).sort());
     for (const t of SYNC_TABLES) {
       const triggers = await a.query("select name from sqlite_master where type = 'trigger' and tbl_name = ? and name like 'sync_%'", [t.name]);

@@ -71,6 +71,8 @@ export async function collect(db: Db): Promise<Collected> {
   for (const t of EXPORT_TABLES) tables[t] = await db.query<R>(`select * from ${t}`);
   // La clave de cada enlace de formulario no sale de la app: lo que contestó el paciente, sí.
   tables.patient_forms = (tables.patient_forms ?? []).map(({ form_key: _, ...r }) => r);
+  // Lo mismo con la clave de cada archivo del paciente: los archivos van en el .zip ya abiertos.
+  tables.documents = (tables.documents ?? []).map(({ doc_key: _, ...r }) => r);
   return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: withCustom(await getCustomFields(db)) };
 }
 
@@ -272,6 +274,14 @@ function buildSheets(c: Collected): Sheet[] {
           s(r.available_from),
         ]),
     });
+  if (T.documents?.length)
+    sheets.push({
+      name: "Archivos de pacientes",
+      header: ["Paciente", "Archivo", "Añadido el", "Tamaño (kB)", "De dónde"],
+      rows: [...T.documents]
+        .sort(byDate("created_at"))
+        .map((r) => [pn(r), s(r.name), when(r.created_at), Math.round(Number(r.size) / 1000), r.source === "patient" ? "Lo envió el paciente" : "La clínica"]),
+    });
   if (T.exercises!.length)
     sheets.push({
       name: "Biblioteca de ejercicios",
@@ -315,7 +325,10 @@ function page(title: string, body: string): string {
 const table = (header: string[], rows: Cell[][]) =>
   rows.length ? `<table><thead><tr>${header.map((x) => `<th>${h(x)}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((v) => `<td>${h(v)}</td>`).join("")}</tr>`).join("")}</tbody></table>` : "";
 
-function patientHtml(c: Collected, p: R, exportedAt = new Date()): string {
+/** Dónde ha quedado cada archivo del paciente dentro del .zip (desde su historia), o null si no se pudo incluir. */
+type FilePaths = Map<string, string | null>;
+
+function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePaths = new Map()): string {
   const T = c.tables;
   const pid = s(p.id);
   const mine = (t: string) => T[t]!.filter((r) => r.patient_id === pid);
@@ -474,6 +487,19 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date()): string {
       )}`,
     );
 
+  const docs = mine("documents").sort((a, b) => s(a.created_at).localeCompare(s(b.created_at)));
+  if (docs.length)
+    parts.push(
+      `<h2>Archivos del paciente</h2><ul>${docs
+        .map((r) => {
+          const where = files.get(s(r.id));
+          const facts = [day(r.created_at), r.source === "patient" ? "lo envió el paciente" : ""].filter(Boolean).join(" · ");
+          const name = where ? `<a href="${where.split("/").map(encodeURIComponent).join("/")}">${h(r.name)}</a>` : `${h(r.name)} <span class="muted">(no se pudo incluir: está en el servidor de la clínica)</span>`;
+          return `<li>${name} <span class="muted">${h(facts)}</span></li>`;
+        })
+        .join("")}</ul>`,
+    );
+
   parts.push(`<footer>${h(clinicLine)} · Exportado de Cénit · ${h(when(exportedAt.toISOString()))}</footer>`);
   return page(`Historia clínica · ${s(p.name)}`, parts.join(""));
 }
@@ -508,7 +534,7 @@ function consentHtml(r: R): string {
 
 const safeName = (t: string) => t.replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Paciente";
 
-const README = (c: Collected, count: number, at: Date) => `EXPORTACIÓN COMPLETA DE CÉNIT
+const README = (c: Collected, count: number, at: Date, missing = 0) => `EXPORTACIÓN COMPLETA DE CÉNIT
 ${c.clinic.name ? `${c.clinic.name}\n` : ""}Exportada el ${when(at.toISOString())} · ${count} pacientes
 
 Qué hay en esta carpeta:
@@ -531,21 +557,41 @@ Qué hay en esta carpeta:
 5. «Copia de Cenit.sqlite3»: la copia de seguridad completa. Se restaura en Cénit desde
    Ajustes > Copias y exportar > Restaurar una copia.
 
-Los vídeos de las mediciones no se incluyen: se quedan en el dispositivo donde se grabaron.
+${c.tables.documents?.length ? `6. «Archivos de pacientes»: los informes y pruebas de cada paciente, en PDF, en una carpeta por
+   paciente.${missing ? ` ${missing === 1 ? "1 archivo no se ha podido incluir" : `${missing} archivos no se han podido incluir`} (sin conexión o aún sin subir):
+   están en el servidor de la clínica y su historia lo indica.` : ""}
+
+` : ""}Los vídeos de las mediciones no se incluyen: se quedan en el dispositivo donde se grabaron.
 
 Son datos de salud: guárdalos cifrados y con acceso restringido, y consérvalos el tiempo que marca
 la ley (como mínimo cinco años desde el alta de cada proceso, Ley 41/2002).
 `;
 
-export type PackageResult = { bytes: Uint8Array; patients: number };
+/** `missing`: archivos de pacientes que no se han podido incluir (están en el servidor de la clínica). */
+export type PackageResult = { bytes: Uint8Array; patients: number; missing: number };
 
 /**
  * El .zip completo. `progress` recibe cuántos pacientes van (generar 1.500 historias tarda unos segundos).
  */
-export async function buildPackage(db: Db, { progress, now = new Date() }: { progress?: (done: number, total: number) => void; now?: Date } = {}): Promise<PackageResult> {
+export async function buildPackage(
+  db: Db,
+  {
+    progress,
+    now = new Date(),
+    files,
+  }: {
+    progress?: (done: number, total: number) => void;
+    now?: Date;
+    /** Cada archivo del paciente, ya abierto (src/documents); null si no se puede (sin conexión…). */
+    files?: (id: string) => Promise<Uint8Array | null>;
+  } = {},
+): Promise<PackageResult> {
   const c = await collect(db);
+  const docsOf = new Map<string, R[]>();
+  for (const d of c.tables.documents ?? []) docsOf.set(s(d.patient_id), [...(docsOf.get(s(d.patient_id)) ?? []), d]);
+  let missing = 0;
   const patients = [...c.tables.patients!].sort((a, b) => s(a.name).localeCompare(s(b.name), "es"));
-  const files: ZipFile[] = [];
+  const zipped: ZipFile[] = [];
   const index: string[] = [];
   const used = new Set<string>();
   for (let i = 0; i < patients.length; i++) {
@@ -553,7 +599,24 @@ export async function buildPackage(db: Db, { progress, now = new Date() }: { pro
     let file = `${safeName(s(p.name))}.html`;
     if (used.has(file.toLowerCase())) file = `${safeName(s(p.name))} (${s(p.id).slice(0, 8)}).html`;
     used.add(file.toLowerCase());
-    files.push({ name: `Historias clinicas/${file}`, data: patientHtml(c, p, now) });
+    // Sus archivos, en una carpeta con el mismo nombre que su historia.
+    const paths: FilePaths = new Map();
+    const folder = file.replace(/\.html$/, "");
+    const names = new Set<string>();
+    for (const d of docsOf.get(s(p.id)) ?? []) {
+      const bytes = files ? await files(s(d.id)).catch(() => null) : null;
+      if (!bytes) {
+        paths.set(s(d.id), null);
+        missing++;
+        continue;
+      }
+      let name = `${safeName(s(d.name)) || "Documento"}.pdf`;
+      for (let n = 2; names.has(name.toLowerCase()); n++) name = `${safeName(s(d.name)) || "Documento"} (${n}).pdf`;
+      names.add(name.toLowerCase());
+      zipped.push({ name: `Archivos de pacientes/${folder}/${name}`, data: bytes });
+      paths.set(s(d.id), `../Archivos de pacientes/${folder}/${name}`);
+    }
+    zipped.push({ name: `Historias clinicas/${file}`, data: patientHtml(c, p, now, paths) });
     index.push(`<tr><td><a href="Historias%20clinicas/${encodeURIComponent(file)}">${h(p.name)}</a></td><td>${h(day(p.birth_date))}</td><td>${h(s(p.phone))}</td></tr>`);
     if (i % 50 === 0) {
       progress?.(i, patients.length);
@@ -561,19 +624,19 @@ export async function buildPackage(db: Db, { progress, now = new Date() }: { pro
     }
   }
   progress?.(patients.length, patients.length);
-  files.unshift({
+  zipped.unshift({
     name: "Indice de pacientes.html",
     data: page(
       "Pacientes",
       `<p class="muted">${h(c.clinic.name)}</p><h1>Pacientes (${patients.length})</h1><p class="muted">Exportado de Cénit el ${h(when(now.toISOString()))}. Toca un nombre para abrir su historia clínica.</p><table><thead><tr><th>Paciente</th><th>Nacimiento</th><th>Teléfono</th></tr></thead><tbody>${index.join("")}</tbody></table>`,
     ),
   });
-  files.unshift({ name: "LEEME.txt", data: README(c, patients.length, now).replace(/\n/g, "\r\n") });
-  files.push({ name: "Todos los datos.xlsx", data: await writeXlsx(buildSheets(c)) });
-  files.push({
+  zipped.unshift({ name: "LEEME.txt", data: README(c, patients.length, now, missing).replace(/\n/g, "\r\n") });
+  zipped.push({ name: "Todos los datos.xlsx", data: await writeXlsx(buildSheets(c)) });
+  zipped.push({
     name: "Datos para otro programa (JSON).json",
     data: JSON.stringify({ formato: "cenit-exportacion", version: 1, esquema: c.schema, exportado: now.toISOString(), clinica: c.clinic, tablas: c.tables }, null, 1),
   });
-  files.push({ name: "Copia de Cenit.sqlite3", data: await db.exportBytes() });
-  return { bytes: await zip(files, now), patients: patients.length };
+  zipped.push({ name: "Copia de Cenit.sqlite3", data: await db.exportBytes() });
+  return { bytes: await zip(zipped, now), patients: patients.length, missing };
 }

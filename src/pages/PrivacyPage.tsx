@@ -22,15 +22,18 @@ export function PrivacyPage() {
         <p>
           Nombre, fecha de nacimiento, sexo, medidas corporales y notas de cada paciente; su anamnesis, exploración, sesiones y cuestionarios; los
           resultados de sus tests (marcas del vídeo y valores calculados); y cuándo se le dio la información de protección de datos y qué consentimientos
-          opcionales dio. Los vídeos <b>no</b> se guardan: se quedan en la galería del móvil.
+          opcionales dio. Si la clínica usa el servidor de Cénit, también los archivos que se añaden a su ficha (informes y pruebas en PDF o en foto),
+          los suba la clínica o el propio paciente con su enlace. Los vídeos <b>no</b> se guardan: se quedan en la galería del móvil.
         </p>
         <h2 className="text-lg">Dónde están</h2>
         {server ? (
           <p>
             En el almacenamiento de este dispositivo y, cifrados, en el servidor de la clínica (Cloudflare, en la Unión Europea). Antes de salir del
             dispositivo se cifran con la contraseña de la clínica: ni el servidor ni quien lo gestiona pueden leerlos; solo ven el nombre de la clínica y el
-            correo de cada persona del equipo. Cada uno entra con su cuenta de Google. Las copias de seguridad y los CSV son archivos que descarga quien usa la
-            app y que la clínica debe guardar con las mismas precauciones que la historia clínica.
+            correo de cada persona del equipo. Cada uno entra con su cuenta de Google. Los archivos de los pacientes se cifran igual, cada uno con su propia
+            clave, y se guardan en el almacén de archivos del servidor (también de Cloudflare, en la Unión Europea) y en el dispositivo donde se añaden o se abren. Las
+            copias de seguridad, los CSV y los archivos que se abren son archivos que descarga quien usa la app y que la clínica debe guardar con las mismas
+            precauciones que la historia clínica.
           </p>
         ) : cloud ? (
           <p>
@@ -50,7 +53,7 @@ export function PrivacyPage() {
           El alojamiento web solo sirve los archivos de la app. Como cualquier web, registra la dirección IP de quien la descarga. No recibe datos de
           pacientes. No hay analítica, ni publicidad, ni cookies.
           {server &&
-            " Cloudflare aloja el servidor de la clínica en la Unión Europea y solo guarda copias cifradas y los formularios cifrados de los pacientes; su contrato de encargado del tratamiento (DPA) forma parte de sus condiciones. Google solo sirve para entrar (ve el nombre y el correo de quien entra) y, si se usan, para guardar informes en el Drive de cada fisioterapeuta y las citas en su Google Calendar."}
+            " Cloudflare aloja el servidor de la clínica en la Unión Europea y solo guarda copias cifradas, los formularios cifrados de los pacientes y sus archivos cifrados; su contrato de encargado del tratamiento (DPA) forma parte de sus condiciones. Google solo sirve para entrar (ve el nombre y el correo de quien entra) y, si se usan, para guardar informes en el Drive de cada fisioterapeuta y las citas en su Google Calendar."}
           {cloud &&
             !server &&
             " Google guarda la copia de la carpeta de la app en el Drive de cada fisioterapeuta, los informes y resultados que se guardan a la vista en su carpeta «Cénit · Fisiolab», y el día, la hora y el nombre (o las iniciales) de las citas en el calendario «Cénit · Citas»; para entrar, Google ve el nombre y el correo de quien entra. Para historias clínicas hace falta un contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace de la clínica y no las de Gmail normales."}

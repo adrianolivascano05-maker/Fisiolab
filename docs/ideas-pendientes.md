@@ -116,6 +116,37 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
   texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
 
+## Archivos del paciente: informes y pruebas en PDF (hecho el 26-10-2026)
+
+Pedido por el usuario: guardar en la ficha los informes que trae el paciente (le llegan al ordenador y por WhatsApp
+o correo al móvil) y un enlace para que el paciente los suba él, como la anamnesis. Decidido con él: R2 de
+Cloudflare con tope de 10 GB, las fotos pasadas a PDF, 5 archivos por enlace y 5 MB por archivo.
+
+- Hecho: en la ficha, **Documentos › Archivos del paciente**: añadir PDF o fotos (las fotos de una vez se juntan en
+  un PDF, reducidas si hace falta), abrir (se descarga), enviar, cambiar el nombre y borrar. **Pedírselos al
+  paciente** manda un enlace («Sus informes y pruebas»); lo que sube aparece en sus archivos al recogerlo. En
+  Android, con la app instalada, **Compartir → Cénit** desde WhatsApp, el correo o la galería, y se elige el
+  paciente. La exportación completa lleva los archivos (carpeta «Archivos de pacientes», con enlaces desde la ficha
+  de cada paciente y una hoja en el Excel).
+- Cómo va: cada archivo se cifra en el dispositivo con su propia clave (que va en la copia cifrada de la clínica),
+  se guarda en el dispositivo y se sube al servidor, que lo deja en R2 (UE). Los demás dispositivos lo bajan solo
+  al abrirlo. Lo pendiente se sube solo cada minuto. Ajustes › Copias y exportar enseña lo que ocupan y deja
+  liberar espacio en el dispositivo.
+- Solo con el servidor de la clínica y con R2 activado (`docs/pasos-pendientes.md`, paso 4). Sin eso, la app no
+  ofrece los archivos.
+- Límites conocidos:
+  - No hay visor dentro de la app: abrir un archivo es descargarlo y abrirlo con el visor del móvil o del ordenador.
+  - Compartir → Cénit solo en Android con la app instalada; en iPhone el navegador no lo permite (allí, con el
+    botón).
+  - La exportación completa junta todo en memoria: con muchos GB de archivos puede ir lenta o fallar en un móvil;
+    mejor hacerla en un ordenador.
+  - Si un archivo se añade sin conexión y ese dispositivo se borra antes de subirlo, ese archivo se pierde (los
+    demás ven que existe, pero no pueden abrirlo).
+  - En casos raros (una clínica que borra un archivo justo mientras otro dispositivo lo sube) puede quedar un
+    archivo suelto en R2 que ocupa espacio; no se ve ni se puede leer sin su clave.
+- Ideas para después, si se piden: visor de PDF dentro de la app; buscar dentro de los archivos; carpetas o
+  etiquetas (informe médico, prueba de imagen…).
+
 ## Lista de espera para ordenar y filtrar (hecha el 25-10-2026)
 
 Pedido por el usuario: poder ordenar la lista de espera por tiempo de espera y filtrarla por mañanas, tardes, días de

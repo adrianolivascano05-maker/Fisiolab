@@ -102,6 +102,10 @@ export class FakeGoogle {
   static SERVER = "https://cenit-datos.pruebas.workers.dev";
   /** Formularios para el paciente (como cloudflare/worker.js): cifrados; el paciente los abre y responde sin sesión. */
   forms = new Map<string, { clinic: string; request: string; expiresAt: string; response?: string; answeredAt?: string }>();
+  /** Archivos de los pacientes (como cloudflare/worker.js con R2): «<clínica>/<id>», solo cifrados. false: sin R2. */
+  docsEnabled = true;
+  docs = new Map<string, { bytes: Buffer; formId?: string }>();
+  docRequests = new Map<string, number>();
 
   /** La copia de una clínica, buscada por su nombre. */
   clinicCopy(name: string) {
@@ -166,6 +170,18 @@ export class FakeGoogle {
     };
     const send = (status: number, json?: unknown) => route.fulfill(json === undefined ? { status, headers } : { status, headers, json });
     if (req.method() === "OPTIONS") return send(204);
+    // El archivo que sube el paciente con su enlace: sin sesión.
+    const pubDoc = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})\/documentos\/([1-9]|10)$/.exec(new URL(req.url()).pathname);
+    if (pubDoc && req.method() === "PUT") {
+      const f = this.forms.get(pubDoc[1]!);
+      if (!f) return send(404, { error: "Este enlace ya no vale: ha caducado o la clínica lo ha anulado. Pide otro a tu fisioterapeuta." });
+      if (f.answeredAt) return send(409, { error: "Ya enviaste tus documentos. Si te falta alguno, díselo a tu fisioterapeuta." });
+      if (Number(pubDoc[2]) > (this.docRequests.get(pubDoc[1]!) ?? 0)) return send(400, { error: "Este enlace no admite más documentos." });
+      const bytes = req.postDataBuffer() ?? Buffer.alloc(0);
+      if (!bytes.subarray(0, 9).equals(Buffer.from("CENITDOC1"))) return send(415, { error: "Solo se guardan documentos cifrados." });
+      this.docs.set(`${f.clinic}/${pubDoc[1]}.${pubDoc[2]}`, { bytes, formId: pubDoc[1] });
+      return send(200, { ok: true });
+    }
     // Lo que abre el paciente con su enlace: sin sesión.
     const pub = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})(\/respuesta)?$/.exec(new URL(req.url()).pathname);
     if (pub) {
@@ -303,9 +319,37 @@ export class FakeGoogle {
       if (clinic.suspended && method !== "GET" && rest !== "") return send(423, { error: "La clínica está suspendida: no se guardan cambios en el servidor." });
       const admins = () => [...clinic.members.values()].filter((r) => r === "admin").length;
       if (rest === "/formularios" && method === "POST") {
-        const b = body<{ id: string; request: string; expiresAt: string }>();
+        const b = body<{ id: string; request: string; expiresAt: string; maxDocs?: number }>();
+        if (b.maxDocs && !this.docsEnabled) return send(501, { error: "El servidor de la clínica aún no tiene el almacén de documentos (R2)." });
         this.forms.set(b.id, { clinic: id, request: b.request, expiresAt: b.expiresAt });
+        if (b.maxDocs) this.docRequests.set(b.id, b.maxDocs);
         return send(201, { id: b.id });
+      }
+      if (rest === "/documentos" && method === "GET") {
+        if (!this.docsEnabled) return send(200, { enabled: false });
+        const mine = [...this.docs].filter(([k, d]) => k.startsWith(`${id}/`) && !d.formId);
+        const total = [...this.docs.values()].reduce((n, d) => n + d.bytes.length, 0);
+        return send(200, { enabled: true, count: mine.length, used: mine.reduce((n, [, d]) => n + d.bytes.length, 0), total, cap: 10_000_000_000, warnAt: 8_000_000_000, maxBytes: 5 * 1024 * 1024 });
+      }
+      const doc = /^\/documentos\/([^/]+?)(\/guardar)?$/.exec(rest);
+      if (doc) {
+        if (!this.docsEnabled) return send(501, { error: "El servidor de la clínica aún no tiene el almacén de documentos (R2)." });
+        const key = `${id}/${decodeURIComponent(doc[1]!)}`;
+        const d = this.docs.get(key);
+        if (doc[2]) {
+          if (!d) return send(404, { error: "Ese documento ya no está en el servidor." });
+          delete d.formId;
+          return send(200, { id: doc[1] });
+        }
+        if (method === "DELETE") {
+          this.docs.delete(key);
+          return send(204);
+        }
+        if (method === "GET") return d ? route.fulfill({ status: 200, headers: { ...headers, "content-type": "application/octet-stream" }, body: d.bytes }) : send(404, { error: "Ese documento no está en el servidor." });
+        const bytes = req.postDataBuffer() ?? Buffer.alloc(0);
+        if (!bytes.subarray(0, 9).equals(Buffer.from("CENITDOC1"))) return send(415, { error: "Solo se guardan documentos cifrados." });
+        if (!d) this.docs.set(key, { bytes });
+        return send(d ? 200 : 201, { id: doc[1], size: bytes.length });
       }
       if (rest === "/formularios" && method === "GET")
         return send(200, {
@@ -317,6 +361,9 @@ export class FakeGoogle {
         const f = this.forms.get(formId[1]!);
         if (f?.answeredAt) Object.assign(f, { request: "", response: undefined });
         else this.forms.delete(formId[1]!);
+        // Los archivos que subió el paciente y la clínica no se ha quedado, fuera.
+        for (const [k, d] of this.docs) if (d.formId === formId[1]) this.docs.delete(k);
+        this.docRequests.delete(formId[1]!);
         return send(204);
       }
       if (rest === "" && method === "PATCH") {

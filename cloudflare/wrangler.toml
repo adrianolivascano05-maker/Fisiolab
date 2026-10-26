@@ -12,6 +12,13 @@ binding = "DB"
 database_name = "cenit-datos"
 database_id = "PEGA-AQUI-EL-ID-DE-TU-BASE"
 
+# Opcional: el almacén de los archivos de los pacientes (R2, README.md, «Documentos»). Créalo con jurisdicción de la UE
+# (npx wrangler r2 bucket create cenit-archivos --jurisdiction eu -c wrangler.toml) y quita las almohadillas.
+# [[r2_buckets]]
+# binding = "DOCS"
+# bucket_name = "cenit-archivos"
+# jurisdiction = "eu"
+
 [vars]
 # El ID de cliente de Google de la app (el mismo que «googleClientId» en public/cloud.json).
 GOOGLE_CLIENT_ID = "1084216324372-0mrfdeckqcfu8p2t1tjsosdebs7g2tmb.apps.googleusercontent.com"

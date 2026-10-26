@@ -65,22 +65,42 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 
 La reserva online se ha quitado (24-10-2026) y el servidor se ha dejado más limpio (bloque 3: formularios repetidos
 a la vez, lotes de cambios que se leían de más, tiempo límite con Google, menos limpiezas en cada consulta). El
-servidor nuevo ya no tiene las rutas de la reserva, y sus tres tablas sobran. **Ya está listo para pegarlo.** No
-cambia `schema.sql` en nada que tengas que ejecutar.
+servidor nuevo ya no tiene las rutas de la reserva, y sus tres tablas sobran. Además trae los archivos de los
+pacientes (26-10-2026), que necesitan dos tablas nuevas en la base. **Ya está listo para pegarlo.**
 
 1. Comprueba que no queda ninguna reserva sin recoger. <https://dash.cloudflare.com> → **Storage & Databases** →
    **D1** → la base (`cenit-datos`) → **Console**. Pega y ejecuta:
    `SELECT count(*) AS n FROM bookings WHERE collected_at IS NULL;`
    - Si dice `n = 0`, o «no such table» (la reserva nunca se llegó a instalar), sigue.
    - Si dice otro número, **para y dímelo**: son reservas que nadie ha recogido y aún se pueden rescatar.
-2. **Workers & Pages** → el servidor (`cenit-datos`) → **Edit code**. Borra todo, pega el contenido de
+2. En la misma **Console**, pega todo `cloudflare/schema.sql` del repositorio y pulsa **Execute**. Crea las tablas
+   nuevas (`documents` y `doc_requests`) y no borra nada. Tiene que ir **antes** de pegar el servidor: sin ellas,
+   el servidor nuevo da error.
+3. **Workers & Pages** → el servidor (`cenit-datos`) → **Edit code**. Borra todo, pega el contenido de
    `cloudflare/worker.js` del repositorio y **Deploy**.
-3. Abre la dirección del servidor terminada en `/v1/salud`: debe decir que todo está bien.
-4. Vuelve a la **Console** de la base y ejecuta (se puede pegar todo junto):
+4. Abre la dirección del servidor terminada en `/v1/salud`: debe decir que todo está bien.
+5. Vuelve a la **Console** de la base y ejecuta (se puede pegar todo junto):
    `DROP TABLE IF EXISTS booking_pages; DROP TABLE IF EXISTS bookings; DROP TABLE IF EXISTS cancel_links;`
-5. En la app, comprueba que «Buscar respuestas» de un formulario y la sincronización siguen funcionando.
+6. En la app, comprueba que «Buscar respuestas» de un formulario y la sincronización siguen funcionando.
 
-## 4. Probar en un iPhone (unos 10 minutos, antes de ofrecer la app a una clínica con iPhone)
+## 4. Cloudflare: activar los archivos de los pacientes (R2) (unos 10 minutos, después del paso 3)
+
+Para guardar los informes y pruebas de cada paciente (PDF o fotos) y para el enlace con el que el paciente te los
+envía. Hasta que lo actives, la app no ofrece esas opciones y todo lo demás funciona igual. Cloudflare pide una
+tarjeta; con el tope del servidor (10 GB, avisa a los 8 GB) no se pasa de lo gratis, salvo que uses R2 para otras
+cosas en la misma cuenta. La guía completa, con los precios, está en `cloudflare/README.md`, «Documentos».
+
+1. <https://dash.cloudflare.com> → **Storage & Databases** → **R2 object storage**. La primera vez pide activar R2
+   y una tarjeta.
+2. **Create bucket**: nombre `cenit-archivos`; **Location** → **Specify jurisdiction** → **European Union (EU)**;
+   si pregunta la clase, **Standard**; **Create bucket**. La jurisdicción no se puede cambiar después. No actives
+   el acceso público.
+3. **Workers & Pages** → el servidor (`cenit-datos`) → **Settings** → **Bindings** → **Add binding** → **R2
+   bucket**: Variable name `DOCS`, R2 bucket `cenit-archivos` → **Add Binding** (o **Deploy**).
+4. En la app (con un paciente inventado): en su ficha, **Archivos del paciente** → **Añadir PDF o fotos**. En
+   **Ajustes** → **Copias y exportar** sale lo que ocupan.
+
+## 5. Probar en un iPhone (unos 10 minutos, antes de ofrecer la app a una clínica con iPhone)
 
 Las pruebas automáticas usan el motor de Safari en Linux, que no es igual que un iPhone. Esto solo se puede
 comprobar a mano. Usa siempre pacientes inventados.

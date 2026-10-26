@@ -14,6 +14,10 @@ import { formFor, type Answers as FormAnswers } from "./forms";
 import { getKind, QUESTIONNAIRES } from "./questionnaires";
 
 export const ANAMNESIS_KIND = "anamnesis";
+/** Pedirle sus informes y pruebas (archivos en PDF o fotos, src/documents): los sube con el enlace. */
+export const DOCS_KIND = "documentos";
+/** Archivos que puede subir con un enlace. */
+export const DOCS_PER_LINK = 5;
 /** Días que vale un enlace. */
 export const FORM_DAYS = 14;
 
@@ -31,9 +35,15 @@ export type FormRequest = {
   expiresAt: string;
   /** La marca de la clínica para la página del paciente (src/brand/form.ts); sin ella, la de Cénit. */
   brand?: FormBrand;
+  /** Si se le piden archivos, cuántos puede subir. */
+  maxDocs?: number;
 };
-/** Lo que vuelve cifrado: las respuestas por id de campo (anamnesis) o de ítem (cuestionario). */
+/**
+ * Lo que vuelve cifrado: las respuestas por id de campo (anamnesis) o de ítem (cuestionario); si se le pidieron archivos,
+ * `answers.docs` con lo que ha subido (cada uno en su número, n, del enlace).
+ */
 export type FormResponse = { v: 1; answers: Record<string, unknown> };
+export type SentDoc = { n: number; name: string; size: number };
 
 // ---------- Qué se le pregunta ----------
 
@@ -113,10 +123,11 @@ export const SENDABLE = QUESTIONNAIRES.filter((k) => {
 
 /** «tu historia clínica» o «el cuestionario «X»», para el mensaje y la ficha. */
 export function formWhat(kind: string): string {
+  if (kind === DOCS_KIND) return "tus informes o pruebas";
   return kind === ANAMNESIS_KIND ? "unas preguntas sobre tu salud para tu historia clínica" : `el cuestionario «${getKind(kind)?.name ?? kind}»`;
 }
 /** Nombre corto para las listas de la clínica. */
-export const formTitle = (kind: string) => (kind === ANAMNESIS_KIND ? "Anamnesis (su parte)" : (getKind(kind)?.name ?? kind));
+export const formTitle = (kind: string) => (kind === DOCS_KIND ? "Sus informes y pruebas" : kind === ANAMNESIS_KIND ? "Anamnesis (su parte)" : (getKind(kind)?.name ?? kind));
 
 // ---------- Cifrado ----------
 
@@ -171,7 +182,7 @@ export function formLink(id: string, key: string, base = formsBase()): string {
 /** El mensaje de WhatsApp o del correo (el texto de la clínica o el de siempre, src/messages/templates.ts). */
 export function formMessage(p: { name: string; clinic: string; kind: string; url: string; expiresAt: string }, s?: MessageSettings | null): string {
   const until = new Date(p.expiresAt).toLocaleDateString("es-ES", { day: "numeric", month: "long", timeZone: "Europe/Madrid" });
-  return messageText("formulario", s, { nombre: p.name, clinica: p.clinic, formulario: formWhat(p.kind), enlace: p.url, caduca: until });
+  return messageText(p.kind === DOCS_KIND ? "archivos" : "formulario", s, { nombre: p.name, clinica: p.clinic, formulario: formWhat(p.kind), enlace: p.url, caduca: until });
 }
 
 // ---------- Al recoger las respuestas ----------

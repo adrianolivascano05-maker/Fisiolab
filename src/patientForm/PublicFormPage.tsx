@@ -1,14 +1,18 @@
 // Lo que ve el paciente al abrir el enlace (…/formulario/<id>#<clave>): sin cuenta, sin PIN y sin la base de la app.
 // Baja el formulario cifrado del servidor de la clínica, lo descifra con la clave del enlace, lo rellena y manda sus
 // respuestas cifradas con la misma clave (src/clinical/patientForms.ts). Lo que va escribiendo se guarda en su móvil
-// hasta que lo envía, por si cierra la página sin querer.
-import { Lock, Send } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+// hasta que lo envía, por si cierra la página sin querer. Si se le piden sus informes y pruebas, los sube (PDF o fotos,
+// que se pasan a PDF) cifrados con la misma clave, uno a uno, y al enviar se dice cuáles son.
+import { FileText, Lock, Send, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { AnswerValue } from "../data/clinical";
 import { FieldInput } from "../clinical/FieldInput";
 import { FormFill, formResult } from "../clinical/FormFill";
 import { formFor, type Answers as FormAnswers } from "../clinical/forms";
-import { ANAMNESIS_KIND, formWhat, seal, unseal, type FormRequest } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, seal, unseal, type FormRequest, type SentDoc } from "../clinical/patientForms";
+import { sizeText } from "../data/documents";
+import { sealDoc } from "../documents/docCrypto";
+import { prepareFiles } from "../documents/prepare";
 import { errorText, serverUrl } from "../app/publicServer";
 import { applyBrand } from "../brand/brand";
 import { brandFromForm } from "../brand/form";
@@ -100,7 +104,7 @@ export function PublicFormPage() {
     if (!request) return;
     setError(null);
     const given = Object.values(answers).some((v) => v !== null && v !== "" && v !== undefined && !(Array.isArray(v) && !v.length));
-    if (!given) return setError("Contesta al menos una pregunta.");
+    if (!given) return setError(request.kind === DOCS_KIND ? "Sube al menos un archivo." : "Contesta al menos una pregunta.");
     if (result && "missing" in result) return setError(`${result.missing}. Contéstalas para poder enviarlo.`);
     setSending(true);
     try {
@@ -150,15 +154,35 @@ export function PublicFormPage() {
         {request && (
           <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
             <h1 className="text-2xl leading-tight font-bold">{request.name ? `Hola, ${request.name}` : "Hola"}</h1>
-            <p>
-              {request.clinic || "Tu clínica"} te pide que rellenes {formWhat(request.kind)}.{" "}
-              {request.kind === ANAMNESIS_KIND ? "Contesta lo que sepas; lo demás lo hablaréis en la consulta." : form?.instructions}
-            </p>
+            {request.kind === DOCS_KIND ? (
+              <p>
+                {request.clinic || "Tu clínica"} te pide {formWhat(request.kind)}: informes de tu médico, resonancias, radiografías, analíticas… Súbelos aquí en
+                PDF o haciéndoles una foto.
+              </p>
+            ) : (
+              <p>
+                {request.clinic || "Tu clínica"} te pide que rellenes {formWhat(request.kind)}.{" "}
+                {request.kind === ANAMNESIS_KIND ? "Contesta lo que sepas; lo demás lo hablaréis en la consulta." : form?.instructions}
+              </p>
+            )}
             <p className="flex gap-2 rounded-md bg-bg p-3 text-sm text-text-muted">
               <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              Tus respuestas salen cifradas de tu móvil y solo las puede leer tu fisioterapeuta, que las guardará en tu historia clínica. Si tienes dudas,
-              pregunta en la clínica.
+              {request.kind === DOCS_KIND
+                ? "Tus archivos salen cifrados de tu móvil y solo los puede abrir tu fisioterapeuta, que los guardará en tu historia clínica. Si tienes dudas, pregunta en la clínica."
+                : "Tus respuestas salen cifradas de tu móvil y solo las puede leer tu fisioterapeuta, que las guardará en tu historia clínica. Si tienes dudas, pregunta en la clínica."}
             </p>
+            {request.kind === DOCS_KIND && (
+              <DocsUpload
+                formId={id}
+                linkKey={key}
+                max={request.maxDocs ?? DOCS_PER_LINK}
+                docs={Array.isArray(answers.docs) ? (answers.docs as SentDoc[]) : []}
+                onChange={(docs) => {
+                  setError(null);
+                  setAnswers((a) => ({ ...a, docs }));
+                }}
+              />
+            )}
             {request.sections?.map((s) => (
               <Card key={s.id} className="flex flex-col gap-4">
                 <h2 className="text-lg">{s.title}</h2>
@@ -168,7 +192,7 @@ export function PublicFormPage() {
               </Card>
             ))}
             {form && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} />}
-            {request.kind !== ANAMNESIS_KIND && !form && <Alert tone="danger" title="Este cuestionario no está en esta versión de la app." />}
+            {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && <Alert tone="danger" title="Este cuestionario no está en esta versión de la app." />}
             {error && <Alert tone="danger" title={error} />}
             <Button type="submit" size="lg" block loading={sending} icon={<Send aria-hidden="true" className="size-5" />}>
               Enviar
@@ -180,5 +204,111 @@ export function PublicFormPage() {
         )}
       </main>
     </div>
+  );
+}
+
+/**
+ * Los archivos del paciente: cada uno se prepara (las fotos elegidas a la vez, en un PDF), se cifra con la clave del
+ * enlace y se sube a su número (1, 2…) hasta el máximo. Quitar uno libera su número: el siguiente lo sustituye.
+ */
+function DocsUpload({ formId, linkKey, max, docs, onChange }: { formId: string; linkKey: string; max: number; docs: SentDoc[]; onChange: (docs: SentDoc[]) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [problems, setProblems] = useState<string[]>([]);
+  // Lo último que hay (aunque aún no se haya vuelto a pintar) y la fila: si elige más mientras sube, va después.
+  const latest = useRef(docs);
+  latest.current = docs;
+  const queue = useRef<Promise<void>>(Promise.resolve());
+  const add = (files: File[]) => {
+    if (!files.length) return;
+    queue.current = queue.current.then(() => upload(files));
+  };
+  const upload = async (files: File[]) => {
+    setProblems([]);
+    setBusy("Preparando…");
+    const out: string[] = [];
+    let current = latest.current;
+    try {
+      const { ready, problems } = await prepareFiles(files, `Fotos del ${new Date().toLocaleDateString("es-ES", { timeZone: "Europe/Madrid" })}`);
+      out.push(...problems);
+      const base = await serverUrl();
+      for (const f of ready) {
+        const n = Array.from({ length: max }, (_, i) => i + 1).find((x) => !current.some((d) => d.n === x));
+        if (!n) {
+          out.push(`Ya has subido ${max}, el máximo. Quita alguno para subir otro.`);
+          break;
+        }
+        setBusy(`Subiendo «${f.name}»…`);
+        const res = await fetch(`${base}/v1/formularios/${formId}/documentos/${n}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/octet-stream" },
+          body: (await sealDoc(f.bytes, linkKey)) as BodyInit,
+        });
+        if (!res.ok) {
+          out.push((await errorText(res)) || `No se ha podido subir «${f.name}». Prueba otra vez.`);
+          continue;
+        }
+        current = [...current, { n, name: f.name, size: f.bytes.byteLength }];
+        latest.current = current;
+        onChange(current);
+      }
+    } catch (e) {
+      out.push(e instanceof Error && e.message !== "Failed to fetch" ? e.message : "No hay conexión. Prueba otra vez en un momento.");
+    } finally {
+      setProblems(out);
+      setBusy(null);
+      if (input.current) input.current.value = "";
+    }
+  };
+  return (
+    <Card className="flex flex-col gap-3">
+      <h2 className="text-lg">Tus archivos</h2>
+      {docs.length > 0 && (
+        <ul aria-label="Tus archivos" className="flex flex-col divide-y divide-border">
+          {docs.map((d) => (
+            <li key={d.n} className="flex min-h-14 items-center gap-3 py-1">
+              <FileText aria-hidden="true" className="size-6 shrink-0 text-accent" />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="font-semibold break-words">{d.name}</span>
+                <span className="text-sm text-text-muted">{sizeText(d.size)} · subido</span>
+              </span>
+              <Button size="sm" variant="ghost" aria-label={`Quitar ${d.name}`} icon={<X aria-hidden="true" className="size-4" />} onClick={() => onChange(docs.filter((x) => x.n !== d.n))}>
+                Quitar
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <input
+        ref={input}
+        type="file"
+        multiple
+        accept="application/pdf,.pdf,image/*"
+        className="sr-only"
+        aria-label="Elegir archivos (PDF o fotos)"
+        tabIndex={-1}
+        onChange={(e) => add([...(e.target.files ?? [])])}
+      />
+      {docs.length < max && (
+        <Button variant="secondary" loading={busy !== null} icon={<Upload aria-hidden="true" className="size-5" />} onClick={() => input.current?.click()}>
+          {docs.length ? "Añadir otro" : "Añadir un PDF o fotos"}
+        </Button>
+      )}
+      {busy && <p role="status" className="text-sm text-text-muted">{busy}</p>}
+      <p className="text-sm text-text-muted">
+        Hasta {max} archivos de 5 MB como mucho. Si haces varias fotos de un mismo informe, elígelas a la vez: van juntas en un PDF. Cuando estén todos, pulsa «Enviar».
+      </p>
+      {problems.length > 0 && (
+        <Alert tone="warning" title={problems.length === 1 ? problems[0]! : "Algunos archivos no se han subido"}>
+          {problems.length > 1 && (
+            <ul className="list-disc pl-5">
+              {problems.map((p) => (
+                <li key={p}>{p}</li>
+              ))}
+            </ul>
+          )}
+        </Alert>
+      )}
+    </Card>
   );
 }

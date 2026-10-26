@@ -43,6 +43,7 @@ import { CloudSettings, syncText, useCloud, useSyncState } from "../cloud/CloudG
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { getDb } from "../data/db";
+import { DocsStorageCard } from "../documents/DocsStorageCard";
 import { FullExportButton } from "../export/FullExportButton";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
@@ -270,11 +271,12 @@ export function DataSettingsPage() {
         <Card className="flex flex-col gap-3">
           <h3 className="font-semibold">Todos tus datos, para leer sin la app</h3>
           <p className="text-sm text-text-muted">
-            Un archivo .zip con la historia clínica de cada paciente (se abre en cualquier navegador y se imprime), un Excel con todo y la copia de
-            seguridad. Es lo que te llevas si un día dejas Cénit.
+            Un archivo .zip con la historia clínica de cada paciente (se abre en cualquier navegador y se imprime), sus archivos en PDF, un Excel con
+            todo y la copia de seguridad. Es lo que te llevas si un día dejas Cénit.
           </p>
           <FullExportButton name={cloud?.clinic?.name ?? "Fisiolab"} />
         </Card>
+        <DocsStorageCard />
         <Card className="flex flex-col gap-3">
           <p className="text-sm">Última copia: {state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}</p>
           <Button
