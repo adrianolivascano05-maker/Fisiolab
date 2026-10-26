@@ -3,6 +3,25 @@
 Lista viva. Cada punto: qué es, de dónde sale y estado. Nada de esto está hecho salvo que lo diga.
 Análisis completo de la competencia: https://claude.ai/artifact/BmXfNJB6usGL61EGQoQjzA (23-10-2026).
 
+## Para revisar más tarde (apuntado el 26-10-2026)
+
+Salen de preparar la reunión con la gerente de la clínica. El usuario pidió apuntarlos para revisarlos más tarde.
+Ninguno está hecho.
+
+1. **Un fisio que se va conserva los datos en su móvil.** Al quitarlo del equipo (Ajustes › Equipo de la clínica),
+   el servidor deja de aceptarle («Tu cuenta no está autorizada en el servidor de la clínica», `src/cloud/remote.ts`),
+   pero la base de su dispositivo no se borra sola. Solo se borra si esa persona pulsa «Cerrar sesión y borrar los
+   datos de este dispositivo» (`src/cloud/CloudGate.tsx`).
+   - Mientras tanto: que lo haga delante de quien gestiona la clínica antes de quitarlo del equipo.
+   - Por decidir: si la app debe borrar sola los datos de esa clínica cuando el servidor dice que la cuenta ya no
+     está en el equipo. Cuidado con dos cosas: no borrar por un fallo pasajero del servidor y no perder cambios que
+     aún no se hayan subido.
+2. **Revisión legal antes de meter pacientes reales.** La asesoría de la clínica tiene que revisar la hoja
+   informativa de protección de datos que firma cada paciente, los cinco consentimientos informados (`src/consent/`)
+   y quién es encargado del tratamiento de qué (Cloudflare, y el usuario si da soporte o administra el servidor).
+   - Mientras no esté revisado, ningún paciente real en un piloto con la app.
+   - Lo hace el usuario con la asesoría; no se puede hacer desde el código.
+
 ## Decidido el 24-10-2026: quitar lo que da problemas y limpiar
 
 El usuario quiere quitarse marrones: que las clínicas gestionen las citas como siempre (teléfono, WhatsApp, en
