@@ -66,7 +66,10 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 La reserva online se ha quitado (24-10-2026) y el servidor se ha dejado más limpio (bloque 3: formularios repetidos
 a la vez, lotes de cambios que se leían de más, tiempo límite con Google, menos limpiezas en cada consulta). El
 servidor nuevo ya no tiene las rutas de la reserva, y sus tres tablas sobran. Además trae los archivos de los
-pacientes (26-10-2026), que necesitan dos tablas nuevas en la base. **Ya está listo para pegarlo.**
+pacientes (26-10-2026), que necesitan dos tablas nuevas en la base, y (27-10-2026) la copia de cada clínica en R2 por
+trozos, la consulta de cada minuto que dice también si hay formularios respondidos (la mitad de peticiones) y los
+avisos al 70 % en el panel del proveedor (sin tablas nuevas). **Ya está listo para pegarlo.** Si ya lo pegaste
+antes del 27-10-2026, vuelve a hacer el paso 3 (el `schema.sql` no cambia: ejecutarlo otra vez no hace nada).
 
 1. Comprueba que no queda ninguna reserva sin recoger. <https://dash.cloudflare.com> → **Storage & Databases** →
    **D1** → la base (`cenit-datos`) → **Console**. Pega y ejecuta:
@@ -86,9 +89,12 @@ pacientes (26-10-2026), que necesitan dos tablas nuevas en la base. **Ya está l
 ## 4. Cloudflare: activar los archivos de los pacientes (R2) (unos 10 minutos, después del paso 3)
 
 Para guardar los informes y pruebas de cada paciente (PDF o fotos) y para el enlace con el que el paciente te los
-envía. Hasta que lo actives, la app no ofrece esas opciones y todo lo demás funciona igual. Cloudflare pide una
-tarjeta; con el tope del servidor (10 GB, avisa a los 8 GB) no se pasa de lo gratis, salvo que uses R2 para otras
-cosas en la misma cuenta. La guía completa, con los precios, está en `cloudflare/README.md`, «Documentos».
+envía. Además, desde el 27-10-2026, la copia de cada clínica pasa a R2: así deja de tener el tope de 50 MB (una
+clínica de 10.000 pacientes ocupa unos 54 MB) y el servidor no tiene que juntarla en memoria. Hasta que lo actives,
+la app no ofrece los archivos y todo lo demás funciona igual. Cloudflare pide una tarjeta; con el tope del servidor
+(10 GB, avisa al 70 %) no se pasa de lo gratis, salvo que uses R2 para otras cosas en la misma cuenta. Si un día
+quieres más sitio, pon la variable `DOCS_CAP_GB` (por ejemplo `50`, unos 0,60 $ al mes). La guía completa, con los
+precios, está en `cloudflare/README.md`, «Documentos».
 
 1. <https://dash.cloudflare.com> → **Storage & Databases** → **R2 object storage**. La primera vez pide activar R2
    y una tarjeta.
@@ -99,6 +105,9 @@ cosas en la misma cuenta. La guía completa, con los precios, está en `cloudfla
    bucket**: Variable name `DOCS`, R2 bucket `cenit-archivos` → **Add Binding** (o **Deploy**).
 4. En la app (con un paciente inventado): en su ficha, **Archivos del paciente** → **Añadir PDF o fotos**. En
    **Ajustes** → **Copias y exportar** sale lo que ocupan.
+5. Opcional: si pasas al plan de pago de Workers, añade la variable `D1_CAP_MB` = `10000` (**Settings** →
+   **Variables and Secrets**): el panel del proveedor avisa al 70 % de lo que puede ocupar la base, y con el plan
+   de pago cabe 20 veces más.
 
 ## 5. Probar en un iPhone (unos 10 minutos, antes de ofrecer la app a una clínica con iPhone)
 

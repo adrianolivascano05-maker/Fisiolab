@@ -1,11 +1,13 @@
-// Las respuestas de los pacientes llegan solas: con la app abierta en una clínica, cada minuto (y al volver a ella o
-// recuperar la conexión) se buscan en el servidor, se ponen en la ficha (collect.ts) y se avisa. Sin servidor, nada.
+// Las respuestas de los pacientes llegan solas: con la app abierta en una clínica, la consulta de la sincronización
+// (cada minuto, sync.ts) dice si hay alguna; entonces se bajan, se ponen en la ficha (collect.ts) y se avisa. Con un
+// servidor de una versión anterior, que no lo dice, se preguntan aparte cada minuto (y al volver a la app o recuperar
+// la conexión). Sin servidor, nada.
 import { useCallback, useEffect, useRef } from "react";
 import { bumpData } from "../app/dataVersion";
 import { formTitle } from "../clinical/patientForms";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud, useSyncState } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
 import { useAppLock } from "../privacy/AppLock";
 import { useToast } from "../ui/Toast";
@@ -61,8 +63,17 @@ export function FormInbox() {
   // Con la app bloqueada no se recoge (los avisos llevan el nombre del paciente y se verían sobre el PIN).
   const { locked } = useAppLock();
   const active = !!cloud?.clinic && !locked;
+  const sync = useSyncState();
+  const waiting = sync?.forms;
+  // El servidor dice cuántas hay en cada vuelta: se recogen al verlas (y se vuelve a probar en la siguiente vuelta si
+  // no se ha podido).
   useEffect(() => {
-    if (!active) return;
+    if (active && waiting && !cloud?.closing) void latest.current();
+  }, [active, waiting, sync?.lastSyncAt, cloud?.closing]);
+  // Un servidor que no lo dice: se pregunta aparte, como antes.
+  const ask = active && waiting === null;
+  useEffect(() => {
+    if (!ask) return;
     const run = () => {
       if (document.visibilityState === "visible" && !cloud?.closing) void latest.current();
     };
@@ -76,6 +87,6 @@ export function FormInbox() {
       document.removeEventListener("visibilitychange", run);
       window.removeEventListener("online", run);
     };
-  }, [active]);
+  }, [ask]);
   return null;
 }

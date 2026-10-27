@@ -738,6 +738,9 @@ describe("clínicas", () => {
     expect((await pub("POST", `/v1/formularios/${fid}/respuesta`, { response: "UkVTUA==" })).status).toBe(200);
     expect((await pub("POST", `/v1/formularios/${fid}/respuesta`, { response: "T1RSQQ==" })).status).toBe(409);
     expect(((await (await pub("GET", `/v1/formularios/${fid}`)).json()) as { answered: boolean }).answered).toBe(true);
+    // La consulta de la sincronización (cada minuto) ya dice que hay una respuesta: la app no pregunta aparte.
+    const waiting = async () => ((await (await call("GET", `/v1/clinicas/${c.id}/copia/info?v=2&trozos=1`, { token: "tok-ana" })).json()) as { forms: number }).forms;
+    expect(await waiting()).toBe(1);
 
     // El equipo recoge la respuesta y la borra; quien no es del equipo, no.
     expect((await send("GET", `/v1/clinicas/${c.id}/formularios`, "tok-eva")).status).toBe(403);
@@ -748,6 +751,7 @@ describe("clínicas", () => {
     expect(await (await pub("GET", `/v1/formularios/${fid}`)).json()).toEqual({ request: "", expiresAt, answered: true });
     expect(((await (await send("GET", `/v1/clinicas/${c.id}/formularios`, "tok-ana")).json()) as { forms: unknown[] }).forms).toEqual([]);
     expect(await count("SELECT count(*) AS n FROM patient_forms WHERE response IS NOT NULL OR request <> ''")).toBe(0);
+    expect(await waiting()).toBe(0);
     // Uno sin responder que se anula desaparece.
     const other = "h".repeat(30);
     await send("POST", `/v1/clinicas/${c.id}/formularios`, "tok-ana", { id: other, request: "QUJD", expiresAt });
@@ -886,9 +890,14 @@ describe("clínicas", () => {
   });
 });
 
-/** Un almacén R2 de prueba: put, get y delete en memoria. */
+/**
+ * Un almacén R2 de prueba en memoria: put, get, delete y subidas por trozos, con las reglas de R2 (todos los trozos
+ * menos el último, del mismo tamaño y de 5 MiB como poco).
+ */
 class FakeR2 {
   readonly objects = new Map<string, Uint8Array>();
+  readonly uploads = new Map<string, { key: string; parts: Map<number, { etag: string; bytes: Uint8Array }> }>();
+  private next = 1;
   async put(key: string, value: Uint8Array) {
     this.objects.set(key, new Uint8Array(value));
     return { key };
@@ -899,6 +908,49 @@ class FakeR2 {
   }
   async delete(keys: string | string[]) {
     for (const k of [keys].flat()) this.objects.delete(k);
+  }
+  async createMultipartUpload(key: string) {
+    const uploadId = `subida-${this.next++}`;
+    this.uploads.set(uploadId, { key, parts: new Map() });
+    return this.resumeMultipartUpload(key, uploadId);
+  }
+  resumeMultipartUpload(key: string, uploadId: string) {
+    const find = () => {
+      const u = this.uploads.get(uploadId);
+      if (!u || u.key !== key) throw new Error("NoSuchUpload");
+      return u;
+    };
+    return {
+      uploadId,
+      uploadPart: async (partNumber: number, value: Uint8Array) => {
+        const etag = `etag-${this.next++}`;
+        find().parts.set(partNumber, { etag, bytes: new Uint8Array(value) });
+        return { partNumber, etag };
+      },
+      complete: async (parts: { partNumber: number; etag: string }[]) => {
+        const u = find();
+        const got = parts.map((p) => {
+          const part = u.parts.get(p.partNumber);
+          if (!part || part.etag !== p.etag) throw new Error("InvalidPart");
+          return part.bytes;
+        });
+        const size = got[0]!.byteLength;
+        if (got.slice(0, -1).some((b) => b.byteLength !== size || b.byteLength < 5 * 1024 * 1024)) throw new Error("EntityTooSmall");
+        const all = new Uint8Array(got.reduce((n, b) => n + b.byteLength, 0));
+        let at = 0;
+        for (const b of got) {
+          all.set(b, at);
+          at += b.byteLength;
+        }
+        this.objects.set(key, all);
+        this.uploads.delete(uploadId);
+        return { size: all.byteLength };
+      },
+      abort: async () => {
+        find();
+        this.uploads.delete(uploadId);
+      },
+    };
   }
 }
 
@@ -963,7 +1015,7 @@ describe("documentos", () => {
     expect(got.status).toBe(200);
     expect(got.headers.get("Content-Type")).toBe("application/octet-stream");
     expect(new Uint8Array(await got.arrayBuffer())).toEqual(doc);
-    expect(await usage(id)).toEqual({ enabled: true, count: 1, used: 1000, total: 1000, cap: 10_000_000_000, warnAt: 8_000_000_000, maxBytes: 5 * 1024 * 1024 });
+    expect(await usage(id)).toEqual({ enabled: true, count: 1, used: 1000, total: 1000, cap: 10_000_000_000, warnAt: 7_000_000_000, maxBytes: 5 * 1024 * 1024 });
 
     expect((await go("DELETE", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana" })).status).toBe(204);
     expect(r2.objects.size).toBe(0);
@@ -1067,7 +1119,7 @@ describe("documentos", () => {
       documents: Record<string, unknown>;
     };
     expect(panel.clinics.find((c) => c.id === id)?.docs).toBe(1000);
-    expect(panel.documents).toEqual({ enabled: true, total: 1000, cap: 10_000_000_000, warnAt: 8_000_000_000 });
+    expect(panel.documents).toEqual({ enabled: true, total: 1000, copies: 0, cap: 10_000_000_000, warnAt: 7_000_000_000 });
 
     const declaration = "Conservo la copia descargada de la clínica.";
     expect((await go("DELETE", `/v1/clinicas/${id}`, { token: "tok-ana", json: { declaration } })).status).toBe(200);
@@ -1078,9 +1130,253 @@ describe("documentos", () => {
     expect(await count("SELECT count(*) AS n FROM documents")).toBe(0);
   });
 
+  it("DOCS_CAP_GB cambia el tope del almacén; se avisa al 70 %", async () => {
+    const id = await clinic();
+    expect(await (await go("GET", `/v1/clinicas/${id}/documentos`, { token: "tok-ana" }, { DOCS_CAP_GB: "50" })).json()).toMatchObject({
+      cap: 50_000_000_000,
+      warnAt: 35_000_000_000,
+    });
+    await db.prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES ('otra', ?, NULL, ?, '2026-10-01')").bind(DOC, 1_999_999_500).run();
+    const res = await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(1000) }, { DOCS_CAP_GB: "2" });
+    expect(res.status).toBe(507);
+    expect(((await res.json()) as { error: string }).error).toContain("2 GB");
+    // Un valor que no es un número no deja el almacén sin tope: vuelve a los 10 GB.
+    expect(await (await go("GET", `/v1/clinicas/${id}/documentos`, { token: "tok-ana" }, { DOCS_CAP_GB: "mucho" })).json()).toMatchObject({ cap: 10_000_000_000 });
+  });
+
   it("la comprobación de la instalación avisa si faltan las tablas de los documentos", async () => {
     db.db.exec("DROP TABLE documents");
     const body = (await (await go("GET", "/v1/salud")).json()) as { error: string };
     expect(body.error).toContain("schema.sql");
+  });
+});
+
+/** Una copia «cifrada por trozos» de `size` bytes, como la sube la app nueva: CENITENC2 y bytes que no se repiten. */
+function sealedCopy(size: number, seed = 1) {
+  const bytes = new Uint8Array(size);
+  let x = seed;
+  for (let i = 0; i < size; i++) {
+    x = (x * 1103515245 + 12345) >>> 0;
+    bytes[i] = x >>> 24;
+  }
+  bytes.set(new TextEncoder().encode("CENITENC2"), 0);
+  return bytes;
+}
+
+describe("copia de la clínica en R2", () => {
+  let r2: FakeR2;
+  beforeEach(() => {
+    r2 = new FakeR2();
+  });
+  const MiB = 1024 * 1024;
+  type Opts = { token?: string; body?: Uint8Array | string; json?: unknown; headers?: Record<string, string> };
+  const go = (method: string, path: string, { token = "tok-ana", body, json, headers = {} }: Opts = {}, over: Record<string, unknown> = {}, now?: () => number) =>
+    handle(
+      new Request(BASE + path, {
+        method,
+        body: json !== undefined ? JSON.stringify(json) : (body as BodyInit | undefined),
+        headers: { Authorization: `Bearer ${token}`, ...headers },
+      }),
+      env({ DOCS: r2, ...over }),
+      { verifyToken, now },
+    );
+  async function clinic() {
+    const res = await go("POST", "/v1/clinicas", { json: { name: "Fisiolab Centro" } });
+    const id = ((await res.json()) as { id: string }).id;
+    await go("PUT", `/v1/clinicas/${id}/miembros/eva@clinica.es`, { json: { role: "member" } });
+    return id;
+  }
+  const NEW = "?v=2&trozos=1";
+  type Started = { version: string; upload: string; partBytes: number };
+  /** Como la app nueva: empieza, sube los trozos y termina. Devuelve la respuesta del final. */
+  async function upload(id: string, bytes: Uint8Array, precondition: Record<string, string>, { seq = 0, token = "tok-ana" } = {}) {
+    const base = `/v1/clinicas/${id}/copia/subida`;
+    const start = await go("POST", `${base}${NEW}`, { token, headers: precondition });
+    if (start.status !== 200) return start;
+    const { version, upload, partBytes } = (await start.json()) as Started;
+    const parts = [];
+    for (let n = 1; (n - 1) * partBytes < bytes.byteLength; n++) {
+      const res = await go("PUT", `${base}/${version}/${n}${NEW}&id=${upload}`, { token, body: bytes.subarray((n - 1) * partBytes, n * partBytes) });
+      expect(res.status).toBe(200);
+      parts.push((await res.json()) as { part: number; etag: string });
+    }
+    return go("POST", `${base}/${version}/fin${NEW}&id=${upload}&seq=${seq}`, { token, headers: precondition, json: { parts, size: bytes.byteLength } });
+  }
+  const versionOf = async (res: Response) => ((await res.json()) as { version: string }).version;
+  const r2Keys = () => [...r2.objects.keys()].filter((k) => k.startsWith("copias/"));
+
+  it("la app nueva la sube por trozos y la baja tal cual; las versiones anteriores tienen que actualizarse", async () => {
+    const id = await clinic();
+    const copy = sealedCopy(17 * MiB + 123);
+    const res = await upload(id, copy, { "If-None-Match": "*" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { version: string; size: number; epoch: string; base: number };
+    expect(body).toMatchObject({ size: copy.byteLength, base: 0 });
+    expect(body.epoch).toMatch(/^[0-9a-f-]{36}$/);
+    expect(res.headers.get("ETag")).toBe(`"${body.version}"`);
+    // En R2, en bytes; en D1 solo la cabecera (parts = 0) y ningún trozo.
+    expect(r2Keys()).toEqual([`copias/clinic:${id}/${body.version}`]);
+    expect(await db.prepare("SELECT parts, size FROM heads").first()).toEqual({ parts: 0, size: copy.byteLength });
+    expect(await count("SELECT count(*) AS n FROM parts")).toBe(0);
+
+    const info = (await (await go("GET", `/v1/clinicas/${id}/copia/info${NEW}`, { token: "tok-eva" })).json()) as Record<string, unknown>;
+    expect(info).toMatchObject({ version: body.version, size: copy.byteLength, pieces: true, epoch: body.epoch, base: 0, last: 0 });
+    const got = await go("GET", `/v1/clinicas/${id}/copia${NEW}`, { token: "tok-eva" });
+    expect(got.status).toBe(200);
+    expect(got.headers.get("Content-Type")).toBe("application/octet-stream");
+    expect(got.headers.get("ETag")).toBe(`"${body.version}"`);
+    expect(Buffer.from(await got.arrayBuffer()).equals(Buffer.from(copy))).toBe(true);
+    // Los cambios siguen igual.
+    expect((await go("POST", `/v1/clinicas/${id}/copia/cambios${NEW}`, { body: encrypted(200) })).status).toBe(200);
+
+    // La versión anterior (sin &trozos=1) no sabe leerla: 426 en todo; y la de antes de los cambios, también.
+    for (const [method, path] of [
+      ["GET", "/copia/info?v=2"],
+      ["GET", "/copia?v=2"],
+      ["GET", "/copia/cambios?v=2&desde=0"],
+      ["POST", "/copia/cambios?v=2"],
+      ["PUT", "/copia?v=2&seq=1"],
+      ["GET", "/copia"],
+    ] as const) {
+      const old = await go(method, `/v1/clinicas/${id}${path}`, { token: "tok-eva", body: method === "GET" ? undefined : encrypted(300), headers: { "If-Match": body.version } });
+      expect(old.status, `${method} ${path}`).toBe(426);
+    }
+    // Ni la subida por trozos existe para ellas.
+    expect((await go("POST", `/v1/clinicas/${id}/copia/subida?v=2`, { headers: { "If-Match": body.version } })).status).toBe(404);
+    expect(r2Keys().length).toBe(1);
+  });
+
+  it("sustituir: solo con la versión vigente; la anterior se borra; si otra gana entre medias, 412 y no queda nada", async () => {
+    const id = await clinic();
+    const v1 = await versionOf(await upload(id, sealedCopy(6 * MiB, 1), { "If-None-Match": "*" }));
+    expect((await upload(id, sealedCopy(MiB, 2), { "If-None-Match": "*" })).status).toBe(412);
+    expect((await upload(id, sealedCopy(MiB, 2), { "If-Match": "otra" })).status).toBe(412);
+
+    // Dos dispositivos empiezan a la vez con la misma versión: gana el primero que termina.
+    const base = `/v1/clinicas/${id}/copia/subida`;
+    const startB = (await (await go("POST", `${base}${NEW}`, { token: "tok-eva", headers: { "If-Match": v1 } })).json()) as Started;
+    const partB = (await (await go("PUT", `${base}/${startB.version}/1${NEW}&id=${startB.upload}`, { token: "tok-eva", body: sealedCopy(MiB, 3) })).json()) as {
+      part: number;
+      etag: string;
+    };
+    const winner = await upload(id, sealedCopy(9 * MiB, 4), { "If-Match": `"${v1}"` }, { seq: 0 });
+    expect(winner.status).toBe(200);
+    const v2 = await versionOf(winner);
+    const lost = await go("POST", `${base}/${startB.version}/fin${NEW}&id=${startB.upload}&seq=0`, {
+      token: "tok-eva",
+      headers: { "If-Match": v1 },
+      json: { parts: [partB], size: MiB },
+    });
+    expect(lost.status).toBe(412);
+    expect(((await lost.json()) as { version: string }).version).toBe(v2);
+    expect(r2Keys()).toEqual([`copias/clinic:${id}/${v2}`]);
+    expect(r2.uploads.size).toBe(0);
+  });
+
+  it("solo copias cifradas, en trozos de 8 MiB como mucho, con condición y con todos sus trozos; dejarla no deja nada", async () => {
+    const id = await clinic();
+    const base = `/v1/clinicas/${id}/copia/subida`;
+    expect((await go("POST", `${base}${NEW}`)).status).toBe(428);
+    const s = (await (await go("POST", `${base}${NEW}`, { headers: { "If-None-Match": "*" } })).json()) as Started;
+    expect(s.partBytes).toBe(8 * MiB);
+    const part = (n: number, body: Uint8Array) => go("PUT", `${base}/${s.version}/${n}${NEW}&id=${s.upload}`, { body });
+    expect((await part(1, new TextEncoder().encode("SQLite format 3\u0000 sin cifrar"))).status).toBe(415);
+    expect((await part(1, sealedCopy(8 * MiB + 1))).status).toBe(413);
+    expect((await part(300, sealedCopy(MiB))).status).toBe(413);
+    expect((await go("PUT", `${base}/${s.version}/1${NEW}`, { body: sealedCopy(MiB) })).status).toBe(400);
+    const p1 = (await (await part(1, sealedCopy(8 * MiB))).json()) as { part: number; etag: string };
+    const p2 = (await (await part(2, sealedCopy(MiB, 2))).json()) as { part: number; etag: string };
+    const fin = (parts: unknown, size: unknown = 9 * MiB, headers: Record<string, string> = { "If-None-Match": "*" }, seq = "&seq=0") =>
+      go("POST", `${base}/${s.version}/fin${NEW}&id=${s.upload}${seq}`, { headers, json: { parts, size } });
+    expect((await fin([p2, p1])).status).toBe(400);
+    expect((await fin([p1, p2], undefined, {})).status).toBe(428);
+    expect((await fin([p1, p2], undefined, undefined, "")).status).toBe(400);
+    expect((await fin([p1, p2], "mucho")).status).toBe(400);
+    // Si la app se deja un trozo, R2 juntaría una copia cortada: no se guarda.
+    expect((await fin([p1])).status).toBe(400);
+    expect(r2Keys()).toEqual([]);
+    expect(await count("SELECT count(*) AS n FROM heads")).toBe(0);
+    // Esa subida ya no existe (R2 la cerró al juntarla).
+    expect((await fin([p1, p2])).status).toBe(502);
+    // Dejarla: R2 se olvida de los trozos y no queda copia.
+    expect((await go("DELETE", `${base}/${s.version}${NEW}&id=${s.upload}`, { token: "tok-eva" })).status).toBe(204);
+    expect(r2.uploads.size).toBe(0);
+    expect((await go("GET", `/v1/clinicas/${id}/copia/info${NEW}`)).status).toBe(200);
+    expect(r2Keys()).toEqual([]);
+    // Quien no es del equipo, nada.
+    expect((await go("POST", `${base}${NEW}`, { token: "tok-luis", headers: { "If-None-Match": "*" } })).status).toBe(403);
+  });
+
+  it("sin almacén R2 todo sigue en D1; con él, la copia pasa de D1 a R2 al subirla y vuelve si se sube entera", async () => {
+    const id = await clinic();
+    const copy = `/v1/clinicas/${id}/copia`;
+    // Sin R2: la app lo sabe por la info y sube la copia entera, como siempre.
+    expect(await (await go("GET", `${copy}/info${NEW}`, {}, { DOCS: undefined })).json()).toMatchObject({ version: null, pieces: false });
+    expect((await go("POST", `${copy}/subida${NEW}`, { headers: { "If-None-Match": "*" } }, { DOCS: undefined })).status).toBe(501);
+    const d1 = await go("PUT", `${copy}${NEW}&seq=0`, { body: encrypted(2_500_000), headers: { "If-None-Match": "*" } }, { DOCS: undefined });
+    const v1 = await versionOf(d1);
+    expect(await count("SELECT count(*) AS n FROM parts")).toBe(4);
+    const text = await (await go("GET", `${copy}${NEW}`)).text();
+    expect(same(text, encrypted(2_500_000))).toBe(true);
+
+    // Al activar R2, la siguiente copia entera va allí y los trozos de D1 sobran.
+    const v2 = await versionOf(await upload(id, sealedCopy(MiB), { "If-Match": v1 }));
+    expect(await count("SELECT count(*) AS n FROM parts")).toBe(0);
+    expect(r2Keys()).toEqual([`copias/clinic:${id}/${v2}`]);
+    // Si un dispositivo sube la copia entera a D1 (p. ej. con R2 quitado), la de R2 se borra.
+    const v3 = await versionOf(await go("PUT", `${copy}${NEW}&seq=0`, { body: encrypted(3000, 2), headers: { "If-Match": v2 } }));
+    expect(r2Keys()).toEqual([]);
+    expect(await (await go("GET", `${copy}/info${NEW}`)).json()).toMatchObject({ version: v3, size: Math.floor((encrypted(3000, 2).length * 3) / 4) });
+    // Y si la copia está en R2 pero se quita el enlace, lo dice.
+    await upload(id, sealedCopy(MiB), { "If-Match": v3 });
+    const broken = await go("GET", `${copy}${NEW}`, {}, { DOCS: undefined });
+    expect(broken.status).toBe(500);
+    expect(((await broken.json()) as { error: string }).error).toContain("DOCS");
+  });
+
+  it("borrarla (o borrar la clínica) la borra de R2; cuenta en el almacén, pero el tope nunca la rechaza", async () => {
+    const id = await clinic();
+    const DOC = "d".repeat(22);
+    await db.prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES ('otra', ?, NULL, ?, '2026-10-01')").bind(DOC, 9_999_000_000).run();
+    // El almacén está casi lleno: la copia se guarda igual (los pacientes no pueden quedarse sin sincronizar)…
+    const v1 = await versionOf(await upload(id, sealedCopy(2 * MiB), { "If-None-Match": "*" }));
+    // …y con ella pasa del tope: los documentos ya no.
+    const doc = new Uint8Array(1000);
+    doc.set(new TextEncoder().encode("CENITDOC1"), 0);
+    expect((await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { body: doc })).status).toBe(507);
+    const usage = (await (await go("GET", `/v1/clinicas/${id}/documentos`)).json()) as { total: number };
+    expect(usage.total).toBe(9_999_000_000 + 2 * MiB);
+    const panel = (await (await go("GET", "/v1/proveedor", {}, { OPERATOR_EMAILS: "ana@clinica.es" })).json()) as {
+      clinics: { id: string; size: number }[];
+      documents: { total: number; copies: number };
+    };
+    expect(panel.clinics.find((c) => c.id === id)?.size).toBe(2 * MiB);
+    expect(panel.documents).toMatchObject({ total: 9_999_000_000 + 2 * MiB, copies: 2 * MiB });
+    // Y lo que ocupa la base D1, con su límite (500 MB, o D1_CAP_MB) y el aviso al 70 %.
+    const db1 = (await (await go("GET", "/v1/proveedor", {}, { OPERATOR_EMAILS: "ana@clinica.es", D1_CAP_MB: "10000" })).json()) as {
+      database: { bytes: number; cap: number; warnAt: number };
+    };
+    expect(db1.database.bytes).toBeGreaterThan(0);
+    expect(db1.database).toMatchObject({ cap: 10_000_000_000, warnAt: 7_000_000_000 });
+    expect(((await (await go("GET", "/v1/proveedor", {}, { OPERATOR_EMAILS: "ana@clinica.es" })).json()) as typeof db1).database.cap).toBe(500_000_000);
+
+    // Borrar la copia es de quien administra; dejar una subida, de cualquiera del equipo (arriba).
+    expect((await go("DELETE", `/v1/clinicas/${id}/copia${NEW}`, { token: "tok-eva" })).status).toBe(403);
+    expect((await go("DELETE", `/v1/clinicas/${id}/copia${NEW}`)).status).toBe(204);
+    expect(r2Keys()).toEqual([]);
+    expect(v1).toMatch(/^[0-9a-f-]{36}$/);
+
+    // Suspendida: se baja, no se sube.
+    await upload(id, sealedCopy(MiB), { "If-None-Match": "*" });
+    await db.prepare("INSERT INTO clinic_status (clinic_id, suspended_at) VALUES (?, '2026-10-01')").bind(id).run();
+    expect((await go("GET", `/v1/clinicas/${id}/copia${NEW}`)).status).toBe(200);
+    expect((await go("POST", `/v1/clinicas/${id}/copia/subida${NEW}`, { headers: { "If-None-Match": "*" } })).status).toBe(423);
+    await db.prepare("UPDATE clinic_status SET suspended_at = NULL WHERE clinic_id = ?").bind(id).run();
+
+    // La clínica a la papelera y, a los 30 días, fuera también de R2.
+    expect((await go("DELETE", `/v1/clinicas/${id}`, { json: { declaration: "Conservo la copia descargada de la clínica." } })).status).toBe(200);
+    expect(r2Keys().length).toBe(1);
+    await go("GET", "/v1/yo", {}, {}, () => Date.now() + 31 * 86_400_000);
+    expect(r2Keys()).toEqual([]);
   });
 });

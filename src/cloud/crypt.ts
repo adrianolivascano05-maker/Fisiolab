@@ -6,6 +6,10 @@
 // Archivo cifrado: «CENITENC1» + sal (16 bytes) + vector de inicio (12 bytes) + datos cifrados. Lo cifrado es la base
 // comprimida con gzip (ocupa unas ocho veces menos); una copia antigua, sin comprimir, se sigue abriendo (una base de
 // SQLite empieza por «SQLite format 3», no por la marca de gzip).
+// Por trozos (la copia de una clínica en el almacén de archivos, desde el 27-10-2026): «CENITENC2» + sal (16 bytes) y
+// después trozos de la base comprimida, cada uno con su longitud (4 bytes), su vector de inicio y su cifrado; cada
+// trozo lleva autenticados su número y si es el último, así no se pueden cambiar de orden, quitar ni cortar. Se cifra
+// y se sube trozo a trozo, sin tener la copia entera en memoria dos veces.
 // Cada dispositivo guarda la clave (no la contraseña) de cada cuenta para no pedirla cada vez, en IndexedDB y marcada
 // como no exportable: la app puede usarla, pero ni un script ni quien copie los datos del navegador puede leerla. El
 // ajuste sincronizado ENCRYPTION_KEY lleva la sal: así todos los dispositivos de la cuenta saben con qué se cifró.
@@ -15,6 +19,9 @@ export const ENCRYPTION_KEY = "drive_encryption";
 export type EncryptionSetting = { salt: string } | null;
 
 const MAGIC = new TextEncoder().encode("CENITENC1");
+const MAGIC2 = new TextEncoder().encode("CENITENC2");
+/** Lo que se cifra en cada trozo (de la base ya comprimida). */
+const PIECE_BYTES = 4 * 1024 * 1024;
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const ITERATIONS = 600_000; // lo que recomienda OWASP para PBKDF2-SHA-256
@@ -32,11 +39,17 @@ const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 export const newSalt = () => b64(crypto.getRandomValues(new Uint8Array(SALT_BYTES)));
 
+const startsWith = (bytes: Uint8Array, magic: Uint8Array) => bytes.byteLength > magic.length && magic.every((b, i) => bytes[i] === b);
+
+/** Una copia cifrada (de una pieza o por trozos). */
 export function isEncrypted(bytes: Uint8Array): boolean {
-  return bytes.byteLength > MAGIC.length && MAGIC.every((b, i) => bytes[i] === b);
+  return startsWith(bytes, MAGIC) || startsWith(bytes, MAGIC2);
 }
 
 /** La sal con la que se cifró una copia. */
+/** Si va cifrada por trozos (encryptPieces): así se sube a R2. */
+export const isPieces = (bytes: Uint8Array) => startsWith(bytes, MAGIC2);
+
 export const saltOf = (bytes: Uint8Array) => b64(bytes.slice(MAGIC.length, MAGIC.length + SALT_BYTES));
 
 export async function deriveKey(password: string, salt: string): Promise<CryptoKey> {
@@ -67,7 +80,119 @@ export async function encrypt(bytes: Uint8Array, key: CryptoKey, salt: string): 
   return out;
 }
 
+/** Lo autenticado de cada trozo: su número y si es el último. */
+function pieceTag(index: number, last: boolean): Uint8Array {
+  const tag = new Uint8Array(5);
+  new DataView(tag.buffer).setUint32(0, index);
+  tag[4] = last ? 1 : 0;
+  return tag;
+}
+
+/**
+ * Cifra por trozos (CENITENC2): primero la cabecera, después cada trozo según sale de la compresión. Quien lo recibe
+ * puede ir subiéndolos sin juntar la copia entera. La base no se copia: se lee por partes.
+ */
+export async function* encryptPieces(bytes: Uint8Array, key: CryptoKey, salt: string): AsyncGenerator<Uint8Array> {
+  const head = new Uint8Array(MAGIC2.length + SALT_BYTES);
+  head.set(MAGIC2, 0);
+  head.set(unb64(salt), MAGIC2.length);
+  yield head;
+  let offset = 0;
+  const source = new ReadableStream<BufferSource>({
+    pull(c) {
+      if (offset >= bytes.byteLength) return c.close();
+      c.enqueue(bytes.slice(offset, offset + 1024 * 1024));
+      offset += 1024 * 1024;
+    },
+  });
+  const reader = source.pipeThrough(new CompressionStream("gzip")).getReader();
+  let buffered: Uint8Array[] = [];
+  let size = 0;
+  let index = 0;
+  const seal = async (plain: Uint8Array, last: boolean) => {
+    const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+    const data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: pieceTag(index++, last) as BufferSource }, key, plain as BufferSource));
+    const out = new Uint8Array(4 + IV_BYTES + data.byteLength);
+    new DataView(out.buffer).setUint32(0, data.byteLength);
+    out.set(iv, 4);
+    out.set(data, 4 + IV_BYTES);
+    return out;
+  };
+  const take = (n: number) => {
+    const out = new Uint8Array(n);
+    let at = 0;
+    while (at < n) {
+      const first = buffered[0]!;
+      const k = Math.min(first.byteLength, n - at);
+      out.set(first.subarray(0, k), at);
+      at += k;
+      if (k === first.byteLength) buffered.shift();
+      else buffered[0] = first.subarray(k);
+    }
+    size -= n;
+    return out;
+  };
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffered.push(value);
+    size += value.byteLength;
+    // Se deja siempre algo sin cifrar hasta el final: el último trozo tiene que saber que es el último.
+    while (size > PIECE_BYTES) yield await seal(take(PIECE_BYTES), false);
+  }
+  yield await seal(take(size), true);
+  buffered = [];
+}
+
+/** Junta lo que da encryptPieces (para guardarlo de una vez, p. ej. en las pruebas). */
+export async function encryptToPieces(bytes: Uint8Array, key: CryptoKey, salt: string): Promise<Uint8Array> {
+  const parts: Uint8Array[] = [];
+  for await (const p of encryptPieces(bytes, key, salt)) parts.push(p);
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.byteLength, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.byteLength;
+  }
+  return out;
+}
+
+/** Descifra una copia por trozos: cada trozo, en orden, a la descompresión. WrongPassword si no abre o está cortada. */
+async function decryptPieces(bytes: Uint8Array, key: CryptoKey): Promise<Uint8Array> {
+  const unzip = new DecompressionStream("gzip");
+  const writer = unzip.writable.getWriter();
+  const result = new Response(unzip.readable).arrayBuffer();
+  let at = MAGIC2.length + SALT_BYTES;
+  let index = 0;
+  let last = false;
+  try {
+    while (!last) {
+      if (at + 4 + IV_BYTES > bytes.byteLength) throw new WrongPassword(); // cortada: falta el último trozo
+      const length = new DataView(bytes.buffer, bytes.byteOffset + at, 4).getUint32(0);
+      const iv = bytes.slice(at + 4, at + 4 + IV_BYTES);
+      const data = bytes.subarray(at + 4 + IV_BYTES, at + 4 + IV_BYTES + length);
+      if (data.byteLength !== length) throw new WrongPassword();
+      at += 4 + IV_BYTES + length;
+      last = at === bytes.byteLength;
+      let plain: ArrayBuffer;
+      try {
+        plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv, additionalData: pieceTag(index++, last) as BufferSource }, key, data as BufferSource);
+      } catch {
+        throw new WrongPassword();
+      }
+      await writer.write(new Uint8Array(plain));
+    }
+    await writer.close();
+  } catch (e) {
+    await writer.abort(e).catch(() => {});
+    await result.catch(() => {});
+    throw e;
+  }
+  return new Uint8Array(await result);
+}
+
 export async function decrypt(bytes: Uint8Array, key: CryptoKey): Promise<Uint8Array> {
+  if (startsWith(bytes, MAGIC2)) return decryptPieces(bytes, key);
   const start = MAGIC.length + SALT_BYTES;
   let plain: Uint8Array;
   try {

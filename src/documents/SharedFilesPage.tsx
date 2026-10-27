@@ -10,7 +10,7 @@ import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
 import { sizeText } from "../data/documents";
-import { listPatients } from "../data/repo";
+import { findPatients } from "../data/patientSearch";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
@@ -45,7 +45,7 @@ export function SharedFilesPage() {
   const { usage } = useDocsUsage();
   const files = useAsync(sharedFiles, []);
   const [search, setSearch] = useState("");
-  const patients = useAsync(() => listPatients(getDb(), search), [search]);
+  const patients = useAsync(async () => (await findPatients(getDb(), { search, limit: 30 })).rows, [search]);
   const [busy, setBusy] = useState<string | null>(null);
   const [problems, setProblems] = useState<string[]>([]);
 

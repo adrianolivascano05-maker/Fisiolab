@@ -18,6 +18,16 @@ export type Storage = {
 
 const SQLITE_HEADER = "SQLite format 3\u0000";
 
+/**
+ * Para buscar en la base (src/data/patientSearch.ts): fold() quita tildes y mayúsculas, como fold de
+ * src/app/format.ts, y digits() deja solo las cifras (un teléfono escrito con espacios o guiones).
+ */
+function addFunctions(db: DB) {
+  const opts = { deterministic: true, arity: 1 };
+  db.createFunction("fold", (_: unknown, s: unknown) => (s == null ? null : String(s).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase()), opts);
+  db.createFunction("digits", (_: unknown, s: unknown) => (s == null ? null : String(s).replace(/\D/g, "")), opts);
+}
+
 export class Engine {
   private db: DB;
 
@@ -35,6 +45,7 @@ export class Engine {
 
   private migrate(db: DB): DB {
     db.exec("pragma foreign_keys = on;");
+    addFunctions(db);
     const current = db.selectValue("pragma user_version") as number;
     for (const m of [...this.migrations].sort((a, b) => a.version - b.version)) {
       if (m.version <= current) continue;

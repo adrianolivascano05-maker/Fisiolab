@@ -7,7 +7,8 @@ import { Link, useSearchParams } from "react-router";
 import { lastPatient } from "../app/recent";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
-import { getPatient, listPatients } from "../data/repo";
+import { findPatients } from "../data/patientSearch";
+import { getPatient } from "../data/repo";
 import { Button } from "../ui/Button";
 import { Sheet } from "../ui/Sheet";
 
@@ -29,10 +30,11 @@ export function ForPatient({ to, label, labelFor, icon }: Props) {
   const current = useAsync(async () => (pid ? getPatient(getDb(), pid) : null), [pid]);
   const recent = lastPatient();
   const list = useAsync(async () => {
-    if (!open) return [];
-    const found = await listPatients(getDb(), q);
-    // El último paciente abierto, primero (si está en la búsqueda).
-    return [...found.filter((p) => p.id === recent), ...found.filter((p) => p.id !== recent)];
+    if (!open) return { rows: [], more: 0 };
+    const { rows, total } = await findPatients(getDb(), { search: q });
+    // El último paciente abierto, primero (si está en la búsqueda; sin buscar, aunque no salga en esta página).
+    const first = rows.find((p) => p.id === recent) ?? (recent && !q.trim() ? await getPatient(getDb(), recent) : null);
+    return { rows: [...(first ? [first] : []), ...rows.filter((p) => p.id !== recent)], more: total - rows.length };
   }, [open, q, recent]);
 
   return (
@@ -62,9 +64,9 @@ export function ForPatient({ to, label, labelFor, icon }: Props) {
             className="h-11 w-full rounded-md border border-border-input bg-bg pr-3 pl-10 text-base"
           />
         </div>
-        {list.data && list.data.length > 0 ? (
+        {list.data && list.data.rows.length > 0 ? (
           <ul className="flex max-h-[50dvh] flex-col divide-y divide-border overflow-y-auto rounded-lg border border-border">
-            {list.data.map((p) => (
+            {list.data.rows.map((p) => (
               <li key={p.id}>
                 <Link to={to(p.id)} className="flex min-h-12 items-center justify-between gap-2 px-3 font-semibold hover:bg-surface">
                   <span>{p.name}</span>
@@ -76,6 +78,7 @@ export function ForPatient({ to, label, labelFor, icon }: Props) {
         ) : (
           list.data && <p className="text-sm text-text-muted">{q ? `Ningún paciente se llama «${q}».` : "Todavía no hay pacientes."}</p>
         )}
+        {!!list.data?.more && <p className="text-sm text-text-muted">Y {list.data.more} más: escribe su nombre, teléfono o DNI para encontrarlo.</p>}
       </Sheet>
     </>
   );

@@ -1,11 +1,12 @@
 // Una D1 de prueba para worker.test.ts: la parte de la API de D1 que usa worker.js (prepare, bind, run, all,
-// first, batch en una transacción y meta.changes) sobre SQLite WASM en memoria, con las tablas de schema.sql.
+// first, batch en una transacción, meta.changes y meta.size_after) sobre SQLite WASM en memoria, con las tablas de
+// schema.sql.
 // Como D1, acepta los BLOB como ArrayBuffer, vista o lista de números y los devuelve como lista de números.
 import sqlite3InitModule, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
 import { readFileSync } from "node:fs";
 
 export type D1Row = Record<string, unknown>;
-export type D1Result = { success: true; results: D1Row[]; meta: { changes: number } };
+export type D1Result = { success: true; results: D1Row[]; meta: { changes: number; size_after: number } };
 
 const schema = readFileSync(new URL("./schema.sql", import.meta.url), "utf8");
 let sqlite3: Promise<Awaited<ReturnType<typeof sqlite3InitModule>>> | null = null;
@@ -61,7 +62,8 @@ export class D1Shim {
     const results = rows.map((row) =>
       Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v instanceof Uint8Array ? Array.from(v) : v])),
     );
-    return { success: true, results, meta: { changes: Number(this.db.changes(true)) - Number(before) } };
+    const size = Number(this.db.selectValue("PRAGMA page_count")) * Number(this.db.selectValue("PRAGMA page_size"));
+    return { success: true, results, meta: { changes: Number(this.db.changes(true)) - Number(before), size_after: size } };
   }
 }
 

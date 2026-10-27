@@ -40,8 +40,18 @@ test.describe("Clínica de prueba", () => {
     await page.goto("./");
     const list = page.getByRole("list", { name: "Pacientes" });
     await expect(list).toBeVisible();
-    await expect(list.getByRole("link")).toHaveCount(100);
+    // Por páginas de 50: la base solo trae los que se ven.
+    await expect(list.getByRole("link")).toHaveCount(50);
+    const pages = page.getByRole("navigation", { name: "Páginas de pacientes" });
+    await expect(pages).toContainText("1–50 de 100");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    expect(await smallTargets(page)).toEqual([]);
+    await pages.getByRole("button", { name: "Siguientes" }).click();
+    await expect(pages).toContainText("51–100 de 100");
+    await expect(list.getByRole("link")).toHaveCount(50);
+    await expect(pages.getByRole("button", { name: "Siguientes" })).toBeDisabled();
+    await pages.getByRole("button", { name: "Anteriores" }).click();
+    await expect(pages).toContainText("1–50 de 100");
     // Una ficha cualquiera, con su historia.
     await list.getByRole("link").first().click();
     await expect(page.getByRole("tab", { name: /Sesiones/ }).or(page.getByRole("link", { name: /Sesiones/ })).first()).toBeVisible();
@@ -76,7 +86,8 @@ test.describe("Clínica de prueba", () => {
     times["cargar"] = await load(page, "Modo estrés: 500 pacientes");
     await expect(page.getByRole("region", { name: "Clínica de prueba" })).toContainText(/Cargados el .*500 pacientes de prueba \(modo estrés\)/);
     const list = page.getByRole("list", { name: "Pacientes" });
-    times["pacientes"] = await timed(page, "./", () => expect(list.getByRole("link")).toHaveCount(500, { timeout: 30_000 }));
+    times["pacientes"] = await timed(page, "./", () => expect(list.getByRole("link")).toHaveCount(50, { timeout: 30_000 }));
+    await expect(page.getByRole("navigation", { name: "Páginas de pacientes" })).toContainText("de 500");
     times["buscar"] = await (async () => {
       const start = Date.now();
       await page.getByRole("searchbox").fill("García");

@@ -126,6 +126,9 @@ test.describe("Archivos del paciente", () => {
   test("AR2 pedírselos al paciente: los sube desde su móvil (PDF o fotos) y llegan solos a su ficha", async ({ page, browser }) => {
     test.slow();
     const google = new FakeGoogle(users);
+    // Un servidor de una versión anterior, que no dice en la consulta de cada minuto si hay respuestas: la app las
+    // pregunta aparte, como antes (CL12 prueba el servidor de ahora).
+    google.formsInInfo = false;
     const errors: string[] = [];
     await enterClinic(page, google);
     await createPatient(page, { name: "Nora Archivos" });

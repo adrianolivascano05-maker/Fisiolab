@@ -608,6 +608,15 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("link", { name: /Proveedor/ }).click();
     await expect(page.getByRole("heading", { name: "Proveedor" })).toBeVisible();
     await expect(page.getByRole("region", { name: "Clínicas" }).getByRole("button", { name: /Fisiolab Centro/ })).toBeVisible();
+    // Lo que ocupa el servidor; al 70 % de un límite, el aviso con qué hacer.
+    const summary = page.getByRole("region", { name: "Resumen" });
+    await expect(summary.getByText("Almacén R2 (archivos y copias)")).toBeVisible();
+    await expect(summary.getByText("2 MB de 500 MB")).toBeVisible();
+    await expect(page.getByText(/La base de datos va por el/)).toHaveCount(0);
+    google.databaseBytes = 400_000_000;
+    await page.reload();
+    await expect(page.getByText("La base de datos va por el 80 % (400 MB de 500 MB)")).toBeVisible();
+    google.databaseBytes = 2_000_000;
     await page.getByLabel("Correo del responsable").fill("carla@otra.test");
     await page.getByRole("button", { name: "Dar de alta" }).click();
     await expect(page.getByRole("region", { name: "Pueden crear clínicas" }).getByRole("button", { name: /carla@otra\.test/ })).toBeVisible();
@@ -902,4 +911,52 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     expect(errors).toEqual([]);
   });
 
+  test("CL14 copia grande: con almacén R2 la copia entera viaja por trozos y en bytes; sin él, como antes", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    // Trozos pequeños: así una base de prueba ya va en varios.
+    google.copyPartBytes = 4096;
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Paciente Por Trozos" });
+    await choosePassword(page);
+    await inServer(google, "Paciente Por Trozos");
+    const copy = google.clinicCopy("Fisiolab Centro")!;
+    expect(copy.r2).toBe(true);
+    expect(copy.bytes.subarray(0, 9).toString("latin1")).toBe("CENITENC2");
+    expect(copy.bytes.length).toBeGreaterThan(2 * google.copyPartBytes);
+    expect(copy.bytes.toString("latin1").includes(enc("Paciente Por Trozos"))).toBe(false);
+    expect(google.uploads.size).toBe(0);
+    // Otro dispositivo la baja en bytes y la abre con la contraseña.
+    const tablet = await device(browser, google, "ana", errors);
+    await enter(tablet);
+    await tablet.getByRole("list", { name: "Tus clínicas" }).getByRole("button", { name: /Fisiolab Centro/ }).click();
+    await patients(tablet);
+    await unlock(tablet);
+    await expect(tablet.getByRole("link", { name: /Paciente Por Trozos/ })).toBeVisible();
+    // Lo nuevo sigue yendo en lotes de cambios.
+    await createPatient(tablet, { name: "Paciente De La Tablet" });
+    await inServer(google, "Paciente De La Tablet");
+    await page.goto("./");
+    await expect(page.getByRole("link", { name: /Paciente De La Tablet/ })).toBeVisible({ timeout: 15_000 });
+    expect(errors).toEqual([]);
+  });
+
+  test("CL15 sin almacén R2 la copia de la clínica sigue en base64, como antes", async ({ page }) => {
+    const google = new FakeGoogle(users);
+    google.docsEnabled = false;
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Paciente En Base" });
+    await choosePassword(page);
+    await inServer(google, "Paciente En Base");
+    const copy = google.clinicCopy("Fisiolab Centro")!;
+    expect(copy.r2).toBeFalsy();
+    expect(copy.bytes.subarray(0, 9).toString("latin1")).toBe("CENITENC1");
+  });
 });

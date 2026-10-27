@@ -68,7 +68,7 @@ de la última cuenta que entró en él.
 | `clinic.ts`, `TeamPage.tsx` | con el servidor de Cloudflare: la clínica en la que se trabaja (su base, `fisiolab-u<id>-c<clínica>.sqlite3`), lo que se pide al servidor sobre clínicas y equipo, y la pantalla Ajustes → Equipo de la clínica |
 | `drive.ts` | la copia en Drive: listar, bajar, subir y borrar, con la API REST v3 |
 | `remote.ts` | dónde vive la copia: Drive o el servidor de Cloudflare, con la misma interfaz para `sync.ts` |
-| `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista, 5 segundos después del último cambio y al salir de la app |
+| `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista (con el servidor de la clínica, cada minuto mientras se usa y cada 5 si nadie la toca en 5 minutos), 5 segundos después del último cambio y al salir de la app |
 | `AccountPages.tsx` | la tarjeta de la cuenta en la pantalla principal y la pantalla para pegar el ID de cliente en el dispositivo |
 | `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «Cénit · Citas» que crea la app |
 | `saveToDrive.ts`, `DriveSaveButton.tsx` | guardar el informe en PDF y los resultados en CSV en la carpeta «Cénit · Fisiolab» de Drive |
@@ -161,7 +161,21 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
 
 - La copia va al servidor de la clínica (Cloudflare Workers + D1 con jurisdicción `eu`), no a Drive, y la app ya no
   pide el permiso de la carpeta oculta de Drive (`drive.appdata`).
-- Como en Drive, solo se suben copias cifradas; además, el servidor rechaza lo que no empiece por `CENITENC1`.
+- Como en Drive, solo se suben copias cifradas; además, el servidor rechaza lo que no empiece por `CENITENC1` (o
+  `CENITENC2`, la copia por trozos de abajo).
+- **Copia entera en R2, por trozos (27-10-2026).** Si el servidor tiene el almacén R2 (`/copia/info` dice
+  `pieces: true`), la copia entera se cifra por trozos (`encryptPieces` en `crypt.ts`, formato `CENITENC2`: cada
+  trozo de 4 MiB comprimido y cifrado con su número y si es el último, así que no se puede cortar ni cambiar de
+  orden sin que se note) y se sube en bytes, en partes de 8 MiB, cada una con sus reintentos (`putPieces` en
+  `remote.ts`). Al bajarla llegan los bytes tal cual. Sin base64 ni el tope de 50 MB de la base D1, y el servidor
+  nunca la tiene entera en memoria. Sin R2 (o con un servidor anterior), la copia entera va en base64 como antes
+  (`CENITENC1`); los lotes de cambios, siempre así. Las versiones anteriores de la app no saben leer la copia en R2:
+  el servidor les dice «actualiza la app» (`426`).
+- **Una consulta por minuto.** La consulta de la sincronización (`/copia/info`) dice también cuántas respuestas de
+  pacientes esperan (`forms`): el buzón de formularios (`../patientForm/FormInbox.tsx`) las recoge al verlas, sin
+  preguntar aparte. Con un servidor anterior, que no lo dice, pregunta aparte cada minuto como antes. Si nadie toca
+  la app en 5 minutos (la tablet de recepción), se mira cada 5 minutos; al tocarla, enseguida
+  (`e2e/capacidad.spec.ts`: 1 petición por minuto en uso, antes 1,9).
 - **Por cambios, no la base entera** (`sync.ts`, `deltaRound`; migración 017). Una clínica de 15 personas con un año
   de uso ocupa unos 26 MB (2,6 MB comprimida y cifrada): subirla y bajarla en cada cambio, en cada dispositivo, no
   escala. Así que cada dispositivo sube solo lo que ha cambiado desde la última vez (un lote cifrado con las filas
@@ -169,7 +183,8 @@ Con `"cloudflareUrl"` en `public/cloud.json` (el servidor de `cloudflare/`), la 
   `sync_state.pushed`, con sus campos) y baja los lotes de los demás desde el último que tiene (`applyDelta`, con la
   misma regla: campo a campo). La copia entera solo se baja la primera vez en un dispositivo o si se
   ha quedado atrás; cuando se juntan 200 lotes (o 2 MB), un dispositivo sube una copia entera nueva y el servidor
-  borra los anteriores. Cada lote dice con qué versión de la base se hizo: uno de una versión más nueva pide
+  borra los anteriores. Con una copia grande (5 MB o más) se espera a 1.000 lotes o al 10 % de lo que ocupa
+  (`shouldCompact`): subirla entera cuesta más que bajar unos lotes de más. Cada lote dice con qué versión de la base se hizo: uno de una versión más nueva pide
   actualizar la app.
 - **Paso de la copia entera a los cambios.** La app nueva añade `?v=2` a las rutas de la copia. Con un servidor
   anterior (que no lo entiende) sincroniza con la copia entera, como siempre. Con el servidor nuevo, el primer

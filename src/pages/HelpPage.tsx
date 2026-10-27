@@ -16,7 +16,8 @@ const steps: { title: string; body: ReactNode }[] = [
     body: (
       <>
         Pulsa <b>+</b> arriba a la derecha para añadir uno (con el nombre basta). Arriba salen sus <b>próximas citas</b> y las reevaluaciones
-        pendientes; debajo, todos por orden alfabético, con el buscador.
+        pendientes; debajo, todos por orden alfabético, de 50 en 50. Búscalos por nombre, teléfono o DNI, y con <b>Filtros</b> por edad, sexo,
+        fisio, si tienen cita, cuándo vinieron por última vez o si tienen algo pendiente de cobrar o de firmar.
       </>
     ),
   },

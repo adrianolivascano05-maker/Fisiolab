@@ -13,7 +13,8 @@ import { clashes, createAppointment, createWeekly, deleteAppointment, markConfir
 import { useAsync } from "../app/useAsync";
 import { accountLine, addPayment, euros, getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
-import { createPatient, getPatient, listPatients, matchesPatient, QUICK_PATIENT } from "../data/repo";
+import { findPatients } from "../data/patientSearch";
+import { createPatient, getPatient, QUICK_PATIENT } from "../data/repo";
 import { editText, lastEditOf } from "../data/editors";
 import { memberEmail } from "../data/member";
 import { listWaitlist } from "../data/waitlist";
@@ -604,8 +605,9 @@ export function AppointmentSheet({
 export function PatientPicker({ picked, onPick }: { picked: { id: string; name: string } | null; onPick: (p: { id: string; name: string } | null) => void }) {
   const [q, setQ] = useState("");
   const [adding, setAdding] = useState(false);
-  const all = useAsync(() => listPatients(getDb()), []);
-  const found = (all.data ?? []).filter((p) => p.name !== QUICK_PATIENT && matchesPatient(p, q)).slice(0, 6);
+  // En la base, sin cargarlos todos: los 6 primeros que coinciden.
+  const all = useAsync(async () => (await findPatients(getDb(), { search: q, limit: 7 })).rows.filter((p) => p.name !== QUICK_PATIENT).slice(0, 6), [q]);
+  const found = all.data ?? [];
   if (picked)
     return (
       <div className="flex items-center justify-between gap-2 rounded-md bg-surface px-3 py-2">

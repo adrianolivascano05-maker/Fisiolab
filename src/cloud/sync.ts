@@ -21,7 +21,7 @@ import { getSetting } from "../data/repo";
 import type { DeltaItem, MergeResult } from "../data/syncMerge";
 import type { Account } from "./account";
 import { clearToken, getToken, type Token } from "./auth";
-import { decrypt, deriveKey, encrypt, ENCRYPTION_KEY, forgetKey, isEncrypted, saltOf, storedKey, storeKey, WrongPassword, type EncryptionSetting, type StoredKey } from "./crypt";
+import { decrypt, deriveKey, encrypt, encryptToPieces, ENCRYPTION_KEY, forgetKey, isEncrypted, saltOf, storedKey, storeKey, WrongPassword, type EncryptionSetting, type StoredKey } from "./crypt";
 import { AuthError } from "./drive";
 import { driveStore, RemoteConflict, type DeltaApi, type DeltaInfo, type RemoteStore } from "./remote";
 
@@ -48,6 +48,12 @@ export type SyncState = {
   keySalt?: string | null;
   /** Lo que se acababa de cambiar aquí y otro ha cambiado después: se ha quedado lo suyo («Editado por»). */
   overwritten?: string[];
+  /**
+   * Respuestas de pacientes por recoger, según la última consulta al servidor de la clínica (src/patientForm/
+   * FormInbox.tsx las recoge al verlas). null: el servidor no lo dice (Drive o una versión anterior): hay que preguntar
+   * aparte. Sin definir: aún no se ha mirado.
+   */
+  forms?: number | null;
 };
 
 type Meta = {
@@ -71,9 +77,14 @@ type DeltaBatch = { schema: number; items: DeltaItem[] };
 /** Tamaño de cada lote al subir: así ningún lote pasa del máximo del servidor (1 MB en base64, ya comprimido). */
 const BATCH_ITEMS = 400;
 const BATCH_CHARS = 500_000;
-/** Con tantos lotes (o tanto tamaño) después de la copia entera, se sube una nueva y el servidor borra los anteriores. */
-const COMPACT_DELTAS = 200;
-const COMPACT_BYTES = 2 * 1024 * 1024;
+/**
+ * Con tantos lotes (o tanto tamaño) después de la copia entera, se sube una nueva y el servidor borra los anteriores.
+ * Con una copia grande se espera más: subirla entera cuesta más que bajar unos cuantos lotes de más.
+ */
+export function shouldCompact(copyBytes: number, deltas: number, deltaBytes: number): boolean {
+  const big = copyBytes >= 5 * 1024 * 1024;
+  return deltas >= (big ? 1000 : 200) || deltaBytes >= Math.max(2 * 1024 * 1024, copyBytes / 10);
+}
 
 /** Parte los cambios en lotes que no pasen de BATCH_ITEMS ni de BATCH_CHARS (en JSON, antes de comprimir). */
 function batches(items: DeltaItem[]): DeltaItem[][] {
@@ -112,6 +123,12 @@ const AFTER_CHANGE_MS = 5000;
 /** Cada cuánto se mira la nube con la app a la vista: con el servidor de la clínica, cada minuto (lo hace todo el equipo). */
 const EVERY_MS = 5 * 60_000;
 const EVERY_MS_SERVER = 60_000;
+/**
+ * Con el servidor de la clínica: si nadie toca la app en tanto tiempo (la tablet de recepción con la agenda abierta),
+ * se mira cada 5 minutos en vez de cada minuto; al volver a tocarla, enseguida. Así cada dispositivo olvidado encima
+ * de la mesa no gasta peticiones del servidor.
+ */
+const IDLE_MS = 5 * 60_000;
 
 export class SyncController {
   private state: SyncState;
@@ -121,6 +138,8 @@ export class SyncController {
   private ownWrite = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
   private stops: (() => void)[] = [];
+  /** Cuándo se miró la nube por última vez (para el ritmo sin uso). */
+  private lastLook = 0;
 
   /**
    * `scope`: de quién son la base y la copia, para guardar en este dispositivo la clave de cifrado y por dónde va la
@@ -187,12 +206,29 @@ export class SyncController {
       if (document.visibilityState === "visible") this.schedule(0);
     };
     const onOnline = () => this.schedule(0);
+    const server = this.store.kind === "server";
+    let lastUse = Date.now();
+    const onUse = () => {
+      const wasIdle = Date.now() - lastUse > IDLE_MS;
+      lastUse = Date.now();
+      if (server && wasIdle) this.schedule(0);
+    };
+    const use = ["pointerdown", "keydown"] as const;
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("online", onOnline);
-    const every = setInterval(() => document.visibilityState === "visible" && void this.sync(), this.store.kind === "server" ? EVERY_MS_SERVER : EVERY_MS);
+    for (const e of use) window.addEventListener(e, onUse, { capture: true, passive: true });
+    const every = setInterval(
+      () => {
+        if (document.visibilityState !== "visible") return;
+        if (server && Date.now() - lastUse > IDLE_MS && Date.now() - this.lastLook < IDLE_MS) return;
+        void this.sync();
+      },
+      server ? EVERY_MS_SERVER : EVERY_MS,
+    );
     this.stops.push(
       () => document.removeEventListener("visibilitychange", onVisibility),
       () => window.removeEventListener("online", onOnline),
+      () => use.forEach((e) => window.removeEventListener(e, onUse, { capture: true })),
       () => clearInterval(every),
     );
     void this.refreshPending();
@@ -253,8 +289,10 @@ export class SyncController {
     if (!token) return this.set({ status: "needs-auth", failing: "needs-auth" });
     if (!navigator.onLine) return this.set({ status: "offline", failing: "offline" });
     this.set({ status: "syncing" });
+    this.lastLook = Date.now();
     try {
       const info = this.store.deltas && (await this.store.deltas.info(token));
+      this.set({ forms: info && typeof info.forms === "number" ? info.forms : null });
       const pulled = info ? await this.deltaRound(token, info, this.store.deltas!) : await this.wholeRound(token);
       await this.refreshPending();
       this.set({ status: "idle", lastSyncAt: this.meta()?.lastSyncAt ?? null, newData: this.state.newData || pulled > 0, keySalt: null, error: null, failing: null });
@@ -298,7 +336,7 @@ export class SyncController {
     if (!files.length) {
       // Primera vez: la copia de este dispositivo es la de la nube.
       const snap = await this.db.snapshot();
-      const f = await store.create(token, await this.seal(snap.bytes, key));
+      const f = await store.create(token, await this.seal(snap.bytes, key, true));
       await this.markPushed(snap.changes);
       this.saveMeta({ fileId: f.id, version: f.version, lastSyncAt: new Date().toISOString() });
     } else {
@@ -323,7 +361,7 @@ export class SyncController {
       let version = main!.version;
       if (needUpload) {
         const snap = await this.db.snapshot();
-        version = (await store.update(token, main!, await this.seal(snap.bytes, key))).version;
+        version = (await store.update(token, main!, await this.seal(snap.bytes, key, true))).version;
         await this.markPushed(snap.changes);
         for (const f of extra) await store.remove(token, f);
       }
@@ -357,7 +395,7 @@ export class SyncController {
     if (!info.version) {
       // Nada en el servidor: la copia de aquí es la primera (y con ella, la clínica sincroniza por cambios).
       const snap = await this.db.snapshot();
-      const sealed = await this.seal(snap.bytes, key);
+      const sealed = await this.seal(snap.bytes, key, true);
       const f = await store.create(token, sealed, 0);
       await this.markPushed(snap.changes);
       await this.clearLegacy();
@@ -412,7 +450,7 @@ export class SyncController {
 
     if (uploadWhole) {
       const snap = await this.db.snapshot();
-      const sealed = await this.seal(snap.bytes, key);
+      const sealed = await this.seal(snap.bytes, key, true);
       const f = await store.update(token, { id: "copia", version }, sealed, cursor);
       version = f.version;
       epoch = f.epoch ?? epoch;
@@ -435,10 +473,10 @@ export class SyncController {
       }
       if (p.changes > s!.pushed) await this.markPushed(p.changes);
       // Resumir: una copia entera con todo hasta aquí (y con la contraseña de ahora); el servidor borra lo anterior.
-      if (key && (info.deltas + sent >= COMPACT_DELTAS || info.deltaSize >= COMPACT_BYTES || snapSalt !== key.salt)) {
+      if (key && (shouldCompact(info.size ?? 0, info.deltas + sent, info.deltaSize) || snapSalt !== key.salt)) {
         try {
           const snap = await this.db.snapshot();
-          const sealed = await this.seal(snap.bytes, key);
+          const sealed = await this.seal(snap.bytes, key, true);
           version = (await store.update(token, { id: "copia", version }, sealed, cursor)).version;
           snapSalt = key.salt;
         } catch (e) {
@@ -496,12 +534,15 @@ export class SyncController {
     return (await getSetting<EncryptionSetting>(this.db, ENCRYPTION_KEY)) ?? null;
   }
 
-  /** La copia para subir, cifrada (sin contraseña o sin la clave, no se sube). */
-  private async seal(bytes: Uint8Array, key: StoredKey | null): Promise<Uint8Array> {
+  /**
+   * La copia para subir, cifrada (sin contraseña o sin la clave, no se sube). `whole`: la copia entera, que va por
+   * trozos si el servidor la guarda en R2 (los lotes de cambios, siempre de una pieza).
+   */
+  private async seal(bytes: Uint8Array, key: StoredKey | null, whole = false): Promise<Uint8Array> {
     const enc = await this.encryption();
     if (!enc) throw new NeedsPassword();
     if (!key || key.salt !== enc.salt) throw new NeedsKey(enc.salt);
-    return encrypt(bytes, key.key, key.salt);
+    return whole && this.store.pieces ? encryptToPieces(bytes, key.key, key.salt) : encrypt(bytes, key.key, key.salt);
   }
 
   /** Una copia bajada de Drive, lista para juntar: descifrada si viene cifrada. */

@@ -119,39 +119,48 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
 ## Clínicas grandes y muchas clínicas (medido el 26-10-2026)
 
 Pregunta del usuario: qué pasa si da servicio a 10 clínicas de 10.000 pacientes cada una. Lo que más le importa: que
-la sincronización nunca dé problemas, también cuando varias personas cambian cosas a la vez. Nada de esto está hecho
-salvo el DNI en la búsqueda.
+la sincronización nunca dé problemas, también cuando varias personas cambian cosas a la vez. Hechos: el DNI en la
+búsqueda, el bloque B (26-10-2026) y el bloque A (27-10-2026). Quedan C y D.
 
 - **Medido** (ordenador de pruebas, clínica inventada de 10.000 pacientes con 57.000 citas y 32.000 sesiones, unos
   3 años de 10 fisios): base de 174 MB en cada dispositivo; copia comprimida de 54 MB; lista de pacientes 0,4 s;
   agenda de una semana 0,05 s. Con 500 pacientes: 10 MB, copia de 2,9 MB. Exportación completa de los 10.000 (sin
   PDF): .zip de 120 MB, 3,5 minutos y unos 3.200 MB de memoria a la vez. Importar 10.000 pacientes, 2 s; 30.000
   sesiones de un CSV de 14 MB, 10 s.
-- **Límites de hoy:**
-  - La copia de la clínica (la base entera, cifrada) tiene un tope de 50 MB en el servidor (`MAX_CHARS` en
-    `cloudflare/worker.js`), porque viaja como texto y el servidor tiene 128 MB de memoria por petición en todos los
-    planes. Pasado el tope: una clínica nueva que empieza ya grande (importada) no puede empezar a sincronizar; una
-    que crece sigue subiendo sus cambios, pero cada vuelta intenta subir la copia entera, falla y lo vuelve a intentar
-    (error en pantalla, datos y batería), y los cambios se acumulan en el servidor.
-  - Hacer la copia en el móvil junta en memoria la base, la comprimida, la cifrada y el texto (unos 355 MB con 10.000
-    pacientes): en iPhone puede cerrarse la página.
-  - La lista de pacientes carga y dibuja todos.
-  - La exportación completa monta el .zip en memoria.
-  - Plan gratuito: base de 500 MB para todas las clínicas; 100.000 peticiones al día; 10 ms de proceso por petición.
+- **Límites antes del bloque A** (el 27-10-2026 quedan solo los dos últimos):
+  - ~~La copia de la clínica tenía un tope de 50 MB en el servidor~~: con R2 ya no (hasta 2 GB). Sin R2 sigue igual,
+    y el panel del proveedor avisa desde 35 MB.
+  - ~~Hacer la copia en el móvil juntaba la base, la comprimida, la cifrada y el texto (unos 355 MB)~~: ahora la
+    base y la cifrada (unos 230 MB con 10.000 pacientes, calculado: 174 + 54), sin el texto en base64.
+  - ~~La lista de pacientes cargaba y dibujaba todos~~: ahora de 50 en 50, buscando en la base.
+  - La exportación completa monta el .zip en memoria (bloque C).
+  - Plan gratuito: base de 500 MB para todas las clínicas (con R2, las copias ya no van ahí); 100.000 peticiones al
+    día (ahora 1 por minuto y dispositivo en uso, 1 cada 5 minutos sin uso); 10 ms de proceso por petición.
 - **Sincronización a la vez (cómo es hoy):** cada cosa es una fila (cada sesión, cita, cobro, cuestionario o
   archivo): dos personas que añaden cosas a la vez nunca se pisan. Si dos cambian la misma fila (los datos del
   paciente, la misma anamnesis, la misma cita), gana el último cambio entero y el otro dispositivo ve «Editado por»
   si lo había cambiado en el último cuarto de hora; lo anterior no se guarda. Dos citas a la misma hora de la misma
   persona pueden quedar las dos si se dan a la vez en dos dispositivos.
 - **Propuesto (por bloques, a la espera del usuario):**
-  - A. La copia de la clínica a R2, por trozos (sin tope de 50 MB, sin juntarlo todo en memoria, en binario), y
-    copia entera menos a menudo en las clínicas grandes. Aviso en el panel del proveedor al 70 % de cualquier
-    límite. Pacientes con buscador (sobre todo nombre, teléfono o DNI) y filtros que eligió el usuario: edad, sexo,
-    fisio, con cita próxima, último día que vino y con algo pendiente de cobrar o de firmar (no zona ni motivo, ni
-    activos/antiguos/alta); «todos de la A a la Z» por páginas. El tope de los PDF lo pone el administrador desde
-    Cloudflare. Aprobado por el usuario; pendiente.
-  - Visto al revisar el código: para enviar la copia entera, el servidor la junta en memoria; con una copia de
-    40-50 MB podría pasarse de los 128 MB antes del tope de 50 MB. Lo arregla el bloque A.
+  - A. **Hecho el 27-10-2026.** La copia de la clínica a R2, por trozos de 8 MiB y en bytes (formato `CENITENC2`,
+    cifrada por trozos de 4 MiB que no se pueden cortar ni cambiar de orden sin que se note); el servidor la baja
+    sin juntarla en memoria (antes, con 40-50 MB podía pasarse de sus 128 MB). Copia entera menos a menudo en las
+    clínicas grandes (desde 5 MB: a los 1.000 lotes o al 10 % de lo que ocupa). Una consulta por minuto (dice también
+    si hay formularios respondidos) y una cada 5 minutos si nadie toca la app: 1 petición por minuto, antes 1,9.
+    Pacientes de 50 en 50 con buscador en la base (nombre, teléfono o DNI y lo demás de la ficha) y filtros: edad,
+    sexo, fisio, con cita próxima, última vez que vino y con algo pendiente de cobrar o de firmar. Panel del
+    proveedor con lo que ocupan el almacén y la base, y avisos al 70 %; tope del almacén con `DOCS_CAP_GB`.
+    Medido con 10.000 pacientes (la clínica de prueba, base de 39 MB): primera página 0,05 s (antes la lista entera,
+    0,2-0,4 s, y dibujar 10.000 filas); buscar un nombre 0,08 s; un teléfono 0,09 s; filtros sencillos 0,01-0,04 s;
+    pendiente de cobrar 0,4 s y de firmar 0,6 s (una vez al ponerlo, no en cada página). Pruebas:
+    `src/data/patientSearch.test.ts`, «copia de la clínica en R2» en `cloudflare/worker.test.ts`,
+    `src/cloud/remote.test.ts`, `src/cloud/crypt.test.ts`, `src/cloud/limits.test.ts`, CL14-CL15 en
+    `e2e/clinics.spec.ts`, CAP1-CAP2 en `e2e/capacidad.spec.ts` y F01-E7 en `e2e/f01-patients.spec.ts`.
+  - Pendiente del bloque A: el selector de pacientes de la agenda y el de «Registrar en un paciente» ya buscan en la
+    base; la importación de pacientes (comprobar duplicados) sigue cargándolos todos (una vez, al importar).
+  - Las peticiones al día no las sabe el servidor (contarlas costaría una escritura por petición): se miran en el
+    panel de Cloudflare (Workers → Metrics). Si se quiere el aviso al 70 % también ahí, se puede leer la API de
+    analíticas de Cloudflare con un token de solo lectura (a valorar).
   - B. **Hecho el 26-10-2026** (el usuario la puso primero): sincronización campo a campo (migración 033; si uno
     cambia el teléfono y otro las notas, se quedan los dos; en la anamnesis, respuesta a respuesta), lo que pierde se
     guarda tres meses para recuperarlo (Ajustes › Cuenta › «Cambios sustituidos»), aviso de cita doble al
@@ -174,8 +183,8 @@ El usuario pidió tener presentes estas ideas para más adelante.
 
 - Cloudflare de pago (Workers Paid, unos 5 $ al mes): base de 10 GB, 5 GB incluidos y después 0,75 $ por GB al mes;
   10 millones de peticiones al mes; más tiempo de proceso. Conviene en cuanto se facture.
-- R2 (archivos y, si se hace el bloque A, copias): 10 GB gratis y después 0,015 $ por GB al mes (500 GB, unos 7,35 $;
-  1 TB, unos 15 $). Bajar archivos no se cobra.
+- R2 (archivos y copias de las clínicas, desde el 27-10-2026): 10 GB gratis y después 0,015 $ por GB al mes (500 GB,
+  unos 7,35 $; 1 TB, unos 15 $). Bajar archivos no se cobra. El tope se sube con `DOCS_CAP_GB`.
 - Cupo de archivos por clínica (por ejemplo, 20 GB incluidos en su cuota, unos 0,30 $ al mes de coste) y planes por
   tamaño de clínica.
 - Si un día hace falta app en la App Store: 99 € al año de Apple; en Google Play, 25 $ una vez (según guías de

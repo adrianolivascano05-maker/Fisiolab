@@ -21,6 +21,7 @@ import { useToast } from "../ui/Toast";
 import { getToken } from "./auth";
 import type { OperatorClinic } from "./clinic";
 import { useCloud } from "./CloudGate";
+import { limitWarnings } from "./limits";
 import { saveFile } from "../app/download";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -133,17 +134,27 @@ export function ProviderPage() {
         )}
       </section>
 
+      {/* Al 70 % de cada límite: qué pasa al llegar y qué hacer antes. */}
+      {data.data &&
+        limitWarnings(data.data).map((w) => (
+          <Alert key={w.title} tone="warning" title={w.title}>
+            {w.detail}
+          </Alert>
+        ))}
       <Group title="Resumen" footer={data.data ? undefined : "Cargando…"}>
         <Row title={`${active.length === 1 ? "1 clínica" : `${active.length} clínicas`}`} subtitle={`${people === 1 ? "1 persona" : `${people} personas`} en sus equipos`} />
         {data.data?.documents && (
           <Row
-            title="Archivos de pacientes (R2)"
+            title="Almacén R2 (archivos y copias)"
             subtitle={
               data.data.documents.enabled
-                ? `${sizeText(data.data.documents.total)} de ${sizeText(data.data.documents.cap)}${data.data.documents.total >= data.data.documents.warnAt ? " · casi lleno: al llegar al tope no se guardan más" : ""}`
-                : "Sin activar: falta el enlace DOCS del Worker (cloudflare/README.md, «Documentos»)"
+                ? `${sizeText(data.data.documents.total)} de ${sizeText(data.data.documents.cap)}${data.data.documents.copies ? ` · las copias de las clínicas, ${sizeText(data.data.documents.copies)}` : ""}`
+                : "Sin activar: falta el enlace DOCS del Worker (cloudflare/README.md, «Documentos»). Sin él, cada copia va en la base y puede ocupar 50 MB como mucho"
             }
           />
+        )}
+        {data.data?.database && data.data.database.bytes !== null && (
+          <Row title="Base de datos (D1)" subtitle={`${sizeText(data.data.database.bytes)} de ${sizeText(data.data.database.cap)}`} />
         )}
       </Group>
 

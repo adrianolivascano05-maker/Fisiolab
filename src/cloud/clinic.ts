@@ -4,6 +4,7 @@
 // En cada dispositivo, cada cuenta recuerda en qué clínica trabaja; cada clínica tiene su base
 // (fisiolab-u<cuenta>-c<clínica>.sqlite3), su clave de cifrado y su sincronización. Si se llevan a ella los pacientes
 // de la cuenta, pasan a la base de la clínica y la de la cuenta se borra del dispositivo.
+import type { DatabaseUsage, StorageUsage } from "./limits";
 import type { DbFile } from "../data/db";
 import { dbFileFor, type Account } from "./account";
 import type { Token } from "./auth";
@@ -190,7 +191,8 @@ export function clinicApi(baseUrl: string) {
           clinics: OperatorClinic[];
           creators: Creator[];
           requests?: OperatorRequest[];
-          documents?: { enabled: boolean; total: number; cap: number; warnAt: number };
+          documents?: StorageUsage;
+          database?: DatabaseUsage;
         },
       /** Aceptar (podrá dar de alta su clínica) o rechazar una solicitud; o borrarla (podrá volver a pedirlo). */
       answer: async (t: Token, email: string, accept: boolean) => {

@@ -8,7 +8,9 @@
 // ilegibles, nunca un paciente.
 //
 // La copia viaja y se guarda como texto base64 (la app la codifica y la decodifica): así el servidor nunca
-// convierte bytes, que en D1 cuesta mucho tiempo de proceso.
+// convierte bytes, que en D1 cuesta mucho tiempo de proceso. Si hay almacén R2 (DOCS), la de cada clínica va allí en
+// bytes, subida por trozos de 8 MiB y bajada de un tirón sin pasar por la memoria del servidor: así no hay tope de
+// 50 MB ni hace falta juntarla aquí (ver «Copia en R2», abajo).
 //
 // Se pega tal cual en el editor del panel de Cloudflare: JavaScript sin dependencias ni compilación.
 //
@@ -31,10 +33,24 @@
 //                                              If-Match: <versión> (sustituir)
 //   DELETE /v1/clinicas/:id/copia              borra la copia (administrador; 204, también si no había)
 //   Sincronización por cambios (la app nueva añade ?v=2 a las rutas de la copia; ver abajo):
-//   GET    /v1/clinicas/:id/copia/info?v=2     además { epoch, base, last, deltas, deltaSize }
+//   GET    /v1/clinicas/:id/copia/info?v=2     además { epoch, base, last, deltas, deltaSize, forms } (forms: respuestas
+//                                              de pacientes por recoger, para no tener que preguntarlo aparte)
 //   PUT    /v1/clinicas/:id/copia?v=2&seq=N    la copia entera, que ya lleva los cambios hasta N (se borran)
 //   GET    /v1/clinicas/:id/copia/cambios?v=2&desde=N  { epoch, base, deltas: [{ seq, data }], more }
 //   POST   /v1/clinicas/:id/copia/cambios?v=2  un lote de cambios cifrado, en base64 → { seq }
+//   Copia en R2 (la app nueva añade además &trozos=1; ver abajo):
+//   GET    /v1/clinicas/:id/copia/info         además { pieces }: si se puede subir a R2 (hay almacén DOCS)
+//   GET    /v1/clinicas/:id/copia              si está en R2, los bytes (application/octet-stream), con su ETag
+//   POST   /v1/clinicas/:id/copia/subida       empieza a subir una copia (If-None-Match o If-Match, como el PUT)
+//                                              → { version, upload, partBytes }
+//   PUT    /v1/clinicas/:id/copia/subida/:versión/:n?id=…   el trozo n (1, 2…), de partBytes justos menos el
+//                                              último → { part, etag }
+//   POST   /v1/clinicas/:id/copia/subida/:versión/fin?id=…&seq=N   { parts: [{ part, etag }], size } → la junta (si
+//                                              ocupa size bytes) y pasa a ser
+//                                              la vigente (con la misma condición): { version, size, updatedAt,
+//                                              epoch, base }
+//   DELETE /v1/clinicas/:id/copia/subida/:versión?id=…      deja la subida (R2 borra solo las que nadie acaba a
+//                                              los 7 días)
 //   GET    /v1/clinicas/:id/recuperacion       { blob, updatedAt } (administrador): la clave de la copia cerrada con el
 //                                              código de recuperación de la clínica (sin el código no sirve de nada)
 //   PUT    /v1/clinicas/:id/recuperacion       { blob } → la guarda (administrador)
@@ -77,15 +93,21 @@
 // nueva de la app sincroniza una clínica, la pasa a este modo (sube la copia con ?v=2&seq=0); desde entonces las
 // versiones anteriores de la app reciben 426 («actualiza la app») en las rutas de la copia.
 //
-// Enlace a la base D1: DB. Enlace a R2 (opcional): DOCS, el almacén de los documentos; sin él, la app no los ofrece.
-// Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS y OPERATOR_EMAILS (quien gestiona el servidor: ve el
-// panel del proveedor).
+// Copia en R2: con almacén R2, la app nueva sube la copia entera de la clínica allí, por trozos («copias/clinic:<id>/
+// <versión>»), y en heads se apunta con parts = 0 y su tamaño en bytes. Desde entonces, las versiones de la app que no
+// saben leerla (sin &trozos=1) reciben 426 en las rutas de la copia. Sin almacén, todo sigue en D1 como antes. La
+// copia cuenta para lo que ocupa el almacén, pero nunca se rechaza por el tope: los documentos sí.
+//
+// Enlace a la base D1: DB. Enlace a R2 (opcional): DOCS, el almacén de los documentos y de las copias; sin él, la app
+// no ofrece documentos. Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS, OPERATOR_EMAILS (quien gestiona
+// el servidor: ve el panel del proveedor), DOCS_CAP_GB (opcional: el tope del almacén en GB; 10 si no está) y D1_CAP_MB
+// (opcional: lo que puede ocupar la base, para avisar en el panel; 500 si no está, lo del plan gratuito).
 // Nunca se escribe en el registro el contenido de una petición ni el token.
 
 /**
  * @typedef {object} D1Result
  * @property {Record<string, unknown>[]} [results]
- * @property {{ changes?: number }} [meta]
+ * @property {{ changes?: number, size_after?: number }} [meta]
  */
 /**
  * @typedef {{
@@ -97,11 +119,22 @@
  */
 /** @typedef {{ prepare(sql: string): D1Statement, batch(statements: D1Statement[]): Promise<D1Result[]> }} D1Database */
 /**
+ * Una subida por trozos a R2.
+ * @typedef {{
+ *   uploadId: string,
+ *   uploadPart(partNumber: number, value: Uint8Array): Promise<{ partNumber: number, etag: string }>,
+ *   complete(parts: { partNumber: number, etag: string }[]): Promise<{ size: number }>,
+ *   abort(): Promise<void>,
+ * }} R2MultipartUpload
+ */
+/**
  * La parte de un almacén R2 que se usa.
  * @typedef {{
  *   put(key: string, value: Uint8Array): Promise<unknown>,
  *   get(key: string): Promise<{ body: ReadableStream, size: number } | null>,
  *   delete(keys: string | string[]): Promise<void>,
+ *   createMultipartUpload(key: string): Promise<R2MultipartUpload>,
+ *   resumeMultipartUpload(key: string, uploadId: string): R2MultipartUpload,
  * }} R2Bucket
  */
 /**
@@ -112,6 +145,8 @@
  * @property {string} [ALLOWED_EMAILS] correos que pueden crear clínicas, separados por comas o espacios (vacío: nadie)
  * @property {string} [ALLOWED_ORIGINS] direcciones de la app, separadas por comas
  * @property {string} [OPERATOR_EMAILS] correos de quien gestiona el servidor (el panel del proveedor)
+ * @property {string} [DOCS_CAP_GB] el tope del almacén R2, en GB (10 si no está)
+ * @property {string} [D1_CAP_MB] lo que puede ocupar la base D1, en MB, para los avisos del panel (500 si no está)
  */
 /**
  * Quién ha entrado. `expiresIn`: segundos que le quedan al token (para no guardarlo más tiempo).
@@ -124,7 +159,8 @@
  * @property {() => number} [now] milisegundos, como Date.now
  */
 /**
- * La copia vigente de una cuenta. `chars`: caracteres de su texto base64 (la columna `size`).
+ * La copia vigente de una cuenta. `chars`: caracteres de su texto base64 (la columna `size`). Con parts = 0, la
+ * copia está en R2 y `chars` son sus bytes.
  * @typedef {{ version: string, parts: number, chars: number, updatedAt: string }} Head
  */
 
@@ -136,6 +172,11 @@ const PART_CHARS = 1_000_000;
 const MAX_CHARS = Math.ceil((50 * 1024 * 1024) / 3) * 4;
 /** Trozos por viaje a D1, al escribir y al leer. */
 const PARTS_PER_TRIP = 4;
+/** La copia en R2: empieza por «CENITENC2» (cifrada por trozos, src/cloud/crypt.ts) y se sube en trozos de 8 MiB. */
+const COPY_MAGIC = new TextEncoder().encode("CENITENC2");
+const COPY_PART_BYTES = 8 * 1024 * 1024;
+/** Tamaño máximo de una copia en R2: de sobra (una clínica de 10.000 pacientes ocupa unos 54 MB). */
+const MAX_COPY_BYTES = 2 * 1024 * 1024 * 1024;
 /** Lotes de cambios por respuesta, y caracteres como mucho (se piden los siguientes con «more»). */
 const DELTAS_PER_TRIP = 100;
 const DELTA_TRIP_CHARS = 3_000_000;
@@ -165,9 +206,12 @@ const DOC_MAGIC = new TextEncoder().encode("CENITDOC1");
 const DOC_ID = /^[A-Za-z0-9_-]{22,64}(\.(?:[1-9]|10))?$/;
 /** Un documento, como mucho: 5 MB y lo que añade el cifrado (con margen). */
 const MAX_DOC_BYTES = 5 * 1024 * 1024 + 64 * 1024;
-/** Tope de todo el almacén (el nivel gratuito de R2 es de 10 GB al mes) y desde cuándo se avisa. */
-const DOCS_CAP_BYTES = 10_000_000_000;
-const DOCS_WARN_BYTES = 8_000_000_000;
+/** Tope de todo el almacén si no se dice otro con DOCS_CAP_GB (el nivel gratuito de R2 es de 10 GB al mes). */
+const DOCS_CAP_GB = 10;
+/** Desde qué parte del tope se avisa (en la app y en el panel del proveedor). */
+const WARN_SHARE = 0.7;
+/** Lo que puede ocupar la base D1, en MB, si no se dice otro con D1_CAP_MB: 500 en el plan gratuito (10 000 de pago). */
+const D1_CAP_MB = 500;
 /** Documentos que puede subir un paciente con un mismo enlace, como mucho. */
 const MAX_DOCS_PER_FORM = 10;
 /** Documentos de pacientes sin recoger que se limpian en cada pasada. */
@@ -282,6 +326,7 @@ async function route(request, env, deps, originAllowed) {
   const member = /^\/miembros\/([^/]+)$/.exec(rest);
   const form = /^\/formularios\/([A-Za-z0-9_-]{22,64})$/.exec(rest);
   const doc = /^\/documentos\/([^/]+?)(\/guardar)?$/.exec(rest);
+  const upload = /^\/copia\/subida(?:\/([0-9a-f-]{36})(?:\/([1-9]\d{0,4}|fin))?)?$/.exec(rest);
   const known =
     (rest === "" && ["PATCH", "DELETE"].includes(method)) ||
     (rest === "/miembros" && method === "GET") ||
@@ -290,6 +335,7 @@ async function route(request, env, deps, originAllowed) {
     (rest === "/recuperar" && method === "POST") ||
     copyMethod(rest, method) ||
     (rest === "/copia/cambios" && ["GET", "POST"].includes(method)) ||
+    (upload !== null && method === (!upload[1] || upload[2] === "fin" ? "POST" : upload[2] ? "PUT" : "DELETE")) ||
     (rest === "/formularios" && ["GET", "POST"].includes(method)) ||
     (form !== null && method === "DELETE") ||
     (rest === "/documentos" && method === "GET") ||
@@ -386,11 +432,11 @@ async function route(request, env, deps, originAllowed) {
     return removeMember(db, id, email);
   }
   if (rest === "/formularios" || form) return clinicForms(request, db, env.DOCS, id, form?.[1] ?? null, who, deps.now);
-  if (rest === "/documentos") return docsUsage(db, env.DOCS, id);
-  if (doc) return clinicDoc(request, db, env.DOCS, id, /** @type {string} */ (doc[1]), !!doc[2], deps.now);
+  if (rest === "/documentos") return docsUsage(db, env, id);
+  if (doc) return clinicDoc(request, db, env, id, /** @type {string} */ (doc[1]), !!doc[2], deps.now);
   // La copia de la clínica: todo el equipo la baja y la sube; borrarla, solo quien administra.
-  if (method === "DELETE") admin();
-  return clinicCopy(request, db, clinicOwner(id), rest, deps.now);
+  if (rest === "/copia" && method === "DELETE") admin();
+  return clinicCopy(request, db, env.DOCS, clinicOwner(id), rest, deps.now);
 }
 
 /**
@@ -415,33 +461,51 @@ const OLD_APP =
  * La copia de una clínica, con la sincronización por cambios (?v=2) o como en las versiones anteriores de la app.
  * @param {Request} request
  * @param {D1Database} db
+ * @param {R2Bucket | undefined} docs el almacén R2, si lo hay: allí va la copia de la app nueva (&trozos=1)
  * @param {string} owner
- * @param {string} rest «/copia», «/copia/info» o «/copia/cambios»
+ * @param {string} rest «/copia», «/copia/info», «/copia/cambios» o «/copia/subida…»
  * @param {() => number} now
  */
-async function clinicCopy(request, db, owner, rest, now) {
+async function clinicCopy(request, db, docs, owner, rest, now) {
   const params = new URL(request.url).searchParams;
   const v2 = params.get("v") === "2";
+  // La app que sabe leer la copia en R2. Las anteriores no: si la copia está allí, tienen que actualizarse.
+  const pieces = v2 && params.get("trozos") === "1";
   const base = await getBase(db, owner);
   // Una versión anterior de la app no sabe de los cambios: si sube o baja la copia entera, se pierde lo de los demás.
   if (base && !v2) throw new HttpError(426, OLD_APP);
   if (!v2) {
-    if (rest === "/copia/cambios") throw notFound();
+    if (rest === "/copia/cambios" || upload(rest)) throw notFound();
     return copyRoute(request, db, owner, rest.endsWith("/info"), now);
   }
+  if (!pieces) {
+    if (upload(rest)) throw notFound();
+    if ((await getHead(db, owner))?.parts === 0) throw new HttpError(426, OLD_APP);
+  }
+  if (upload(rest)) return copyUpload(request, db, docs, owner, rest, params, now);
 
   if (rest === "/copia/info") {
     const head = await getHead(db, owner);
-    const stats = await db.prepare("SELECT count(*) AS n, coalesce(sum(length(data)), 0) AS chars, max(seq) AS last FROM deltas WHERE owner = ?").bind(owner).first();
+    // Y cuántas respuestas de pacientes esperan: así la app no tiene que preguntarlo aparte cada minuto.
+    const stats = await db
+      .prepare(
+        `SELECT count(*) AS n, coalesce(sum(length(data)), 0) AS chars, max(seq) AS last,
+                (SELECT count(*) FROM patient_forms WHERE clinic_id = ? AND response IS NOT NULL) AS forms
+           FROM deltas WHERE owner = ?`,
+      )
+      .bind(owner.slice("clinic:".length), owner)
+      .first();
     return json(200, {
       version: head?.version ?? null,
-      size: head ? approxBytes(head.chars) : 0,
+      size: head ? headBytes(head) : 0,
       updatedAt: head?.updatedAt ?? null,
+      ...(pieces ? { pieces: !!docs } : {}),
       epoch: base?.epoch ?? null,
       base: base?.seq ?? null,
       last: Math.max(Number(stats?.last ?? 0), base?.seq ?? 0),
       deltas: Number(stats?.n ?? 0),
       deltaSize: approxBytes(Number(stats?.chars ?? 0)),
+      forms: Number(stats?.forms ?? 0),
     });
   }
 
@@ -488,25 +552,155 @@ async function clinicCopy(request, db, owner, rest, now) {
   }
 
   if (request.method === "PUT") {
-    const seq = Number(params.get("seq"));
-    if (!params.has("seq") || !Number.isSafeInteger(seq) || seq < 0) throw new HttpError(400, "Falta «seq»: hasta qué cambio lleva esta copia.");
-    const res = await writeCopy(request, db, owner, now);
-    // La copia ya lleva los cambios hasta «seq»: esos sobran. La primera vez, la clínica pasa a este modo.
-    await db.batch([
-      db
-        .prepare("INSERT INTO delta_base (owner, epoch, seq) VALUES (?, ?, ?) ON CONFLICT (owner) DO UPDATE SET seq = max(seq, excluded.seq)")
-        .bind(owner, crypto.randomUUID(), seq),
-      db.prepare("DELETE FROM deltas WHERE owner = ? AND seq <= (SELECT seq FROM delta_base WHERE owner = ?)").bind(owner, owner),
-    ]);
-    const after = await getBase(db, owner);
+    const seq = seqOf(params);
+    const res = await writeCopy(request, db, owner, now, docs);
     const body = /** @type {Record<string, unknown>} */ (await res.json());
-    return json(200, { ...body, epoch: after?.epoch ?? null, base: after?.seq ?? seq }, { ETag: res.headers.get("ETag") ?? "" });
+    return json(200, { ...body, ...(await settleDeltas(db, owner, seq)) }, { ETag: res.headers.get("ETag") ?? "" });
+  }
+  if (request.method === "GET") {
+    const copy = await readR2Copy(db, docs, owner);
+    if (copy) return copy;
   }
   if (request.method === "DELETE") {
     // Sin copia no hay base: la próxima subida empieza otra época, y los dispositivos vuelven a empezar.
+    const head = await getHead(db, owner);
+    if (head?.parts === 0 && docs) await docs.delete(copyKey(owner, head.version));
     await db.batch([db.prepare("DELETE FROM deltas WHERE owner = ?").bind(owner), db.prepare("DELETE FROM delta_base WHERE owner = ?").bind(owner)]);
   }
   return copyRoute(request, db, owner, false, now);
+}
+
+/** Si es una de las rutas de la subida por trozos. */
+const upload = (/** @type {string} */ rest) => rest.startsWith("/copia/subida");
+
+/** Dónde está en R2 la copia `version` de una clínica. */
+const copyKey = (/** @type {string} */ owner, /** @type {string} */ version) => `copias/${owner}/${version}`;
+
+/** Los bytes de una copia: en R2 (parts = 0), los que son; en D1, los de su base64. */
+const headBytes = (/** @type {Head} */ head) => (head.parts === 0 ? head.chars : approxBytes(head.chars));
+
+/** @param {URLSearchParams} params */
+function seqOf(params) {
+  const seq = Number(params.get("seq"));
+  if (!params.has("seq") || !Number.isSafeInteger(seq) || seq < 0) throw new HttpError(400, "Falta «seq»: hasta qué cambio lleva esta copia.");
+  return seq;
+}
+
+/**
+ * Una copia entera nueva ya lleva los cambios hasta `seq`: esos sobran. La primera vez, la clínica pasa a la
+ * sincronización por cambios. Devuelve su época y hasta dónde llega.
+ * @param {D1Database} db
+ * @param {string} owner
+ * @param {number} seq
+ */
+async function settleDeltas(db, owner, seq) {
+  await db.batch([
+    db
+      .prepare("INSERT INTO delta_base (owner, epoch, seq) VALUES (?, ?, ?) ON CONFLICT (owner) DO UPDATE SET seq = max(seq, excluded.seq)")
+      .bind(owner, crypto.randomUUID(), seq),
+    db.prepare("DELETE FROM deltas WHERE owner = ? AND seq <= (SELECT seq FROM delta_base WHERE owner = ?)").bind(owner, owner),
+  ]);
+  const after = await getBase(db, owner);
+  return { epoch: after?.epoch ?? null, base: after?.seq ?? seq };
+}
+
+/**
+ * La copia vigente si está en R2: los bytes tal cual, sin pasar por la memoria del servidor. null si está en D1 (o no
+ * hay). Si otra subida la sustituye justo antes de leerla, se vuelve a mirar una vez.
+ * @param {D1Database} db
+ * @param {R2Bucket | undefined} docs
+ * @param {string} owner
+ */
+async function readR2Copy(db, docs, owner) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const head = await getHead(db, owner);
+    if (head?.parts !== 0) return null;
+    if (!docs) throw new HttpError(500, "La copia de la clínica está en el almacén R2, pero falta el enlace «DOCS» con él.");
+    const object = await docs.get(copyKey(owner, head.version));
+    if (object) return new Response(object.body, { status: 200, headers: { "Content-Type": "application/octet-stream", ETag: `"${head.version}"` } });
+  }
+  throw new HttpError(503, "La copia se está cambiando en este momento. Inténtalo de nuevo en unos segundos.");
+}
+
+/**
+ * Subir la copia de una clínica a R2 por trozos: empezar, cada trozo, terminar (pasa a ser la vigente con la misma
+ * condición que el PUT, If-None-Match o If-Match) o dejarlo. Así ninguna petición lleva más de 8 MiB y el servidor
+ * nunca tiene la copia entera en memoria.
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {R2Bucket | undefined} docs
+ * @param {string} owner
+ * @param {string} rest
+ * @param {URLSearchParams} params
+ * @param {() => number} now
+ */
+async function copyUpload(request, db, docs, owner, rest, params, now) {
+  if (!docs) throw new HttpError(501, "Este servidor no tiene almacén R2: la copia se sube entera.");
+  const [, version, step] = /** @type {RegExpExecArray} */ (/^\/copia\/subida(?:\/([0-9a-f-]{36})(?:\/(\d+|fin))?)?$/.exec(rest));
+  if (!version) {
+    const { expected, create } = precondition(request);
+    const current = await getHead(db, owner);
+    if (create ? current !== null : current?.version !== expected) throw conflict(current);
+    const v = crypto.randomUUID();
+    const started = await docs.createMultipartUpload(copyKey(owner, v));
+    return json(200, { version: v, upload: started.uploadId, partBytes: COPY_PART_BYTES });
+  }
+  const id = params.get("id") ?? "";
+  if (!id) throw new HttpError(400, "Falta «id»: la subida.");
+  const up = docs.resumeMultipartUpload(copyKey(owner, version), id);
+  if (request.method === "DELETE") {
+    await up.abort().catch(() => {});
+    return new Response(null, { status: 204 });
+  }
+  if (step !== "fin") {
+    const n = Number(step);
+    if (n > MAX_COPY_BYTES / COPY_PART_BYTES) throw new HttpError(413, "La copia pasa de 2 GB, el máximo que guarda este servidor.");
+    const bytes = await readBytes(request, COPY_PART_BYTES, () => new HttpError(413, "Cada trozo de la copia tiene que ser de 8 MiB como mucho."));
+    if (n === 1 && !(bytes.byteLength > COPY_MAGIC.length && COPY_MAGIC.every((b, i) => bytes[i] === b))) {
+      throw new HttpError(415, "Solo se guardan copias cifradas.");
+    }
+    const part = await up.uploadPart(n, bytes);
+    return json(200, { part: part.partNumber, etag: part.etag });
+  }
+
+  // Terminar: se junta en R2 y pasa a ser la vigente si nadie ha subido otra entre medias.
+  const { expected, create } = precondition(request);
+  const seq = seqOf(params);
+  const body = await readJson(request);
+  const list = typeof body === "object" && body !== null && "parts" in body && Array.isArray(body.parts) ? body.parts : [];
+  const parts = list.map((p) => ({ partNumber: Number(p?.part), etag: String(p?.etag ?? "") }));
+  if (!parts.length || parts.some((p, i) => p.partNumber !== i + 1 || !p.etag)) throw new HttpError(400, "Faltan los trozos de la copia («parts»), por orden.");
+  // Lo que ocupa entera, según la app: si R2 junta otra cosa (faltaba un trozo), no se guarda.
+  const size = typeof body === "object" && body !== null && "size" in body ? Number(body.size) : NaN;
+  if (!Number.isSafeInteger(size) || size <= 0) throw new HttpError(400, "Falta lo que ocupa la copia («size»).");
+  const key = copyKey(owner, version);
+  let object;
+  try {
+    object = await up.complete(parts);
+  } catch {
+    throw new HttpError(502, "No se ha podido juntar la copia en el almacén: se volverá a subir.");
+  }
+  if (object.size !== size) {
+    await docs.delete(key);
+    throw new HttpError(400, "A la copia le faltan trozos: se volverá a subir.");
+  }
+  const updatedAt = new Date(now()).toISOString();
+  const headWrite = create
+    ? db.prepare("INSERT INTO heads (owner, version, parts, size, updated_at) VALUES (?, ?, 0, ?, ?) ON CONFLICT(owner) DO NOTHING").bind(owner, version, object.size, updatedAt)
+    : db.prepare("UPDATE heads SET version = ?, parts = 0, size = ?, updated_at = ? WHERE owner = ? AND version = ?").bind(version, object.size, updatedAt, owner, expected);
+  const result = await headWrite.run();
+  if (result.meta?.changes !== 1) {
+    // Otra subida ha llegado antes: esta sobra.
+    await docs.delete(key);
+    throw conflict(await getHead(db, owner));
+  }
+  // Lo de la copia anterior sobra: en R2, o sus trozos en D1 (si la clínica la tenía allí), si esta sigue vigente.
+  if (expected) await docs.delete(copyKey(owner, expected));
+  await db
+    .prepare("DELETE FROM parts WHERE owner = ? AND EXISTS (SELECT 1 FROM heads WHERE owner = ? AND version = ?)")
+    .bind(owner, owner, version)
+    .run();
+  return json(200, { version, size: object.size, updatedAt, ...(await settleDeltas(db, owner, seq)) }, { ETag: `"${version}"` });
 }
 
 /** Las rutas de una copia: «/copia» con GET, PUT o DELETE y «/copia/info» con GET. */
@@ -609,7 +803,7 @@ async function purgeExpired(db, now, docs) {
 }
 
 /**
- * Borra una clínica del todo: su copia, su equipo, su clave de recuperación, sus documentos y su estado.
+ * Borra una clínica del todo: su copia (en D1 o en R2), su equipo, su clave de recuperación, sus documentos y su estado.
  * @param {D1Database} db
  * @param {string} id
  * @param {R2Bucket} [docs]
@@ -617,7 +811,8 @@ async function purgeExpired(db, now, docs) {
 async function removeClinic(db, id, docs) {
   const owner = clinicOwner(id);
   const { results: files = [] } = await db.prepare("SELECT id FROM documents WHERE clinic_id = ?").bind(id).all();
-  await deleteDocs(docs, files.map((r) => docKey(id, String(r.id))));
+  const head = await getHead(db, owner);
+  await deleteDocs(docs, [...files.map((r) => docKey(id, String(r.id))), ...(head?.parts === 0 ? [copyKey(owner, head.version)] : [])]);
   await db.batch([
     db.prepare("DELETE FROM documents WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM doc_requests WHERE form_id IN (SELECT id FROM patient_forms WHERE clinic_id = ?)").bind(id),
@@ -819,7 +1014,8 @@ async function operatorRoute(request, env, deps, rest) {
       `SELECT c.id, c.name, c.created_by, c.created_at,
               (SELECT count(*) FROM members m WHERE m.clinic_id = c.id) AS members,
               (SELECT group_concat(m.email, ', ') FROM members m WHERE m.clinic_id = c.id AND m.role = 'admin') AS admins,
-              h.size + coalesce((SELECT sum(length(d.data)) FROM deltas d WHERE d.owner = h.owner), 0) AS size,
+              (CASE WHEN h.parts = 0 THEN h.size ELSE h.size * 3 / 4 END)
+                + coalesce((SELECT sum(length(d.data)) FROM deltas d WHERE d.owner = h.owner), 0) * 3 / 4 AS size,
               (SELECT coalesce(sum(f.size), 0) FROM documents f WHERE f.clinic_id = c.id) AS docs,
               max(h.updated_at, coalesce((SELECT max(d.created_at) FROM deltas d WHERE d.owner = h.owner), '')) AS updated_at, s.suspended_at, s.deleted_at, s.deleted_by, s.declaration, s.purge_after
          FROM clinics c LEFT JOIN heads h ON h.owner = 'clinic:' || c.id LEFT JOIN clinic_status s ON s.clinic_id = c.id
@@ -831,9 +1027,14 @@ async function operatorRoute(request, env, deps, rest) {
     .prepare("SELECT email, clinic, note, status, created_at, answered_at FROM access_requests ORDER BY status = 'pending' DESC, created_at")
     .all();
   const str = (/** @type {unknown} */ v) => (v === null || v === undefined ? null : String(v));
-  const stored = await db.prepare("SELECT coalesce(sum(size), 0) AS bytes FROM documents").first();
+  // all() y no first(): D1 dice en meta.size_after cuánto ocupa la base entera (para avisar antes de su límite).
+  const { results: [stored] = [], meta } = await db
+    .prepare("SELECT (SELECT coalesce(sum(size), 0) FROM documents) AS docs, (SELECT coalesce(sum(size), 0) FROM heads WHERE parts = 0) AS copies")
+    .all();
+  const dbCap = Math.round((Number(env.D1_CAP_MB) > 0 ? Number(env.D1_CAP_MB) : D1_CAP_MB) * 1e6);
   return json(200, {
-    documents: { enabled: !!env.DOCS, total: Number(stored?.bytes ?? 0), cap: DOCS_CAP_BYTES, warnAt: DOCS_WARN_BYTES },
+    documents: { enabled: !!env.DOCS, total: Number(stored?.docs ?? 0) + Number(stored?.copies ?? 0), copies: Number(stored?.copies ?? 0), ...docsLimits(env) },
+    database: { bytes: typeof meta?.size_after === "number" ? meta.size_after : null, cap: dbCap, warnAt: Math.round(dbCap * WARN_SHARE) },
     clinics: clinics.map((r) => ({
       id: String(r.id),
       name: String(r.name),
@@ -841,7 +1042,7 @@ async function operatorRoute(request, env, deps, rest) {
       createdAt: String(r.created_at),
       members: Number(r.members),
       admins: str(r.admins)?.split(", ") ?? [],
-      size: r.size === null || r.size === undefined ? 0 : approxBytes(Number(r.size)),
+      size: Number(r.size ?? 0),
       docs: Number(r.docs ?? 0),
       lastSync: str(r.updated_at),
       suspendedAt: str(r.suspended_at),
@@ -1104,7 +1305,18 @@ async function publicForm(request, db, id, answer, now) {
 
 const noDocs = () =>
   new HttpError(501, "El servidor de la clínica aún no tiene el almacén de documentos (R2): quien lo gestiona tiene que activarlo (cloudflare/README.md, «Documentos»).");
-const full = () => new HttpError(507, "El almacén de documentos está lleno (10 GB, el tope para no pagar): borra los documentos que ya no hagan falta.");
+const full = (/** @type {number} */ cap) =>
+  new HttpError(507, `El almacén de documentos está lleno (${cap / 1e9} GB, el tope que ha puesto quien gestiona el servidor): borra los documentos que ya no hagan falta.`);
+
+/**
+ * El tope del almacén (DOCS_CAP_GB, o 10 GB) y desde cuándo se avisa (al 70 %).
+ * @param {Env} env
+ */
+function docsLimits(env) {
+  const gb = Number(env.DOCS_CAP_GB);
+  const cap = Math.round((Number.isFinite(gb) && gb > 0 ? gb : DOCS_CAP_GB) * 1e9);
+  return { cap, warnAt: Math.round(cap * WARN_SHARE) };
+}
 
 /** Dónde está un documento en R2. */
 const docKey = (/** @type {string} */ clinicId, /** @type {string} */ id) => `${clinicId}/${id}`;
@@ -1131,9 +1343,14 @@ async function forgetDocs(db, docs, items) {
   await db.batch(items.map((d) => db.prepare("DELETE FROM documents WHERE clinic_id = ? AND id = ?").bind(d.clinicId, d.id)));
 }
 
-/** Lo que ocupan todos los documentos del almacén: el tope es de todo (el nivel gratuito de R2 es de la cuenta). */
+/**
+ * Lo que ocupa todo el almacén: los documentos y las copias de las clínicas que están en R2. El tope es de todo (el
+ * nivel gratuito de R2 es de la cuenta).
+ */
 async function storedBytes(/** @type {D1Database} */ db) {
-  const row = await db.prepare("SELECT coalesce(sum(size), 0) AS bytes FROM documents").first();
+  const row = await db
+    .prepare("SELECT (SELECT coalesce(sum(size), 0) FROM documents) + (SELECT coalesce(sum(size), 0) FROM heads WHERE parts = 0) AS bytes")
+    .first();
   return Number(row?.bytes ?? 0);
 }
 
@@ -1143,8 +1360,20 @@ async function storedBytes(/** @type {D1Database} */ db) {
  * @param {Request} request
  */
 async function readDoc(request) {
-  const tooBig = () => new HttpError(413, "El documento pasa de 5 MB, el máximo.");
-  if (Number(request.headers.get("Content-Length")) > MAX_DOC_BYTES) throw tooBig();
+  const bytes = await readBytes(request, MAX_DOC_BYTES, () => new HttpError(413, "El documento pasa de 5 MB, el máximo."));
+  if (bytes.byteLength <= DOC_MAGIC.length + 12 || !DOC_MAGIC.every((b, i) => bytes[i] === b)) throw new HttpError(415, "Solo se guardan documentos cifrados.");
+  return bytes;
+}
+
+/**
+ * Los bytes de una petición, de `max` como mucho: se leen por trozos y se corta en cuanto pasa, aunque no diga cuánto
+ * ocupa.
+ * @param {Request} request
+ * @param {number} max
+ * @param {() => HttpError} tooBig
+ */
+async function readBytes(request, max, tooBig) {
+  if (Number(request.headers.get("Content-Length")) > max) throw tooBig();
   /** @type {Uint8Array[]} */
   const chunks = [];
   let size = 0;
@@ -1153,7 +1382,7 @@ async function readDoc(request) {
     const part = reader ? await reader.read() : { done: true, value: undefined };
     if (part.done || !part.value) break;
     size += part.value.byteLength;
-    if (size > MAX_DOC_BYTES) {
+    if (size > max) {
       await reader?.cancel();
       throw tooBig();
     }
@@ -1165,26 +1394,24 @@ async function readDoc(request) {
     bytes.set(c, at);
     at += c.byteLength;
   }
-  if (size <= DOC_MAGIC.length + 12 || !DOC_MAGIC.every((b, i) => bytes[i] === b)) throw new HttpError(415, "Solo se guardan documentos cifrados.");
   return bytes;
 }
 
 /**
  * Cuánto ocupan los documentos de la clínica y el almacén entero, para que la app lo enseñe y avise antes del tope.
  * @param {D1Database} db
- * @param {R2Bucket | undefined} docs
+ * @param {Env} env
  * @param {string} clinicId
  */
-async function docsUsage(db, docs, clinicId) {
-  if (!docs) return json(200, { enabled: false });
+async function docsUsage(db, env, clinicId) {
+  if (!env.DOCS) return json(200, { enabled: false });
   const mine = await db.prepare("SELECT count(*) AS n, coalesce(sum(size), 0) AS bytes FROM documents WHERE clinic_id = ? AND form_id IS NULL").bind(clinicId).first();
   return json(200, {
     enabled: true,
     count: Number(mine?.n ?? 0),
     used: Number(mine?.bytes ?? 0),
     total: await storedBytes(db),
-    cap: DOCS_CAP_BYTES,
-    warnAt: DOCS_WARN_BYTES,
+    ...docsLimits(env),
     maxBytes: 5 * 1024 * 1024,
   });
 }
@@ -1194,14 +1421,15 @@ async function docsUsage(db, docs, clinicId) {
  * (POST …/guardar: si no, se borra al recoger o anular su formulario).
  * @param {Request} request
  * @param {D1Database} db
- * @param {R2Bucket | undefined} docs
+ * @param {Env} env
  * @param {string} clinicId
  * @param {string} docId
  * @param {boolean} keep
  * @param {() => number} now
  */
-async function clinicDoc(request, db, docs, clinicId, docId, keep, now) {
+async function clinicDoc(request, db, env, clinicId, docId, keep, now) {
   if (!DOC_ID.test(docId)) throw new HttpError(400, "El documento no tiene un id válido.");
+  const docs = env.DOCS;
   if (!docs) throw noDocs();
   const row = await db.prepare("SELECT size, form_id FROM documents WHERE clinic_id = ? AND id = ?").bind(clinicId, docId).first();
   if (keep) {
@@ -1223,7 +1451,8 @@ async function clinicDoc(request, db, docs, clinicId, docId, keep, now) {
   if (docId.includes(".")) throw new HttpError(400, "Ese id es el de un documento que sube un paciente.");
   const bytes = await readDoc(request);
   if (row) return json(200, { id: docId, size: Number(row.size) });
-  if ((await storedBytes(db)) + bytes.byteLength > DOCS_CAP_BYTES) throw full();
+  const { cap } = docsLimits(env);
+  if ((await storedBytes(db)) + bytes.byteLength > cap) throw full(cap);
   await docs.put(docKey(clinicId, docId), bytes);
   await db
     .prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES (?, ?, NULL, ?, ?) ON CONFLICT (clinic_id, id) DO NOTHING")
@@ -1259,7 +1488,7 @@ async function publicFormDoc(request, env, formId, n, now) {
   const bytes = await readDoc(request);
   const id = `${formId}.${n}`;
   const before = await db.prepare("SELECT size FROM documents WHERE clinic_id = ? AND id = ?").bind(clinicId, id).first();
-  if ((await storedBytes(db)) - Number(before?.size ?? 0) + bytes.byteLength > DOCS_CAP_BYTES) {
+  if ((await storedBytes(db)) - Number(before?.size ?? 0) + bytes.byteLength > docsLimits(env).cap) {
     throw new HttpError(507, "Ahora mismo la clínica no puede recibir más documentos. Díselo a tu fisioterapeuta.");
   }
   await env.DOCS.put(docKey(clinicId, id), bytes);
@@ -1456,20 +1685,30 @@ async function readParts(db, owner, head) {
 }
 
 /**
- * Guarda una copia nueva. Los trozos van con una versión nueva y la copia vigente solo cambia al final, con una
- * escritura condicionada a la versión que dice el dispositivo: así nunca se pisa lo que subió otro.
+ * La condición de una subida: If-None-Match: * (crear) o If-Match con la versión que sustituye. 428 si no hay.
  * @param {Request} request
- * @param {D1Database} db
- * @param {string} owner
- * @param {() => number} now
  */
-async function writeCopy(request, db, owner, now) {
+function precondition(request) {
   const ifMatch = request.headers.get("If-Match");
   const expected = ifMatch === null ? null : parseEtag(ifMatch);
   const create = ifMatch === null && (request.headers.get("If-None-Match") ?? "").trim() === "*";
   if (expected === null && !create) {
     throw new HttpError(428, "Falta la condición de la subida: If-None-Match: * para crear la copia o If-Match con su versión para sustituirla.");
   }
+  return { expected, create };
+}
+
+/**
+ * Guarda una copia nueva. Los trozos van con una versión nueva y la copia vigente solo cambia al final, con una
+ * escritura condicionada a la versión que dice el dispositivo: así nunca se pisa lo que subió otro.
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {string} owner
+ * @param {() => number} now
+ * @param {R2Bucket} [docs] si la copia que sustituye estaba en R2, se borra de allí
+ */
+async function writeCopy(request, db, owner, now, docs) {
+  const { expected, create } = precondition(request);
   const tooBig = () => new HttpError(413, "La copia pasa de 50 MB, el máximo que guarda este servidor.");
   if (Number(request.headers.get("Content-Length")) > MAX_CHARS) throw tooBig();
   const text = await request.text();
@@ -1514,6 +1753,7 @@ async function writeCopy(request, db, owner, now) {
   // Si otra subida casi simultánea ha borrado trozos de esta, se vuelven a poner (la copia vigente nunca queda coja).
   const kept = await db.prepare("SELECT count(*) AS n FROM parts WHERE owner = ? AND version = ?").bind(owner, version).first();
   if (Number(kept?.n) !== parts) await insertParts(db, owner, version, text, "INSERT OR REPLACE");
+  if (current?.parts === 0 && docs) await docs.delete(copyKey(owner, current.version));
 
   return json(200, { version, size: approxBytes(chars), updatedAt }, { ETag: `"${version}"` });
 }

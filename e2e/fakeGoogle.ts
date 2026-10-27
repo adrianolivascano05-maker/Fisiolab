@@ -35,7 +35,8 @@ export class FakeGoogle {
   }
   /**
    * La copia de una cuenta descifrada con la contraseña, como texto ("" si aún no hay o no se puede abrir). Igual que
-   * src/cloud/crypt.ts: «CENITENC1» + sal + vector de inicio + base comprimida y cifrada.
+   * src/cloud/crypt.ts: «CENITENC1» + sal + vector de inicio + base comprimida y cifrada; o «CENITENC2» + sal y
+   * después los trozos (longitud, vector de inicio y cifrado; autenticados con su número y si son el último).
    */
   async drivePlain(who: string, password: string): Promise<string> {
     const bytes = this.appData(who)[0]?.bytes;
@@ -43,7 +44,8 @@ export class FakeGoogle {
   }
   private static keys = new Map<string, Promise<CryptoKey>>();
   static async open(bytes: Buffer, password: string): Promise<string> {
-    if (bytes.subarray(0, 9).toString("latin1") !== "CENITENC1") return "";
+    const magic = bytes.subarray(0, 9).toString("latin1");
+    if (magic !== "CENITENC1" && magic !== "CENITENC2") return "";
     const salt = bytes.subarray(9, 25);
     const id = `${password}|${salt.toString("hex")}`;
     if (!FakeGoogle.keys.has(id)) {
@@ -51,8 +53,19 @@ export class FakeGoogle {
       FakeGoogle.keys.set(id, webcrypto.subtle.deriveKey({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 600_000 }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]));
     }
     try {
-      const plain = await webcrypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(25, 37) }, await FakeGoogle.keys.get(id)!, bytes.subarray(37));
-      return gunzipSync(Buffer.from(plain)).toString("latin1");
+      const key = await FakeGoogle.keys.get(id)!;
+      if (magic === "CENITENC1") return gunzipSync(Buffer.from(await webcrypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(25, 37) }, key, bytes.subarray(37)))).toString("latin1");
+      const pieces: Buffer[] = [];
+      for (let at = 25, index = 0; at < bytes.length; index++) {
+        const length = bytes.readUInt32BE(at);
+        const end = at + 4 + 12 + length;
+        const tag = Buffer.alloc(5);
+        tag.writeUInt32BE(index, 0);
+        tag[4] = end === bytes.length ? 1 : 0;
+        pieces.push(Buffer.from(await webcrypto.subtle.decrypt({ name: "AES-GCM", iv: bytes.subarray(at + 4, at + 16), additionalData: tag }, key, bytes.subarray(at + 16, end))));
+        at = end;
+      }
+      return gunzipSync(Buffer.concat(pieces)).toString("latin1");
     } catch {
       return "";
     }
@@ -76,7 +89,14 @@ export class FakeGoogle {
    * Copias en el servidor de Cloudflare simulado, ya decodificadas (solo con `server` en install): las de cada clínica
    * con «clinic:<id>» y las personales de antes con el `sub` de la cuenta.
    */
-  server = new Map<string, { bytes: Buffer; version: string }>();
+  server = new Map<string, { bytes: Buffer; version: string; r2?: boolean }>();
+  /** Subidas por trozos a «R2» a medias (como cloudflare/worker.js, copyUpload), y de qué tamaño son los trozos. */
+  uploads = new Map<string, { owner: string; version: string; parts: Map<number, Buffer> }>();
+  copyPartBytes = 64 * 1024;
+  /** La consulta de la copia dice cuántas respuestas de pacientes esperan; false: como un servidor anterior. */
+  formsInInfo = true;
+  /** Lo que ocupa la base D1, para el panel del proveedor. */
+  databaseBytes = 2_000_000;
   /** Las clínicas del servidor simulado, con su equipo (correo → papel). */
   clinics = new Map<
     string,
@@ -284,6 +304,15 @@ export class FakeGoogle {
         })),
         requests: [...this.requests].map(([e, r]) => ({ email: e, ...r })),
         creators: [...this.altas].map((e) => ({ email: e, source: "panel", addedBy: email, addedAt: new Date().toISOString() })),
+        // Como cloudflare/worker.js: el almacén (archivos y copias en R2) y la base, con sus topes y el aviso al 70 %.
+        documents: {
+          enabled: this.docsEnabled,
+          total: [...this.docs.values()].reduce((n, d) => n + d.bytes.length, 0) + [...this.server.values()].reduce((n, c) => n + (c.r2 ? c.bytes.length : 0), 0),
+          copies: [...this.server.values()].reduce((n, c) => n + (c.r2 ? c.bytes.length : 0), 0),
+          cap: 10e9,
+          warnAt: 7e9,
+        },
+        database: { bytes: this.databaseBytes, cap: 500e6, warnAt: 350e6 },
       });
     }
     if (path === "/v1/clinicas" && method === "POST") {
@@ -408,12 +437,59 @@ export class FakeGoogle {
     // Sincronización por cambios: como cloudflare/worker.js (clinicCopy).
     const query = new URL(req.url()).searchParams;
     const v2 = this.deltaServer && owner.startsWith("clinic:") && query.get("v") === "2";
+    // La app que sabe leer la copia en R2 (como clinicCopy con almacén).
+    const pieces = v2 && query.get("trozos") === "1";
     const base = this.deltaBase.get(owner);
     const list = this.deltas.get(owner) ?? [];
-    if (owner.startsWith("clinic:") && base && !v2) return send(426, { error: "Esta clínica usa ya la sincronización nueva: actualiza la app en este dispositivo." });
+    const old = () => send(426, { error: "Esta clínica usa ya la sincronización nueva: actualiza la app en este dispositivo." });
+    if (owner.startsWith("clinic:") && base && !v2) return old();
+    if (v2 && !pieces && mine?.r2) return old();
+    const up = /^\/copia\/subida(?:\/([0-9a-f-]{36})(?:\/(\d+|fin))?)?$/.exec(rest);
+    if (up) {
+      if (!pieces) return send(404, { error: "No existe." });
+      if (!this.docsEnabled) return send(501, { error: "Este servidor no tiene almacén R2: la copia se sube entera." });
+      const ifMatch = (req.headers()["if-match"] ?? "").replace(/"/g, "");
+      const create = req.headers()["if-none-match"] === "*";
+      const stale = () => (create && mine) || (!create && mine?.version !== ifMatch);
+      if (!up[1]) {
+        if (stale()) return send(412, { error: "La copia ha cambiado.", version: mine?.version ?? null });
+        const upload = `subida-${this.next++}`;
+        this.uploads.set(upload, { owner, version: randomUUID(), parts: new Map() });
+        return send(200, { version: this.uploads.get(upload)!.version, upload, partBytes: this.copyPartBytes });
+      }
+      const upload = query.get("id") ?? "";
+      const u = this.uploads.get(upload);
+      if (!u || u.owner !== owner || u.version !== up[1]) return send(502, { error: "Esa subida no existe." });
+      if (method === "DELETE") {
+        this.uploads.delete(upload);
+        return send(204);
+      }
+      if (up[2] !== "fin") {
+        const bytes = req.postDataBuffer() ?? Buffer.alloc(0);
+        if (bytes.length > this.copyPartBytes) return send(413, { error: "Trozo demasiado grande." });
+        if (up[2] === "1" && !bytes.subarray(0, 9).equals(Buffer.from("CENITENC2"))) return send(415, { error: "Solo se guardan copias cifradas." });
+        u.parts.set(Number(up[2]), bytes);
+        return send(200, { part: Number(up[2]), etag: `etag-${up[2]}-${bytes.length}` });
+      }
+      const b = JSON.parse(req.postData() ?? "{}") as { parts: { part: number }[]; size: number };
+      const data = Buffer.concat(b.parts.map((p) => u.parts.get(p.part) ?? Buffer.alloc(0)));
+      this.uploads.delete(upload);
+      if (data.length !== b.size) return send(400, { error: "A la copia le faltan trozos." });
+      if (stale()) return send(412, { error: "La copia ha cambiado.", version: mine?.version ?? null });
+      const copy = { bytes: data, version: u.version, r2: true };
+      this.server.set(owner, copy);
+      const seq = Number(query.get("seq"));
+      const nb = { epoch: base?.epoch ?? randomUUID(), seq: Math.max(base?.seq ?? 0, seq) };
+      this.deltaBase.set(owner, nb);
+      this.deltas.set(owner, list.filter((d) => d.seq > nb.seq));
+      return route.fulfill({ status: 200, headers: { ...headers, etag: `"${copy.version}"` }, json: { ...meta(copy), epoch: nb.epoch, base: nb.seq } });
+    }
     if (v2 && rest === "/copia/info")
       return send(200, {
         ...(mine ? meta(mine) : { version: null, size: 0, updatedAt: null }),
+        ...(pieces ? { pieces: this.docsEnabled } : {}),
+        // Como cloudflare/worker.js: las respuestas de pacientes por recoger van en la misma consulta.
+        ...(this.formsInInfo ? { forms: [...this.forms.values()].filter((f) => `clinic:${f.clinic}` === owner && f.response).length } : {}),
         epoch: base?.epoch ?? null,
         base: base?.seq ?? null,
         last: Math.max(list.at(-1)?.seq ?? 0, base?.seq ?? 0),
@@ -438,7 +514,11 @@ export class FakeGoogle {
     if (rest !== "/copia") return send(404, { error: "No existe." });
     if (method === "GET")
       return mine
-        ? route.fulfill({ status: 200, headers: { ...headers, etag: `"${mine.version}"`, "content-type": "text/plain; charset=utf-8" }, body: mine.bytes.toString("base64") })
+        ? route.fulfill(
+            mine.r2
+              ? { status: 200, headers: { ...headers, etag: `"${mine.version}"`, "content-type": "application/octet-stream" }, body: mine.bytes }
+              : { status: 200, headers: { ...headers, etag: `"${mine.version}"`, "content-type": "text/plain; charset=utf-8" }, body: mine.bytes.toString("base64") },
+          )
         : send(404, { error: "Sin copia." });
     if (method === "DELETE") {
       if (owner !== user.sub && !admin) return send(403, { error: "Solo quien administra la clínica puede borrar su copia." });
