@@ -16,8 +16,14 @@ nada: puede pedir el alta y tú la aceptas en Ajustes → Proveedor).
    permisos «no sensibles» (`openid`, correo, perfil, `drive.file` y, si se usa la copia en Drive,
    `drive.appdata`). Si hay alguno en «Permisos sensibles» o «restringidos», quítalo y **Guardar**: la app pide el
    del calendario solo a quien activa las citas en Google Calendar, no hace falta tenerlo ahí.
-3. No subas un logotipo en **Marca** de momento: con logotipo, Google exige verificar la marca (dominio propio y
-   política de privacidad publicada) antes de enseñarlo.
+3. En **Marca** (<https://console.cloud.google.com/auth/branding>), Google exige cuatro datos antes de publicar:
+   - **Nombre de la aplicación:** `Cénit · Fisiolab`.
+   - **Correo de asistencia:** `cenitfisiolab@gmail.com`.
+   - **Página principal:** `https://cenitfisiolab.pages.dev/`.
+   - **Política de privacidad:** `https://cenitfisiolab.pages.dev/politica-de-privacidad.html` (página pública y estática,
+     `public/politica-de-privacidad.html`, desde el 27-10-2026; es un texto por revisar con la asesoría).
+   - En **Dominios autorizados**, que esté `cenitfisiolab.pages.dev` (y, si ya estaba, el de GitHub).
+   No subas un logotipo de momento: con logotipo, Google exige verificar la marca antes de enseñarlo.
 4. Vuelve a **Público** → **Publicar aplicación** → **Confirmar**. El estado pasa a «En producción».
 5. Prueba: abre la app en una ventana de incógnito con una cuenta que **no** estaba en la lista de prueba. Debe
    entrar sin el aviso «Google no ha verificado esta aplicación». Si aparece ese aviso, vuelve al paso 2: queda

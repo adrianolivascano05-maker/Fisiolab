@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Política de privacidad · Cénit · Fisiolab</title>
+    <meta name="description" content="Qué datos trata Cénit · Fisiolab, para qué usa los permisos de Google y cómo se protegen los datos de los pacientes." />
+    <link rel="icon" href="favicon.png" />
+    <!--
+      Política de privacidad pública de la app (la que pide Google en «Marca» para publicar el inicio de sesión). Página
+      estática, sin scripts, para que se lea sin entrar en la app. La página «Privacidad» de dentro de la app
+      (src/pages/PrivacyPage.tsx) explica lo mismo a quien la usa. Es un texto por revisar con un asesor: no es
+      asesoramiento legal.
+    -->
+    <style>
+      :root {
+        --bg: #f6f8f9;
+        --fg: #16242c;
+        --muted: #4c5d66;
+        --accent: #0b6e6e;
+        --line: #d6dee2;
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1a1f;
+          --fg: #e6eef1;
+          --muted: #a7b7be;
+          --accent: #5cc6c2;
+          --line: #2a3a42;
+          color-scheme: dark;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 17px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      main {
+        max-width: 44rem;
+        margin: 0 auto;
+        padding: 2rem max(16px, env(safe-area-inset-right, 0px)) 3rem max(16px, env(safe-area-inset-left, 0px));
+      }
+      h1 {
+        font-size: 1.7rem;
+        line-height: 1.25;
+        margin: 0 0 0.25rem;
+        text-wrap: balance;
+      }
+      h2 {
+        font-size: 1.15rem;
+        margin: 2rem 0 0.5rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--line);
+      }
+      p,
+      li {
+        overflow-wrap: anywhere;
+      }
+      ul {
+        padding-left: 1.25rem;
+      }
+      li + li {
+        margin-top: 0.4rem;
+      }
+      a {
+        color: var(--accent);
+        font-weight: 600;
+        display: inline-block;
+        padding: 0.6rem 0;
+      }
+      code {
+        font-size: 0.9em;
+        overflow-wrap: anywhere;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Política de privacidad de Cénit · Fisiolab</h1>
+      <p class="muted">Última actualización: 27 de octubre de 2026</p>
+
+      <p>
+        Cénit · Fisiolab («Cénit») es una aplicación web para fisioterapeutas: historia clínica, agenda, cuestionarios y mediciones de sus
+        pacientes. Esta página explica qué datos trata la aplicación, para qué usa los permisos de tu cuenta de Google y cómo se protegen los datos
+        de los pacientes.
+      </p>
+
+      <h2>Quién es quién</h2>
+      <ul>
+        <li>
+          <strong>La clínica o el fisioterapeuta</strong> que usa Cénit es el responsable de los datos de sus pacientes: decide qué apunta y es
+          quien informa a cada paciente.
+        </li>
+        <li>
+          <strong>Cénit · Fisiolab</strong> hace el programa. No puede leer los datos de los pacientes: van cifrados con una contraseña que solo
+          tiene la clínica. Si además gestiona el servidor de una clínica, actúa como encargado del tratamiento y firma con ella un contrato de
+          encargado.
+        </li>
+        <li>Contacto: <a href="mailto:cenitfisiolab@gmail.com">cenitfisiolab@gmail.com</a></li>
+      </ul>
+
+      <h2>Qué datos de tu cuenta de Google usa y para qué</h2>
+      <p>Para entrar en Cénit se usa la cuenta de Google de cada profesional. Según lo que active, la aplicación pide estos permisos:</p>
+      <ul>
+        <li>
+          <strong>Nombre, correo y foto de perfil</strong> (<code>openid</code>, <code>email</code>, <code>profile</code>): para saber quién entra,
+          enseñar su nombre en la aplicación y comprobar que pertenece al equipo de su clínica.
+        </li>
+        <li>
+          <strong>Archivos de Google Drive creados por Cénit</strong> (<code>drive.file</code>): solo los informes y resultados que el profesional
+          decide guardar en su Drive. Cénit no ve ni toca el resto de archivos de su Drive.
+        </li>
+        <li>
+          <strong>Carpeta de datos de la aplicación en Drive</strong> (<code>drive.appdata</code>), solo si la clínica elige guardar su copia en Google
+          Drive: una carpeta oculta que solo usa Cénit, con la copia cifrada.
+        </li>
+        <li>
+          <strong>Calendario creado por Cénit</strong> (<code>calendar.app.created</code>), solo si el profesional activa las citas en Google
+          Calendar: Cénit crea su propio calendario y apunta en él el día, la hora y las iniciales o el nombre de cada cita. No lee ni cambia sus
+          otros calendarios.
+        </li>
+      </ul>
+      <p>
+        Los datos que llegan de Google se usan solo para estas funciones, dentro de la aplicación y para quien ha entrado. No se venden, no se usan
+        para publicidad, no se ceden a terceros y nadie los lee salvo que el propio usuario lo pida (por ejemplo, al escribir a soporte). El uso que
+        Cénit hace de la información recibida de las API de Google se ajusta a la
+        <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de datos de usuario de los servicios de las API de Google</a>,
+        incluidos sus requisitos de uso limitado.
+      </p>
+
+      <h2>Datos de los pacientes</h2>
+      <p>
+        Los apunta la clínica: datos de identificación y contacto, historia clínica, sesiones, cuestionarios, mediciones, citas, cobros y los
+        archivos que se añaden a su ficha (informes y pruebas). Se guardan en los dispositivos de la clínica y, si usa la nube, en una copia
+        <strong>cifrada en el propio dispositivo</strong> con una contraseña que solo tiene la clínica, en uno de estos sitios:
+      </p>
+      <ul>
+        <li>el servidor de la clínica en Cloudflare, con los datos en la Unión Europea; o</li>
+        <li>el Google Drive de cada fisioterapeuta, en la carpeta oculta de la aplicación.</li>
+      </ul>
+      <p>
+        Ni Cloudflare, ni Google, ni Cénit · Fisiolab pueden leer esas copias. Los vídeos de las mediciones no salen del dispositivo. Los
+        formularios que el paciente rellena desde su enlace van cifrados de extremo a extremo y se borran del servidor al recogerlos.
+      </p>
+
+      <h2>Proveedores</h2>
+      <ul>
+        <li><strong>Google</strong>: inicio de sesión y, si se activan, Drive y Calendar.</li>
+        <li><strong>Cloudflare</strong>: servidor de la clínica y almacén de archivos (Unión Europea), y alojamiento de la web.</li>
+        <li><strong>GitHub</strong>: alojamiento de la web.</li>
+      </ul>
+      <p>
+        El alojamiento web solo sirve los archivos de la aplicación y, como cualquier web, puede registrar la dirección IP de quien la abre. Cénit no
+        usa analítica, publicidad ni cookies.
+      </p>
+
+      <h2>Cuánto tiempo se guardan</h2>
+      <p>
+        La historia clínica se conserva el tiempo que exige la ley (en España, al menos 5 años desde el alta de cada proceso; más si lo fija la
+        comunidad autónoma) y la decide la clínica. Los datos de la cuenta de Google se usan mientras la persona use Cénit. Al quitarla del
+        equipo de su clínica, deja de tener acceso.
+      </p>
+
+      <h2>Tus derechos y cómo retirar el acceso</h2>
+      <ul>
+        <li>
+          Puedes retirar en cualquier momento los permisos que diste a Cénit desde
+          <a href="https://myaccount.google.com/permissions">tu cuenta de Google → Seguridad → Aplicaciones de terceros</a>.
+        </li>
+        <li>
+          Los pacientes ejercen sus derechos (acceso, rectificación, supresión, oposición, limitación y portabilidad) ante su clínica, que es la
+          responsable. Si creen que no se respetan, pueden reclamar ante la Agencia Española de Protección de Datos
+          (<a href="https://www.aepd.es">www.aepd.es</a>).
+        </li>
+        <li>Para cualquier duda sobre esta política: <a href="mailto:cenitfisiolab@gmail.com">cenitfisiolab@gmail.com</a>.</li>
+      </ul>
+
+      <h2>Cambios</h2>
+      <p>Si esta política cambia, se publicará aquí con su nueva fecha.</p>
+
+      <p class="muted">
+        <a href="./">Abrir Cénit · Fisiolab</a>
+      </p>
+    </main>
+  </body>
+</html>

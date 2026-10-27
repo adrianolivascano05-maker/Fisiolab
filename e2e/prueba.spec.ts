@@ -60,7 +60,6 @@ test.describe("Clínica de prueba", () => {
     // Los recordatorios, con citas. Las de prueba van al azar y mañana puede no tener ninguna: el primer día de la
     // semana que tenga alguna (la fecha, en el navegador, que va en hora de Madrid).
     await page.goto("./agenda/recordatorios");
-    const none = page.getByText("No hay citas pendientes ese día.");
     const some = page.getByText(/\+44 7700 900|Ejemplo|·/).first();
     for (let d = 1; d <= 7; d++) {
       const [day, title] = await page.evaluate((n) => {
@@ -70,8 +69,9 @@ test.describe("Clínica de prueba", () => {
       }, d);
       await page.getByLabel("Otro día").fill(day);
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
-      await expect(none.or(some).first()).toBeVisible();
-      if (await some.isVisible()) break;
+      // El título cambia al momento y las citas llegan un instante después: hasta entonces aún dice «No hay citas»
+      // del día anterior. Se espera un poco a que salgan antes de pasar al día siguiente.
+      if (await some.waitFor({ timeout: 4000 }).then(() => true, () => false)) break;
     }
     await expect(some).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
