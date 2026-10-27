@@ -1,6 +1,6 @@
 // Lo común a todas las pantallas de la ficha de un paciente: «‹ Pacientes» (o «‹ Lista de espera», si se llegó desde
-// ella) y «Editar» arriba, su cabecera (iniciales, nombre, datos, el motivo de consulta que se está viendo, la próxima
-// cita o «Dar cita», WhatsApp y lo que debe) y las pestañas, que se quedan fijas arriba al bajar.
+// ella) y «Editar» arriba, su cabecera (iniciales, nombre, datos, el motivo de consulta que se está viendo, quién lo
+// lleva, la próxima cita o «Dar cita», WhatsApp y lo que debe) y las pestañas, que se quedan fijas arriba al bajar.
 import { CalendarCheck, CalendarPlus, MessageCircle, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
@@ -19,6 +19,7 @@ import type { Patient } from "../data/repo";
 import { fmtVisit } from "./calendar";
 import { AppointmentSheet } from "./AppointmentSheet";
 import { EpisodePicker } from "./EpisodePicker";
+import { PatientPhysios } from "./PatientPhysios";
 import { PatientNav } from "./parts";
 import { useLeaveWaitlist } from "../schedule/LeaveWaitlist";
 import { waPhone, whatsappUrl } from "../schedule/reminders";
@@ -75,6 +76,8 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
           {/* Una fila de chips: el motivo que se ve, la próxima cita (o darla) y lo que debe. Añadir al calendario, dentro de la cita. */}
           <div className="flex flex-wrap items-center gap-2 @2xl:shrink-0 @2xl:justify-end">
             {patient && <EpisodePicker patientId={id} />}
+            {/* En una clínica con equipo: quién lo lleva (para el filtro «Fisio» de la lista). */}
+            {patient && <PatientPhysios patientId={id} />}
             {visit.data ? (
               <button
                 type="button"

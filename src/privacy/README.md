@@ -8,7 +8,8 @@ el de Cloudflare si usa su servidor) y revisión de estos textos con su delegado
 | Qué | Dónde | Archivo |
 | --- | --- | --- |
 | Datos de la clínica (responsable, NIF, contacto, delegado, años de conservación y si hay contrato con Google) | Ajustes → Clínica y protección de datos | `ClinicSettings.tsx`, ajuste `clinic_privacy` |
-| Texto informativo para el paciente (art. 13 RGPD, art. 11 LOPDGDD), con los consentimientos opcionales y el sitio para firmar | ficha del paciente → «Protección de datos» (`/pacientes/:id/proteccion-datos`) | `PrivacyNotice.tsx`, `PatientPrivacyPage.tsx` |
+| Texto informativo para el paciente (art. 13 RGPD, art. 11 LOPDGDD), con los consentimientos opcionales y el sitio para firmar | ficha del paciente → «Protección de datos» (`/pacientes/:id/proteccion-datos`) | `privacyText.ts` (el texto), `PrivacyNotice.tsx`, `PatientPrivacyPage.tsx` |
+| La hoja firmada en la pantalla, tal como se firmó (texto, respuestas y firma) | la misma pantalla → «Firmar en la pantalla»; abajo, «Hojas firmadas en la pantalla» | `signPrivacySheet` en `../data/privacy.ts` (`privacy.sheets`) |
 | Cuándo se entregó, quién firmó (representante legal de menores de 16 años) y sí o no a fotos y vídeos, contacto por WhatsApp o correo, y docencia y estudios | la misma pantalla; la fila «Protección de datos» del resumen de la ficha lo resume (en naranja si falta) | `../pages/PatientPage.tsx`, columna `patients.privacy` (migración 009) |
 | Aviso al borrar un paciente con historia que aún hay que conservar | editar paciente → «Borrar paciente» | `../pages/PatientFormPage.tsx`, `clinicalRecord` y `keepUntil` |
 | Bloqueo de la app con PIN | Ajustes → Bloqueo con PIN | `pin.ts`, `AppLock.tsx`, `LockSettings.tsx` |
@@ -19,8 +20,14 @@ el de Cloudflare si usa su servidor) y revisión de estos textos con su delegado
 Los datos de las funciones están en `../data/privacy.ts`.
 
 - **Texto informativo.** Se rellena con los datos de la clínica y dice dónde se guardan los datos: solo en los
-  dispositivos, o también (cifrados) en Google Drive o en el servidor de la clínica. Se imprime (o se guarda en PDF) con las respuestas que
-  ya se hayan apuntado. La hoja firmada se guarda con la historia clínica.
+  dispositivos, o también (cifrados) en Google Drive o en el servidor de la clínica. Lo que falta de la clínica sale
+  entre corchetes. Se imprime (o se guarda en PDF) con las respuestas que ya se hayan apuntado, o se firma en la
+  pantalla, como los consentimientos: el paciente (o su representante) dibuja la firma y se guarda la hoja entera
+  (texto con su versión, `PRIVACY_TEXT_VERSION`, respuestas a fotos y vídeos, WhatsApp o correo y docencia, y la
+  firma) en `privacy.sheets`, que se puede ver e imprimir después tal como se firmó y sale en la exportación. Si
+  luego cambian las respuestas, la pantalla avisa de que la hoja firmada ya no coincide y se puede firmar otra (las
+  anteriores se conservan). Al cambiar el texto, sube `PRIVACY_TEXT_VERSION`. Es un modelo: la clínica debe
+  revisarlo con su delegado; la app no garantiza su validez legal.
 - **Conservación.** El plazo cuenta desde el último registro clínico del paciente (test, sesión, exploración,
   cuestionario, bienestar o anamnesis), con un mínimo de 5 años (Ley 41/2002, art. 17). Algunas comunidades
   autónomas exigen más: se cambia en Ajustes. Si no ha pasado, borrar pide marcar que se borra igualmente (un

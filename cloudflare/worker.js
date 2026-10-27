@@ -16,7 +16,7 @@
 //
 // Rutas:
 //   OPTIONS *              permiso CORS para la app (preflight)
-//   GET    /v1/salud       { ok: true } sin sesión: para comprobar la instalación
+//   GET    /v1/salud       { ok: true, version } sin sesión: para comprobar la instalación (y qué versión está pegada)
 //   GET    /v1/yo          { email, canCreate, clinics: [{ id, name, role }] }: las clínicas de quien entra
 //   POST   /v1/solicitud   { clinic, note } → pide permiso para dar de alta una clínica (cualquier cuenta de Google)
 //   DELETE /v1/solicitud   retira la solicitud pendiente
@@ -163,6 +163,12 @@
  * copia está en R2 y `chars` son sus bytes.
  * @typedef {{ version: string, parts: number, chars: number, updatedAt: string }} Head
  */
+
+/**
+ * La versión de este servidor (el día del último cambio). La app la compara con la que espera
+ * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
+ */
+const SERVER_VERSION = "2026-10-27";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 const MAGIC = "Q0VOSVRFTkMx";
@@ -866,7 +872,8 @@ async function me(db, env, who, now) {
     canCreate: await canCreate(env, db, who),
     operator,
     request: req ? { clinic: String(req.clinic), status: String(req.status), createdAt: String(req.created_at) } : null,
-    ...(operator ? { pendingRequests: Number(pending?.n ?? 0) } : {}),
+    // A quien gestiona el servidor: lo que tiene pendiente en Cloudflare (la versión pegada y si hay almacén R2).
+    ...(operator ? { pendingRequests: Number(pending?.n ?? 0), server: { version: SERVER_VERSION, docs: !!env.DOCS } } : {}),
     clinics: results
       .filter((r) => !r.deleted_at)
       .map((r) => ({ id: String(r.id), name: String(r.name), role: String(r.role), ...(r.suspended_at ? { suspended: true } : {}) })),
@@ -1033,6 +1040,7 @@ async function operatorRoute(request, env, deps, rest) {
     .all();
   const dbCap = Math.round((Number(env.D1_CAP_MB) > 0 ? Number(env.D1_CAP_MB) : D1_CAP_MB) * 1e6);
   return json(200, {
+    version: SERVER_VERSION,
     documents: { enabled: !!env.DOCS, total: Number(stored?.docs ?? 0) + Number(stored?.copies ?? 0), copies: Number(stored?.copies ?? 0), ...docsLimits(env) },
     database: { bytes: typeof meta?.size_after === "number" ? meta.size_after : null, cap: dbCap, warnAt: Math.round(dbCap * WARN_SHARE) },
     clinics: clinics.map((r) => ({
@@ -1519,8 +1527,8 @@ async function health(env) {
   if (!(env.GOOGLE_CLIENT_ID ?? "").trim()) problems.push("Falta la variable GOOGLE_CLIENT_ID.");
   if (!list(env.ALLOWED_EMAILS).length) problems.push("Falta la variable ALLOWED_EMAILS: sin correos nadie puede crear una clínica.");
   if (!list(env.ALLOWED_ORIGINS).length) problems.push("Falta la variable ALLOWED_ORIGINS: la app no podrá conectarse.");
-  if (problems.length) return json(500, { ok: false, error: problems.join(" ") });
-  return json(200, { ok: true });
+  if (problems.length) return json(500, { ok: false, error: problems.join(" "), version: SERVER_VERSION });
+  return json(200, { ok: true, version: SERVER_VERSION });
 }
 
 // ---------- Sesión de Google ----------

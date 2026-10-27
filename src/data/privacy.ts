@@ -25,6 +25,30 @@ export const CONSENTS: { id: Consent; label: string; text: string }[] = [
   },
 ];
 
+/** Un apartado del texto informativo (src/privacy/privacyText.ts). */
+export type PrivacySection = { title: string; paragraphs: string[] };
+
+/**
+ * La hoja de protección de datos tal como se firmó en la pantalla: el texto entero, las respuestas, quién firmó y su
+ * firma. Si después cambian el texto, los datos de la clínica o sus respuestas, esta no cambia.
+ */
+export type SignedPrivacySheet = {
+  /** Versión del texto (PRIVACY_TEXT_VERSION). */
+  version: string;
+  /** Día de la firma (AAAA-MM-DD) y momento exacto (ISO). */
+  date: string;
+  at: string;
+  method: "screen";
+  patientName: string;
+  /** Firma su representante legal (menores de 16 años, tutela): su nombre. */
+  signedBy?: string;
+  sections: PrivacySection[];
+  /** Cada permiso opcional con su texto y la respuesta (null: sin preguntar). */
+  consents: { id: Consent; text: string; answer: boolean | null }[];
+  /** La firma: imagen PNG (data URL). */
+  signature: string;
+};
+
 export type PatientPrivacy = {
   /** Día en que se le entregó la información (AAAA-MM-DD). */
   informedAt?: string;
@@ -32,6 +56,8 @@ export type PatientPrivacy = {
   signedBy?: string;
   /** Sí o no de cada consentimiento; sin la clave, aún no se ha preguntado. */
   consents?: Partial<Record<Consent, boolean>>;
+  /** Las hojas firmadas en la pantalla, de la primera a la última (si cambian sus permisos, se firma otra). */
+  sheets?: SignedPrivacySheet[];
   /** Última vez que cambió algo de esto (ISO). */
   updatedAt?: string;
 };
@@ -48,6 +74,25 @@ export async function savePatientPrivacy(db: Db, patientId: string, p: PatientPr
   const t = new Date().toISOString();
   const clean: PatientPrivacy = { ...p, signedBy: p.signedBy?.trim() || undefined, updatedAt: t };
   await db.transaction([{ sql: "update patients set privacy = ?, updated_at = ? where id = ?", bind: [JSON.stringify(clean), t, patientId] }]);
+}
+
+/**
+ * Guarda la hoja firmada en la pantalla: queda entregada ese día, con sus respuestas, y la hoja se añade a las firmadas
+ * (las de antes se conservan).
+ */
+export async function signPrivacySheet(db: Db, patientId: string, privacy: PatientPrivacy, sheet: SignedPrivacySheet): Promise<void> {
+  if (!sheet.signature.startsWith("data:image/")) throw new RangeError("Falta la firma.");
+  const [row] = await db.query<{ privacy: string | null }>("select privacy from patients where id = ?", [patientId]);
+  if (!row) throw new RangeError("Este paciente no existe.");
+  const before = parsePrivacy(row.privacy).sheets ?? [];
+  await savePatientPrivacy(db, patientId, { ...privacy, informedAt: sheet.date, sheets: [...before, sheet] });
+}
+
+/** Si los permisos de ahora no son los de la última hoja firmada (habría que firmar otra). */
+export function changedSinceSigned(p: PatientPrivacy): boolean {
+  const last = p.sheets?.at(-1);
+  if (!last) return false;
+  return CONSENTS.some((c) => (p.consents?.[c.id] ?? null) !== (last.consents.find((x) => x.id === c.id)?.answer ?? null)) || (p.signedBy?.trim() || undefined) !== last.signedBy;
 }
 
 /** Apunta si acepta que se le escriba por WhatsApp, SMS o correo (lo demás de su protección de datos no cambia). */

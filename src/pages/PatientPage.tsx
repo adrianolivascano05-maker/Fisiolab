@@ -229,7 +229,14 @@ export function PatientPage() {
           to={`/pacientes/${id}/proteccion-datos`}
           icon={privacy.informedAt ? ShieldCheck : ShieldAlert}
           title="Protección de datos (RGPD)"
-          subtitle={privacy.informedAt ? [`Entregada el ${dayText(privacy.informedAt)}`, ...optional].join(" · ") : "Sin entregar"}
+          subtitle={
+            privacy.informedAt
+              ? [
+                  privacy.sheets?.at(-1)?.date === privacy.informedAt ? `Firmada en la pantalla el ${dayText(privacy.informedAt)}` : `Entregada el ${dayText(privacy.informedAt)}`,
+                  ...optional,
+                ].join(" · ")
+              : "Sin entregar"
+          }
         />
       </Group>
       <Group title="Cuenta">

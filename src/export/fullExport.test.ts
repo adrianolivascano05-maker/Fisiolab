@@ -3,6 +3,8 @@ import { createAppointment } from "../data/appointments";
 import { createPack } from "../data/billing";
 import { saveAnamnesis, saveFinding, saveSession } from "../data/clinical";
 import { saveSignedConsent } from "../data/consents";
+import { setPatientPhysios } from "../data/patientStaff";
+import { savePatientPrivacy, signPrivacySheet } from "../data/privacy";
 import { createPatient } from "../data/repo";
 import { loadSeed } from "../data/seed";
 import { createTestDb } from "../data/testDb";
@@ -53,6 +55,20 @@ describe("exportación completa", () => {
       { patient: "data:image/png;base64,iVBORw0KGgo=", professional: "data:image/png;base64,iVBORw0KGgo=" },
     );
 
+    // Su hoja de protección de datos, firmada en la pantalla, y la fisio que la lleva.
+    await savePatientPrivacy(db, pid, { consents: { images: true, contact: false } });
+    await signPrivacySheet(db, pid, { consents: { images: true, contact: false } }, {
+      version: "2026-10-27",
+      date: "2026-10-01",
+      at: "2026-10-01T09:00:00.000Z",
+      method: "screen",
+      patientName: "Lucía Pérez",
+      sections: [{ title: "Para qué", paragraphs: ["Para atenderle como fisioterapeuta."] }],
+      consents: [{ id: "images", text: "Tomar fotos o vídeos durante las sesiones.", answer: true }],
+      signature: "data:image/png;base64,iVBORw0KGgo=",
+    });
+    await setPatientPhysios(db, pid, ["ana@clinica.test"]);
+
     const progress: number[] = [];
     const { bytes, patients } = await buildPackage(db, { progress: (d) => progress.push(d), now: new Date("2026-10-21T10:00:00Z") });
     expect(patients).toBe(4);
@@ -70,6 +86,8 @@ describe("exportación completa", () => {
     // La historia de Lucía: todo lo registrado, legible.
     const html = text(files.get("Historias clinicas/Lucía Pérez.html"));
     for (const t of ["Dolor lumbar al levantarse", "6/10", "Lumbar", "Mejor que ayer", "Terapia manual y ejercicio", "Puente de glúteo 3x10", "Lasègue", "Positivo", "Alérgica al látex", "Dolor leve transitorio", "Firma del paciente", "<img", "02/11/2026 11:00", "Pendiente", "Bono 10 sesiones", "Bizum"])
+      expect(html, t).toContain(t);
+    for (const t of ["Protección de datos", "Información entregada el 01/10/2026", "Fotos y vídeos: sí · WhatsApp, SMS o correo: no", "Hoja firmada en la pantalla el 01/10/2026", "Para atenderle como fisioterapeuta.", "Sí: Tomar fotos o vídeos", "Firma: Lucía Pérez", "Fisios que lo llevan", "ana@clinica.test"])
       expect(html, t).toContain(t);
     expect(text(files.get("Indice de pacientes.html"))).toContain("Historias%20clinicas/Luc%C3%ADa%20P%C3%A9rez.html");
 

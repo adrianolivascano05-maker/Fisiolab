@@ -90,7 +90,7 @@ pasos son los mismos.
    constancia de cada petición.
 8. **Comprobarlo.** Abre en el navegador `https://cenit-datos.<subdominio>.workers.dev/v1/salud`. El
    `<subdominio>` es el de tu cuenta; la dirección completa sale en la página del Worker. Debe salir
-   `{"ok":true}`. Si sale `"ok":false`, el mensaje dice qué falta (el enlace `DB`, las tablas o una variable).
+   `{"ok":true,"version":"…"}` (la fecha del `worker.js` pegado). Si sale `"ok":false`, el mensaje dice qué falta (el enlace `DB`, las tablas o una variable).
 9. **Conectar la app.** En `public/cloud.json`, junto a `googleClientId`, pon la dirección del servidor, sin barra
    al final, y publica la app. Si no la mantienes tú, pásale la dirección a quien la mantenga.
 
@@ -114,7 +114,8 @@ recuperar desde la app o desde el panel) y después se borra para siempre. El pa
 contrato de encargado del tratamiento**, que solo entrega el servidor a `OPERATOR_EMAILS` (para revisar con un
 abogado).
 
-**Al actualizar el servidor** (si cambia `worker.js` en la app), repite el paso 4 desde **Edit code**. Las
+**Al actualizar el servidor** (si cambia `worker.js` en la app; la app lo avisa en **Ajustes** → **Proveedor**:
+«Pendiente en Cloudflare: actualizar el servidor», y también si falta activar R2), repite el paso 4 desde **Edit code**. Las
 variables y el enlace se conservan. Si además cambia `schema.sql`, vuelve a ejecutarlo entero en la **Console**
 de la base (paso 3): crea las tablas que falten y no borra nada. Así se pasó, en octubre de 2026, a la versión
 con clínicas (tablas `clinics` y `members`), después a la sincronización por cambios (tablas `deltas` y
@@ -175,7 +176,7 @@ la app a medias) la borra R2 sola a los 7 días. Sin R2, todo sigue igual que an
    - Variable name: `DOCS` (así, en mayúsculas).
    - R2 bucket: `cenit-archivos`.
    - **Add Binding** (o **Deploy**, si lo pide).
-6. **Comprobarlo.** Abre la dirección del servidor terminada en `/v1/salud`: debe salir `{"ok":true}`. En la app,
+6. **Comprobarlo.** Abre la dirección del servidor terminada en `/v1/salud`: debe salir `"ok":true`. En la app,
    en **Ajustes** → **Copias y exportar** sale **Archivos de los pacientes** con lo que ocupan, y en la ficha de
    cada paciente, **Archivos del paciente**. Pruébalo con un paciente inventado.
 
@@ -286,13 +287,16 @@ Todas las rutas, salvo `/v1/salud` y las de `/v1/formularios/:fid` (las abre el 
 del ID de cliente `GOOGLE_CLIENT_ID` y de un correo verificado. Lo que puede hacer cada cuenta depende de la ruta:
 dar de alta clínicas, si su correo está en `ALLOWED_EMAILS`; usar una clínica, si es de su equipo (tabla
 `members`, por correo en minúsculas). La copia de cada clínica va en `heads`/`parts` con `owner = "clinic:<id>"`.
-Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "error": "…" }` en español.
+Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "error": "…" }` en español. Al cambiar
+`worker.js` en algo que la app necesite, sube a la vez `SERVER_VERSION` (en `worker.js`) y `EXPECTED_SERVER_VERSION`
+(en `src/cloud/serverStatus.ts`): así el panel del proveedor avisa de pegarlo. Una prueba de `worker.test.ts`
+comprueba que la que espera la app no es posterior a la del servidor.
 
 | Petición | Respuesta |
 | --- | --- |
-| `GET /v1/salud` | `200 { ok: true }`, sin sesión. Si falta algo de la instalación, `500 { ok: false, error }` |
+| `GET /v1/salud` | `200 { ok: true, version }`, sin sesión (`version`: `SERVER_VERSION`, la fecha del `worker.js`). Si falta algo de la instalación, `500 { ok: false, error, version }` |
 | `GET /v1/yo` | `200 { email, canCreate, operator, clinics: [{ id, name, role, suspended? }], deleted: [{ id, name, deletedAt, purgeAfter }] }`: las clínicas de quien entra, las que borró y aún puede recuperar, si puede dar de alta otra y si gestiona el servidor |
-| `POST /v1/solicitud` + `{ clinic, note }` | `200 { clinic, status: "pending", createdAt }`: cualquier cuenta de Google pide permiso para dar de alta su clínica (una por correo; como mucho 200 pendientes, si no `429`). Si ya puede, `409`; si se le rechazó, `409` hasta que el proveedor la borre. `DELETE` la retira. `GET /v1/yo` dice `request` (la suya) y, al proveedor, `pendingRequests` |
+| `POST /v1/solicitud` + `{ clinic, note }` | `200 { clinic, status: "pending", createdAt }`: cualquier cuenta de Google pide permiso para dar de alta su clínica (una por correo; como mucho 200 pendientes, si no `429`). Si ya puede, `409`; si se le rechazó, `409` hasta que el proveedor la borre. `DELETE` la retira. `GET /v1/yo` dice `request` (la suya) y, al proveedor, `pendingRequests` y `server: { version, docs }` (la versión pegada y si hay R2; la app avisa con eso de lo pendiente, `src/cloud/serverStatus.ts`) |
 | `POST /v1/proveedor/solicitudes/:correo` + `{ accept }` | acepta (pasa a `creators`) o rechaza; `DELETE` la borra (podrá volver a pedirlo). Solo `OPERATOR_EMAILS` |
 | `POST /v1/clinicas` + `{ name }` | `201 { id, name, role: "admin" }`; solo `ALLOWED_EMAILS` (si no, `403`). Nombre de 1 a 80 caracteres |
 | `PATCH /v1/clinicas/:id` + `{ name }` | `200 { id, name, role }`; solo administradores |

@@ -2,7 +2,7 @@
 // de alta la clínica, añadir al equipo, compartir pacientes, que nadie de fuera los vea y llevar a la clínica lo que
 // había en el dispositivo.
 import type { Browser, Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, test } from "./fixtures";
+import { createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
 
 const users = {
@@ -603,10 +603,28 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await choosePassword(page);
     await inServer(google, "Paciente Papelera");
 
-    // El panel del proveedor: da de alta a Carla sin tocar Cloudflare.
+    // Lo pendiente en Cloudflare, a la vista: con el servidor de antes (no dice su versión), actualizarlo; sin R2, activarlo.
+    google.serverVersion = null;
     await page.goto("./ajustes");
+    await expect(page.getByRole("link", { name: /Proveedor.*Pendiente en Cloudflare: actualizar el servidor/ })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("link", { name: /Proveedor/ }).click();
+    await expect(page.getByText("Falta actualizar el servidor en Cloudflare")).toBeVisible();
+    await expect(page.getByText("Falta activar el almacén R2")).toHaveCount(0);
+    google.serverVersion = "2026-10-27";
+    google.docsEnabled = false;
+    await page.reload();
+    await expect(page.getByText("Falta activar el almacén R2")).toBeVisible();
+    await expect(page.getByText("Falta actualizar el servidor en Cloudflare")).toHaveCount(0);
+    await page.goto("./ajustes");
+    await expect(page.getByRole("link", { name: /Proveedor.*Pendiente en Cloudflare: activar R2/ })).toBeVisible({ timeout: 15_000 });
+    google.docsEnabled = true;
+
+    // El panel del proveedor: da de alta a Carla sin tocar Cloudflare.
+    await page.reload();
+    await expect(page.getByRole("link", { name: /Proveedor.*Solicitudes, clínicas, altas, bajas y contrato/ })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("link", { name: /Proveedor/ }).click();
     await expect(page.getByRole("heading", { name: "Proveedor" })).toBeVisible();
+    await expect(page.getByText(/^Falta /)).toHaveCount(0);
     await expect(page.getByRole("region", { name: "Clínicas" }).getByRole("button", { name: /Fisiolab Centro/ })).toBeVisible();
     // Lo que ocupa el servidor; al 70 % de un límite, el aviso con qué hacer.
     const summary = page.getByRole("region", { name: "Resumen" });
@@ -942,6 +960,63 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await inServer(google, "Paciente De La Tablet");
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Paciente De La Tablet/ })).toBeVisible({ timeout: 15_000 });
+    expect(errors).toEqual([]);
+  });
+
+  test("CL16 fisios del paciente: se asignan uno o varios en su ficha, se filtra por ellos y llega al otro dispositivo", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    google.creators = ["ana"];
+    const errors: string[] = [];
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Sin Fisio" });
+    await choosePassword(page);
+    await page.goto("./ajustes/equipo");
+    await page.getByLabel("Su correo de Google").fill("bruno@clinica.test");
+    await page.getByRole("button", { name: "Añadir al equipo" }).click();
+    await expect(page.getByRole("region", { name: "Equipo" }).getByRole("button", { name: /bruno@clinica\.test/ })).toBeVisible();
+    await createPatient(page, { name: "Lleva Bruno" });
+
+    // En la cabecera de la ficha: «Asignar fisio», y en la hoja, uno o varios del equipo.
+    await page.setViewportSize({ width: 360, height: 780 });
+    await page.getByRole("button", { name: "Asignar fisio" }).click();
+    const sheet = page.getByRole("dialog", { name: "Fisios que lo llevan" });
+    await expect(sheet.getByText("Sin citas con este paciente").first()).toBeVisible();
+    expect(await smallTargets(page)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    await expectAccessible(page);
+    await sheet.getByRole("checkbox", { name: /bruno/ }).check();
+    await sheet.getByRole("checkbox", { name: /Ana Ruiz/ }).check();
+    await sheet.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByRole("button", { name: "Fisios: Ana Ruiz, bruno" })).toBeVisible();
+    // Quitar a Ana: se queda Bruno.
+    await page.getByRole("button", { name: "Fisios: Ana Ruiz, bruno" }).click();
+    await sheet.getByRole("checkbox", { name: /Ana Ruiz/ }).uncheck();
+    await sheet.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByRole("button", { name: "Fisio: bruno" })).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+
+    // En Pacientes, el filtro «Fisio» saca a los suyos.
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Pacientes" }).click();
+    await page.getByRole("button", { name: "Filtros" }).click();
+    const filters = page.getByRole("dialog", { name: "Filtros" });
+    await filters.getByLabel("Fisio").selectOption({ label: "bruno" });
+    await filters.getByRole("button", { name: "Ver 1 paciente" }).click();
+    const list = page.getByRole("list", { name: "Pacientes" });
+    await expect(list.getByRole("link")).toHaveCount(1);
+    await expect(list.getByRole("link", { name: /Lleva Bruno/ })).toBeVisible();
+
+    // Bruno, en su móvil, ve que lo lleva él.
+    await inServer(google, "Lleva Bruno");
+    const bruno = await device(browser, google, "bruno", errors);
+    await enter(bruno);
+    await patients(bruno);
+    await unlock(bruno);
+    await bruno.getByRole("link", { name: /Lleva Bruno/ }).click();
+    await expect(bruno.getByRole("button", { name: "Fisio: Bruno Gil" })).toBeVisible({ timeout: 15_000 });
     expect(errors).toEqual([]);
   });
 

@@ -40,6 +40,7 @@ import { CalendarSettings } from "../cloud/CalendarSettings";
 import { getToken } from "../cloud/auth";
 import { ROLE_LABELS } from "../cloud/clinic";
 import { CloudSettings, syncText, useCloud, useSyncState } from "../cloud/CloudGate";
+import { cloudflarePending } from "../cloud/serverStatus";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { getDb } from "../data/db";
@@ -66,10 +67,12 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 export function SettingsPage() {
   const cloud = useCloud();
   const { solo } = useTeamMode();
-  // El proveedor ve cuántas solicitudes de acceso tiene por atender.
-  const pendingRequests = useAsync(async () => {
+  // El proveedor ve cuántas solicitudes de acceso tiene por atender y lo que le falta hacer en Cloudflare.
+  const provider = useAsync(async () => {
     const token = getToken();
-    return cloud?.operator && cloud.clinics && token ? ((await cloud.clinics.me(token)).pendingRequests ?? 0) : 0;
+    if (!cloud?.operator || !cloud.clinics || !token) return null;
+    const me = await cloud.clinics.me(token);
+    return { requests: me.pendingRequests ?? 0, cloudflare: cloudflarePending(me.server) };
   }, [cloud?.operator]);
   const sync = useSyncState();
   const install = useInstall();
@@ -140,10 +143,13 @@ export function SettingsPage() {
             icon={Briefcase}
             title="Proveedor"
             subtitle={
-              pendingRequests.data
-                ? `${pendingRequests.data === 1 ? "1 solicitud de acceso" : `${pendingRequests.data} solicitudes de acceso`} por atender`
-                : "Solicitudes, clínicas, altas, bajas y contrato"
+              provider.data?.requests
+                ? `${provider.data.requests === 1 ? "1 solicitud de acceso" : `${provider.data.requests} solicitudes de acceso`} por atender`
+                : provider.data?.cloudflare.length
+                  ? `Pendiente en Cloudflare: ${provider.data.cloudflare.map((p) => p.short).join(" y ")}`
+                  : "Solicitudes, clínicas, altas, bajas y contrato"
             }
+            warn={!!provider.data?.requests || !!provider.data?.cloudflare.length}
           />
         )}
       </Group>

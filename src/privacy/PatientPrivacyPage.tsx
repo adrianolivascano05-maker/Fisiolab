@@ -1,6 +1,7 @@
-// Protección de datos de un paciente: el texto informativo para imprimir y firmar, y lo que se registra en la app
-// (cuándo se le entregó, quién firmó y sus consentimientos opcionales).
-import { Printer } from "lucide-react";
+// Protección de datos de un paciente: el texto informativo para firmar en la pantalla o imprimir y firmar en papel, y
+// lo que se registra en la app (cuándo se le entregó, quién firmó y sus consentimientos opcionales: fotos y vídeos,
+// WhatsApp, docencia). Lo firmado en la pantalla se guarda tal cual, con la firma; las hojas anteriores se conservan.
+import { FilePen, Printer, ShieldCheck } from "lucide-react";
 import { TopBar } from "../ui/AppBar";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
@@ -9,15 +10,29 @@ import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { useCloud } from "../cloud/CloudGate";
 import { getDb } from "../data/db";
-import { ADULT_CONSENT_AGE, ageOn, clinicComplete, CONSENTS, getClinic, savePatientPrivacy, type PatientPrivacy } from "../data/privacy";
+import {
+  ADULT_CONSENT_AGE,
+  ageOn,
+  changedSinceSigned,
+  clinicComplete,
+  CONSENTS,
+  getClinic,
+  savePatientPrivacy,
+  signPrivacySheet,
+  type PatientPrivacy,
+  type SignedPrivacySheet,
+} from "../data/privacy";
 import { getPatient } from "../data/repo";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { TextField } from "../ui/Field";
+import { Group, RowButton } from "../ui/Grouped";
+import { SignaturePad } from "../ui/SignaturePad";
 import { useToast } from "../ui/Toast";
 import { cx } from "../ui/cx";
-import { PrivacyNotice, type Storage } from "./PrivacyNotice";
+import { liveNotice, PrivacyNotice, type NoticeData, type Storage } from "./PrivacyNotice";
+import { PRIVACY_TEXT_VERSION } from "./privacyText";
 
 const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
@@ -32,6 +47,11 @@ export function PatientPrivacyPage() {
   }, [id]);
   const [form, setForm] = useState<PatientPrivacy | null>(null);
   const [saving, setSaving] = useState(false);
+  // Firmar en la pantalla: la firma que se va dibujando; y una hoja ya firmada que se está viendo.
+  const [signing, setSigning] = useState(false);
+  const [signature, setSignature] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<SignedPrivacySheet | null>(null);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (data.data?.patient) setForm({ informedAt: today(), ...data.data.patient.privacy });
   }, [data.data]);
@@ -51,6 +71,39 @@ export function PatientPrivacyPage() {
   const years = ageOn(patient.birthDate);
   const minor = years !== null && years < ADULT_CONSENT_AGE;
   const saved = patient.privacy;
+  const sheets = saved.sheets ?? [];
+  const last = sheets.at(-1);
+  const live = liveNotice(clinic, storage, patient.name, signing ? { ...form, informedAt: today() } : form);
+  const shown: NoticeData = viewing ?? { ...live, signature: signing ? (signature ?? undefined) : undefined };
+  const signer = form.signedBy?.trim() || patient.name;
+
+  const saveSigned = async () => {
+    setError(null);
+    if (!signature) return setError(`Falta la firma de ${signer}.`);
+    setSaving(true);
+    try {
+      const date = today();
+      await signPrivacySheet(getDb(), id, form, {
+        version: PRIVACY_TEXT_VERSION,
+        date,
+        at: new Date().toISOString(),
+        method: "screen",
+        patientName: patient.name,
+        signedBy: live.signedBy,
+        sections: live.sections,
+        consents: live.consents,
+        signature,
+      });
+      toast("Hoja de protección de datos firmada", "success");
+      setSigning(false);
+      setSignature(null);
+      data.reload();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-dvh bg-canvas print:bg-white">
@@ -58,22 +111,34 @@ export function PatientPrivacyPage() {
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
         <div className="flex flex-col gap-4 print:hidden">
-          {saved.informedAt ? (
+          {last && last.date === saved.informedAt ? (
+            changedSinceSigned(saved) ? (
+              <Alert tone="warning" title={`Firmada en la pantalla el ${fmtDate(`${last.date}T12:00:00`)}, pero sus permisos han cambiado`}>
+                Que firme otra vez la hoja con lo de ahora: la anterior se conserva.
+              </Alert>
+            ) : (
+              <Alert tone="success" title={`Firmada en la pantalla el ${fmtDate(`${last.date}T12:00:00`)}`}>
+                La hoja firmada se guarda en su ficha, tal como se firmó.
+              </Alert>
+            )
+          ) : saved.informedAt ? (
             <Alert tone="success" title={`Información entregada el ${fmtDate(`${saved.informedAt}T12:00:00`)}`}>
               Guarda la hoja firmada con su historia clínica.
             </Alert>
           ) : (
             <Alert tone="warning" title="Aún no consta que se le haya dado esta información">
-              Imprímela, que la lea y la firme, y apunta abajo la fecha y sus respuestas.
+              Apunta abajo sus respuestas y que la firme en la pantalla. O imprímela, que la firme en papel, y guarda la fecha.
             </Alert>
           )}
           {!clinicComplete(clinic) && (
             <Alert tone="warning" title="Faltan los datos de la clínica">
-              El texto necesita al menos el nombre y el correo del responsable. Rellénalos en{" "}
-              <Link className="underline" to="/ajustes/clinica">
-                Ajustes → Clínica y protección de datos
-              </Link>
-              .
+              <p>
+                El texto necesita al menos el nombre y el correo del responsable. Rellénalos en{" "}
+                <Link className="underline" to="/ajustes/clinica">
+                  Ajustes → Clínica y protección de datos
+                </Link>
+                .
+              </p>
             </Alert>
           )}
           {cloud && cloud.sync.store.kind === "drive" && !clinic.googleDpa && (
@@ -83,6 +148,41 @@ export function PatientPrivacyPage() {
             </Alert>
           )}
 
+          {viewing ? (
+            <Card className="flex flex-col gap-3">
+              <p>
+                Hoja firmada en la pantalla el {fmtDate(`${viewing.date}T12:00:00`)}
+                {viewing.signedBy ? ` por ${viewing.signedBy}` : ""}, tal como se firmó.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
+                  Imprimir
+                </Button>
+                <Button variant="ghost" onClick={() => setViewing(null)}>
+                  Volver a la hoja de ahora
+                </Button>
+              </div>
+            </Card>
+          ) : signing ? (
+            <Card className="flex flex-col gap-4">
+              <p>Que lea la hoja de abajo, con sus respuestas, y pregunte lo que necesite. Después, su firma.</p>
+              <SignaturePad label={form.signedBy?.trim() ? `Firma del representante (${form.signedBy.trim()})` : `Firma de ${patient.name}`} onChange={setSignature} />
+              {error && <Alert tone="danger" title={error} />}
+              <Button size="lg" loading={saving} onClick={() => void saveSigned()}>
+                Guardar la hoja firmada
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setSigning(false);
+                  setSignature(null);
+                  setError(null);
+                }}
+              >
+                Volver a las respuestas
+              </Button>
+            </Card>
+          ) : (
           <Card className="flex flex-col gap-4">
             <h2 className="text-lg">Lo que consta en la app</h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -133,6 +233,20 @@ export function PatientPrivacyPage() {
             })}
             <Button
               size="lg"
+              icon={<FilePen aria-hidden="true" className="size-5" />}
+              onClick={() => {
+                setError(null);
+                setSigning(true);
+                window.scrollTo({ top: 0 });
+              }}
+            >
+              Firmar en la pantalla
+            </Button>
+            <Button variant="secondary" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
+              Imprimir para firmar en papel
+            </Button>
+            <Button
+              variant="secondary"
               loading={saving}
               onClick={async () => {
                 setSaving(true);
@@ -149,18 +263,39 @@ export function PatientPrivacyPage() {
             >
               Guardar
             </Button>
+            <p className="text-sm text-text-muted">
+              «Guardar» apunta la fecha y las respuestas sin firmar aquí: cuando la ha firmado en papel (sale la hoja de abajo, con sus respuestas
+              marcadas), o si cambia un permiso de palabra.
+            </p>
           </Card>
+          )}
 
-          <Button variant="secondary" size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
-            Imprimir para firmar
-          </Button>
-          <p className="text-sm text-text-muted">
-            Sale la hoja de abajo, con sus respuestas marcadas si ya las has apuntado. También puedes guardarla en PDF desde el diálogo de impresión.
-          </p>
+          {sheets.length > 0 && (
+            <Group title="Hojas firmadas en la pantalla">
+              {[...sheets].reverse().map((sh) => (
+                <RowButton
+                  key={sh.at}
+                  icon={ShieldCheck}
+                  title={`Firmada el ${fmtDate(`${sh.date}T12:00:00`)}`}
+                  subtitle={[
+                    sh.signedBy ? `por ${sh.signedBy}` : null,
+                    ...sh.consents.filter((c) => c.answer !== null).map((c) => `${CONSENTS.find((x) => x.id === c.id)?.label ?? c.id}: ${c.answer ? "sí" : "no"}`),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  onClick={() => {
+                    setSigning(false);
+                    setViewing(sh);
+                    window.scrollTo({ top: 0 });
+                  }}
+                />
+              ))}
+            </Group>
+          )}
         </div>
 
         <div className="theme-light rounded-lg border border-border bg-white p-6 text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none">
-          <PrivacyNotice clinic={clinic} storage={storage} patientName={patient.name} privacy={form} />
+          <PrivacyNotice data={shown} />
         </div>
         <p className="text-sm text-text-muted print:hidden">
           Es una plantilla basada en el RGPD, la LOPDGDD y la Ley 41/2002, no asesoramiento legal: revísala con el delegado de protección de datos de la

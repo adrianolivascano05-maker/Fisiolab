@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { createD1, type D1Shim, type D1Statement } from "./d1shim";
 import { handle } from "./worker.js";
+import { EXPECTED_SERVER_VERSION } from "../src/cloud/serverStatus";
 
 const CLIENT_ID = "1234-abc.apps.googleusercontent.com";
 const APP = "https://adrianolivascano05-maker.github.io";
@@ -85,7 +86,10 @@ describe("salud", () => {
   it("responde sin sesión y sin preguntar a Google", async () => {
     const res = await call("GET", "/v1/salud");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    // Con la versión del servidor: la que espera la app (src/cloud/serverStatus.ts) no puede ser posterior.
+    const body = (await res.json()) as { ok: boolean; version: string };
+    expect(body).toEqual({ ok: true, version: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+    expect(body.version >= EXPECTED_SERVER_VERSION).toBe(true);
     expect(res.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
     expect(res.headers.get("Cache-Control")).toBe("no-store");
     expect(verifyToken).not.toHaveBeenCalled();
@@ -581,8 +585,11 @@ describe("clínicas", () => {
     await send("POST", "/v1/solicitud", "tok-eva", { clinic: "Fisio Eva Sevilla" });
     expect((await me("tok-eva")).request).toMatchObject({ clinic: "Fisio Eva Sevilla" });
     // El proveedor la ve (y cuántas hay pendientes); nadie más.
-    expect((await me("tok-luis", op)) as unknown).toMatchObject({ pendingRequests: 1 });
+    // Y lo que tiene pendiente en Cloudflare: la versión pegada y si hay almacén R2.
+    expect((await me("tok-luis", op)) as unknown).toMatchObject({ pendingRequests: 1, server: { version: EXPECTED_SERVER_VERSION, docs: false } });
+    expect((await me("tok-luis", { ...op, DOCS: {} })) as unknown).toMatchObject({ server: { docs: true } });
     expect((await me("tok-eva", op)) as unknown).not.toHaveProperty("pendingRequests");
+    expect((await me("tok-eva", op)) as unknown).not.toHaveProperty("server");
     const panel = (await (await opCall("GET", "/v1/proveedor")).json()) as { requests: (Req & { email: string; note: string })[] };
     expect(panel.requests).toEqual([expect.objectContaining({ email: "eva@clinica.es", clinic: "Fisio Eva Sevilla", note: "", status: "pending" })]);
     expect((await call("POST", "/v1/proveedor/solicitudes/eva@clinica.es", { token: "tok-ana", body: "{}" }, op)).status).toBe(403);

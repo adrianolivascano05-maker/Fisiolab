@@ -27,6 +27,7 @@ export const SYNC_TABLES: { name: string; pk: string[]; unique?: string[][] }[] 
   { name: "sessions", pk: ["id"] },
   { name: "appointments", pk: ["id"] },
   { name: "staff", pk: ["email"] },
+  { name: "patient_staff", pk: ["id"] },
   { name: "shifts", pk: ["id"] },
   { name: "closures", pk: ["id"] },
   { name: "questionnaires", pk: ["id"] },

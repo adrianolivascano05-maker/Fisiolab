@@ -22,6 +22,7 @@ import { getToken } from "./auth";
 import type { OperatorClinic } from "./clinic";
 import { useCloud } from "./CloudGate";
 import { limitWarnings } from "./limits";
+import { cloudflarePending } from "./serverStatus";
 import { saveFile } from "../app/download";
 
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -85,6 +86,13 @@ export function ProviderPage() {
         la contraseña de la clínica.
       </p>
       {data.error && <Alert tone="warning" title={data.error.message} />}
+      {/* Lo que falta hacer en Cloudflare tras actualizar la app: pegar el servidor nuevo, activar R2. */}
+      {data.data &&
+        cloudflarePending(data.data.version ? { version: data.data.version, docs: !!data.data.documents?.enabled } : undefined).map((p) => (
+          <Alert key={p.title} tone="warning" title={p.title}>
+            {p.detail}
+          </Alert>
+        ))}
 
       <section aria-labelledby="h-solicitudes" className="flex flex-col gap-2">
         <h2 id="h-solicitudes" className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase">

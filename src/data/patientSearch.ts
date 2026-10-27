@@ -34,7 +34,10 @@ export type PatientFilters = {
   ageFrom: number | null;
   ageTo: number | null;
   sex: Sex | null;
-  /** Correo de alguien del equipo: pacientes con alguna cita suya (no anulada). */
+  /**
+   * Correo de alguien del equipo: los pacientes que tiene asignados (src/data/patientStaff.ts) y, de los que no
+   * tienen a nadie asignado, los que tienen alguna cita suya (no anulada).
+   */
   physio: string | null;
   /** Con alguna cita pendiente. */
   upcoming: boolean;
@@ -135,8 +138,10 @@ function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "lette
     bind.push(f.sex);
   }
   if (f.physio) {
-    where.push("exists (select 1 from appointments a where a.patient_id = p.id and a.assigned_to = ? and a.status <> 'cancelled')");
-    bind.push(f.physio);
+    where.push(`(exists (select 1 from patient_staff s where s.patient_id = p.id and s.staff_email = ?)
+      or (not exists (select 1 from patient_staff s where s.patient_id = p.id)
+          and exists (select 1 from appointments a where a.patient_id = p.id and a.assigned_to = ? and a.status <> 'cancelled')))`);
+    bind.push(f.physio, f.physio);
   }
   if (f.upcoming) {
     where.push("exists (select 1 from appointments a where a.patient_id = p.id and a.status = 'scheduled' and a.starts_at > ?)");

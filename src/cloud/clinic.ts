@@ -9,6 +9,7 @@ import type { DbFile } from "../data/db";
 import { dbFileFor, type Account } from "./account";
 import type { Token } from "./auth";
 import { serverCall, ServerError } from "./remote";
+import type { ServerInfo } from "./serverStatus";
 
 export type Role = "admin" | "member";
 /** `suspended`: el proveedor la ha suspendido (se puede bajar la copia, no subir). */
@@ -29,6 +30,8 @@ export type Me = {
   request?: AccessRequest | null;
   /** Solo para el proveedor: solicitudes por atender. */
   pendingRequests?: number;
+  /** Solo para el proveedor: la versión del servidor y si tiene el almacén R2 (src/cloud/serverStatus.ts). Sin esto, el servidor es anterior. */
+  server?: ServerInfo;
 };
 /** Una solicitud de acceso: el nombre de la clínica que quiere dar de alta y si está pendiente o se rechazó. */
 export type AccessRequest = { clinic: string; status: "pending" | "rejected"; createdAt: string };
@@ -188,6 +191,8 @@ export function clinicApi(baseUrl: string) {
     operator: {
       overview: async (t: Token) =>
         (await (await call(t, "/v1/proveedor")).json()) as {
+          /** La versión del servidor (src/cloud/serverStatus.ts); los anteriores al 27-10-2026 no la dicen. */
+          version?: string;
           clinics: OperatorClinic[];
           creators: Creator[];
           requests?: OperatorRequest[];

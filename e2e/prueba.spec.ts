@@ -57,9 +57,23 @@ test.describe("Clínica de prueba", () => {
     await expect(page.getByRole("tab", { name: /Sesiones/ }).or(page.getByRole("link", { name: /Sesiones/ })).first()).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
 
-    // La agenda de hoy y los recordatorios, con citas.
+    // Los recordatorios, con citas. Las de prueba van al azar y mañana puede no tener ninguna: el primer día de la
+    // semana que tenga alguna (la fecha, en el navegador, que va en hora de Madrid).
     await page.goto("./agenda/recordatorios");
-    await expect(page.getByText(/\+44 7700 900|Ejemplo|·/).first()).toBeVisible();
+    const none = page.getByText("No hay citas pendientes ese día.");
+    const some = page.getByText(/\+44 7700 900|Ejemplo|·/).first();
+    for (let d = 1; d <= 7; d++) {
+      const [day, title] = await page.evaluate((n) => {
+        const t = new Date();
+        t.setDate(t.getDate() + n);
+        return [t.toLocaleDateString("sv-SE"), t.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })];
+      }, d);
+      await page.getByLabel("Otro día").fill(day);
+      await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+      await expect(none.or(some).first()).toBeVisible();
+      if (await some.isVisible()) break;
+    }
+    await expect(some).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
 
     // No se puede cargar dos veces, y se borra todo.

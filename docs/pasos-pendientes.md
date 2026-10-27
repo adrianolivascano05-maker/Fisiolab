@@ -71,6 +71,11 @@ trozos, la consulta de cada minuto que dice también si hay formularios respondi
 avisos al 70 % en el panel del proveedor (sin tablas nuevas). **Ya está listo para pegarlo.** Si ya lo pegaste
 antes del 27-10-2026, vuelve a hacer el paso 3 (el `schema.sql` no cambia: ejecutarlo otra vez no hace nada).
 
+**Desde el 27-10-2026 la app te lo recuerda:** en **Ajustes**, la fila **Proveedor** sale en naranja con «Pendiente
+en Cloudflare: actualizar el servidor» mientras el servidor pegado sea anterior al que necesita la app, y con
+«activar R2» mientras falte el paso 4. Dentro, en el panel, explica qué hacer. Cuando ya no diga nada, está todo al
+día. Los fisios del paciente (migración 034) van solo en la app: no tocan el servidor.
+
 1. Comprueba que no queda ninguna reserva sin recoger. <https://dash.cloudflare.com> → **Storage & Databases** →
    **D1** → la base (`cenit-datos`) → **Console**. Pega y ejecuta:
    `SELECT count(*) AS n FROM bookings WHERE collected_at IS NULL;`

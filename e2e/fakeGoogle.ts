@@ -97,6 +97,8 @@ export class FakeGoogle {
   formsInInfo = true;
   /** Lo que ocupa la base D1, para el panel del proveedor. */
   databaseBytes = 2_000_000;
+  /** La versión del servidor que dice al proveedor (cloudflare/worker.js, SERVER_VERSION); null: uno anterior, que no la dice. */
+  serverVersion: string | null = "2026-10-27";
   /** Las clínicas del servidor simulado, con su equipo (correo → papel). */
   clinics = new Map<
     string,
@@ -244,7 +246,12 @@ export class FakeGoogle {
         canCreate,
         operator,
         request: this.requests.has(email) ? { clinic: this.requests.get(email)!.clinic, status: this.requests.get(email)!.status, createdAt: this.requests.get(email)!.createdAt } : null,
-        ...(operator ? { pendingRequests: [...this.requests.values()].filter((r) => r.status === "pending").length } : {}),
+        ...(operator
+          ? {
+              pendingRequests: [...this.requests.values()].filter((r) => r.status === "pending").length,
+              ...(this.serverVersion ? { server: { version: this.serverVersion, docs: this.docsEnabled } } : {}),
+            }
+          : {}),
         clinics: [...this.clinics]
           .filter(([, c]) => c.members.has(email) && !c.deleted)
           .map(([id, c]) => ({ id, name: c.name, role: c.members.get(email), ...(c.suspended ? { suspended: true } : {}) })),
@@ -302,6 +309,7 @@ export class FakeGoogle {
           declaration: c.deleted?.declaration ?? null,
           purgeAfter: c.deleted?.purgeAfter ?? null,
         })),
+        ...(this.serverVersion ? { version: this.serverVersion } : {}),
         requests: [...this.requests].map(([e, r]) => ({ email: e, ...r })),
         creators: [...this.altas].map((e) => ({ email: e, source: "panel", addedBy: email, addedAt: new Date().toISOString() })),
         // Como cloudflare/worker.js: el almacén (archivos y copias en R2) y la base, con sus topes y el aviso al 70 %.

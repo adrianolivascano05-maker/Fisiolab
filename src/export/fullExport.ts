@@ -20,7 +20,7 @@ import { displayName, kindOf, scoreText, type QDetails } from "../clinical/quest
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { Db } from "../data/db";
 import { STATUS_LABELS, type AppointmentStatus } from "../data/appointments";
-import { getClinic, type ClinicInfo } from "../data/privacy";
+import { CONSENTS, getClinic, parsePrivacy, type ClinicInfo, type SignedPrivacySheet } from "../data/privacy";
 import { euros, methodLabel } from "../data/billing";
 import { preferText, type PreferTime } from "../data/waitlist";
 import { SYNC_TABLES } from "../data/syncMerge";
@@ -348,6 +348,13 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
     ["Peso", p.body_mass_kg ? `${fmtNum(p.body_mass_kg)} kg` : ""],
     ["Altura", p.height_cm ? `${fmtNum(p.height_cm)} cm` : ""],
     ["Notas", s(p.notes)],
+    [
+      "Fisios que lo llevan",
+      (T.patient_staff ?? [])
+        .filter((r) => r.patient_id === pid)
+        .map((r) => staff.get(s(r.staff_email)) ?? s(r.staff_email))
+        .join(", "),
+    ],
     ["En Cénit desde", when(p.created_at)],
     ["Código", pid],
   ];
@@ -450,6 +457,16 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
     for (const r of consents) parts.push(consentHtml(r));
   }
 
+  // Protección de datos: cuándo se le dio la información, sus permisos opcionales y las hojas firmadas en la pantalla.
+  const privacy = parsePrivacy(s(p.privacy) || null);
+  if (privacy.informedAt || privacy.sheets?.length) {
+    const answers = CONSENTS.filter((x) => privacy.consents?.[x.id] !== undefined).map((x) => `${x.label}: ${privacy.consents![x.id] ? "sí" : "no"}`);
+    parts.push(
+      `<h2>Protección de datos</h2><p>${privacy.informedAt ? `Información entregada el ${h(day(privacy.informedAt))}` : "Sin entregar"}${privacy.signedBy ? ` · firma su representante, ${h(privacy.signedBy)}` : ""}${answers.length ? ` · ${h(answers.join(" · "))}` : ""}</p>`,
+    );
+    for (const sheet of privacy.sheets ?? []) parts.push(privacySheetHtml(sheet));
+  }
+
   const appts = mine("appointments").sort((a, b) => s(a.starts_at).localeCompare(s(b.starts_at)));
   if (appts.length)
     parts.push(
@@ -528,6 +545,18 @@ function consentHtml(r: R): string {
     .join("")}<p>${doc.place ? `En ${h(doc.place)}, ` : ""}${doc.date ? `a ${h(day(doc.date))}` : ""}</p><div class="sig">${img(sig.patient, doc.representative ? "Firma del representante" : "Firma del paciente")}${img(sig.professional, "Firma del fisioterapeuta")}</div>${
     r.revoked_at ? `<p><strong>Retirado el ${h(when(r.revoked_at))}</strong>${r.revoke_note ? `: ${h(r.revoke_note)}` : ""}</p>${sig.revocation ? `<div class="sig">${img(sig.revocation, "Firma de la retirada")}</div>` : ""}` : ""
   }</div>`;
+}
+
+/** Una hoja de protección de datos tal como se firmó en la pantalla: el texto, los permisos y la firma. */
+function privacySheetHtml(sh: SignedPrivacySheet): string {
+  const signer = sh.signedBy ? `${sh.signedBy} (representante de ${sh.patientName})` : sh.patientName;
+  return `<div class="card"><h3>Hoja firmada en la pantalla el ${h(day(sh.date))}</h3><p class="muted">Versión del texto ${h(sh.version)}</p>${sh.sections
+    .map((x) => `<h3>${h(x.title)}</h3>${x.paragraphs.map((t) => `<p>${h(t)}</p>`).join("")}`)
+    .join("")}<h3>Permisos opcionales</h3><ul>${sh.consents
+    .map((c) => `<li>${h(c.answer === null ? "Sin preguntar" : c.answer ? "Sí" : "No")}: ${h(c.text)}</li>`)
+    .join("")}</ul><div class="sig"><div><strong>${h(`Firma: ${signer}`)}</strong>${
+    sh.signature.startsWith("data:image/") ? `<img src="${escapeXml(sh.signature)}" alt="${h(`Firma: ${signer}`)}">` : ""
+  }</div></div></div>`;
 }
 
 // ---------- El paquete ----------

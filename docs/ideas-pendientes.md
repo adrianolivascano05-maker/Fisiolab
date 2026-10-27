@@ -116,6 +116,34 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
   texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
 
+## Tras probar el bloque A (pedido y hecho el 27-10-2026)
+
+- **Fisios del paciente.** El usuario no veía cómo decir qué fisio lleva a cada paciente, y sin eso el filtro «Fisio»
+  no tenía sentido. Hecho: en la cabecera de la ficha, **Asignar fisio** (o «Fisio: Ana», «Fisios: Ana, Bruno»), solo
+  en una clínica con equipo; una hoja con el equipo para marcar uno o varios y cuántas citas tiene con cada uno; si
+  alguno ya no está en el equipo, sale para poder quitarlo. Se sincroniza (migración 034, tabla `patient_staff`, una
+  fila por paciente y fisio: dos personas que asignan a la vez no se pisan) y sale en la historia exportada. El
+  filtro «Fisio» busca los asignados; si un paciente no tiene a nadie asignado, los que tienen alguna cita suya
+  (como antes). Pruebas: `src/data/patientSearch.test.ts`, `src/data/fieldMerge.test.ts` y CL16 en
+  `e2e/clinics.spec.ts`.
+- **Hoja de protección de datos firmada en la pantalla.** Antes solo se imprimía. Hecho: «Firmar en la pantalla»,
+  como los consentimientos; se guarda la hoja entera (texto con su versión, respuestas a fotos y vídeos, WhatsApp o
+  correo y docencia, y la firma del paciente o su representante), se ve e imprime después tal como se firmó, cuenta
+  como «firmada» en el filtro de pendientes y sale en la exportación. Si cambian las respuestas, avisa de que la hoja
+  firmada ya no coincide. Pruebas: `src/data/privacy.test.ts`, `src/export/fullExport.test.ts` y PD4 en
+  `e2e/privacy.spec.ts`. Sigue siendo un modelo por revisar con la asesoría (punto 2 de arriba).
+- **Que no se quede nada en el tintero en Cloudflare.** El servidor dice su versión (`SERVER_VERSION` en
+  `cloudflare/worker.js`) y si tiene el almacén R2; si está por detrás de lo que necesita la app
+  (`src/cloud/serverStatus.ts`) o falta R2, Ajustes → Proveedor lo dice en naranja («Pendiente en Cloudflare:
+  actualizar el servidor y activar R2») y el panel explica cómo. Mientras se pegue el `worker.js` de antes (sin
+  versión), avisará de actualizarlo. Pruebas: `src/cloud/serverStatus.test.ts`, «salud» en
+  `cloudflare/worker.test.ts` y CL8.
+- **Dudas del usuario sobre el cobro de Cloudflare (respondidas):** Workers y D1 en el plan gratuito nunca cobran;
+  al pasarse de un límite, dan error hasta el día siguiente (peticiones) o hasta que haya sitio (base). Para más,
+  hay que pasar al plan de pago con tarjeta (unos 5 $ al mes). R2 pide tarjeta para activarlo y cobraría solo pasados
+  10 GB, pero el tope del servidor (`DOCS_CAP_GB`, 10 GB) para los archivos antes; las copias de las clínicas no se
+  rechazan nunca, pero ocupan poco.
+
 ## Clínicas grandes y muchas clínicas (medido el 26-10-2026)
 
 Pregunta del usuario: qué pasa si da servicio a 10 clínicas de 10.000 pacientes cada una. Lo que más le importa: que

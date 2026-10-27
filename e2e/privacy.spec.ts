@@ -1,6 +1,16 @@
 // Protección de datos (src/privacy): texto informativo y consentimientos de cada paciente, datos de la clínica,
 // aviso de conservación al borrar y bloqueo de la app con PIN.
-import { add, createPatient, expect, expectAccessible, test } from "./fixtures";
+import type { Locator, Page } from "@playwright/test";
+import { add, createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
+
+/** Firma de mentira: un garabato con el ratón. */
+async function scribble(page: Page, pad: Locator) {
+  const box = (await pad.boundingBox())!;
+  await page.mouse.move(box.x + 30, box.y + box.height * 0.6);
+  await page.mouse.down();
+  for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + 30 + i * 20, box.y + box.height * (0.6 + 0.2 * Math.sin(i)));
+  await page.mouse.up();
+}
 
 /** El campo de la pantalla de bloqueo (lo de debajo está tapado y no cuenta). */
 
@@ -37,6 +47,42 @@ test.describe("Protección de datos", () => {
     // La ficha resume cuándo se le informó y sus consentimientos.
     const row = page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Entregada el/ });
     await expect(row).toContainText("Fotos y vídeos: sí · WhatsApp, SMS o correo: no");
+  });
+
+  test("PD4 la hoja de protección de datos (fotos, WhatsApp, docencia) se firma en la pantalla y se guarda tal cual", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    await createPatient(page, { name: "Nora Firma" });
+    await page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Sin entregar/ }).click();
+    await page.getByRole("group", { name: "Fotos y vídeos" }).getByText("Sí", { exact: true }).click();
+    await page.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByText("No", { exact: true }).click();
+    await page.getByRole("button", { name: "Firmar en la pantalla" }).click();
+    // Sin firma no se guarda.
+    await page.getByRole("button", { name: "Guardar la hoja firmada" }).click();
+    await expect(page.getByText("Falta la firma de Nora Firma.")).toBeVisible();
+    expect(await smallTargets(page)).toEqual([]);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    await expectAccessible(page);
+    await scribble(page, page.getByRole("img", { name: "Firma de Nora Firma" }));
+    await page.getByRole("button", { name: "Guardar la hoja firmada" }).click();
+    await expect(page.getByText(/^Firmada en la pantalla el /)).toBeVisible();
+    const notice = page.getByRole("article", { name: "Información sobre protección de datos" });
+    const history = page.getByRole("region", { name: "Hojas firmadas en la pantalla" });
+    await expect(history.getByRole("button", { name: /Firmada el .*Fotos y vídeos: sí · WhatsApp, SMS o correo: no/ })).toBeVisible();
+
+    // Cambia un permiso de palabra: se avisa de que firme otra; la firmada sigue como se firmó.
+    await page.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByText("Sí", { exact: true }).click();
+    await page.getByRole("button", { name: "Guardar", exact: true }).click();
+    await expect(page.getByText(/pero sus permisos han cambiado/)).toBeVisible();
+    await history.getByRole("button", { name: /Firmada el / }).click();
+    await expect(page.getByText(/Hoja firmada en la pantalla el .*tal como se firmó/)).toBeVisible();
+    await expect(notice.getByRole("img", { name: "Firma: Nora Firma" })).toBeVisible();
+    await page.getByRole("button", { name: "Volver a la hoja de ahora" }).click();
+    await expect(notice.getByRole("img", { name: "Firma: Nora Firma" })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+
+    // En la ficha, firmada en la pantalla, con sus permisos de ahora.
+    await page.getByRole("link", { name: "Volver" }).click();
+    await expect(page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Firmada en la pantalla el .*WhatsApp, SMS o correo: sí/ })).toBeVisible();
   });
 
   test("PD2 borrar un paciente con historia avisa del plazo de conservación", async ({ page }) => {

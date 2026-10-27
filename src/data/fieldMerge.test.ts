@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getAnamnesis, saveAnamnesis, saveSession, type Answers } from "./clinical";
 import type { Db } from "./db";
 import { migrations } from "./migrations";
+import { patientPhysios, setPatientPhysios } from "./patientStaff";
 import { createPatient, deletePatient } from "./repo";
 import { SYNC_TABLES, type DeltaItem } from "./syncMerge";
 import { createTestDb } from "./testDb";
@@ -88,6 +89,20 @@ describe("campo a campo", () => {
     // No se ha perdido nada: no hay nada que recuperar.
     expect(await a.query("select * from sync_conflicts")).toEqual([]);
     expect(await b.query("select * from sync_conflicts")).toEqual([]);
+  });
+
+  it("dos asignan fisios a la vez al mismo paciente: se quedan los dos; el mismo, una sola vez", async () => {
+    const pid = await createPatient(a, patient("Ana Ruiz"));
+    await server.settle([a, b]);
+    await setPatientPhysios(a, pid, ["bruno@clinica.test"]);
+    await setPatientPhysios(b, pid, ["carla@clinica.test", "bruno@clinica.test"]);
+    await server.settle([a, b]);
+    for (const db of [a, b]) expect(await patientPhysios(db, pid)).toEqual(["bruno@clinica.test", "carla@clinica.test"]);
+    // Uno quita a Carla: se va en los dos.
+    await setPatientPhysios(b, pid, ["bruno@clinica.test"]);
+    await server.settle([a, b]);
+    expect(await patientPhysios(a, pid)).toEqual(["bruno@clinica.test"]);
+    expect(await dump(a)).toEqual(await dump(b));
   });
 
   it("lo mismo con la copia entera (Drive o un dispositivo que vuelve después de mucho)", async () => {

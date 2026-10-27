@@ -200,7 +200,7 @@ function FiltersSheet({ open, onClose, list }: { open: boolean; onClose: () => v
         ))}
       </SelectField>
       {staff.length > 0 && (
-        <SelectField label="Fisio" hint="Pacientes con alguna cita suya" value={f.physio ?? ""} onChange={(e) => set({ physio: e.target.value || null })}>
+        <SelectField label="Fisio" hint="Los que tiene asignados en su ficha; si no tienen a nadie, los que tienen alguna cita suya" value={f.physio ?? ""} onChange={(e) => set({ physio: e.target.value || null })}>
           <option value="">Cualquiera</option>
           {staff.map((s) => (
             <option key={s.email} value={s.email}>

@@ -17,7 +17,8 @@ const steps: { title: string; body: ReactNode }[] = [
       <>
         Pulsa <b>+</b> arriba a la derecha para añadir uno (con el nombre basta). Arriba salen sus <b>próximas citas</b> y las reevaluaciones
         pendientes; debajo, todos por orden alfabético, de 50 en 50. Búscalos por nombre, teléfono o DNI, y con <b>Filtros</b> por edad, sexo,
-        fisio, si tienen cita, cuándo vinieron por última vez o si tienen algo pendiente de cobrar o de firmar.
+        fisio, si tienen cita, cuándo vinieron por última vez o si tienen algo pendiente de cobrar o de firmar. En una clínica con equipo,
+        el botón <b>Asignar fisio</b> de la cabecera de la ficha dice qué fisios lo llevan (uno o varios).
       </>
     ),
   },
@@ -64,7 +65,8 @@ const steps: { title: string; body: ReactNode }[] = [
     body: (
       <>
         En el Resumen, <b>Documentos</b> (informe, informe de alta, carta de derivación y justificante, para imprimir, guardar en PDF o en tu
-        Drive) y <b>Legal</b> (consentimientos y la hoja de <b>protección de datos</b>; lo que falte sale arriba, en «Pendiente»).
+        Drive) y <b>Legal</b> (consentimientos y la hoja de <b>protección de datos</b>, que se firman en la pantalla o en papel; lo que falte
+        sale arriba, en «Pendiente»).
       </>
     ),
   },

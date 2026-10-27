@@ -5,6 +5,7 @@ import { getAnamnesis, saveAnamnesis, saveSession } from "./clinical";
 import { listConsents } from "./consents";
 import type { Db } from "./db";
 import { countOwnPatients, findPatients, hasOwnPatients, NO_FILTERS, unsignedPatients, type PatientFilters } from "./patientSearch";
+import { appointmentsByPhysio, patientPhysios, setPatientPhysios } from "./patientStaff";
 import { savePatientPrivacy } from "./privacy";
 import { createPatient, getPatient, listPatients, matchesPatient, QUICK_PATIENT, type PatientInput } from "./repo";
 import { SEED_PREFIX } from "./seed";
@@ -93,6 +94,36 @@ describe("buscar pacientes en la base", () => {
     expect(await names({ filters: only({ lastVisit: "mas365" }) })).toEqual(["Ciro Sanz"]);
     expect(await names({ filters: only({ lastVisit: "nunca" }) })).toEqual(["Dani Sin Datos"]);
     expect(await names({ search: "a", filters: only({ lastVisit: "mas180" }) })).toEqual(["Ciro Sanz"]);
+  });
+
+  it("fisio: los que tiene asignados; si no tiene ninguno, los que tienen alguna cita suya", async () => {
+    const ana = await createPatient(db, person("Ana Gil"));
+    const bea = await createPatient(db, person("Bea Paz"));
+    const ciro = await createPatient(db, person("Ciro Sanz"));
+    await createPatient(db, person("Dani Nadie"));
+    const BRUNO = "bruno@clinica.test";
+    const CARLA = "carla@clinica.test";
+    // Sin asignar: por sus citas (las anuladas no cuentan).
+    await createAppointment(db, ana, { startsAt: "2026-11-03T09:00:00.000Z", minutes: 45, assignedTo: BRUNO });
+    await createAppointment(db, bea, { startsAt: "2026-11-04T09:00:00.000Z", minutes: 45, assignedTo: BRUNO });
+    const cancelled = await createAppointment(db, ciro, { startsAt: "2026-11-05T09:00:00.000Z", minutes: 45, assignedTo: BRUNO });
+    await db.transaction([{ sql: "update appointments set status = 'cancelled' where id = ?", bind: [cancelled] }]);
+    expect(await names({ filters: only({ physio: BRUNO }) })).toEqual(["Ana Gil", "Bea Paz"]);
+    expect(await appointmentsByPhysio(db, ana)).toEqual(new Map([[BRUNO, 1]]));
+    // Bea pasa a llevarla Carla (aunque tenga una cita con Bruno); Ciro, Bruno y Carla a la vez.
+    await setPatientPhysios(db, bea, [CARLA]);
+    await setPatientPhysios(db, ciro, [" Bruno@Clinica.test ", CARLA, CARLA]);
+    expect(await patientPhysios(db, ciro)).toEqual([BRUNO, CARLA]);
+    expect(await names({ filters: only({ physio: BRUNO }) })).toEqual(["Ana Gil", "Ciro Sanz"]);
+    expect(await names({ filters: only({ physio: CARLA }) })).toEqual(["Bea Paz", "Ciro Sanz"]);
+    // Quitar uno deja el otro; quitarlos todos vuelve a mirar sus citas.
+    await setPatientPhysios(db, ciro, [CARLA]);
+    expect(await patientPhysios(db, ciro)).toEqual([CARLA]);
+    await setPatientPhysios(db, bea, []);
+    expect(await names({ filters: only({ physio: BRUNO }) })).toEqual(["Ana Gil", "Bea Paz"]);
+    // Al borrar el paciente, se van sus asignaciones.
+    await db.transaction([{ sql: "delete from patients where id = ?", bind: [ciro] }]);
+    expect(await db.query("select * from patient_staff")).toEqual([]);
   });
 
   it("pendiente de cobrar o de firmar: los mismos que avisan su ficha y Agenda › Hoy", async () => {

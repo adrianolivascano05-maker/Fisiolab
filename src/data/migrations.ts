@@ -31,6 +31,7 @@ import invoiceRef030 from "./migrations/030_invoice_ref.sql?raw";
 import waitlistMore031 from "./migrations/031_waitlist_more.sql?raw";
 import documents032 from "./migrations/032_documents.sql?raw";
 import syncFields033 from "./migrations/033_sync_fields.sql?raw";
+import patientStaff034 from "./migrations/034_patient_staff.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -67,4 +68,5 @@ export const migrations: Migration[] = [
   { version: 31, sql: waitlistMore031 },
   { version: 32, sql: documents032 },
   { version: 33, sql: syncFields033 },
+  { version: 34, sql: patientStaff034 },
 ];
