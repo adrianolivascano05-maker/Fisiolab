@@ -63,6 +63,8 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 
 ## 3. Cloudflare: pegar el `worker.js` nuevo y borrar las tablas de la reserva (unos 10 minutos)
 
+**Hecho el 27-10-2026** (versión `2026-10-27.2`; tablas de la reserva borradas, no quedaba ninguna sin recoger).
+
 La reserva online se ha quitado (24-10-2026) y el servidor se ha dejado más limpio (bloque 3: formularios repetidos
 a la vez, lotes de cambios que se leían de más, tiempo límite con Google, menos limpiezas en cada consulta). El
 servidor nuevo ya no tiene las rutas de la reserva, y sus tres tablas sobran. Además trae los archivos de los
@@ -97,6 +99,8 @@ día. Los fisios del paciente (migración 034) van solo en la app: no tocan el s
 
 ## 4. Cloudflare: activar los archivos de los pacientes (R2) (unos 10 minutos, después del paso 3)
 
+**Hecho el 27-10-2026** (almacén `cenit-archivos` en la UE, enlace `DOCS`).
+
 Para guardar los informes y pruebas de cada paciente (PDF o fotos) y para el enlace con el que el paciente te los
 envía. Además, desde el 27-10-2026, la copia de cada clínica pasa a R2: así deja de tener el tope de 50 MB (una
 clínica de 10.000 pacientes ocupa unos 54 MB) y el servidor no tiene que juntarla en memoria. Hasta que lo actives,
@@ -119,6 +123,8 @@ precios, está en `cloudflare/README.md`, «Documentos».
    de pago cabe 20 veces más.
 
 ## 4 bis. Ver las peticiones de hoy en el panel del proveedor (opcional, unos 5 minutos)
+
+**Hecho el 27-10-2026** (`CF_ACCOUNT_ID` y `CF_API_TOKEN` en el Worker; el panel ya enseña las peticiones).
 
 Para que el panel (solo tú lo ves) diga cuántas peticiones lleva hoy el servidor y te avise al 70 % del límite del
 plan gratuito (100 000 al día). Necesita un token de Cloudflare de **solo lectura** que creas tú y se queda guardado
