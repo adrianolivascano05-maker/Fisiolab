@@ -3,8 +3,8 @@
 // activar el almacén R2. Así no se queda nada en el tintero tras cada actualización. Al cambiar cloudflare/worker.js en
 // algo que la app necesite, sube a la vez su SERVER_VERSION y EXPECTED_SERVER_VERSION (lo comprueba worker.test.ts).
 
-/** La versión de cloudflare/worker.js (el día de su último cambio) que necesita esta versión de la app. */
-export const EXPECTED_SERVER_VERSION = "2026-10-27";
+/** La versión de cloudflare/worker.js que necesita esta versión de la app: el día de su último cambio («.2» si es el segundo de ese día). */
+export const EXPECTED_SERVER_VERSION = "2026-10-27.2";
 
 /** Lo que el servidor dice de sí mismo al proveedor (/v1/yo): su versión y si tiene el almacén R2. Si no dice nada, es anterior. */
 export type ServerInfo = { version: string; docs: boolean };

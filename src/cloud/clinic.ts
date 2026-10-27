@@ -4,7 +4,7 @@
 // En cada dispositivo, cada cuenta recuerda en qué clínica trabaja; cada clínica tiene su base
 // (fisiolab-u<cuenta>-c<clínica>.sqlite3), su clave de cifrado y su sincronización. Si se llevan a ella los pacientes
 // de la cuenta, pasan a la base de la clínica y la de la cuenta se borra del dispositivo.
-import type { DatabaseUsage, StorageUsage } from "./limits";
+import type { DatabaseUsage, RequestUsage, StorageUsage } from "./limits";
 import type { DbFile } from "../data/db";
 import { dbFileFor, type Account } from "./account";
 import type { Token } from "./auth";
@@ -207,6 +207,8 @@ export function clinicApi(baseUrl: string) {
         await call(t, `/v1/proveedor/solicitudes/${encodeURIComponent(email)}`, { method: "DELETE" });
       },
       contract: async (t: Token) => ((await (await call(t, "/v1/proveedor/contrato")).json()) as { html: string }).html,
+      /** Las peticiones de hoy de toda la cuenta de Cloudflare (src/cloud/limits.ts, RequestUsage). */
+      requests: async (t: Token) => (await (await call(t, "/v1/proveedor/peticiones")).json()) as RequestUsage,
       addCreator: async (t: Token, email: string) => {
         await call(t, `/v1/proveedor/altas/${encodeURIComponent(email.trim().toLowerCase())}`, { method: "PUT" });
       },

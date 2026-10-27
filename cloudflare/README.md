@@ -266,6 +266,35 @@ clínica monta el suyo (es gratis y no comparte nada con las demás). Si se pasa
 (unos 5 $ al mes) da 10 millones de peticiones al mes: unas 450 clínicas de 3 dispositivos. La prueba avisa si algún
 cambio de la app sube de 1,5 por minuto.
 
+### Peticiones al día, en el panel del proveedor (opcional, unos 5 minutos)
+
+El servidor no cuenta las peticiones (costaría una escritura por cada una): se las pregunta a las estadísticas de
+Cloudflare con un token de **solo lectura**, que se queda guardado en Cloudflare como secreto del Worker (no va a la
+app ni a ningún otro sitio). Con él, el panel del proveedor (solo `OPERATOR_EMAILS`) enseña cuántas lleva hoy toda
+la cuenta y, desde el 70 %, avisa allí y en **Ajustes** → **Proveedor**. Las clínicas no lo ven. Se ponen a cero a
+las 00:00 UTC (la 1 o las 2 en España).
+
+1. **El token.** Arriba a la derecha, tu perfil → **My Profile** → **API Tokens** → **Create Token** → **Create
+   Custom Token** → **Get started**:
+   - Token name: `cenit-peticiones`.
+   - Permissions: **Account** · **Account Analytics** · **Read**. Nada más.
+   - Account Resources: **Include** · tu cuenta.
+   - **Continue to summary** → **Create Token**. Copia el token: solo se enseña esta vez.
+2. **El ID de la cuenta.** Sale en **Workers & Pages** → **Overview**, a la derecha (**Account ID**), y también en la
+   dirección del panel, justo después de `dash.cloudflare.com/`.
+3. **Guardarlos en el Worker.** **Workers & Pages** → el servidor → **Settings** → **Variables and Secrets** →
+   **Add**:
+   - Type **Text**, Variable name `CF_ACCOUNT_ID`, Value: el ID de la cuenta.
+   - **Add** otra: Type **Secret**, Variable name `CF_API_TOKEN`, Value: el token.
+   - **Deploy**.
+4. **Comprobarlo.** En la app, **Ajustes** → **Proveedor** → **Resumen**: «Peticiones de hoy (toda la cuenta)» dice
+   cuántas van. Si dice «Sin configurar», falta alguna de las dos; si sale un error de Cloudflare, revisa el
+   permiso del token.
+
+Con el plan de pago de Workers no hay límite al día (10 millones al mes incluidos): pon además `DAILY_REQUESTS` =
+`0` y el panel solo enseñará cuántas van, sin avisar. Para quitarlo, borra `CF_API_TOKEN` del Worker y el token en
+**API Tokens**.
+
 **Tiempo de proceso.** El plan gratuito da a cada petición 10 ms de CPU. Cuando ya se guarde una copia de
 verdad, mira en la página del Worker **Metrics** → **CPU time**. Si alguna vez salen errores 1102 (límite
 superado), el plan de pago de Workers (Workers Paid, unos 5 $ al mes, con tarjeta) quita ese límite sin cambiar
@@ -294,6 +323,7 @@ comprueba que la que espera la app no es posterior a la del servidor.
 
 | Petición | Respuesta |
 | --- | --- |
+| `GET /v1/proveedor/peticiones` | `200 { configured, today, errors, since, limit, warnAt, error? }`: las peticiones de hoy de toda la cuenta según las estadísticas de Cloudflare (API GraphQL, `workersInvocationsAdaptive`, con `CF_ACCOUNT_ID` y el secreto `CF_API_TOKEN`). Sin ellos, `configured: false`; si Cloudflare falla, `today: null` y `error`, sin romper el panel. Solo `OPERATOR_EMAILS` |
 | `GET /v1/salud` | `200 { ok: true, version }`, sin sesión (`version`: `SERVER_VERSION`, la fecha del `worker.js`). Si falta algo de la instalación, `500 { ok: false, error, version }` |
 | `GET /v1/yo` | `200 { email, canCreate, operator, clinics: [{ id, name, role, suspended? }], deleted: [{ id, name, deletedAt, purgeAfter }] }`: las clínicas de quien entra, las que borró y aún puede recuperar, si puede dar de alta otra y si gestiona el servidor |
 | `POST /v1/solicitud` + `{ clinic, note }` | `200 { clinic, status: "pending", createdAt }`: cualquier cuenta de Google pide permiso para dar de alta su clínica (una por correo; como mucho 200 pendientes, si no `429`). Si ya puede, `409`; si se le rechazó, `409` hasta que el proveedor la borre. `DELETE` la retira. `GET /v1/yo` dice `request` (la suya) y, al proveedor, `pendingRequests` y `server: { version, docs }` (la versión pegada y si hay R2; la app avisa con eso de lo pendiente, `src/cloud/serverStatus.ts`) |

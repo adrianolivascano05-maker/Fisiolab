@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { limitWarnings } from "./limits";
+import { limitWarnings, requestShare, requestsText, type RequestUsage } from "./limits";
 
 const clinic = (name: string, size: number) => ({ name, size, deletedAt: null });
 
@@ -37,5 +37,25 @@ describe("avisos de los límites del servidor (panel del proveedor)", () => {
     expect(limitWarnings({ clinics: [clinic("Grande", 400 * 1024 * 1024)], documents: { enabled: true, total: 1e9, cap: 10e9, warnAt: 7e9 } })).toEqual([]);
     // Un servidor que no dice lo que ocupa la base: no se avisa de eso.
     expect(limitWarnings({ clinics: [], database: { bytes: null, cap: 500e6, warnAt: 350e6 } })).toEqual([]);
+  });
+
+  it("las peticiones de hoy: aviso al 70 % del límite; sin token, sin límite o sin número, nada", () => {
+    const u = (o: Partial<RequestUsage>): RequestUsage => ({ configured: true, today: 0, limit: 100_000, warnAt: 70_000, ...o });
+    expect(limitWarnings({ clinics: [], requests: u({ today: 69_999 }) })).toEqual([]);
+    const [w] = limitWarnings({ clinics: [], requests: u({ today: 85_000 }) });
+    expect(w!.title).toBe(`Las peticiones de hoy van por el 85 % (${(85_000).toLocaleString("es-ES")} de ${(100_000).toLocaleString("es-ES")})`);
+    expect(w!.detail).toContain("DAILY_REQUESTS = 0");
+    expect(requestShare(u({ configured: false, today: undefined }))).toBeNull();
+    expect(requestShare(u({ today: 90_000, limit: 0, warnAt: 0 }))).toBeNull();
+    expect(requestShare(u({ today: null, error: "x" }))).toBeNull();
+    expect(limitWarnings({ clinics: [], requests: null })).toEqual([]);
+  });
+
+  it("las peticiones de hoy en una línea para el panel", () => {
+    expect(requestsText(null)).toContain("pega el worker.js nuevo");
+    expect(requestsText({ configured: false, limit: 100_000, warnAt: 70_000 })).toContain("CF_API_TOKEN");
+    expect(requestsText({ configured: true, today: null, error: "Cloudflare dice: no", limit: 100_000, warnAt: 70_000 })).toBe("Cloudflare dice: no");
+    expect(requestsText({ configured: true, today: 6200, limit: 100_000, warnAt: 70_000 })).toMatch(/^6\.?200 de 100\.000 \(6 %\) · se ponen a cero/);
+    expect(requestsText({ configured: true, today: 6200, limit: 0, warnAt: 0 })).toMatch(/hoy · plan de pago, sin límite al día$/);
   });
 });

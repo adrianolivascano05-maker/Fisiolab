@@ -41,6 +41,7 @@ import { getToken } from "../cloud/auth";
 import { ROLE_LABELS } from "../cloud/clinic";
 import { CloudSettings, syncText, useCloud, useSyncState } from "../cloud/CloudGate";
 import { cloudflarePending } from "../cloud/serverStatus";
+import { requestShare } from "../cloud/limits";
 import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { getDb } from "../data/db";
@@ -67,12 +68,15 @@ const stamp = () => new Date().toISOString().slice(0, 10);
 export function SettingsPage() {
   const cloud = useCloud();
   const { solo } = useTeamMode();
-  // El proveedor ve cuántas solicitudes de acceso tiene por atender y lo que le falta hacer en Cloudflare.
+  // El proveedor (y nadie más) ve cuántas solicitudes de acceso tiene por atender, lo que le falta hacer en Cloudflare
+  // y si las peticiones de hoy pasan del 70 % del límite.
   const provider = useAsync(async () => {
     const token = getToken();
     if (!cloud?.operator || !cloud.clinics || !token) return null;
     const me = await cloud.clinics.me(token);
-    return { requests: me.pendingRequests ?? 0, cloudflare: cloudflarePending(me.server) };
+    const usage = await cloud.clinics.operator.requests(token).catch(() => null);
+    const share = usage && requestShare(usage);
+    return { requests: me.pendingRequests ?? 0, cloudflare: cloudflarePending(me.server), busy: share !== null && share !== undefined && share >= 0.7 ? share : null };
   }, [cloud?.operator]);
   const sync = useSyncState();
   const install = useInstall();
@@ -147,9 +151,11 @@ export function SettingsPage() {
                 ? `${provider.data.requests === 1 ? "1 solicitud de acceso" : `${provider.data.requests} solicitudes de acceso`} por atender`
                 : provider.data?.cloudflare.length
                   ? `Pendiente en Cloudflare: ${provider.data.cloudflare.map((p) => p.short).join(" y ")}`
-                  : "Solicitudes, clínicas, altas, bajas y contrato"
+                  : provider.data?.busy
+                    ? `Peticiones de hoy al ${Math.floor(provider.data.busy * 100)} % del límite`
+                    : "Solicitudes, clínicas, altas, bajas y contrato"
             }
-            warn={!!provider.data?.requests || !!provider.data?.cloudflare.length}
+            warn={!!provider.data?.requests || !!provider.data?.cloudflare.length || !!provider.data?.busy}
           />
         )}
       </Group>

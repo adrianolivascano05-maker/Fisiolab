@@ -4,6 +4,7 @@
 import { randomUUID, webcrypto } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import type { BrowserContext, Request, Route } from "@playwright/test";
+import { EXPECTED_SERVER_VERSION } from "../src/cloud/serverStatus";
 
 export type FakeUser = { sub: string; email: string; name: string };
 type File = { id: string; owner: string; bytes: Buffer; version: number; modifiedTime: string; name: string; mimeType: string; parents: string[]; trashed?: boolean };
@@ -98,7 +99,9 @@ export class FakeGoogle {
   /** Lo que ocupa la base D1, para el panel del proveedor. */
   databaseBytes = 2_000_000;
   /** La versión del servidor que dice al proveedor (cloudflare/worker.js, SERVER_VERSION); null: uno anterior, que no la dice. */
-  serverVersion: string | null = "2026-10-27";
+  serverVersion: string | null = EXPECTED_SERVER_VERSION;
+  /** Las peticiones de hoy de la cuenta (cloudflare/worker.js, /v1/proveedor/peticiones); null: sin token de Cloudflare. */
+  requestsToday: number | null = 6200;
   /** Las clínicas del servidor simulado, con su equipo (correo → papel). */
   clinics = new Map<
     string,
@@ -262,6 +265,13 @@ export class FakeGoogle {
     if (path.startsWith("/v1/proveedor")) {
       if (!operator) return send(403, { error: "Solo quien gestiona el servidor puede verlo." });
       const rest = path.slice("/v1/proveedor".length);
+      if (rest === "/peticiones")
+        return send(
+          200,
+          this.requestsToday === null
+            ? { configured: false, limit: 100_000, warnAt: 70_000 }
+            : { configured: true, today: this.requestsToday, errors: 0, since: new Date().toISOString().slice(0, 10) + "T00:00:00.000Z", limit: 100_000, warnAt: 70_000 },
+        );
       if (rest === "/contrato") return send(200, { html: "<p><strong>BORRADOR para revisar con un profesional.</strong></p><h2>Contrato de encargo del tratamiento</h2>" });
       const alta = /^\/altas\/(.+)$/.exec(rest);
       if (alta) {

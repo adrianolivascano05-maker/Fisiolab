@@ -21,7 +21,7 @@ import { useToast } from "../ui/Toast";
 import { getToken } from "./auth";
 import type { OperatorClinic } from "./clinic";
 import { useCloud } from "./CloudGate";
-import { limitWarnings } from "./limits";
+import { limitWarnings, requestsText } from "./limits";
 import { cloudflarePending } from "./serverStatus";
 import { saveFile } from "../app/download";
 
@@ -38,6 +38,12 @@ export function ProviderPage() {
     if (!api) return null;
     if (!token) throw new Error("Vuelve a entrar con Google para ver el panel.");
     return api.overview(token);
+  }, [!!api]);
+  // Las peticiones de hoy, aparte: preguntarlas a Cloudflare tarda y no debe retrasar el resto del panel.
+  const usage = useAsync(async () => {
+    const token = getToken();
+    if (!api || !token) return null;
+    return api.requests(token).catch(() => null);
   }, [!!api]);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -144,7 +150,7 @@ export function ProviderPage() {
 
       {/* Al 70 % de cada límite: qué pasa al llegar y qué hacer antes. */}
       {data.data &&
-        limitWarnings(data.data).map((w) => (
+        limitWarnings({ ...data.data, requests: usage.data }).map((w) => (
           <Alert key={w.title} tone="warning" title={w.title}>
             {w.detail}
           </Alert>
@@ -164,6 +170,7 @@ export function ProviderPage() {
         {data.data?.database && data.data.database.bytes !== null && (
           <Row title="Base de datos (D1)" subtitle={`${sizeText(data.data.database.bytes)} de ${sizeText(data.data.database.cap)}`} />
         )}
+        <Row title="Peticiones de hoy (toda la cuenta)" subtitle={usage.loading ? "Cargando…" : requestsText(usage.data ?? null)} />
       </Group>
 
       <Group title="Clínicas">

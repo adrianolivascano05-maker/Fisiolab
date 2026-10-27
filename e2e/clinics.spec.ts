@@ -4,6 +4,7 @@
 import type { Browser, Page } from "@playwright/test";
 import { createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
+import { EXPECTED_SERVER_VERSION } from "../src/cloud/serverStatus";
 
 const users = {
   ana: { sub: "1001", email: "ana@clinica.test", name: "Ana Ruiz" },
@@ -610,7 +611,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("link", { name: /Proveedor/ }).click();
     await expect(page.getByText("Falta actualizar el servidor en Cloudflare")).toBeVisible();
     await expect(page.getByText("Falta activar el almacén R2")).toHaveCount(0);
-    google.serverVersion = "2026-10-27";
+    google.serverVersion = EXPECTED_SERVER_VERSION;
     google.docsEnabled = false;
     await page.reload();
     await expect(page.getByText("Falta activar el almacén R2")).toBeVisible();
@@ -635,6 +636,19 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.reload();
     await expect(page.getByText("La base de datos va por el 80 % (400 MB de 500 MB)")).toBeVisible();
     google.databaseBytes = 2_000_000;
+    // Las peticiones de hoy (solo las ve el proveedor): cuántas van y, al 70 %, el aviso aquí y en Ajustes.
+    const today = (n: number) => n.toLocaleString("es-ES");
+    await expect(summary.getByText(`${today(6200)} de ${today(100_000)} (6 %)`, { exact: false })).toBeVisible();
+    google.requestsToday = 85_000;
+    await page.reload();
+    await expect(page.getByText(/Las peticiones de hoy van por el 85 %/)).toBeVisible();
+    await page.goto("./ajustes");
+    await expect(page.getByRole("link", { name: /Proveedor.*Peticiones de hoy al 85 % del límite/ })).toBeVisible({ timeout: 15_000 });
+    google.requestsToday = null;
+    await page.getByRole("link", { name: /Proveedor/ }).click();
+    await expect(summary.getByText(/Sin configurar: añade CF_ACCOUNT_ID/)).toBeVisible();
+    await expect(page.getByText(/Las peticiones de hoy van por/)).toHaveCount(0);
+    google.requestsToday = 6200;
     await page.getByLabel("Correo del responsable").fill("carla@otra.test");
     await page.getByRole("button", { name: "Dar de alta" }).click();
     await expect(page.getByRole("region", { name: "Pueden crear clínicas" }).getByRole("button", { name: /carla@otra\.test/ })).toBeVisible();

@@ -62,6 +62,8 @@
 //   POST   /v1/proveedor/clinicas/:id/suspender  { suspended } → suspende (no se sube nada; se puede bajar) o reactiva
 //   POST   /v1/proveedor/clinicas/:id/recuperar  deshace el borrado de una clínica en sus 30 días
 //   GET    /v1/proveedor/contrato              { html }: el borrador del contrato de encargado del tratamiento
+//   GET    /v1/proveedor/peticiones            { configured, today, errors, since, limit, warnAt, error? }: las
+//                                              peticiones de hoy de toda la cuenta (estadísticas de Cloudflare)
 //   POST   /v1/proveedor/solicitudes/:correo   { accept } → acepta (puede dar de alta su clínica) o rechaza una solicitud
 //   DELETE /v1/proveedor/solicitudes/:correo   la borra (podrá volver a pedirlo)
 //   Formularios para el paciente (anamnesis o cuestionarios que rellena desde su móvil con un enlace):
@@ -101,7 +103,10 @@
 // Enlace a la base D1: DB. Enlace a R2 (opcional): DOCS, el almacén de los documentos y de las copias; sin él, la app
 // no ofrece documentos. Variables: GOOGLE_CLIENT_ID, ALLOWED_EMAILS, ALLOWED_ORIGINS, OPERATOR_EMAILS (quien gestiona
 // el servidor: ve el panel del proveedor), DOCS_CAP_GB (opcional: el tope del almacén en GB; 10 si no está) y D1_CAP_MB
-// (opcional: lo que puede ocupar la base, para avisar en el panel; 500 si no está, lo del plan gratuito).
+// (opcional: lo que puede ocupar la base, para avisar en el panel; 500 si no está, lo del plan gratuito). Para ver en
+// el panel las peticiones de hoy: CF_ACCOUNT_ID (el ID de la cuenta) y el secreto CF_API_TOKEN (un token de Cloudflare
+// de solo lectura, «Account Analytics: Read»); DAILY_REQUESTS (opcional: 100 000 si no está; 0 en el plan de pago,
+// que no tiene límite al día).
 // Nunca se escribe en el registro el contenido de una petición ni el token.
 
 /**
@@ -147,6 +152,9 @@
  * @property {string} [OPERATOR_EMAILS] correos de quien gestiona el servidor (el panel del proveedor)
  * @property {string} [DOCS_CAP_GB] el tope del almacén R2, en GB (10 si no está)
  * @property {string} [D1_CAP_MB] lo que puede ocupar la base D1, en MB, para los avisos del panel (500 si no está)
+ * @property {string} [CF_ACCOUNT_ID] el ID de la cuenta de Cloudflare, para leer sus estadísticas
+ * @property {string} [CF_API_TOKEN] token de Cloudflare de solo lectura (Account Analytics: Read); un secreto
+ * @property {string} [DAILY_REQUESTS] peticiones al día del plan (100 000 si no está; 0: sin límite al día)
  */
 /**
  * Quién ha entrado. `expiresIn`: segundos que le quedan al token (para no guardarlo más tiempo).
@@ -157,6 +165,7 @@
  * @typedef {object} Deps
  * @property {(token: string, env: Env) => Promise<Identity>} [verifyToken]
  * @property {() => number} [now] milisegundos, como Date.now
+ * @property {typeof fetch} [fetch] para preguntar a la API de Cloudflare (las pruebas la cambian)
  */
 /**
  * La copia vigente de una cuenta. `chars`: caracteres de su texto base64 (la columna `size`). Con parts = 0, la
@@ -165,10 +174,10 @@
  */
 
 /**
- * La versión de este servidor (el día del último cambio). La app la compara con la que espera
+ * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
-const SERVER_VERSION = "2026-10-27";
+const SERVER_VERSION = "2026-10-27.2";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 const MAGIC = "Q0VOSVRFTkMx";
@@ -218,6 +227,8 @@ const DOCS_CAP_GB = 10;
 const WARN_SHARE = 0.7;
 /** Lo que puede ocupar la base D1, en MB, si no se dice otro con D1_CAP_MB: 500 en el plan gratuito (10 000 de pago). */
 const D1_CAP_MB = 500;
+/** Peticiones al día del plan gratuito de Workers, para toda la cuenta (se ponen a cero a las 00:00 UTC). */
+const DAILY_REQUESTS = 100_000;
 /** Documentos que puede subir un paciente con un mismo enlace, como mucho. */
 const MAX_DOCS_PER_FORM = 10;
 /** Documentos de pacientes sin recoger que se limpian en cada pasada. */
@@ -265,7 +276,7 @@ export async function handle(request, env, deps = {}) {
   /** @type {Response} */
   let response;
   try {
-    response = await route(request, env, { verifyToken, now }, cors !== null);
+    response = await route(request, env, { verifyToken, now, fetch: deps.fetch }, cors !== null);
   } catch (err) {
     if (err instanceof HttpError) {
       response = json(err.status, { error: err.message, ...err.extra });
@@ -285,7 +296,7 @@ export async function handle(request, env, deps = {}) {
 /**
  * @param {Request} request
  * @param {Env} env
- * @param {{ verifyToken: NonNullable<Deps["verifyToken"]>, now: () => number }} deps
+ * @param {{ verifyToken: NonNullable<Deps["verifyToken"]>, now: () => number, fetch?: typeof fetch }} deps
  * @param {boolean} originAllowed
  * @returns {Promise<Response>}
  */
@@ -933,7 +944,7 @@ async function accessRequest(request, env, who, now) {
  * de servicio (nombre, equipo, tamaño, fechas y estado).
  * @param {Request} request
  * @param {Env} env
- * @param {{ verifyToken: NonNullable<Deps["verifyToken"]>, now: () => number }} deps
+ * @param {{ verifyToken: NonNullable<Deps["verifyToken"]>, now: () => number, fetch?: typeof fetch }} deps
  * @param {string} rest
  */
 async function operatorRoute(request, env, deps, rest) {
@@ -945,6 +956,7 @@ async function operatorRoute(request, env, deps, rest) {
     (answer !== null && ["POST", "DELETE"].includes(method)) ||
     (rest === "" && method === "GET") ||
     (rest === "/contrato" && method === "GET") ||
+    (rest === "/peticiones" && method === "GET") ||
     (alta !== null && ["PUT", "DELETE"].includes(method)) ||
     (clinicAction !== null && method === "POST");
   if (!known) throw notFound();
@@ -954,6 +966,7 @@ async function operatorRoute(request, env, deps, rest) {
   const db = database(env);
 
   if (rest === "/contrato") return json(200, { html: CONTRACT_HTML });
+  if (rest === "/peticiones") return json(200, await requestUsage(env, deps));
   if (answer) {
     let target;
     try {
@@ -1326,6 +1339,53 @@ function docsLimits(env) {
   return { cap, warnAt: Math.round(cap * WARN_SHARE) };
 }
 
+/**
+ * Las peticiones de hoy de toda la cuenta, según las estadísticas de Cloudflare (su API GraphQL, con un token de solo
+ * lectura). Contarlas aquí costaría una escritura por petición. Si falta el token o la API falla, lo dice sin
+ * romper el panel. El token nunca sale en la respuesta.
+ * @param {Env} env
+ * @param {{ now: () => number, fetch?: typeof fetch }} deps
+ */
+async function requestUsage(env, deps) {
+  const n = Number(env.DAILY_REQUESTS);
+  const limit = env.DAILY_REQUESTS !== undefined && env.DAILY_REQUESTS !== "" && Number.isFinite(n) && n >= 0 ? Math.round(n) : DAILY_REQUESTS;
+  const base = { limit, warnAt: Math.round(limit * WARN_SHARE) };
+  const account = (env.CF_ACCOUNT_ID ?? "").trim();
+  const token = (env.CF_API_TOKEN ?? "").trim();
+  if (!account || !token) return { configured: false, ...base };
+  const now = new Date(deps.now());
+  const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+  const query = `query ($account: string, $start: string, $end: string) {
+    viewer { accounts(filter: { accountTag: $account }) {
+      workersInvocationsAdaptive(limit: 10000, filter: { datetime_geq: $start, datetime_leq: $end }) {
+        sum { requests errors }
+        dimensions { scriptName }
+      }
+    } }
+  }`;
+  const failed = (/** @type {string} */ error) => ({ configured: true, today: null, errors: null, since, ...base, error });
+  try {
+    const res = await (deps.fetch ?? fetch)("https://api.cloudflare.com/client/v4/graphql", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables: { account, start: since, end: now.toISOString() } }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.status === 401 || res.status === 403) return failed("Cloudflare no acepta el token CF_API_TOKEN: revisa que tenga el permiso «Account Analytics: Read».");
+    if (!res.ok) return failed(`Cloudflare no ha respondido bien (${res.status}). Inténtalo más tarde.`);
+    const body = /** @type {any} */ (await res.json());
+    if (body?.errors?.length) return failed(`Cloudflare dice: ${String(body.errors[0]?.message ?? "error").slice(0, 200)}`);
+    const accounts = body?.data?.viewer?.accounts;
+    if (!Array.isArray(accounts) || !accounts.length) return failed("Cloudflare no encuentra esa cuenta: revisa CF_ACCOUNT_ID.");
+    /** @type {{ sum?: { requests?: number, errors?: number } }[]} */
+    const rows = accounts[0]?.workersInvocationsAdaptive ?? [];
+    const sum = (/** @type {"requests" | "errors"} */ k) => rows.reduce((t, r) => t + Number(r?.sum?.[k] ?? 0), 0);
+    return { configured: true, today: sum("requests"), errors: sum("errors"), since, ...base };
+  } catch {
+    return failed("No se ha podido preguntar a Cloudflare. Inténtalo más tarde.");
+  }
+}
+
 /** Dónde está un documento en R2. */
 const docKey = (/** @type {string} */ clinicId, /** @type {string} */ id) => `${clinicId}/${id}`;
 
@@ -1544,7 +1604,7 @@ const tokenCache = new Map();
  * para crear clínicas, el equipo de cada clínica para su copia).
  * @param {Request} request
  * @param {Env} env
- * @param {{ verifyToken: NonNullable<Deps["verifyToken"]>, now: () => number }} deps
+ * @param {{ verifyToken: NonNullable<Deps["verifyToken"]>, now: () => number, fetch?: typeof fetch }} deps
  */
 async function authenticate(request, env, deps) {
   const match = /^Bearer\s+(\S+)\s*$/i.exec(request.headers.get("Authorization") ?? "");

@@ -186,9 +186,11 @@ búsqueda, el bloque B (26-10-2026) y el bloque A (27-10-2026). Quedan C y D.
     `e2e/clinics.spec.ts`, CAP1-CAP2 en `e2e/capacidad.spec.ts` y F01-E7 en `e2e/f01-patients.spec.ts`.
   - Pendiente del bloque A: el selector de pacientes de la agenda y el de «Registrar en un paciente» ya buscan en la
     base; la importación de pacientes (comprobar duplicados) sigue cargándolos todos (una vez, al importar).
-  - Las peticiones al día no las sabe el servidor (contarlas costaría una escritura por petición): se miran en el
-    panel de Cloudflare (Workers → Metrics). Si se quiere el aviso al 70 % también ahí, se puede leer la API de
-    analíticas de Cloudflare con un token de solo lectura (a valorar).
+  - Las peticiones al día no las cuenta el servidor (costaría una escritura por petición). **Hecho el 27-10-2026,
+    a petición del usuario («que me avise solo a mí»):** el panel del proveedor se las pregunta a las estadísticas
+    de Cloudflare con un token de solo lectura (`CF_ACCOUNT_ID` y el secreto `CF_API_TOKEN` en el Worker;
+    `cloudflare/README.md`, «Peticiones al día») y avisa al 70 % allí y en Ajustes → Proveedor. Las clínicas no lo
+    ven. Pruebas: «peticiones de hoy» en `cloudflare/worker.test.ts`, `src/cloud/limits.test.ts` y CL8.
   - B. **Hecho el 26-10-2026** (el usuario la puso primero): sincronización campo a campo (migración 033; si uno
     cambia el teléfono y otro las notas, se quedan los dos; en la anamnesis, respuesta a respuesta), lo que pierde se
     guarda tres meses para recuperarlo (Ajustes › Cuenta › «Cambios sustituidos»), aviso de cita doble al

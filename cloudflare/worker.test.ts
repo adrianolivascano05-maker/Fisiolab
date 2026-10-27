@@ -88,7 +88,7 @@ describe("salud", () => {
     expect(res.status).toBe(200);
     // Con la versión del servidor: la que espera la app (src/cloud/serverStatus.ts) no puede ser posterior.
     const body = (await res.json()) as { ok: boolean; version: string };
-    expect(body).toEqual({ ok: true, version: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) });
+    expect(body).toEqual({ ok: true, version: expect.stringMatching(/^\d{4}-\d{2}-\d{2}(\.\d+)?$/) });
     expect(body.version >= EXPECTED_SERVER_VERSION).toBe(true);
     expect(res.headers.get("Content-Type")).toBe("application/json; charset=utf-8");
     expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -1169,6 +1169,61 @@ function sealedCopy(size: number, seed = 1) {
   bytes.set(new TextEncoder().encode("CENITENC2"), 0);
   return bytes;
 }
+
+describe("peticiones de hoy (panel del proveedor)", () => {
+  const op = { OPERATOR_EMAILS: "luis@clinica.es" };
+  const keys = { CF_ACCOUNT_ID: "cuenta123", CF_API_TOKEN: "secreto-de-prueba" };
+  const NOW = Date.UTC(2026, 9, 27, 15, 30);
+  type Usage = { configured: boolean; today?: number | null; errors?: number | null; since?: string; limit: number; warnAt: number; error?: string };
+  const ask = async (over: Record<string, unknown>, cf?: typeof fetch, token = "tok-luis") => {
+    const res = await handle(request("GET", "/v1/proveedor/peticiones", { token }), env({ ...op, ...over }), { verifyToken, now: () => NOW, fetch: cf });
+    return { status: res.status, body: (await res.json()) as Usage };
+  };
+  const answer = (body: unknown, status = 200) => vi.fn(async () => new Response(JSON.stringify(body), { status })) as unknown as Mock & typeof fetch;
+  const rows = (...n: [number, number][]) => ({ data: { viewer: { accounts: [{ workersInvocationsAdaptive: n.map(([requests, errors], i) => ({ sum: { requests, errors }, dimensions: { scriptName: `w${i}` } })) }] } } });
+
+  it("solo lo ve quien gestiona el servidor", async () => {
+    expect((await ask(keys, answer(rows([1, 0])), "tok-ana")).status).toBe(403);
+  });
+
+  it("sin token, dice que falta configurarlo (y el límite del plan gratuito)", async () => {
+    const cf = answer(rows([1, 0]));
+    expect((await ask({}, cf)).body).toEqual({ configured: false, limit: 100_000, warnAt: 70_000 });
+    expect(cf).not.toHaveBeenCalled();
+  });
+
+  it("suma las de hoy de toda la cuenta, desde las 00:00 UTC, con el token de solo lectura", async () => {
+    const cf = answer(rows([60_000, 12], [15_000, 3]));
+    const { status, body } = await ask(keys, cf);
+    expect(status).toBe(200);
+    expect(body).toEqual({ configured: true, today: 75_000, errors: 15, since: "2026-10-27T00:00:00.000Z", limit: 100_000, warnAt: 70_000 });
+    const [url, init] = (cf as unknown as Mock).mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.cloudflare.com/client/v4/graphql");
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer secreto-de-prueba");
+    const sent = JSON.parse(String(init.body)) as { query: string; variables: Record<string, string> };
+    expect(sent.variables).toEqual({ account: "cuenta123", start: "2026-10-27T00:00:00.000Z", end: "2026-10-27T15:30:00.000Z" });
+    expect(sent.query).toContain("workersInvocationsAdaptive");
+    expect(JSON.stringify(body)).not.toContain("secreto");
+  });
+
+  it("DAILY_REQUESTS cambia el límite; 0 es el plan de pago, sin límite al día", async () => {
+    expect((await ask({ ...keys, DAILY_REQUESTS: "200000" }, answer(rows([1, 0])))).body).toMatchObject({ limit: 200_000, warnAt: 140_000 });
+    expect((await ask({ ...keys, DAILY_REQUESTS: "0" }, answer(rows([1, 0])))).body).toMatchObject({ limit: 0, warnAt: 0, today: 1 });
+  });
+
+  it("si Cloudflare falla, lo dice sin romper el panel", async () => {
+    expect((await ask(keys, answer({}, 403))).body).toMatchObject({ configured: true, today: null, error: expect.stringContaining("Account Analytics") });
+    expect((await ask(keys, answer({ errors: [{ message: "no autorizado" }] }))).body.error).toContain("no autorizado");
+    expect((await ask(keys, answer({ data: { viewer: { accounts: [] } } }))).body.error).toContain("CF_ACCOUNT_ID");
+    expect((await ask(keys, answer({}, 500))).body.error).toContain("500");
+    const down = vi.fn(async () => {
+      throw new TypeError("fetch failed");
+    }) as unknown as typeof fetch;
+    const { status, body } = await ask(keys, down);
+    expect(status).toBe(200);
+    expect(body).toMatchObject({ today: null, error: expect.stringContaining("No se ha podido") });
+  });
+});
 
 describe("copia de la clínica en R2", () => {
   let r2: FakeR2;

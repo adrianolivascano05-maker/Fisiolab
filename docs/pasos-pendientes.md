@@ -71,6 +71,10 @@ trozos, la consulta de cada minuto que dice también si hay formularios respondi
 avisos al 70 % en el panel del proveedor (sin tablas nuevas). **Ya está listo para pegarlo.** Si ya lo pegaste
 antes del 27-10-2026, vuelve a hacer el paso 3 (el `schema.sql` no cambia: ejecutarlo otra vez no hace nada).
 
+**Otra vez el 27-10-2026, por la tarde:** el servidor trae las peticiones de hoy para el panel del proveedor
+(versión `2026-10-27.2`). Si pegaste el `worker.js` por la mañana, vuelve a pegarlo (solo el apartado 3 de abajo:
+el `schema.sql` no cambia). Después, si quieres verlas, haz el paso 4 bis.
+
 **Desde el 27-10-2026 la app te lo recuerda:** en **Ajustes**, la fila **Proveedor** sale en naranja con «Pendiente
 en Cloudflare: actualizar el servidor» mientras el servidor pegado sea anterior al que necesita la app, y con
 «activar R2» mientras falte el paso 4. Dentro, en el panel, explica qué hacer. Cuando ya no diga nada, está todo al
@@ -113,6 +117,14 @@ precios, está en `cloudflare/README.md`, «Documentos».
 5. Opcional: si pasas al plan de pago de Workers, añade la variable `D1_CAP_MB` = `10000` (**Settings** →
    **Variables and Secrets**): el panel del proveedor avisa al 70 % de lo que puede ocupar la base, y con el plan
    de pago cabe 20 veces más.
+
+## 4 bis. Ver las peticiones de hoy en el panel del proveedor (opcional, unos 5 minutos)
+
+Para que el panel (solo tú lo ves) diga cuántas peticiones lleva hoy el servidor y te avise al 70 % del límite del
+plan gratuito (100 000 al día). Necesita un token de Cloudflare de **solo lectura** que creas tú y se queda guardado
+en Cloudflare. Los pasos están en `cloudflare/README.md`, «Peticiones al día, en el panel del proveedor»: crear el
+token (permiso **Account Analytics: Read**), copiar el ID de la cuenta y guardar los dos en el Worker
+(`CF_ACCOUNT_ID` y el secreto `CF_API_TOKEN`).
 
 ## 5. Probar en un iPhone (unos 10 minutos, antes de ofrecer la app a una clínica con iPhone)
 
