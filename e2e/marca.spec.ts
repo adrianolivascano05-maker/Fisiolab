@@ -253,6 +253,12 @@ test.describe("Marca de la clínica", () => {
     expect(await smallTargets(page)).toEqual([]);
     await page.goto("./");
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    // Con el nombre de la clínica y «Nueva cita» en la barra, el título de la Agenda sale entero: cede el nombre.
+    await page.goto("./agenda");
+    const agendaTitle = page.getByRole("banner").getByText("Agenda", { exact: true });
+    await expect(agendaTitle).toBeVisible();
+    expect(await agendaTitle.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
     await page.setViewportSize({ width: 1280, height: 800 });
 
     // La cabecera clara: blanca en claro, con el texto de la marca encima.

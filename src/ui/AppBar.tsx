@@ -57,12 +57,13 @@ export function TopBar({
       className="sticky top-0 z-20 border-b-2 border-highlight bg-brand text-on-brand shadow-sm"
       style={{ "--color-text": "var(--color-on-brand)", "--color-accent": "var(--color-on-brand)", "--color-surface": "color-mix(in srgb, var(--color-on-brand) 16%, transparent)" } as CSSProperties}
     >
-      {/* «Volver» y acciones a su medida; el título, en el sitio que quede. Lo que no cabe en una línea pasa a dos
-          (nunca «…»). */}
-      <div className="mx-auto grid h-[var(--layout-header)] max-w-[var(--layout-content-max)] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2">
+      {/* Las acciones a su medida; el título, entero (como mínimo su palabra más larga; lo que no cabe en una línea pasa
+          a dos, nunca «…»); lo de la izquierda (el logo con el nombre de la clínica, o «volver») cede sitio y se corta
+          con «…» antes que el título. */}
+      <div className="mx-auto grid h-[var(--layout-header)] max-w-[var(--layout-content-max)] grid-cols-[minmax(0,auto)_minmax(min-content,1fr)_auto] items-center gap-2 px-2">
         <div className="min-w-0">
           {!backTo && (
-            <Link to="/" className="inline-flex min-h-11 items-center rounded-md px-1.5 py-1 lg:hidden">
+            <Link to="/" className="inline-flex min-h-11 max-w-full min-w-0 items-center rounded-md px-1.5 py-1 lg:hidden">
               <Logo onDark />
             </Link>
           )}
