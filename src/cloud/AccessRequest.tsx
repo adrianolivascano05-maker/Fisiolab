@@ -50,7 +50,7 @@ export function AccessRequestCards({ me, baseUrl, clientId }: { me: Me; baseUrl:
   return (
     <>
       <Card className="flex flex-col gap-3">
-        <h2 className="font-semibold">¿Tu clínica ya usa Cénit?</h2>
+        <h2 className="font-semibold">¿Tu clínica ya usa OmniClin?</h2>
         <p>
           Tu cuenta (<span className="font-semibold">{me.email}</span>) aún no está en ninguna clínica.
         </p>
@@ -77,7 +77,7 @@ export function AccessRequestCards({ me, baseUrl, clientId }: { me: Me; baseUrl:
       ) : (
         <Card>
           <form className="flex flex-col gap-3" noValidate onSubmit={send}>
-            <h2 className="font-semibold">¿Quieres usar Cénit en tu clínica?</h2>
+            <h2 className="font-semibold">¿Quieres usar OmniClin en tu clínica?</h2>
             <p className="text-sm text-text-muted">
               Pide acceso: cuando se acepte, darás de alta tu clínica, la administrarás tú y añadirás a tu equipo.
             </p>

@@ -79,7 +79,7 @@ function deviceSummary() {
 /** El texto del informe: el dispositivo, lo que cuenta quien lo manda y los últimos errores. */
 export function errorReport(note: string, extra: string[] = [], errors = readErrors()): string {
   const lines = [
-    "Informe de fallo de Cénit",
+    "Informe de fallo de OmniClin",
     "",
     note.trim() ? `Qué pasó: ${note.trim()}` : "Qué pasó: (sin explicar)",
     "",

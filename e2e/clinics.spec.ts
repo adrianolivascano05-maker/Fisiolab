@@ -549,7 +549,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     // Carla entra con Google sin permiso: lo pide.
     const carla = await device(browser, google, "carla", errors);
     await enter(carla);
-    await expect(carla.getByRole("heading", { name: "¿Quieres usar Cénit en tu clínica?" })).toBeVisible({ timeout: 15_000 });
+    await expect(carla.getByRole("heading", { name: "¿Quieres usar OmniClin en tu clínica?" })).toBeVisible({ timeout: 15_000 });
     await carla.getByRole("button", { name: "Solicitar acceso" }).click();
     await expect(carla.getByText("Escribe el nombre de la clínica.")).toBeVisible();
     await carla.getByLabel("Nombre de la clínica").fill("Clínica Carla");
@@ -682,7 +682,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("button", { name: "Ver el borrador del contrato" }).click();
     await expect(page.getByRole("article", { name: "Borrador del contrato" })).toContainText("BORRADOR");
     const [pdf] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en PDF" }).click()]);
-    expect(pdf.suggestedFilename()).toBe("Cenit-contrato-encargado-BORRADOR.pdf");
+    expect(pdf.suggestedFilename()).toBe("OmniClin-contrato-encargado-BORRADOR.pdf");
 
     // Borrar su clínica: primero la copia de seguridad, luego la declaración.
     await page.goto("./ajustes/equipo");
@@ -690,7 +690,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     const sheet = page.getByRole("dialog", { name: "Borrar una clínica del servidor" });
     await expect(sheet.getByRole("button", { name: "Borrar «Fisiolab Centro»" })).toBeDisabled();
     const [backup] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Descargar todos los datos" }).click()]);
-    expect(backup.suggestedFilename()).toMatch(/^Cenit-Fisiolab-Centro-\d{4}-\d{2}-\d{2}\.zip$/);
+    expect(backup.suggestedFilename()).toMatch(/^OmniClin-Fisiolab-Centro-\d{4}-\d{2}-\d{2}\.zip$/);
     await sheet.getByRole("checkbox", { name: /Declaro que la clínica conserva/ }).check();
     await expectAccessible(page);
     await sheet.getByRole("button", { name: "Borrar «Fisiolab Centro»" }).click();

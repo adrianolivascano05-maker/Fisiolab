@@ -1,4 +1,4 @@
-# Cuestionarios nuevos para Cénit Fisiolab
+# Cuestionarios nuevos para OmniClin
 
 Encargo para la sesión que programa la app. Búsqueda hecha el 22-10-2026 en PubMed. Cada referencia lleva el PMID y el
 DOI tal como los dio PubMed. Lo que no se pudo confirmar va marcado **⚠ sin verificar**.

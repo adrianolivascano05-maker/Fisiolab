@@ -33,7 +33,7 @@ export function ConsentDocumentView({
 }) {
   const signer = doc.representative ? `${doc.representative.name} (${doc.representative.relation || "representante legal"})` : doc.patient.name;
   return (
-    // Con los colores de la marca con la que se firmó (o los de Cénit): aunque la clínica cambie de marca, este no cambia.
+    // Con los colores de la marca con la que se firmó (o los de OmniClin): aunque la clínica cambie de marca, este no cambia.
     <article className="relative flex flex-col gap-4 text-[15px] leading-relaxed print:text-[11pt]" style={docVars(doc.brand)}>
       <Watermark brand={doc.brand} />
       <header className="flex flex-col gap-1 border-b border-border pb-3">

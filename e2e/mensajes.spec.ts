@@ -32,11 +32,11 @@ test.describe("Mensajes a pacientes", () => {
     await expect(page.getByText("Mensajes guardados: son los mismos para toda la clínica")).toBeVisible();
     await expect(list.getByRole("button", { name: /Hueco libre.*cambiado/ })).toBeVisible();
 
-    // Se recuerda, y «Volver al texto de Cénit» lo deja como estaba.
+    // Se recuerda, y «Volver al texto de OmniClin» lo deja como estaba.
     await page.reload();
     await list.getByRole("button", { name: /Hueco libre/ }).click();
     await expect(text).toHaveValue("Hola {nombre}, hay hueco el {dia} a las {hora}");
-    await page.getByRole("button", { name: "Volver al texto de Cénit" }).click();
+    await page.getByRole("button", { name: "Volver al texto de OmniClin" }).click();
     await expect(text).toHaveValue(/Se ha quedado libre un hueco/);
 
     // El recordatorio: la firma sale también en la agenda, y desde Recordatorios se llega aquí.

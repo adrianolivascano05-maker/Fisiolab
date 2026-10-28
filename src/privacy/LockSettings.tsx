@@ -116,7 +116,7 @@ export function LockSettings() {
                   variant="secondary"
                   icon={<Fingerprint aria-hidden="true" className="size-5" />}
                   onClick={async () => {
-                    const id = await createPasskey(getAccount()?.email ?? "Cénit");
+                    const id = await createPasskey(getAccount()?.email ?? "OmniClin");
                     if (!id) return toast("No se ha activado: el dispositivo no lo ha confirmado.", "danger");
                     setPasskey(id);
                     setConfig(getLock());

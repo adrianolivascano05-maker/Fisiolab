@@ -1,4 +1,4 @@
--- Tablas del servidor de datos de Cénit en Cloudflare D1 (ver README.md).
+-- Tablas del servidor de datos de OmniClin en Cloudflare D1 (ver README.md).
 -- Se pueden ejecutar varias veces: no borran nada.
 
 -- La copia vigente de cada clínica («owner»: «clinic:<id>») o, de versiones anteriores, de cada fisioterapeuta

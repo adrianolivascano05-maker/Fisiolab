@@ -159,7 +159,7 @@ test.describe("Protección de datos", () => {
 test("PD5 la política de privacidad pública (la que pide Google) se abre sin entrar en la app y se lee en el móvil", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto("./politica-de-privacidad.html");
-  await expect(page.getByRole("heading", { level: 1, name: "Política de privacidad de Cénit · Fisiolab" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Política de privacidad de OmniClin" })).toBeVisible();
   for (const scope of ["drive.file", "drive.appdata", "calendar.app.created"]) await expect(page.getByText(scope, { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "cenitfisiolab@gmail.com" }).first()).toHaveAttribute("href", "mailto:cenitfisiolab@gmail.com");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);

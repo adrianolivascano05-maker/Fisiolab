@@ -1,6 +1,6 @@
 // La marca de la clínica: su nombre, dos colores, el logo y cómo se usan. Se guarda en los ajustes de la base de la
-// clínica (cifrada y sincronizada, como todo) y se aplica a la página como una hoja de estilos encima de la de Cénit
-// (src/brand/engine.ts). Sin marca guardada, la app es Cénit tal cual. Para que no se vea Cénit un instante al abrir,
+// clínica (cifrada y sincronizada, como todo) y se aplica a la página como una hoja de estilos encima de la de OmniClin
+// (src/brand/engine.ts). Sin marca guardada, la app es OmniClin tal cual. Para que no se vea OmniClin un instante al abrir,
 // la última marca aplicada se guarda también en este navegador y se pone antes de pintar (main.tsx); en cuanto la
 // base está abierta se comprueba (DbGate).
 import { useSyncExternalStore } from "react";
@@ -26,7 +26,7 @@ export type Brand = {
 };
 
 export const BRAND_KEY = "clinic_brand";
-/** Los colores de Cénit, para empezar desde ellos. */
+/** Los colores de OmniClin, para empezar desde ellos. */
 export const CENIT_PRIMARY = "#1F6B4F";
 export const CENIT_SECONDARY = "#C9A227";
 export const MAX_NAME = 60;
@@ -94,7 +94,7 @@ export async function loadBrand(db: Db): Promise<void> {
   try {
     applyBrand(await getBrand(db));
   } catch {
-    /* sin ajustes aún (base recién creada): se queda Cénit */
+    /* sin ajustes aún (base recién creada): se queda OmniClin */
   }
 }
 
@@ -107,7 +107,7 @@ const listeners = new Set<() => void>();
 let originalIcon: string | null = null;
 let originalTitle: string | null = null;
 
-/** La marca que está puesta ahora (null: Cénit). */
+/** La marca que está puesta ahora (null: OmniClin). */
 export function useBrand(): Brand | null {
   return useSyncExternalStore(
     (l) => {
@@ -125,7 +125,7 @@ export function applyCachedBrand() {
     const raw = localStorage.getItem(CACHE_KEY);
     if (raw) applyBrand(parseBrand(JSON.parse(raw)), false);
   } catch {
-    /* sin almacenamiento o caché rota: Cénit hasta que abra la base */
+    /* sin almacenamiento o caché rota: OmniClin hasta que abra la base */
   }
 }
 

@@ -1,5 +1,5 @@
 // @ts-check
-// Servidor de datos de Cénit en Cloudflare (Workers + D1). Guarda la copia CIFRADA de la base de cada clínica;
+// Servidor de datos de OmniClin en Cloudflare (Workers + D1). Guarda la copia CIFRADA de la base de cada clínica;
 // Google solo sirve para saber quién es. Cómo instalarlo: README.md de esta carpeta.
 //
 // Clínicas: quien está en ALLOWED_EMAILS puede crear una clínica y queda como su administrador; el administrador
@@ -177,7 +177,7 @@
  * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
-const SERVER_VERSION = "2026-10-27.2";
+const SERVER_VERSION = "2026-10-28";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 const MAGIC = "Q0VOSVRFTkMx";
@@ -1933,10 +1933,10 @@ const CONTRACT_HTML = `
 <p>En [LOCALIDAD], a [FECHA].</p>
 <h3>Reunidos</h3>
 <p><strong>De una parte</strong>, [NOMBRE O RAZÓN SOCIAL DE LA CLÍNICA], con NIF [NIF], domicilio en [DIRECCIÓN] y representada por [NOMBRE Y CARGO], en adelante <em>el Responsable</em>.</p>
-<p><strong>De otra parte</strong>, [NOMBRE DEL PROVEEDOR], con NIF [NIF], domicilio en [DIRECCIÓN] y correo de contacto [CORREO], en adelante <em>el Encargado</em>, que presta el servicio de la aplicación Cénit · Fisiolab.</p>
+<p><strong>De otra parte</strong>, [NOMBRE DEL PROVEEDOR], con NIF [NIF], domicilio en [DIRECCIÓN] y correo de contacto [CORREO], en adelante <em>el Encargado</em>, que presta el servicio de la aplicación OmniClin.</p>
 <p>Ambas partes se reconocen capacidad para firmar este contrato y acuerdan las siguientes cláusulas.</p>
 <h3>1. Objeto</h3>
-<p>El Encargado presta al Responsable el servicio de la aplicación Cénit · Fisiolab: una herramienta de registro y organización de la actividad de fisioterapia (fichas de pacientes, anamnesis, sesiones, mediciones, agenda y turnos del equipo). Para ello guarda en un servidor una copia cifrada de los datos de la clínica, que se sincroniza entre los dispositivos de su equipo. La aplicación registra y organiza; las decisiones clínicas son siempre del profesional.</p>
+<p>El Encargado presta al Responsable el servicio de la aplicación OmniClin: una herramienta de registro y organización de la actividad de fisioterapia (fichas de pacientes, anamnesis, sesiones, mediciones, agenda y turnos del equipo). Para ello guarda en un servidor una copia cifrada de los datos de la clínica, que se sincroniza entre los dispositivos de su equipo. La aplicación registra y organiza; las decisiones clínicas son siempre del profesional.</p>
 <h3>2. Duración</h3>
 <p>Este contrato dura lo mismo que la prestación del servicio. Al terminar se aplica la cláusula 10.</p>
 <h3>3. Naturaleza, finalidad y datos tratados</h3>

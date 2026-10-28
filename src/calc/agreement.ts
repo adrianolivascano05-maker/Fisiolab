@@ -1,8 +1,8 @@
-// Concordancia entre dos formas de medir lo mismo (Cénit frente a una referencia, o dos marcaciones
+// Concordancia entre dos formas de medir lo mismo (OmniClin frente a una referencia, o dos marcaciones
 // del mismo vídeo): Bland-Altman, correlación de Pearson, ICC(A,1), error típico y cambio mínimo
 // detectable. Funciones puras.
 
-/** a: Cénit (o la segunda marcación); b: la referencia (o la primera). */
+/** a: OmniClin (o la segunda marcación); b: la referencia (o la primera). */
 export type Pair = { a: number; b: number };
 
 export type Agreement = {
@@ -127,7 +127,7 @@ export function verdict(ag: Agreement, delta: number, fmtv: (v: number) => strin
     return {
       tone: "warning",
       title: "Sesgo constante: se puede corregir",
-      text: `Cénit da de media ${fmtv(ag.bias)} respecto a la referencia, de forma bastante constante. Restando ese sesgo, el 95 % de las diferencias quedaría en ±${fmtv(width / 2)}.${few}`,
+      text: `OmniClin da de media ${fmtv(ag.bias)} respecto a la referencia, de forma bastante constante. Restando ese sesgo, el 95 % de las diferencias quedaría en ±${fmtv(width / 2)}.${few}`,
     };
   }
   if (Math.abs(ag.bias) <= delta / 2) {

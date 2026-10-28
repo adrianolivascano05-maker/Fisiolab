@@ -90,9 +90,9 @@ const CONSOLE = {
 /** Los pasos en texto, para mandarlos por WhatsApp o correo a quien lo vaya a activar. */
 function activationText(origin: string, redirect: string) {
   return [
-    "Activar «Entrar con Google» en Cénit · Fisiolab (una sola vez, gratis, unos 10 minutos):",
+    "Activar «Entrar con Google» en OmniClin (una sola vez, gratis, unos 10 minutos):",
     `1. Crear el proyecto y activar Google Drive: ${CONSOLE.enableDrive}`,
-    `2. ${CONSOLE.branding} → nombre «Cénit · Fisiolab», tu correo, público «Externo». Después, en «Público», pulsa «Publicar aplicación».`,
+    `2. ${CONSOLE.branding} → nombre «OmniClin», tu correo, público «Externo». Después, en «Público», pulsa «Publicar aplicación».`,
     `3. ${CONSOLE.scopes} → añadir el permiso …/auth/drive.appdata.`,
     `4. En «Clientes» → «Crear cliente» → «Aplicación web», con origen autorizado ${origin} y URI de redirección ${redirect}`,
     "5. Copiar el ID de cliente (termina en .apps.googleusercontent.com) y enviarlo. El «secreto» no hace falta.",
@@ -155,7 +155,7 @@ export function SignInSetupPage() {
           <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm">
             <li>{ext(CONSOLE.enableDrive, "Crear el proyecto y activar Google Drive")} (con tu cuenta de Google).</li>
             <li>
-              {ext(CONSOLE.branding, "Pantalla de consentimiento")}: nombre «Cénit · Fisiolab», tu correo, público <b>Externo</b>. Después, en <b>Público</b>,{" "}
+              {ext(CONSOLE.branding, "Pantalla de consentimiento")}: nombre «OmniClin», tu correo, público <b>Externo</b>. Después, en <b>Público</b>,{" "}
               <b>Publicar aplicación</b>.
             </li>
             <li>

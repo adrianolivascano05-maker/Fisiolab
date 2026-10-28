@@ -86,7 +86,7 @@ export function SendFormsPage() {
       </p>
       {!online ? (
         <Alert tone="info" title="Hace falta el servidor de la clínica">
-          Para mandar formularios tienes que trabajar en una clínica con el servidor de Cénit:{" "}
+          Para mandar formularios tienes que trabajar en una clínica con el servidor de OmniClin:{" "}
           <Link to="/ajustes/cuenta" className="py-3 font-semibold underline underline-offset-2">
             Ajustes › Cuenta de Google
           </Link>

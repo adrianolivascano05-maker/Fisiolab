@@ -1,5 +1,5 @@
 // Las citas solas en Google Calendar (src/cloud/README.md). Con el permiso calendar.app.created la app crea su
-// propio calendario («Cénit · Citas») en la cuenta de quien entra y solo puede tocar ese calendario, no los demás.
+// propio calendario («OmniClin · Citas») en la cuenta de quien entra y solo puede tocar ese calendario, no los demás.
 // Cada siguiente cita (la de la última sesión de cada paciente) es un evento con un id fijo sacado de la sesión:
 // apuntarla dos veces, o desde dos dispositivos, deja un solo evento. Las citas que ya han pasado o empezado no
 // se tocan nunca.
@@ -14,7 +14,10 @@ import { getToken, hasGranted, CALENDAR_SCOPE } from "./auth";
 import { AuthError, call, GoogleError } from "./drive";
 
 const API = "https://www.googleapis.com/calendar/v3";
-export const CALENDAR_NAME = "Cénit · Citas";
+export const CALENDAR_NAME = "OmniClin · Citas";
+/** Los nombres que tuvo (la app se llamó Cénit hasta el 28-10-2026): el calendario que ya existe se renombra, no se crea otro. */
+export const OLD_CALENDAR_NAMES = ["Cénit · Citas"];
+const DESCRIPTION = "Citas de fisioterapia que apunta la app OmniClin.";
 const TZ = "Europe/Madrid";
 
 /**
@@ -51,11 +54,13 @@ export function eventId(sessionId: string): string {
 
 const json = { "Content-Type": "application/json; charset=UTF-8" };
 
-/** El calendario de la app: el guardado si sigue existiendo; si no, uno nuevo. */
-async function ensureCalendar(token: string, id: string | null): Promise<string> {
+/** El calendario de la app: el guardado si sigue existiendo (con el nombre de ahora); si no, uno nuevo. */
+export async function ensureCalendar(token: string, id: string | null): Promise<string> {
   if (id) {
     try {
-      await call(token, `${API}/calendars/${encodeURIComponent(id)}`);
+      const cal = (await (await call(token, `${API}/calendars/${encodeURIComponent(id)}`)).json()) as { summary?: string };
+      if (cal.summary && OLD_CALENDAR_NAMES.includes(cal.summary))
+        await call(token, `${API}/calendars/${encodeURIComponent(id)}`, { method: "PATCH", headers: json, body: JSON.stringify({ summary: CALENDAR_NAME, description: DESCRIPTION }) }).catch(() => {});
       return id;
     } catch (e) {
       if (!(e instanceof GoogleError && (e.status === 404 || e.status === 410))) throw e;
@@ -64,7 +69,7 @@ async function ensureCalendar(token: string, id: string | null): Promise<string>
   const res = await call(token, `${API}/calendars`, {
     method: "POST",
     headers: json,
-    body: JSON.stringify({ summary: CALENDAR_NAME, description: "Citas de fisioterapia que apunta la app Cénit · Fisiolab.", timeZone: TZ }),
+    body: JSON.stringify({ summary: CALENDAR_NAME, description: DESCRIPTION, timeZone: TZ }),
   });
   return ((await res.json()) as { id: string }).id;
 }

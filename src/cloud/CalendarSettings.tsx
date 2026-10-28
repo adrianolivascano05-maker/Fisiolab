@@ -1,4 +1,4 @@
-// Ajustes → Cuenta de Google → Google Calendar: apuntar solas las citas en el calendario «Cénit · Citas» (googleCalendar.ts).
+// Ajustes → Cuenta de Google → Google Calendar: apuntar solas las citas en el calendario «OmniClin · Citas» (googleCalendar.ts).
 import { CalendarCheck, CalendarX, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fmtDateTime } from "../app/format";

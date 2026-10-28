@@ -1,4 +1,4 @@
-// Guardar un archivo a la vista en la carpeta «Cénit · Fisiolab» del Drive de quien ha entrado (drive.ts).
+// Guardar un archivo a la vista en la carpeta «OmniClin» del Drive de quien ha entrado (drive.ts).
 import type { Db } from "../data/db";
 import { memberKey } from "../data/member";
 import { getSetting, setSetting } from "../data/repo";

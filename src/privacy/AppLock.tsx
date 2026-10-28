@@ -11,7 +11,7 @@ import { chosenClinic } from "../cloud/clinic";
 import { cachedCloudConfig } from "../cloud/config";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
-import { LogoMark } from "../ui/Logo";
+import { LogoMark, Wordmark } from "../ui/Logo";
 import { Sheet } from "../ui/Sheet";
 import { checkPasskey } from "./passkey";
 import { checkPin, clearLock, failCount, getLock, isPin, lastActiveAt, lockedOnOpen, markActive, MAX_FAILS, setLockScope, setPin, unlockedOtherwise, waitUntil } from "./pin";
@@ -136,12 +136,7 @@ function Shell({ title, subtitle, children }: { title: string; subtitle?: string
       <main className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center gap-5 p-4">
         <div className="flex items-center gap-3">
           <LogoMark size={44} />
-          <span className="flex flex-col leading-none">
-            <span className="text-xl font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
-              Cénit
-            </span>
-            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
-          </span>
+          <Wordmark className="text-xl" />
         </div>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="flex items-center gap-2 text-xl">

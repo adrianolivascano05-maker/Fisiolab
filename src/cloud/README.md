@@ -21,12 +21,12 @@ que permite entrar con Google.
 Los nombres de los menús son los de la consola de Google en octubre de 2026; si alguno cambia, el orden es el mismo.
 
 1. Abre <https://console.cloud.google.com/flows/enableapi?apiid=drive.googleapis.com> con la cuenta de Google de
-   la clínica (o la tuya). En el mismo paso se crea el proyecto (nombre `Cenit Fisiolab`) y se activa la Google
+   la clínica (o la tuya). En el mismo paso se crea el proyecto (nombre `OmniClin`; el de Fisiolab se creó como `Cenit Fisiolab`, y da igual) y se activa la Google
    Drive API. Comprueba arriba que queda elegido ese proyecto. Activa también la **Google Calendar API**
    (<https://console.cloud.google.com/apis/library/calendar-json.googleapis.com> → **Habilitar**): sin ella, «Apuntar
    solas las citas» da un error 403 y la app enseña el enlace para activarla.
 2. <https://console.cloud.google.com/auth/branding> (**Google Auth Platform**) → **Empezar**:
-   - Nombre de la aplicación: `Cénit · Fisiolab`; correo de asistencia: el tuyo.
+   - Nombre de la aplicación: `OmniClin`; correo de asistencia: el tuyo.
    - Público: **Externo**.
    - Datos de contacto: tu correo. Acepta las condiciones y **Crear**.
 3. <https://console.cloud.google.com/auth/scopes> (**Acceso a datos**) → **Añadir o quitar permisos** → marca `.../auth/drive.appdata` («Ver, crear y eliminar
@@ -37,7 +37,7 @@ Los nombres de los menús son los de la consola de Google en octubre de 2026; si
    aplicación», deja la app **en pruebas**. Añade en **Usuarios de prueba** el correo de cada fisioterapeuta
    (hasta 100). Solo podrán entrar esas cuentas, y Google pedirá volver a aceptar los permisos de vez en cuando.
 5. **Clientes** → **Crear cliente**:
-   - Tipo de aplicación: **Aplicación web**; nombre: `Cénit web`.
+   - Tipo de aplicación: **Aplicación web**; nombre: `OmniClin web`.
    - **Orígenes de JavaScript autorizados**: `https://adrianolivascano05-maker.github.io`
    - **URIs de redireccionamiento autorizados**: `https://adrianolivascano05-maker.github.io/Fisiolab/` (con la
      barra del final).
@@ -70,8 +70,8 @@ de la última cuenta que entró en él.
 | `remote.ts` | dónde vive la copia: Drive o el servidor de Cloudflare, con la misma interfaz para `sync.ts` |
 | `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista (con el servidor de la clínica, cada minuto mientras se usa y cada 5 si nadie la toca en 5 minutos), 5 segundos después del último cambio y al salir de la app |
 | `AccountPages.tsx` | la tarjeta de la cuenta en la pantalla principal y la pantalla para pegar el ID de cliente en el dispositivo |
-| `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «Cénit · Citas» que crea la app |
-| `saveToDrive.ts`, `DriveSaveButton.tsx` | guardar el informe en PDF y los resultados en CSV en la carpeta «Cénit · Fisiolab» de Drive |
+| `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «OmniClin · Citas» que crea la app |
+| `saveToDrive.ts`, `DriveSaveButton.tsx` | guardar el informe en PDF y los resultados en CSV en la carpeta «OmniClin» de Drive |
 | `crypt.ts`, `EncryptionParts.tsx` | cifrado obligatorio de la copia con una contraseña, y pedirla en otro dispositivo |
 | `CloudGate.tsx` | pantallas de entrada (de pasar a la cuenta los datos que había sin cuenta y, con el servidor, de elegir o dar de alta la clínica), aviso de sincronización y la sección «Cuenta» de Ajustes |
 | `../data/migrations/008_sync.sql`, `../data/syncMerge.ts` | registro de cambios por fila y fusión de dos copias |
@@ -116,7 +116,7 @@ de la última cuenta que entró en él.
   nada que Google trate como sensible y no hace falta verificar la app para pasar de 100 usuarios. Si alguien no
   acepta uno, lo demás funciona y la app dice qué falta y cómo darlo.
 - **Citas en Google Calendar.** Al acabar cada sincronización, cada cita pendiente que aún no ha llegado (la agenda,
-  `../data/appointments.ts`) se pone en el calendario «Cénit · Citas». El id del evento sale del de
+  `../data/appointments.ts`) se pone en el calendario «OmniClin · Citas». El id del evento sale del de
   la cita (`cenit` + su id; la que se da al guardar una sesión lleva el id de la sesión, como antes de la agenda),
   así que dos dispositivos dejan un solo evento. Una cita cambiada se mueve; una que ya no está pendiente (atendida,
   no vino, anulada, borrada, o su paciente borrado) se quita. Las citas pasadas o empezadas no se
@@ -124,7 +124,7 @@ de la última cuenta que entró en él.
   desactiva o se elige si sale el nombre del paciente o solo sus iniciales (por defecto, las iniciales). Con esto activado, al guardar una sesión ya no
   se ofrece el enlace de Google Calendar ni el .ics.
 - **Informe y resultados en Drive.** «Guardar en mi Drive (PDF)» en el informe y «Guardar los resultados en mi
-  Drive (CSV)» en Ajustes los suben a la carpeta «Cénit · Fisiolab» de «Mi unidad», que la app crea la primera vez
+  Drive (CSV)» en Ajustes los suben a la carpeta «OmniClin» de «Mi unidad», que la app crea la primera vez
   (su id va en el ajuste sincronizado `drive_folder_id`). El PDF es el informe dibujado tal como se ve, una imagen
   por página A4 (`../clinical/reportPdf.ts` con html-to-image, y `../app/pdf.ts`): el texto no se puede
   seleccionar. Estos archivos no se cifran aunque la copia sí lo esté.

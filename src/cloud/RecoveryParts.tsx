@@ -29,7 +29,7 @@ export function RecoveryKit({ code, salt, onClose }: { code: string; salt: strin
   return (
     <Sheet open onClose={onClose} title="Kit de recuperación de la clínica">
       <article ref={kit} aria-label="Kit de recuperación" className="flex flex-col gap-3 rounded-md border border-border bg-bg p-4">
-        <h3 className="text-lg font-semibold">Cénit · Kit de recuperación de «{clinic}»</h3>
+        <h3 className="text-lg font-semibold">OmniClin · Kit de recuperación de «{clinic}»</h3>
         <p className="text-sm">Creado el {today} por {cloud.account.email}.</p>
         <p className="text-sm">Código de recuperación:</p>
         <p className="rounded-md bg-surface px-3 py-3 text-center font-mono text-xl font-bold tracking-wider break-all" data-testid="recovery-code">
@@ -49,7 +49,7 @@ export function RecoveryKit({ code, salt, onClose }: { code: string; salt: strin
           if (!kit.current) return;
           setBusy(true);
           try {
-            saveFile(`Cenit-kit-recuperacion-${clinic.replace(/[^\p{L}\p{N}]+/gu, "-")}.pdf`, await reportPdf(kit.current), "application/pdf");
+            saveFile(`OmniClin-kit-recuperacion-${clinic.replace(/[^\p{L}\p{N}]+/gu, "-")}.pdf`, await reportPdf(kit.current), "application/pdf");
           } catch (e) {
             toast(errText(e), "danger");
           } finally {

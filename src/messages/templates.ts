@@ -108,7 +108,7 @@ export async function loadMessages(db: Db): Promise<MessageSettings> {
   return mergeLegacy(raw, legacy);
 }
 
-/** Guarda solo lo que cambia respecto al texto de Cénit; el recordatorio también en el ajuste antiguo. */
+/** Guarda solo lo que cambia respecto al texto de OmniClin; el recordatorio también en el ajuste antiguo. */
 export async function saveMessages(db: Db, s: MessageSettings): Promise<void> {
   const texts: MessageTexts = {};
   for (const m of MESSAGES) {
@@ -154,7 +154,7 @@ export function fillTemplate(text: string, vars: MessageVars): string {
     .replace(/ en la clínica la clínica/g, " en la clínica");
 }
 
-/** El texto de un mensaje: el de la clínica o el de Cénit, con las fichas puestas y la firma al final (si la hay). */
+/** El texto de un mensaje: el de la clínica o el de OmniClin, con las fichas puestas y la firma al final (si la hay). */
 export function messageText(kind: MessageKind, s: MessageSettings | null | undefined, vars: MessageVars, opts: { signature?: boolean } = {}): string {
   const spec = specOf(kind);
   const text = fillTemplate(s?.texts[kind]?.text?.trim() || spec.text, vars);

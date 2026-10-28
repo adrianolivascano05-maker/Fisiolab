@@ -21,7 +21,7 @@ export async function createPasskey(name: string): Promise<string | null> {
     const cred = (await navigator.credentials.create({
       publicKey: {
         challenge: random(32),
-        rp: { name: "Cénit · Fisiolab" },
+        rp: { name: "OmniClin" },
         user: { id: random(16), name, displayName: name },
         pubKeyCredParams: [
           { type: "public-key", alg: -7 },

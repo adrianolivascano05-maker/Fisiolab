@@ -85,7 +85,7 @@ export function icsText(e: CalendarEvent, now = new Date()): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Cenit Fisiolab//Citas//ES",
+    "PRODID:-//OmniClin//Citas//ES",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",

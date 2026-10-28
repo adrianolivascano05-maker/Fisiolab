@@ -12,7 +12,7 @@ import { QrCode } from "../ui/QrCode";
 const devices: { title: string; steps: string[] }[] = [
   {
     title: "Ordenador con Chrome o Edge (Windows, Mac o Linux)",
-    steps: ["Abre el enlace.", "Pulsa el icono de instalar de la barra de direcciones (una pantalla con una flecha) o, en el menú ⋮, «Instalar Cénit».", "Queda como un programa más, con su icono."],
+    steps: ["Abre el enlace.", "Pulsa el icono de instalar de la barra de direcciones (una pantalla con una flecha) o, en el menú ⋮, «Instalar OmniClin».", "Queda como un programa más, con su icono."],
   },
   { title: "Mac con Safari", steps: ["Abre el enlace en Safari.", "Menú Archivo → «Añadir al Dock»."] },
   { title: "iPad o iPhone", steps: ["Abre el enlace en Safari.", "Pulsa Compartir y elige «Añadir a pantalla de inicio»."] },
@@ -28,7 +28,7 @@ export function InstallPage() {
   return (
     <Page title="Instalar la app" backTo="/ajustes">
       <p>
-        Cénit es una web que se instala: se abre con este enlace en cualquier móvil, tablet u ordenador, y desde ahí se añade como app. No hace falta
+        OmniClin es una web que se instala: se abre con este enlace en cualquier móvil, tablet u ordenador, y desde ahí se añade como app. No hace falta
         ninguna tienda.
       </p>
       <h2 className="text-lg">En este dispositivo</h2>
@@ -62,7 +62,7 @@ export function InstallPage() {
             <Button
               variant="secondary"
               icon={<Share2 aria-hidden="true" className="size-5" />}
-              onClick={() => void navigator.share({ title: "Cénit · Fisiolab", text: "La app de Cénit · Fisiolab", url }).catch(() => {})}
+              onClick={() => void navigator.share({ title: "OmniClin", text: "La app de OmniClin", url }).catch(() => {})}
             >
               Enviar el enlace
             </Button>

@@ -90,7 +90,7 @@ export function DocumentsPage() {
       </p>
       {!server ? (
         <Alert tone="info" title="Hace falta el servidor de la clínica">
-          Para guardar archivos tienes que trabajar en una clínica con el servidor de Cénit:{" "}
+          Para guardar archivos tienes que trabajar en una clínica con el servidor de OmniClin:{" "}
           <Link to="/ajustes/cuenta" className="py-3 font-semibold underline underline-offset-2">
             Ajustes › Cuenta de Google
           </Link>

@@ -142,7 +142,7 @@ export function VideoPage() {
       backTo={running ? `/pacientes/${id}/test/carrera` : timed ? `/pacientes/${id}/test/sprint?tipo=${tipo}` : nordic ? `/pacientes/${id}/test/isquios` : strength ? `/pacientes/${id}/test/fuerza?${new URLSearchParams({ ejercicio: exercise?.id ?? "squat", carga: String(extraLoadKg) })}` : `/pacientes/${id}/test/saltos`}
     >
       <p className="text-text-muted">
-        {running ? "Graba la carrera en cinta a cámara lenta y elígela aquí." : timed ? "Graba el recorrido de lado y elígelo aquí." : nordic ? "Graba el nórdico de lado y elígelo aquí." : `Graba ${strength ? "la serie" : "el salto"} a cámara lenta y elígelo aquí.`} El vídeo no sale de tu galería: Cénit solo guarda las marcas y el resultado.
+        {running ? "Graba la carrera en cinta a cámara lenta y elígela aquí." : timed ? "Graba el recorrido de lado y elígelo aquí." : nordic ? "Graba el nórdico de lado y elígelo aquí." : `Graba ${strength ? "la serie" : "el salto"} a cámara lenta y elígelo aquí.`} El vídeo no sale de tu galería: OmniClin solo guarda las marcas y el resultado.
       </p>
       <input
         ref={input}

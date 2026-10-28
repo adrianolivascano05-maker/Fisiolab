@@ -70,7 +70,7 @@ const VideoPage = lazy(() => import("./pages/VideoPage").then((m) => ({ default:
 const WellnessPage = lazy(() => import("./pages/WellnessPage").then((m) => ({ default: m.WellnessPage })));
 // Lo que abre el paciente con su enlace: sin la base, sin PIN y sin cuenta.
 const PublicFormPage = lazy(() => import("./patientForm/PublicFormPage").then((m) => ({ default: m.PublicFormPage })));
-// Compartir → Cénit (Android): archivos que llegan de otra app para la ficha de un paciente.
+// Compartir → OmniClin (Android): archivos que llegan de otra app para la ficha de un paciente.
 const SharedFilesPage = lazy(() => import("./documents/SharedFilesPage").then((m) => ({ default: m.SharedFilesPage })));
 const OldLinkPage = lazy(() => import("./app/OldLinkPage").then((m) => ({ default: m.OldLinkPage })));
 const ToBillPage = lazy(() => import("./invoices/ToBillPage").then((m) => ({ default: m.ToBillPage })));

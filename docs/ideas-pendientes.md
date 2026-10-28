@@ -101,13 +101,13 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
   encima de tokens.css, sin parpadeo al abrir, favicon, título y color de la barra del móvil), Logo.tsx con el logo
   de la clínica, fila «Marca de la clínica» en Ajustes › Clínica.
 - Hecho en el bloque 2: membrete con la marca en informe, alta, derivación, justificante, recibo y hoja de
-  ejercicios; marca de agua en pantalla, al imprimir y en cada página del PDF; pie «Documento generado con Cénit»;
+  ejercicios; marca de agua en pantalla, al imprimir y en cada página del PDF; pie «Documento generado con OmniClin»;
   los consentimientos guardan la marca con la que se firmaron. Las facturas antiguas (solo lectura) no cambian.
 - Hecho en el bloque 3: Ajustes › Mensajes a pacientes (`src/messages/`): los seis mensajes con texto y asunto
   editables, fichas que se insertan, vista previa y firma común; los seis sitios de la app leen de ahí; el texto del
   recordatorio que ya hubiera se conserva. Agenda › Recordatorios enlaza a esa pantalla.
 - Hecho en el bloque 4: la página del paciente lleva la marca de la clínica (nombre, colores, logo pequeño) dentro
-  del sobre cifrado del formulario; los enlaces antiguos se abren con la de Cénit.
+  del sobre cifrado del formulario; los enlaces antiguos se abren con la de OmniClin.
 - Hecho en el bloque 5: Privacidad dice siempre quién hace el programa y, con el servidor de la clínica, explica
   dónde están los datos (antes decía, por error, que la app hablaba solo con Google Drive) y quién es encargado del
   tratamiento; la ayuda dice dónde se cambian los mensajes; fichas de Mensajes a 44 px; prueba de 44 px en las
@@ -235,7 +235,7 @@ Cloudflare con tope de 10 GB, las fotos pasadas a PDF, 5 archivos por enlace y 5
 - Hecho: en la ficha, **Documentos › Archivos del paciente**: añadir PDF o fotos (las fotos de una vez se juntan en
   un PDF, reducidas si hace falta), abrir (se descarga), enviar, cambiar el nombre y borrar. **Pedírselos al
   paciente** manda un enlace («Sus informes y pruebas»); lo que sube aparece en sus archivos al recogerlo. En
-  Android, con la app instalada, **Compartir → Cénit** desde WhatsApp, el correo o la galería, y se elige el
+  Android, con la app instalada, **Compartir → OmniClin** desde WhatsApp, el correo o la galería, y se elige el
   paciente. La exportación completa lleva los archivos (carpeta «Archivos de pacientes», con enlaces desde la ficha
   de cada paciente y una hoja en el Excel).
 - Cómo va: cada archivo se cifra en el dispositivo con su propia clave (que va en la copia cifrada de la clínica),
@@ -246,7 +246,7 @@ Cloudflare con tope de 10 GB, las fotos pasadas a PDF, 5 archivos por enlace y 5
   ofrece los archivos.
 - Límites conocidos:
   - No hay visor dentro de la app: abrir un archivo es descargarlo y abrirlo con el visor del móvil o del ordenador.
-  - Compartir → Cénit solo en Android con la app instalada; en iPhone el navegador no lo permite (allí, con el
+  - Compartir → OmniClin solo en Android con la app instalada; en iPhone el navegador no lo permite (allí, con el
     botón).
   - La exportación completa junta todo en memoria: con muchos GB de archivos puede ir lenta o fallar en un móvil;
     mejor hacerla en un ordenador.
@@ -433,7 +433,7 @@ antes, o enseñar el decimal) cambia cómo se guarda la medición: decidirlo ant
 
 **R2. iPhone** — **en marcha el 24-10-2026:**
 - Lo que fallaba en la prueba con el motor de Safari (WebKit): la primera vez que se abre la app va bien, pero en la
-  segunda carga de página en la misma pestaña salía «Cénit ya está abierta en otra pestaña». Safari guarda la
+  segunda carga de página en la misma pestaña salía «OmniClin ya está abierta en otra pestaña». Safari guarda la
   página anterior «congelada» (para volver atrás deprisa) con su base de datos abierta. En un iPhone puede pasar al
   volver de entrar con Google, al cambiar de clínica, al cerrar sesión o al recargar.
 - ~~Arreglo~~ **hecho:** la app cierra su base al dejar la página y, si Safari devuelve la congelada, la recarga.

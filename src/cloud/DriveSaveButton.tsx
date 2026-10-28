@@ -1,4 +1,4 @@
-// Botón «Guardar en mi Drive»: hace el archivo, lo sube a la carpeta «Cénit · Fisiolab» y enseña el enlace.
+// Botón «Guardar en mi Drive»: hace el archivo, lo sube a la carpeta «OmniClin» y enseña el enlace.
 // Sin la cuenta de Google conectada no aparece.
 import { CloudUpload, ExternalLink } from "lucide-react";
 import { useState } from "react";

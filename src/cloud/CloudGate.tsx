@@ -19,7 +19,7 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { TextField } from "../ui/Field";
-import { LogoMark } from "../ui/Logo";
+import { LogoMark, Wordmark } from "../ui/Logo";
 import { Sheet } from "../ui/Sheet";
 import { AccessRequestCards } from "./AccessRequest";
 import { adoptionDone, clearAccount, dbFileFor, getAccount, setAccount, type Account } from "./account";
@@ -375,12 +375,7 @@ function Shell({ children }: { children: ReactNode }) {
     <main className="mx-auto flex min-h-dvh max-w-[var(--layout-content-max)] flex-col justify-center gap-5 p-4">
       <div className="flex items-center gap-3">
         <LogoMark size={44} />
-        <span className="flex flex-col leading-none">
-          <span className="text-xl font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
-            Cénit
-          </span>
-          <span className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
-        </span>
+        <Wordmark className="text-xl" />
       </div>
       {children}
     </main>

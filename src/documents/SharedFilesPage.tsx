@@ -1,4 +1,4 @@
-// Compartir → Cénit (Android): lo que se ha compartido desde WhatsApp, el correo o la galería llega aquí
+// Compartir → OmniClin (Android): lo que se ha compartido desde WhatsApp, el correo o la galería llega aquí
 // (public/compartir-sw.js lo deja en la caché del navegador; aquí se lee y se borra de ella). Se elige el paciente y se
 // guarda en sus archivos, como con «Añadir PDF o fotos». Lo que no se guarda se pierde al salir de la pantalla.
 import { FilePlus2, FileText, Search } from "lucide-react";
@@ -72,7 +72,7 @@ export function SharedFilesPage() {
     return (
       <Page title={title} backTo="/">
         <Alert tone="info" title="Aquí no se pueden guardar archivos">
-          Para guardar archivos de pacientes hace falta trabajar en una clínica con el servidor de Cénit y que ese servidor tenga el almacén de archivos.
+          Para guardar archivos de pacientes hace falta trabajar en una clínica con el servidor de OmniClin y que ese servidor tenga el almacén de archivos.
         </Alert>
       </Page>
     );

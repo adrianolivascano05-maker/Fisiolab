@@ -73,6 +73,6 @@ export type ConsentDocument = {
   /** Fecha del documento (AAAA-MM-DD) y lugar. */
   date: string;
   place: string;
-  /** La marca de la clínica con la que se firmó (null: la de Cénit); los firmados antes de haber marca no la llevan. */
+  /** La marca de la clínica con la que se firmó (null: la de OmniClin); los firmados antes de haber marca no la llevan. */
   brand?: Brand | null;
 };

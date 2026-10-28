@@ -33,7 +33,7 @@ export type FormRequest = {
   /** La anamnesis: sus apartados con las preguntas para el paciente. */
   sections?: Section[];
   expiresAt: string;
-  /** La marca de la clínica para la página del paciente (src/brand/form.ts); sin ella, la de Cénit. */
+  /** La marca de la clínica para la página del paciente (src/brand/form.ts); sin ella, la de OmniClin. */
   brand?: FormBrand;
   /** Si se le piden archivos, cuántos puede subir. */
   maxDocs?: number;

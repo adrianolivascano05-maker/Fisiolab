@@ -276,7 +276,7 @@ export function ImportPatientsPage() {
                 )}
                 {recordPlan && recordPlan.newPatients.length > 0 && (
                   <li>
-                    {plural(recordPlan.newPatients.length, "paciente no está en Cénit", "pacientes no están en Cénit")} ({recordPlan.newPatients.slice(0, 3).join(", ")}
+                    {plural(recordPlan.newPatients.length, "paciente no está en OmniClin", "pacientes no están en OmniClin")} ({recordPlan.newPatients.slice(0, 3).join(", ")}
                     {recordPlan.newPatients.length > 3 ? "…" : ""}): {createMissing ? "se crean con su nombre." : `sus ${meta.many} se saltan.`}
                   </li>
                 )}

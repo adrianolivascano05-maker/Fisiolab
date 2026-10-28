@@ -53,7 +53,7 @@ export function PublicFormPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "Formulario · Cénit";
+    document.title = "Formulario · OmniClin";
     if (!id || !key) {
       setPhase({ kind: "error", text: "El enlace está incompleto. Ábrelo tal como te llegó, entero." });
       return;
@@ -74,10 +74,10 @@ export function PublicFormPage() {
         } catch {
           throw new Error("El enlace está incompleto o mal copiado. Ábrelo tal como te llegó, entero.");
         }
-        // La marca de la clínica que trae el formulario (o la de Cénit): colores, logo, favicon y título.
+        // La marca de la clínica que trae el formulario (o la de OmniClin): colores, logo, favicon y título.
         const brand = brandFromForm(request.brand);
         applyBrand(brand, false);
-        document.title = `Formulario · ${brand?.name ?? "Cénit"}`;
+        document.title = `Formulario · ${brand?.name ?? "OmniClin"}`;
         setPhase({ kind: "form", request });
       } catch (e) {
         setPhase({ kind: "error", text: e instanceof Error && e.message !== "Failed to fetch" ? e.message : "No hay conexión. Prueba otra vez en un momento." });

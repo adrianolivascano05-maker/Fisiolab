@@ -11,13 +11,13 @@ y Google les vuelve a pedir permiso cada 7 días. En **producción** puede entra
 nada: puede pedir el alta y tú la aceptas en Ajustes → Proveedor).
 
 1. Abre <https://console.cloud.google.com/auth/audience> con la cuenta dueña del proyecto. Arriba, comprueba que
-   el proyecto elegido es **Cenit Fisiolab**.
+   el proyecto elegido es **Cenit Fisiolab** (su nombre de antes; se puede cambiar a «OmniClin» en la configuración del proyecto sin que afecte a nada).
 2. Antes de publicar, mira <https://console.cloud.google.com/auth/scopes> (**Acceso a datos**): solo debe haber
    permisos «no sensibles» (`openid`, correo, perfil, `drive.file` y, si se usa la copia en Drive,
    `drive.appdata`). Si hay alguno en «Permisos sensibles» o «restringidos», quítalo y **Guardar**: la app pide el
    del calendario solo a quien activa las citas en Google Calendar, no hace falta tenerlo ahí.
 3. En **Marca** (<https://console.cloud.google.com/auth/branding>), Google exige cuatro datos antes de publicar:
-   - **Nombre de la aplicación:** `Cénit · Fisiolab`.
+   - **Nombre de la aplicación:** `OmniClin`.
    - **Correo de asistencia:** `cenitfisiolab@gmail.com`.
    - **Página principal:** `https://cenitfisiolab.pages.dev/`.
    - **Política de privacidad:** `https://cenitfisiolab.pages.dev/politica-de-privacidad.html` (página pública y estática,
@@ -45,7 +45,7 @@ de tests, la vista de la agenda, la conexión con Google Calendar) hay que volve
 
 Una vez, en Google (5 minutos):
 
-1. <https://console.cloud.google.com/auth/clients> → el cliente **Cénit web** → en **Orígenes de JavaScript
+1. <https://console.cloud.google.com/auth/clients> → el cliente **Cénit web** (su nombre de antes; se puede llamar «OmniClin web» sin que afecte a nada) → en **Orígenes de JavaScript
    autorizados**, **Añadir URI**: `https://cenitfisiolab.pages.dev`
 2. En **URIs de redireccionamiento autorizados**, **Añadir URI**: `https://cenitfisiolab.pages.dev/` (con la
    barra del final). **Guardar**. Puede tardar unos minutos en valer.
@@ -82,6 +82,9 @@ antes del 27-10-2026, vuelve a hacer el paso 3 (el `schema.sql` no cambia: ejecu
 **Otra vez el 27-10-2026, por la tarde:** el servidor trae las peticiones de hoy para el panel del proveedor
 (versión `2026-10-27.2`). Si pegaste el `worker.js` por la mañana, vuelve a pegarlo (solo el apartado 3 de abajo:
 el `schema.sql` no cambia). Después, si quieres verlas, haz el paso 4 bis.
+
+**28-10-2026, cambio de nombre a OmniClin:** el contrato de encargado que da el servidor dice ya «OmniClin» (versión
+`2026-10-28`). Vuelve a pegar el `worker.js` (solo el apartado 3 de abajo; el `schema.sql` no cambia).
 
 **Desde el 27-10-2026 la app te lo recuerda:** en **Ajustes**, la fila **Proveedor** sale en naranja con «Pendiente
 en Cloudflare: actualizar el servidor» mientras el servidor pegado sea anterior al que necesita la app, y con
@@ -148,7 +151,7 @@ comprobar a mano. Usa siempre pacientes inventados.
 3. Recarga la página (la flecha circular de la barra de Safari). El paciente tiene que seguir ahí.
 4. **Ajustes**: abajo del todo tiene que poner «guardado en el dispositivo» (si pone «en memoria», apúntalo).
 5. Si usas cuenta de Google: **Ajustes › Cuenta de Google** → **Entrar con Google**. Al volver de Google **no**
-   tiene que salir «Cénit ya está abierta en otra pestaña».
+   tiene que salir «OmniClin ya está abierta en otra pestaña».
 6. Instálala: botón **Compartir** → **Añadir a pantalla de inicio**, y ábrela desde el icono. En iPhone, la app
    instalada guarda sus datos aparte de Safari: el paciente de Safari puede no salir. Crea otro de prueba.
 7. Cierra la app del todo (desliza hacia arriba desde abajo y quítala) y vuelve a abrirla. El paciente sigue.

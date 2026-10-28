@@ -19,11 +19,11 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await loadSeed(page);
     await page.goto("./ajustes/datos");
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar todo (historias, Excel y copia)" }).click()]);
-    expect(dl.suggestedFilename()).toMatch(/^Cenit-Fisiolab-\d{4}-\d{2}-\d{2}\.zip$/);
+    expect(dl.suggestedFilename()).toMatch(/^OmniClin-Fisiolab-\d{4}-\d{2}-\d{2}\.zip$/);
     const bytes = readFileSync((await dl.path())!);
     expect(bytes.subarray(0, 2).toString("latin1")).toBe("PK");
     const names = bytes.toString("latin1");
-    for (const f of ["LEEME.txt", "Indice de pacientes.html", "Todos los datos.xlsx", "Copia de Cenit.sqlite3", "Historias clinicas/"]) expect(names, f).toContain(f);
+    for (const f of ["LEEME.txt", "Indice de pacientes.html", "Todos los datos.xlsx", "Copia de OmniClin.sqlite3", "Historias clinicas/"]) expect(names, f).toContain(f);
     await expect(page.getByText(/Descargado: 3 pacientes con toda su historia/)).toBeVisible();
     await expectAccessible(page);
   });
@@ -106,7 +106,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await page.getByLabel("Elegir el archivo de citas").setInputFiles({ name: "citas.csv", mimeType: "text/csv", buffer: Buffer.from(citas, "utf8") });
     const summary = page.getByRole("region", { name: "Qué va a pasar" });
     await expect(summary.getByText("Se importan 2 citas")).toBeVisible();
-    await expect(summary.getByText(/1 paciente no está en Cénit \(Pedro Nuevo\): se crean con su nombre/)).toBeVisible();
+    await expect(summary.getByText(/1 paciente no está en OmniClin \(Pedro Nuevo\): se crean con su nombre/)).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Importar 2 citas" }).click();
     await expect(page.getByText("2 citas importadas y 1 paciente nuevo")).toBeVisible();
@@ -143,7 +143,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await createPatient(page, { name: "Pestaña uno" });
     const second = await context.newPage();
     await second.goto("./");
-    await expect(second.getByText("Cénit ya está abierta en otra pestaña")).toBeVisible();
+    await expect(second.getByText("OmniClin ya está abierta en otra pestaña")).toBeVisible();
     await expect(second.getByRole("link", { name: "Nuevo paciente" })).toHaveCount(0);
     await page.close();
     await expect(second.getByRole("link", { name: /Pestaña uno/ })).toBeVisible();

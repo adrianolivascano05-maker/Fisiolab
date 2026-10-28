@@ -1,7 +1,7 @@
 # Marca por clínica
 
 Cada clínica puede poner su nombre, dos colores y su logo (Ajustes › Marca de la clínica). Sin marca guardada, la app
-es Cénit tal cual.
+es OmniClin tal cual.
 
 - `engine.ts`: de dos colores salen todos los colores de la app en claro y en oscuro, en OKLCH, con el contraste de
   WCAG AA corregido solo. Puro. `engine.test.ts` comprueba las parejas de `src/styles/tokens.json` con cientos de
@@ -11,17 +11,17 @@ es Cénit tal cual.
   móvil. La última marca se guarda también en el navegador para ponerla antes de pintar (sin parpadeo).
 - `logo.ts`: el logo subido se reduce a 512 px (PNG) o se acepta como SVG pequeño; `logoColors` propone dos colores.
 - `BrandPage.tsx` y `BrandPreview.tsx`: la pantalla de Ajustes con la vista previa en vivo.
-- `src/ui/Logo.tsx` pinta el logo de la clínica (o su inicial) donde antes iba solo el de Cénit.
+- `src/ui/Logo.tsx` pinta el logo de la clínica (o su inicial) donde antes iba solo el de OmniClin.
 
 - `docs.tsx`: la marca en los documentos. `Watermark` (el logo en gris al 7 %, en el tercio superior; al imprimir,
   en cada hoja) y `docVars` (los colores de un documento como variables en su recuadro). El membrete común está en
   `src/clinical/reportParts.tsx`; el PDF (`src/clinical/reportPdf.ts`) esconde la marca de agua de la pantalla y la
   dibuja él en cada página. Un consentimiento guarda la marca con la que se firmó (`ConsentDocument.brand`) y se
-  pinta siempre con esa; los de antes de haber marca, con la de Cénit.
+  pinta siempre con esa; los de antes de haber marca, con la de OmniClin.
 
 - `form.ts`: la marca en la página que abre el paciente. El nombre, los colores y el logo reducido a 160 px viajan
   dentro del sobre cifrado del formulario (`FormRequest.brand`); `PublicFormPage` la aplica al descifrarlo. Los
-  formularios de antes no la llevan y se abren con la de Cénit. El servidor no la ve.
+  formularios de antes no la llevan y se abren con la de OmniClin. El servidor no la ve.
 
 Los mensajes de WhatsApp y correo se editan aparte, en `src/messages/`. En Privacidad (`src/pages/PrivacyPage.tsx`)
 hay siempre un apartado «Quién hace el programa», aunque la app lleve la marca de la clínica.

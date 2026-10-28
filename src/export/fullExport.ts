@@ -1,4 +1,4 @@
-// Exportación completa: todo lo que la clínica tiene en Cénit, en un .zip que se puede abrir sin la app y llevar a
+// Exportación completa: todo lo que la clínica tiene en OmniClin, en un .zip que se puede abrir sin la app y llevar a
 // otro programa. Es lo que se entrega al darse de baja (y lo que la clínica puede descargar cuando quiera):
 // - «Historias clinicas/»: la historia clínica de cada paciente en una página (HTML) que se abre con cualquier
 //   navegador y se imprime o se guarda en PDF: datos, motivos de consulta con su anamnesis, sesiones, exploración,
@@ -6,7 +6,7 @@
 // - «Indice de pacientes.html»: la lista, con un enlace a cada historia.
 // - «Todos los datos.xlsx»: una pestaña por tipo de dato, en columnas legibles (para Excel o para otro programa).
 // - «Datos para otro programa (JSON).json»: las tablas tal cual, para quien programe una migración.
-// - «Copia de Cenit.sqlite3»: la copia de seguridad que se restaura en Cénit.
+// - «Copia de OmniClin.sqlite3»: la copia de seguridad que se restaura en OmniClin.
 // - «LEEME.txt»: qué es cada cosa.
 // Los vídeos de las mediciones no van: se quedan en el dispositivo donde se grabaron.
 import { getExercise } from "../calc/strength";
@@ -146,7 +146,7 @@ function buildSheets(c: Collected): Sheet[] {
   const sheets: Sheet[] = [
     {
       name: "Pacientes",
-      header: ["Código", "Nombre", "Fecha de nacimiento", "Sexo", "Teléfono", "Correo", "Dirección", "DNI o NIE", "Peso (kg)", "Altura (cm)", "Notas", "Alta en Cénit", "Última modificación"],
+      header: ["Código", "Nombre", "Fecha de nacimiento", "Sexo", "Teléfono", "Correo", "Dirección", "DNI o NIE", "Peso (kg)", "Altura (cm)", "Notas", "Alta en OmniClin", "Última modificación"],
       rows: [...T.patients!]
         .sort((a, b) => s(a.name).localeCompare(s(b.name), "es"))
         .map((p) => [s(p.id), s(p.name), day(p.birth_date), SEX[s(p.sex)] ?? "", s(p.phone), s(p.email), s(p.address), s(p.dni), n(p.body_mass_kg), n(p.height_cm), s(p.notes), when(p.created_at), when(p.updated_at)]),
@@ -336,7 +336,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
   const staff = new Map(T.staff!.map((x) => [s(x.email), s(x.name)]));
   const parts: string[] = [];
   const clinicLine = [c.clinic.name, c.clinic.taxId && `NIF ${c.clinic.taxId}`, c.clinic.address].filter(Boolean).join(" · ");
-  parts.push(`<p class="muted">${h(clinicLine || "Historia clínica")}</p><h1>${h(p.name)}</h1><p class="muted">Historia clínica exportada de Cénit el ${h(when(exportedAt.toISOString()))}. Cénit registra y organiza; las decisiones clínicas son del profesional.</p>`);
+  parts.push(`<p class="muted">${h(clinicLine || "Historia clínica")}</p><h1>${h(p.name)}</h1><p class="muted">Historia clínica exportada de OmniClin el ${h(when(exportedAt.toISOString()))}. OmniClin registra y organiza; las decisiones clínicas son del profesional.</p>`);
 
   const datos: [string, string][] = [
     ["Fecha de nacimiento", day(p.birth_date)],
@@ -355,7 +355,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
         .map((r) => staff.get(s(r.staff_email)) ?? s(r.staff_email))
         .join(", "),
     ],
-    ["En Cénit desde", when(p.created_at)],
+    ["En OmniClin desde", when(p.created_at)],
     ["Código", pid],
   ];
   parts.push(`<h2>Datos del paciente</h2><dl>${datos
@@ -517,7 +517,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
         .join("")}</ul>`,
     );
 
-  parts.push(`<footer>${h(clinicLine)} · Exportado de Cénit · ${h(when(exportedAt.toISOString()))}</footer>`);
+  parts.push(`<footer>${h(clinicLine)} · Exportado de OmniClin · ${h(when(exportedAt.toISOString()))}</footer>`);
   return page(`Historia clínica · ${s(p.name)}`, parts.join(""));
 }
 
@@ -563,7 +563,7 @@ function privacySheetHtml(sh: SignedPrivacySheet): string {
 
 const safeName = (t: string) => t.replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Paciente";
 
-const README = (c: Collected, count: number, at: Date, missing = 0) => `EXPORTACIÓN COMPLETA DE CÉNIT
+const README = (c: Collected, count: number, at: Date, missing = 0) => `EXPORTACIÓN COMPLETA DE OMNICLIN
 ${c.clinic.name ? `${c.clinic.name}\n` : ""}Exportada el ${when(at.toISOString())} · ${count} pacientes
 
 Qué hay en esta carpeta:
@@ -580,10 +580,10 @@ Qué hay en esta carpeta:
    en columnas, para Excel o para importarlo en otro programa. La columna «Código» de Pacientes
    identifica a cada paciente.
 
-4. «Datos para otro programa (JSON).json»: las mismas tablas tal como las guarda Cénit (con sus
+4. «Datos para otro programa (JSON).json»: las mismas tablas tal como las guarda OmniClin (con sus
    códigos y fechas en formato ISO), para quien programe una migración.
 
-5. «Copia de Cenit.sqlite3»: la copia de seguridad completa. Se restaura en Cénit desde
+5. «Copia de OmniClin.sqlite3»: la copia de seguridad completa. Se restaura en OmniClin desde
    Ajustes > Copias y exportar > Restaurar una copia.
 
 ${c.tables.documents?.length ? `6. «Archivos de pacientes»: los informes y pruebas de cada paciente, en PDF, en una carpeta por
@@ -657,7 +657,7 @@ export async function buildPackage(
     name: "Indice de pacientes.html",
     data: page(
       "Pacientes",
-      `<p class="muted">${h(c.clinic.name)}</p><h1>Pacientes (${patients.length})</h1><p class="muted">Exportado de Cénit el ${h(when(now.toISOString()))}. Toca un nombre para abrir su historia clínica.</p><table><thead><tr><th>Paciente</th><th>Nacimiento</th><th>Teléfono</th></tr></thead><tbody>${index.join("")}</tbody></table>`,
+      `<p class="muted">${h(c.clinic.name)}</p><h1>Pacientes (${patients.length})</h1><p class="muted">Exportado de OmniClin el ${h(when(now.toISOString()))}. Toca un nombre para abrir su historia clínica.</p><table><thead><tr><th>Paciente</th><th>Nacimiento</th><th>Teléfono</th></tr></thead><tbody>${index.join("")}</tbody></table>`,
     ),
   });
   zipped.unshift({ name: "LEEME.txt", data: README(c, patients.length, now, missing).replace(/\n/g, "\r\n") });
@@ -666,6 +666,6 @@ export async function buildPackage(
     name: "Datos para otro programa (JSON).json",
     data: JSON.stringify({ formato: "cenit-exportacion", version: 1, esquema: c.schema, exportado: now.toISOString(), clinica: c.clinic, tablas: c.tables }, null, 1),
   });
-  zipped.push({ name: "Copia de Cenit.sqlite3", data: await db.exportBytes() });
+  zipped.push({ name: "Copia de OmniClin.sqlite3", data: await db.exportBytes() });
   return { bytes: await zip(zipped, now), patients: patients.length, missing };
 }

@@ -1,6 +1,6 @@
 // Ajustes › Marca de la clínica: nombre, dos colores, logo y cómo se usan (src/brand/brand.ts). Lo que se cambia
 // se ve al momento en la vista previa (claro y oscuro) y en la app solo al guardar. Sin marca guardada, la app es
-// Cénit; «Volver a la marca de Cénit» la quita.
+// OmniClin; «Volver a la marca de OmniClin» la quita.
 import { ImageUp, Trash2 } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { Link } from "react-router";
@@ -131,7 +131,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
         if (problem) return setError(problem);
       }
       await saveBrand(getDb(), brand);
-      toast(brand ? "Marca guardada: ya se ve en toda la app" : "Vuelve la marca de Cénit", "success");
+      toast(brand ? "Marca guardada: ya se ve en toda la app" : "Vuelve la marca de OmniClin", "success");
       onSaved();
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se ha podido guardar.");
@@ -263,7 +263,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
             </Button>
             {saved && (
               <Button type="button" variant="secondary" size="lg" loading={busy === "reset"} disabled={busy !== null} onClick={() => void save(null)}>
-                Volver a la marca de Cénit
+                Volver a la marca de OmniClin
               </Button>
             )}
           </div>

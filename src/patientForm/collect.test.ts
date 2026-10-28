@@ -71,7 +71,8 @@ describe("formularios para el paciente", () => {
     const q = { id: newFormId(), key: newFormKey() };
     await addSentForm(db, { id: a.id, patientId: pid, episodeId: pid, kind: ANAMNESIS_KIND, key: a.key, expiresAt: exp });
     await addSentForm(db, { id: q.id, patientId: pid, episodeId: pid, kind: "gad7", key: q.key, expiresAt: exp });
-    const at = "2026-10-21T09:00:00.000Z";
+    // Respondidos hace una hora: lo de un compañero que lleva más de ORPHAN_DAYS días sin recoger se borra (abajo).
+    const at = new Date(Date.now() - 3_600_000).toISOString();
     const { api, removed } = server([
       { id: a.id, response: await seal({ v: 1, answers: { motivo: "Me duele", alergias: "Ninguna" } }, a.key), answeredAt: at },
       { id: q.id, response: await seal({ v: 1, answers: { i1: 1, i2: 2, i3: 0, i4: 3, i5: 1, i6: 0, i7: 2, otro: 9 } }, q.key), answeredAt: at },

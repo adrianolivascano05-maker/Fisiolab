@@ -604,7 +604,14 @@ export class FakeGoogle {
       const f = mineAll.find((x) => x.id === id);
       if (!f) return route.fulfill({ status: 404, headers: cors, json: { error: { message: "File not found" } } });
       if (url.searchParams.get("alt") === "media") return route.fulfill({ status: 200, headers: { ...cors, "content-type": "application/octet-stream" }, body: f.bytes });
-      return json({ id: f.id, trashed: !!f.trashed });
+      return json({ id: f.id, trashed: !!f.trashed, name: f.name });
+    }
+    if (url.pathname.startsWith("/drive/v3/files/") && req.method() === "PATCH") {
+      // Cambiar los metadatos (el nombre de la carpeta).
+      const f = mineAll.find((x) => x.id === id);
+      if (!f) return route.fulfill({ status: 404, headers: cors, json: { error: { message: "File not found" } } });
+      Object.assign(f, { name: (req.postDataJSON() as { name?: string }).name ?? f.name });
+      return json({ id: f.id });
     }
     if (url.pathname.startsWith("/drive/v3/files/") && req.method() === "DELETE") {
       this.files = this.files.filter((x) => !(x.id === id && x.owner === user.sub));
@@ -649,6 +656,10 @@ export class FakeGoogle {
     const c = this.calendars.find((x) => x.id === parts[1] && x.owner === user.sub);
     if (!c) return notFound();
     if (parts.length === 2 && req.method() === "GET") return json({ id: c.id, summary: c.summary });
+    if (parts.length === 2 && req.method() === "PATCH") {
+      c.summary = (req.postDataJSON() as { summary?: string }).summary ?? c.summary;
+      return json({ id: c.id, summary: c.summary });
+    }
     if (parts[2] !== "events") return notFound();
     const evId = parts[3];
     if (!evId && req.method() === "GET") {

@@ -15,10 +15,10 @@ test.describe("Validación y marcas", () => {
       ["22,4", "21,9"],
     ];
     for (const [a, b] of pairs) {
-      await page.getByLabel("Cénit", { exact: true }).fill(a);
+      await page.getByLabel("OmniClin", { exact: true }).fill(a);
       await page.getByLabel("Referencia", { exact: true }).fill(b);
       await page.getByRole("button", { name: "Añadir par" }).click();
-      await expect(page.getByLabel("Cénit", { exact: true })).toHaveValue("");
+      await expect(page.getByLabel("OmniClin", { exact: true })).toHaveValue("");
     }
     await expect(page.getByRole("heading", { name: "Pares (5)" })).toBeVisible();
     // Diferencias 0,8 0,7 1,1 0,6 0,5 → sesgo 0,74; todas dentro de ±2 cm.

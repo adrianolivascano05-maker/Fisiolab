@@ -106,7 +106,7 @@ export function SettingsPage() {
           to="/ajustes/marca"
           icon={Palette}
           title="Marca de la clínica"
-          subtitle={brand ? `${brand.name} · tus colores y tu logo` : "La marca de Cénit · tus colores, tu logo y la marca de agua de los documentos"}
+          subtitle={brand ? `${brand.name} · tus colores y tu logo` : "La marca de OmniClin · tus colores, tu logo y la marca de agua de los documentos"}
         />
         <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle="Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre, ejercicios" />
         {cloud?.clinic && (
@@ -284,7 +284,7 @@ export function DataSettingsPage() {
           <h3 className="font-semibold">Todos tus datos, para leer sin la app</h3>
           <p className="text-sm text-text-muted">
             Un archivo .zip con la historia clínica de cada paciente (se abre en cualquier navegador y se imprime), sus archivos en PDF, un Excel con
-            todo y la copia de seguridad. Es lo que te llevas si un día dejas Cénit.
+            todo y la copia de seguridad. Es lo que te llevas si un día dejas OmniClin.
           </p>
           <FullExportButton name={cloud?.clinic?.name ?? "Fisiolab"} />
         </Card>

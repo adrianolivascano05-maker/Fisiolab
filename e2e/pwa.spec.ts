@@ -14,7 +14,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     const href = await page.locator('link[rel="manifest"]').getAttribute("href");
     const manifest = await (await request.get(href!)).json();
     const base = new URL(baseURL!).pathname;
-    expect(manifest).toMatchObject({ name: "Cénit · Fisiolab", short_name: "Cénit", display: "standalone", lang: "es", start_url: base, scope: base });
+    expect(manifest).toMatchObject({ name: "OmniClin", short_name: "OmniClin", display: "standalone", lang: "es", start_url: base, scope: base });
     for (const icon of manifest.icons) expect((await request.get(icon.src)).status(), icon.src).toBe(200);
     expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === "maskable")).toBe(true);
     expect((await request.get("icons/apple-touch-icon.png")).status()).toBe(200);

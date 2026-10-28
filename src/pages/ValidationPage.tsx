@@ -35,12 +35,12 @@ import { saveFile } from "../app/download";
 
 /** Nombres de los dos valores de cada par según lo que se compara. */
 export const sides: Record<Comparison, { a: string; b: string }> = {
-  reference: { a: "Cénit", b: "Referencia" },
+  reference: { a: "OmniClin", b: "Referencia" },
   remark: { a: "2.ª marcación", b: "1.ª marcación" },
   ai: { a: "IA", b: "Tus marcas" },
 };
 
-/** Validación: cuánto se parece Cénit a otra herramienta y cuánto se repite al volver a marcar. */
+/** Validación: cuánto se parece OmniClin a otra herramienta y cuánto se repite al volver a marcar. */
 export function ValidationPage() {
   const [params, setParams] = useSearchParams();
   const kind = getKind(params.get("tipo") ?? "") ?? kinds[0]!;
@@ -64,7 +64,7 @@ export function ValidationPage() {
   return (
     <Page title="Validación" backTo="/ajustes">
       <p className="text-text-muted">
-        Para saber cuánto puedes fiarte de cada medida: compara Cénit con otra herramienta y comprueba cuánto se repite al volver a marcar el mismo vídeo.
+        Para saber cuánto puedes fiarte de cada medida: compara OmniClin con otra herramienta y comprueba cuánto se repite al volver a marcar el mismo vídeo.
       </p>
       <SelectField label="Medida" value={kind.id} onChange={(e) => set("tipo", e.target.value)}>
         {kinds.map((k) => {
@@ -200,7 +200,7 @@ function KindPanel({
           {kind.protocol.map((t) => (
             <li key={t}>{t}</li>
           ))}
-          <li>Qué mirar: el sesgo (si Cénit da de más o de menos), los límites de acuerdo (cuánto puede fallar una medida suelta) y el ICC (por encima de 0,90, excelente; 0,75-0,90, bueno).</li>
+          <li>Qué mirar: el sesgo (si OmniClin da de más o de menos), los límites de acuerdo (cuánto puede fallar una medida suelta) y el ICC (por encima de 0,90, excelente; 0,75-0,90, bueno).</li>
         </ul>
       </details>
 
@@ -239,7 +239,7 @@ function Summary({ ag, kind, comparison, delta, v }: { ag: Agreement; kind: Kind
       </div>
       {ag.fit && comparison === "reference" && ag.n >= 5 && (
         <p className="text-sm text-text-muted">
-          Para pasar de Cénit a la referencia: referencia ≈ {fmt(ag.fit.intercept, d)} + {fmt(ag.fit.slope, 3)} × Cénit.
+          Para pasar de OmniClin a la referencia: referencia ≈ {fmt(ag.fit.intercept, d)} + {fmt(ag.fit.slope, 3)} × OmniClin.
           {ag.proportional !== null && Math.abs(ag.proportional) > 0.1 && " El sesgo cambia con el tamaño de la medida: mira la gráfica."}
         </p>
       )}
@@ -314,14 +314,14 @@ function AddPairForm({ kind, onAdded, preselect }: { kind: KindInfo; onAdded: ()
   const toast = useToast();
   const list = useAsync(() => candidates(getDb(), kind.id), [kind.id]);
   const [testId, setTestId] = useState(preselect ?? "");
-  const [impulso, setCénit] = useState("");
+  const [impulso, setOmniClin] = useState("");
   const [reference, setReference] = useState("");
   const [label, setLabel] = useState(kind.references[0] ?? "");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const chosen = list.data?.find((c) => c.testId === testId);
   useEffect(() => {
-    if (chosen) setCénit(fmt(chosen.value, kind.digits + 1));
+    if (chosen) setOmniClin(fmt(chosen.value, kind.digits + 1));
   }, [chosen, kind.digits]);
   const a = parseDecimal(impulso);
   const b = parseDecimal(reference);
@@ -331,7 +331,7 @@ function AddPairForm({ kind, onAdded, preselect }: { kind: KindInfo; onAdded: ()
     <Card className="flex flex-col gap-3">
       <h2 className="text-lg">Añadir una medida</h2>
       {kind.metric && (
-        <SelectField label="Resultado de Cénit (opcional)" value={testId} onChange={(e) => setTestId(e.target.value)} hint="Elige el test y su valor se copia solo.">
+        <SelectField label="Resultado de OmniClin (opcional)" value={testId} onChange={(e) => setTestId(e.target.value)} hint="Elige el test y su valor se copia solo.">
           <option value="">Escribir el valor a mano</option>
           {list.data?.map((c) => (
             <option key={c.testId} value={c.testId}>
@@ -341,7 +341,7 @@ function AddPairForm({ kind, onAdded, preselect }: { kind: KindInfo; onAdded: ()
         </SelectField>
       )}
       <div className="grid grid-cols-2 gap-2">
-        <NumberField label="Cénit" unit={kind.unit} value={impulso} onChange={(e) => setCénit(e.target.value)} />
+        <NumberField label="OmniClin" unit={kind.unit} value={impulso} onChange={(e) => setOmniClin(e.target.value)} />
         <NumberField label="Referencia" unit={kind.unit} value={reference} onChange={(e) => setReference(e.target.value)} />
       </div>
       <TextField label="Con qué se midió la referencia" value={label} onChange={(e) => setLabel(e.target.value)} list={`refs-${kind.id}`} />
@@ -369,7 +369,7 @@ function AddPairForm({ kind, onAdded, preselect }: { kind: KindInfo; onAdded: ()
             });
             toast("Par añadido", "success");
             setTestId("");
-            setCénit("");
+            setOmniClin("");
             setReference("");
             setNotes("");
             onAdded();

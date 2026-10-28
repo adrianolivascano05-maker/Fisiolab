@@ -179,7 +179,7 @@ function Editor({ saved, clinicName, onSaved }: { saved: MessageSettings; clinic
               <p className="text-sm whitespace-pre-line">{preview}</p>
             </div>
             <Button variant="ghost" onClick={() => setS((v) => ({ ...v, texts: { ...v.texts, [current]: {} } }))}>
-              Volver al texto de Cénit
+              Volver al texto de OmniClin
             </Button>
           </Card>
 

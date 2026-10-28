@@ -41,7 +41,7 @@ test.describe("Google Calendar y archivos en Drive", () => {
 
     await expect.poll(() => google.events("ana").length, { timeout: 20_000 }).toBe(1);
     expect(google.calendars).toHaveLength(1);
-    expect(google.calendars[0]!.summary).toBe("Cénit · Citas");
+    expect(google.calendars[0]!.summary).toBe("OmniClin · Citas");
     const [ev] = google.events("ana");
     expect(ev!.summary).toBe("Fisioterapia · L. C.");
     expect(Date.parse(ev!.start.dateTime)).toBe(Date.parse("2030-05-06T08:00:00Z")); // 10:00 en Madrid (verano)
@@ -59,7 +59,7 @@ test.describe("Google Calendar y archivos en Drive", () => {
     await expectAccessible(page);
     await page.getByLabel("En el evento sale").selectOption("full");
     await expect.poll(() => google.events("ana")[0]?.summary, { timeout: 20_000 }).toBe("Fisioterapia · Lucía Cita");
-    await expect(page.getByText(/La próxima cita está en el calendario «Cénit · Citas»/)).toBeVisible();
+    await expect(page.getByText(/La próxima cita está en el calendario «OmniClin · Citas»/)).toBeVisible();
 
     // Paciente borrado: su cita futura se quita del calendario.
     await page.goto(`./pacientes/${pid}/editar`);
@@ -71,7 +71,7 @@ test.describe("Google Calendar y archivos en Drive", () => {
     expect(google.calendars).toHaveLength(1);
   });
 
-  test("GD1 el informe en PDF y los resultados en CSV, en la carpeta «Cénit · Fisiolab» de Drive", async ({ page }) => {
+  test("GD1 el informe en PDF y los resultados en CSV, en la carpeta «OmniClin» de Drive", async ({ page }) => {
     test.slow();
     const google = new FakeGoogle(users);
     await google.install(page.context(), () => "ana");
@@ -79,11 +79,11 @@ test.describe("Google Calendar y archivos en Drive", () => {
     const url = await createPatient(page, { name: "Pablo Informe", mass: "70" });
     await page.goto(`${url}/informe`);
     await page.getByRole("button", { name: "Guardar en mi Drive (PDF)" }).click();
-    await expect(page.getByRole("status").getByText(/está en tu Drive, carpeta «Cénit · Fisiolab»/)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("status").getByText(/está en tu Drive, carpeta «OmniClin»/)).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("link", { name: "Abrir en Drive" })).toHaveAttribute("href", /drive\.google\.com/);
 
     const folder = google.visible("ana").find((f) => f.mimeType === "application/vnd.google-apps.folder")!;
-    expect(folder.name).toBe("Cénit · Fisiolab");
+    expect(folder.name).toBe("OmniClin");
     const pdf = google.visible("ana").find((f) => f.mimeType === "application/pdf")!;
     expect(pdf.name).toMatch(/^Informe Pablo Informe \d{4}-\d{2}-\d{2}\.pdf$/);
     expect(pdf.parents).toEqual([folder.id]);

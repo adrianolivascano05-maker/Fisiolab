@@ -1,4 +1,4 @@
--- Validación: pares de medidas de lo mismo con Cénit y con otra referencia (plataforma de fuerza,
+-- Validación: pares de medidas de lo mismo con OmniClin y con otra referencia (plataforma de fuerza,
 -- otra app de salto validada, encoder, dinamómetro, goniómetro), con una segunda marcación (fiabilidad) o con la
 -- propuesta de la IA frente a las marcas finales.
 create table validation_pairs (

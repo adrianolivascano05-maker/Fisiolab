@@ -1,5 +1,5 @@
 // La marca de la clínica (src/brand): nombre, dos colores y logo en Ajustes › Marca de la clínica. Se aplica a toda
-// la app con contraste suficiente en claro y en oscuro, no parpadea al abrir, y «Volver a la marca de Cénit» la quita.
+// la app con contraste suficiente en claro y en oscuro, no parpadea al abrir, y «Volver a la marca de OmniClin» la quita.
 import { readFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 import type { Locator, Page } from "@playwright/test";
@@ -81,7 +81,7 @@ test.describe("Marca de la clínica", () => {
     await page.goto(`${patient}/informe`);
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Clínica Aurora");
-    await expect(report).toContainText("Documento generado con Cénit.");
+    await expect(report).toContainText("Documento generado con OmniClin.");
     await expect(report.locator("[data-watermark] img")).toHaveCount(1);
     await expectAccessible(page);
 
@@ -124,7 +124,7 @@ test.describe("Marca de la clínica", () => {
   test("MB1 dos colores y un nombre visten toda la app, con contraste, sin parpadeo, y se quitan", async ({ page }) => {
     test.setTimeout(120_000);
     await page.goto("./ajustes");
-    await page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*La marca de Cénit/ }).click();
+    await page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*La marca de OmniClin/ }).click();
     await expect(page.getByRole("heading", { name: "Marca de la clínica" })).toBeVisible();
     await expectAccessible(page);
 
@@ -136,7 +136,7 @@ test.describe("Marca de la clínica", () => {
     await page.getByRole("button", { name: "Guardar la marca" }).click();
     await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
 
-    // Toda la app: la cabecera ya no es el verde de Cénit, el acento se lee sobre blanco y la pestaña lleva el nombre.
+    // Toda la app: la cabecera ya no es el verde de OmniClin, el acento se lee sobre blanco y la pestaña lleva el nombre.
     expect(await cssVar(page, "--color-brand")).not.toBe("#0E3B2E");
     const accent = await cssVar(page, "--color-accent");
     expect(contrast(accent, "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
@@ -148,7 +148,7 @@ test.describe("Marca de la clínica", () => {
     await expect(page.getByRole("banner")).toContainText("Fisioterapia Ruiz");
     await expectAccessible(page);
 
-    // Al volver a abrir, la marca está puesta antes de que abra la base: no se ve Cénit ni un instante.
+    // Al volver a abrir, la marca está puesta antes de que abra la base: no se ve OmniClin ni un instante.
     await page.reload({ waitUntil: "domcontentloaded" });
     expect(await page.evaluate(() => !!document.getElementById("brand-css"))).toBe(true);
     await expect(page.getByRole("banner")).toContainText("Fisioterapia Ruiz");
@@ -186,17 +186,17 @@ test.describe("Marca de la clínica", () => {
     // Privacidad dice siempre quién hace el programa, aunque la app lleve la marca de la clínica.
     await page.goto("./privacidad");
     await expect(page.getByRole("heading", { name: "Quién hace el programa" })).toBeVisible();
-    await expect(page.getByText(/Esta app es Cénit · Fisiolab, aunque lleve el nombre, los colores o el logo de/)).toBeVisible();
+    await expect(page.getByText(/Esta app es OmniClin, aunque lleve el nombre, los colores o el logo de/)).toBeVisible();
     await expectAccessible(page);
     await page.goto("./ajustes/marca");
 
-    // Volver a Cénit.
-    await page.getByRole("button", { name: "Volver a la marca de Cénit" }).click();
-    await expect(page.getByText("Vuelve la marca de Cénit")).toBeVisible();
+    // Volver a OmniClin.
+    await page.getByRole("button", { name: "Volver a la marca de OmniClin" }).click();
+    await expect(page.getByText("Vuelve la marca de OmniClin")).toBeVisible();
     expect(await cssVar(page, "--color-brand")).toBe("#0E3B2E");
-    await expect(page).toHaveTitle("Cénit · Fisiolab");
+    await expect(page).toHaveTitle("OmniClin");
     await page.goto("./");
-    await expect(page.getByRole("banner")).toContainText("Cénit");
+    await expect(page.getByRole("banner")).toContainText("OmniClin");
     expect(await page.evaluate(() => localStorage.getItem("fisiolab.brand"))).toBeNull();
   });
 });

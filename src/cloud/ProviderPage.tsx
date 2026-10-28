@@ -325,7 +325,7 @@ export function ProviderPage() {
                 el.style.maxHeight = "none";
                 try {
                   const bytes = await reportPdf(el);
-                  saveFile("Cenit-contrato-encargado-BORRADOR.pdf", bytes, "application/pdf");
+                  saveFile("OmniClin-contrato-encargado-BORRADOR.pdf", bytes, "application/pdf");
                 } catch (e) {
                   toast(errText(e), "danger");
                 } finally {

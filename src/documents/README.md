@@ -20,7 +20,7 @@ con el servidor de la clínica y si ese servidor tiene el almacén de archivos (
 - **Preparar** (`prepare.ts`, `imagesToPdf.ts`): los PDF tal cual; las fotos de una misma vez, reducidas a JPEG y
   juntas en un PDF (sin librerías). Lo que pasa de 5 MB o no es PDF ni foto no se guarda y se dice por qué.
 - **Pantallas:** `DocumentsPage.tsx` (`/pacientes/:id/archivos`), `DocsStorageCard.tsx` (Ajustes) y
-  `SharedFilesPage.tsx` (`/compartir`: lo que llega de «Compartir → Cénit» en Android, que deja
+  `SharedFilesPage.tsx` (`/compartir`: lo que llega de «Compartir → OmniClin» en Android, que deja
   `public/compartir-sw.js` en la caché `cenit-compartidos`).
 - **El enlace del paciente:** `DOCS_KIND` en `src/clinical/patientForms.ts`; el paciente sube en
   `src/patientForm/PublicFormPage.tsx` y al recoger el formulario (`src/patientForm/collect.ts`) la clínica se queda
@@ -31,7 +31,7 @@ con el servidor de la clínica y si ese servidor tiene el almacén de archivos (
 ## Límites
 
 - No hay visor dentro de la app: abrir un archivo es descargarlo.
-- Compartir → Cénit solo en Android con la app instalada.
+- Compartir → OmniClin solo en Android con la app instalada.
 - La exportación completa junta todo en memoria.
 - Un archivo añadido sin conexión vive solo en ese dispositivo hasta que se sube.
 

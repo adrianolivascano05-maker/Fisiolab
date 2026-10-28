@@ -22,7 +22,7 @@ export function PrivacyPage() {
         <p>
           Nombre, fecha de nacimiento, sexo, medidas corporales y notas de cada paciente; su anamnesis, exploración, sesiones y cuestionarios; los
           resultados de sus tests (marcas del vídeo y valores calculados); y cuándo se le dio la información de protección de datos y qué consentimientos
-          opcionales dio. Si la clínica usa el servidor de Cénit, también los archivos que se añaden a su ficha (informes y pruebas en PDF o en foto),
+          opcionales dio. Si la clínica usa el servidor de OmniClin, también los archivos que se añaden a su ficha (informes y pruebas en PDF o en foto),
           los suba la clínica o el propio paciente con su enlace. Los vídeos <b>no</b> se guardan: se quedan en la galería del móvil.
         </p>
         <h2 className="text-lg">Dónde están</h2>
@@ -56,15 +56,15 @@ export function PrivacyPage() {
             " Cloudflare aloja el servidor de la clínica en la Unión Europea y solo guarda copias cifradas, los formularios cifrados de los pacientes y sus archivos cifrados; su contrato de encargado del tratamiento (DPA) forma parte de sus condiciones. Google solo sirve para entrar (ve el nombre y el correo de quien entra) y, si se usan, para guardar informes en el Drive de cada fisioterapeuta y las citas en su Google Calendar."}
           {cloud &&
             !server &&
-            " Google guarda la copia de la carpeta de la app en el Drive de cada fisioterapeuta, los informes y resultados que se guardan a la vista en su carpeta «Cénit · Fisiolab», y el día, la hora y el nombre (o las iniciales) de las citas en el calendario «Cénit · Citas»; para entrar, Google ve el nombre y el correo de quien entra. Para historias clínicas hace falta un contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace de la clínica y no las de Gmail normales."}
+            " Google guarda la copia de la carpeta de la app en el Drive de cada fisioterapeuta, los informes y resultados que se guardan a la vista en su carpeta «OmniClin», y el día, la hora y el nombre (o las iniciales) de las citas en el calendario «OmniClin · Citas»; para entrar, Google ve el nombre y el correo de quien entra. Para historias clínicas hace falta un contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace de la clínica y no las de Gmail normales."}
         </p>
         {/* Siempre, aunque la app lleve la marca de la clínica: quién hace el programa y qué puede ver. */}
         <h2 className="text-lg">Quién hace el programa</h2>
         <p>
-          Esta app es Cénit · Fisiolab, aunque lleve el nombre, los colores o el logo de {owner}. Cénit · Fisiolab hace el programa y no puede ver los
+          Esta app es OmniClin, aunque lleve el nombre, los colores o el logo de {owner}. OmniClin hace el programa y no puede ver los
           datos de los pacientes.{" "}
           {server
-            ? "Si el servidor de la clínica lo gestiona Cénit · Fisiolab (u otra persona o empresa que no sea la clínica), quien lo gestione es encargado del tratamiento: la clínica tiene que firmar con él un contrato de encargado (artículo 28 del RGPD)."
+            ? "Si el servidor de la clínica lo gestiona OmniClin (u otra persona o empresa que no sea la clínica), quien lo gestione es encargado del tratamiento: la clínica tiene que firmar con él un contrato de encargado (artículo 28 del RGPD)."
             : "Si la clínica pasa a usar un servidor que gestiona otra persona o empresa, esa persona o empresa será encargada del tratamiento y habrá que firmar con ella un contrato de encargado (artículo 28 del RGPD)."}{" "}
           Contacto:{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`} className="py-3 font-semibold text-accent underline underline-offset-2">

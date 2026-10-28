@@ -1,5 +1,5 @@
 // Descargar todo (fullExport.ts): la historia clínica legible de cada paciente, sus archivos (informes y pruebas en
-// PDF), un Excel con todo, los datos para otro programa y la copia de Cénit, en un .zip. Se usa en Ajustes → Copias y exportar y al borrar una clínica.
+// PDF), un Excel con todo, los datos para otro programa y la copia de OmniClin, en un .zip. Se usa en Ajustes → Copias y exportar y al borrar una clínica.
 import { Archive } from "lucide-react";
 import { useState } from "react";
 import { getDb } from "../data/db";
@@ -19,7 +19,7 @@ export function FullExportButton({
   variant = "primary",
   onDone,
 }: {
-  /** Para el nombre del archivo: la clínica («Cenit-Fisiolab-Centro-2026-10-21.zip»). */
+  /** Para el nombre del archivo: la clínica («OmniClin-Fisiolab-Centro-2026-10-21.zip»). */
   name: string;
   label?: string;
   /** Lo que dice el botón después de descargar. */
@@ -44,7 +44,7 @@ export function FullExportButton({
           }
         : undefined;
       const { bytes, patients, missing } = await buildPackage(getDb(), { progress: (d, total) => setProgress(`Preparando ${d} de ${total} pacientes…`), files });
-      saveFile(`Cenit-${name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "datos"}-${stamp()}.zip`, bytes, "application/zip");
+      saveFile(`OmniClin-${name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "datos"}-${stamp()}.zip`, bytes, "application/zip");
       setDone(true);
       toast(`Descargado: ${patients === 1 ? "1 paciente" : `${patients} pacientes`} con toda su historia. Guárdalo fuera de este dispositivo.`, "success");
       if (missing) toast(`${missing === 1 ? "1 archivo de paciente no se ha podido incluir" : `${missing} archivos de pacientes no se han podido incluir`} (sin conexión o aún sin subir): vuelve a descargar con conexión.`, "danger");

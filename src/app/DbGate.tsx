@@ -26,7 +26,7 @@ export function DbGate({ children }: { children: ReactNode }) {
         .then(
           async (info) => {
             if (!alive) return;
-            // La marca de la clínica, antes de pintar nada (si no, se vería Cénit un instante).
+            // La marca de la clínica, antes de pintar nada (si no, se vería OmniClin un instante).
             if (!info.locked) await loadBrand(getDb());
             if (!alive) return;
             setState(info.locked ? "locked" : "ok");
@@ -55,7 +55,7 @@ export function DbGate({ children }: { children: ReactNode }) {
       <main className="mx-auto flex min-h-dvh max-w-[var(--layout-content-max)] flex-col justify-center gap-4 p-4">
         <EmptyState
           icon={CopyX}
-          title="Cénit ya está abierta en otra pestaña"
+          title="OmniClin ya está abierta en otra pestaña"
           action={<Button onClick={() => location.reload()}>Reintentar</Button>}
         >
           Usa esa pestaña, o ciérrala: esta seguirá sola. Solo una pestaña puede guardar datos a la vez.

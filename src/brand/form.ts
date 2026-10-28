@@ -1,6 +1,6 @@
 // La marca en la página que abre el paciente: el nombre, los dos colores y una versión pequeña del logo viajan dentro
 // del sobre cifrado del formulario (FormRequest.brand), igual que el nombre de la clínica. El servidor sigue sin ver
-// nada. Los formularios enviados antes de haber marca no la llevan y se abren con la de Cénit.
+// nada. Los formularios enviados antes de haber marca no la llevan y se abren con la de OmniClin.
 import { cleanBrand, brandProblem, type Brand } from "./brand";
 import { shrinkLogo } from "./logo";
 

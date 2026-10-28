@@ -1,4 +1,4 @@
-// Compartir → Cénit (Android, con la app instalada): el sistema manda aquí, por POST, los archivos que se comparten
+// Compartir → OmniClin (Android, con la app instalada): el sistema manda aquí, por POST, los archivos que se comparten
 // desde WhatsApp, el correo o la galería (manifest: share_target). Se guardan un momento en la caché del navegador y
 // la app los abre en «/compartir» para elegir el paciente (src/documents/SharedFilesPage.tsx). Lo carga el service
 // worker de la app (vite.config.ts, workbox.importScripts).

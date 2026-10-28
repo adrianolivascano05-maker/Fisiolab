@@ -47,7 +47,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: "Dice que la app ya está abierta en otra pestaña",
-    a: <>Solo una pestaña puede guardar datos a la vez. Cierra las otras pestañas o ventanas de Cénit: esta seguirá sola en
+    a: <>Solo una pestaña puede guardar datos a la vez. Cierra las otras pestañas o ventanas de OmniClin: esta seguirá sola en
         unos segundos (si no, pulsa Reintentar).</>,
   },
   {
@@ -83,7 +83,7 @@ export function ReportProblemPage() {
   const report = errorReport(note, extra, errors);
   // Los programas de correo cortan los enlaces muy largos: en el correo va el principio; «Copiar» lleva el informe entero.
   const mailBody = report.length > 1800 ? `${report.slice(0, 1800)}\n…(informe recortado: usa «Copiar» para mandarlo entero)` : report;
-  const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Informe de fallo de Cénit")}&body=${encodeURIComponent(mailBody)}`;
+  const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent("Informe de fallo de OmniClin")}&body=${encodeURIComponent(mailBody)}`;
 
   return (
     <Page title="Algo no funciona" backTo="/ayuda">

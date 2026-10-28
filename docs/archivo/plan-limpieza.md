@@ -1,4 +1,4 @@
-# Plan de limpieza de Cénit (fase 3)
+# Plan de limpieza de OmniClin (fase 3)
 
 Aprobado por el usuario el 2026-10-22 a partir de la radiografía y la propuesta v2 publicadas en
 https://claude.ai/artifact/X1tmesH5Bb2Kwnj2dNmwVh (66 capturas a 360 px, mapa, duplicados, recorridos en toques,
@@ -20,7 +20,7 @@ bocetos, prueba de 10 fisios). Las pantallas actuales, en texto, están en esa p
   como la vio el usuario en su móvil (modo oscuro): fondo gris verdoso muy oscuro, tarjetas algo más claras con
   bordes redondeados, acento verde menta, texto claro, títulos en Bricolage Grotesque y texto en Source Sans 3,
   etiquetas de sección en mayúsculas pequeñas. Sigue el ajuste del teléfono (clara = papel gris verdoso frío, oscura
-  = la de la captura). El logo y el nombre Cénit se mantienen. Se hace como un bloque propio (B8) después de B2.
+  = la de la captura). El logo y el nombre OmniClin se mantienen. Se hace como un bloque propio (B8) después de B2.
 - La letra de los títulos no es configurable: es la de esa estética.
 
 ## Bloques, en este orden

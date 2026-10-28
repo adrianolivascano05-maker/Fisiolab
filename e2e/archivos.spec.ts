@@ -209,7 +209,7 @@ test.describe("Archivos del paciente", () => {
     await choose.getByLabel("Qué le mandas").selectOption("anamnesis");
     await expect(choose.getByLabel("Qué le mandas").locator("option[value=documentos]")).toHaveCount(0);
   });
-  test("AR4 compartir → Cénit (Android): lo que llega de otra app se guarda en la ficha del paciente elegido", async ({ page }) => {
+  test("AR4 compartir → OmniClin (Android): lo que llega de otra app se guarda en la ficha del paciente elegido", async ({ page }) => {
     const google = new FakeGoogle(users);
     await enterClinic(page, google);
     await createPatient(page, { name: "Nora Archivos" });

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { useBrand } from "../brand/brand";
 import { MADE_WITH, Watermark } from "../brand/docs";
 import type { ClinicInfo } from "../data/privacy";
-import { LogoMark } from "../ui/Logo";
+import { LogoMark, Wordmark } from "../ui/Logo";
 
 export function Letterhead({ clinic, title, subtitle }: { clinic: ClinicInfo; title: string; subtitle: string }) {
   const brand = useBrand();
@@ -39,12 +39,7 @@ export function Letterhead({ clinic, title, subtitle }: { clinic: ClinicInfo; ti
       ) : (
         <span className="flex items-center gap-2">
           <LogoMark size={36} />
-          <span className="flex flex-col leading-none">
-            <span className="text-lg font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
-              Cénit
-            </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-muted">Fisiolab</span>
-          </span>
+          <Wordmark className="text-lg" />
         </span>
       )}
     </header>
@@ -62,7 +57,7 @@ export function Block({ title, children }: { title: string; children: ReactNode 
 
 /** Firma del fisioterapeuta (el de Ajustes → Clínica) y la fecha, al pie. */
 /** Lo que es la app: registra y organiza; no decide nada clínico (va al pie de los informes y en la ayuda). */
-export const RECORD_ONLY = "Cénit registra y organiza; las decisiones clínicas son del profesional.";
+export const RECORD_ONLY = "OmniClin registra y organiza; las decisiones clínicas son del profesional.";
 
 export function SignatureLine({ name, license, date }: { name: string; license: string; date: string }) {
   return (

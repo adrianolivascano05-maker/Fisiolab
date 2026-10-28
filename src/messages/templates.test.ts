@@ -1,4 +1,4 @@
-// Los mensajes a pacientes: con el texto de Cénit salen como siempre; la clínica cambia texto, asunto y firma; el
+// Los mensajes a pacientes: con el texto de OmniClin salen como siempre; la clínica cambia texto, asunto y firma; el
 // ajuste antiguo del recordatorio se respeta.
 import { describe, expect, it } from "vitest";
 import { anamnesisText, followUpText } from "../schedule/outbox";
@@ -35,9 +35,9 @@ describe("mensajes a pacientes", () => {
     const s: MessageSettings = { texts: { hueco: { text: "{nombre}, hay hueco el {dia} a las {hora}.", subject: "Hueco en {clinica}" } }, signature: "Fisiolab · 954 000 000" };
     expect(offerText(ana, s)).toBe("Ana, hay hueco el martes, 27 de octubre a las 10:30.\n\nFisiolab · 954 000 000");
     expect(messageSubject("hueco", s, { clinica: "Fisiolab" })).toBe("Hueco en Fisiolab");
-    // Los demás siguen con el texto de Cénit, pero con la firma.
+    // Los demás siguen con el texto de OmniClin, pero con la firma.
     expect(reminderMessage(s, ana)).toMatch(/¡Gracias!\n\nFisiolab · 954 000 000$/);
-    // Un texto en blanco vuelve al de Cénit.
+    // Un texto en blanco vuelve al de OmniClin.
     expect(messageText("hueco", { texts: { hueco: { text: "   " } }, signature: "" }, { nombre: "Eva" })).toBe(fillTemplate(MESSAGES[1]!.text, { nombre: "Eva" }));
   });
 

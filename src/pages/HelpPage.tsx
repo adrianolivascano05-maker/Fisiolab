@@ -76,7 +76,7 @@ const steps: { title: string; body: ReactNode }[] = [
       <>
         Con el servidor de la clínica, en el Resumen, <b>Documentos › Archivos del paciente</b>: <b>Añadir PDF o fotos</b> (las fotos se juntan en un
         PDF; hasta 5 MB cada archivo) o <b>Pedírselos al paciente</b>, que le manda un enlace para que los suba él. En Android también puedes
-        compartirlos desde WhatsApp o el correo y elegir <b>Cénit</b>. Se guardan cifrados; al abrir uno, se descarga en el dispositivo.
+        compartirlos desde WhatsApp o el correo y elegir <b>OmniClin</b>. Se guardan cifrados; al abrir uno, se descarga en el dispositivo.
       </>
     ),
   },
@@ -147,7 +147,7 @@ export function HelpPage() {
   return (
     <Page title="Cómo se usa" backTo="/ajustes">
       <p className="rounded-md bg-accent-soft p-3 text-sm">
-        <b>Qué es Cénit.</b> Una herramienta de registro y organización para tu práctica: fichas, anamnesis, mediciones, sesiones y agenda, todo a
+        <b>Qué es OmniClin.</b> Una herramienta de registro y organización para tu práctica: fichas, anamnesis, mediciones, sesiones y agenda, todo a
         mano. No diagnostica ni decide tratamientos. {RECORD_ONLY}
       </p>
       <ol aria-label="Pasos" className="flex flex-col gap-3">

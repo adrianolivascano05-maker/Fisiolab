@@ -1,4 +1,4 @@
-# Servidor de datos de Cénit en Cloudflare (Workers + D1). Solo hace falta para instalarlo con Wrangler, desde
+# Servidor de datos de OmniClin en Cloudflare (Workers + D1). Solo hace falta para instalarlo con Wrangler, desde
 # esta carpeta; desde el panel de Cloudflare no se usa (README.md).
 # Usa siempre «-c wrangler.toml»: sin eso, Wrangler coge el wrangler.jsonc de la carpeta de arriba (el de la app).
 name = "cenit-datos"
