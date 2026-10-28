@@ -69,7 +69,8 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 
 ## 3. Cloudflare: pegar el `worker.js` nuevo y borrar las tablas de la reserva (unos 10 minutos)
 
-**Hecho el 27-10-2026** (versión `2026-10-27.2`; tablas de la reserva borradas, no quedaba ninguna sin recoger).
+**Hecho el 27-10-2026** (versión `2026-10-27.2`; tablas de la reserva borradas, no quedaba ninguna sin recoger) **y
+otra vez el 28-10-2026** (versión `2026-10-28`, la del cambio de nombre; `/v1/salud` la confirma). Nada pendiente aquí.
 
 La reserva online se ha quitado (24-10-2026) y el servidor se ha dejado más limpio (bloque 3: formularios repetidos
 a la vez, lotes de cambios que se leían de más, tiempo límite con Google, menos limpiezas en cada consulta). El
@@ -84,7 +85,7 @@ antes del 27-10-2026, vuelve a hacer el paso 3 (el `schema.sql` no cambia: ejecu
 el `schema.sql` no cambia). Después, si quieres verlas, haz el paso 4 bis.
 
 **28-10-2026, cambio de nombre a OmniClin:** el contrato de encargado que da el servidor dice ya «OmniClin» (versión
-`2026-10-28`). Vuelve a pegar el `worker.js` (solo el apartado 3 de abajo; el `schema.sql` no cambia).
+`2026-10-28`). Pegado ese mismo día (solo el `worker.js`; el `schema.sql` no cambió).
 
 **Desde el 27-10-2026 la app te lo recuerda:** en **Ajustes**, la fila **Proveedor** sale en naranja con «Pendiente
 en Cloudflare: actualizar el servidor» mientras el servidor pegado sea anterior al que necesita la app, y con
