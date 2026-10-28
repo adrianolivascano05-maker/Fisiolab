@@ -40,8 +40,11 @@ export function ConsentDocumentView({
         {doc.brand && (
           <p className="flex items-center gap-2 pb-1">
             <LogoMark size={32} brand={doc.brand} />
-            <span className="text-lg leading-tight font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
-              {doc.brand.name}
+            <span className="flex flex-col">
+              <span className="text-lg leading-tight font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
+                {doc.brand.name}
+              </span>
+              {doc.brand.slogan && <span className="text-sm font-semibold text-brand-ink">{doc.brand.slogan}</span>}
             </span>
           </p>
         )}

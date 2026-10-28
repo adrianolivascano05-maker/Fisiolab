@@ -719,8 +719,16 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.goto("./ajustes/marca");
     await page.getByLabel("Nombre de la clínica").fill("Clínica Aurora");
     await page.getByLabel("Color principal en hexadecimal").fill("#7A1F3D");
+    await page.getByLabel("Lema").fill("Fisioterapia de barrio");
+    await page.getByLabel("Texto de bienvenida").fill("Gracias por rellenarlo antes de venir.");
+    await page.getByRole("radio", { name: /^Rectas/ }).check();
     await page.getByRole("button", { name: "Guardar la marca" }).click();
     await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
+    // El teléfono de la clínica, para el pie de la página del paciente.
+    await page.goto("./ajustes/clinica");
+    await page.getByLabel("Teléfono").fill("600 000 001");
+    await page.getByRole("button", { name: "Guardar los datos de la clínica" }).click();
+    await expect(page.getByText("Datos de la clínica guardados")).toBeVisible();
     // Privacidad, con el servidor de la clínica: dónde están los datos y quién puede verlos.
     await page.goto("./privacidad");
     await expect(page.getByText(/cifrados, en el servidor de la clínica \(Cloudflare, en la Unión Europea\)/)).toBeVisible();
@@ -764,6 +772,11 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     expect(await phone.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--color-brand").trim().toUpperCase())).not.toBe("#0E3B2E");
     await expect(phone).toHaveTitle("Formulario · Clínica Aurora");
     expect(JSON.stringify([...google.forms.values()])).not.toContain("Clínica Aurora");
+    // El lema, el texto de bienvenida, el contacto al pie y las esquinas rectas viajan también en el sobre.
+    await expect(phone.getByRole("banner")).toContainText("Fisioterapia de barrio");
+    await expect(phone.getByText("Gracias por rellenarlo antes de venir.")).toBeVisible();
+    await expect(phone.getByText("¿Dudas? Fisiolab Centro: 600 000 001")).toBeVisible();
+    expect(await phone.getByRole("button", { name: "Enviar" }).evaluate((el) => getComputedStyle(el).borderRadius)).toBe("0px");
     // Lo del fisioterapeuta no se le pregunta.
     await expect(phone.getByText("Banderas rojas")).toHaveCount(0);
     await phone.getByLabel("¿Por qué vienes? Cuéntanos qué te pasa").fill("Me duele la rodilla al bajar escaleras");

@@ -9,8 +9,8 @@ import { brandTokens } from "./engine";
 /** Lo que figura al pie de todo documento, sea cual sea la marca de la clínica. */
 export const MADE_WITH = "Documento generado con OmniClin.";
 
-/** Los nombres de color que cambia una marca: para congelar los de OmniClin en los documentos sin marca. */
-const BRAND_KEYS = Object.keys(brandTokens("#1F6B4F", "#C9A227").light);
+/** Los nombres de color que cambia una marca (de los de tokens.json): para congelar los de OmniClin en los documentos sin marca. */
+const BRAND_KEYS = Object.keys(brandTokens("#1F6B4F", "#C9A227").light).filter((k) => k in tokens.color);
 const CENIT_LIGHT: Record<string, string> = Object.fromEntries(BRAND_KEYS.map((k) => [k, (tokens.color as Record<string, string>)[k]!]));
 
 /** Las variables de color de un documento: las de su marca o, sin marca, las de OmniClin (en claro, como el papel). */

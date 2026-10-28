@@ -8,6 +8,7 @@ import { getToken } from "../cloud/auth";
 import type { Cloud } from "../cloud/CloudGate";
 import type { Db } from "../data/db";
 import { currentEpisode } from "../data/episodes";
+import { getClinic } from "../data/privacy";
 import { addSentForm, type SentForm } from "../data/patientForms";
 
 export type CreatedForm = SentForm & { url: string };
@@ -28,7 +29,7 @@ export async function uploadPatientForm(
   const id = newFormId();
   const key = newFormKey();
   const expiresAt = new Date(Date.now() + FORM_DAYS * 86_400_000).toISOString();
-  const brand = await formBrand(currentBrand());
+  const brand = await formBrand(currentBrand(), await getClinic(db).catch(() => ({})));
   const request: FormRequest = {
     v: 1,
     clinic: p.clinicName,

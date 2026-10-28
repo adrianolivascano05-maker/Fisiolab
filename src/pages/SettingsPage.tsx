@@ -51,6 +51,7 @@ import { clinicComplete, getClinic } from "../data/privacy";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
 import { hasSeed, loadSeed, removeSeed } from "../data/seed";
 import { DemoSection } from "../demo/DemoSection";
+import { SignatureSettings } from "../brand/SignatureSettings";
 import { ClinicSettings } from "../privacy/ClinicSettings";
 import { LockSettings } from "../privacy/LockSettings";
 import { getLock } from "../privacy/pin";
@@ -106,7 +107,7 @@ export function SettingsPage() {
           to="/ajustes/marca"
           icon={Palette}
           title="Marca de la clínica"
-          subtitle={brand ? `${brand.name} · tus colores y tu logo` : "La marca de OmniClin · tus colores, tu logo y la marca de agua de los documentos"}
+          subtitle={brand ? `${brand.name} · tus colores, tu letra y tu logo` : "La marca de OmniClin · tus colores, tu letra, tu logo y la marca de agua de los documentos"}
         />
         <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle="Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre, ejercicios" />
         {cloud?.clinic && (
@@ -214,9 +215,11 @@ export function AccountSettingsPage() {
 
 /** Ajustes → Clínica y protección de datos. */
 export function ClinicSettingsPage() {
+  const cloud = useCloud();
   return (
     <Page title="Clínica y protección de datos" backTo="/ajustes">
       <ClinicSettings />
+      <SignatureSettings team={!!cloud?.clinic} />
       <Link to="/privacidad" className="inline-flex min-h-11 items-center self-start font-semibold text-accent underline">
         Privacidad: qué datos guarda la app y dónde
       </Link>

@@ -199,4 +199,145 @@ test.describe("Marca de la clínica", () => {
     await expect(page.getByRole("banner")).toContainText("OmniClin");
     expect(await page.evaluate(() => localStorage.getItem("fisiolab.brand"))).toBeNull();
   });
+
+  test("MB3 paleta, lema, cabecera, letra, esquinas y acabado visten toda la app y se quitan", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.goto("./ajustes/marca");
+    await page.getByLabel("Nombre de la clínica").fill("Clínica Índigo");
+    await page.getByLabel("Lema").fill("Fisioterapia y readaptación");
+    // Una paleta lista pone los dos colores; luego, cabecera del color principal, letra clásica, esquinas rectas y metálico.
+    await page.getByRole("button", { name: "Paleta Índigo y ámbar" }).click();
+    await expect(page.getByRole("button", { name: "Paleta Índigo y ámbar" })).toHaveAttribute("aria-pressed", "true");
+    expect(await page.getByLabel("Color principal en hexadecimal").inputValue()).toBe("#3B4A9E");
+    expect(await page.getByLabel("Color de acento en hexadecimal").inputValue()).toBe("#E0A447");
+    await page.getByRole("radio", { name: /^Del color principal/ }).check();
+    await page.getByRole("radio", { name: /Clásica/ }).check();
+    await page.getByRole("radio", { name: /^Rectas/ }).check();
+    await page.getByRole("radio", { name: /^Metálico/ }).check();
+    // La vista previa ya lo enseña: esquinas rectas y acabado metálico en el móvil de muestra.
+    const preview = page.getByRole("group", { name: "Vista previa de la marca" });
+    await expect(preview.locator("[data-finish='metal']")).toHaveCount(2);
+    expect(await preview.getByText("Nueva cita").first().evaluate((el) => getComputedStyle(el).borderRadius)).toBe("0px");
+    await page.getByRole("button", { name: "Guardar la marca" }).click();
+    await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
+
+    // Toda la app: la cabecera es el color de los botones, las esquinas rectas en botones y tarjetas, el degradado
+    // metálico en los botones y los títulos en Fraunces.
+    expect(await cssVar(page, "--color-brand")).toBe(await cssVar(page, "--color-accent"));
+    expect(contrast(await cssVar(page, "--color-on-brand"), await cssVar(page, "--color-brand"))).toBeGreaterThanOrEqual(4.5);
+    expect((await cssVar(page, "--radius-md")).toLowerCase()).toBe("0px");
+    expect(await page.evaluate(() => document.documentElement.dataset.finish)).toBe("metal");
+    const save = page.getByRole("button", { name: "Guardar la marca" });
+    expect(await save.evaluate((el) => getComputedStyle(el).borderRadius)).toBe("0px");
+    expect(await save.evaluate((el) => getComputedStyle(el).backgroundImage)).toContain("linear-gradient");
+    // Los títulos (no el de la barra, que va en la letra del texto) pasan a Fraunces.
+    expect(await page.getByRole("heading", { name: "Colores" }).evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/Fraunces/);
+    expect(await page.getByRole("banner").evaluate((el) => getComputedStyle(el).backgroundImage)).toContain("linear-gradient");
+    await expectAccessible(page);
+
+    // Al volver a abrir, todo está puesto antes de pintar: la letra, las esquinas y el acabado también.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    expect(await page.evaluate(() => document.documentElement.dataset.finish)).toBe("metal");
+    expect((await cssVar(page, "--radius-md")).toLowerCase()).toBe("0px");
+    await expect(page).toHaveTitle("Clínica Índigo");
+
+    // En oscuro se lee todo; a 360 px nada se sale y todo se puede tocar.
+    await page.emulateMedia({ colorScheme: "dark" });
+    expect(contrast(await cssVar(page, "--color-on-brand"), await cssVar(page, "--color-brand"))).toBeGreaterThanOrEqual(4.5);
+    await page.goto("./agenda");
+    await expectAccessible(page);
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.setViewportSize({ width: 360, height: 780 });
+    await page.goto("./ajustes/marca");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    expect(await smallTargets(page)).toEqual([]);
+    await page.goto("./");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    // La cabecera clara: blanca en claro, con el texto de la marca encima.
+    await page.goto("./ajustes/marca");
+    await page.getByRole("radio", { name: /^Clara/ }).check();
+    await page.getByRole("radio", { name: /^Mate/ }).check();
+    await page.getByRole("button", { name: "Guardar la marca" }).click();
+    await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
+    expect(await cssVar(page, "--color-brand")).toBe("#FFFFFF");
+    expect(contrast(await cssVar(page, "--color-on-brand"), "#FFFFFF")).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(await cssVar(page, "--color-highlight"), "#FFFFFF")).toBeGreaterThanOrEqual(3);
+    expect(await page.evaluate(() => document.documentElement.dataset.finish)).toBeUndefined();
+    await expectAccessible(page);
+
+    // Volver a OmniClin: esquinas, letra y acabado de siempre.
+    await page.getByRole("button", { name: "Volver a la marca de OmniClin" }).click();
+    await expect(page.getByText("Vuelve la marca de OmniClin")).toBeVisible();
+    expect((await cssVar(page, "--radius-md")).toLowerCase()).toBe("10px");
+    expect(await page.evaluate(() => document.documentElement.dataset.header)).toBeUndefined();
+    expect(await page.getByRole("heading", { name: "Colores" }).evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/Bricolage/);
+  });
+
+  test("MB4 el membrete sigue sus opciones (logo, lema, contacto, banda, pie) y la firma dibujada del fisio sale en el informe", async ({ page }) => {
+    test.setTimeout(120_000);
+    // Los datos de la clínica y la firma dibujada de quien usa la app.
+    await page.goto("./ajustes/clinica");
+    await page.getByLabel("Clínica (nombre o razón social)").fill("Clínica Aurora SL");
+    await page.getByLabel("NIF").fill("B12345678");
+    await page.getByLabel("Fisioterapeuta", { exact: true }).fill("Laura Ruiz");
+    await page.getByLabel("Nº de colegiado").fill("1234");
+    await page.getByRole("button", { name: "Guardar los datos de la clínica" }).click();
+    await expect(page.getByText("Datos de la clínica guardados")).toBeVisible();
+    await page.getByRole("button", { name: "Dibujar mi firma" }).click();
+    await expect(page.getByRole("button", { name: "Guardar la firma" })).toBeDisabled();
+    await scribble(page, page.getByRole("img", { name: "Tu firma" }));
+    await page.getByRole("button", { name: "Guardar la firma" }).click();
+    await expect(page.getByText("Firma guardada: saldrá en tus documentos")).toBeVisible();
+    await expect(page.getByRole("img", { name: "Tu firma dibujada" })).toBeVisible();
+    expect(await smallTargets(page)).toEqual([]);
+    await expectAccessible(page);
+
+    // La marca con el membrete centrado, lema, banda y pie propio.
+    await setBrand(page, "Clínica Aurora", "#7A1F3D", "#D9A441", false);
+    await page.getByLabel("Lema").fill("Fisioterapia y readaptación");
+    await page.getByRole("radio", { name: /^Centrado/ }).check();
+    await page.getByRole("checkbox", { name: /Banda de color/ }).check();
+    await page.getByLabel("Pie de página propio").fill("www.clinica-aurora.example · Registro sanitario 12345");
+    await page.getByRole("button", { name: "Guardar la marca" }).click();
+    await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
+    expect(await smallTargets(page)).toEqual([]);
+
+    await createPatient(page, { name: "Marta Membrete" });
+    const patient = page.url().replace(/^.*\/pacientes\//, "./pacientes/");
+    await page.goto(`${patient}/informe`);
+    const report = page.getByRole("article", { name: "Informe" });
+    await expect(report).toContainText("Clínica Aurora");
+    await expect(report).toContainText("Fisioterapia y readaptación");
+    await expect(report).toContainText("NIF B12345678");
+    await expect(report).toContainText("www.clinica-aurora.example · Registro sanitario 12345");
+    await expect(report.locator("header[data-letterhead='center']")).toHaveCount(1);
+    expect(await report.locator("header[data-letterhead]").evaluate((el) => getComputedStyle(el).borderBottomWidth)).toBe("3px");
+    await expect(report.getByRole("img", { name: "Firma de Laura Ruiz" })).toBeVisible();
+    await expect(report).toContainText("Documento generado con OmniClin.");
+    await expectAccessible(page);
+
+    // Sin contacto ni banda, el logo a la izquierda; el pie se queda.
+    await page.goto("./ajustes/marca");
+    await page.getByRole("radio", { name: /^A la izquierda/ }).check();
+    await page.getByRole("checkbox", { name: /Datos de contacto bajo el nombre/ }).uncheck();
+    await page.getByRole("checkbox", { name: /Banda de color/ }).uncheck();
+    await page.getByRole("button", { name: "Guardar la marca" }).click();
+    await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
+    await page.goto(`${patient}/justificante`);
+    const doc = page.locator("article");
+    await expect(doc.locator("header[data-letterhead='left']")).toHaveCount(1);
+    await expect(doc).not.toContainText("NIF B12345678");
+    expect(await doc.locator("header[data-letterhead]").evaluate((el) => getComputedStyle(el).borderBottomWidth)).toBe("1px");
+    await expect(doc.getByRole("img", { name: "Firma de Laura Ruiz" })).toBeVisible();
+
+    // Quitar la firma: la línea vuelve a quedar vacía.
+    await page.goto("./ajustes/clinica");
+    await page.getByRole("button", { name: "Quitar la firma" }).click();
+    await expect(page.getByText("Firma quitada")).toBeVisible();
+    await page.goto(`${patient}/informe`);
+    await expect(report).toContainText("Firma del fisioterapeuta");
+    await expect(report.getByRole("img", { name: /^Firma de / })).toHaveCount(0);
+  });
 });

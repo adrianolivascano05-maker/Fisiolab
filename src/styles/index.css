@@ -73,3 +73,47 @@
 .theme-light .logo-plate {
   background: transparent;
 }
+
+/* El acabado de la marca de la clínica (src/brand/options.ts): «vivo» pone un degradado suave sobre la cabecera, los
+   botones y los destacados; «metálico» añade brillo y relieve. Se activa con data-finish en <html> (toda la app) o en
+   un recuadro (la vista previa de Ajustes › Marca). Los documentos (.theme-light) se quedan planos, como en papel. Los
+   tonos -hi y -lo los calcula el motor (src/brand/engine.ts) a partir de cada color; el texto no cambia de color. */
+[data-finish="vivid"] .bg-brand:not(.theme-light *) {
+  background-image: linear-gradient(135deg, var(--color-brand-hi) 0%, var(--color-brand) 60%, var(--color-brand-lo) 100%);
+}
+[data-finish="vivid"] .bg-accent:not(.theme-light *) {
+  background-image: linear-gradient(135deg, var(--color-accent-hi), var(--color-accent));
+}
+[data-finish="vivid"] .bg-highlight:not(.theme-light *) {
+  background-image: linear-gradient(135deg, var(--color-highlight-hi), var(--color-highlight));
+}
+[data-finish="metal"] .bg-brand:not(.theme-light *) {
+  background-image: linear-gradient(120deg, var(--color-brand-lo) 0%, var(--color-brand) 35%, var(--color-brand-hi) 50%, var(--color-brand) 65%, var(--color-brand-lo) 100%);
+  box-shadow:
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+[data-finish="metal"][data-header="light"] .bg-brand:not(.theme-light *) {
+  background-image: linear-gradient(180deg, var(--color-bg), var(--color-surface));
+  box-shadow: none;
+}
+[data-finish="metal"] .bg-accent:not(.theme-light *) {
+  background-image: linear-gradient(180deg, var(--color-accent-hi) 0%, var(--color-accent) 55%, var(--color-accent-lo) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+}
+[data-finish="metal"] .bg-highlight:not(.theme-light *) {
+  background-image: linear-gradient(180deg, var(--color-highlight-hi), var(--color-highlight));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+[data-finish="metal"] .shadow-card:not(.theme-light *) {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 2px 6px rgba(0, 0, 0, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+/* Con degradado, el color de «hover» queda debajo: el botón se oscurece un poco al pasar o pulsar. */
+[data-finish] :is(.bg-accent, .bg-highlight):is(button, a, [role="button"]):not(.theme-light *):hover {
+  filter: brightness(0.94);
+}

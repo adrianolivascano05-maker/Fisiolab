@@ -86,20 +86,32 @@ export function scale(hex: string): { step: number; hex: string }[] {
 }
 
 /**
- * El color de acento sobre la cabecera (la línea de abajo y los destacados) y el texto que va encima: el acento se
- * aclara hasta separarse de la cabecera (3:1) y, si ni el texto oscuro ni el blanco se leen encima, se aclara un
- * poco más hasta que el oscuro se lea (aclararlo nunca le quita contraste con la cabecera).
+ * El color de acento sobre la cabecera (la línea de abajo y los destacados) y el texto que va encima. Sobre una
+ * cabecera oscura el acento se aclara hasta separarse de ella (3:1); sobre una clara (la cabecera «clara» o la del
+ * color de los botones en modo oscuro) se oscurece. Si ni el texto oscuro ni el blanco se leen encima, se sigue en la
+ * misma dirección hasta que uno se lea (lo que nunca le quita contraste con la cabecera).
  */
 function highlightPair(secondary: string, brand: string, darkText: string): [string, string] {
-  let highlight = fit(secondary, brand, 3, +1);
-  if (contrast(darkText, highlight) < 4.5 && contrast("#FFFFFF", highlight) < 4.5) highlight = fit(highlight, darkText, 4.5, +1);
+  const dir: -1 | 1 = contrast("#FFFFFF", brand) >= 4.5 ? +1 : -1;
+  let highlight = fit(secondary, brand, 3, dir);
+  if (contrast(darkText, highlight) < 4.5 && contrast("#FFFFFF", highlight) < 4.5) highlight = fit(highlight, dir === 1 ? darkText : "#FFFFFF", 4.5, dir);
   return [highlight, contrast(darkText, highlight) >= contrast("#FFFFFF", highlight) ? darkText : "#FFFFFF"];
 }
 
 export type BrandOptions = {
   /** El color de los botones en claro, puesto a mano (apartado avanzado); si no, lo calcula el motor. */
   accentOverride?: string | null;
+  /** Vivo y metálico suben el croma de los dos colores antes de calcular nada; el contraste se corrige igual. */
+  finish?: "matte" | "vivid" | "metal";
+  /** La cabecera: oscura (lo de siempre), del color principal tal cual, o clara con la línea de acento. */
+  header?: "dark" | "color" | "light";
 };
+
+/** Sube el croma (la viveza) de un color, hasta lo que cabe en pantalla. */
+function saturate(hex: string, factor: number): string {
+  const c = toLch(hex);
+  return fromLch({ ...c, C: Math.min(0.32, c.C * factor) });
+}
 
 /**
  * Todos los colores de la marca a partir del principal y el de acento. Los neutros (fondo, bordes, texto) toman un
@@ -107,8 +119,13 @@ export type BrandOptions = {
  * línea de la cabecera y a los destacados.
  */
 export function brandTokens(primary: string, secondary: string, opts: BrandOptions = {}): BrandTokens {
+  if (opts.finish === "vivid" || opts.finish === "metal") {
+    primary = saturate(primary, opts.finish === "vivid" ? 1.45 : 1.3);
+    secondary = saturate(secondary, 1.3);
+  }
   const p = toLch(primary);
   const tint = (L: number, C: number) => fromLch({ L, C, h: p.h });
+  const darkText = tint(0.14, 0.03);
   const soft = (L: number, c: Lch) => fromLch({ L, C: Math.min(0.06, c.C * 0.6), h: c.h });
 
   // ---- Claro: tarjetas blancas; lo más oscuro de los fondos claros es «surface», que es contra lo que se ajusta.
@@ -135,7 +152,7 @@ export function brandTokens(primary: string, secondary: string, opts: BrandOptio
   brand = fit(brand, tint(0.96, 0.02), 4.5, -1);
   light.brand = brand;
   light["on-brand"] = tint(0.96, 0.02);
-  [light.highlight, light["on-highlight"]] = highlightPair(secondary, brand, tint(0.14, 0.03));
+  [light.highlight, light["on-highlight"]] = highlightPair(secondary, brand, darkText);
 
   // ---- Oscuro: fondos oscuros teñidos; «surface» y «accent-soft» son los más claros, contra los que se ajusta.
   const dark: Tokens = {
@@ -157,7 +174,37 @@ export function brandTokens(primary: string, secondary: string, opts: BrandOptio
   dark["brand-ink"] = dark.accent;
   dark.brand = tint(0.24, Math.min(0.08, p.C));
   dark["on-brand"] = tint(0.9, 0.03);
-  [dark.highlight, dark["on-highlight"]] = highlightPair(secondary, dark.brand, tint(0.14, 0.03));
+  [dark.highlight, dark["on-highlight"]] = highlightPair(secondary, dark.brand, darkText);
+
+  // ---- La cabecera, si no es la oscura: del color de los botones (con su texto) o clara (el fondo con la tinta de la
+  // marca); la línea de acento se vuelve a ajustar contra el fondo nuevo.
+  if (opts.header === "color") {
+    light.brand = light.accent;
+    light["on-brand"] = light["on-accent"];
+    dark.brand = dark.accent;
+    dark["on-brand"] = dark["on-accent"];
+  } else if (opts.header === "light") {
+    light.brand = light.bg!;
+    light["on-brand"] = light["brand-ink"];
+    dark.brand = dark.bg!;
+    dark["on-brand"] = dark.text!;
+  }
+  if (opts.header === "color" || opts.header === "light") {
+    [light.highlight, light["on-highlight"]] = highlightPair(secondary, light.brand, darkText);
+    [dark.highlight, dark["on-highlight"]] = highlightPair(secondary, dark.brand, darkText);
+  }
+  // El segundo color del logo de OmniClin sobre la cabecera no se ve con marca de clínica; se iguala a la línea de acento
+  // para que la pareja de contraste de tokens.json se cumpla también.
+  light["on-brand-accent"] = light.highlight;
+  dark["on-brand-accent"] = dark.highlight;
+  // Un paso más claro y uno más oscuro de la cabecera, los botones y los destacados: los degradados y brillos del
+  // acabado vivo y metálico (index.css). No cambian el color de ningún texto.
+  for (const t of [light, dark])
+    for (const k of ["brand", "accent", "highlight"]) {
+      const c = toLch(t[k]!);
+      t[`${k}-hi`] = fromLch({ L: Math.min(0.98, c.L + 0.09), C: Math.min(0.32, c.C * 1.15), h: c.h });
+      t[`${k}-lo`] = fromLch({ L: Math.max(0.05, c.L - 0.08), C: c.C, h: c.h });
+    }
   return { light, dark };
 }
 
@@ -169,11 +216,13 @@ const vars = (t: Tokens, indent = "  ") =>
 /**
  * La hoja de estilos de la marca: los mismos nombres y la misma estructura que tokens.css (claro, oscuro por el
  * ajuste del dispositivo, oscuro a mano, documentos en claro e impresión), con un selector un punto más específico
- * para ganar siempre, se cargue en el orden que se cargue.
+ * para ganar siempre, se cargue en el orden que se cargue. `extra`: otras variables que cambian con la marca y no
+ * dependen del modo (los radios de las esquinas y las letras, src/brand/options.ts); van en el bloque de arriba.
  */
-export function brandCss({ light, dark }: BrandTokens): string {
+export function brandCss({ light, dark }: BrandTokens, extra: Record<string, string> = {}): string {
+  const extras = Object.entries(extra).map(([k, v]) => `  ${k}: ${v};`);
   return [
-    `html:root {\n${vars(light)}\n}`,
+    `html:root {\n${[vars(light), ...extras].join("\n")}\n}`,
     `@media (prefers-color-scheme: dark) {\n  html:root:not([data-theme="light"]) {\n${vars(dark, "    ")}\n  }\n}`,
     `html:root[data-theme="dark"] {\n${vars(dark)}\n}`,
     `:root .theme-light {\n${vars(light)}\n}`,

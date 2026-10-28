@@ -200,7 +200,13 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
   sin marca guardada, OmniClin tal cual. Llevan la marca la app (barra, favicon, título), los documentos (membrete y
   marca de agua en pantalla, al imprimir y en cada página del PDF; los consentimientos guardan la marca con la que
   se firmaron) y la página que abre el paciente (dentro del sobre cifrado del formulario). Al pie de cada documento,
-  «Documento generado con OmniClin», y en Privacidad, siempre, quién hace el programa.
+  «Documento generado con OmniClin», y en Privacidad, siempre, quién hace el programa. Desde el 28-10-2026, además:
+  ocho paletas listas, lema, la barra de arriba (oscura, del color principal o clara), cuatro parejas de letra (dentro
+  de la app, se bajan al elegirlas), esquinas (redondeadas, suaves o rectas) en todos los recuadros y acabado (mate,
+  vivo o metálico; los documentos siempre planos), con el mismo contraste AA garantizado (`src/brand/options.ts`);
+  el membrete de los documentos a gusto (logo a la derecha, a la izquierda o centrado, datos de contacto, banda de
+  color, pie propio), la firma dibujada de cada fisio en sus documentos (Ajustes › Clínica › Tu firma) y, en la página
+  del paciente, el lema, un texto de bienvenida y el contacto de la clínica.
 - **Mensajes a pacientes (25-10-2026):** Ajustes › Mensajes a pacientes (`src/messages/`): los ocho mensajes (el de la lista de espera, desde el 25-10-2026, y el de pedir informes, desde el 26-10-2026) de
   WhatsApp y correo con texto y asunto editables, fichas como {nombre} o {hora}, vista previa y firma común. El
   ajuste antiguo `reminder_template` se sigue leyendo y escribiendo.

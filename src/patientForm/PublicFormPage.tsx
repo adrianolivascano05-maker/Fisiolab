@@ -132,10 +132,11 @@ export function PublicFormPage() {
   return (
     <div className="min-h-dvh bg-surface">
       <header className="border-b-2 border-highlight bg-brand text-on-brand">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
           <Logo onDark />
           {/* Con marca, el nombre ya va en el logo; si la clínica se llama distinto en Ajustes › Clínica, también. */}
           {request?.clinic && request.clinic !== request.brand?.name && <p className="min-w-0 truncate font-semibold">{request.clinic}</p>}
+          {request?.brand?.slogan && <p className="w-full text-sm opacity-90">{request.brand.slogan}</p>}
         </div>
       </header>
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-5 pb-16">
@@ -154,6 +155,7 @@ export function PublicFormPage() {
         {request && (
           <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
             <h1 className="text-2xl leading-tight font-bold">{request.name ? `Hola, ${request.name}` : "Hola"}</h1>
+            {request.brand?.patient?.welcome && <p className="text-lg">{request.brand.patient.welcome}</p>}
             {request.kind === DOCS_KIND ? (
               <p>
                 {request.clinic || "Tu clínica"} te pide {formWhat(request.kind)}: informes de tu médico, resonancias, radiografías, analíticas… Súbelos aquí en
@@ -201,6 +203,11 @@ export function PublicFormPage() {
               El enlace vale hasta el {new Date(request.expiresAt).toLocaleDateString("es-ES", { day: "numeric", month: "long", timeZone: "Europe/Madrid" })}.
             </p>
           </form>
+        )}
+        {request?.brand?.contact && (
+          <p className="text-center text-sm text-text-muted">
+            ¿Dudas? {request.clinic || request.brand.name}: {request.brand.contact}
+          </p>
         )}
       </main>
     </div>

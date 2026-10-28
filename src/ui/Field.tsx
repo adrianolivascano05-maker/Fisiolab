@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cx } from "./cx";
 
 type FieldShellProps = {
@@ -47,6 +47,24 @@ export function TextField({ label, hint, error, className, ...rest }: TextFieldP
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy(id, hint, error)}
         className={cx(control, error ? "border-danger" : "border-border-input", className)}
+        {...rest}
+      />
+    </FieldShell>
+  );
+}
+
+type TextAreaFieldProps = TextareaHTMLAttributes<HTMLTextAreaElement> & { label: string; hint?: string; error?: string };
+
+/** Como TextField, para varias líneas (crece con `rows`; el alto mínimo sigue siendo el de un campo). */
+export function TextAreaField({ label, hint, error, className, ...rest }: TextAreaFieldProps) {
+  const id = useId();
+  return (
+    <FieldShell id={id} label={label} hint={hint} error={error}>
+      <textarea
+        id={id}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy(id, hint, error)}
+        className={cx(control, "h-auto min-h-11 py-2 leading-normal", error ? "border-danger" : "border-border-input", className)}
         {...rest}
       />
     </FieldShell>

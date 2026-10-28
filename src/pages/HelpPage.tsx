@@ -125,7 +125,7 @@ const steps: { title: string; body: ReactNode }[] = [
       <>
         La barra de abajo está siempre a mano y <b>cada pestaña recuerda dónde estabas</b>: mira un test en la Biblioteca y vuelve a la ficha con un toque
         en Pacientes. Pulsa otra vez la pestaña en la que estás para volver a su inicio. Arriba a la izquierda, <b>‹</b> vuelve a la pantalla
-        anterior. La app se ve en claro u oscuro según el ajuste de tu teléfono (o como elijas en Ajustes → Aspecto), y con el nombre, los colores y el logo de tu clínica si los pones en Ajustes → Marca de la clínica; los informes y documentos, siempre en
+        anterior. La app se ve en claro u oscuro según el ajuste de tu teléfono (o como elijas en Ajustes → Aspecto), y con el nombre, los colores, la letra y el logo de tu clínica si los pones en Ajustes → Marca de la clínica (y tu firma dibujada, en Ajustes → Clínica, sale en tus informes); los informes y documentos, siempre en
         claro, como en papel.
       </>
     ),

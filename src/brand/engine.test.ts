@@ -68,6 +68,42 @@ describe("motor de la marca", () => {
     expect(problems).toEqual([]);
   });
 
+  it("los acabados vivo y metálico y las tres cabeceras siguen dando contraste AA con las paletas y los casos límite", () => {
+    const palettes: [string, string][] = [
+      ["#1F6B4F", "#C9A227"],
+      ["#1F5F8B", "#E07A5F"],
+      ["#3D4A52", "#6CC39D"],
+      ["#6B3A5B", "#D9B88A"],
+      ["#A5472F", "#7A8A3E"],
+      ["#3B4A9E", "#E0A447"],
+      ["#15696B", "#F0A48F"],
+      ["#7F2231", "#E9D8B4"],
+    ];
+    for (const a of EDGES) palettes.push([a, "#C9A227"], ["#1F6B4F", a], [a, a]);
+    const problems: string[] = [];
+    for (const [primary, secondary] of palettes)
+      for (const finish of ["matte", "vivid", "metal"] as const)
+        for (const header of ["dark", "color", "light"] as const) {
+          const t = brandTokens(primary, secondary, { finish, header });
+          const light: Colors = { ...tokens.color, ...t.light };
+          const dark: Colors = { ...tokens.color, ...tokens.colorDark, ...t.dark };
+          for (const f of fails(light)) problems.push(`${primary}/${secondary} ${finish} ${header} claro: ${f}`);
+          for (const f of fails(dark)) problems.push(`${primary}/${secondary} ${finish} ${header} oscuro: ${f}`);
+        }
+    expect(problems).toEqual([]);
+    // Vivo sube el croma; la cabecera «color» es la de los botones y la «clara» es el fondo.
+    const matte = brandTokens("#1F6B4F", "#C9A227");
+    const vivid = brandTokens("#1F6B4F", "#C9A227", { finish: "vivid" });
+    expect(toLch(vivid.light.accent!).C).toBeGreaterThan(toLch(matte.light.accent!).C);
+    expect(brandTokens("#1F6B4F", "#C9A227", { header: "color" }).light.brand).toBe(matte.light.accent);
+    expect(brandTokens("#1F6B4F", "#C9A227", { header: "light" }).light.brand).toBe("#FFFFFF");
+    // Los tonos del acabado: uno más claro y uno más oscuro de cada color de acción.
+    for (const k of ["brand", "accent", "highlight"]) {
+      expect(toLch(matte.light[`${k}-hi`]!).L).toBeGreaterThan(toLch(matte.light[k]!).L);
+      expect(toLch(matte.light[`${k}-lo`]!).L).toBeLessThan(toLch(matte.light[k]!).L);
+    }
+  });
+
   it("el color forzado a mano se respeta en claro aunque no dé contraste, y en oscuro se corrige", () => {
     const t = brandTokens("#1F6B4F", "#C9A227", { accentOverride: "#9CCBF3" });
     expect(t.light.accent).toBe("#9CCBF3");
@@ -87,5 +123,9 @@ describe("motor de la marca", () => {
       expect(css, name).toContain(`--color-${name}:`);
       expect(tokens.color, name).toHaveProperty(name);
     }
+    // Las variables de más (esquinas, letras) van solo en el bloque de arriba.
+    const extra = brandCss(brandTokens("#7A1F3D", "#D9A441"), { "--radius-md": "0px" });
+    expect(extra.split("--radius-md: 0px;").length).toBe(2);
+    expect(extra.indexOf("--radius-md: 0px;")).toBeLessThan(extra.indexOf("@media"));
   });
 });

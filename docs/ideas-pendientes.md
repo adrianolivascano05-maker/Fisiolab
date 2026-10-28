@@ -114,7 +114,28 @@ Marca de la clínica; la app, la página del paciente y los documentos se visten
   pantallas nuevas; documentación (RESUMEN, soporte, índice). El texto legal no está revisado por un abogado:
   revisarlo con la asesoría o el delegado de protección de datos.
 - Pendiente para después: el icono de la app instalada solo cambia al reinstalar (límite del navegador); PDF con
-  texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide; tipografía y bordes propios.
+  texto buscable; una segunda versión del logo para oscuro si alguna clínica la pide.
+
+### Más personalización (28-10-2026, aprobada con el borrador interactivo)
+
+Bloques: G1 modelo y motor, G2 documentos, G3 página del paciente (los tres hechos el 28-10-2026).
+
+- Hecho en G1: en Ajustes › Marca, ocho paletas listas, lema, la barra de arriba (oscura, del color principal o
+  clara), cuatro parejas de letra (Bricolage + Source Sans 3, Fraunces + Source Sans 3, Manrope + DM Sans, Lora + DM
+  Sans; van dentro de la app y se bajan solo al elegirlas), esquinas (redondeadas, suaves o rectas) en todos los
+  recuadros, botones incluidos, y acabado (mate, vivo o metálico; los documentos siempre planos). El motor sigue
+  garantizando el contraste AA (probado con las paletas, los tres acabados y las tres cabeceras). La marca guardada
+  lleva ya los campos del membrete (posición del logo, contacto, banda, pie) y de la página del paciente (bienvenida,
+  contacto), que se enseñan en G2 y G3. Una marca de antes se completa sola con las opciones de OmniClin.
+- Hecho en G2: membrete con el logo a la derecha, a la izquierda o centrado, con o sin datos de contacto, banda de
+  color y pie propio junto a la firma; el lema bajo el nombre (también en los consentimientos); la firma dibujada de
+  cada fisio (Ajustes › Clínica › Tu firma, una vez, en la pantalla) sobre la línea de firma de informes, altas,
+  derivaciones, justificantes y recibos, también en el PDF; es un ajuste de esa persona, cifrado como los demás. En la
+  vista previa de Ajustes › Marca hay un documento en pequeño además de los dos móviles.
+- Hecho en G3: en la página del paciente, el lema en la cabecera, el texto de bienvenida bajo el «Hola, nombre» y el
+  teléfono y correo de la clínica al pie (si la clínica lo quiere); viajan en el sobre cifrado como el resto.
+- Descartado a propósito: cambiar el icono de la app instalada (límite del navegador), letras subidas por la clínica
+  (peso y licencias), fondos con imagen, acabados en los documentos (papel) y colores distintos por fisio.
 
 ## Tras probar el bloque A (pedido y hecho el 27-10-2026)
 

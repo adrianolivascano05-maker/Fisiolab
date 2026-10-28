@@ -24,4 +24,4 @@ export const memberKey = (key: string) => (current ? `${key}@${current}` : key);
  * Los ajustes de cada persona que hasta ahora eran de la cuenta (src/cloud/googleCalendar.ts y saveToDrive.ts): al
  * llevar los pacientes de la cuenta a una clínica, pasan a ser suyos (syncMerge.ts, prepareForClinic).
  */
-export const MEMBER_SETTINGS = ["calendar_auto", "calendar_id", "drive_folder_id"];
+export const MEMBER_SETTINGS = ["calendar_auto", "calendar_id", "drive_folder_id", "physio_signature"];
