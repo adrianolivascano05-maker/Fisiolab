@@ -1,7 +1,8 @@
 // La marca guardada: las opciones nuevas (lema, cabecera, esquinas, acabado, letra, membrete, página del paciente) se
 // completan con las de OmniClin en una marca de antes, y lo que no es una opción conocida vuelve a la de OmniClin.
 import { describe, expect, it } from "vitest";
-import { brandProblem, cleanBrand, emptyBrand, type Brand } from "./brand";
+import { brandProblem, cleanBrand, emptyBrand, ownIdentity, tokensOf, type Brand } from "./brand";
+import tokens from "../styles/tokens.json";
 import { brandVars, FONTS, PALETTES, RADII } from "./options";
 
 describe("la marca y sus opciones", () => {
@@ -12,6 +13,19 @@ describe("la marca y sus opciones", () => {
     expect(b.letterhead).toEqual({ logo: "right", contact: true, band: false, footer: "" });
     expect(b.patient).toEqual({ welcome: "", contact: true });
     expect(brandProblem(b)).toBeNull();
+  });
+
+  it("la identidad de OmniClin no exige nombre, no cuenta como marca propia y usa los colores de OmniClin", () => {
+    const b = cleanBrand({ ...emptyBrand(""), identity: "omniclin", corners: "square" });
+    expect(b.identity).toBe("omniclin");
+    expect(brandProblem(b)).toBeNull();
+    expect(ownIdentity(b)).toBeNull();
+    expect(ownIdentity(emptyBrand("X"))).not.toBeNull();
+    expect(ownIdentity(null)).toBeNull();
+    expect(tokensOf(b).light.brand).toBe(tokens.color.brand);
+    // Una marca de antes (sin identidad) es la propia de la clínica, y la propia sí exige nombre.
+    expect(cleanBrand({ ...emptyBrand("X"), identity: undefined as never }).identity).toBe("own");
+    expect(brandProblem(emptyBrand(""))).toMatch(/nombre/);
   });
 
   it("recorta los textos, y una opción desconocida vuelve a la de OmniClin", () => {

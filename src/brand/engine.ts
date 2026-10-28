@@ -3,6 +3,7 @@
 // como tales) y, cuando un color no da contraste, lo oscurece o lo aclara sin cambiar su matiz. Los nombres de los
 // colores son los de src/styles/tokens.json; lo que no está aquí (peligro, aviso, éxito, medios) no cambia de marca.
 // Puro: sin DOM. La prueba engine.test.ts comprueba las parejas de contraste de tokens.json con cientos de colores.
+import tokens from "../styles/tokens.json";
 
 export type Lch = { L: number; C: number; h: number };
 export type Tokens = Record<string, string>;
@@ -176,8 +177,18 @@ export function brandTokens(primary: string, secondary: string, opts: BrandOptio
   dark["on-brand"] = tint(0.9, 0.03);
   [dark.highlight, dark["on-highlight"]] = highlightPair(secondary, dark.brand, darkText);
 
-  // ---- La cabecera, si no es la oscura: del color de los botones (con su texto) o clara (el fondo con la tinta de la
-  // marca); la línea de acento se vuelve a ajustar contra el fondo nuevo.
+  return finishTokens(light, dark, secondary, darkText, opts, true);
+}
+
+/**
+ * Lo que comparten la marca de una clínica y la de OmniClin con otro aspecto: la cabecera, si no es la oscura (del
+ * color de los botones con su texto, o clara: el fondo con la tinta de la marca; la línea de acento se vuelve a
+ * ajustar contra el fondo nuevo), el segundo color del logo de OmniClin sobre la cabecera (`mintOnDark`: en la
+ * cabecera oscura de OmniClin se queda su menta; con marca de clínica o con otra cabecera se iguala a la línea de
+ * acento, que ya cumple el contraste) y un paso más claro y uno más oscuro de la cabecera, los botones y los
+ * destacados para los degradados y brillos del acabado vivo y metálico (index.css). No cambian el color de ningún texto.
+ */
+function finishTokens(light: Tokens, dark: Tokens, secondary: string, darkText: string, opts: BrandOptions, accentFromHighlight: boolean): BrandTokens {
   if (opts.header === "color") {
     light.brand = light.accent;
     light["on-brand"] = light["on-accent"];
@@ -190,15 +201,13 @@ export function brandTokens(primary: string, secondary: string, opts: BrandOptio
     dark["on-brand"] = dark.text!;
   }
   if (opts.header === "color" || opts.header === "light") {
-    [light.highlight, light["on-highlight"]] = highlightPair(secondary, light.brand, darkText);
-    [dark.highlight, dark["on-highlight"]] = highlightPair(secondary, dark.brand, darkText);
+    [light.highlight, light["on-highlight"]] = highlightPair(secondary, light.brand!, darkText);
+    [dark.highlight, dark["on-highlight"]] = highlightPair(secondary, dark.brand!, darkText);
   }
-  // El segundo color del logo de OmniClin sobre la cabecera no se ve con marca de clínica; se iguala a la línea de acento
-  // para que la pareja de contraste de tokens.json se cumpla también.
-  light["on-brand-accent"] = light.highlight;
-  dark["on-brand-accent"] = dark.highlight;
-  // Un paso más claro y uno más oscuro de la cabecera, los botones y los destacados: los degradados y brillos del
-  // acabado vivo y metálico (index.css). No cambian el color de ningún texto.
+  if (accentFromHighlight || (opts.header && opts.header !== "dark")) {
+    light["on-brand-accent"] = light.highlight!;
+    dark["on-brand-accent"] = dark.highlight!;
+  }
   for (const t of [light, dark])
     for (const k of ["brand", "accent", "highlight"]) {
       const c = toLch(t[k]!);
@@ -206,6 +215,26 @@ export function brandTokens(primary: string, secondary: string, opts: BrandOptio
       t[`${k}-lo`] = fromLch({ L: Math.max(0.05, c.L - 0.08), C: c.C, h: c.h });
     }
   return { light, dark };
+}
+
+/** Los nombres de color que una marca cambia (los de tokens.json que calcula el motor). */
+export const BRAND_COLOR_KEYS = ["canvas", "bg", "surface", "border", "border-input", "text", "text-muted", "accent", "accent-hover", "accent-soft", "on-accent", "focus", "chart-primary", "brand", "on-brand", "brand-ink", "highlight", "on-highlight", "on-brand-accent"];
+
+/**
+ * La marca de OmniClin (sus colores de tokens.json, tal cual) con otro aspecto: otra cabecera o un acabado. Así una
+ * clínica puede quedarse con el nombre, el logo a dos colores y los colores de OmniClin y cambiar solo lo demás. Con
+ * la cabecera oscura y el acabado mate da exactamente los colores de siempre (más los tonos de los degradados).
+ */
+export function omniclinTokens(opts: Pick<BrandOptions, "finish" | "header"> = {}): BrandTokens {
+  const base = tokens.color as Record<string, string>;
+  const baseDark = { ...base, ...(tokens.colorDark as Record<string, string>) };
+  const light: Tokens = {};
+  const dark: Tokens = {};
+  for (const k of BRAND_COLOR_KEYS) {
+    light[k] = base[k]!;
+    dark[k] = baseDark[k]!;
+  }
+  return finishTokens(light, dark, base.highlight!, base.text!, opts, false);
 }
 
 const vars = (t: Tokens, indent = "  ") =>

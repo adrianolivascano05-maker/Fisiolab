@@ -3,7 +3,7 @@
 // marca con la que se firmó (ConsentDocument.brand) y se pinta siempre con esa; sin marca guardada, con la de OmniClin.
 import type { CSSProperties } from "react";
 import tokens from "../styles/tokens.json";
-import { initialIcon, tokensOf, type Brand } from "./brand";
+import { initialIcon, ownIdentity, tokensOf, type Brand } from "./brand";
 import { brandTokens } from "./engine";
 
 /** Lo que figura al pie de todo documento, sea cual sea la marca de la clínica. */
@@ -19,9 +19,11 @@ export function docVars(brand: Brand | null | undefined): CSSProperties {
   return Object.fromEntries(Object.entries(t).map(([k, v]) => [`--color-${k}`, v])) as CSSProperties;
 }
 
-/** La imagen de la marca de agua: el logo o, sin logo, la inicial sobre el color principal. */
+/** La imagen de la marca de agua: el logo o, sin logo, la inicial sobre el color principal; con la identidad de OmniClin, su símbolo. */
 export function watermarkSrc(brand: Brand): string {
-  return brand.logo ?? initialIcon(brand, 512);
+  const own = ownIdentity(brand);
+  if (!own) return `${import.meta.env.BASE_URL}icons/icon-512.png`;
+  return own.logo ?? initialIcon(own, 512);
 }
 
 /**

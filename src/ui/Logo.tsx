@@ -1,7 +1,7 @@
 // La marca que se ve en la barra, en la entrada y en los documentos. Sin marca de clínica (src/brand/brand.ts) es la
 // de OmniClin: un anillo de tres arcos (medir · organizar · acompañar) con el sol de oro arriba. Dibujo propio; mismo
 // trazo que tools/build-icons.py (ARCS y SUN). Con marca de clínica: su logo (o su inicial sobre su color) y su nombre.
-import { initialOf, useBrand, type Brand } from "../brand/brand";
+import { initialOf, ownIdentity, useBrand, type Brand } from "../brand/brand";
 import { cx } from "./cx";
 
 type MarkProps = {
@@ -33,7 +33,8 @@ function arcPath([from, to]: [number, number]) {
 /** Símbolo: se ve bien desde 16 px. */
 export function LogoMark({ size = 28, title, bordered, brand: given }: MarkProps) {
   const applied = useBrand();
-  const brand = given === undefined ? applied : given;
+  // Con la identidad de OmniClin (solo otro aspecto), el símbolo es el de OmniClin.
+  const brand = ownIdentity(given === undefined ? applied : given);
   if (brand) return <BrandMark size={size} title={title} bordered={bordered} brand={brand} />;
   const base = "var(--color-brand)";
   return (
@@ -95,7 +96,7 @@ export function Wordmark({ onDark, className }: { onDark?: boolean; className?: 
 /** Símbolo + nombre, para la cabecera de la pantalla principal. */
 export function Logo({ onDark, brand: given }: { onDark?: boolean; brand?: Brand | null }) {
   const applied = useBrand();
-  const brand = given === undefined ? applied : given;
+  const brand = ownIdentity(given === undefined ? applied : given);
   return (
     <span className="flex min-w-0 items-center gap-2.5">
       <LogoMark size={34} bordered={onDark} brand={brand} />

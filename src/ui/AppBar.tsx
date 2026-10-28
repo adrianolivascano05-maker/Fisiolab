@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { getDb } from "../data/db";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { cx } from "./cx";
-import { useBrand } from "../brand/brand";
+import { ownIdentity, useBrand } from "../brand/brand";
 import { Logo, LogoMark } from "./Logo";
 
 /** Nombre de la pantalla a la que lleva «volver», para escribirlo junto a la flecha (como en el iPhone). */
@@ -226,7 +226,7 @@ export function SideNav() {
       {/* El logo lleva al inicio. Su nombre accesible es el texto visible («OmniClin»); en la franja de iconos, el símbolo con su nombre. */}
       <Link to="/" title="Inicio" className="flex h-[var(--layout-header)] shrink-0 items-center justify-center border-b-2 border-highlight bg-brand xl:justify-start xl:px-4">
         <span className="xl:hidden">
-          <LogoMark size={34} bordered title={brand?.name ?? "OmniClin"} />
+          <LogoMark size={34} bordered title={ownIdentity(brand)?.name ?? "OmniClin"} />
         </span>
         <span className="hidden xl:block">
           <Logo onDark />

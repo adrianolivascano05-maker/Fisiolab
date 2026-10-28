@@ -134,6 +134,11 @@ Bloques: G1 modelo y motor, G2 documentos, G3 página del paciente (los tres hec
   vista previa de Ajustes › Marca hay un documento en pequeño además de los dos móviles.
 - Hecho en G3: en la página del paciente, el lema en la cabecera, el texto de bienvenida bajo el «Hola, nombre» y el
   teléfono y correo de la clínica al pie (si la clínica lo quiere); viajan en el sobre cifrado como el resto.
+- Hecho en G5 (28-10-2026): la identidad (nombre, logo y colores) va aparte del aspecto. Arriba de Ajustes › Marca se
+  elige «La de mi clínica» o «La de OmniClin»; con la segunda se cambian solo cabecera, letra, esquinas, acabado,
+  documentos y página del paciente, y el logo a dos colores, el nombre, el favicon y los colores siguen siendo los de
+  OmniClin (sus colores de `tokens.json` tal cual, con el contraste AA comprobado para las tres cabeceras y los tres
+  acabados).
 - Descartado a propósito: cambiar el icono de la app instalada (límite del navegador), letras subidas por la clínica
   (peso y licencias), fondos con imagen, acabados en los documentos (papel) y colores distintos por fisio.
 

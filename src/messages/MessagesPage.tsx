@@ -6,7 +6,7 @@ import { Link, useSearchParams } from "react-router";
 import { bumpData } from "../app/dataVersion";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { useBrand } from "../brand/brand";
+import { ownIdentity, useBrand } from "../brand/brand";
 import { addDays, todayDay } from "../clinical/pageKit";
 import { useCloud } from "../cloud/CloudGate";
 import { useTeamMode } from "../cloud/teamMode";
@@ -73,7 +73,7 @@ function Editor({ saved, clinicName, onSaved }: { saved: MessageSettings; clinic
     nombre: "Ana",
     dia: dayText(tomorrow),
     hora: hourText(tomorrow),
-    clinica: brand?.name || clinicName,
+    clinica: ownIdentity(brand)?.name || clinicName,
     con: team ? " con Laura" : "",
     enlace: "https://cenitfisiolab.pages.dev/formulario/a1b2c3#clave",
     enlaces: "Índice de discapacidad cervical: https://cenitfisiolab.pages.dev/formulario/a1b2#clave\nOswestry: https://cenitfisiolab.pages.dev/formulario/c3d4#clave",
@@ -123,7 +123,7 @@ function Editor({ saved, clinicName, onSaved }: { saved: MessageSettings; clinic
         Lo que la app prepara para WhatsApp y correo. Tú lo envías con un toque desde tu móvil, como ahora; aquí decides qué dice. Las fichas entre llaves
         se sustituyen solas con los datos de cada paciente.
       </p>
-      {!clinicName && !brand && (
+      {!clinicName && !ownIdentity(brand) && (
         <p className="text-sm text-warning">
           Falta el nombre de la clínica (sale «la clínica»):{" "}
           <Link to="/ajustes/clinica" className="font-semibold underline">

@@ -9,7 +9,7 @@ import { shrinkLogo } from "./logo";
  * Lo que viaja en el formulario: sin la marca de agua ni el membrete (no hay documentos) y con el logo reducido.
  * `contact`: el teléfono y el correo de la clínica (Ajustes › Clínica) para el pie de la página, si la clínica lo quiere.
  */
-export type FormBrand = Pick<Brand, "name" | "primary" | "secondary" | "logo" | "logoPlate" | "accentOverride" | "slogan" | "header" | "corners" | "finish" | "font" | "patient"> & { contact?: string };
+export type FormBrand = Pick<Brand, "identity" | "name" | "primary" | "secondary" | "logo" | "logoPlate" | "accentOverride" | "slogan" | "header" | "corners" | "finish" | "font" | "patient"> & { contact?: string };
 
 /** La línea de contacto que va al pie de la página del paciente: teléfono y correo, lo que haya. */
 export const contactLine = (c: { phone?: string; email?: string }) => [c.phone?.trim(), c.email?.trim()].filter(Boolean).join(" · ");
@@ -22,6 +22,7 @@ export async function formBrand(b: Brand | null, clinic: { phone?: string; email
   const contact = b.patient.contact ? contactLine(clinic) : "";
   return {
     ...(contact ? { contact } : {}),
+    identity: b.identity,
     name: b.name,
     primary: b.primary,
     secondary: b.secondary,
@@ -42,7 +43,7 @@ export function brandFromForm(v: unknown): Brand | null {
   if (!v || typeof v !== "object") return null;
   const f = v as Partial<FormBrand>;
   if (typeof f.name !== "string" || typeof f.primary !== "string" || typeof f.secondary !== "string") return null;
-  // cleanBrand deja cada opción entre las conocidas (y la de OmniClin si no lo es).
+  // cleanBrand deja cada opción entre las conocidas (la identidad incluida) (y la de OmniClin si no lo es).
   const brand = cleanBrand({
     ...emptyBrand(),
     ...f,

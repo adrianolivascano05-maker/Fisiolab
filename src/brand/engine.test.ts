@@ -2,7 +2,7 @@
 // las mismas parejas de tokens.json que vigila tokens.test.ts, con colores al azar y con los casos límite.
 import { describe, expect, it } from "vitest";
 import tokens from "../styles/tokens.json";
-import { brandCss, brandTokens, contrast, fit, fromLch, isHex, scale, toLch } from "./engine";
+import { brandCss, brandTokens, contrast, fit, fromLch, isHex, omniclinTokens, scale, toLch } from "./engine";
 
 type Colors = Record<string, string>;
 
@@ -102,6 +102,26 @@ describe("motor de la marca", () => {
       expect(toLch(matte.light[`${k}-hi`]!).L).toBeGreaterThan(toLch(matte.light[k]!).L);
       expect(toLch(matte.light[`${k}-lo`]!).L).toBeLessThan(toLch(matte.light[k]!).L);
     }
+  });
+
+  it("la identidad de OmniClin con otro aspecto parte de sus colores de siempre y sigue dando contraste AA", () => {
+    const plain = omniclinTokens();
+    // Mate y cabecera oscura: los colores de tokens.json tal cual (más los tonos de los degradados).
+    for (const k of ["brand", "accent", "on-brand", "on-brand-accent", "highlight", "canvas"]) {
+      expect(plain.light[k], k).toBe((tokens.color as Record<string, string>)[k]);
+    }
+    expect(plain.dark.brand).toBe(tokens.colorDark.brand);
+    expect(plain.light["accent-hi"]).toBeTruthy();
+    const problems: string[] = [];
+    for (const finish of ["matte", "vivid", "metal"] as const)
+      for (const header of ["dark", "color", "light"] as const) {
+        const t = omniclinTokens({ finish, header });
+        for (const f of fails({ ...tokens.color, ...t.light })) problems.push(`${finish} ${header} claro: ${f}`);
+        for (const f of fails({ ...tokens.color, ...tokens.colorDark, ...t.dark })) problems.push(`${finish} ${header} oscuro: ${f}`);
+      }
+    expect(problems).toEqual([]);
+    expect(omniclinTokens({ header: "color" }).light.brand).toBe(tokens.color.accent);
+    expect(omniclinTokens({ header: "light" }).light.brand).toBe("#FFFFFF");
   });
 
   it("el color forzado a mano se respeta en claro aunque no dé contraste, y en oscuro se corrige", () => {

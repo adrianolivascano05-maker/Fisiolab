@@ -16,12 +16,16 @@ import { Card } from "../ui/Card";
 import { TextAreaField, TextField } from "../ui/Field";
 import { LogoMark } from "../ui/Logo";
 import { useToast } from "../ui/Toast";
-import { brandProblem, emptyBrand, getBrand, MAX_FOOTER, MAX_NAME, MAX_SLOGAN, MAX_WELCOME, saveBrand, tokensOf, type Brand, type Letterhead } from "./brand";
+import { brandProblem, emptyBrand, getBrand, MAX_FOOTER, MAX_NAME, MAX_SLOGAN, MAX_WELCOME, saveBrand, tokensOf, type Brand, type Identity, type Letterhead } from "./brand";
 import { BrandPreview } from "./BrandPreview";
 import { contrast, isHex, scale } from "./engine";
 import { logoColors, prepareLogo } from "./logo";
 import { CORNERS, FINISHES, FONTS, HEADERS, loadFont, PALETTES, type Option } from "./options";
 
+const IDENTITIES: Option<Identity>[] = [
+  { id: "own", label: "La de mi clínica", hint: "tu nombre, tu logo y tus colores" },
+  { id: "omniclin", label: "La de OmniClin", hint: "su nombre, su logo a dos colores y sus colores; tú cambias solo el aspecto" },
+];
 const LOGO_POSITIONS: Option<Letterhead["logo"]>[] = [
   { id: "right", label: "A la derecha", hint: "como hasta ahora" },
   { id: "left", label: "A la izquierda", hint: "y el título a la derecha" },
@@ -161,6 +165,8 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
   const set = (patch: Partial<Brand>) => setB((v) => ({ ...v, ...patch }));
   const t = tokensOf(b);
   const forcedRatio = isHex(forced) ? contrast(forced, t.light.surface!) : null;
+  /** El nombre, el logo y los colores son de la clínica (con la identidad de OmniClin esas tarjetas no se enseñan). */
+  const own = b.identity !== "omniclin";
   // La letra elegida se carga para que la vista previa (y la app al guardar) la enseñen de verdad.
   useEffect(() => void loadFont(b.font), [b.font]);
 
@@ -202,7 +208,8 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
     <Page title="Marca de la clínica" backTo="/ajustes" width="record">
       <p className="text-text-muted">
         Tu nombre, tus colores, tu letra y tu logo en la app, en la página que abren tus pacientes y en los documentos. Con dos colores basta: los tonos, el modo
-        oscuro y que el texto se lea bien los calcula la app. Lo demás (cabecera, letra, esquinas, acabado) es opcional.
+        oscuro y que el texto se lea bien los calcula la app. Lo demás (cabecera, letra, esquinas, acabado) es opcional y vale también si te quedas con el nombre y
+        los colores de OmniClin.
       </p>
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start lg:gap-6">
         <form
@@ -210,9 +217,22 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
           noValidate
           onSubmit={(e) => {
             e.preventDefault();
-            void save({ ...b, accentOverride: forced.trim() || null });
+            void save({ ...b, accentOverride: own ? forced.trim() || null : null });
           }}
         >
+          <Card className="flex flex-col gap-2">
+            <Choices
+              legend="El nombre, el logo y los colores"
+              name="identidad"
+              options={IDENTITIES}
+              value={b.identity}
+              onChange={(identity) => set({ identity, ...(identity === "omniclin" ? { watermark: false } : {}) })}
+            />
+            <p className="text-sm text-text-muted">Lo demás (cabecera, letra, esquinas, acabado, documentos y página del paciente) se puede cambiar con cualquiera de las dos.</p>
+          </Card>
+
+          {own && (
+          <>
           <Card className="flex flex-col gap-4">
             <TextField label="Nombre de la clínica" maxLength={MAX_NAME} autoComplete="organization" value={b.name} onChange={(e) => set({ name: e.target.value })} hint="Se ve en la barra, en la pestaña y en los documentos." />
             <TextField label="Lema" maxLength={MAX_SLOGAN} value={b.slogan} onChange={(e) => set({ slogan: e.target.value })} placeholder="Opcional" hint="Una línea bajo el nombre en los documentos y en la página del paciente." />
@@ -231,6 +251,8 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
               </p>
             )}
           </Card>
+          </>
+          )}
 
           <Card className="flex flex-col gap-4">
             <h2 className="text-lg">Aspecto</h2>
@@ -258,6 +280,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
             <p className="text-sm text-text-muted">Las etiquetas redondas siguen redondas. Los documentos van siempre planos y en claro, como en papel.</p>
           </Card>
 
+          {own && (
           <Card className="flex flex-col gap-3">
             <h2 className="text-lg">Logo</h2>
             <div className="flex items-center gap-4">
@@ -313,6 +336,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
               ))}
             </fieldset>
           </Card>
+          )}
 
           <Card className="flex flex-col gap-4">
             <h2 className="text-lg">Documentos</h2>
@@ -330,7 +354,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
             </label>
             <label className="flex min-h-11 cursor-pointer items-center gap-3">
               <input type="checkbox" className="size-5 shrink-0 accent-accent" checked={b.watermark} onChange={(e) => set({ watermark: e.target.checked })} />
-              <span>Marca de agua con el logo</span>
+              <span>{own ? "Marca de agua con el logo" : "Marca de agua con el símbolo de OmniClin"}</span>
             </label>
             <TextField
               label="Pie de página propio"
@@ -369,6 +393,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
             </label>
           </Card>
 
+          {own && (
           <details className="rounded-lg border border-border bg-bg">
             <summary className="flex min-h-11 cursor-pointer items-center px-4 font-semibold">Avanzado: los tonos y el color de los botones</summary>
             <div className="flex flex-col gap-4 px-4 pb-4">
@@ -392,6 +417,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
               )}
             </div>
           </details>
+          )}
 
           {error && <Alert tone="danger" title={error} />}
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -414,7 +440,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
         </form>
         <div className="flex flex-col gap-2 lg:sticky lg:top-20">
           <h2 className="text-lg">Así se verá</h2>
-          <BrandPreview brand={{ ...b, accentOverride: isHex(forced) ? forced : null }} />
+          <BrandPreview brand={{ ...b, accentOverride: own && isHex(forced) ? forced : null }} />
         </div>
       </div>
     </Page>

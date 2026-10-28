@@ -34,7 +34,7 @@ import { Page } from "../app/Page";
 import { useInstall } from "../app/pwa";
 import { THEME_LABELS, useTheme, type Theme } from "../app/theme";
 import { useAsync } from "../app/useAsync";
-import { useBrand } from "../brand/brand";
+import { ownIdentity, useBrand } from "../brand/brand";
 import { AccountCard } from "../cloud/AccountPages";
 import { CalendarSettings } from "../cloud/CalendarSettings";
 import { getToken } from "../cloud/auth";
@@ -107,7 +107,13 @@ export function SettingsPage() {
           to="/ajustes/marca"
           icon={Palette}
           title="Marca de la clínica"
-          subtitle={brand ? `${brand.name} · tus colores, tu letra y tu logo` : "La marca de OmniClin · tus colores, tu letra, tu logo y la marca de agua de los documentos"}
+          subtitle={
+            ownIdentity(brand)
+              ? `${brand!.name} · tus colores, tu letra y tu logo`
+              : brand
+                ? "OmniClin con tu aspecto · cabecera, letra, esquinas, acabado y documentos"
+                : "La marca de OmniClin · tus colores, tu letra, tu logo y la marca de agua de los documentos"
+          }
         />
         <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle="Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre, ejercicios" />
         {cloud?.clinic && (

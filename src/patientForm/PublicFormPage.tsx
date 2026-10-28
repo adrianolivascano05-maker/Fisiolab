@@ -16,6 +16,7 @@ import { prepareFiles } from "../documents/prepare";
 import { errorText, serverUrl } from "../app/publicServer";
 import { applyBrand } from "../brand/brand";
 import { brandFromForm } from "../brand/form";
+import { ownIdentity } from "../brand/brand";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -77,7 +78,7 @@ export function PublicFormPage() {
         // La marca de la clínica que trae el formulario (o la de OmniClin): colores, logo, favicon y título.
         const brand = brandFromForm(request.brand);
         applyBrand(brand, false);
-        document.title = `Formulario · ${brand?.name ?? "OmniClin"}`;
+        document.title = `Formulario · ${ownIdentity(brand)?.name ?? "OmniClin"}`;
         setPhase({ kind: "form", request });
       } catch (e) {
         setPhase({ kind: "error", text: e instanceof Error && e.message !== "Failed to fetch" ? e.message : "No hay conexión. Prueba otra vez en un momento." });
@@ -135,7 +136,7 @@ export function PublicFormPage() {
         <div className="mx-auto flex max-w-2xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
           <Logo onDark />
           {/* Con marca, el nombre ya va en el logo; si la clínica se llama distinto en Ajustes › Clínica, también. */}
-          {request?.clinic && request.clinic !== request.brand?.name && <p className="min-w-0 truncate font-semibold">{request.clinic}</p>}
+          {request?.clinic && request.clinic !== ownIdentity(brandFromForm(request.brand))?.name && <p className="min-w-0 truncate font-semibold">{request.clinic}</p>}
           {request?.brand?.slogan && <p className="w-full text-sm opacity-90">{request.brand.slogan}</p>}
         </div>
       </header>

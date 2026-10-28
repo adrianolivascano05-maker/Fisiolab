@@ -4,7 +4,7 @@
 // el membrete sigue sus opciones (src/brand/brand.ts, `letterhead`): el logo a la derecha, a la izquierda o centrado,
 // el lema, con o sin datos de contacto, la banda de color y un pie propio junto a la firma.
 import { useEffect, useState, type ReactNode } from "react";
-import { useBrand } from "../brand/brand";
+import { ownIdentity, useBrand } from "../brand/brand";
 import { MADE_WITH, Watermark } from "../brand/docs";
 import { getSignature } from "../brand/signature";
 import { getDb } from "../data/db";
@@ -14,6 +14,8 @@ import { LogoMark, Wordmark } from "../ui/Logo";
 
 export function Letterhead({ clinic, title, subtitle }: { clinic: ClinicInfo; title: string; subtitle: string }) {
   const brand = useBrand();
+  // El membrete sigue las opciones de la marca aunque la identidad sea la de OmniClin; el nombre y el logo, solo si son de la clínica.
+  const own = ownIdentity(brand);
   const lh = brand?.letterhead ?? { logo: "right" as const, contact: true, band: false, footer: "" };
   const details = lh.contact ? [clinic.taxId && `NIF ${clinic.taxId}`, clinic.address, clinic.phone, clinic.email].filter(Boolean).join(" · ") : "";
   const center = !!brand && lh.logo === "center";
@@ -33,16 +35,16 @@ export function Letterhead({ clinic, title, subtitle }: { clinic: ClinicInfo; ti
     >
       <Watermark brand={brand} />
       {heading}
-      {brand ? (
+      {own ? (
         <span className={cx("flex items-start gap-2", center ? "flex-col items-center text-center" : left ? "max-w-[55%] flex-row-reverse text-left" : "max-w-[55%] justify-end text-right")}>
           <span className={cx("flex min-w-0 flex-col", center ? "items-center" : left ? "items-start" : "items-end")}>
             <span className="text-lg leading-tight font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
-              {brand.name}
+              {own.name}
             </span>
-            {brand.slogan && <span className="text-sm font-semibold text-brand-ink">{brand.slogan}</span>}
+            {own.slogan && <span className="text-sm font-semibold text-brand-ink">{own.slogan}</span>}
             {details && <span className="text-xs text-text-muted">{details}</span>}
           </span>
-          <LogoMark size={40} brand={brand} />
+          <LogoMark size={40} brand={own} />
         </span>
       ) : clinic.name ? (
         <span className="flex max-w-[55%] flex-col items-end text-right">

@@ -2,7 +2,12 @@
 
 Cada clínica puede poner su nombre, su lema, dos colores (o una de las ocho paletas listas), su logo y el aspecto
 (la barra de arriba, la letra, las esquinas y el acabado) en Ajustes › Marca de la clínica. Sin marca guardada, la app
-es OmniClin tal cual.
+es OmniClin tal cual. La **identidad** (nombre, logo y colores) va aparte del **aspecto**: con `identity: "omniclin"`
+la clínica se queda con el nombre, el logo a dos colores y los colores de OmniClin y cambia solo lo demás (cabecera,
+letra, esquinas, acabado, membrete, página del paciente). `ownIdentity(brand)` da la marca solo si el nombre, el logo
+y los colores son de la clínica: es lo que miran el logo, la barra, el favicon, el título, el membrete, los mensajes y
+la página del paciente. `omniclinTokens` (engine.ts) parte de los colores de `tokens.json` tal cual y les aplica la
+cabecera y los tonos del acabado.
 
 - `engine.ts`: de dos colores salen todos los colores de la app en claro y en oscuro, en OKLCH, con el contraste de
   WCAG AA corregido solo. Puro. `engine.test.ts` comprueba las parejas de `src/styles/tokens.json` con cientos de

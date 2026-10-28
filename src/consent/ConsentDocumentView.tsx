@@ -1,6 +1,7 @@
 // Un consentimiento tal como se lee y se imprime: la clínica, el paciente (y su representante), quién informa, lo
 // que se va a hacer, sus riesgos, la declaración, las firmas y el recuadro para retirarlo.
 import { fmtDate } from "../app/format";
+import { ownIdentity } from "../brand/brand";
 import { docVars, MADE_WITH, Watermark } from "../brand/docs";
 import type { Signatures } from "../data/consents";
 import { LogoMark } from "../ui/Logo";
@@ -31,20 +32,22 @@ export function ConsentDocumentView({
   revokedAt?: string | null;
   revokeNote?: string;
 }) {
+  // El nombre y el logo solo si son de la clínica; con la identidad de OmniClin, el membrete de siempre.
+  const own = ownIdentity(doc.brand);
   const signer = doc.representative ? `${doc.representative.name} (${doc.representative.relation || "representante legal"})` : doc.patient.name;
   return (
     // Con los colores de la marca con la que se firmó (o los de OmniClin): aunque la clínica cambie de marca, este no cambia.
     <article className="relative flex flex-col gap-4 text-[15px] leading-relaxed print:text-[11pt]" style={docVars(doc.brand)}>
       <Watermark brand={doc.brand} />
       <header className="flex flex-col gap-1 border-b border-border pb-3">
-        {doc.brand && (
+        {own && (
           <p className="flex items-center gap-2 pb-1">
-            <LogoMark size={32} brand={doc.brand} />
+            <LogoMark size={32} brand={own} />
             <span className="flex flex-col">
               <span className="text-lg leading-tight font-semibold text-brand-ink" style={{ fontFamily: "var(--font-display)" }}>
-                {doc.brand.name}
+                {own.name}
               </span>
-              {doc.brand.slogan && <span className="text-sm font-semibold text-brand-ink">{doc.brand.slogan}</span>}
+              {own.slogan && <span className="text-sm font-semibold text-brand-ink">{own.slogan}</span>}
             </span>
           </p>
         )}

@@ -5,7 +5,7 @@
 import type { CSSProperties } from "react";
 import { cx } from "../ui/cx";
 import { Logo, LogoMark } from "../ui/Logo";
-import { tokensOf, type Brand } from "./brand";
+import { ownIdentity, tokensOf, type Brand } from "./brand";
 import type { Tokens } from "./engine";
 import { brandVars } from "./options";
 
@@ -86,8 +86,8 @@ function Paper({ brand, tokens }: { brand: Brand; tokens: Tokens }) {
   const who = (
     <span className={cx("flex items-start gap-1.5", center ? "flex-col items-center text-center" : left ? "flex-row-reverse text-left" : "text-right")}>
       <span className={cx("flex min-w-0 flex-col", center ? "items-center" : left ? "items-start" : "items-end")}>
-        <b className="font-display text-[10px] leading-tight text-brand-ink">{brand.name.trim() || "Tu clínica"}</b>
-        {brand.slogan && <span className="text-[7px] font-semibold text-brand-ink">{brand.slogan}</span>}
+        <b className="font-display text-[10px] leading-tight text-brand-ink">{ownIdentity(brand) ? brand.name.trim() || "Tu clínica" : "OmniClin"}</b>
+        {ownIdentity(brand) && brand.slogan && <span className="text-[7px] font-semibold text-brand-ink">{brand.slogan}</span>}
         {lh.contact && <span className="text-[6.5px] text-text-muted">NIF B12345678 · C/ Mayor 1 · 600 000 000</span>}
       </span>
       <LogoMark size={18} brand={brand} />

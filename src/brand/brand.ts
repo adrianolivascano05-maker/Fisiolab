@@ -6,9 +6,15 @@
 import { useSyncExternalStore } from "react";
 import type { Db } from "../data/db";
 import { getSetting, setSetting } from "../data/repo";
-import { brandCss, brandTokens, isHex, type BrandTokens } from "./engine";
+import { brandCss, brandTokens, isHex, omniclinTokens, type BrandTokens } from "./engine";
 import { brandVars, loadFont } from "./options";
 
+/**
+ * De quién son el nombre, el logo y los colores: de la clínica («own») o de OmniClin («omniclin», para quedarse con
+ * su nombre, su logo a dos colores y sus colores y cambiar solo el aspecto: cabecera, letra, esquinas, acabado,
+ * membrete y página del paciente).
+ */
+export type Identity = "own" | "omniclin";
 /** La barra de arriba: oscura (el principal oscurecido), del color principal tal cual, o clara con la línea de acento. */
 export type HeaderStyle = "dark" | "color" | "light";
 /** Las esquinas de todos los recuadros (botones, campos, tarjetas, hojas): redondeadas, suaves o rectas. */
@@ -24,7 +30,8 @@ export type PatientPage = { welcome: string; contact: boolean };
 
 export type Brand = {
   v: 1;
-  /** El nombre que se ve en la barra, la pestaña y los documentos. */
+  identity: Identity;
+  /** El nombre que se ve en la barra, la pestaña y los documentos (con la identidad de OmniClin no se usa). */
   name: string;
   /** Color principal (botones, cabecera, enlaces) y de acento (línea de la cabecera, destacados), en hexadecimal. */
   primary: string;
@@ -61,6 +68,7 @@ export const MAX_WELCOME = 200;
 export function emptyBrand(name = ""): Brand {
   return {
     v: 1,
+    identity: "own",
     name,
     primary: CENIT_PRIMARY,
     secondary: CENIT_SECONDARY,
@@ -78,6 +86,7 @@ export function emptyBrand(name = ""): Brand {
   };
 }
 
+const IDENTITIES: Identity[] = ["own", "omniclin"];
 const HEADERS: HeaderStyle[] = ["dark", "color", "light"];
 const CORNERS: Corners[] = ["round", "soft", "square"];
 const FINISHES: Finish[] = ["matte", "vivid", "metal"];
@@ -89,7 +98,7 @@ const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slic
 
 /** Comprueba lo que va a guardarse; devuelve el texto del fallo o null si está bien. */
 export function brandProblem(b: Brand): string | null {
-  if (!b.name.trim()) return "Escribe el nombre de la clínica.";
+  if (!b.name.trim() && b.identity !== "omniclin") return "Escribe el nombre de la clínica.";
   if (b.name.trim().length > MAX_NAME) return `El nombre no puede pasar de ${MAX_NAME} caracteres.`;
   if (!isHex(b.primary) || !isHex(b.secondary)) return "Los colores tienen que ser hexadecimales, como #1F6B4F.";
   if (b.accentOverride && !isHex(b.accentOverride)) return "El color forzado de los botones tiene que ser hexadecimal, como #1F6B4F.";
@@ -110,6 +119,7 @@ export function cleanBrand(b: Brand): Brand {
   const pt: Partial<PatientPage> = b.patient && typeof b.patient === "object" ? b.patient : {};
   return {
     v: 1,
+    identity: pick(b.identity, IDENTITIES, "own"),
     name: b.name.trim(),
     primary: b.primary.toUpperCase(),
     secondary: b.secondary.toUpperCase(),
@@ -127,9 +137,14 @@ export function cleanBrand(b: Brand): Brand {
   };
 }
 
+/** La marca si el nombre, el logo y los colores son de la clínica; null si no hay marca o es la identidad de OmniClin. */
+export const ownIdentity = (b: Brand | null | undefined): Brand | null => (b && b.identity !== "omniclin" ? b : null);
+
 /** Los colores de una marca. Una marca guardada en un documento antiguo puede no traer acabado ni cabecera: mate y oscura. */
 export function tokensOf(b: Brand): BrandTokens {
-  return brandTokens(b.primary, b.secondary, { accentOverride: b.accentOverride, finish: b.finish ?? "matte", header: b.header ?? "dark" });
+  const look = { finish: b.finish ?? "matte", header: b.header ?? "dark" };
+  if (b.identity === "omniclin") return omniclinTokens(look);
+  return brandTokens(b.primary, b.secondary, { accentOverride: b.accentOverride, ...look });
 }
 
 // ---------- Guardar y leer ----------
@@ -233,12 +248,13 @@ function applyIcon(b: Brand | null) {
   const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
   if (!link) return;
   if (originalIcon === null) originalIcon = link.href;
-  link.href = b ? (b.logo ?? initialIcon(b)) : originalIcon;
+  const own = ownIdentity(b);
+  link.href = own ? (own.logo ?? initialIcon(own)) : originalIcon;
 }
 
 function applyTitle(b: Brand | null) {
   if (originalTitle === null) originalTitle = document.title;
-  document.title = b ? b.name : originalTitle;
+  document.title = ownIdentity(b)?.name ?? originalTitle;
 }
 
 /** El color de la barra del navegador en el móvil: el de la cabecera, en el modo que esté puesto. */

@@ -206,7 +206,8 @@ Avisos de plausibilidad: altura fuera de 3-80 cm y contacto fuera de 80-900 ms.
   vivo o metálico; los documentos siempre planos), con el mismo contraste AA garantizado (`src/brand/options.ts`);
   el membrete de los documentos a gusto (logo a la derecha, a la izquierda o centrado, datos de contacto, banda de
   color, pie propio), la firma dibujada de cada fisio en sus documentos (Ajustes › Clínica › Tu firma) y, en la página
-  del paciente, el lema, un texto de bienvenida y el contacto de la clínica.
+  del paciente, el lema, un texto de bienvenida y el contacto de la clínica. La identidad (nombre, logo y colores) va
+  aparte: se puede dejar la de OmniClin y cambiar solo el aspecto.
 - **Mensajes a pacientes (25-10-2026):** Ajustes › Mensajes a pacientes (`src/messages/`): los ocho mensajes (el de la lista de espera, desde el 25-10-2026, y el de pedir informes, desde el 26-10-2026) de
   WhatsApp y correo con texto y asunto editables, fichas como {nombre} o {hora}, vista previa y firma común. El
   ajuste antiguo `reminder_template` se sigue leyendo y escribiendo.

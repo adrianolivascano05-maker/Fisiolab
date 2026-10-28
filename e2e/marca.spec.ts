@@ -346,4 +346,52 @@ test.describe("Marca de la clínica", () => {
     await expect(report).toContainText("Firma del fisioterapeuta");
     await expect(report.getByRole("img", { name: /^Firma de / })).toHaveCount(0);
   });
+
+  test("MB5 con la identidad de OmniClin (nombre, logo y colores) se cambia solo el aspecto, y se quita", async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.goto("./ajustes/marca");
+    await page.getByRole("radio", { name: /^La de OmniClin/ }).check();
+    // Sin nombre, colores ni logo que rellenar: esas tarjetas no están.
+    await expect(page.getByLabel("Nombre de la clínica")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Subir el logo" })).toHaveCount(0);
+    await page.getByRole("radio", { name: /^Rectas/ }).check();
+    await page.getByRole("radio", { name: /^Del color principal/ }).check();
+    await page.getByRole("radio", { name: /^Vivo/ }).check();
+    await page.getByRole("button", { name: "Guardar la marca" }).click();
+    await expect(page.getByText("Marca guardada: ya se ve en toda la app")).toBeVisible();
+
+    // Sigue siendo OmniClin: título, favicon y nombre en la barra; pero con esquinas rectas, cabecera verde y acabado vivo.
+    await expect(page).toHaveTitle("OmniClin");
+    expect(await page.evaluate(() => document.querySelector<HTMLLinkElement>('link[rel="icon"]')!.href)).not.toMatch(/^data:/);
+    expect((await cssVar(page, "--radius-md")).toLowerCase()).toBe("0px");
+    expect(await cssVar(page, "--color-brand")).toBe("#1F6B4F");
+    expect(await cssVar(page, "--color-accent")).toBe("#1F6B4F");
+    expect(await page.evaluate(() => document.documentElement.dataset.finish)).toBe("vivid");
+    await page.goto("./");
+    await expect(page.getByRole("banner")).toContainText("OmniClin");
+    expect(await page.getByRole("banner").evaluate((el) => getComputedStyle(el).backgroundImage)).toContain("linear-gradient");
+    await expectAccessible(page);
+    await page.emulateMedia({ colorScheme: "dark" });
+    expect(contrast(await cssVar(page, "--color-on-brand"), await cssVar(page, "--color-brand"))).toBeGreaterThanOrEqual(4.5);
+    await expectAccessible(page);
+    await page.emulateMedia({ colorScheme: "light" });
+
+    // Ajustes lo dice así, y en el informe el membrete es el de OmniClin.
+    await page.goto("./ajustes");
+    await expect(page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*OmniClin con tu aspecto/ })).toBeVisible();
+    await createPatient(page, { name: "Marta Identidad" });
+    const patient = page.url().replace(/^.*\/pacientes\//, "./pacientes/");
+    await page.goto(`${patient}/informe`);
+    const report = page.getByRole("article", { name: "Informe" });
+    await expect(report).toContainText("OmniClin");
+    await expect(report.locator("[data-watermark]")).toHaveCount(0);
+
+    // Volver a la marca de OmniClin de siempre: esquinas y acabado de antes.
+    await page.goto("./ajustes/marca");
+    await page.getByRole("button", { name: "Volver a la marca de OmniClin" }).click();
+    await expect(page.getByText("Vuelve la marca de OmniClin")).toBeVisible();
+    expect((await cssVar(page, "--radius-md")).toLowerCase()).toBe("10px");
+    expect(await cssVar(page, "--color-brand")).toBe("#0E3B2E");
+    expect(await page.evaluate(() => document.documentElement.dataset.finish)).toBeUndefined();
+  });
 });
