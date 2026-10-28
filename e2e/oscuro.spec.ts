@@ -50,7 +50,7 @@ test.describe("Modo oscuro", () => {
   test("OS2 Ajustes → Aspecto: claro u oscuro a mano, se recuerda, y automático vuelve a seguir al dispositivo", async ({ page }) => {
     // El dispositivo está en oscuro (test.use arriba): «Claro» lo deja en claro.
     await page.goto("./ajustes");
-    await page.getByRole("region", { name: "App", exact: true }).getByRole("link", { name: /Aspecto.*Automático/ }).click();
+    await page.getByRole("region", { name: "App y datos", exact: true }).getByRole("link", { name: /Aspecto.*Automático/ }).click();
     await expect(page.getByRole("heading", { name: "Aspecto" })).toBeVisible();
     await page.getByRole("radio", { name: /^Claro/ }).check();
     expect(await background(page.locator("body"))).toBe("rgb(242, 244, 241)");

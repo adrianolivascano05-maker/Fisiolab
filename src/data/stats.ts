@@ -1,5 +1,6 @@
 // La clínica en números (src/pages/StatsPage.tsx): sesiones, pacientes nuevos y atendidos, citas y ausencias, altas y,
 // en un equipo, cada profesional. Todo sale de lo registrado en la base del dispositivo; nada se envía a ningún sitio.
+import { dayOf as madridDay } from "../app/dates";
 import type { Db } from "./db";
 
 export type Period = { from: string; to: string };
@@ -23,7 +24,6 @@ export type ClinicStats = {
   packsSold: number;
 };
 
-const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const one = async (db: Db, sql: string, bind: (string | number)[]) => Number((await db.query<{ n: number }>(sql, bind))[0]?.n ?? 0);
 
 /** Los primeros días de `count` meses seguidos que acaban en el mes de `end` (AAAA-MM-01, hora local). */

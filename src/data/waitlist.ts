@@ -3,6 +3,7 @@
 // equipo, con quién. Se ordena y se filtra por todo eso a la vez (filterWaitlist, sortWaitlist). Al anular o borrar
 // una cita, la agenda enseña a quién ofrecérselo, con el mensaje listo para WhatsApp o correo
 // (src/schedule/WaitlistPage.tsx). Quien ya tiene su hueco se quita de la lista.
+import { dayOf } from "../app/dates";
 import type { Db } from "./db";
 
 const newId = () => crypto.randomUUID();
@@ -178,7 +179,7 @@ export function slotOf(iso: string): { date: string; day: number; time: "manana"
   const [hh, mm] = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Europe/Madrid" }).split(":").map(Number) as [number, number];
   const min = (hh % 24) * 60 + mm;
   return {
-    date: d.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }),
+    date: dayOf(d),
     day: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(weekday) + 1,
     time: min < AFTERNOON ? "manana" : "tarde",
     min,
@@ -262,7 +263,7 @@ const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").to
 export const waitingDays = (createdAt: string, now = new Date()) => Math.max(0, Math.floor((now.getTime() - Date.parse(createdAt)) / 86_400_000));
 
 export function filterWaitlist(items: WaitItem[], f: WaitFilters, now = new Date()): WaitItem[] {
-  const today = now.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+  const today = dayOf(now);
   const q = fold(f.q?.trim() ?? "");
   const digits = q.replace(/\D/g, "");
   return items.filter((w) => {

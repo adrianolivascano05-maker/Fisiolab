@@ -3,12 +3,12 @@
 // caen en ningún bono son sueltas y valen el precio de Ajustes → Precios y cobros, solo desde el día en que se puso
 // (así no aparecen deudas de antes). Lo pendiente es lo que vale lo hecho menos lo cobrado. Las cantidades van en
 // céntimos. No son facturas.
+import { dayOf as madridDay } from "../app/dates";
 import type { Db } from "./db";
 import { getSetting, setSetting } from "./repo";
 
 const newId = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
-const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 export type Method = "efectivo" | "tarjeta" | "bizum" | "transferencia" | "otro";

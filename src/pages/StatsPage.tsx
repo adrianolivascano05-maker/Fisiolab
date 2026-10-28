@@ -1,5 +1,6 @@
 // Ajustes → La clínica en números (src/data/stats.ts): lo esencial de un periodo para ver cómo va la consulta. Sesiones,
 // pacientes, ausencias (las que cuestan dinero) y altas; en un equipo, cada profesional. Y las sesiones de cada mes.
+import { monthOf } from "../app/dates";
 import { useTeamMode } from "../cloud/teamMode";
 import { useMemo, useState } from "react";
 import { Page } from "../app/Page";
@@ -30,7 +31,7 @@ function range(id: PeriodId, now = new Date()) {
 const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)} %`);
 const monthShort = (ym: string) => new Date(`${ym}-15T12:00:00`).toLocaleDateString("es-ES", { month: "short" }).replace(".", "");
 const monthLong = (ym: string) => new Date(`${ym}-15T12:00:00`).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
-const thisMonth = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }).slice(0, 7);
+const thisMonth = () => monthOf();
 
 export function StatsPage() {
   const { team } = useTeamMode();

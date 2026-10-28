@@ -11,6 +11,7 @@ import { clinicalRoutes } from "./clinical/routes"; // Ficha clínica: anamnesis
 import { PatientsPage } from "./pages/PatientsPage";
 import { PatientsLayout } from "./app/PatientsLayout";
 import { RouteError } from "./app/RouteError";
+import { RouteFallback } from "./app/RouteFallback";
 import { useDesktop } from "./app/useMediaQuery";
 import { FormInbox } from "./patientForm/FormInbox"; // Respuestas de los pacientes a sus formularios (src/clinical/patientForms.ts)
 import { DocSync } from "./documents/DocSync"; // Archivos del paciente: subir lo pendiente y borrar lo borrado (src/documents)
@@ -76,7 +77,8 @@ const OldLinkPage = lazy(() => import("./app/OldLinkPage").then((m) => ({ defaul
 const ToBillPage = lazy(() => import("./invoices/ToBillPage").then((m) => ({ default: m.ToBillPage })));
 const IssuedInvoicesPage = lazy(() => import("./invoices/IssuedInvoicesPage").then((m) => ({ default: m.IssuedInvoicesPage })));
 const InvoicePage = lazy(() => import("./invoices/InvoicePage").then((m) => ({ default: m.InvoicePage })));
-const l = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
+/** Mientras llega el código de una pantalla: la barra y un esqueleto gris, no una pantalla en blanco. */
+const l = (el: ReactNode) => <Suspense fallback={<RouteFallback />}>{el}</Suspense>;
 
 // En GitHub Pages la app vive en /Fisiolab/; en la raíz del dominio, en /.
 const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";

@@ -3,6 +3,7 @@ import { SyncNotice } from "../cloud/CloudGate";
 import { SyncFloat } from "../cloud/SyncFloat";
 import { Alert } from "../ui/Alert";
 import { SideNav, TabBar, TopBar } from "../ui/AppBar";
+import { SkeletonPage } from "../ui/Skeleton";
 import { useInPane } from "./pane";
 import { cx } from "../ui/cx";
 
@@ -75,12 +76,9 @@ export function Page({ title, backTo, backLabel, action, tabs = true, tone = "de
   );
 }
 
+/** Mientras cargan los datos de una pantalla: un esqueleto gris (src/ui/Skeleton.tsx), no una página en blanco. */
 export function Loading() {
-  return (
-    <p aria-busy="true" className="py-8 text-center text-text-muted">
-      Cargando…
-    </p>
-  );
+  return <SkeletonPage />;
 }
 
 export function LoadError({ error }: { error: Error }) {

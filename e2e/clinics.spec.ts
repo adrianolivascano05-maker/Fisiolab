@@ -622,6 +622,9 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
 
     // El panel del proveedor: da de alta a Carla sin tocar Cloudflare.
     await page.reload();
+    // Sin nada pendiente, Proveedor está plegado en Avanzado (con algo pendiente, Avanzado se abre solo).
+    await expect(page.getByText(/guardado en el dispositivo|en memoria/)).toBeVisible({ timeout: 15_000 });
+    await page.locator("summary").filter({ hasText: "Avanzado" }).click();
     await expect(page.getByRole("link", { name: /Proveedor.*Solicitudes, clínicas, altas, bajas y contrato/ })).toBeVisible({ timeout: 15_000 });
     await page.getByRole("link", { name: /Proveedor/ }).click();
     await expect(page.getByRole("heading", { name: "Proveedor" })).toBeVisible();

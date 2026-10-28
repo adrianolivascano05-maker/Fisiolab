@@ -1,3 +1,4 @@
+import { dayOf as day } from "../app/dates";
 import { ChevronRight, Plus, Rotate3d } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { movementLabel, movements, type Movement } from "../calc/rom";
@@ -9,7 +10,6 @@ import { getPatient, romEntries, type RomEntry } from "../data/repo";
 import { Card } from "../ui/Card";
 import { EmptyState } from "../ui/EmptyState";
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 /** Última medición de cada lado y, si se midieron el mismo día, la diferencia. */
 function latestBySide(entries: RomEntry[]) {

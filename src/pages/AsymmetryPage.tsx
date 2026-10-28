@@ -1,3 +1,4 @@
+import { dayOf } from "../app/dates";
 import { Scale } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { asymmetry } from "../calc/asymmetry";
@@ -15,7 +16,7 @@ type Session = { day: string; left: SideJump | null; right: SideJump | null };
 function sessions(jumps: SideJump[]): Session[] {
   const byDay = new Map<string, Session>();
   for (const j of jumps) {
-    const day = new Date(j.performedAt).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+    const day = dayOf(j.performedAt);
     const s = byDay.get(day) ?? { day, left: null, right: null };
     const current = s[j.side];
     if (!current || j.heightCm > current.heightCm) s[j.side] = j;

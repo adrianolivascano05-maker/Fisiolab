@@ -1,5 +1,6 @@
 // Historia del paciente: sesiones, tests de exploración, mediciones, cuestionarios, bienestar y anamnesis en una
 // sola línea de tiempo, la más reciente primero. Lo que pasa el mismo día se puede agrupar con la sesión de ese día.
+import { dayOf as madridDay } from "../app/dates";
 import { testLabel } from "../app/format";
 import { wellnessTotal } from "../calc/wellness";
 import type { Anamnesis, Finding, Questionnaire, Session } from "../data/clinical";
@@ -10,7 +11,7 @@ import { displayName, kindOf, scoreText, type QDetails } from "./questionnaires"
 export type EventKind = "session" | "finding" | "test" | "questionnaire" | "wellness" | "anamnesis";
 export type TimelineEvent = { kind: EventKind; at: string; title: string; detail: string; to: string; finding?: Finding };
 
-export const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+export { madridDay };
 
 export function buildTimeline(
   patientId: string,

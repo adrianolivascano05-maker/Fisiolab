@@ -9,12 +9,8 @@ export const localInput = (iso: string) => {
   const d = new Date(iso);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
-export const todayDay = () => localInput(new Date().toISOString()).slice(0, 10);
-export const addDays = (day: string, n: number) => {
-  const d = new Date(`${day}T12:00:00`);
-  d.setDate(d.getDate() + n);
-  return localInput(d.toISOString()).slice(0, 10);
-};
+// «Hoy» y sumar días: los de src/app/dates.ts (hora de Madrid), reexportados porque media ficha los importa de aquí.
+export { addDays, todayDay } from "../app/dates";
 export const dayText = (day: string) => fmtDate(`${day}T12:00:00`);
 
 export const sexLabels = { female: "Mujer", male: "Hombre", other: "Otro" } as const;

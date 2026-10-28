@@ -23,8 +23,8 @@ export function decimalText(n: number | null): string {
 /** Sin tildes ni mayúsculas, para buscar texto («Lucía» se encuentra con «lucia»). */
 export const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
-/** AAAA-MM-DD de un instante en la hora de Madrid. */
-export const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+/** AAAA-MM-DD de un instante en la hora de Madrid: el `dayOf` de dates.ts, con el nombre que ya usa media app. */
+export { dayOf as madridDay } from "./dates";
 
 /** Un día AAAA-MM-DD como «24/10/2026»; vacío si no hay. */
 export const dayDmy = (day: string | null | undefined) => (day ? day.split("-").reverse().join("/") : "");

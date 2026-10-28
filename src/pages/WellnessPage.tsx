@@ -1,3 +1,4 @@
+import { dayOf as day } from "../app/dates";
 import { HeartPulse, Trash } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { useParams } from "react-router";
@@ -16,7 +17,6 @@ import { NumberField, TextField } from "../ui/Field";
 import { Scale } from "../ui/Scale";
 import { useToast } from "../ui/Toast";
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const itemLabel = Object.fromEntries(wellnessItems.map((i) => [i.id, i.label])) as Record<WellnessItem, string>;
 const itemShort = Object.fromEntries(wellnessItems.map((i) => [i.id, i.short])) as Record<WellnessItem, string>;
 type Answers = Record<WellnessItem, number | null>;

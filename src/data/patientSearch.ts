@@ -2,6 +2,7 @@
 // email, notas, motivo y diagnóstico), con filtros (edad, sexo, fisio, cita próxima, cuándo vino por última vez, algo
 // pendiente de cobrar o de firmar) y por páginas. Con 10.000 pacientes, la lista trae solo los 50 que se ven.
 // Busca igual que matchesPatient (repo.ts): sin tildes ni mayúsculas, y un teléfono con o sin espacios.
+import { dayOf as madridDay } from "../app/dates";
 import { fold } from "../app/format";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
@@ -90,7 +91,6 @@ const SEARCH_TEXT = `concat_ws(' ', ${ROW_TEXT},
        from episodes e where e.patient_id = p.id))`;
 
 /** AAAA-MM-DD de un instante en la hora de Madrid. */
-const madridDay = (d: Date) => d.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const daysAgo = (now: Date, n: number) => new Date(now.getTime() - n * 86_400_000).toISOString();
 
 /** Las condiciones de la búsqueda y los filtros, con sus valores. `pendingIds`: los que tienen algo pendiente. */

@@ -3,7 +3,7 @@
 // WhatsApp, llamar). Debajo, lo pendiente de la clínica (solo si hay algo): reevaluaciones de hoy o atrasadas, lo que
 // queda sin cobrar y los pacientes de hoy a los que les falta firmar algo; después, las citas de mañana con sus
 // recordatorios y la lista de espera.
-import { CalendarCheck, CalendarClock, CalendarX2, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserX, Wallet, BellRing, Send } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarX2, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserRound, UserX, Wallet, BellRing, Send } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -24,6 +24,7 @@ import { getDb } from "../data/db";
 import { getPatient } from "../data/repo";
 import { waitlistCount } from "../data/waitlist";
 import { Group, RowLink } from "../ui/Grouped";
+import { SkeletonList } from "../ui/Skeleton";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { cx } from "../ui/cx";
@@ -77,7 +78,13 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
   }, [savedSession, forPatient, autoCalendar]);
   const closeOffer = () => setParams({ vista: "hoy" }, { replace: true });
 
-  if (!data.data) return null;
+  if (!data.data)
+    return (
+      <div className="flex flex-col gap-4">
+        <SkeletonList rows={3} />
+        <SkeletonList rows={2} />
+      </div>
+    );
   const { day, reviews, debtors, owes, waiting, unsigned, tomorrow: next } = data.data;
   const debt = debtors.reduce((n, d) => n + d.balanceCents, 0);
   const notReminded = next.filter((a) => !a.remindedAt && !a.confirmedAt).length;
@@ -184,8 +191,7 @@ function TodayRow({ a, owes, onOpen, onCharge }: { a: AgendaItem; owes: number; 
         </span>
       </button>
       {/* Las acciones del día, debajo del nombre: en el móvil el nombre se lee entero. */}
-      {(a.status === "scheduled" || !off) && (
-        <div className="flex gap-2 pr-3 pb-2 pl-11">
+      <div className="flex flex-wrap gap-2 pr-3 pb-2 pl-11">
           {a.status === "scheduled" && (
             <Link
               to={`/pacientes/${a.patientId}/sesiones/nueva?hora=${encodeURIComponent(a.startsAt)}&volver=hoy`}
@@ -204,8 +210,10 @@ function TodayRow({ a, owes, onOpen, onCharge }: { a: AgendaItem; owes: number; 
               <Wallet aria-hidden="true" className="size-4" /> Cobrar
             </button>
           )}
+          <Link to={`/pacientes/${a.patientId}`} aria-label={`Ficha de ${a.name}`} className="tap inline-flex items-center justify-center gap-1 rounded-md px-3 text-sm font-semibold text-accent hover:bg-surface">
+            <UserRound aria-hidden="true" className="size-4" /> Ficha
+          </Link>
         </div>
-      )}
     </li>
   );
 }

@@ -1,3 +1,4 @@
+import { addDays, todayDay } from "../app/dates";
 import { CalendarCheck, ChevronLeft, ChevronRight, Info, Plus, Search, SlidersHorizontal, Users, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
@@ -440,13 +441,8 @@ function Notice({ to, link, children }: { to: string; link: string; children: Re
   );
 }
 
-/** AAAA-MM-DD de hoy más n días, en la hora de Madrid. Se suman días de calendario, no horas: la semana del cambio
- * de hora, sumar 7×24 h cerca de medianoche caía en el día anterior. */
-const dayPlus = (n: number) => {
-  const d = new Date(`${new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" })}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-};
+/** AAAA-MM-DD de hoy más n días (días de calendario, en la hora de Madrid: src/app/dates.ts). */
+const dayPlus = (n: number) => addDays(todayDay(), n);
 
 const BACKUP_EVERY_DAYS = 7;
 

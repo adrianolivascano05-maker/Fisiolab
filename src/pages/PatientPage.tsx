@@ -1,3 +1,4 @@
+import { todayDay } from "../app/dates";
 import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Files, Hourglass, ListChecks, NotebookPen, Scale, Send, ShieldAlert, ShieldCheck, Stethoscope, TriangleAlert, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
@@ -35,9 +36,11 @@ const dayText = (d: string) => fmtDate(`${d}T12:00:00`);
  * anamnesis, la valoración y las sesiones tienen su pestaña. */
 export function PatientPage() {
   const { id = "" } = useParams();
+  // El paciente solo, para pintar su cabecera mientras llega todo lo demás (diez consultas).
+  const head = useAsync(() => getPatient(getDb(), id), [id]);
   const data = useAsync(async () => {
     const db = getDb();
-    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+    const today = todayDay();
     const [patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, waitlist, files] = await Promise.all([
       getPatient(db, id),
       getAnamnesis(db, id),
@@ -56,7 +59,14 @@ export function PatientPage() {
   const cloud = useCloud();
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
-  if (!data.data) return <Page title="Paciente" backTo="/"><Loading /></Page>;
+  if (!data.data)
+    return head.data ? (
+      <PatientShell patient={head.data} id={id}>
+        <Loading />
+      </PatientShell>
+    ) : (
+      <Page title="Paciente" backTo="/"><Loading /></Page>
+    );
   const { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
 

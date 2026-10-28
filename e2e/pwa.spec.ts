@@ -154,14 +154,19 @@ test.describe("PWA: instalable y sin conexión", () => {
 
   test("PWA-E4 ajustes: un menú con cada apartado y cómo está", async ({ page }) => {
     await page.goto("./ajustes");
-    // Cuatro grupos: Clínica, Datos, Seguridad y App, cada uno con lo suyo.
+    // Cuatro grupos de lo diario (Tu clínica, Dinero, Mensajes y formularios, App y datos) y, plegado, Avanzado.
     const groups: [string, RegExp[]][] = [
-      ["Clínica", [/Clínica y protección de datos/, /Precios y cobros/, /Anamnesis de la clínica/, /La clínica en números/]],
-      ["Datos", [/Cuenta de Google/, /Copias y exportar/, /Importar datos/]],
-      ["Seguridad", [/Bloqueo con PIN.*Desactivado/, /Privacidad/]],
-      ["App", [/Instalar la app/, /Cómo se usa/, /Validación de las mediciones/]],
+      ["Tu clínica", [/Clínica y protección de datos/, /Marca de la clínica/, /Anamnesis de la clínica/, /La clínica en números/]],
+      ["Dinero", [/Precios y cobros/, /Para facturar/]],
+      ["Mensajes y formularios", [/Mensajes a pacientes/, /Envíos pendientes/]],
+      ["App y datos", [/Cuenta de Google/, /Copias y exportar/, /Importar datos/, /Bloqueo con PIN.*Desactivado/, /Privacidad/, /Instalar la app/, /Cómo se usa/]],
     ];
     for (const [group, rows] of groups) for (const name of rows) await expect(page.getByRole("region", { name: group, exact: true }).getByRole("link", { name })).toBeVisible();
+    // Lo técnico no estorba: está plegado en Avanzado y se abre con un toque.
+    await expect(page.getByRole("link", { name: /Validación de las mediciones/ })).toBeHidden();
+    await page.locator("summary").filter({ hasText: "Avanzado" }).click();
+    await expect(page.getByRole("region", { name: "Avanzado", exact: true }).getByRole("link", { name: /Validación de las mediciones/ })).toBeVisible();
+    await expect(page.getByText(/Base de datos SQLite/)).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("link", { name: /Cómo se usa/ }).click();
     await expect(page.getByRole("heading", { name: "Cómo se usa" })).toBeVisible();

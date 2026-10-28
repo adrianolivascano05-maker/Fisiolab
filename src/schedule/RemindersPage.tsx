@@ -182,7 +182,10 @@ function ReminderRow({
     <Card role="group" aria-label={`${hourText(a.startsAt)} · ${a.name}`} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <p className="font-semibold">
-          {hourText(a.startsAt)} · {a.name}
+          {hourText(a.startsAt)} ·{" "}
+          <Link to={`/pacientes/${a.patientId}`} className="underline decoration-border-input underline-offset-4 hover:text-accent">
+            {a.name}
+          </Link>
         </p>
         {withWhom && <p className="text-sm text-text-muted">Con {withWhom}</p>}
       </div>

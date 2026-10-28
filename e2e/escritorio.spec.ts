@@ -159,9 +159,9 @@ test.describe("Ordenador", () => {
     const [f, c] = [(await figure.boundingBox())!, (await page.locator("summary").filter({ hasText: "Cómo se hace" }).boundingBox())!];
     expect(c.x).toBeGreaterThan(f.x + f.width);
     await expectAccessible(page);
-    // Ajustes: Clínica y Datos en dos columnas.
+    // Ajustes: Tu clínica y Dinero en dos columnas.
     await page.goto("./ajustes");
-    const [cl, da] = [(await page.getByRole("region", { name: "Clínica" }).boundingBox())!, (await page.getByRole("region", { name: "Datos" }).boundingBox())!];
+    const [cl, da] = [(await page.getByRole("region", { name: "Tu clínica" }).boundingBox())!, (await page.getByRole("region", { name: "Dinero" }).boundingBox())!];
     expect(da.x).toBeGreaterThan(cl.x + cl.width - 1);
     expect(Math.abs(da.y - cl.y)).toBeLessThan(2);
     await expectAccessible(page);

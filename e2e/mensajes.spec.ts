@@ -5,7 +5,7 @@ import { expect, expectAccessible, smallTargets, test } from "./fixtures";
 test.describe("Mensajes a pacientes", () => {
   test("MS1 se edita un mensaje con fichas y firma, se ve en la vista previa, se guarda y lo usa la agenda", async ({ page }) => {
     await page.goto("./ajustes");
-    await page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Mensajes a pacientes/ }).click();
+    await page.getByRole("region", { name: "Mensajes y formularios", exact: true }).getByRole("link", { name: /Mensajes a pacientes/ }).click();
     await expect(page.getByRole("heading", { name: "Mensajes a pacientes" })).toBeVisible();
     const list = page.getByRole("list", { name: "Mensajes" });
     await expect(list.getByRole("button")).toHaveCount(8);

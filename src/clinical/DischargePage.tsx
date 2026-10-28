@@ -1,6 +1,7 @@
 // Informe de alta de un motivo de consulta, para imprimir o guardar en PDF: fechas y número de sesiones, diagnóstico,
 // cómo ha cambiado (dolor, cuestionarios y mediciones, del primero al último), el tratamiento hecho y las
 // recomendaciones al alta (se guardan en su anamnesis, «Recomendaciones al alta»). Más corto que el informe completo.
+import { todayDay } from "../app/dates";
 import { Printer } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams } from "react-router";
@@ -169,14 +170,14 @@ export function DischargePage() {
               const { reportPdf } = await import("./reportPdf");
               return reportPdf(article.current!);
             }}
-            fileName={safeName(`Alta ${patient.name} ${today.slice(0, 10)}.pdf`)}
+            fileName={safeName(`Alta ${patient.name} ${todayDay()}.pdf`)}
             title="Informe de alta de fisioterapia"
           />
           <DriveSaveButton
             label="Guardar en mi Drive (PDF)"
             make={async () => {
               const { reportPdf } = await import("./reportPdf");
-              return { name: safeName(`Alta ${patient.name} ${today.slice(0, 10)}.pdf`), mimeType: "application/pdf", bytes: await reportPdf(article.current!) };
+              return { name: safeName(`Alta ${patient.name} ${todayDay()}.pdf`), mimeType: "application/pdf", bytes: await reportPdf(article.current!) };
             }}
           />
         </div>

@@ -5,6 +5,7 @@ import { SHOW_EXERCISES } from "../app/features";
 import {
   BookOpenCheck,
   Briefcase,
+  ChevronRight,
   Building2,
   ChartColumn,
   ClipboardCheck,
@@ -20,6 +21,7 @@ import {
   MonitorSmartphone,
   Palette,
   ReceiptText,
+  Send,
   ShieldCheck,
   SunMoon,
   UserRound,
@@ -92,9 +94,9 @@ export function SettingsPage() {
 
   return (
     <Page title="Ajustes" tabs>
-      {/* En el ordenador, los cuatro grupos en dos columnas. */}
+      {/* En el ordenador, los cuatro grupos en dos columnas: Tu clínica y Dinero arriba; Mensajes y App y datos debajo. */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
-      <Group title="Clínica">
+      <Group title="Tu clínica">
         <RowLink
           to="/ajustes/clinica"
           icon={Building2}
@@ -115,7 +117,6 @@ export function SettingsPage() {
                 : "La marca de OmniClin · tus colores, tu letra, tu logo y la marca de agua de los documentos"
           }
         />
-        <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle="Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre, ejercicios" />
         {cloud?.clinic && (
           <RowLink
             to="/ajustes/equipo"
@@ -124,14 +125,22 @@ export function SettingsPage() {
             subtitle={solo ? `${cloud.clinic.name} · por mi cuenta (si abres una clínica, añade aquí a tu equipo)` : `${cloud.clinic.name} · ${ROLE_LABELS[cloud.clinic.role]}`}
           />
         )}
-        <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, bonos, lo cobrado y lo pendiente" />
-        <RowLink to="/facturas" icon={ReceiptText} title="Para facturar" subtitle="Los cobros en Excel para tu programa de facturación" />
         <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
         {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
         <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
       </Group>
 
-      <Group title="Datos">
+      <Group title="Dinero">
+        <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, bonos, lo cobrado y lo pendiente" />
+        <RowLink to="/facturas" icon={ReceiptText} title="Para facturar" subtitle="Los cobros en Excel para tu programa de facturación" />
+      </Group>
+
+      <Group title="Mensajes y formularios">
+        <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle="Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre, ejercicios" />
+        <RowLink to="/agenda/envios" icon={Send} title="Envíos pendientes" subtitle="Recordatorios, anamnesis y cuestionarios listos para mandar" />
+      </Group>
+
+      <Group title="App y datos">
         <RowLink
           to="/ajustes/cuenta"
           icon={UserRound}
@@ -148,31 +157,8 @@ export function SettingsPage() {
           tone={!cloud && state.data && !state.data.lastBackup ? "warning" : "accent"}
         />
         <RowLink to="/ajustes/importar" icon={FileSpreadsheet} title="Importar datos" subtitle="De otro programa: pacientes, citas e historial · Excel o CSV" />
-        {cloud?.operator && (
-          <RowLink
-            to="/ajustes/proveedor"
-            icon={Briefcase}
-            title="Proveedor"
-            subtitle={
-              provider.data?.requests
-                ? `${provider.data.requests === 1 ? "1 solicitud de acceso" : `${provider.data.requests} solicitudes de acceso`} por atender`
-                : provider.data?.cloudflare.length
-                  ? `Pendiente en Cloudflare: ${provider.data.cloudflare.map((p) => p.short).join(" y ")}`
-                  : provider.data?.busy
-                    ? `Peticiones de hoy al ${Math.floor(provider.data.busy * 100)} % del límite`
-                    : "Solicitudes, clínicas, altas, bajas y contrato"
-            }
-            warn={!!provider.data?.requests || !!provider.data?.cloudflare.length || !!provider.data?.busy}
-          />
-        )}
-      </Group>
-
-      <Group title="Seguridad">
         <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
         <RowLink to="/privacidad" icon={ShieldCheck} title="Privacidad" subtitle="Qué datos guarda la app y dónde" />
-      </Group>
-
-      <Group title="App">
         <RowLink
           to="/instalar"
           icon={MonitorSmartphone}
@@ -182,10 +168,42 @@ export function SettingsPage() {
         <RowLink to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} />
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
         <RowLink to="/ayuda/fallos" icon={LifeBuoy} title="Algo no funciona" subtitle={errorCount(readErrors().length)} />
-        <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
       </Group>
       </div>
 
+      {/* Lo técnico, plegado: no es del día a día. Abierto solo si hay algo que atender en el panel del proveedor. */}
+      <details className="group" open={!!provider.data?.requests || !!provider.data?.cloudflare.length || !!provider.data?.busy || undefined}>
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-1 text-xs font-semibold tracking-wide text-text-muted uppercase [&::-webkit-details-marker]:hidden" style={{ fontFamily: "var(--font-sans)" }}>
+          <ChevronRight aria-hidden="true" className="size-4 transition-transform group-open:rotate-90" />
+          Avanzado
+          {(!!provider.data?.requests || !!provider.data?.cloudflare.length || !!provider.data?.busy) && <span aria-hidden="true" className="size-2 rounded-full bg-warning" />}
+        </summary>
+        <div className="mt-1.5 flex flex-col gap-4">
+          <Group label="Avanzado">
+            {cloud?.operator && (
+              <RowLink
+                to="/ajustes/proveedor"
+                icon={Briefcase}
+                title="Proveedor"
+                subtitle={
+                  provider.data?.requests
+                    ? `${provider.data.requests === 1 ? "1 solicitud de acceso" : `${provider.data.requests} solicitudes de acceso`} por atender`
+                    : provider.data?.cloudflare.length
+                      ? `Pendiente en Cloudflare: ${provider.data.cloudflare.map((p) => p.short).join(" y ")}`
+                      : provider.data?.busy
+                        ? `Peticiones de hoy al ${Math.floor(provider.data.busy * 100)} % del límite`
+                        : "Solicitudes, clínicas, altas, bajas y contrato"
+                }
+                warn={!!provider.data?.requests || !!provider.data?.cloudflare.length || !!provider.data?.busy}
+              />
+            )}
+            <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
+            <RowLink to="/ajustes/datos" icon={Database} title="Datos de prueba" subtitle="Pacientes inventados para probar la app (en Copias y exportar)" />
+          </Group>
+        </div>
+      </details>
+
+      {/* Siempre a la vista: dice si los datos están guardados en el dispositivo o solo en memoria. */}
       {state.data && (
         <p className="text-xs text-text-muted">
           Base de datos SQLite {state.data.info.sqliteVersion} · esquema v{state.data.info.schemaVersion} ·{" "}

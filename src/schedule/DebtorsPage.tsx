@@ -1,6 +1,6 @@
 // Agenda › Hoy › «Sin cobrar»: quién tiene algo pendiente en toda la clínica (sesiones sueltas sin pagar y bonos sin
 // cobrar) y, con un toque, su cuenta. Vuelve a Hoy.
-import { Wallet } from "lucide-react";
+import { UserRound, Wallet } from "lucide-react";
 import { Link } from "react-router";
 import { useDataVersion } from "../app/dataVersion";
 import { fmtDate } from "../app/format";
@@ -46,13 +46,16 @@ export function DebtorsPage() {
           </p>
           <ul aria-label="Pendiente de cobro" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
             {data.data.debtors.map((x) => (
-              <li key={x.patientId}>
-                <Link to={`/pacientes/${x.patientId}/cobros`} className="flex min-h-14 items-center gap-3 px-3 py-2 hover:bg-surface">
+              <li key={x.patientId} className="flex items-stretch">
+                <Link to={`/pacientes/${x.patientId}/cobros`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2 hover:bg-surface">
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold">{x.name}</span>
                     <span className="block text-sm text-text-muted">{x.lastPaidOn ? `Último cobro el ${fmtDate(`${x.lastPaidOn}T12:00:00`)}` : "Sin cobros"}</span>
                   </span>
                   <span className="font-semibold tabular-nums">{euros(x.balanceCents)}</span>
+                </Link>
+                <Link to={`/pacientes/${x.patientId}`} aria-label={`Ficha de ${x.name}`} className="tap flex items-center justify-center border-l border-border px-3 text-accent hover:bg-surface">
+                  <UserRound aria-hidden="true" className="size-5" />
                 </Link>
               </li>
             ))}

@@ -90,10 +90,13 @@ export function TopBar({
           >
             {title}
           </span>
-        ) : (
+        ) : title ? (
           <h1 className={cx("line-clamp-2 text-center font-semibold", title.length > 22 ? "text-sm leading-tight" : "text-base")} style={{ fontFamily: "var(--font-sans)" }}>
             {title}
           </h1>
+        ) : (
+          // Mientras llega la pantalla (RouteFallback): el hueco del título, latiendo.
+          <span aria-hidden="true" className="mx-auto block h-4 w-28 animate-pulse rounded-md bg-on-brand/20" />
         )}
         <div className="flex min-w-0 items-center justify-end gap-1">{action}</div>
       </div>

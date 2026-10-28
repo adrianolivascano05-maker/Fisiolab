@@ -1,5 +1,6 @@
 // Medición libre biomecánica: vídeo → pose 3D por fotograma → esqueleto superpuesto → ángulo
 // dinámico entre una referencia (plomada o eje del cuerpo) y un segmento que se mueve.
+import { todayDay } from "../app/dates";
 import { Crosshair, Download, FlaskConical, Hand, Play, Save, ScanLine, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -680,7 +681,7 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
               icon={<Download aria-hidden="true" className="size-5" />}
               onClick={() =>
                 download(
-                  `medicion-libre-${new Date().toISOString().slice(0, 10)}.csv`,
+                  `medicion-libre-${todayDay()}.csv`,
                   reportCsv(
                     {
                       id: "",

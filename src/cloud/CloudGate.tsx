@@ -2,6 +2,7 @@
 // en la app sin cuenta; cada cuenta abre su base en el dispositivo y la junta con su copia de Google Drive o, con el
 // servidor de Cloudflare, cada cuenta elige su clínica (clinic.ts) y trabaja con la base que comparte su equipo.
 // Sin la nube activada no hace nada: la app funciona solo en el dispositivo, como siempre.
+import { BootFallback } from "../app/RouteFallback";
 import { setPendingMode, type ClinicMode } from "./teamMode";
 import { Building2, ChevronRight, CloudOff, History, LogIn, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
@@ -336,7 +337,7 @@ export function CloudGate({ children }: { children: ReactNode }) {
 
   switch (phase.kind) {
     case "loading":
-      return null;
+      return <BootFallback />;
     case "local":
       return children;
     case "wait":

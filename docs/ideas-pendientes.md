@@ -568,3 +568,27 @@ máquina de 4 núcleos) a veces cae 1 de 170 y en solitario pasa siempre:
 - Largo plazo: área del paciente por enlace; segundo idioma
   si sale de Fisiolab. Videoconsulta: no, salvo que el equipo la pida.
 - Argumento a explicar en Ajustes («Tus datos»): exportación completa, sin permanencia, cifrado.
+
+## Revisión a fondo del 28-10-2026: tanda «un día» (hecha el 28-10-2026)
+
+De la revisión de solo lectura (`REVISION_APP_2026-10-28.md`, hecha por otro chat sobre el commit `9ab0c3f`), lo
+visible al momento y de poco riesgo:
+
+- **Enlaces a la ficha.** Desde la hoja de una cita («Ver la ficha de …»), desde cada cita de Agenda › Hoy (botón
+  «Ficha» junto a Atender y Cobrar, también en citas anuladas o atendidas), desde Recordatorios y Envíos (el nombre
+  del paciente es un enlace) y desde Sin cobrar (icono de ficha al lado de cada fila, que sigue llevando a sus cobros).
+- **Esqueletos de carga.** Mientras llega el código de una pantalla (`RouteFallback`) o sus datos (`Loading`), barras
+  grises que laten en vez de una pantalla en blanco; Agenda › Hoy igual; la ficha pinta la cabecera del paciente antes
+  de que lleguen sus diez consultas. `src/ui/Skeleton.tsx`.
+- **Ajustes en cuatro grupos** (Tu clínica, Dinero, Mensajes y formularios, App y datos) y un **Avanzado** plegado
+  (Proveedor, Validación de las mediciones, Datos de prueba y la versión de la base), que se abre solo si el panel del
+  proveedor tiene algo pendiente.
+- **Un solo «hoy».** `src/app/dates.ts` (`todayDay`, `dayOf`, `addDays`, `monthOf`, siempre en la hora de Madrid)
+  sustituye a las tres definiciones que había (hora del dispositivo en `pageKit`, UTC en el selector de motivos y en
+  el alta, Madrid en `format.ts`) y a las copias locales de «día de Madrid» repartidas por `data/` y `pages/`;
+  `madridDay`, `todayDay` y `addDays` se siguen importando de donde siempre (reexportados). Prueba `dates.test.ts`
+  (medianoche UTC frente a Madrid, cambios de hora, meses).
+
+Pendiente de esa revisión: la tanda de rendimiento (`useAsync` selectivo, saldo pendiente en SQL, N+1 de Hoy,
+`FormInbox` perezoso), la de «vender con garantías» (registro de accesos, borrado remoto, historial de cambios,
+copia cifrada, rate limit) y la de limpieza (`worker.js` por partes, `AppointmentSheet`, `CloudGate`, `repo.ts`).

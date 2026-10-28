@@ -1,5 +1,6 @@
 // Descargar todo (fullExport.ts): la historia clínica legible de cada paciente, sus archivos (informes y pruebas en
 // PDF), un Excel con todo, los datos para otro programa y la copia de OmniClin, en un .zip. Se usa en Ajustes → Copias y exportar y al borrar una clínica.
+import { todayDay } from "../app/dates";
 import { Archive } from "lucide-react";
 import { useState } from "react";
 import { getDb } from "../data/db";
@@ -10,7 +11,7 @@ import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
 import { saveFile } from "../app/download";
 
-const stamp = () => new Date().toISOString().slice(0, 10);
+const stamp = () => todayDay();
 
 export function FullExportButton({
   name,

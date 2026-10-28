@@ -140,7 +140,7 @@ const places: { icon: typeof Users; name: string; text: string }[] = [
     name: "Biblioteca",
     text: "los tests de exploración por articulación, los cuestionarios (qué mide cada uno, sus preguntas y sus permisos) y las mediciones. Un buscador para todo. Si llegas desde la ficha de un paciente, «Registrar el resultado», «Pasar a…» y «Medir en…» van a su ficha; si no, eliges el paciente.",
   },
-  { icon: Settings, name: "Ajustes", text: "tu cuenta, los datos de la clínica, el PIN, las copias y la instalación. Un punto rojo avisa si falta algo." },
+  { icon: Settings, name: "Ajustes", text: "en cuatro grupos: Tu clínica, Dinero, Mensajes y formularios, y App y datos (cuenta, copias, PIN, instalación). Lo técnico va plegado en Avanzado. Un punto rojo avisa si falta algo." },
 ];
 
 export function HelpPage() {

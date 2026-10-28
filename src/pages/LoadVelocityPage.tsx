@@ -1,3 +1,4 @@
+import { dayOf as day } from "../app/dates";
 import { Dumbbell, Trash } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
@@ -16,7 +17,6 @@ import { EmptyState } from "../ui/EmptyState";
 import { NumberField, SelectField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 /** S14 Perfil carga-velocidad y 1RM estimado */
 export function LoadVelocityPage() {

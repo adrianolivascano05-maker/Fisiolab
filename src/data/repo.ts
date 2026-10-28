@@ -1,5 +1,6 @@
 // Capa de datos: una función por operación.
 // Las pantallas solo hablan con estas funciones, nunca con SQL.
+import { dayOf as madridDay } from "../app/dates";
 import { computeJump, type JumpOutput, type JumpType, type MarkEvent, type MarkInput } from "../calc/results";
 import { fvProfile, type FvProfile, type Point } from "../calc/profile";
 import { getMovement, methodLabels, movementLabel, romTypeFor, summarize, type RomMethod, type RomType } from "../calc/rom";
@@ -748,7 +749,6 @@ export async function listLoadVelocityProfiles(db: Db, patientId: string, exerci
 export type WellnessInput = WellnessScores & { pain: number | null; notes: string };
 export type WellnessEntry = WellnessInput & { id: string; performedAt: string };
 
-const madridDay = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 /** Un registro por día: si ya hay uno hoy, se actualiza. Devuelve su id. */
 export async function saveWellness(db: Db, patientId: string, input: WellnessInput, at = new Date()): Promise<string> {

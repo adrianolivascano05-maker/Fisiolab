@@ -145,7 +145,9 @@ export function OutboxPage() {
                 {list.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="font-semibold">{i.name}</span>
+                      <Link to={`/pacientes/${i.patientId}`} className="self-start font-semibold underline decoration-border-input underline-offset-4 hover:text-accent">
+                        {i.name}
+                      </Link>
                       <span className="text-sm text-text-muted first-letter:uppercase">{itemWhen(i)}</span>
                       {i.kinds && <span className="text-sm text-text-muted">{i.kinds.map(formTitle).join(", ")}</span>}
                       {i.contact === null && <span className="text-xs text-warning">Sin permiso de contacto apuntado</span>}
@@ -254,7 +256,11 @@ function SendStep({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="font-semibold">{item.name}</p>
+        <p className="font-semibold">
+          <Link to={`/pacientes/${item.patientId}`} className="underline decoration-border-input underline-offset-4 hover:text-accent">
+            {item.name}
+          </Link>
+        </p>
         <p className="text-sm text-text-muted">
           {RULE_LABELS[item.rule].title} · <span className="first-letter:uppercase">{itemWhen(item)}</span>
         </p>

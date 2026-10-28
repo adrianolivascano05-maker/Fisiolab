@@ -1,3 +1,4 @@
+import { dayOf as day } from "../app/dates";
 import { RotateCcw } from "lucide-react";
 import { Link } from "react-router";
 import { CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from "recharts";
@@ -12,7 +13,6 @@ import { Card, MetricCard } from "../ui/Card";
 
 const linkPrimary = "inline-flex h-14 items-center justify-center gap-2 rounded-md bg-accent px-6 text-lg text-on-accent hover:bg-accent-hover";
 const linkSecondary = "inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border-input px-4 font-semibold hover:bg-surface";
-const day = (iso: string) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const m = (d: number) => `${fmt(d, d % 1 ? 1 : 0)} m`;
 
 function Meta({ test }: { test: Test }) {

@@ -1,5 +1,6 @@
 // Consentimientos informados de un paciente (src/consent/README.md): los firmados, los que propone su anamnesis
 // y los demás; prepararlos con lo que se va a hacer, firmarlos en la pantalla o en papel, imprimirlos y retirarlos.
+import { todayDay as today } from "../app/dates";
 import { FilePen, Printer, ShieldAlert, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
@@ -27,7 +28,6 @@ import { precautionLabel } from "./precautions";
 import { buildSections, TEMPLATES, templateById } from "./templates";
 import type { ConsentContext, ConsentDocument, ConsentTemplate } from "./types";
 
-const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const base = (id: string) => `/pacientes/${id}/consentimientos`;
 
 /** El paciente, su anamnesis (del motivo que se ve) y lo que importa para los consentimientos. */

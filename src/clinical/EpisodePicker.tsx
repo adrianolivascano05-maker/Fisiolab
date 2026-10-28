@@ -1,5 +1,6 @@
 // El motivo de consulta en la cabecera de la ficha: qué motivo se está viendo (las pestañas enseñan solo lo suyo),
 // cambiar a otro o a todos, empezar uno nuevo con su propia anamnesis, y darle nombre, cerrarlo o borrarlo.
+import { todayDay as today } from "../app/dates";
 import { Check, ChevronDown, Plus } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router";
@@ -25,7 +26,6 @@ KEEP.delete("fecha_valoracion");
 // La fisioterapia previa es de su historia, no solo de este motivo.
 KEEP.add("fisio_previa");
 
-const today = () => new Date().toISOString().slice(0, 10);
 const records = (n: number | undefined) => (!n ? "sin registros" : n === 1 ? "1 registro" : `${n} registros`);
 
 export function EpisodePicker({ patientId }: { patientId: string }) {

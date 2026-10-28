@@ -1,6 +1,7 @@
 // Protección de datos de un paciente: el texto informativo para firmar en la pantalla o imprimir y firmar en papel, y
 // lo que se registra en la app (cuándo se le entregó, quién firmó y sus consentimientos opcionales: fotos y vídeos,
 // WhatsApp, docencia). Lo firmado en la pantalla se guarda tal cual, con la firma; las hojas anteriores se conservan.
+import { todayDay as today } from "../app/dates";
 import { FilePen, Printer, ShieldCheck } from "lucide-react";
 import { TopBar } from "../ui/AppBar";
 import { useEffect, useState } from "react";
@@ -34,7 +35,6 @@ import { cx } from "../ui/cx";
 import { liveNotice, PrivacyNotice, type NoticeData, type Storage } from "./PrivacyNotice";
 import { PRIVACY_TEXT_VERSION } from "./privacyText";
 
-const today = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 export function PatientPrivacyPage() {
   const { id = "" } = useParams();

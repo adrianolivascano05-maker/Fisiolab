@@ -1,6 +1,7 @@
 // Lo común a todas las pantallas de la ficha de un paciente: «‹ Pacientes» (o «‹ Lista de espera», si se llegó desde
 // ella) y «Editar» arriba, su cabecera (iniciales, nombre, datos, el motivo de consulta que se está viendo, quién lo
 // lleva, la próxima cita o «Dar cita», WhatsApp y lo que debe) y las pestañas, que se quedan fijas arriba al bajar.
+import { todayDay } from "../app/dates";
 import { CalendarCheck, CalendarPlus, MessageCircle, Wallet } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router";
@@ -38,7 +39,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
   const wa = patient && patient.privacy.consents?.contact !== false ? waPhone(patient.phone) : null;
   const version = useDataVersion();
   const owes = useAsync(async () => {
-    const a = await patientAccount(getDb(), id, new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }));
+    const a = await patientAccount(getDb(), id, todayDay());
     return a.balanceCents > 0 ? a.balanceCents : 0;
   }, [id, version]);
   const name = patient?.name ?? "Paciente";

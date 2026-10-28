@@ -34,11 +34,15 @@ test.describe("Agenda y seguimiento", () => {
     const today = page.getByRole("region", { name: "Citas de hoy" });
     await expect(today.getByRole("button", { name: /^\d\d:\d\d · / })).toHaveText([/11:00 · Bruno Falta.*45 min/, /12:30 · Ana Agenda.*45 min/]);
     await expect(today.getByRole("link", { name: "Atender" })).toHaveCount(2);
+    // Desde Hoy se llega a la ficha de cada paciente (antes la agenda era un callejón sin salida).
+    await expect(today.getByRole("link", { name: "Ficha de Ana Agenda" })).toHaveAttribute("href", /\/pacientes\/[^/]+$/);
     await expectAccessible(page);
 
     // Bruno no viene.
     await today.getByRole("button", { name: /^11:00 · Bruno Falta/ }).click();
     const sheet = page.getByRole("dialog", { name: "Cita de Bruno Falta" });
+    // Y desde la hoja de la cita, también.
+    await expect(sheet.getByRole("link", { name: /^Ver la ficha de Bruno Falta/ })).toHaveAttribute("href", /\/pacientes\/[^/]+$/);
     await expectAccessible(page);
     await sheet.getByRole("button", { name: "No vino" }).click();
     // Se ofrece darle otra cita o deshacerlo.
@@ -62,6 +66,9 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByText(/Sesión registrada/)).toBeVisible();
     await expect(today.getByRole("button", { name: /^12:30 · Ana Agenda/ })).toContainText("Atendida");
     await expect(today.getByRole("link", { name: "Atender" })).toHaveCount(0);
+    // La ficha, a un toque desde la cita ya atendida.
+    await today.getByRole("link", { name: "Ficha de Ana Agenda" }).click();
+    await expect(page.getByRole("heading", { name: "Ana Agenda" })).toBeVisible();
   });
 
   test("AG2 cambiar y anular una cita desde la ficha", async ({ page }) => {
@@ -242,7 +249,7 @@ test.describe("Agenda y seguimiento", () => {
     await wa.click();
     await expect(ana.getByText(/Recordada a las/)).toBeVisible();
     const luis = page.getByRole("group", { name: "11:30 · Luis Correo" });
-    await expect(luis.getByRole("link", { name: "Correo" })).toHaveAttribute("href", /^mailto:luis@correo\.test\?subject=Recordatorio/);
+    await expect(luis.getByRole("link", { name: "Correo", exact: true })).toHaveAttribute("href", /^mailto:luis@correo\.test\?subject=Recordatorio/);
     await luis.getByRole("button", { name: "Ha confirmado que viene" }).click();
     await expect(luis.getByText("Confirmada")).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "2 citas pendientes" })).toContainText("1 recordada · 1 confirmada");

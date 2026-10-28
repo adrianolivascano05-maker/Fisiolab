@@ -124,7 +124,7 @@ test.describe("Marca de la clínica", () => {
   test("MB1 dos colores y un nombre visten toda la app, con contraste, sin parpadeo, y se quitan", async ({ page }) => {
     test.setTimeout(120_000);
     await page.goto("./ajustes");
-    await page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*La marca de OmniClin/ }).click();
+    await page.getByRole("region", { name: "Tu clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*La marca de OmniClin/ }).click();
     await expect(page.getByRole("heading", { name: "Marca de la clínica" })).toBeVisible();
     await expectAccessible(page);
 
@@ -143,7 +143,7 @@ test.describe("Marca de la clínica", () => {
     await expect(page).toHaveTitle("Fisioterapia Ruiz");
     expect(await page.evaluate(() => document.querySelector<HTMLLinkElement>('link[rel="icon"]')!.href)).toMatch(/^data:image\/png/);
     await page.goto("./ajustes");
-    await expect(page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*Fisioterapia Ruiz/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Tu clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*Fisioterapia Ruiz/ })).toBeVisible();
     await page.goto("./");
     await expect(page.getByRole("banner")).toContainText("Fisioterapia Ruiz");
     await expectAccessible(page);
@@ -378,7 +378,7 @@ test.describe("Marca de la clínica", () => {
 
     // Ajustes lo dice así, y en el informe el membrete es el de OmniClin.
     await page.goto("./ajustes");
-    await expect(page.getByRole("region", { name: "Clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*OmniClin con tu aspecto/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Tu clínica", exact: true }).getByRole("link", { name: /Marca de la clínica.*OmniClin con tu aspecto/ })).toBeVisible();
     await createPatient(page, { name: "Marta Identidad" });
     const patient = page.url().replace(/^.*\/pacientes\//, "./pacientes/");
     await page.goto(`${patient}/informe`);

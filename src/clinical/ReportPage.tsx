@@ -1,5 +1,6 @@
 // Informe del paciente para imprimir o guardar en PDF desde el navegador: datos, anamnesis, exploración,
 // evolución del dolor, mediciones (con la simetría entre lados), cuestionarios y sesiones. Se eligen los apartados; en papel solo sale el informe.
+import { todayDay } from "../app/dates";
 import { Printer } from "lucide-react";
 import { TopBar } from "../ui/AppBar";
 import { useRef, useState, type ReactNode } from "react";
@@ -147,7 +148,7 @@ export function ReportPage() {
               const { reportPdf } = await import("./reportPdf");
               return reportPdf(article.current!);
             }}
-            fileName={safeName(`Informe ${patient.name} ${today.slice(0, 10)}.pdf`)}
+            fileName={safeName(`Informe ${patient.name} ${todayDay()}.pdf`)}
             title="Informe de fisioterapia"
           />
           <DriveSaveButton
@@ -155,7 +156,7 @@ export function ReportPage() {
             make={async () => {
               const { reportPdf } = await import("./reportPdf");
               return {
-                name: safeName(`Informe ${patient.name} ${today.slice(0, 10)}.pdf`),
+                name: safeName(`Informe ${patient.name} ${todayDay()}.pdf`),
                 mimeType: "application/pdf",
                 bytes: await reportPdf(article.current!),
               };

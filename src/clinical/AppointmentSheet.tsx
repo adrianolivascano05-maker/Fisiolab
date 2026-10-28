@@ -1,7 +1,7 @@
 // Dar, cambiar o cerrar una cita (src/data/appointments.ts): desde la cabecera de la ficha (la próxima cita o «Dar
 // cita») y desde la agenda de hoy en Pacientes. Al cambiar algo se recargan las pantallas (y, con la cuenta de
 // Google, el calendario se pone al día solo). En una clínica, también con quién es (el horario, src/schedule).
-import { CalendarClock, CalendarX2, ChevronDown, FileCheck, Hourglass, Mail, MessageCircle, NotebookPen, Pencil, Phone, RotateCcw, Trash, UserPlus, UserX, Wallet } from "lucide-react";
+import { CalendarClock, CalendarX2, ChevronDown, FileCheck, Hourglass, Mail, MessageCircle, NotebookPen, Pencil, Phone, RotateCcw, Trash, UserPlus, UserRound, UserX, Wallet, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
@@ -337,6 +337,13 @@ export function AppointmentSheet({
             </p>
           )}
           {lastEdit && <p className="text-xs text-text-muted">Última modificación: {editText(lastEdit)}</p>}
+          {/* Desde la cita, a la ficha: antes la agenda era un callejón sin salida. */}
+          <Link to={`/pacientes/${patientId}`} onClick={onClose} className="-mx-1 flex min-h-11 items-center justify-between gap-2 rounded-md px-1 font-semibold text-accent hover:bg-surface">
+            <span className="flex items-center gap-2">
+              <UserRound aria-hidden="true" className="size-5" /> Ver la ficha de {name}
+            </span>
+            <ChevronRight aria-hidden="true" className="size-5" />
+          </Link>
 
           {/* Antes del día de la cita: recordarla. El día de la cita (o después, sin marcar): atenderla. */}
           {phase === "future" && extra.data && (

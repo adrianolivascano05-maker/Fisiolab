@@ -1,3 +1,4 @@
+import { BootFallback } from "./RouteFallback";
 import { CopyX } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { loadBrand } from "../brand/brand";
@@ -41,7 +42,7 @@ export function DbGate({ children }: { children: ReactNode }) {
     };
   }, []);
   if (state === "checking") {
-    if (!slow) return null;
+    if (!slow) return <BootFallback />;
     return (
       <main className="mx-auto flex min-h-dvh max-w-[var(--layout-content-max)] flex-col justify-center p-4">
         <p aria-busy="true" className="text-center text-text-muted">

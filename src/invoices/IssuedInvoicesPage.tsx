@@ -1,6 +1,7 @@
 // Para facturar › Facturas hechas con la app: las que se hicieron con la app antes del 24-10-2026, en solo lectura
 // (src/data/invoices.ts). Por año, con sus totales, la comprobación de la numeración y de las huellas y su libro para
 // la gestoría. Las facturas nuevas se hacen con el programa de facturación de la clínica (ToBillPage.tsx).
+import { todayDay } from "../app/dates";
 import { Download, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
@@ -17,7 +18,7 @@ import { saveFile } from "../app/download";
 import { dayDmy } from "../app/format";
 
 export function IssuedInvoicesPage() {
-  const thisYear = Number(new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }).slice(0, 4));
+  const thisYear = Number(todayDay().slice(0, 4));
   const [year, setYear] = useState(thisYear);
   const data = useAsync(async () => {
     const db = getDb();

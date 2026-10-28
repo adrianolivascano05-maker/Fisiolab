@@ -4,6 +4,7 @@
 // calificador y sus factores personales), sus cuestionarios con cómo se leen y qué valoran dicho con las categorías
 // de la CIF, el diagnóstico fisioterapéutico y lo que se le ha hecho. Sale redactada con lo que hay
 // en la ficha en ese momento y todo se puede cambiar antes de imprimirla o enviarla; no se guarda.
+import { todayDay } from "../app/dates";
 import { Printer } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router";
@@ -131,7 +132,7 @@ export function ReferralPage() {
     ["Edad", years !== null ? `${years} años` : "—"],
     ...(patient.phone ? [["Teléfono", patient.phone] as [string, string]] : []),
   ];
-  const fileName = safeName(`Derivacion ${patient.name} ${today.slice(0, 10)}.pdf`);
+  const fileName = safeName(`Derivacion ${patient.name} ${todayDay()}.pdf`);
 
   return (
     <div className="min-h-dvh bg-canvas print:bg-white">
