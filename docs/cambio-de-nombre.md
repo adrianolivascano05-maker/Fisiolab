@@ -76,7 +76,7 @@ Con cuidado:
 - Documentación (no la ve el usuario final, pero conviene tenerla al día): `RESUMEN.md`, `docs/*.md`,
   `cloudflare/README.md`, `src/*/README.md`, `.github/workflows/pages.yml` (comentarios).
 
-Las pruebas que buscan esos textos también hay que cambiarlas a la vez: \`git grep -l -E "(Cénit|Cenit)" -- e2e src/**/*.test.ts\`.
+Las pruebas que buscan esos textos también hay que cambiarlas a la vez: `git grep -l -E "(Cénit|Cenit)" -- e2e src/**/*.test.ts`.
 
 ## 2. Fuera del código (lo cambias tú en cada panel)
 
