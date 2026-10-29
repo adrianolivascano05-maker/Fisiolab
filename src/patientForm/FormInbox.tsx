@@ -4,7 +4,7 @@
 // la conexión). Sin servidor, nada.
 import { useCallback, useEffect, useRef } from "react";
 import { bumpData } from "../app/dataVersion";
-import { formTitle } from "../clinical/patientForms";
+import { formTitle, isSignKind, PRIVACY_KIND } from "../clinical/patientForms";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud, useSyncState } from "../cloud/cloudContext";
@@ -37,6 +37,10 @@ export function useCollectForms(): () => Promise<number | null> {
         for (const g of got) {
           if (g.files !== undefined) {
             toast(`${g.name || "Un paciente"} ha enviado ${g.files === 1 ? "1 archivo" : `${g.files} archivos`}: está${g.files === 1 ? "" : "n"} en sus archivos`, "success");
+            continue;
+          }
+          if (isSignKind(g.kind)) {
+            toast(`${g.name || "Un paciente"} ha firmado ${g.kind === PRIVACY_KIND ? "la hoja de protección de datos" : "un consentimiento informado"} en su móvil: está en su ficha`, "success");
             continue;
           }
           const extra = g.incomplete ? " (incompleto: sin nota)" : g.skipped ? ` · ${g.skipped === 1 ? "1 respuesta no se puso" : `${g.skipped} no se pusieron`}: ya había algo escrito` : "";

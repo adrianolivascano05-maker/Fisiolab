@@ -38,7 +38,8 @@ export type SignedPrivacySheet = {
   /** Día de la firma (AAAA-MM-DD) y momento exacto (ISO). */
   date: string;
   at: string;
-  method: "screen";
+  /** En la pantalla de la clínica o en su móvil, por un enlace (src/patientForm). */
+  method: "screen" | "link";
   patientName: string;
   /** Firma su representante legal (menores de 16 años, tutela): su nombre. */
   signedBy?: string;
@@ -85,6 +86,8 @@ export async function signPrivacySheet(db: Db, patientId: string, privacy: Patie
   const [row] = await db.query<{ privacy: string | null }>("select privacy from patients where id = ?", [patientId]);
   if (!row) throw new RangeError("Este paciente no existe.");
   const before = parsePrivacy(row.privacy).sheets ?? [];
+  // La misma firma que llega dos veces (dos dispositivos recogiendo el mismo enlace a la vez) no se repite.
+  if (before.some((s) => s.at === sheet.at && s.signature === sheet.signature)) return;
   await savePatientPrivacy(db, patientId, { ...privacy, informedAt: sheet.date, sheets: [...before, sheet] });
 }
 

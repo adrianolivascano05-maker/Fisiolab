@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { ANAMNESIS, withCustom } from "../clinical/anamnesis";
-import { ANAMNESIS_KIND, DOCS_KIND, formLink, formMessage, mergeAnamnesis, newFormId, newFormKey, patientSections, seal, unseal } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, CONSENT_PREFIX, DOCS_KIND, formLink, PRIVACY_KIND, formMessage, mergeAnamnesis, newFormId, newFormKey, patientSections, seal, unseal } from "../clinical/patientForms";
 import { ServerError } from "../cloud/remote";
 import { listDocuments } from "../data/documents";
 import { getAnamnesis, listQuestionnaires, saveAnamnesis } from "../data/clinical";
 import { addSentForm, cancelSentForm, formStatus, getSentForm } from "../data/patientForms";
-import { createPatient } from "../data/repo";
+import { createPatient, getPatient } from "../data/repo";
+import { listConsents } from "../data/consents";
+import { emptyClinic } from "../data/privacy";
+import { privacyToSign } from "../privacy/toSign";
 import { createTestDb } from "../data/testDb";
 import { collectAnswered, type FormsApi } from "./collect";
 
@@ -187,5 +190,66 @@ describe("formularios para el paciente", () => {
     expect((await getSentForm(db, id))?.answers).toEqual({ docs: [{ n: 1, name: "Resonancia rodilla", size: 120_000 }, { n: 2, name: "Analítica", size: 50_000 }] });
     // El mensaje para pedírselos.
     expect(formMessage({ name: "Nora", clinic: "Fisiolab", kind: DOCS_KIND, url: "https://x/formulario/a#b", expiresAt: at })).toMatch(/^Hola Nora: desde Fisiolab te pedimos que nos envíes tus informes o pruebas \(en PDF o en foto\)/);
+  });
+
+  it("la hoja de protección de datos firmada en su móvil vuelve entera, con su versión, sus permisos y la firma", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Nora Enlace"));
+    const exp = new Date(Date.now() + 86_400_000).toISOString();
+    const p = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: p.id, patientId: pid, episodeId: pid, kind: PRIVACY_KIND, key: p.key, expiresAt: exp });
+    const toSign = privacyToSign({ ...emptyClinic, name: "Fisio Prueba", email: "datos@prueba.test" }, "server", { name: "Nora Enlace", privacy: {} });
+    const png = "data:image/png;base64,iVBORw0KGgo=";
+    const at = "2026-10-29T10:00:00.000Z";
+    const { api, removed } = server([{ id: p.id, response: await seal({ v: 1, answers: { privacy: toSign, consents: { contact: true, images: false, research: false }, signature: png } }, p.key), answeredAt: at }]);
+    const got = await collectAnswered(db, api, ANAMNESIS);
+    expect(got).toEqual([expect.objectContaining({ kind: PRIVACY_KIND })]);
+    expect(removed).toEqual([p.id]);
+    const privacy = (await getPatient(db, pid))!.privacy;
+    expect(privacy.consents).toEqual({ contact: true, images: false, research: false });
+    expect(privacy.informedAt).toBe("2026-10-29");
+    expect(privacy.sheets).toHaveLength(1);
+    expect(privacy.sheets![0]).toMatchObject({ method: "link", version: toSign.version, signature: png, sections: toSign.sections, at });
+    expect(privacy.sheets![0]!.consents.find((c) => c.id === "contact")).toMatchObject({ answer: true });
+    // Recogido otra vez (dos dispositivos a la vez): la misma hoja, una sola.
+    const again = server([{ id: p.id, response: await seal({ v: 1, answers: { privacy: toSign, consents: { contact: true }, signature: png } }, p.key), answeredAt: at }]);
+    await collectAnswered(db, again.api, ANAMNESIS);
+    expect((await getPatient(db, pid))!.privacy.sheets).toHaveLength(1);
+  });
+
+  it("un consentimiento firmado en su móvil se guarda con las dos firmas; sin firma no se guarda nada", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Luis Enlace"));
+    const exp = new Date(Date.now() + 86_400_000).toISOString();
+    const document = {
+      templateId: "puncion",
+      version: "1",
+      title: "Punción seca",
+      clinic: { name: "Fisio Prueba", taxId: "", address: "" },
+      professional: { name: "Ana Fisio", license: "123" },
+      patient: { name: "Luis Enlace", birthDate: null, idDoc: "" },
+      representative: null,
+      techniques: ["Punción seca"],
+      sections: [{ title: "Qué es", items: ["Texto"] }],
+      date: "2026-10-29",
+      place: "Madrid",
+    };
+    const sig = "data:image/png;base64,iVBORw0KGgo=";
+    const ok = { id: newFormId(), key: newFormKey() };
+    const bad = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: ok.id, patientId: pid, episodeId: pid, kind: `${CONSENT_PREFIX}puncion`, key: ok.key, expiresAt: exp });
+    await addSentForm(db, { id: bad.id, patientId: pid, episodeId: pid, kind: `${CONSENT_PREFIX}puncion`, key: bad.key, expiresAt: exp });
+    const consent = { document, professionalSignature: sig };
+    const { api, removed } = server([
+      { id: ok.id, response: await seal({ v: 1, answers: { consent, signature: sig } }, ok.key), answeredAt: exp },
+      { id: bad.id, response: await seal({ v: 1, answers: { consent } }, bad.key), answeredAt: exp },
+    ]);
+    const got = await collectAnswered(db, api, ANAMNESIS);
+    expect(got.map((g) => g.kind)).toEqual([`${CONSENT_PREFIX}puncion`]);
+    expect(removed.sort()).toEqual([ok.id, bad.id].sort());
+    const list = await listConsents(db, pid);
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ method: "screen", title: "Punción seca", signatures: { patient: sig, professional: sig, via: "link" } });
+    expect(list[0]!.document).toEqual(document);
   });
 });

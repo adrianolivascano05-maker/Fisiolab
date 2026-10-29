@@ -2,6 +2,8 @@
 // descifran con la clave de cada envío, se ponen en la ficha y se borran del servidor. Los archivos que ha subido (sus
 // informes y pruebas) se quedan en el servidor: la clínica se los guarda y se apuntan en sus archivos. Lo que llega de un envío que
 // este dispositivo aún no conoce (lo hizo un compañero y no ha llegado por la sincronización) se deja para después.
+// Lo firmado por enlace (la hoja de protección de datos o un consentimiento) se guarda entero en su ficha, con su
+// versión y la firma, como lo firmado en la pantalla de la clínica.
 import { getAnamnesisOf, saveAnamnesisOf } from "../data/clinical";
 import type { Db } from "../data/db";
 import { currentEpisode } from "../data/episodes";
@@ -9,7 +11,11 @@ import { getSentForm, markImported } from "../data/patientForms";
 import { addDocument, cleanName, getDocument, MAX_DOC_BYTES } from "../data/documents";
 import { ServerError } from "../cloud/remote";
 import type { Section } from "../clinical/anamnesis";
-import { ANAMNESIS_KIND, cleanFormAnswers, DOCS_KIND, DOCS_PER_LINK, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, cleanFormAnswers, CONSENT_PREFIX, DOCS_KIND, DOCS_PER_LINK, isConsentKind, mergeAnamnesis, PRIVACY_KIND, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc, type SignedAnswers } from "../clinical/patientForms";
+import { dayOf } from "../app/dates";
+import { MAX_SIGNATURE_CHARS } from "../brand/signature";
+import { saveSignedConsent } from "../data/consents";
+import { CONSENTS, parsePrivacy, signPrivacySheet, type Consent } from "../data/privacy";
 
 /** Días que se guardan en el servidor unas respuestas de un envío que este dispositivo no conoce. */
 const ORPHAN_DAYS = 7;
@@ -106,6 +112,49 @@ export async function collectAnswered(db: Db, api: FormsApi, template: Section[]
       await markImported(db, f.id, { answeredAt: f.answeredAt, answers: { docs: kept }, skipped: [] });
       await api.remove(f.id);
       out.push({ patientId: sent.patientId, name: patient?.name ?? "", kind: sent.kind, skipped: 0, incomplete: false, files: kept.length });
+      continue;
+    }
+    if (sent.kind === PRIVACY_KIND || isConsentKind(sent.kind)) {
+      // Firmado en su móvil. Sin una firma válida o sin el documento, no se guarda nada (y se descarta).
+      const signed = incoming as Partial<SignedAnswers>;
+      const signature = typeof signed.signature === "string" && signed.signature.startsWith("data:image/png;base64,") && signed.signature.length <= MAX_SIGNATURE_CHARS ? signed.signature : null;
+      let saved = false;
+      if (signature && sent.kind === PRIVACY_KIND && signed.privacy && Array.isArray(signed.privacy.sections) && Array.isArray(signed.privacy.consents)) {
+        const [row] = await db.query<{ privacy: string | null }>("select privacy from patients where id = ?", [sent.patientId]);
+        if (row) {
+          const answers: Partial<Record<Consent, boolean>> = {};
+          for (const c of CONSENTS) if (typeof signed.consents?.[c.id] === "boolean") answers[c.id] = signed.consents[c.id];
+          const current = parsePrivacy(row.privacy);
+          const privacy = { ...current, signedBy: signed.privacy.signedBy?.trim() || undefined, consents: { ...current.consents, ...answers } };
+          await signPrivacySheet(db, sent.patientId, privacy, {
+            version: String(signed.privacy.version ?? ""),
+            date: dayOf(f.answeredAt),
+            at: f.answeredAt,
+            method: "link",
+            patientName: String(signed.privacy.patientName ?? patient?.name ?? ""),
+            ...(signed.privacy.signedBy?.trim() ? { signedBy: signed.privacy.signedBy.trim() } : {}),
+            sections: signed.privacy.sections,
+            consents: signed.privacy.consents.map((c) => ({ id: c.id, text: c.text, answer: typeof answers[c.id] === "boolean" ? answers[c.id]! : null })),
+            signature,
+          });
+          await markImported(db, f.id, { answeredAt: f.answeredAt, answers: { consents: answers }, skipped: [] });
+          saved = true;
+        }
+      } else if (
+        signature &&
+        isConsentKind(sent.kind) &&
+        signed.consent?.document?.templateId === sent.kind.slice(CONSENT_PREFIX.length) &&
+        signed.consent.document.professional?.name?.trim() &&
+        typeof signed.consent.professionalSignature === "string" &&
+        signed.consent.professionalSignature.startsWith("data:image/")
+      ) {
+        const { document, professionalSignature } = signed.consent;
+        await saveSignedConsent(db, sent.patientId, document, "screen", { patient: signature, professional: professionalSignature, via: "link" }, `${f.id}-c`);
+        await markImported(db, f.id, { answeredAt: f.answeredAt, answers: { signed: true }, skipped: [] });
+        saved = true;
+      }
+      await api.remove(f.id);
+      if (saved) out.push({ patientId: sent.patientId, name: patient?.name ?? "", kind: sent.kind, skipped: 0, incomplete: false });
       continue;
     }
     if (sent.kind === ANAMNESIS_KIND) {

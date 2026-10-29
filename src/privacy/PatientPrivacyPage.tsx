@@ -1,11 +1,15 @@
 // Protección de datos de un paciente: el texto informativo para firmar en la pantalla o imprimir y firmar en papel, y
 // lo que se registra en la app (cuándo se le entregó, quién firmó y sus consentimientos opcionales: fotos y vídeos,
 // WhatsApp, docencia). Lo firmado en la pantalla se guarda tal cual, con la firma; las hojas anteriores se conservan.
+// Con el servidor de la clínica, también se le manda por enlace para que la lea y la firme en su móvil (vuelve igual).
 import { todayDay as today } from "../app/dates";
-import { FilePen, Printer, ShieldCheck } from "lucide-react";
+import { FilePen, Printer, Send, ShieldCheck } from "lucide-react";
 import { TopBar } from "../ui/AppBar";
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
+import { PRIVACY_KIND } from "../clinical/patientForms";
+import { createPatientForm } from "../patientForm/createForm";
+import { privacyToSign } from "./toSign";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
@@ -36,10 +40,15 @@ import { liveNotice, PrivacyNotice, type NoticeData, type Storage } from "./Priv
 import { PRIVACY_TEXT_VERSION } from "./privacyText";
 
 
+/** Dónde se firmó: en la pantalla de la clínica o en su móvil, por un enlace. */
+const where = (sheet: SignedPrivacySheet) => (sheet.method === "link" ? "en su móvil" : "en la pantalla");
+
 export function PatientPrivacyPage() {
   const { id = "" } = useParams();
   const cloud = useCloud();
   const toast = useToast();
+  const navigate = useNavigate();
+  const [linking, setLinking] = useState(false);
   const data = useAsync(async () => {
     const db = getDb();
     const [patient, clinic] = await Promise.all([getPatient(db, id), getClinic(db)]);
@@ -113,11 +122,11 @@ export function PatientPrivacyPage() {
         <div className="flex flex-col gap-4 print:hidden">
           {last && last.date === saved.informedAt ? (
             changedSinceSigned(saved) ? (
-              <Alert tone="warning" title={`Firmada en la pantalla el ${fmtDate(`${last.date}T12:00:00`)}, pero sus permisos han cambiado`}>
+              <Alert tone="warning" title={`Firmada ${where(last)} el ${fmtDate(`${last.date}T12:00:00`)}, pero sus permisos han cambiado`}>
                 Que firme otra vez la hoja con lo de ahora: la anterior se conserva.
               </Alert>
             ) : (
-              <Alert tone="success" title={`Firmada en la pantalla el ${fmtDate(`${last.date}T12:00:00`)}`}>
+              <Alert tone="success" title={`Firmada ${where(last)} el ${fmtDate(`${last.date}T12:00:00`)}`}>
                 La hoja firmada se guarda en su ficha, tal como se firmó.
               </Alert>
             )
@@ -151,7 +160,7 @@ export function PatientPrivacyPage() {
           {viewing ? (
             <Card className="flex flex-col gap-3">
               <p>
-                Hoja firmada en la pantalla el {fmtDate(`${viewing.date}T12:00:00`)}
+                Hoja firmada {where(viewing)} el {fmtDate(`${viewing.date}T12:00:00`)}
                 {viewing.signedBy ? ` por ${viewing.signedBy}` : ""}, tal como se firmó.
               </p>
               <div className="flex flex-wrap gap-2">
@@ -242,6 +251,34 @@ export function PatientPrivacyPage() {
             >
               Firmar en la pantalla
             </Button>
+            {cloud?.clinic && cloud.clinics && (
+              <Button
+                variant="secondary"
+                loading={linking}
+                icon={<Send aria-hidden="true" className="size-5" />}
+                onClick={async () => {
+                  setLinking(true);
+                  setError(null);
+                  try {
+                    const created = await createPatientForm(getDb(), cloud, {
+                      patientId: id,
+                      patientName: patient.name,
+                      kind: PRIVACY_KIND,
+                      clinicName: clinic.name || cloud.clinic?.name || "",
+                      sections: [],
+                      privacy: privacyToSign(clinic, storage, { name: patient.name, privacy: form }),
+                    });
+                    navigate(`/pacientes/${id}/formularios?compartir=${created.id}`);
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : String(e));
+                    setLinking(false);
+                  }
+                }}
+              >
+                Enviar para que la firme en su móvil
+              </Button>
+            )}
+            {error && !signing && <Alert tone="danger" title={error} />}
             <Button variant="secondary" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
               Imprimir para firmar en papel
             </Button>
@@ -271,12 +308,12 @@ export function PatientPrivacyPage() {
           )}
 
           {sheets.length > 0 && (
-            <Group title="Hojas firmadas en la pantalla">
+            <Group title="Hojas firmadas">
               {[...sheets].reverse().map((sh) => (
                 <RowButton
                   key={sh.at}
                   icon={ShieldCheck}
-                  title={`Firmada el ${fmtDate(`${sh.date}T12:00:00`)}`}
+                  title={`Firmada ${where(sh)} el ${fmtDate(`${sh.date}T12:00:00`)}`}
                   subtitle={[
                     sh.signedBy ? `por ${sh.signedBy}` : null,
                     ...sh.consents.filter((c) => c.answer !== null).map((c) => `${CONSENTS.find((x) => x.id === c.id)?.label ?? c.id}: ${c.answer ? "sí" : "no"}`),

@@ -242,7 +242,7 @@ export function PatientPage() {
           subtitle={
             privacy.informedAt
               ? [
-                  privacy.sheets?.at(-1)?.date === privacy.informedAt ? `Firmada en la pantalla el ${dayText(privacy.informedAt)}` : `Entregada el ${dayText(privacy.informedAt)}`,
+                  privacy.sheets?.at(-1)?.date === privacy.informedAt ? `Firmada ${privacy.sheets.at(-1)!.method === "link" ? "en su móvil" : "en la pantalla"} el ${dayText(privacy.informedAt)}` : `Entregada el ${dayText(privacy.informedAt)}`,
                   ...optional,
                 ].join(" · ")
               : "Sin entregar"

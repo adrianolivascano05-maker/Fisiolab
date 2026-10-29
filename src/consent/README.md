@@ -68,3 +68,11 @@ anamnesis de forma predecible. El mismo paciente con la misma anamnesis tiene si
 logo, placa y si llevaba marca de agua; null si era la de OmniClin): `ConsentDocumentView` lo pinta siempre con esa,
 aunque la clínica cambie de marca después. Los firmados antes de haber marca no llevan el campo y se ven como
 entonces, con la de OmniClin (`src/brand/docs.tsx`).
+
+## Firmar por enlace (29-10-2026)
+
+Con el servidor de la clínica, «Enviar para que lo firme en su móvil»: el fisioterapeuta firma primero (o usa su
+firma guardada) y se crea un enlace cifrado como los de los cuestionarios (`src/patientForm`, tipo
+`consentimiento:<plantilla>`). El paciente lo lee entero en su móvil y firma con el dedo; al recogerlo
+(`collect.ts`) se guarda como uno firmado en la pantalla, con el documento tal como lo leyó y las dos firmas
+(`signatures.via = "link"`: en la lista sale «en su móvil»). Sin firma, no se guarda nada.

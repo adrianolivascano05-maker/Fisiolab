@@ -704,3 +704,13 @@ sanitaria: son los cambios que pide la revisión.
   WhatsApp ni correo». Fuera el «¿Acepta WhatsApp o correo? Sí, acepta / No» rápido de Recordatorios, que lo
   apuntaba sin firma. `src/schedule/reminders.ts` solo escribe los textos: no manda nada por sí mismo. Llamar por
   teléfono sigue igual.
+- **7. Firmar por enlace la hoja de protección de datos y los consentimientos.** Como los cuestionarios: un enlace
+  cifrado que el paciente abre en su móvil, lee entero y firma con el dedo. La hoja de protección de datos se manda
+  desde su pantalla (o desde Formularios para el paciente) y el paciente contesta sí o no a cada permiso; un
+  consentimiento se manda desde el que se está preparando, después de que el fisioterapeuta lo firme (o use su firma
+  guardada). Al recoger, se guarda en la ficha como lo firmado en la pantalla: el texto tal como lo leyó, su versión,
+  las respuestas y las firmas; en la ficha sale «Firmada en su móvil». Se manda por WhatsApp o correo con el permiso
+  firmado; la hoja de protección de datos, también por WhatsApp sin él (si aún no ha contestado; si dijo que no,
+  tampoco), porque es la que lo pide. Mensaje nuevo en Ajustes › Mensajes: «Documento para firmar por enlace». Sin
+  migraciones ni cambios en el servidor: la hoja guarda `method: "link"` y el consentimiento, `signatures.via:
+  "link"`. Prueba de punta a punta en `e2e/clinics.spec.ts` (CL17) y del guardado en `src/patientForm/collect.test.ts`.

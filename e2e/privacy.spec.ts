@@ -66,14 +66,14 @@ test.describe("Protección de datos", () => {
     await page.getByRole("button", { name: "Guardar la hoja firmada" }).click();
     await expect(page.getByText(/^Firmada en la pantalla el /)).toBeVisible();
     const notice = page.getByRole("article", { name: "Información sobre protección de datos" });
-    const history = page.getByRole("region", { name: "Hojas firmadas en la pantalla" });
-    await expect(history.getByRole("button", { name: /Firmada el .*Fotos y vídeos: sí · WhatsApp, SMS o correo: no/ })).toBeVisible();
+    const history = page.getByRole("region", { name: "Hojas firmadas" });
+    await expect(history.getByRole("button", { name: /Firmada en la pantalla el .*Fotos y vídeos: sí · WhatsApp, SMS o correo: no/ })).toBeVisible();
 
     // Cambia un permiso de palabra: se avisa de que firme otra; la firmada sigue como se firmó.
     await page.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByText("Sí", { exact: true }).click();
     await page.getByRole("button", { name: "Guardar", exact: true }).click();
     await expect(page.getByText(/pero sus permisos han cambiado/)).toBeVisible();
-    await history.getByRole("button", { name: /Firmada el / }).click();
+    await history.getByRole("button", { name: /Firmada en la pantalla el / }).click();
     await expect(page.getByText(/Hoja firmada en la pantalla el .*tal como se firmó/)).toBeVisible();
     await expect(notice.getByRole("img", { name: "Firma: Nora Firma" })).toBeVisible();
     await page.getByRole("button", { name: "Volver a la hoja de ahora" }).click();

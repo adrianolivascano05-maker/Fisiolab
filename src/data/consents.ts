@@ -4,7 +4,8 @@ import type { ConsentDocument } from "../consent/types";
 import type { Db } from "./db";
 import { inFocus } from "./episodes";
 
-export type Signatures = { patient?: string; professional?: string; revocation?: string };
+/** Las firmas dibujadas; `via: "link"`: el paciente firmó en su móvil, por un enlace (src/patientForm). */
+export type Signatures = { patient?: string; professional?: string; revocation?: string; via?: "link" };
 export type SignedConsent = {
   id: string;
   patientId: string;
@@ -48,15 +49,16 @@ const toConsent = (r: Row): SignedConsent => ({
 });
 
 /** Guarda un consentimiento firmado: en la pantalla (con las dos firmas) o en papel (la hoja firmada se guarda aparte). */
-export async function saveSignedConsent(db: Db, patientId: string, doc: ConsentDocument, method: "screen" | "paper", signatures: Signatures): Promise<string> {
+export async function saveSignedConsent(db: Db, patientId: string, doc: ConsentDocument, method: "screen" | "paper", signatures: Signatures, fixedId?: string): Promise<string> {
   if (method === "screen" && (!signatures.patient || !signatures.professional)) throw new RangeError("Faltan las firmas: la del paciente (o su representante) y la del fisioterapeuta.");
   if (!doc.professional.name.trim()) throw new RangeError("Escribe el nombre del fisioterapeuta que informa.");
   if (doc.representative && !doc.representative.name.trim()) throw new RangeError("Escribe el nombre del representante.");
-  const id = crypto.randomUUID();
+  // Firmado por enlace, el id sale del enlace: si dos dispositivos recogen la misma firma, es el mismo consentimiento.
+  const id = fixedId ?? crypto.randomUUID();
   const t = new Date().toISOString();
   await db.transaction([
     {
-      sql: `insert into consents (id, patient_id, template, version, title, document, method, signed_at, signatures, created_at, updated_at)
+      sql: `insert or ignore into consents (id, patient_id, template, version, title, document, method, signed_at, signatures, created_at, updated_at)
             values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [id, patientId, doc.templateId, doc.version, doc.title, JSON.stringify(doc), method, t, JSON.stringify(method === "screen" ? signatures : {}), t, t],
     },

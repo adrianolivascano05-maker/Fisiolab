@@ -45,3 +45,11 @@ Los datos de las funciones están en `../data/privacy.ts`.
   datos del dispositivo los protege el bloqueo del propio dispositivo, que además los cifra.
 - **iPhone.** Sin instalar la app, Safari puede borrar los datos de una web que no se abre en unos días: la pantalla
   principal lo avisa con el enlace a «Instalar la app». La app pide además almacenamiento persistente.
+
+## Firmar la hoja por enlace (29-10-2026)
+
+«Enviar para que la firme en su móvil» (en su pantalla de Protección de datos o en Formularios para el paciente):
+el paciente la lee entera, contesta sí o no a cada permiso y firma con el dedo. Vuelve a su ficha como una hoja
+firmada más (`method: "link"`), con su versión, el texto tal como lo leyó, sus respuestas y la firma
+(`src/privacy/toSign.ts`, `src/patientForm/SignDocument.tsx`, `collect.ts`). Es lo único que se puede mandar por
+WhatsApp sin el permiso de contacto firmado, porque es lo que lo pide; si dijo que no, tampoco.

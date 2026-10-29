@@ -1,7 +1,8 @@
 // Consentimientos informados de un paciente (src/consent/README.md): los firmados, los que propone su anamnesis
-// y los demás; prepararlos con lo que se va a hacer, firmarlos en la pantalla o en papel, imprimirlos y retirarlos.
+// y los demás; prepararlos con lo que se va a hacer, firmarlos en la pantalla o en papel (o, con el servidor de la
+// clínica, mandarlos por enlace para que el paciente los lea y los firme en su móvil), imprimirlos y retirarlos.
 import { todayDay as today } from "../app/dates";
-import { FilePen, Printer, ShieldAlert, Undo2 } from "lucide-react";
+import { FilePen, Printer, Send, ShieldAlert, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { fmtDate } from "../app/format";
@@ -22,12 +23,20 @@ import { Sheet } from "../ui/Sheet";
 import { SignaturePad } from "../ui/SignaturePad";
 import { useToast } from "../ui/Toast";
 import { currentBrand } from "../brand/brand";
+import { FORM_LOGO_SIDE } from "../brand/form";
+import { shrinkLogo } from "../brand/logo";
+import { getSignature } from "../brand/signature";
+import { CONSENT_PREFIX } from "../clinical/patientForms";
+import { useCloud } from "../cloud/cloudContext";
+import { createPatientForm } from "../patientForm/createForm";
 import { ConsentDocumentView } from "./ConsentDocumentView";
 import { consentContext } from "./context";
 import { precautionLabel } from "./precautions";
 import { buildSections, TEMPLATES, templateById } from "./templates";
 import type { ConsentContext, ConsentDocument, ConsentTemplate } from "./types";
 
+/** Cómo se firmó: en la pantalla de la clínica, en su móvil (por enlace) o en papel. */
+const signedWhere = (c: SignedConsent) => (c.method === "paper" ? "en papel" : c.signatures.via === "link" ? "en su móvil" : "en la pantalla");
 const base = (id: string) => `/pacientes/${id}/consentimientos`;
 
 /** El paciente, su anamnesis (del motivo que se ve) y lo que importa para los consentimientos. */
@@ -103,7 +112,7 @@ export function ConsentListPage() {
               to={`${base(id)}/${c.id}`}
               icon={FilePen}
               title={c.title}
-              subtitle={c.revokedAt ? `Retirado el ${fmtDate(c.revokedAt)}` : `Firmado el ${fmtDate(c.signedAt)} ${c.method === "screen" ? "en la pantalla" : "en papel"}`}
+              subtitle={c.revokedAt ? `Retirado el ${fmtDate(c.revokedAt)}` : `Firmado el ${fmtDate(c.signedAt)} ${signedWhere(c)}`}
               warn={!!c.revokedAt}
               tone={c.revokedAt ? "warning" : "accent"}
             />
@@ -131,7 +140,11 @@ export function ConsentNewPage() {
   const [techniques, setTechniques] = useState<string[] | null>(null);
   const [form, setForm] = useState({ professional: "", license: "", idDoc: "", place: "", date: today(), repName: "", repIdDoc: "", repRelation: "" });
   const [withRep, setWithRep] = useState<boolean | null>(null);
-  const [step, setStep] = useState<"edit" | "sign">("edit");
+  const [step, setStep] = useState<"edit" | "sign" | "link">("edit");
+  const cloud = useCloud();
+  const online = !!(cloud?.clinic && cloud.clinics);
+  /** La firma guardada del fisioterapeuta (Ajustes › Clínica), para no tener que dibujarla cada vez. */
+  const saved = useAsync(() => getSignature(getDb()), []);
   const [signatures, setSignatures] = useState<Signatures>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -175,6 +188,31 @@ export function ConsentNewPage() {
   const { ctx } = data.data;
   const absolute = ctx ? t.personal(ctx).filter((r) => r.absolute) : [];
   const field = (key: keyof typeof form) => ({ value: form[key], onChange: (e: { target: { value: string } }) => setForm({ ...form, [key]: e.target.value }) });
+
+  /** Por enlace: el fisioterapeuta firma aquí y el paciente lo lee y lo firma en su móvil; vuelve a su ficha. */
+  const sendLink = async () => {
+    setError(null);
+    if (!signatures.professional) return setError("Falta tu firma: la del fisioterapeuta que informa.");
+    if (!doc.professional.name.trim()) return setError("Escribe el nombre del fisioterapeuta que informa.");
+    if (doc.representative && !doc.representative.name.trim()) return setError("Escribe el nombre del representante.");
+    setSaving(true);
+    try {
+      // El logo, en pequeño: el enlace tiene un tamaño máximo.
+      const brand = doc.brand && doc.brand.logo ? { ...doc.brand, logo: await shrinkLogo(doc.brand.logo, FORM_LOGO_SIDE) } : doc.brand;
+      const created = await createPatientForm(getDb(), cloud, {
+        patientId: id,
+        patientName: data.data?.patient?.name ?? doc.patient.name,
+        kind: `${CONSENT_PREFIX}${t.id}`,
+        clinicName: data.data?.clinic.name || cloud?.clinic?.name || "",
+        sections: [],
+        consent: { document: { ...doc, brand }, professionalSignature: signatures.professional },
+      });
+      navigate(`/pacientes/${id}/formularios?compartir=${created.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setSaving(false);
+    }
+  };
 
   const save = async (method: "screen" | "paper") => {
     setError(null);
@@ -266,11 +304,40 @@ export function ConsentNewPage() {
               <Button size="lg" icon={<FilePen aria-hidden="true" className="size-5" />} onClick={() => (t.techniques.length && !techniques.length ? setError("Marca al menos una técnica de las que vas a usar.") : (setError(null), setStep("sign"), window.scrollTo({ top: 0 })))}>
                 Firmar en la pantalla
               </Button>
+              {online && (
+                <Button
+                  variant="secondary"
+                  icon={<Send aria-hidden="true" className="size-5" />}
+                  onClick={() => (t.techniques.length && !techniques.length ? setError("Marca al menos una técnica de las que vas a usar.") : (setError(null), setStep("link"), window.scrollTo({ top: 0 })))}
+                >
+                  Enviar para que lo firme en su móvil
+                </Button>
+              )}
               <Button variant="secondary" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
                 Imprimir para firmar en papel
               </Button>
               <Button variant="ghost" loading={saving} onClick={() => void save("paper")}>
                 Ya está firmado en papel: guardarlo
+              </Button>
+            </Card>
+          ) : step === "link" ? (
+            <Card className="flex flex-col gap-4">
+              <p>
+                Firma tú primero, como fisioterapeuta que informa. Después se crea el enlace: {data.data.patient?.name} lo lee entero en su móvil, lo firma y vuelve
+                firmado a sus consentimientos. Si tiene dudas, que no firme y te las pregunte.
+              </p>
+              <SignaturePad label={`Firma del fisioterapeuta (${form.professional || "nombre"})`} onChange={(png) => setSignatures((s) => ({ ...s, professional: png ?? undefined }))} />
+              {saved.data && !signatures.professional && (
+                <Button variant="ghost" className="self-start" onClick={() => setSignatures((s) => ({ ...s, professional: saved.data ?? undefined }))}>
+                  Usar mi firma guardada
+                </Button>
+              )}
+              {error && <Alert tone="danger" title={error} />}
+              <Button size="lg" loading={saving} icon={<Send aria-hidden="true" className="size-5" />} onClick={() => void sendLink()}>
+                Crear el enlace para firmar
+              </Button>
+              <Button variant="secondary" onClick={() => setStep("edit")}>
+                Volver a los datos
               </Button>
             </Card>
           ) : (
@@ -330,7 +397,7 @@ export function ConsentViewPage() {
                   {c.revokeNote || "El paciente retiró este consentimiento."}
                 </Alert>
               ) : (
-                <Alert tone="success" title={`Firmado el ${fmtDate(c.signedAt)} ${c.method === "screen" ? "en la pantalla" : "en papel"}`}>
+                <Alert tone="success" title={`Firmado el ${fmtDate(c.signedAt)} ${signedWhere(c)}`}>
                   {c.method === "paper" ? "Guarda la hoja firmada con su historia clínica." : "Las firmas se guardan con el documento, tal como se firmó."}
                 </Alert>
               )}

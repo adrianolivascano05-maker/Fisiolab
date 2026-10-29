@@ -5,6 +5,8 @@
 // cuestionario con su nota. El servidor (cloudflare/worker.js) solo ve bytes ilegibles.
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { FormBrand } from "../brand/form";
+import type { ConsentDocument } from "../consent/types";
+import type { Consent, PrivacySection } from "../data/privacy";
 import type { Db } from "../data/db";
 import { messageText, type MessageSettings } from "../messages/templates";
 import { cachedCloudConfig } from "../cloud/config";
@@ -18,6 +20,27 @@ export const ANAMNESIS_KIND = "anamnesis";
 export const DOCS_KIND = "documentos";
 /** Archivos que puede subir con un enlace. */
 export const DOCS_PER_LINK = 5;
+/** Leer y firmar en su móvil la hoja de protección de datos (con sus permisos: fotos, WhatsApp, docencia). */
+export const PRIVACY_KIND = "proteccion-datos";
+/** Leer y firmar en su móvil un consentimiento informado: «consentimiento:<plantilla>». */
+export const CONSENT_PREFIX = "consentimiento:";
+export const isConsentKind = (kind: string) => kind.startsWith(CONSENT_PREFIX);
+/** Los enlaces para firmar: la respuesta trae la firma y el documento tal como lo firmó. */
+export const isSignKind = (kind: string) => kind === PRIVACY_KIND || isConsentKind(kind);
+
+/** La hoja de protección de datos que se manda a firmar: el texto entero y los permisos, como en la pantalla. */
+export type PrivacyToSign = {
+  /** Versión del texto (PRIVACY_TEXT_VERSION). */
+  version: string;
+  patientName: string;
+  /** Firma su representante legal: su nombre. */
+  signedBy?: string;
+  sections: PrivacySection[];
+  consents: { id: Consent; label: string; text: string }[];
+};
+/** El consentimiento que se manda a firmar: el documento entero y la firma del fisioterapeuta que informa. */
+export type ConsentToSign = { document: ConsentDocument; professionalSignature: string };
+
 /** Días que vale un enlace. */
 export const FORM_DAYS = 14;
 
@@ -42,7 +65,16 @@ export type FormRequest = {
    * para el texto informativo del principio. Los formularios mandados antes no lo llevan.
    */
   controller?: { name: string; email: string };
+  /** Con PRIVACY_KIND: la hoja que firma. */
+  privacy?: PrivacyToSign;
+  /** Con un consentimiento: el documento que firma. */
+  consent?: ConsentToSign;
 };
+/**
+ * Lo que vuelve de un enlace para firmar (en `answers`): la firma (PNG), el documento tal como lo leyó y, en la hoja de
+ * protección de datos, su respuesta a cada permiso.
+ */
+export type SignedAnswers = { signature: string; privacy?: PrivacyToSign; consents?: Partial<Record<Consent, boolean>>; consent?: ConsentToSign };
 /**
  * Lo que vuelve cifrado: las respuestas por id de campo (anamnesis) o de ítem (cuestionario); si se le pidieron archivos,
  * `answers.docs` con lo que ha subido (cada uno en su número, n, del enlace).
@@ -129,10 +161,21 @@ export const SENDABLE = QUESTIONNAIRES.filter((k) => {
 /** «tu historia clínica» o «el cuestionario «X»», para el mensaje y la ficha. */
 export function formWhat(kind: string): string {
   if (kind === DOCS_KIND) return "tus informes o pruebas";
+  if (kind === PRIVACY_KIND) return "la hoja de protección de datos";
+  if (isConsentKind(kind)) return "el consentimiento informado";
   return kind === ANAMNESIS_KIND ? "unas preguntas sobre tu salud para tu historia clínica" : `el cuestionario «${getKind(kind)?.name ?? kind}»`;
 }
 /** Nombre corto para las listas de la clínica. */
-export const formTitle = (kind: string) => (kind === DOCS_KIND ? "Sus informes y pruebas" : kind === ANAMNESIS_KIND ? "Anamnesis (su parte)" : (getKind(kind)?.name ?? kind));
+export const formTitle = (kind: string) =>
+  kind === DOCS_KIND
+    ? "Sus informes y pruebas"
+    : kind === ANAMNESIS_KIND
+      ? "Anamnesis (su parte)"
+      : kind === PRIVACY_KIND
+        ? "Hoja de protección de datos (para firmar)"
+        : isConsentKind(kind)
+          ? "Consentimiento informado (para firmar)"
+          : (getKind(kind)?.name ?? kind);
 
 // ---------- Cifrado ----------
 
@@ -187,7 +230,7 @@ export function formLink(id: string, key: string, base = formsBase()): string {
 /** El mensaje de WhatsApp o del correo (el texto de la clínica o el de siempre, src/messages/templates.ts). */
 export function formMessage(p: { name: string; clinic: string; kind: string; url: string; expiresAt: string }, s?: MessageSettings | null): string {
   const until = new Date(p.expiresAt).toLocaleDateString("es-ES", { day: "numeric", month: "long", timeZone: "Europe/Madrid" });
-  return messageText(p.kind === DOCS_KIND ? "archivos" : "formulario", s, { nombre: p.name, clinica: p.clinic, formulario: formWhat(p.kind), enlace: p.url, caduca: until });
+  return messageText(p.kind === DOCS_KIND ? "archivos" : isSignKind(p.kind) ? "firma" : "formulario", s, { nombre: p.name, clinica: p.clinic, formulario: formWhat(p.kind), enlace: p.url, caduca: until });
 }
 
 // ---------- Al recoger las respuestas ----------
