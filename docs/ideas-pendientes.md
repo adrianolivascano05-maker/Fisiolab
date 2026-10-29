@@ -769,4 +769,4 @@ sanitaria: son los cambios que pide la revisión.
   pudo subirse sin cifrar antes de que el cifrado fuera obligatorio). Con el servidor de Cloudflare configurado
   (`public/cloud.json`, como ahora) no hace falta: la app ni pide ese permiso ni la lee. Si alguien usó la app
   antes de tener servidor, puede quedarle una copia vieja: se borra en Drive → Configuración → Gestionar
-  aplicaciones → OmniClin → Opciones → Eliminar datos ocultos de la aplicación.
+  aplicaciones → la app (con el nombre que tenga en Google) → Opciones → Eliminar datos ocultos de la aplicación.
