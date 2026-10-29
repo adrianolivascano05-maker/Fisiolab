@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { add, createPatient, expect, expectAccessible, startJump, test } from "./fixtures";
 
 test.describe("S25 Ayuda con ilustraciones", () => {
@@ -69,5 +70,31 @@ test.describe("Algo no funciona", () => {
     await page.goto("./ayuda");
     await page.getByRole("link", { name: /problemas frecuentes y el informe de fallo/ }).click();
     await expect(page.getByRole("heading", { name: "Algo no funciona" })).toBeVisible();
+  });
+});
+
+test.describe("Licencias de terceros", () => {
+  test("AY-L1 cada librería que entra en la app, con su licencia y su texto completo, sin desbordar a 360 px", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    await page.goto("./ayuda");
+    await page.getByRole("link", { name: "Licencias de terceros" }).click();
+    await expect(page.getByRole("heading", { name: "Licencias de terceros" })).toBeVisible();
+    // Sale del build: están todas las librerías de producción de package.json y el modelo de MediaPipe.
+    const deps = Object.keys(JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).dependencies);
+    await expect(page.getByText(/^\d+ componentes: /)).toBeVisible();
+    const names = await page.locator("summary > span:first-child").allTextContents();
+    for (const d of deps) expect(names, d).toContain(d);
+    expect(names).toContain("MediaPipe Pose Landmarker (modelo pose_landmarker_full.task)");
+    const lucide = page.locator("details").filter({ has: page.getByText("lucide-react", { exact: true }) });
+    await expect(lucide.locator("summary")).toContainText("ISC");
+    await lucide.locator("summary").click();
+    await expect(lucide.locator("pre")).toContainText("ISC License");
+    const font = page.locator("details").filter({ has: page.getByText("@fontsource-variable/manrope", { exact: true }) });
+    await font.locator("summary").click();
+    await expect(font.locator("pre")).toContainText("SIL OPEN FONT LICENSE");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
+    const summary = await lucide.locator("summary").boundingBox();
+    expect(summary!.height).toBeGreaterThanOrEqual(44);
+    await expectAccessible(page);
   });
 });

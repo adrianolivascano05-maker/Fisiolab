@@ -25,7 +25,8 @@
   },
   "include": [
     "src",
-    "vite.config.ts"
+    "vite.config.ts",
+    "tools/licenses.ts"
   ],
   "exclude": [
     "src/**/*.test.ts",

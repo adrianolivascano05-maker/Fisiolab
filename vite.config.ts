@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 import tokens from "./src/styles/tokens.json" with { type: "json" };
+import { thirdPartyLicenses } from "./tools/licenses";
 
 // Ruta donde se publica: "/" (Cloudflare, dominio propio) o "/Fisiolab/" (GitHub Pages).
 const base = process.env.BASE_PATH ?? "/";
@@ -43,6 +44,9 @@ function appVersion() {
   }
 }
 
+// Las librerías que entran en la app y en sus workers, con su licencia (Ayuda → Licencias de terceros).
+const licenses = thirdPartyLicenses();
+
 export default defineConfig({
   base,
   define: { __APP_VERSION__: JSON.stringify(appVersion()) },
@@ -51,6 +55,8 @@ export default defineConfig({
   build: { assetsInlineLimit: (file) => (file.endsWith(".woff2") ? false : undefined), chunkSizeWarningLimit: 700 },
   plugins: [
     cspMeta(),
+    licenses.collect(),
+    licenses.emit,
     react(),
     tailwindcss(),
     VitePWA({
@@ -84,7 +90,7 @@ export default defineConfig({
       },
       workbox: {
         // Todo lo necesario para abrir sin conexión, incluido el motor SQLite (.wasm) y sus workers.
-        globPatterns: ["**/*.{js,css,html,wasm,woff2,png,svg}"],
+        globPatterns: ["**/*.{js,css,html,wasm,woff2,png,svg}", "licencias.json"],
         // Sin el motor de pose, que va aparte (abajo), sin el worker de ejemplo de sqlite-wasm (la app usa el suyo,
         // src/data/sqlite.worker.ts), sin las letras que puede elegir una clínica (src/brand/options.ts: se bajan al
         // elegirlas y quedan guardadas, abajo) y, de las dos de OmniClin, solo el alfabeto latino (el navegador baja
@@ -105,6 +111,6 @@ export default defineConfig({
   ],
   // sqlite-wasm carga su .wasm por URL relativa: no debe pre-empaquetarse.
   optimizeDeps: { exclude: ["@sqlite.org/sqlite-wasm"] },
-  worker: { format: "es" },
+  worker: { format: "es", plugins: () => [licenses.collect()] },
   test: { include: ["src/**/*.test.ts", "cloudflare/**/*.test.ts"] },
 });

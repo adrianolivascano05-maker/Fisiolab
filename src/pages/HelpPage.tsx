@@ -236,6 +236,20 @@ export function HelpPage() {
           .
         </p>
       </section>
+
+      <section aria-labelledby="h-acerca" className="flex flex-col gap-2">
+        <h2 id="h-acerca" className="text-lg">
+          Acerca de
+        </h2>
+        <p className="text-sm">Versión: {__APP_VERSION__}</p>
+        <p className="text-sm">
+          OmniClin usa programas y letras de otros, publicados con licencias libres:{" "}
+          <Link to="/ayuda/licencias" className={link}>
+            Licencias de terceros
+          </Link>
+          .
+        </p>
+      </section>
     </Page>
   );
 }

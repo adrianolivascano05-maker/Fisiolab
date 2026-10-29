@@ -714,3 +714,12 @@ sanitaria: son los cambios que pide la revisión.
   tampoco), porque es la que lo pide. Mensaje nuevo en Ajustes › Mensajes: «Documento para firmar por enlace». Sin
   migraciones ni cambios en el servidor: la hoja guarda `method: "link"` y el consentimiento, `signatures.via:
   "link"`. Prueba de punta a punta en `e2e/clinics.spec.ts` (CL17) y del guardado en `src/patientForm/collect.test.ts`.
+- **8. Licencias de terceros.** Ayuda › Acerca de › Licencias de terceros (`/ayuda/licencias`). La lista la hace el
+  build (`tools/licenses.ts`): apunta cada paquete de `node_modules` que entra en la app o en sus workers (no lo que
+  solo sirve para desarrollar) y escribe `licencias.json` con su licencia y el texto completo de su archivo de
+  licencia. Va también sin conexión (está en la caché de la app). Hoy salen 45 paquetes y el modelo de MediaPipe
+  (46): la propuesta hablaba de unas 61; la diferencia son paquetes que se instalan pero no acaban en lo publicado.
+  Cuatro paquetes no traen archivo de licencia: MediaPipe y sqlite-wasm (Apache-2.0) llevan el texto oficial de
+  apache.org; qrcode-generator, el aviso de su propio código y el texto oficial MIT; victory-vendor, los textos
+  oficiales MIT e ISC (de SPDX), con plantilla sin titular y su autor según el paquete. Los textos oficiales están
+  en `licenses/`. La página lo dice en cada uno.

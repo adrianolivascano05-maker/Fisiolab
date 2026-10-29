@@ -38,6 +38,7 @@ const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m
 const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })));
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const HelpPage = lazy(() => import("./pages/HelpPage").then((m) => ({ default: m.HelpPage })));
+const LicensesPage = lazy(() => import("./pages/LicensesPage").then((m) => ({ default: m.LicensesPage })));
 const ReportProblemPage = lazy(() => import("./pages/ReportProblemPage").then((m) => ({ default: m.ReportProblemPage })));
 const InstallPage = lazy(() => import("./pages/InstallPage").then((m) => ({ default: m.InstallPage })));
 const JumpSetupPage = lazy(() => import("./pages/JumpSetupPage").then((m) => ({ default: m.JumpSetupPage })));
@@ -146,6 +147,7 @@ const routes = [
   { path: "/facturas/:id", element: l(<InvoicePage />) },
   { path: "/ayuda", element: l(<HelpPage />) }, // Cómo se usa
   { path: "/ayuda/fallos", element: l(<ReportProblemPage />) }, // Algo no funciona: problemas frecuentes e informe de fallo
+  { path: "/ayuda/licencias", element: l(<LicensesPage />) }, // Licencias de terceros (sale del build)
   { path: "/privacidad", element: l(<PrivacyPage />) },
   { path: "/cuenta", element: l(<SignInSetupPage />) }, // Iniciar sesión con Google (sin el ID de cliente publicado)
   { path: "/instalar", element: l(<InstallPage />) }, // Usar la app en otros dispositivos
