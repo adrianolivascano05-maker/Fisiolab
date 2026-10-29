@@ -144,26 +144,6 @@ export function codedText(c: Coded, title: string): string {
 
 // ---------- Sugerencias ----------
 
-/** Por zona de la anamnesis: la estructura y el dolor de esa parte del cuerpo (códigos de la propia CIF). */
-const BY_REGION: Record<string, string[]> = {
-  atm: ["b28010", "s7103"],
-  cervical: ["b28010", "s76000", "s7104"],
-  hombro: ["b28014", "s720"],
-  codo: ["b28014", "s73001"],
-  muneca_mano: ["b28014", "s73011", "s73021"],
-  dorsal: ["b28013", "s76001"],
-  lumbar: ["b28013", "s76002"],
-  sacroiliaca: ["b28013", "s7401", "s76003"],
-  cadera: ["b28015", "s75001"],
-  rodilla: ["b28015", "s75011"],
-  tobillo_pie: ["b28015", "s75021"],
-};
-/** Habituales en fisioterapia musculoesquelética (sugerencia de la app, no un «core set» oficial). */
-const COMMON = ["b280", "b710", "b730", "b740", "b770", "d410", "d415", "d430", "d450", "d850", "d920", "e310", "e355"];
-
-export function suggestedCodes(regions: string[]): string[] {
-  return [...new Set([...regions.flatMap((r) => BY_REGION[r] ?? []), ...COMMON])];
-}
 
 /** Las más usadas en este dispositivo, para tenerlas a mano. */
 const RECENT_KEY = "fisiolab.cif.recent";

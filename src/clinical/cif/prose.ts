@@ -51,10 +51,6 @@ export function phraseParts(c: Coded, title: string): Phrase | null {
   return { lead, rest: `${rest} ${tail}` };
 }
 
-export function phrase(c: Coded, title: string): string | null {
-  const p = phraseParts(c, title);
-  return p && `${p.lead} ${p.rest}`.trim();
-}
 
 /** Seguidas y con la misma gravedad, se dice una vez: «dificultad grave para andar (d450.3) y para vestirse (d540.3)». */
 export function mergeLeads(parts: Phrase[]): string[] {

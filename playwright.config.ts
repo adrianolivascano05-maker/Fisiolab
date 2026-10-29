@@ -10,6 +10,9 @@ const ghPages = base !== "/";
 export default defineConfig({
   testDir: "e2e",
   timeout: 30_000,
+  // Cada comprobación espera hasta 10 s (Playwright trae 5): la primera carga de la app (SQLite en WebAssembly y
+  // abrir la base) pasa de 5 s cuando los cuatro navegadores de las pruebas arrancan a la vez en una máquina pequeña.
+  expect: { timeout: 10_000 },
   fullyParallel: true,
   reporter: [["list"]],
   use: {

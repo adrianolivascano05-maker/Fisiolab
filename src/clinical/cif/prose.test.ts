@@ -1,29 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Questionnaire } from "../../data/clinical";
 import { makeEntry, parseCoded } from "./cif";
-import { draftDiagnosis, personalFactors, phrase } from "./prose";
+import { draftDiagnosis, personalFactors } from "./prose";
 import { evidenceFrom } from "./suggest";
 
 const entry = (s: string, title: string) => makeEntry(parseCoded(s)!, title);
 const q = (kind: string, score: number, performedAt = "2026-10-20T10:00:00Z"): Questionnaire => ({ id: kind, patientId: "p", kind, score, performedAt, details: {}, notes: "" });
 
 describe("el perfil CIF redactado", () => {
-  it("cada código en una frase, como lo escribiría un fisio", () => {
-    expect(phrase(parseCoded("b28013.3")!, "Dolor en la espalda")).toBe("deficiencia grave en dolor en la espalda (b28013.3)");
-    expect(phrase(parseCoded("d450.2")!, "Andar")).toBe("dificultad moderada para andar (d450.2)");
-    expect(phrase(parseCoded("d450.21")!, "Andar")).toBe("dificultad moderada para andar en su entorno habitual, ligera en capacidad (d450.21)");
-    expect(phrase(parseCoded("d850.2")!, "Trabajo remunerado")).toBe("dificultad moderada en trabajo remunerado (d850.2)");
-    expect(phrase(parseCoded("d420.1")!, "“Transferir el propio cuerpo”")).toBe("dificultad ligera para transferir el propio cuerpo (d420.1)");
-    expect(phrase(parseCoded("s75011.272")!, "Articulación de la rodilla")).toBe(
-      "deficiencia moderada en articulación de la rodilla: cambios cualitativos en la estructura, incluyendo la acumulación de fluido, izquierda (s75011.272)",
-    );
-    expect(phrase(parseCoded("e310+2")!, "Familiares cercanos")).toBe("facilitador moderado: familiares cercanos (e310+2)");
-    expect(phrase(parseCoded("e1101.1")!, "Medicamentos")).toBe("barrera ligera: medicamentos (e1101.1)");
-    expect(phrase(parseCoded("b710.8")!, "Movilidad")).toBe("deficiencia de gravedad sin especificar en movilidad (b710.8)");
-    expect(phrase(parseCoded("d450.0")!, "Andar")).toBe("sin dificultad para andar (d450.0)");
-    expect(phrase(parseCoded("b640.9")!, "Funciones sexuales")).toBeNull();
-  });
-
   it("por componentes, agrupados por el dato que respalda el calificador, y los factores personales", () => {
     const ev = evidenceFrom({ regiones: ["lumbar"] }, [{ pain: 6, performedAt: "2026-10-21T10:00:00Z" }], [q("odi", 32)], []);
     const text = draftDiagnosis(

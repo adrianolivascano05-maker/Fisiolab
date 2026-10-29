@@ -1,7 +1,7 @@
 // Recordatorios de cita sin servicios de pago: el mensaje se prepara aquí y se abre en WhatsApp (o en el correo) del
 // propio dispositivo, listo para enviar con un toque. Nada sale de la app sin que la persona lo envíe. Los textos
 // (y los de los demás mensajes) los cambia la clínica en Ajustes › Mensajes a pacientes (src/messages/templates.ts).
-import { DEFAULT_TEMPLATE, dayText, fillTemplate, firstName, hourText, messageText, withWho, type MessageSettings, type MessageVars } from "../messages/templates";
+import { dayText, firstName, hourText, messageText, withWho, type MessageSettings, type MessageVars } from "../messages/templates";
 
 export { DEFAULT_TEMPLATE, dayText, hourText } from "../messages/templates";
 
@@ -10,11 +10,6 @@ export type ReminderVars = { name: string; startsAt: string; clinic: string; pro
 /** Las fichas de un recordatorio o de un hueco libre: nombre de pila, día, hora, clínica y «con quién». */
 export function appointmentVars(v: ReminderVars): MessageVars {
   return { nombre: firstName(v.name), dia: dayText(v.startsAt), hora: hourText(v.startsAt), clinica: v.clinic, con: withWho(v.professional) };
-}
-
-/** Un texto de recordatorio concreto (sin firma): lo usa la vista previa; vacío, el de siempre. */
-export function reminderText(template: string, v: ReminderVars): string {
-  return fillTemplate(template.trim() || DEFAULT_TEMPLATE, appointmentVars(v));
 }
 
 /** El recordatorio de la clínica (su texto o el de siempre), con su firma. */

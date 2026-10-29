@@ -48,12 +48,6 @@ export const GROUPS: Record<Component, CifGroup[]> = {
   ],
 };
 
-/** Las subcategorías directas de una categoría (o las categorías de un capítulo), en el orden de la CIF. */
-export function childrenOf(catalog: CifEntry[], code: string): CifEntry[] {
-  const level = code.length <= 2 ? 1 : code.length - 2;
-  return catalog.filter((e) => e.level === level + 1 && e.code.startsWith(code));
-}
-
 /** Los capítulos de un componente. */
 export const chaptersOf = (catalog: CifEntry[], component: Component) => catalog.filter((e) => e.component === component && e.level === 1);
 

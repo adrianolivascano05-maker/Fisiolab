@@ -3,6 +3,7 @@
 // equipo, con quién. Se ordena y se filtra por todo eso a la vez (filterWaitlist, sortWaitlist). Al anular o borrar
 // una cita, la agenda enseña a quién ofrecérselo, con el mensaje listo para WhatsApp o correo
 // (src/schedule/WaitlistPage.tsx). Quien ya tiene su hueco se quita de la lista.
+import { fold, phoneDigits } from "../app/format";
 import { dayOf } from "../app/dates";
 import type { Db } from "./db";
 
@@ -267,16 +268,15 @@ export type WaitFilters = {
   minDays?: number | null;
 };
 
-const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 /** Días enteros que lleva esperando. */
 export const waitingDays = (createdAt: string, now = new Date()) => Math.max(0, Math.floor((now.getTime() - Date.parse(createdAt)) / 86_400_000));
 
 export function filterWaitlist(items: WaitItem[], f: WaitFilters, now = new Date()): WaitItem[] {
   const today = dayOf(now);
   const q = fold(f.q?.trim() ?? "");
-  const digits = q.replace(/\D/g, "");
+  const digits = phoneDigits(q);
   return items.filter((w) => {
-    if (q && !fold(`${w.name} ${w.note}`).includes(q) && !(digits.length >= 3 && w.phone.replace(/\D/g, "").includes(digits))) return false;
+    if (q && !fold(`${w.name} ${w.note}`).includes(q) && !(digits !== null && w.phone.replace(/\D/g, "").includes(digits))) return false;
     if (f.band && !bandsOf(w)[f.band]) return false;
     if (f.days?.length && w.preferDays.length && !w.preferDays.some((d) => f.days!.includes(d))) return false;
     if (f.who && w.assignedTo && w.assignedTo !== f.who) return false;

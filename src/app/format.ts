@@ -23,6 +23,15 @@ export function decimalText(n: number | null): string {
 /** Sin tildes ni mayúsculas, para buscar texto («Lucía» se encuentra con «lucia»). */
 export const fold = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
+/**
+ * Las cifras de lo buscado cuando parece un teléfono (o un DNI): al menos 3 y nada más que cifras, espacios, «+»,
+ * paréntesis o guiones; si no, null. La misma regla en la lista de pacientes, el buscador y la lista de espera.
+ */
+export function phoneDigits(query: string): string | null {
+  const digits = query.replace(/\D/g, "");
+  return digits.length >= 3 && digits.length >= query.replace(/[\s+()-]/g, "").length ? digits : null;
+}
+
 /** AAAA-MM-DD de un instante en la hora de Madrid: el `dayOf` de dates.ts, con el nombre que ya usa media app. */
 export { dayOf as madridDay } from "./dates";
 

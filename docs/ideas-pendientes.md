@@ -11,7 +11,7 @@ Ninguno está hecho.
 1. **Un fisio que se va conserva los datos en su móvil.** Al quitarlo del equipo (Ajustes › Equipo de la clínica),
    el servidor deja de aceptarle («Tu cuenta no está autorizada en el servidor de la clínica», `src/cloud/remote.ts`),
    pero la base de su dispositivo no se borra sola. Solo se borra si esa persona pulsa «Cerrar sesión y borrar los
-   datos de este dispositivo» (`src/cloud/CloudGate.tsx`).
+   datos de este dispositivo» (`src/cloud/CloudSettings.tsx`).
    - Mientras tanto: que lo haga delante de quien gestiona la clínica antes de quitarlo del equipo.
    - Por decidir: si la app debe borrar sola los datos de esa clínica cuando el servidor dice que la cuenta ya no
      está en el equipo. Cuidado con dos cosas: no borrar por un fallo pasajero del servidor y no perder cambios que
@@ -626,5 +626,35 @@ visible al momento y de poco riesgo:
   código del servidor no cambia (el `worker.js` generado tiene las mismas líneas que el anterior, solo reordenadas),
   así que no hay que volver a pegarlo ni sube `SERVER_VERSION`.
 
+- **`CloudGate.tsx` por partes** (954 líneas → 290): se queda con lo que decide qué se ve al abrir y pone en marcha
+  la cuenta. `cloudContext.ts` (`useCloud`, `useSyncState`, `useCalendarState`, el tipo `Cloud` y `errText`, que
+  estaba copiado en siete archivos), `screens.tsx` (las pantallas de entrada), `SyncNotice.tsx` (`syncText` y el
+  aviso de cada pantalla) y `CloudSettings.tsx` (la sección «Cuenta» de Ajustes). Los 32 archivos que importaban de
+  `CloudGate` importan del que toca.
+- **La hoja de la cita por partes** (668 líneas en una función → 325): el formulario en `AppointmentForm.tsx`
+  (`useAppointmentForm` + `AppointmentForm`), recordar, cobrar, «No vino» y el hueco libre en
+  `appointmentPanels.tsx`, y elegir el paciente en `PatientPicker.tsx`.
+- **`repo.ts` por dominios** (1144 líneas → 10 archivos: `patients`, `tests`, `profiles`, `romTests`,
+  `strengthTests`, `wellness`, `nordicTests`, `timedTests`, `settings`, `exportCsv`, más `ids.ts` con `newId` y
+  `now`). `repo.ts` queda como índice (`export *`), así que los 117 `import … from "./repo"` siguen valiendo y lo
+  nuevo puede importar del archivo del dominio.
+- **Restos pequeños:** la búsqueda por teléfono (¿parece un teléfono? → sus cifras) estaba escrita tres veces
+  (lista de pacientes, buscador y lista de espera) y ahora es `phoneDigits` en `src/app/format.ts`; la lista de
+  espera usa la misma regla que las otras dos (antes aceptaba cifras mezcladas con letras). Fuera las funciones que
+  solo usaban las pruebas: `childrenOf`, `phrase`, `suggestedCodes` (con sus tablas), `countOwnPatients`,
+  `nextVisitOf`, `reminderText` y `RECOMMENDATIONS`; `withinShift` se queda porque la prueba de los datos de prueba
+  comprueba con ella que las citas caen dentro de los turnos. Las dependencias van fijadas a la versión instalada
+  (sin `^`): lo que se prueba es lo que se instala. `useAsync` apunta cada fallo de carga en el registro de errores
+  (Ajustes › Informar de un problema), aunque la pantalla solo diga «no se pudo cargar». El apartado 6 de
+  `RESUMEN.md` vuelve a describir el código tal y como está.
+- **Pruebas e2e:** cada comprobación espera hasta 10 s en vez de 5 (`expect.timeout` en `playwright.config.ts`).
+  Al pasar la tanda completa fallaban 3 pruebas en un modo y 4 en el otro, distintas cada vez y todas iguales: la
+  primera comprobación nada más abrir la página no llegaba en 5 s. Repetidas sobre el commit de ayer (`15fcba3`)
+  fallaban igual, y la misma prueba sola pasa: es la primera carga (SQLite en WebAssembly y abrir la base) cuando
+  los cuatro navegadores arrancan a la vez en una máquina de 4 núcleos, no un cambio de la app. El tope de cada
+  prueba sigue en 30 s.
+- No hecho: poner `Guard` (carga y error) en las pantallas que aún no lo tienen; son 17 y cada una enseña sus datos
+  de forma distinta (esqueletos, listas opcionales), así que se irá haciendo al tocar cada una.
+
 Pendiente de esa revisión: la de «vender con garantías» (registro de accesos, borrado remoto, historial de
-cambios, copia cifrada, rate limit) y el resto de la de limpieza (`AppointmentSheet`, `CloudGate`, `repo.ts`).
+cambios, copia cifrada, rate limit).

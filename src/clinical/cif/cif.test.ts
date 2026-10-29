@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { codedText, entriesText, formatCoded, makeEntry, parseCatalog, parseCoded, qualifierLabel, searchCif, suggestedCodes } from "./cif";
+import { codedText, entriesText, formatCoded, makeEntry, parseCatalog, parseCoded, qualifierLabel, searchCif } from "./cif";
 import { CIF_TSV } from "./cifData";
 
 const catalog = parseCatalog(CIF_TSV);
@@ -33,11 +33,6 @@ describe("catálogo de la CIF", () => {
     expect(searchCif(catalog, "", null)).toEqual([]);
   });
 
-  it("las sugerencias por zona son códigos que existen", () => {
-    for (const r of ["atm", "cervical", "hombro", "codo", "muneca_mano", "dorsal", "lumbar", "sacroiliaca", "cadera", "rodilla", "tobillo_pie"]) {
-      for (const c of suggestedCodes([r])) expect(byCode.has(c), `${r}: ${c}`).toBe(true);
-    }
-  });
 });
 
 describe("notación y calificadores", () => {

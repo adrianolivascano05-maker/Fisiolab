@@ -1,7 +1,7 @@
 // Ficha clínica: anamnesis, sesiones (con la siguiente cita, migración 007), hallazgos de la exploración y
 // cuestionarios (migración 006). Mismo estilo que repo.ts:
 // una función por operación; las pantallas no escriben SQL.
-import { markAttended, nextAppointmentOf, sessionAppointmentSql, upcomingAppointments, type Worker } from "./appointments";
+import { markAttended, sessionAppointmentSql, upcomingAppointments, type Worker } from "./appointments";
 import type { Db } from "./db";
 import { currentEpisode, getEpisodeAnswers, inFocus, saveEpisodeAnswers } from "./episodes";
 
@@ -189,12 +189,6 @@ export async function sessionCount(db: Db, patientId: string): Promise<{ done: n
 export function nextVisit(sessions: Session[], now = new Date()): Session | null {
   const last = sessions[0];
   return last?.nextAt && Date.parse(last.nextAt) > now.getTime() ? last : null;
-}
-
-/** La próxima cita pendiente de un paciente, si la hay (con la forma de la «siguiente cita» de una sesión). */
-export async function nextVisitOf(db: Db, patientId: string, now = new Date()): Promise<{ id: string; nextAt: string; nextMinutes: number | null } | null> {
-  const a = await nextAppointmentOf(db, patientId, now);
-  return a ? { id: a.id, nextAt: a.startsAt, nextMinutes: a.minutes } : null;
 }
 
 /** Todas las citas pendientes que aún no han llegado, para el calendario y la pantalla de inicio. */

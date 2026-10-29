@@ -3,7 +3,7 @@
 // pendiente de cobrar o de firmar) y por páginas. Con 10.000 pacientes, la lista trae solo los 50 que se ven.
 // Busca igual que matchesPatient (repo.ts): sin tildes ni mayúsculas, y un teléfono con o sin espacios.
 import { dayOf as madridDay } from "../app/dates";
-import { fold } from "../app/format";
+import { fold, phoneDigits } from "../app/format";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
 import { pendingAccounts } from "./billing";
@@ -99,8 +99,8 @@ function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "lette
   const bind: Bind[] = [];
   const text = fold(q.search.trim());
   if (text) {
-    const digits = text.replace(/\D/g, "");
-    const byDigits = digits.length >= 3 && digits.length >= text.replace(/[\s+()-]/g, "").length;
+    const digits = phoneDigits(text);
+    const byDigits = digits !== null;
     if (/\p{L}/u.test(text)) {
       // Con letras, en todo: también el motivo y el diagnóstico.
       where.push(`instr(fold(${SEARCH_TEXT}), ?) > 0`);
@@ -239,10 +239,4 @@ export async function unsignedPatients(db: Db): Promise<Set<string>> {
 export async function hasOwnPatients(db: Db, seedPrefix: string, quick: string): Promise<boolean> {
   const [row] = await db.query<{ n: number }>("select exists (select 1 from patients where substr(name, 1, length(?1)) <> ?1 and name <> ?2) as n", [seedPrefix, quick]);
   return !!row?.n;
-}
-
-/** Cuántos pacientes de verdad hay (sin los de la demo ni el de medición rápida). */
-export async function countOwnPatients(db: Db, seedPrefix: string, quick: string): Promise<number> {
-  const [row] = await db.query<{ n: number }>("select count(*) as n from patients where substr(name, 1, length(?1)) <> ?1 and name <> ?2", [seedPrefix, quick]);
-  return Number(row?.n ?? 0);
 }

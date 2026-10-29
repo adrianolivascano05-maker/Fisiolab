@@ -4,7 +4,7 @@ import { addPayment, setSessionPrice } from "./billing";
 import { getAnamnesis, saveAnamnesis, saveSession } from "./clinical";
 import { listConsents } from "./consents";
 import type { Db } from "./db";
-import { countOwnPatients, findPatients, hasOwnPatients, NO_FILTERS, unsignedPatients, type PatientFilters } from "./patientSearch";
+import { findPatients, hasOwnPatients, NO_FILTERS, unsignedPatients, type PatientFilters } from "./patientSearch";
 import { appointmentsByPhysio, patientPhysios, setPatientPhysios } from "./patientStaff";
 import { savePatientPrivacy } from "./privacy";
 import { createPatient, getPatient, listPatients, matchesPatient, QUICK_PATIENT, type PatientInput } from "./repo";
@@ -175,9 +175,7 @@ describe("buscar pacientes en la base", () => {
     await createPatient(db, person(`${SEED_PREFIX}Ana`));
     await createPatient(db, person(QUICK_PATIENT));
     expect(await hasOwnPatients(db, SEED_PREFIX, QUICK_PATIENT)).toBe(false);
-    expect(await countOwnPatients(db, SEED_PREFIX, QUICK_PATIENT)).toBe(0);
     await createPatient(db, person("Lucía Pérez"));
     expect(await hasOwnPatients(db, SEED_PREFIX, QUICK_PATIENT)).toBe(true);
-    expect(await countOwnPatients(db, SEED_PREFIX, QUICK_PATIENT)).toBe(1);
   });
 });

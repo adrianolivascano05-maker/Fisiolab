@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useDataVersion, type DataTable } from "./dataVersion";
+import { logError } from "./errorLog";
 
 type State<T> = { data: T | undefined; error: Error | null; loading: boolean };
 
@@ -18,7 +19,10 @@ export function useAsync<T>(load: () => Promise<T>, deps: unknown[], opts: { tab
     setState((s) => ({ ...s, loading: true }));
     run().then(
       (data) => alive && setState({ data, error: null, loading: false }),
-      (error: unknown) => alive && setState({ data: undefined, error: error instanceof Error ? error : new Error(String(error)), loading: false }),
+      (error: unknown) => {
+        logError("pantalla", error); // queda en Ajustes › Informar de un problema, aunque la pantalla solo diga «no se pudo cargar»
+        if (alive) setState({ data: undefined, error: error instanceof Error ? error : new Error(String(error)), loading: false });
+      },
     );
     return () => {
       alive = false;

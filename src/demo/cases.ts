@@ -658,7 +658,6 @@ export const SUBJECTIVE = {
 };
 export const OBJECTIVE = ["Mejor movilidad que la sesión anterior.", "Menos dolor a la palpación.", "Tolera más carga en los ejercicios.", "Ejecuta bien los ejercicios."];
 export const NEXT_PLAN = ["Progresar la carga.", "Mantener el programa y revisar en la próxima.", "Introducir gesto específico.", "Reducir frecuencia a una sesión por semana."];
-export const RECOMMENDATIONS = ["Mantener el ejercicio de fuerza dos o tres veces por semana.", "Seguir activo y volver si reaparecen los síntomas.", "Progresar la carga de forma gradual."];
 
 /** Los fisios de la clínica de prueba (correos de example.com, que no son de nadie). */
 export const STAFF = [

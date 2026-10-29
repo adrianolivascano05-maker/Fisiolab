@@ -1,7 +1,7 @@
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { agenda, clashes, createAppointment, createWeekly, getAppointment, lastVisitOf, markConfirmed, markReminded, nextAppointmentOf, updateAppointment, upcomingAppointments } from "./appointments";
-import { deleteSession, nextVisitOf, saveSession, upcomingVisits } from "./clinical";
+import { deleteSession, saveSession, upcomingVisits } from "./clinical";
 import { dbFromHandler, type Db } from "./db";
 import { Engine } from "./engine";
 import { migrations } from "./migrations";
@@ -33,7 +33,7 @@ describe("citas", () => {
   it("la siguiente cita de una sesión es una cita con el id de la sesión: se mueve con ella y se quita con ella", async () => {
     const sid = await saveSession(db, pid, session("2026-10-19T10:00:00.000Z", "2026-10-22T10:00:00.000Z"));
     expect(await getAppointment(db, sid)).toMatchObject({ patientId: pid, startsAt: "2026-10-22T10:00:00.000Z", minutes: 45, status: "scheduled" });
-    expect(await nextVisitOf(db, pid, NOW)).toEqual({ id: sid, nextAt: "2026-10-22T10:00:00.000Z", nextMinutes: 45 });
+    expect(await nextAppointmentOf(db, pid, NOW)).toMatchObject({ id: sid, startsAt: "2026-10-22T10:00:00.000Z", minutes: 45 });
     await saveSession(db, pid, session("2026-10-19T10:00:00.000Z", "2026-10-23T09:30:00.000Z"), sid);
     expect((await getAppointment(db, sid))!.startsAt).toBe("2026-10-23T09:30:00.000Z");
     await saveSession(db, pid, session("2026-10-19T10:00:00.000Z"), sid);
