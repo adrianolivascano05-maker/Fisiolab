@@ -8,6 +8,8 @@ import { bumpData } from "../app/dataVersion";
 import { clashes, createAppointment, markConfirmed, markReminded, updateAppointment, type AgendaItem, type Appointment } from "../data/appointments";
 import { accountLine, addPayment, euros, getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
+import { mayMessage } from "../data/privacy";
+import { ContactNote } from "../privacy/ContactNote";
 import { mailtoUrl, whatsappUrl } from "../schedule/reminders";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -35,7 +37,7 @@ export function ReminderActions({ appointment, info, autoCalendar, busy, run }: 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap gap-2">
-        {info.contact !== false && info.wa && (
+        {mayMessage(info.contact) && info.wa && (
           <a
             href={whatsappUrl(info.wa, info.reminder)}
             target="_blank"
@@ -46,7 +48,7 @@ export function ReminderActions({ appointment, info, autoCalendar, busy, run }: 
             <MessageCircle aria-hidden="true" className="size-5" /> Recordar por WhatsApp
           </a>
         )}
-        {info.contact !== false && info.email && (
+        {mayMessage(info.contact) && info.email && (
           <a
             href={mailtoUrl(info.email, info.subject, info.reminder)}
             className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
@@ -61,7 +63,7 @@ export function ReminderActions({ appointment, info, autoCalendar, busy, run }: 
           </a>
         )}
       </div>
-      {info.contact === false && <p className="text-sm text-text-muted">No acepta WhatsApp ni correo.</p>}
+      <ContactNote contact={info.contact} patientId={appointment.patientId} />
       {/* Sin Google Calendar conectado: pasar la cita al calendario del fisio (antes, un botón en la cabecera de la ficha). */}
       {autoCalendar ? <p className="text-sm text-text-muted">Apuntada en tu Google Calendar</p> : info.event && <CalendarButton event={info.event} />}
       <Button

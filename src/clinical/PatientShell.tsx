@@ -15,7 +15,7 @@ import { nextAppointmentOf } from "../data/appointments";
 import { euros, patientAccount } from "../data/billing";
 import { editText, lastEditOfPatient } from "../data/editors";
 import { getDb } from "../data/db";
-import { ageOn } from "../data/privacy";
+import { ageOn, mayMessage } from "../data/privacy";
 import type { Patient } from "../data/repo";
 import { fmtVisit } from "./calendar";
 import { AppointmentSheet } from "./AppointmentSheet";
@@ -36,7 +36,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
   // Desde la lista de espera, «‹» vuelve a ella con sus filtros.
   const from = (useLocation().state as { from?: string } | null)?.from;
   const fromWaitlist = typeof from === "string" && from.startsWith("/agenda/espera") ? from : null;
-  const wa = patient && patient.privacy.consents?.contact !== false ? waPhone(patient.phone) : null;
+  const wa = patient && mayMessage(patient.privacy.consents?.contact) ? waPhone(patient.phone) : null;
   const version = useDataVersion();
   const owes = useAsync(async () => {
     const a = await patientAccount(getDb(), id, todayDay());

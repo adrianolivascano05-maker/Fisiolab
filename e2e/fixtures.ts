@@ -191,3 +191,19 @@ export async function importData(page: Page, patients: string, appointments?: st
   await page.getByRole("button", { name: /^Importar \d+ citas?$/ }).click();
   await expect(page.getByText(/citas? importadas?/)).toBeVisible();
 }
+
+/**
+ * Apunta que el paciente firmó «Sí» al permiso de contacto (la hoja de protección de datos en papel). Sin él, la app no
+ * ofrece WhatsApp ni correo (src/data/privacy.ts, mayMessage). Busca al paciente por su nombre.
+ */
+export async function allowContact(page: Page, name: string) {
+  await page.goto("./");
+  await page.getByRole("searchbox", { name: "Buscar paciente" }).fill(name);
+  await page.getByRole("link", { name: new RegExp(`^${name}`) }).first().click();
+  await expect(page.getByRole("heading", { name, level: 1 })).toBeVisible();
+  const id = /\/pacientes\/([^/?#]+)/.exec(page.url())![1];
+  await page.goto(`./pacientes/${id}/proteccion-datos`);
+  await page.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByText("Sí", { exact: true }).click();
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  await expect(page.getByText(/Información entregada el/)).toBeVisible();
+}

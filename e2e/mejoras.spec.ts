@@ -1,7 +1,7 @@
 // Mejoras frente a la competencia (replica/fixes.md): mapa del dolor (cuestionario), bonos y cobros, lista de espera
 // y hoja de ejercicios para casa.
 import type { Page } from "@playwright/test";
-import { add, createPatient, expect, expectAccessible, importData, test } from "./fixtures";
+import { add, allowContact, createPatient, expect, expectAccessible, importData, test } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
 
@@ -115,6 +115,7 @@ test.describe("Mejoras frente a la competencia", () => {
 
   test("MJ3 lista de espera: al anular una cita, ofrecer el hueco por WhatsApp y darle la cita", async ({ page }) => {
     await importData(page, "Nombre;Teléfono\r\nCarlos Cita;600 111 222\r\nDana Espera;611 222 333\r\n", "Paciente;Fecha;Hora\r\nCarlos Cita;21/10/2026;10:00\r\n");
+    await allowContact(page, "Dana Espera");
     await page.goto("./agenda");
     await page.getByRole("link", { name: /Lista de espera/ }).click();
     await page.getByRole("button", { name: "Añadir a la lista" }).click();
@@ -159,6 +160,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await expectAccessible(page);
 
     await importData(page, "Nombre;Teléfono\r\nElena Ejercicios;622 333 444\r\n");
+    await allowContact(page, "Elena Ejercicios");
     await page.goto("./");
     await page.getByRole("link", { name: /Elena Ejercicios/ }).first().click();
     await page.waitForURL(/\/pacientes\/[^/]+$/);
@@ -257,6 +259,7 @@ test.describe("Mejoras frente a la competencia", () => {
       "Nombre;Teléfono\r\nCarlos Cita;600 111 222\r\nDana Tarde;611 222 333\r\nElsa Manana;622 333 444\r\n",
       "Paciente;Fecha;Hora\r\nCarlos Cita;21/10/2026;10:00\r\n",
     );
+    await allowContact(page, "Elsa Manana");
     // Desde la ficha de Dana: se abre ya con ella.
     await page.goto("./");
     await page.getByRole("link", { name: /Dana Tarde/ }).first().click();
@@ -310,6 +313,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await expect(page.getByRole("heading", { name: "Rodilla" })).toBeVisible();
 
     await importData(page, "Nombre;Teléfono\r\nFede Fase;633 444 555\r\nGala Igual;644 555 666\r\n");
+    await allowContact(page, "Fede Fase");
     await page.goto("./");
     await page.getByRole("link", { name: /Fede Fase/ }).first().click();
     await page.waitForURL(/\/pacientes\/[^/]+$/);

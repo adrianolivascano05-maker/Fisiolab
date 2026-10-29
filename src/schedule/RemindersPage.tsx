@@ -11,7 +11,8 @@ import { useAsync } from "../app/useAsync";
 import { addDays, todayDay } from "../clinical/pageKit";
 import { markConfirmed, markReminded, remindersBetween, type ReminderItem } from "../data/appointments";
 import { getDb } from "../data/db";
-import { getClinic, setContactConsent } from "../data/privacy";
+import { getClinic, mayMessage, MISSING_CONTACT } from "../data/privacy";
+import { ContactNote } from "../privacy/ContactNote";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -118,8 +119,8 @@ export function RemindersPage() {
           </p>
         )}
         {unknown > 0 && (
-          <Alert tone="warning" title={`${plural(unknown, "paciente", "pacientes")} sin permiso de contacto apuntado`}>
-            Pregúntales si aceptan que les escribáis por WhatsApp o correo y apúntalo en su tarjeta (queda en su ficha, en Protección de datos).
+          <Alert tone="warning" title={`${plural(unknown, "paciente", "pacientes")} sin permiso de contacto firmado`}>
+            Para escribirles por WhatsApp o correo tienen que firmar la hoja de protección de datos (en su ficha, Protección de datos). Mientras, llámales.
           </Alert>
         )}
         {items.map((a) => (
@@ -134,11 +135,6 @@ export function RemindersPage() {
               await markConfirmed(getDb(), a.id, yes);
               bumpData("appointments");
               toast(yes ? `${a.name}: confirmada` : `${a.name}: sin confirmar`, "success");
-            }}
-            onConsent={async (yes) => {
-              await setContactConsent(getDb(), a.patientId, yes);
-              bumpData("patients");
-              toast(yes ? `${a.name}: acepta WhatsApp y correo` : `${a.name}: no acepta WhatsApp ni correo`, "success");
             }}
           />
         ))}
@@ -165,7 +161,6 @@ function ReminderRow({
   withWhom,
   onSent,
   onConfirm,
-  onConsent,
 }: {
   a: ReminderItem;
   text: string;
@@ -173,10 +168,9 @@ function ReminderRow({
   withWhom: string | null;
   onSent: () => void;
   onConfirm: (yes: boolean) => void;
-  onConsent: (yes: boolean) => void;
 }) {
   const phone = waPhone(a.phone);
-  const refused = a.contact === false;
+  const blocked = !mayMessage(a.contact);
   const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
   return (
     <Card role="group" aria-label={`${hourText(a.startsAt)} · ${a.name}`} className="flex flex-col gap-2">
@@ -197,11 +191,11 @@ function ReminderRow({
         ) : (
           <span className="rounded-full bg-surface px-2 py-0.5">Sin recordar</span>
         )}
-        {refused && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-danger">No acepta WhatsApp ni correo</span>}
-        {a.contact === null && <span className="rounded-full bg-warning-soft px-2 py-0.5">Sin permiso de contacto registrado</span>}
+        {a.contact === false && <span className="rounded-full bg-danger-soft px-2 py-0.5 text-danger">No acepta WhatsApp ni correo</span>}
+        {blocked && a.contact !== false && <span className="rounded-full bg-warning-soft px-2 py-0.5">{MISSING_CONTACT.split(":")[0]}</span>}
       </div>
-      {refused ? (
-        <p className="text-sm text-text-muted">Llámale por teléfono{a.phone ? `: ${a.phone}` : ""}.</p>
+      {blocked ? (
+        <ContactNote contact={a.contact} patientId={a.patientId} extra={`Llámale por teléfono${a.phone ? `: ${a.phone}` : ""}`} />
       ) : (
         <div className="flex flex-wrap gap-2">
           {phone ? (
@@ -227,17 +221,6 @@ function ReminderRow({
           </Button>
         )}
       </div>
-      {a.contact === null && (
-        <div role="group" aria-label={`Permiso de contacto de ${a.name}`} className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-text-muted">¿Acepta WhatsApp o correo?</span>
-          <Button size="sm" variant="secondary" onClick={() => onConsent(true)}>
-            Sí, acepta
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => onConsent(false)}>
-            No
-          </Button>
-        </div>
-      )}
     </Card>
   );
 }

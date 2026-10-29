@@ -1,6 +1,7 @@
 // Bandeja de envíos: lo que toca mandar hoy a los pacientes, calculado con unas reglas fijas, para enviarlo por
 // WhatsApp (o por correo) desde este dispositivo, uno tras otro. Nada sale solo: cada mensaje lo envía la persona
-// con un toque (src/schedule/OutboxPage.tsx). Sin servicios de pago.
+// con un toque (src/schedule/OutboxPage.tsx). Sin servicios de pago. Solo sale quien ha firmado el permiso de contacto
+// como «Sí» (mayMessage en src/data/privacy.ts): sin firmar o con un «No», no entra en la bandeja.
 //
 // Las reglas:
 // - Recordatorio: las citas de mañana (y las de hoy que aún no han llegado) que no se han recordado.
@@ -8,6 +9,7 @@
 //   (o en cuanto se da la cita, si queda menos). Hace falta el servidor de la clínica.
 // - Seguimiento: antes de una reevaluación, los cuestionarios que rellenó al empezar, para ver cómo va. Hace falta el
 //   servidor de la clínica.
+import { mayMessage } from "../data/privacy";
 import { madridDay } from "../app/format";
 import { ANAMNESIS_KIND, SENDABLE } from "../clinical/patientForms";
 import type { ReminderItem } from "../data/appointments";
@@ -89,7 +91,7 @@ export function buildOutbox(input: OutboxInput): OutboxItem[] {
       const id = `recordatorio:${a.id}`;
       // Mañana, o hoy si aún faltan más de dos horas (si ayer no se recordó).
       const inWindow = day === tomorrow || (day === today && Date.parse(a.startsAt) - t > 2 * 3_600_000);
-      if (!inWindow || a.remindedAt || a.confirmedAt || done.has(id) || a.contact === false) continue;
+      if (!inWindow || a.remindedAt || a.confirmedAt || done.has(id) || !mayMessage(a.contact)) continue;
       out.push({ ...contactOf(a), id, rule: "recordatorio", appointment: a, needsForms: false });
     }
   }
@@ -102,7 +104,7 @@ export function buildOutbox(input: OutboxInput): OutboxItem[] {
     for (const a of firstOf.values()) {
       const id = `anamnesis:${a.id}`;
       const start = Date.parse(a.startsAt);
-      if (start <= t || start > horizon || done.has(id) || a.contact === false) continue;
+      if (start <= t || start > horizon || done.has(id) || !mayMessage(a.contact)) continue;
       if (input.seenBefore.has(a.patientId) || input.withAnamnesis.has(a.patientId) || recentAnamnesis.has(a.patientId)) continue;
       out.push({ ...contactOf(a), id, rule: "anamnesis", appointment: a, needsForms: true });
     }
@@ -111,7 +113,7 @@ export function buildOutbox(input: OutboxInput): OutboxItem[] {
   if (settings.followUp) {
     const last = addDay(today, settings.followUpDays);
     for (const r of input.reviews) {
-      if (r.reviewOn < today || r.reviewOn > last || r.contact === false) continue;
+      if (r.reviewOn < today || r.reviewOn > last || !mayMessage(r.contact)) continue;
       const id = `seguimiento:${r.patientId}:${r.reviewOn}`;
       if (done.has(id)) continue;
       // Los cuestionarios que rellenó hace al menos dos semanas y no ha vuelto a rellenar, ni se le han mandado.

@@ -26,7 +26,8 @@ import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { useGranted } from "../data/questionnairePermissions";
 import { cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
-import { clinicComplete, getClinic } from "../data/privacy";
+import { clinicComplete, getClinic, mayMessage } from "../data/privacy";
+import { ContactNote } from "../privacy/ContactNote";
 import { getPatient, type Patient } from "../data/repo";
 import { loadMessages, messageSubject, type MessageSettings } from "../messages/templates";
 import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
@@ -244,20 +245,19 @@ function ShareForm({ f, patient, clinicName, messages }: { f: SentForm; patient:
   useEffect(() => setCanShare(typeof navigator.share === "function"), []);
   return (
     <div className="flex flex-col gap-3">
-      {consent === false && (
-        <Alert tone="warning" title="No acepta WhatsApp ni correo">
-          Dale el enlace en persona (por ejemplo, que lo abra con su móvil en la consulta) o pregúntale si ahora acepta.
+      {!mayMessage(consent) && (
+        <Alert tone="warning" title={consent === false ? "No acepta WhatsApp ni correo" : "Falta su permiso de contacto"}>
+          <ContactNote contact={consent} patientId={patient.id} extra="Dale el enlace en persona: que lo abra con su móvil en la consulta" className="text-text" />
         </Alert>
       )}
-      {consent === undefined && <p className="text-sm text-text-muted">No tiene apuntado si acepta que se le escriba por WhatsApp o correo.</p>}
       <pre className="whitespace-pre-wrap rounded-md bg-surface p-3 font-sans text-sm break-words">{text}</pre>
       <div className="flex flex-wrap gap-2">
-        {phone && consent !== false && (
+        {phone && mayMessage(consent) && (
           <a href={whatsappUrl(phone, text)} target="_blank" rel="noopener noreferrer" className={cx(link, "bg-accent text-on-accent hover:bg-accent-hover")}>
             <MessageCircle aria-hidden="true" className="size-5" /> WhatsApp
           </a>
         )}
-        {patient.email && consent !== false && (
+        {patient.email && mayMessage(consent) && (
           <a href={mailtoUrl(patient.email, messageSubject(f.kind === DOCS_KIND ? "archivos" : "formulario", messages, { clinica: clinicName }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
             <Mail aria-hidden="true" className="size-5" /> Correo
           </a>

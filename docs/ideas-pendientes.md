@@ -695,3 +695,12 @@ sanitaria: son los cambios que pide la revisión.
   atiende desde el punto de su red más cercano. El nombre y el correo salen de Ajustes › Clínica y protección de
   datos y viajan en el sobre cifrado (`controller` en `FormRequest`); sin nombre, el de la clínica del servidor. Si
   faltan, la pantalla de enviar formularios lo avisa. Los enlaces mandados antes salen sin correo.
+- **6. WhatsApp y correo solo con el permiso firmado.** La regla está en un sitio, `mayMessage` en
+  `src/data/privacy.ts`: solo con el permiso de contacto firmado como «Sí» (la hoja de protección de datos, en la
+  pantalla o en papel). Sin preguntar, tampoco. Vale para la hoja de la cita, la cabecera de la ficha, Recordatorios,
+  la bandeja de envíos (quien no ha firmado ya no entra en ella), la lista de espera, los formularios para el
+  paciente y la hoja de ejercicios. Donde falta sale «Falta su permiso de contacto: que firme la hoja de protección
+  de datos», con el enlace a esa hoja en su ficha (`src/privacy/ContactNote.tsx`); si dijo que no, «No acepta
+  WhatsApp ni correo». Fuera el «¿Acepta WhatsApp o correo? Sí, acepta / No» rápido de Recordatorios, que lo
+  apuntaba sin firma. `src/schedule/reminders.ts` solo escribe los textos: no manda nada por sí mismo. Llamar por
+  teléfono sigue igual.

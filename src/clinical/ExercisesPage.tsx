@@ -2,6 +2,7 @@
 // clínica (o escritos a mano, o de una plantilla), su dosis, cómo hacerlos y, si hay, un vídeo (con su código QR en la
 // hoja). Se imprime, se guarda en PDF o en Drive y se envía por WhatsApp o correo desde este dispositivo. Las hojas
 // anteriores se quedan. La biblioteca se abre en las zonas de su anamnesis.
+import { ContactNote } from "../privacy/ContactNote";
 import { ArrowDown, ArrowUp, BookmarkPlus, ChevronDown, Download, Library, Mail, MessageCircle, Pencil, Plus, Printer, Search, Sparkles, Trash, X } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
@@ -29,7 +30,7 @@ import {
   type PlanItem,
   type PlanTemplate,
 } from "../data/exercises";
-import { getClinic, type ClinicInfo } from "../data/privacy";
+import { getClinic, mayMessage, type ClinicInfo } from "../data/privacy";
 import { getPatient } from "../data/repo";
 import { loadMessages, messageSubject } from "../messages/templates";
 import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
@@ -148,18 +149,18 @@ export function ExercisesPage() {
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
         <div className="flex flex-col gap-2 rounded-lg border border-border bg-bg p-4 print:hidden">
           <div className="flex flex-wrap gap-2">
-            {contact !== false && phone && (
+            {mayMessage(contact) && phone && (
               <a href={whatsappUrl(phone, text)} target="_blank" rel="noopener noreferrer" className={cx(link, "bg-accent text-on-accent hover:bg-accent-hover")}>
                 <MessageCircle aria-hidden="true" className="size-5" /> Enviar por WhatsApp
               </a>
             )}
-            {contact !== false && patient.email && (
+            {mayMessage(contact) && patient.email && (
               <a href={mailtoUrl(patient.email, messageSubject("ejercicios", messages, { clinica: clinic.name }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
                 <Mail aria-hidden="true" className="size-5" /> Correo
               </a>
             )}
           </div>
-          {contact === false && <p className="text-sm text-text-muted">No acepta WhatsApp ni correo: dásela impresa.</p>}
+          <ContactNote contact={contact} patientId={patient.id} extra="Dásela impresa" />
           <Button variant="secondary" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
             Imprimir
           </Button>

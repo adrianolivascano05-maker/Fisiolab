@@ -7,6 +7,7 @@
 // hueco libre» se pone uno a mano. Sin hueco, cada paciente tiene su WhatsApp (el mensaje «Lista de espera» de Ajustes),
 // «Dar cita» (y después se pregunta si sale de la lista) y su ficha, que vuelve aquí con los filtros. Desde la ficha se
 // llega con ?paciente=… para apuntarlo.
+import { ContactNote } from "../privacy/ContactNote";
 import { useTeamMode } from "../cloud/teamMode";
 import { CalendarClock, CalendarPlus, Mail, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Trash, UserRound, X } from "lucide-react";
 import { useState } from "react";
@@ -20,7 +21,7 @@ import { PatientPicker } from "../clinical/PatientPicker";
 import { localInput } from "../clinical/pageKit";
 import { clashes, createAppointment, updateAppointment } from "../data/appointments";
 import { getDb } from "../data/db";
-import { getClinic } from "../data/privacy";
+import { getClinic, mayMessage } from "../data/privacy";
 import { getPatient } from "../data/repo";
 import type { Staff } from "../data/schedule";
 import {
@@ -288,7 +289,7 @@ export function WaitlistPage() {
                 </p>
                 {free ? (
                   <div className="flex flex-wrap gap-2">
-                    {w.contact !== false && phone && (
+                    {mayMessage(w.contact) && phone && (
                       <a
                         href={whatsappUrl(phone, text)}
                         target="_blank"
@@ -299,29 +300,37 @@ export function WaitlistPage() {
                         <MessageCircle aria-hidden="true" className="size-5" /> Ofrecer por WhatsApp
                       </a>
                     )}
-                    {w.contact !== false && w.email && (
+                    {mayMessage(w.contact) && w.email && (
                       <a href={mailtoUrl(w.email, messageSubject("hueco", data.data!.messages, appointmentVars(vars)), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={() => void offered(w)}>
                         <Mail aria-hidden="true" className="size-5" /> Correo
                       </a>
                     )}
-                    {(w.contact === false || (!phone && !w.email)) && <p className="text-sm text-text-muted">Llámale{w.phone ? `: ${w.phone}` : ""}.</p>}
+                    {mayMessage(w.contact) ? (
+                      !phone && !w.email && <p className="text-sm text-text-muted">Llámale{w.phone ? `: ${w.phone}` : ""}.</p>
+                    ) : (
+                      <ContactNote contact={w.contact} patientId={w.patientId} extra={`Llámale${w.phone ? `: ${w.phone}` : ""}`} className="w-full" />
+                    )}
                     <Button variant="secondary" loading={giving === w.id} icon={<CalendarPlus aria-hidden="true" className="size-5" />} onClick={() => void give(w)}>
                       Darle la cita
                     </Button>
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
-                    {w.contact !== false && phone && (
+                    {mayMessage(w.contact) && phone && (
                       <a href={whatsappUrl(phone, general)} target="_blank" rel="noopener noreferrer" className={cx(link, "bg-accent text-on-accent hover:bg-accent-hover")} onClick={() => void offered(w)}>
                         <MessageCircle aria-hidden="true" className="size-5" /> WhatsApp
                       </a>
                     )}
-                    {w.contact !== false && w.email && (
+                    {mayMessage(w.contact) && w.email && (
                       <a href={mailtoUrl(w.email, messageSubject("espera", data.data!.messages, { nombre: firstName(w.name), clinica: data.data!.clinic }), general)} className={cx(link, "border border-border bg-bg hover:bg-surface")} onClick={() => void offered(w)}>
                         <Mail aria-hidden="true" className="size-5" /> Correo
                       </a>
                     )}
-                    {(w.contact === false || (!phone && !w.email)) && <p className="text-sm text-text-muted">Llámale{w.phone ? `: ${w.phone}` : ""}.</p>}
+                    {mayMessage(w.contact) ? (
+                      !phone && !w.email && <p className="text-sm text-text-muted">Llámale{w.phone ? `: ${w.phone}` : ""}.</p>
+                    ) : (
+                      <ContactNote contact={w.contact} patientId={w.patientId} extra={`Llámale${w.phone ? `: ${w.phone}` : ""}`} className="w-full" />
+                    )}
                     <Button variant="secondary" icon={<CalendarPlus aria-hidden="true" className="size-5" />} onClick={() => setBooking(w)}>
                       Dar cita
                     </Button>

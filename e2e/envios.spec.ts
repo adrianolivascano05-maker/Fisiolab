@@ -2,7 +2,7 @@
 // WhatsApp uno tras otro. Recordatorios del día antes y, con el servidor de la clínica, la anamnesis antes de la
 // primera cita.
 import type { Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, test } from "./fixtures";
+import { allowContact, createPatient, expect, expectAccessible, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
 
 /** Mañana, en la hora de Madrid, a las 10:00 («AAAA-MM-DDT10:00» para el campo de fecha y hora). */
@@ -12,8 +12,8 @@ const tomorrowAt10 = () => {
   return `${d.toISOString().slice(0, 10)}T10:00`;
 };
 
-/** Un paciente nuevo con móvil y una cita mañana a las 10:00. */
-async function newPatientWithAppointment(page: Page, name: string, phone: string) {
+/** Un paciente nuevo con móvil y una cita mañana a las 10:00; salvo `signed: false`, con el permiso de contacto firmado. */
+async function newPatientWithAppointment(page: Page, name: string, phone: string, { signed = true, hour = "10:00" } = {}) {
   await page.goto("./pacientes/nuevo");
   await page.getByLabel("Nombre").fill(name);
   await page.getByLabel("Teléfono").fill(phone);
@@ -21,9 +21,10 @@ async function newPatientWithAppointment(page: Page, name: string, phone: string
   await expect(page.getByRole("heading", { name })).toBeVisible();
   await page.getByRole("button", { name: "Dar cita" }).click();
   const sheet = page.getByRole("dialog", { name: `Dar cita a ${name}` });
-  await sheet.getByLabel("Día y hora").fill(tomorrowAt10());
+  await sheet.getByLabel("Día y hora").fill(tomorrowAt10().replace("10:00", hour));
   await sheet.getByRole("button", { name: "Dar la cita" }).click();
   await expect(page.getByRole("button", { name: /Próxima cita/ })).toBeVisible();
+  if (signed) await allowContact(page, name);
 }
 
 test.describe("Bandeja de envíos", () => {
@@ -31,6 +32,8 @@ test.describe("Bandeja de envíos", () => {
     // WhatsApp, simulado: se abre en otra pestaña.
     await context.route("https://wa.me/**", (r) => r.fulfill({ status: 200, contentType: "text/html", body: "<title>WhatsApp</title>" }));
     await newPatientWithAppointment(page, "Rosa Envíos", "612 345 678");
+    // Sin el permiso de contacto firmado no entra en la bandeja (los dos mensajes son de Rosa).
+    await newPatientWithAppointment(page, "Sin Permiso", "622 000 000", { signed: false, hour: "12:00" });
 
     await page.goto("./agenda?vista=hoy");
     await page.getByRole("link", { name: /2 mensajes por enviar/ }).click();

@@ -1,7 +1,7 @@
 // Agenda y seguimiento (src/data/appointments.ts y src/clinical): citas sin sesión, la agenda de hoy en Pacientes
 // (atendida, no vino), repetir el tratamiento de la última sesión, las sesiones previstas (bono) y el informe de alta.
 import type { Locator, Page } from "@playwright/test";
-import { add, createPatient, expect, expectAccessible, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, test, allowContact } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
 
@@ -239,10 +239,19 @@ test.describe("Agenda y seguimiento", () => {
     await page.getByRole("region", { name: "Mañana" }).getByRole("link", { name: /2 citas.*2 sin recordar · Recordatorios/ }).click();
     await expect(page.getByRole("heading", { name: /miércoles, 21 de octubre/i })).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "2 citas pendientes" })).toContainText("0 recordadas");
-    const ana = page.getByRole("group", { name: "10:00 · Ana Ruiz" });
+    let ana = page.getByRole("group", { name: "10:00 · Ana Ruiz" });
+    // Sin el permiso de contacto firmado como «Sí», ni WhatsApp ni correo: se le llama.
+    await expect(ana.getByRole("link", { name: "WhatsApp" })).toHaveCount(0);
+    await expect(ana).toContainText("Falta su permiso de contacto: que firme la hoja de protección de datos");
+    await expectAccessible(page);
+    await allowContact(page, "Ana Ruiz");
+    await allowContact(page, "Luis Correo");
+    await page.goto("./agenda");
+    await page.getByRole("region", { name: "Mañana" }).getByRole("link", { name: /Recordatorios/ }).click();
+    ana = page.getByRole("group", { name: "10:00 · Ana Ruiz" });
     const wa = ana.getByRole("link", { name: "WhatsApp" });
     await expect(wa).toHaveAttribute("href", /^https:\/\/wa\.me\/34612345678\?text=Hola%2C%20Ana\.%20Te%20recordamos/);
-    await expect(ana.getByText("Sin permiso de contacto registrado")).toBeVisible();
+    await expect(ana).not.toContainText("Falta su permiso");
     await expectAccessible(page);
     // Al tocar WhatsApp (aquí sin abrirlo), queda recordada.
     await wa.evaluate((el) => el.addEventListener("click", (e) => e.preventDefault()));

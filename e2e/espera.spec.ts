@@ -3,7 +3,7 @@
 // a la vez, con los filtros puestos a la vista para quitarlos de uno en uno. Desde cada paciente: su ficha (que vuelve a
 // la lista), WhatsApp y dar cita (preguntando si sale de la lista); y un hueco libre puesto a mano.
 import type { Page } from "@playwright/test";
-import { expect, expectAccessible, importData, smallTargets, test } from "./fixtures";
+import { allowContact, expect, expectAccessible, importData, smallTargets, test } from "./fixtures";
 
 /** Apunta a un paciente en la lista con lo que se le diga del formulario. */
 async function addToList(page: Page, name: string, fill: (sheet: ReturnType<Page["getByRole"]>) => Promise<void>) {
@@ -117,6 +117,9 @@ test("LE2 desde la lista: WhatsApp, su ficha (y volver), dar cita y quitarlo o n
   test.slow();
   await page.clock.setFixedTime(new Date("2026-10-20T08:00:00Z"));
   await importData(page, "Nombre;Teléfono\r\nEva Ficha;611 000 111\r\nFélix Hueco;622 000 222\r\n");
+  // Con el permiso de contacto firmado: sin él, la lista no ofrece WhatsApp ni correo.
+  await allowContact(page, "Eva Ficha");
+  await allowContact(page, "Félix Hueco");
   await addToList(page, "Eva Ficha", async (s) => {
     await s.getByText("Tardes", { exact: true }).click();
   });
@@ -137,7 +140,7 @@ test("LE2 desde la lista: WhatsApp, su ficha (y volver), dar cita y quitarlo o n
   // Su ficha: con su WhatsApp, y «‹ Lista de espera» vuelve a la lista con su orden, también tras cambiar de pestaña.
   await eva.getByRole("link", { name: "Ver ficha" }).click();
   await expect(page.getByRole("heading", { name: "Eva Ficha", level: 1 })).toBeVisible();
-  await expect(page.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/34611000111/);
+  await expect(page.getByRole("link", { name: "WhatsApp", exact: true })).toHaveAttribute("href", /^https:\/\/wa\.me\/34611000111/);
   await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Sesiones" }).click();
   await page.getByRole("link", { name: /Lista de espera/ }).first().click();
   await expect(page.getByLabel("Ordenar por")).toHaveValue("nombre");

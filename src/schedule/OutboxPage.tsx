@@ -1,6 +1,7 @@
 // Agenda › Envíos: la bandeja con lo que toca mandar hoy (outbox.ts). Se manda por WhatsApp o por correo desde este
 // dispositivo, uno a uno o todos seguidos: cada mensaje sale listo y se envía con un toque. Lo enviado se apunta (y se
 // sincroniza) para que no salga otra vez ni lo mande otra persona del equipo.
+import { ContactNote } from "../privacy/ContactNote";
 import { CircleSlash, Mail, MessageCircle, Send, SkipForward } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
@@ -15,7 +16,7 @@ import { markReminded } from "../data/appointments";
 import { getDb } from "../data/db";
 import { markOutbox } from "../data/outbox";
 import { memberEmail } from "../data/member";
-import { getClinic } from "../data/privacy";
+import { getClinic, mayMessage } from "../data/privacy";
 import { useGranted } from "../data/questionnairePermissions";
 import { setSetting } from "../data/repo";
 import { recordSentForms, uploadPatientForm, type UploadedForm } from "../patientForm/createForm";
@@ -150,7 +151,6 @@ export function OutboxPage() {
                       </Link>
                       <span className="text-sm text-text-muted first-letter:uppercase">{itemWhen(i)}</span>
                       {i.kinds && <span className="text-sm text-text-muted">{i.kinds.map(formTitle).join(", ")}</span>}
-                      {i.contact === null && <span className="text-xs text-warning">Sin permiso de contacto apuntado</span>}
                     </span>
                     <span className="flex gap-1">
                       <Button size="sm" variant="secondary" disabled={i.needsForms && !online} onClick={() => setRun({ ids: [i.id], at: 0 })}>
@@ -250,8 +250,8 @@ function SendStep({
       </>
     );
   }
-  const phone = item.contact === false ? null : waPhone(item.phone);
-  const email = item.contact === false ? "" : item.email;
+  const phone = mayMessage(item.contact) ? waPhone(item.phone) : null;
+  const email = mayMessage(item.contact) ? item.email : "";
   const link = "inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 font-semibold";
   return (
     <div className="flex flex-col gap-3">
@@ -290,10 +290,11 @@ function SendStep({
           )}
           {!phone && !email && (
             <>
-              <p className="text-sm text-text-muted">
-                {item.contact === false ? "No acepta WhatsApp ni correo" : "No tiene móvil ni correo en su ficha"}
-                {item.phone ? `: llámale al ${item.phone}.` : "."}
-              </p>
+              {mayMessage(item.contact) ? (
+                <p className="text-sm text-text-muted">No tiene móvil ni correo en su ficha{item.phone ? `: llámale al ${item.phone}.` : "."}</p>
+              ) : (
+                <ContactNote contact={item.contact} patientId={item.patientId} extra={item.phone ? `Llámale al ${item.phone}` : undefined} />
+              )}
               <Button variant="secondary" onClick={() => void onSent(item)}>
                 Hecho por teléfono
               </Button>

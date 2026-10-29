@@ -95,13 +95,15 @@ export function changedSinceSigned(p: PatientPrivacy): boolean {
   return CONSENTS.some((c) => (p.consents?.[c.id] ?? null) !== (last.consents.find((x) => x.id === c.id)?.answer ?? null)) || (p.signedBy?.trim() || undefined) !== last.signedBy;
 }
 
-/** Apunta si acepta que se le escriba por WhatsApp, SMS o correo (lo demás de su protección de datos no cambia). */
-export async function setContactConsent(db: Db, patientId: string, yes: boolean): Promise<void> {
-  const [row] = await db.query<{ privacy: string | null }>("select privacy from patients where id = ?", [patientId]);
-  if (!row) throw new RangeError("Este paciente no existe.");
-  const p = parsePrivacy(row.privacy);
-  await savePatientPrivacy(db, patientId, { ...p, consents: { ...p.consents, contact: yes } });
-}
+/**
+ * Solo con el permiso de contacto firmado como «Sí» (la hoja de protección de datos, en la pantalla o en papel) se
+ * le escribe por WhatsApp, SMS o correo. Sin preguntar, tampoco: se le llama o se le da en persona.
+ */
+export const mayMessage = (contact: boolean | null | undefined) => contact === true;
+export const MISSING_CONTACT = "Falta su permiso de contacto: que firme la hoja de protección de datos";
+export const REFUSED_CONTACT = "No acepta WhatsApp ni correo";
+/** Por qué no se le puede escribir (null si sí se puede). */
+export const contactBlock = (contact: boolean | null | undefined) => (mayMessage(contact) ? null : contact === false ? REFUSED_CONTACT : MISSING_CONTACT);
 
 // ---------- La clínica ----------
 

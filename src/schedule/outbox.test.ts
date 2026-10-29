@@ -43,9 +43,11 @@ describe("bandeja: recordatorios", () => {
       appt("manana-ya", "d", "2026-10-21T09:00:00.000Z", { remindedAt: "2026-10-19T18:00:00.000Z" }),
       appt("manana-confirmada", "e", "2026-10-21T10:00:00.000Z", { confirmedAt: "2026-10-19T18:00:00.000Z" }),
       appt("manana-sin-permiso", "f", "2026-10-21T11:00:00.000Z", { contact: false }),
+      appt("manana-sin-firmar", "h", "2026-10-21T12:00:00.000Z", { contact: null }),
       appt("pasado", "g", "2026-10-22T08:00:00.000Z"),
     ];
-    const seenBefore = new Set(["a", "b", "c", "d", "e", "f", "g"]);
+    const seenBefore = new Set(["a", "b", "c", "d", "e", "f", "g", "h"]);
+    // Ni a quien dijo que no ni a quien aún no ha firmado el permiso de contacto.
     expect(ids(input({ upcoming, seenBefore }))).toEqual(["recordatorio:hoy-tarde", "recordatorio:manana"]);
     // «No enviar» lo quita; apagado en los ajustes, no sale ninguno.
     const marks = [{ id: "recordatorio:manana", patientId: "c", rule: "recordatorio", status: "skipped" as const, at: NOW, by: "" }];
