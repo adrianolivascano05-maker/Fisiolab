@@ -70,14 +70,18 @@ test.describe("Cuestionarios nuevos", () => {
     await expect(page.getByRole("checkbox")).toHaveCount(0);
   });
 
-  test("CQ3 con permiso de su titular, solo la nota: a quién pedirlo", async ({ page }) => {
+  test("CQ3 con permiso de su titular, solo la nota: a quién pedirlo y sus rangos publicados", async ({ page }) => {
     const record = await newPatient(page, "Nuria Neuropática");
     await page.goto(`${record}/cuestionarios/nuevo`);
     await page.getByLabel("Buscar cuestionario").fill("paindetect");
     await page.getByRole("button", { name: /^painDETECT/ }).click();
     await expect(page.getByText("Permiso: formulario de IQVIA")).toBeVisible();
     await page.getByLabel("Puntuación").fill("20");
-    await expect(page.getByText("Componente neuropático probable (19 o más)")).toBeVisible();
+    // La nota y, al lado, la tabla de rangos publicada con su cita; sin frases sobre el paciente.
+    const ranges = page.getByRole("table", { name: /^Rangos publicados/ });
+    await expect(ranges).toContainText("19–38");
+    await expect(page.getByText(/^Fuente: Freynhagen et al., 2006/)).toBeVisible();
+    await expect(page.getByText(/neuropático probable \(19 o más\)$/)).toHaveCount(0);
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(page.getByRole("list", { name: "Cuestionarios" })).toContainText("painDETECT");
   });
@@ -93,5 +97,10 @@ test.describe("Cuestionarios nuevos", () => {
     await expect(page.getByText(/^Autores: RAND Health, 1992/)).toBeVisible();
     await expect(page.getByText(/^Traducción de trabajo/)).toBeVisible();
     await expect(page.getByText(/SF-36/)).toHaveCount(0);
+    // En la Biblioteca, «Cómo se lee»: la tabla de rangos publicada con su cita (los que la tienen).
+    await page.goto("./biblioteca/cuestionarios/phq9");
+    await expect(page.getByRole("table", { name: "Rangos publicados: gravedad de los síntomas depresivos" })).toContainText("20–27");
+    await expect(page.getByText(/^Fuente: Kroenke, Spitzer y Williams, 2001/)).toBeVisible();
+    await expectAccessible(page);
   });
 });

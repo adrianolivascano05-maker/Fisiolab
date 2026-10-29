@@ -4,9 +4,6 @@ import { answered, round1, type Answers, type QuestionForm } from "./types";
 
 const IDS = ["i1", "i2", "i3", "i4", "i5"];
 
-/** Malmstrom 2016: 4 o más, cribado positivo. */
-const CUTOFF = 4;
-
 export const form: QuestionForm = {
   id: "sarc_f",
   instructions: "Conteste a estas preguntas sobre sus actividades de cada día. Elija la respuesta que mejor describa su situación.",
@@ -69,13 +66,7 @@ export const form: QuestionForm = {
       throw new RangeError(`Faltan ${missing} de las 5 respuestas: el SARC-F necesita todas (sin ellas, el cribado queda incompleto).`);
     }
     const total = round1(values.reduce((s, v) => s + v, 0));
-    return {
-      score: total,
-      text:
-        total >= CUTOFF
-          ? `Cribado positivo (${CUTOFF} o más): riesgo de sarcopenia y de malos resultados funcionales; medir la fuerza de prensión, la masa muscular y el rendimiento físico (EWGSOP2)`
-          : `Cribado negativo (menos de ${CUTOFF})`,
-    };
+    return { score: total };
   },
   source:
     "Malmstrom y Morley, 2013 (original), DOI 10.1016/j.jamda.2013.05.018; Parra-Rodríguez et al., 2016 (validación al español, México), DOI 10.1016/j.jamda.2016.09.008; Malmstrom et al., 2016 (punto de corte), DOI 10.1002/jcsm.12048. Texto de trabajo fiel al original: revisar con la versión española publicada (la validación es mexicana) antes de usarlo en consulta.",

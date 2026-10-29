@@ -4,8 +4,6 @@ import type { Answers } from "./types";
 
 const ids = form.sections.flatMap((s) => s.items.map((i) => i.id));
 const all = (v: number): Answers => Object.fromEntries(ids.map((id) => [id, v]));
-const HIGH = /^Miedo a caerse moderado o alto/;
-const LOW = /^Por debajo del punto de corte/;
 
 describe("Short FES-I", () => {
   it("7 ítems de 1 a 4", () => {
@@ -14,22 +12,18 @@ describe("Short FES-I", () => {
   });
   it("nada preocupado/a en todo → 7; muy preocupado/a en todo → 28", () => {
     expect(form.score(all(1)).score).toBe(7);
-    expect(form.score(all(1)).text).toMatch(LOW);
     expect(form.score(all(4)).score).toBe(28);
-    expect(form.score(all(4)).text).toMatch(HIGH);
   });
-  it("caso mixto: 1+2+3+4+1+2+3 = 16, miedo moderado o alto", () => {
+  it("caso mixto: 1+2+3+4+1+2+3 = 16", () => {
     const a: Answers = { i1: 1, i2: 2, i3: 3, i4: 4, i5: 1, i6: 2, i7: 3 };
-    expect(form.score(a)).toEqual({ score: 16, text: "Miedo a caerse moderado o alto (más de 8, validación española)" });
+    expect(form.score(a)).toEqual({ score: 16 });
   });
-  it("punto de corte de la validación española: 8 todavía no, 9 ya es miedo moderado o alto", () => {
+  it("en el límite: 8 y 9", () => {
     const a = all(1);
     a.i1 = 2;
     expect(form.score(a).score).toBe(8);
-    expect(form.score(a).text).toMatch(LOW);
     a.i2 = 2;
     expect(form.score(a).score).toBe(9);
-    expect(form.score(a).text).toMatch(HIGH);
   });
   it("con 1 ítem sin contestar se prorratea: media de los 6 × 7, redondeada", () => {
     // 2+2+3+3+3+3 = 16 → 16/6 × 7 = 18,67 → 19.
@@ -38,7 +32,6 @@ describe("Short FES-I", () => {
     // 1+1+1+1+1+2 = 7 → 7/6 × 7 = 8,17 → 8, todavía por debajo del punto de corte.
     const b: Answers = { i1: 1, i2: 1, i3: 1, i4: 1, i5: 1, i7: 2 };
     expect(form.score(b).score).toBe(8);
-    expect(form.score(b).text).toMatch(LOW);
   });
   it("con 2 o más sin contestar no calcula", () => {
     const a = all(2);

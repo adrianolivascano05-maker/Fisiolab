@@ -40,8 +40,11 @@ export type QuestionnaireKind = {
   link?: { url?: string; label: string };
   /** Fuera del servicio (de pago): no se pasa, ni se manda ni se anota; lo guardado antes se ve como registro antiguo. */
   retired?: boolean;
-  /** Cómo se lee la nota anotada: tramos de menor a mayor, cada uno hasta `upTo` incluido. Solo los verificados. */
-  bands?: { upTo: number; text: string }[];
+  /**
+   * Rangos publicados de la nota, con su cita, para leerla al lado (en una tabla, sin frases sobre el paciente). Solo
+   * los comprobados en su publicación; sin ellos, solo la nota.
+   */
+  ranges?: { title: string; cite: string; rows: { from: number; to: number; label: string }[] };
   /** Cambio mínimo importante o cómo interpretar la evolución, si está verificado. */
   reading?: string;
   /** Referencias: original y validación española (autores, año, DOI). */
@@ -173,6 +176,17 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
     max: 27,
     better: "lower",
     topic: "Estado de ánimo",
+    ranges: {
+      title: "Gravedad de los síntomas depresivos",
+      cite: "Kroenke, Spitzer y Williams, 2001, J Gen Intern Med, DOI 10.1046/j.1525-1497.2001.016009606.x",
+      rows: [
+        { from: 0, to: 4, label: "Mínima" },
+        { from: 5, to: 9, label: "Leve" },
+        { from: 10, to: 14, label: "Moderada" },
+        { from: 15, to: 19, label: "Moderadamente grave" },
+        { from: 20, to: 27, label: "Grave" },
+      ],
+    },
   },
   {
     id: "gad7",
@@ -181,6 +195,16 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
     max: 21,
     better: "lower",
     topic: "Estado de ánimo",
+    ranges: {
+      title: "Gravedad de los síntomas de ansiedad",
+      cite: "Spitzer, Kroenke, Williams y Löwe, 2006, Arch Intern Med, DOI 10.1001/archinte.166.10.1092",
+      rows: [
+        { from: 0, to: 4, label: "Mínima" },
+        { from: 5, to: 9, label: "Leve" },
+        { from: 10, to: 14, label: "Moderada" },
+        { from: 15, to: 21, label: "Grave" },
+      ],
+    },
   },
   {
     id: "pcs",
@@ -209,6 +233,17 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
       label: "Artículo de la validación, en abierto, con el cuestionario",
     },
     refs: "Mayer et al., 2012 (original); Cuesta-Vargas et al., 2016 (validación española), SpringerPlus 5:1837, DOI 10.1186/s40064-016-3515-4",
+    ranges: {
+      title: "Niveles de gravedad",
+      cite: "Neblett et al., 2017, Pain Pract, DOI 10.1111/papr.12440",
+      rows: [
+        { from: 0, to: 29, label: "Subclínico" },
+        { from: 30, to: 39, label: "Leve" },
+        { from: 40, to: 49, label: "Moderado" },
+        { from: 50, to: 59, label: "Grave" },
+        { from: 60, to: 100, label: "Extremo" },
+      ],
+    },
   },
   {
     id: "ipaq",
@@ -230,11 +265,6 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
 
 /** Los que se pueden pasar, mandar o anotar hoy (sin los de pago, que están fuera del servicio). */
 export const ACTIVE = QUESTIONNAIRES.filter((k) => !k.retired);
-
-/** Cómo se lee una nota anotada, con los tramos del catálogo. */
-export function bandText(k: QuestionnaireKind, score: number): string | null {
-  return k.bands?.find((b) => score <= b.upTo)?.text ?? null;
-}
 
 /** Los temas de los generales, en el orden del catálogo. */
 export const TOPICS = [...new Set(QUESTIONNAIRES.map((k) => k.topic).filter((t): t is string => !!t))];

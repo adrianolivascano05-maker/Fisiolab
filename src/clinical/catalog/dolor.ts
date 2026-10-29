@@ -12,14 +12,18 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Tipo e impacto del dolor",
     hint: "Cribado autoadministrado de componente neuropático, desarrollado en dolor lumbar crónico; útil en lumbalgia o cervicalgia con irradiación.",
-    bands: [
-      { upTo: 12, text: "Componente neuropático improbable (12 o menos)" },
-      { upTo: 18, text: "Resultado dudoso (13 a 18)" },
-      { upTo: 38, text: "Componente neuropático probable (19 o más)" },
-    ],
     refs: "Freynhagen et al., 2006 (original), DOI 10.1185/030079906X132488; De Andrés et al., 2012 (validación española), DOI 10.1097/AJP.0b013e31822bb35b",
     scoreOnly: true,
     link: { label: "Permiso: formulario de IQVIA" },
+    ranges: {
+      title: "Componente neuropático",
+      cite: "Freynhagen et al., 2006, Curr Med Res Opin, DOI 10.1185/030079906X132488",
+      rows: [
+        { from: 0, to: 12, label: "Improbable (12 o menos)" },
+        { from: 13, to: 18, label: "Dudoso (13 a 18)" },
+        { from: 19, to: 38, label: "Probable (19 o más)" },
+      ],
+    },
   },
   {
     id: "peg",
@@ -113,22 +117,20 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Sueño",
     hint: "Gravedad percibida del insomnio y su impacto diurno en las últimas 2 semanas; útil en dolor crónico, donde el mal sueño es frecuente y empeora el pronóstico.",
-    bands: [
-      {
-        upTo: 9,
-        text: "Por debajo del corte para detectar insomnio en población general (menos de 10)",
-      },
-      {
-        upTo: 28,
-        text: "Por encima del corte para detectar insomnio en población general (10 o más)",
-      },
-    ],
     reading: "Una bajada de 8,4 puntos se asocia a una mejoría moderada tras el tratamiento (Morin et al., 2011).",
     refs: "Bastien et al., 2001 (original), DOI 10.1016/s1389-9457(00)00065-4; Fernandez-Mendoza et al., 2011 (validación española), DOI 10.1016/j.sleep.2011.06.019; Sierra et al., año sin verificar (validación española en mayores), DOI no figura en PubMed; Morin et al., 2011 (puntos de corte y cambio mínimo importante), DOI 10.1093/sleep/34.5.601",
     scoreOnly: true,
     link: {
       url: "https://eprovide.mapi-trust.org/isi-insomnia-severity-index/",
       label: "Permiso: ePROVIDE · Mapi Research Trust",
+    },
+    ranges: {
+      title: "Punto de corte para detectar insomnio en población general",
+      cite: "Morin et al., 2011, Sleep, DOI 10.1093/sleep/34.5.601",
+      rows: [
+        { from: 0, to: 9, label: "Menos de 10" },
+        { from: 10, to: 28, label: "10 o más" },
+      ],
     },
   },
   {

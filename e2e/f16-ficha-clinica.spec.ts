@@ -246,7 +246,10 @@ test.describe("F16 Ficha clínica", () => {
     await expect(qs).toHaveCount(7);
     for (let i = 0; i < 7; i++) await qs.nth(i).getByText(i === 0 ? "Casi todos los días" : "Nunca", { exact: true }).click();
     await expect(result).toContainText("3/21");
-    await expect(result).toContainText("mínima");
+    // Sin frases sobre el paciente: la nota y la tabla de rangos publicada, con su cita.
+    await expect(result).not.toContainText(/mínima/i);
+    await expect(page.getByRole("table", { name: "Rangos publicados: gravedad de los síntomas de ansiedad" })).toContainText("15–21");
+    await expect(page.getByText(/^Fuente: Spitzer, Kroenke, Williams y Löwe, 2006/)).toBeVisible();
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     const list = page.getByRole("list", { name: "Cuestionarios" });
     await expect(list).toContainText("GAD-7");
@@ -261,7 +264,7 @@ test.describe("F16 Ficha clínica", () => {
     await walk.getByRole("textbox").fill("30");
     // 3,3 × 30 min × 5 días = 495
     await expect(result).toContainText("495 MET-min/sem");
-    await expect(result).toContainText("Moderado");
+    await expect(result).not.toContainText("Moderado");
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(list).toContainText("495 MET-min/sem");

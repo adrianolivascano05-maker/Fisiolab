@@ -22,6 +22,14 @@ export const KINDS: QuestionnaireKind[] = [
     topic: "Persona mayor",
     hint: "Cribado rápido de sarcopenia (fuerza, ayuda para caminar, levantarse de la silla, subir escaleras y caídas); si sale positivo, hay que medir la fuerza de prensión, la masa muscular y el rendimiento físico (EWGSOP2).",
     refs: "Malmstrom y Morley, 2013 (original), DOI 10.1016/j.jamda.2013.05.018; Parra-Rodríguez et al., 2016 (validación al español, México), DOI 10.1016/j.jamda.2016.09.008; Malmstrom et al., 2016 (punto de corte), DOI 10.1002/jcsm.12048",
+    ranges: {
+      title: "Punto de corte",
+      cite: "Malmstrom et al., 2016, J Cachexia Sarcopenia Muscle, DOI 10.1002/jcsm.12048",
+      rows: [
+        { from: 0, to: 3, label: "Puntuación baja (menos de 4)" },
+        { from: 4, to: 10, label: "Puntuación alta (4 o más)" },
+      ],
+    },
   },
   {
     id: "frail",
@@ -44,6 +52,16 @@ export const KINDS: QuestionnaireKind[] = [
     refs: "Avery et al., 2004 (original), DOI 10.1002/nau.20041; Espuña Pons et al., 2004 (validación española), DOI 10.1016/s0025-7753(04)74212-8; Klovning et al., 2009 (gravedad), DOI 10.1002/nau.20674",
     scoreOnly: true,
     link: { url: "https://iciq.net", label: "ICIQ (iciq.net)" },
+    ranges: {
+      title: "Gravedad de la incontinencia",
+      cite: "Klovning et al., 2009, Neurourol Urodyn, DOI 10.1002/nau.20674",
+      rows: [
+        { from: 1, to: 5, label: "Leve" },
+        { from: 6, to: 12, label: "Moderada" },
+        { from: 13, to: 18, label: "Grave" },
+        { from: 19, to: 21, label: "Muy grave" },
+      ],
+    },
   },
   {
     id: "pfdi_20",
@@ -108,6 +126,14 @@ export const KINDS: QuestionnaireKind[] = [
     topic: "Hipermovilidad",
     hint: "Cribado autoinformado de hipermovilidad articular generalizada (2 o más «sí» es positivo), como complemento a la escala de Beighton en dolor musculoesquelético difuso, inestabilidad articular recurrente o sospecha de trastorno del espectro de la hipermovilidad o de Ehlers-Danlos hipermóvil.",
     refs: "Hakim y Grahame, 2003 (original), PMID 12723715 (el DOI no figura en PubMed); Aranda-Sánchez et al., 2023 (adaptación cultural al español y fiabilidad, Perú), DOI 10.5867/medwave.2023.01.2575; sin validación en España",
+    ranges: {
+      title: "Punto de corte",
+      cite: "Hakim y Grahame, 2003, Int J Clin Pract, PMID 12723715",
+      rows: [
+        { from: 0, to: 1, label: "Menos de 2 «sí»" },
+        { from: 2, to: 5, label: "2 o más «sí»: el corte del cuestionario para detectar hipermovilidad" },
+      ],
+    },
   },
   {
     id: "eq5d5l",

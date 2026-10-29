@@ -21,9 +21,6 @@ const TEXTS = [
 
 const IDS = TEXTS.map((_, i) => `i${i + 1}`);
 
-/** Validación española (González Montaos 2024): más de 8 indica miedo a caerse moderado o alto. */
-const CUTOFF = 8;
-
 export const form: QuestionForm = {
   id: "short_fes_i",
   instructions:
@@ -43,13 +40,7 @@ export const form: QuestionForm = {
     const sum = values.reduce((s, v) => s + v, 0);
     // Regla del manual FES-I: con 1 ítem sin contestar, media de los contestados × 7, redondeada.
     const total = missing === 0 ? sum : Math.round((sum / values.length) * 7);
-    return {
-      score: total,
-      text:
-        total > CUTOFF
-          ? `Miedo a caerse moderado o alto (más de ${CUTOFF}, validación española)`
-          : `Por debajo del punto de corte de miedo a caerse moderado o alto (más de ${CUTOFF}, validación española)`,
-    };
+    return { score: total };
   },
   source:
     "Kempen et al., 2008 (original), DOI 10.1093/ageing/afm157; González Montaos et al., 2024 (validación española), DOI 10.1016/j.regg.2023.101436; Delbaere et al., 2010 (puntos de corte), DOI 10.1093/ageing/afp225. El grupo FES-I publica la traducción oficial española: conviene usar ese texto. Texto de trabajo fiel al original: revisar con la versión española publicada antes de usarlo en consulta.",

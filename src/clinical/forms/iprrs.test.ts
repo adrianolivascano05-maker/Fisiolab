@@ -26,7 +26,6 @@ describe("I-PRRS", () => {
   it("caso mixto: 80 + 60 + 70 + 50 + 90 + 40 = 390 → 390 / 10 = 39", () => {
     const a: Answers = { i1: 80, i2: 60, i3: 70, i4: 50, i5: 90, i6: 40 };
     expect(form.score(a).score).toBe(39);
-    expect(form.score(a).text).toBeUndefined();
   });
 
   it("sin prorrateo: si falta alguna respuesta no calcula", () => {

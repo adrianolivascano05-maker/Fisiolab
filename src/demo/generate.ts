@@ -164,7 +164,7 @@ export function fillForm(form: QuestionForm, kindBetter: "higher" | "lower", sev
   try {
     const out = form.score(answers);
     if (out.score === null) return null;
-    return { score: out.score, details: { answers, ...(out.subscores ? { subscores: out.subscores } : {}), ...(out.text ? { text: out.text } : {}) } };
+    return { score: out.score, details: { answers, ...(out.subscores ? { subscores: out.subscores } : {}) } };
   } catch {
     return null;
   }

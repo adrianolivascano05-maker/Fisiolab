@@ -10,6 +10,7 @@ import { ForPatient } from "../clinical/RegisterInPatient";
 import { formFor } from "../clinical/forms";
 import { FormCredits } from "../clinical/FormCredits";
 import { OfficialLink } from "../clinical/OfficialLink";
+import { RangesTable } from "../clinical/RangesTable";
 import { ACTIVE, getKind, TOPICS, type QuestionnaireKind } from "../clinical/questionnaires";
 import { Card } from "../ui/Card";
 import { TextField } from "../ui/Field";
@@ -112,20 +113,12 @@ export function QuestionnaireCard() {
         </dl>
       </Card>
 
-      {(k.bands?.length || k.reading) && (
+      {(k.ranges || k.reading) && (
         <section aria-labelledby="h-lectura" className="flex flex-col gap-2">
           <h2 id="h-lectura" className="text-lg">
             Cómo se lee
           </h2>
-          {k.bands && (
-            <ul className="flex flex-col gap-1 text-sm">
-              {k.bands.map((b, i) => (
-                <li key={b.upTo}>
-                  <span className="nums font-semibold">{i === 0 ? `Hasta ${b.upTo}` : `Más de ${k.bands![i - 1]!.upTo}, hasta ${b.upTo}`}</span>: {b.text}
-                </li>
-              ))}
-            </ul>
-          )}
+          {k.ranges && <RangesTable ranges={k.ranges} />}
           {k.reading && <p className="text-sm">{k.reading}</p>}
         </section>
       )}

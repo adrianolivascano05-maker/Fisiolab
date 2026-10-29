@@ -4,8 +4,6 @@ import type { Answers } from "./types";
 
 const items = form.sections.flatMap((s) => s.items);
 const ids = items.map((i) => i.id);
-const POSITIVE = /^Cribado positivo según el protocolo DC\/TMD .*orientativo, sin verificar\)$/;
-const NEGATIVE = /^Por debajo del punto de corte .*orientativo, sin verificar\)$/;
 
 describe("TMD Pain Screener", () => {
   it("6 ítems: el 1 de 0 a 2 y del 2 al 6, No = 0 y Sí = 1", () => {
@@ -23,18 +21,16 @@ describe("TMD Pain Screener", () => {
   it("sin dolor y todo «No» → 0; dolor siempre presente y todo «Sí» → 7", () => {
     const none: Answers = { i1: 0, i2: 0, i3: 0, i4: 0, i5: 0, i6: 0 };
     expect(form.score(none).score).toBe(0);
-    expect(form.score(none).text).toMatch(NEGATIVE);
     const worst: Answers = { i1: 2, i2: 1, i3: 1, i4: 1, i5: 1, i6: 1 };
     expect(form.score(worst).score).toBe(7);
-    expect(form.score(worst).text).toMatch(POSITIVE);
   });
   it("caso mixto: el dolor va y viene (1) + rigidez al despertar (1) + masticar (1) + apretar los dientes (1) = 4", () => {
     expect(form.score({ i1: 1, i2: 1, i3: 1, i4: 0, i5: 1, i6: 0 }).score).toBe(4);
   });
-  it("orientativo: 2 queda por debajo del corte y 3 ya es cribado positivo", () => {
+  it("en el límite: 2 y 3", () => {
     const two: Answers = { i1: 2, i2: 0, i3: 0, i4: 0, i5: 0, i6: 0 };
-    expect(form.score(two)).toMatchObject({ score: 2, text: expect.stringMatching(NEGATIVE) });
-    expect(form.score({ ...two, i6: 1 })).toMatchObject({ score: 3, text: expect.stringMatching(POSITIVE) });
+    expect(form.score(two)).toMatchObject({ score: 2 });
+    expect(form.score({ ...two, i6: 1 })).toMatchObject({ score: 3 });
   });
   it("si falta algún ítem no calcula", () => {
     expect(() => form.score({ i1: 1, i2: 1, i3: 1, i4: 1, i5: 1 })).toThrow(/Faltan 1 de las 6/);

@@ -320,7 +320,7 @@ export async function saveAnsweredQuestionnaire(
   if (k.subscales) {
     for (const sub of result.ok.subscores ?? []) rows.push({ score: sub.score, details: { subscale: sub.name, answers, group: formId } });
   } else if (result.ok.score !== null) {
-    rows.push({ score: result.ok.score, details: { answers, ...(result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(result.ok.text ? { text: result.ok.text } : {}) } });
+    rows.push({ score: result.ok.score, details: { answers, ...(result.ok.subscores ? { subscores: result.ok.subscores } : {}) } });
   }
   // El id sale del formulario: si dos dispositivos recogen las mismas respuestas a la vez, es el mismo registro (no
   // dos), y la sincronización los junta. Va al motivo de consulta al que se mandó.

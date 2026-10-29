@@ -35,7 +35,6 @@ describe("Kujala / AKPS", () => {
   it("caso mixto: la segunda opción en todo → 3+3+3+8+4+8+7+8+8+8+6+3+3 = 72", () => {
     const r = form.score(nth(1));
     expect(r.score).toBe(72);
-    expect(r.text).toBeUndefined();
   });
   it("si falta algún apartado no calcula (no hay prorrateo publicado)", () => {
     const a = nth(0);

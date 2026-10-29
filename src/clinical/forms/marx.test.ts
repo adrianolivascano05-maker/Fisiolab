@@ -18,7 +18,6 @@ describe("Marx", () => {
   it("caso mixto: corre 4 o más veces por semana (4), cambia de dirección 2-3 (3), frena 1 a la semana (2), no pivota (0) → 9", () => {
     const r = form.score({ i1: 4, i2: 3, i3: 2, i4: 0 });
     expect(r.score).toBe(9);
-    expect(r.text).toBeUndefined();
   });
   it("si falta alguna respuesta no calcula (sin prorrateo)", () => {
     const a = all(2);

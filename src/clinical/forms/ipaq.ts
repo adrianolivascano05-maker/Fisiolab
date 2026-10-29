@@ -1,5 +1,5 @@
 // IPAQ corto (International Physical Activity Questionnaire, últimos 7 días): actividad intensa, moderada y caminar.
-// Nota en MET-min/semana y nivel Bajo / Moderado / Alto según su protocolo de puntuación; el tiempo sentado no puntúa.
+// Nota en MET-min/semana según su protocolo de puntuación; el tiempo sentado no puntúa.
 import { round1, type Answers, type FormScore, type Item, type QuestionForm } from "./types";
 
 const DAYS: Item["scale"] = { from: 0, to: 7, ends: ["Ningún día", "Los 7 días"] };
@@ -41,13 +41,8 @@ function clean(a: Answers, act: (typeof ACTIVITIES)[number]): Clean {
 function score(a: Answers): FormScore {
   const [vig, mod, walk] = ACTIVITIES.map((act) => clean(a, act));
   const total = vig.met + mod.met + walk.met;
-  const allDays = vig.days + mod.days + walk.days;
-  const atLeast30 = (c: Clean) => (c.minutes >= 30 ? c.days : 0);
-  let text = "Bajo";
-  if ((vig.days >= 3 && total >= 1500) || (allDays >= 7 && total >= 3000)) text = "Alto";
-  else if ((vig.days >= 3 && vig.minutes >= 20) || atLeast30(mod) + atLeast30(walk) >= 5 || (allDays >= 5 && total >= 600)) text = "Moderado";
   // Primero a un decimal: en coma flotante 3,3 × 29 × 5 da 478,4999… y redondearía hacia abajo.
-  return { score: Math.min(Math.round(round1(total)), MAX), text };
+  return { score: Math.min(Math.round(round1(total)), MAX) };
 }
 
 export const form: QuestionForm = {

@@ -35,15 +35,11 @@ const TEXTS = [
 
 const IDS = TEXTS.map((_, i) => `i${i + 1}`);
 
-/**
- * Subescalas (los nombres de ../questionnaires.ts), los números de sus frases y las categorías del manual de los
- * autores, ya multiplicadas por 2: cada una hasta su nota incluida. Están sin verificar (manual no indexado), así que
- * se enseñan como orientativas.
- */
-const SUBSCALES: [string, number[], [number, string][]][] = [
-  ["Depresión", [3, 5, 10, 13, 16, 17, 21], [[9, "normal"], [13, "leve"], [20, "moderada"], [27, "grave"], [42, "extremadamente grave"]]],
-  ["Ansiedad", [2, 4, 7, 9, 15, 19, 20], [[7, "normal"], [9, "leve"], [14, "moderada"], [19, "grave"], [42, "extremadamente grave"]]],
-  ["Estrés", [1, 6, 8, 11, 12, 14, 18], [[14, "normal"], [18, "leve"], [25, "moderado"], [33, "grave"], [42, "extremadamente grave"]]],
+/** Subescalas (los nombres de ../questionnaires.ts) y los números de sus frases. */
+const SUBSCALES: [string, number[]][] = [
+  ["Depresión", [3, 5, 10, 13, 16, 17, 21]],
+  ["Ansiedad", [2, 4, 7, 9, 15, 19, 20]],
+  ["Estrés", [1, 6, 8, 11, 12, 14, 18]],
 ];
 
 export const form: QuestionForm = {
@@ -58,14 +54,12 @@ export const form: QuestionForm = {
   ],
   score(answers: Answers) {
     const subscores: { name: string; score: number }[] = [];
-    const levels: string[] = [];
-    for (const [name, ns, bands] of SUBSCALES) {
+    for (const [name, ns] of SUBSCALES) {
       const values = answered(answers, ns.map((n) => `i${n}`));
       // Con una frase sin contestar, esa subescala no se calcula.
       if (values.length < ns.length) continue;
       const score = round1(values.reduce((s, v) => s + v, 0) * 2);
       subscores.push({ name, score });
-      levels.push(`${name.toLowerCase()} ${bands.find(([upTo]) => score <= upTo)![1]}`);
     }
     if (!subscores.length) {
       const missing = IDS.length - answered(answers, IDS).length;
@@ -73,11 +67,7 @@ export const form: QuestionForm = {
         `Faltan ${missing} de las 21 respuestas: el DASS-21 necesita las 7 frases de al menos una subescala (depresión, ansiedad o estrés) para calcular su nota.`,
       );
     }
-    return {
-      score: null,
-      subscores,
-      text: `Orientativo, sin verificar (categorías del manual de los autores): ${levels.join(" · ")}`,
-    };
+    return { score: null, subscores };
   },
   source:
     "Lovibond y Lovibond, 1995 (DASS original), DOI 10.1016/0005-7967(94)00075-u; Bados et al., 2005 (validación española; sin verificar: no está en PubMed); Soria-Reyes et al., 2024 (muestra española), DOI 10.1038/s41598-024-68814-9. Texto de trabajo fiel al original: revisar con la versión española publicada (Bados et al., 2005) antes de usarlo en consulta.",

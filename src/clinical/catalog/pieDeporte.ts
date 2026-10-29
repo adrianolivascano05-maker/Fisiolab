@@ -14,6 +14,15 @@ export const KINDS: QuestionnaireKind[] = [
     reading:
       "25 o menos indica inestabilidad crónica de tobillo (punto de corte recalibrado y recomendado, Wright et al. 2014); el punto de corte original era 27,5 (27 o menos, Hiller et al. 2006).",
     refs: "Hiller et al., 2006 (original), DOI 10.1016/j.apmr.2006.05.022; Cruz-Díaz et al., 2013 (validación española), DOI 10.1007/s10067-012-2095-0; Rodríguez-Fernández et al., 2015 (validación española), DOI 10.3109/09638288.2014.984879; Wright et al., 2014 (punto de corte), DOI 10.1016/j.apmr.2014.04.017",
+    ranges: {
+      title: "Puntos de corte de inestabilidad crónica de tobillo (de cada tobillo)",
+      cite: "Hiller et al., 2006, Arch Phys Med Rehabil, DOI 10.1016/j.apmr.2006.05.022 (27 o menos); Wright et al., 2014, Arch Phys Med Rehabil, DOI 10.1016/j.apmr.2014.04.017 (25 o menos, recalibrado)",
+      rows: [
+        { from: 0, to: 25, label: "Por debajo de los dos puntos de corte (25 o menos y 27 o menos)" },
+        { from: 26, to: 27, label: "Solo por debajo del original (27 o menos)" },
+        { from: 28, to: 30, label: "Por encima de los dos" },
+      ],
+    },
   },
   {
     id: "faam_deporte",

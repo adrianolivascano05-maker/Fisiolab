@@ -749,3 +749,13 @@ sanitaria: son los cambios que pide la revisión.
   autores. El aviso va en todos porque ninguno se ha cotejado palabra por palabra con la versión española publicada
   (lo decía el propio código de cada uno; el FAAM dice basarse en la FAAM-Sp, pero tampoco está cotejado). El
   RAND-36 no se llama «SF-36» en ningún sitio.
+- **13. Sin frases sobre el paciente.** Ningún cuestionario dice ya qué le pasa al paciente («gravedad moderada»,
+  «cribado positivo», el aviso de la pregunta 9 del PHQ-9, los niveles del IPAQ…): sale la nota y, si hay rangos
+  publicados, una tabla con ellos y su cita (`ranges` en el catálogo, `src/clinical/RangesTable.tsx`), sin marcar en
+  cuál cae. Hay tabla, comprobada en PubMed, en PHQ-9 (Kroenke 2001), GAD-7 (Spitzer 2006), CSI (Neblett 2017),
+  CAIT (Hiller 2006 y Wright 2014), SARC-F (Malmstrom 2016), 5PQ (Hakim 2003), ICIQ-UI SF (Klovning 2009),
+  painDETECT (Freynhagen 2006) e ISI (Morin 2011). Sin tabla, solo la nota: DASS-21 (sus categorías venían de un
+  manual sin comprobar), STarT Back (su clasificación usa la subescala psicosocial, no una tabla de la nota total),
+  Short FES-I, Nijmegen, TMD Pain Screener, NDI, Oswestry, PCS y MIDAS (sus cortes no se han podido comprobar en la
+  publicación). Las lecturas guardadas antes siguen en los datos (y en la exportación), pero no se enseñan; la carta
+  de derivación ya no las pone. En el 5PQ incompleto, en vez de la frase, «Respuestas contestadas: 3 de 5».

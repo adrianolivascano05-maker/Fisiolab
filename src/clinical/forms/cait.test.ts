@@ -55,30 +55,15 @@ describe("CAIT", () => {
   it("caso mixto: 3 + 2 + 2 + 3 + 1 + 3 + 3 + 3 (nunca se lo ha torcido) + 1 = 21 en el izquierdo", () => {
     const r = form.score(fill("i", [3, 2, 2, 3, 1, 3, 3, NEVER_SPRAINED, 1]));
     expect(r.subscores).toEqual([{ name: "Tobillo izquierdo", score: 21 }]);
-    expect(r.text).toBe("Tobillo izquierdo (21): indica inestabilidad crónica de tobillo (25 o menos, punto de corte recomendado)");
   });
 
-  it("puntos de corte en su límite: 25 (recomendado), 26-27 (solo el original) y 28", () => {
-    // Lo mejor en todo (30) y el ítem 1 bajando: 0 → 25, 1 → 26, 2 → 27, 3 → 28.
-    const at = (i1: number) => form.score(fill("d", [i1, ...BEST.slice(1)]));
-    expect(at(0).subscores![0].score).toBe(25);
-    expect(at(0).text).toMatch(/^Tobillo derecho \(25\): indica inestabilidad crónica/);
-    expect(at(1).subscores![0].score).toBe(26);
-    expect(at(1).text).toMatch(/^Tobillo derecho \(26\): por encima del punto de corte recomendado .* indica inestabilidad con el original/);
-    expect(at(2).subscores![0].score).toBe(27);
-    expect(at(2).text).toMatch(/indica inestabilidad con el original/);
-    expect(at(3).subscores![0].score).toBe(28);
-    expect(at(3).text).toMatch(/^Tobillo derecho \(28\): por encima de los dos puntos de corte/);
-  });
 
   it("sin prorrateo: un tobillo a medias no tiene nota; sin ninguno completo, no calcula", () => {
     const partial = fill("d", BEST);
     delete partial.d9;
     const r = form.score({ ...fill("i", BEST), ...partial });
     expect(r.subscores).toEqual([{ name: "Tobillo izquierdo", score: 30 }]);
-    expect(r.text).toMatch(/Tobillo derecho: faltan 1 de las 9 respuestas, sin nota$/);
     // El tobillo sin contestar no se menciona.
-    expect(form.score(fill("i", BEST)).text).not.toMatch(/derecho/);
     expect(() => form.score(partial)).toThrow(/Faltan 1 de las 9 respuestas del tobillo derecho/);
     expect(() => form.score({})).toThrow(RangeError);
     expect(() => form.score({})).toThrow(/Faltan las 9 respuestas de cada tobillo/);

@@ -25,20 +25,21 @@ describe("carta de derivación", () => {
     expect(cifPhrases([entry("d450.3", "Andar"), entry("d540.3", "Vestirse")])).toEqual(["dificultad grave para andar (d450.3)", "para vestirse (d540.3)"]);
   });
 
-  it("la última nota de cada cuestionario de los últimos 6 meses, con su lectura y sus códigos CIF", () => {
+  it("la última nota de cada cuestionario de los últimos 6 meses, con sus códigos CIF y sin frases sobre el paciente", () => {
     const now = Date.parse("2026-10-22T12:00:00Z");
     const lines = latestQuestionnaires(
       [
         q("odi", 40, "2026-09-01T10:00:00Z"),
+        // Una lectura guardada antes (los registros antiguos la llevan): no sale en la carta.
         q("odi", 30, "2026-10-20T10:00:00Z", { text: "Discapacidad moderada" }),
         q("phq9", 9, "2026-01-01T10:00:00Z"),
         q("koos", 60, "2026-10-01T10:00:00Z", { subscale: "Dolor" }),
       ],
       now,
     );
-    expect(lines.map((l) => [l.name, l.score, l.reading, l.codes.join(" ")])).toEqual([
-      ["Oswestry (lumbar)", "30 %", "Discapacidad moderada", "b28013 d410 d415 d430 d450"],
-      ["KOOS (rodilla) · Dolor (registro antiguo)", "60/100", null, "b28015"],
+    expect(lines.map((l) => [l.name, l.score, l.codes.join(" ")])).toEqual([
+      ["Oswestry (lumbar)", "30 %", "b28013 d410 d415 d430 d450"],
+      ["KOOS (rodilla) · Dolor (registro antiguo)", "60/100", "b28015"],
     ]);
   });
 

@@ -110,23 +110,12 @@ const SIDES: [string, string][] = [
 const idsOf = (prefix: string) => ROWS.map((_, i) => `${prefix}${i + 1}`);
 const items = (prefix: string): Item[] => ROWS.map(([text, opts], i) => ({ id: `${prefix}${i + 1}`, text, options: opts }));
 
-/** Puntos de corte: 25 o menos, el recalibrado y recomendado (Wright et al. 2014); 27 o menos, el original (Hiller et al. 2006). */
-const RECOMMENDED_CUTOFF = 25;
-const ORIGINAL_CUTOFF = 27;
-const reading = (n: number) =>
-  n <= RECOMMENDED_CUTOFF
-    ? "indica inestabilidad crónica de tobillo (25 o menos, punto de corte recomendado)"
-    : n <= ORIGINAL_CUTOFF
-      ? "por encima del punto de corte recomendado (25 o menos), pero indica inestabilidad con el original (27 o menos)"
-      : "por encima de los dos puntos de corte de inestabilidad (25 o menos, el recomendado; 27 o menos, el original)";
-
 export const form: QuestionForm = {
   id: "cait",
   instructions: "Marque la frase que MEJOR describa su tobillo en cada pregunta. Responda por separado para el tobillo izquierdo y el derecho.",
   sections: SIDES.map(([prefix, title]) => ({ title, items: items(prefix) })),
   score(answers: Answers) {
     const subscores: { name: string; score: number }[] = [];
-    const notes: string[] = [];
     const missing: { name: string; n: number }[] = [];
     for (const [prefix, name] of SIDES) {
       const values = answered(answers, idsOf(prefix));
@@ -134,12 +123,10 @@ export const form: QuestionForm = {
       // Sin prorrateo: con un ítem sin contestar, ese tobillo no tiene nota.
       if (n > 0) {
         missing.push({ name, n });
-        if (values.length > 0) notes.push(`${name}: faltan ${n} de las 9 respuestas, sin nota`);
         continue;
       }
       const score = values.reduce((s, v) => s + (v === NEVER_SPRAINED ? NEVER_SPRAINED_POINTS : v), 0);
       subscores.push({ name, score });
-      notes.push(`${name} (${score}): ${reading(score)}`);
     }
     if (!subscores.length) {
       const fewest = missing.reduce((a, b) => (b.n < a.n ? b : a));
@@ -149,7 +136,7 @@ export const form: QuestionForm = {
           : `Faltan ${fewest.n} de las 9 respuestas del ${fewest.name.toLowerCase()}: el CAIT necesita las 9 de un tobillo para calcular su nota (no se prorratea).`,
       );
     }
-    return { score: null, subscores, text: notes.join(" · ") };
+    return { score: null, subscores };
   },
   source:
     "Hiller et al., 2006 (original), DOI 10.1016/j.apmr.2006.05.022; Cruz-Díaz et al., 2013 (validación española), DOI 10.1007/s10067-012-2095-0; Rodríguez-Fernández et al., 2015 (validación española), DOI 10.3109/09638288.2014.984879; Wright et al., 2014 (punto de corte), DOI 10.1016/j.apmr.2014.04.017. Texto de trabajo fiel al original: revisar con la versión española publicada (Cruz-Díaz et al., 2013) antes de usarlo en consulta.",

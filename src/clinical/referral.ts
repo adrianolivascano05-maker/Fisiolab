@@ -5,7 +5,7 @@ import type { Questionnaire } from "../data/clinical";
 import { formatCoded, readEntry, type Coded } from "./cif/cif";
 import { mergeLeads, phraseParts } from "./cif/prose";
 import { cifLinks, informs } from "./cif/questionnaireLinks";
-import { bandText, displayName, kindOf, scoreText, type QDetails } from "./questionnaires";
+import { displayName, kindOf, scoreText, type QDetails } from "./questionnaires";
 
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const listText = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} y ${xs.at(-1)}`);
@@ -39,7 +39,7 @@ export function informsText(codes: string[], titleOf: (code: string) => string |
   return listText([...new Set(parts)]);
 }
 
-export type QuestionnaireLine = { key: string; name: string; at: string; score: string; reading: string | null; codes: string[] };
+export type QuestionnaireLine = { key: string; name: string; at: string; score: string; codes: string[] };
 
 /** La última nota de cada cuestionario (y subescala) de los últimos `days` días, del más reciente al más antiguo. */
 export function latestQuestionnaires(all: Questionnaire[], now = Date.now(), days = 180): QuestionnaireLine[] {
@@ -52,7 +52,7 @@ export function latestQuestionnaires(all: Questionnaire[], now = Date.now(), day
     if (seen.has(key)) continue;
     seen.add(key);
     const k = kindOf(q.kind, d);
-    out.push({ key, name: displayName(q.kind, d), at: q.performedAt, score: scoreText(k, q.score), reading: d.text ?? bandText(k, q.score), codes: cifLinks(q.kind, d.subscale) });
+    out.push({ key, name: displayName(q.kind, d), at: q.performedAt, score: scoreText(k, q.score), codes: cifLinks(q.kind, d.subscale) });
   }
   return out;
 }

@@ -31,7 +31,6 @@ describe("Brief IPQ", () => {
     const a: Answers = { i1: 7, i2: 5, i3: 3, i4: 8, i5: 6, i6: 9, i7: 4, i8: 2 };
     const r = form.score(a);
     expect(r.score).toBe(44);
-    expect(r.text).toBeUndefined();
     expect(r.subscores).toEqual(NAMES.map((name, i) => ({ name, score: a[`i${i + 1}`], max: 10 })));
   });
   it("si falta algún ítem del 1 al 8 no calcula el total", () => {

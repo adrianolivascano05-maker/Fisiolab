@@ -30,7 +30,6 @@ describe("Lysholm", () => {
   it("caso mixto: la segunda opción en todo → 3+2+10+20+20+6+6+4 = 71, sin categorías", () => {
     const r = form.score(nth(1));
     expect(r.score).toBe(71);
-    expect(r.text).toBeUndefined();
   });
   it("si falta algún apartado no calcula (sin prorrateo)", () => {
     const a = nth(0);

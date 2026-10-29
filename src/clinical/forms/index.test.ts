@@ -41,11 +41,13 @@ describe("cuestionarios enteros", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const k of QUESTIONNAIRES) {
       expect(k.min, k.id).toBeLessThan(k.max);
-      let prev = -Infinity;
-      for (const b of k.bands ?? []) {
-        expect(b.upTo, k.id).toBeGreaterThan(prev);
-        prev = b.upTo;
-      }
+      // Rangos publicados: dentro del rango de la nota, seguidos y con su cita.
+      if (!k.ranges) continue;
+      expect(k.ranges.cite, k.id).toMatch(/\d{4}/);
+      const rows = k.ranges.rows;
+      expect(rows[0]!.from, k.id).toBeGreaterThanOrEqual(k.min);
+      expect(rows.at(-1)!.to, k.id).toBe(k.max);
+      for (let i = 1; i < rows.length; i++) expect(rows[i]!.from, k.id).toBe(rows[i - 1]!.to + 1);
     }
   });
   it("cada pregunta tiene su texto y cada respuesta dice algo más que un número", () => {

@@ -15,12 +15,6 @@ const ACTIVITIES = [
 ];
 
 const IDS = ["i1", "i2", "i3", "i4", "i5", "i6"];
-/**
- * Punto de corte del protocolo DC/TMD (3 o más, cribado positivo). La ficha lo marca «sin verificar con PubMed» (el
- * resumen del estudio original no lo da), así que solo se enseña como orientativo.
- */
-const CUTOFF = 3;
-
 export const form: QuestionForm = {
   id: "tmd_pain_screener",
   instructions: "Responda a las siguientes preguntas pensando en los últimos 30 días.",
@@ -54,13 +48,7 @@ export const form: QuestionForm = {
       throw new RangeError(`Faltan ${missing} de las 6 respuestas: el TMD Pain Screener necesita todas para calcular el resultado.`);
     }
     const total = values.reduce((s, v) => s + v, 0);
-    return {
-      score: total,
-      text:
-        total >= CUTOFF
-          ? `Cribado positivo según el protocolo DC/TMD (${CUTOFF} o más; punto de corte orientativo, sin verificar)`
-          : `Por debajo del punto de corte del protocolo DC/TMD (${CUTOFF}; orientativo, sin verificar)`,
-    };
+    return { score: total };
   },
   source:
     "Gonzalez et al., 2011 (original), DOI 10.14219/jada.archive.2011.0088; sin validación española en PubMed. Texto de trabajo fiel al original: revisar con la versión española publicada antes de usarlo en consulta.",

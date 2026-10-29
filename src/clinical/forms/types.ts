@@ -37,8 +37,6 @@ export type FormScore = {
    * cuánto es (sin él, un porcentaje), para las que no están en el catálogo.
    */
   subscores?: { name: string; score: number; max?: number }[];
-  /** Cómo se lee la nota, si el cuestionario lo define (p. ej. «Discapacidad moderada»). */
-  text?: string;
 };
 
 export type QuestionForm = {

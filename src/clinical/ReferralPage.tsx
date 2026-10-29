@@ -240,8 +240,7 @@ export function ReferralPage() {
               <ul className="flex list-disc flex-col gap-0.5 pl-5">
                 {results.map((r) => (
                   <li key={r.key}>
-                    {r.name} ({fmtDate(r.at)}): <span className="font-semibold">{r.score}</span>
-                    {r.reading ? `. ${r.reading.replace(/\.$/, "")}` : ""}.
+                    {r.name} ({fmtDate(r.at)}): <span className="font-semibold">{r.score}</span>.
                     {r.codes.length ? ` Valora: ${informsText(r.codes, (c) => cif.titles.get(c), cif.profile)}.` : ""}
                   </li>
                 ))}

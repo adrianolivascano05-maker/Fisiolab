@@ -11,10 +11,6 @@ const ANXIETY = ["i1", "i2"];
 const DEPRESSION = ["i3", "i4"];
 const IDS = [...ANXIETY, ...DEPRESSION];
 
-/** Desde esta nota, el GAD-2 o el PHQ-2 dan cribado positivo (validado en atención primaria española). */
-const CUTOFF = 3;
-/** Gravedad del total (Kroenke 2009): sin verificar en el resumen, se enseña como orientativa. */
-const severity = (total: number) => (total <= 2 ? "normal" : total <= 5 ? "leve" : total <= 8 ? "moderado" : "grave");
 
 export const form: QuestionForm = {
   id: "phq4",
@@ -36,11 +32,6 @@ export const form: QuestionForm = {
     const anxiety = sum(ANXIETY);
     const depression = sum(DEPRESSION);
     const total = sum(IDS);
-    const parts: string[] = [];
-    if (anxiety >= CUTOFF) parts.push(`Cribado positivo de ansiedad (GAD-2 de ${CUTOFF} o más): pase el GAD-7 completo`);
-    if (depression >= CUTOFF) parts.push(`Cribado positivo de depresión (PHQ-2 de ${CUTOFF} o más): pase el PHQ-9 completo`);
-    if (!parts.length) parts.push(`Cribado negativo de ansiedad y de depresión (GAD-2 y PHQ-2 por debajo de ${CUTOFF})`);
-    parts.push(`Total: ${severity(total)} (orientativo, sin verificar)`);
     return {
       score: total,
       // No están en el catálogo: van con su máximo (3 por pregunta).
@@ -48,7 +39,6 @@ export const form: QuestionForm = {
         { name: "Ansiedad (GAD-2)", score: anxiety, max: 6 },
         { name: "Depresión (PHQ-2)", score: depression, max: 6 },
       ],
-      text: parts.join(" · "),
     };
   },
   source:

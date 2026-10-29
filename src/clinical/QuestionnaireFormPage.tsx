@@ -18,11 +18,12 @@ import { fold } from "./redFlags";
 import { BodyMapInput } from "./BodyMapParts";
 import { parseMarks } from "./bodyMap";
 import { Chips, NumberScale, TextArea } from "./parts";
-import { bandText, byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, TOPICS, type Better, type QDetails } from "./questionnaires";
+import { byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, TOPICS, type Better, type QDetails } from "./questionnaires";
 import { formFor, type Answers as FormAnswers } from "./forms";
 import { FormCredits } from "./FormCredits";
 import { FormFill, formResult } from "./FormFill";
 import { OfficialLink } from "./OfficialLink";
+import { RangesTable } from "./RangesTable";
 import { SENDABLE } from "./patientForms";
 import { Guard, localInput, useLoad } from "./pageKit";
 
@@ -175,16 +176,12 @@ export function QuestionnaireFormPage() {
   const otherMax = parseDecimal(other.max);
   // Con subescala elegida (FABQ, WOMAC…), su propio rango.
   const k = kindOf(kind, { name: other.name, min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better, subscale: !filling ? subscale[0] : undefined });
-  // La nota anotada a mano, leída con los tramos del catálogo (los de solo nota que los tienen).
-  const typed = parseDecimal(score);
-  const scoreBand = !filling && known && typed !== null && !Number.isNaN(typed) ? bandText(known, typed) : null;
   const details: QDetails =
     kind === "mapa_dolor" ? { marks }
     : kind === "psfs" ? { activities: activities.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), score: a.score ?? Number.NaN })) }
-    : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(result && "ok" in result && result.ok.text ? { text: result.ok.text } : {}) }
+    : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}) }
     : known?.subscales ? { subscale: subscale[0] }
     : kind === OTHER ? { name: other.name.trim(), min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better }
-    : scoreBand ? { text: scoreBand }
     : {};
   const sameAs = (q: Questionnaire) => q.kind === kind && displayName(q.kind, q.details as QDetails) === displayName(kind, details);
   const previous = all.find((q) => q.id !== qid && sameAs(q) && (!record || q.performedAt < record.performedAt));
@@ -354,7 +351,6 @@ export function QuestionnaireFormPage() {
                     {scoreText(k, result.ok.score)}
                   </p>
                 )}
-                {result.ok.text && <p className="font-semibold">{result.ok.text}</p>}
                 {result.ok.subscores && (
                   <ul className="nums flex flex-col gap-1">
                     {result.ok.subscores.map((sub) => (
@@ -419,7 +415,7 @@ export function QuestionnaireFormPage() {
             onChange={(e) => setScore(e.target.value)}
           />
         )}
-        {scoreBand && <p className="font-semibold" aria-live="polite">{scoreBand}</p>}
+        {!retired && known?.ranges && <RangesTable ranges={known.ranges} />}
         <TextArea label="Notas" value={notes} onChange={setNotes} rows={2} />
         {error && <Alert tone="danger" title={error} />}
         <Button type="submit" size="lg" block loading={saving}>
