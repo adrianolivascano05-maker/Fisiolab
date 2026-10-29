@@ -6,8 +6,7 @@ import { Link, useParams } from "react-router";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { SharePdf } from "../clinical/SharePdf";
-import { DriveSaveButton } from "../cloud/DriveSaveButton";
-import { safeName } from "../cloud/saveToDrive";
+import { safeName } from "../app/download";
 import { euros } from "../data/billing";
 import { getDb } from "../data/db";
 import { getInvoice, KIND_LABELS, rectificationOf, type Party } from "../data/invoices";
@@ -88,7 +87,6 @@ export function InvoicePage() {
             Imprimir
           </Button>
           <SharePdf make={pdf} fileName={fileName} title={`Factura ${inv.code}`} />
-          <DriveSaveButton label="Guardar en mi Drive (PDF)" make={async () => ({ name: fileName, mimeType: "application/pdf", bytes: await pdf() })} />
           {inv.patientId && (
             <Link className="tap inline-flex items-center font-semibold text-accent" to={`/pacientes/${inv.patientId}/cobros`}>
               Ir a los cobros del paciente

@@ -1,8 +1,8 @@
 // Entrar con Google sin servidor: OAuth 2.0 para aplicaciones web de cliente (flujo con redirección). La app
 // manda a Google con su ID de cliente y Google vuelve a la app con un token de una hora en la dirección
 // (#access_token=…). El token da acceso al nombre y el correo de quien entra, a la carpeta oculta de la app en su
-// Drive (drive.appdata, la copia de la base), a los archivos que crea la app en su Drive (drive.file: informes) y
-// al calendario que crea la app en su Google Calendar (calendar.app.created: citas). El del calendario solo se pide a
+// Drive (drive.appdata, la copia de la base; solo sin servidor de Cloudflare) y al calendario que crea la app en su
+// Google Calendar (calendar.app.created: citas). Ningún permiso para guardar archivos a la vista en su Drive. El del calendario solo se pide a
 // quien activa «Apuntar las citas en mi Google Calendar» (wantCalendar): así entrar no pide nada que Google considere
 // sensible y no hace falta verificar la app para pasar de 100 usuarios. No hay contraseñas ni secretos en la app.
 //
@@ -11,7 +11,6 @@
 
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const REVOKE_URL = "https://oauth2.googleapis.com/revoke";
-export const DRIVE_FILE_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
 const APPDATA_SCOPE = "https://www.googleapis.com/auth/drive.appdata";
 
@@ -30,11 +29,11 @@ export function wantCalendar(v: boolean) {
   else localStorage.removeItem(CALENDAR_WANTED);
 }
 const calendarWanted = () => localStorage.getItem(CALENDAR_WANTED) === "1" || hasGranted(CALENDAR_SCOPE);
-const scopes = () => `openid email profile ${copyInDrive ? `${APPDATA_SCOPE} ` : ""}${DRIVE_FILE_SCOPE}${calendarWanted() ? ` ${CALENDAR_SCOPE}` : ""}`;
+const scopes = () => `openid email profile${copyInDrive ? ` ${APPDATA_SCOPE}` : ""}${calendarWanted() ? ` ${CALENDAR_SCOPE}` : ""}`;
 
 export type Token = { accessToken: string; expiresAt: number };
 
-// Google deja aceptar unos permisos y otros no: se recuerda qué concedió (para el informe y el calendario).
+// Google deja aceptar unos permisos y otros no: se recuerda qué concedió (para el calendario).
 const GRANTED_KEY = "fisiolab.oauth.granted";
 
 /** Si quien ha entrado concedió este permiso la última vez que entró. */

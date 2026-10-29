@@ -12,3 +12,6 @@ export function saveFile(name: string, data: string | Uint8Array, type: string) 
   // El navegador ya tiene el archivo; la dirección temporal se libera pasado un rato.
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
+
+/** Un nombre de archivo sin caracteres que los sistemas de archivos no admiten. */
+export const safeName = (s: string) => s.replace(/[\\/:*?"<>|]+/g, "-").trim();

@@ -53,10 +53,10 @@ export function PrivacyPage() {
           El alojamiento web solo sirve los archivos de la app. Como cualquier web, registra la dirección IP de quien la descarga. No recibe datos de
           pacientes. No hay analítica, ni publicidad, ni cookies.
           {server &&
-            " Cloudflare aloja el servidor de la clínica en la Unión Europea y solo guarda copias cifradas, los formularios cifrados de los pacientes y sus archivos cifrados; su contrato de encargado del tratamiento (DPA) forma parte de sus condiciones. Google solo sirve para entrar (ve el nombre y el correo de quien entra) y, si se usan, para guardar informes en el Drive de cada fisioterapeuta y las citas en su Google Calendar."}
+            " Cloudflare aloja el servidor de la clínica en la Unión Europea y solo guarda copias cifradas, los formularios cifrados de los pacientes y sus archivos cifrados; su contrato de encargado del tratamiento (DPA) forma parte de sus condiciones. Google solo sirve para entrar (ve el nombre y el correo de quien entra) y, si se activan, para las citas en su Google Calendar. La app no guarda informes ni documentos en el Drive de nadie."}
           {cloud &&
             !server &&
-            " Google guarda la copia de la carpeta de la app en el Drive de cada fisioterapeuta, los informes y resultados que se guardan a la vista en su carpeta «OmniClin», y el día, la hora y las iniciales de las citas en el calendario «OmniClin · Citas»; para entrar, Google ve el nombre y el correo de quien entra. Para historias clínicas hace falta un contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace de la clínica y no las de Gmail normales."}
+            " Google guarda la copia de la carpeta oculta de la app en el Drive de cada fisioterapeuta (nada a la vista: la app no guarda informes ni documentos en su Drive) y el día, la hora y las iniciales de las citas en el calendario «OmniClin · Citas»; para entrar, Google ve el nombre y el correo de quien entra. Para historias clínicas hace falta un contrato de encargado del tratamiento con Google, que tienen las cuentas de Google Workspace de la clínica y no las de Gmail normales."}
         </p>
         {/* Siempre, aunque la app lleve la marca de la clínica: quién hace el programa y qué puede ver. */}
         <h2 className="text-lg">Quién hace el programa</h2>

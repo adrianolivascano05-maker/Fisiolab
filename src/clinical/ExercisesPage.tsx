@@ -10,8 +10,6 @@ import { bumpData, useDataVersion } from "../app/dataVersion";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { DriveSaveButton } from "../cloud/DriveSaveButton";
-import { safeName } from "../cloud/saveToDrive";
 import { getAnamnesis } from "../data/clinical";
 import { getDb } from "../data/db";
 import {
@@ -45,7 +43,7 @@ import { useToast } from "../ui/Toast";
 import { BODY_REGIONS, clinicalSummary, regionLabel } from "./anamnesis";
 import { TextArea } from "./parts";
 import { Letterhead } from "./reportParts";
-import { saveFile } from "../app/download";
+import { safeName, saveFile } from "../app/download";
 
 const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
 const fold = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -174,7 +172,6 @@ export function ExercisesPage() {
           >
             Guardar en PDF
           </Button>
-          <DriveSaveButton label="Guardar en mi Drive (PDF)" make={async () => ({ name: fileName, mimeType: "application/pdf", bytes: await pdf() })} />
           <div className="flex flex-wrap gap-2 pt-1">
             <Button variant="ghost" icon={<Pencil aria-hidden="true" className="size-4" />} onClick={() => setDraft({ items: plan.items, note: plan.note, of: plan.id })}>
               Cambiar esta hoja

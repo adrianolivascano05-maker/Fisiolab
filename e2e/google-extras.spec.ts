@@ -1,5 +1,5 @@
-// Con la cuenta de Google: las citas solas en Google Calendar y el informe y los resultados en una carpeta del
-// Drive (src/cloud/googleCalendar.ts, src/cloud/saveToDrive.ts), con Google simulado (fakeGoogle.ts).
+// Con la cuenta de Google: las citas solas en Google Calendar (src/cloud/googleCalendar.ts), con Google simulado
+// (fakeGoogle.ts). La app ya no guarda archivos en el Drive de nadie: ni lo ofrece ni pide el permiso.
 import type { Page } from "@playwright/test";
 import { createPatient, expect, expectAccessible, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
@@ -13,7 +13,7 @@ async function login(page: Page) {
   await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
 }
 
-test.describe("Google Calendar y archivos en Drive", () => {
+test.describe("Google Calendar, y nada de archivos en Drive", () => {
   test("GC1 la siguiente cita se apunta sola en el calendario de la app, se cambia y se quita", async ({ page }) => {
     test.slow();
     const google = new FakeGoogle(users);
@@ -72,46 +72,36 @@ test.describe("Google Calendar y archivos en Drive", () => {
     expect(google.calendars).toHaveLength(1);
   });
 
-  test("GD1 el informe en PDF y los resultados en CSV, en la carpeta «OmniClin» de Drive", async ({ page }) => {
+  test("GD1 sin «Guardar en mi Drive»: ni el botón en los documentos ni el permiso de archivos de Drive", async ({ page }) => {
     test.slow();
     const google = new FakeGoogle(users);
     await google.install(page.context(), () => "ana");
     await login(page);
+    expect(google.requestedScopes.length).toBeGreaterThan(0);
+    for (const scope of google.requestedScopes) expect(scope).not.toContain("drive.file");
     const url = await createPatient(page, { name: "Pablo Informe", mass: "70" });
     await page.goto(`${url}/informe`);
-    await page.getByRole("button", { name: "Guardar en mi Drive (PDF)" }).click();
-    await expect(page.getByRole("status").getByText(/está en tu Drive, carpeta «OmniClin»/)).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByRole("link", { name: "Abrir en Drive" })).toHaveAttribute("href", /drive\.google\.com/);
-
-    const folder = google.visible("ana").find((f) => f.mimeType === "application/vnd.google-apps.folder")!;
-    expect(folder.name).toBe("OmniClin");
-    const pdf = google.visible("ana").find((f) => f.mimeType === "application/pdf")!;
-    expect(pdf.name).toMatch(/^Informe Pablo Informe \d{4}-\d{2}-\d{2}\.pdf$/);
-    expect(pdf.parents).toEqual([folder.id]);
-    expect(pdf.bytes.subarray(0, 8).toString("latin1")).toBe("%PDF-1.4");
-    expect(pdf.bytes.byteLength).toBeGreaterThan(10_000);
-
+    await expect(page.getByRole("button", { name: "Imprimir" })).toBeVisible();
+    await expect(page.getByText(/Guardar en mi Drive/)).toHaveCount(0);
     await page.goto("./ajustes/datos");
-    await page.getByRole("button", { name: "Guardar los resultados en mi Drive (CSV)" }).click();
-    await expect(page.getByText(/fisiolab-resultados-.*\.csv» está en tu Drive/)).toBeVisible({ timeout: 20_000 });
-    const csv = google.visible("ana").find((f) => f.mimeType === "text/csv")!;
-    expect(csv.parents).toEqual([folder.id]); // la misma carpeta, no otra
-    expect(csv.bytes.toString("utf8")).toContain("paciente;fecha;test");
+    await expect(page.getByRole("button", { name: "Exportar resultados a Excel (CSV)" })).toBeVisible();
+    await expect(page.getByText(/en mi Drive/)).toHaveCount(0);
+    // Quien nunca guardó nada en Drive no ve el aviso de los archivos de antes.
+    await page.goto("./ajustes/cuenta");
+    await expect(page.getByText("Las citas no se apuntan solas.")).toBeVisible();
+    await expect(page.getByText("Archivos que guardaste antes en tu Google Drive")).toHaveCount(0);
+    expect(google.visible("ana")).toHaveLength(0);
   });
 
-  test("GD2 sin el permiso de archivos ni el de calendario, la app lo dice y no falla", async ({ page }) => {
+  test("GD2 sin el permiso de calendario, la app lo dice y no falla", async ({ page }) => {
     const google = new FakeGoogle(users);
-    google.withheld = ["drive.file", "calendar.app.created"];
+    google.withheld = ["calendar.app.created"];
     await google.install(page.context(), () => "ana");
     await login(page);
     await page.goto("./ajustes/cuenta");
     await page.getByLabel("Apuntar solas las citas en mi Google Calendar").check();
     await expect(page.getByText("Falta el permiso de Google Calendar.")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("button", { name: "Dar el permiso de Google Calendar" })).toBeVisible();
-    await page.goto("./ajustes/datos");
-    await page.getByRole("button", { name: "Guardar los resultados en mi Drive (CSV)" }).click();
-    await expect(page.getByRole("alert").getByText(/Falta el permiso para guardar archivos en tu Drive/)).toBeVisible();
     await expectAccessible(page);
-    expect(google.visible("ana")).toHaveLength(0);
   });
 });

@@ -8,9 +8,8 @@ import { useParams } from "react-router";
 import { fmtDate, testTitle } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { SharePdf } from "./SharePdf";
-import { safeName } from "../cloud/saveToDrive";
+import { safeName } from "../app/download";
 import { getAnamnesis, listQuestionnaires, listSessions, saveAnamnesis } from "../data/clinical";
 import { getDb } from "../data/db";
 import { ALL, currentEpisode, episodeLabel, getFocus, listEpisodes } from "../data/episodes";
@@ -172,13 +171,6 @@ export function DischargePage() {
             }}
             fileName={safeName(`Alta ${patient.name} ${todayDay()}.pdf`)}
             title="Informe de alta de fisioterapia"
-          />
-          <DriveSaveButton
-            label="Guardar en mi Drive (PDF)"
-            make={async () => {
-              const { reportPdf } = await import("./reportPdf");
-              return { name: safeName(`Alta ${patient.name} ${todayDay()}.pdf`), mimeType: "application/pdf", bytes: await reportPdf(article.current!) };
-            }}
           />
         </div>
 

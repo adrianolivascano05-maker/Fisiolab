@@ -7,8 +7,7 @@ import { useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { DriveSaveButton } from "../cloud/DriveSaveButton";
-import { safeName } from "../cloud/saveToDrive";
+import { safeName } from "../app/download";
 import { euros, eurosInWords, getPayment, methodLabel } from "../data/billing";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
@@ -69,7 +68,6 @@ export function ReceiptPage() {
             Imprimir
           </Button>
           <SharePdf make={pdf} fileName={fileName} title="Recibo" />
-          <DriveSaveButton label="Guardar en mi Drive (PDF)" make={async () => ({ name: fileName, mimeType: "application/pdf", bytes: await pdf() })} />
         </form>
 
         <article

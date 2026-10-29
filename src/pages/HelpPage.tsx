@@ -64,8 +64,8 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "Protección de datos e informe",
     body: (
       <>
-        En el Resumen, <b>Documentos</b> (informe, informe de alta, carta de derivación y justificante, para imprimir, guardar en PDF o en tu
-        Drive) y <b>Legal</b> (consentimientos y la hoja de <b>protección de datos</b>, que se firman en la pantalla o en papel; lo que falte
+        En el Resumen, <b>Documentos</b> (informe, informe de alta, carta de derivación y justificante, para imprimir, compartir o guardar en
+        PDF) y <b>Legal</b> (consentimientos y la hoja de <b>protección de datos</b>, que se firman en la pantalla o en papel; lo que falte
         sale arriba, en «Pendiente»).
       </>
     ),

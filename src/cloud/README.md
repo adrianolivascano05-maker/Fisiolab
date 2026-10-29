@@ -71,7 +71,7 @@ de la última cuenta que entró en él.
 | `sync.ts` | cuándo sincronizar: al abrir, cada 5 minutos con la app a la vista (con el servidor de la clínica, cada minuto mientras se usa y cada 5 si nadie la toca en 5 minutos), 5 segundos después del último cambio y al salir de la app |
 | `AccountPages.tsx` | la tarjeta de la cuenta en la pantalla principal y la pantalla para pegar el ID de cliente en el dispositivo |
 | `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «OmniClin · Citas» que crea la app |
-| `saveToDrive.ts`, `DriveSaveButton.tsx` | guardar el informe en PDF y los resultados en CSV en la carpeta «OmniClin» de Drive |
+| `OldDriveFiles.tsx` | el aviso, a quien guardó archivos con el antiguo «Guardar en mi Drive», de que siguen en su Drive y dónde |
 | `crypt.ts`, `EncryptionParts.tsx` | cifrado obligatorio de la copia con una contraseña, y pedirla en otro dispositivo |
 | `CloudGate.tsx` | al abrir la app decide qué se ve (entrar, volver a entrar, elegir clínica o la app) y pone en marcha la cuenta y la sincronización (`startCloud`) |
 | `cloudContext.ts` | lo que ve el resto de la app: `useCloud()`, `useSyncState()`, `useCalendarState()` y el tipo `Cloud` |
@@ -114,8 +114,8 @@ de la última cuenta que entró en él.
   como si viniera de otro dispositivo, y en cada fila gana el cambio más reciente.
 - **Copias de más de 4,5 MB** se suben con la subida reanudable de Drive. Las pruebas usan un Google simulado
   (`e2e/fakeGoogle.ts`) y no llegan a ese tamaño.
-- **Permisos de Google.** Además del nombre, el correo y la carpeta oculta (`drive.appdata`), la app pide
-  `drive.file` (solo los archivos que crea ella). `calendar.app.created` (solo el calendario que crea ella) se pide
+- **Permisos de Google.** El nombre y el correo y, solo sin servidor de Cloudflare, la carpeta oculta
+  (`drive.appdata`). Ya no pide `drive.file`: no guarda archivos a la vista en el Drive de nadie. `calendar.app.created` (solo el calendario que crea ella) se pide
   solo a quien activa «Apuntar solas las citas en mi Google Calendar» en Ajustes (`wantCalendar`): así entrar no pide
   nada que Google trate como sensible y no hace falta verificar la app para pasar de 100 usuarios. Si alguien no
   acepta uno, lo demás funciona y la app dice qué falta y cómo darlo.
@@ -128,11 +128,11 @@ de la última cuenta que entró en él.
   desactiva. El evento lleva siempre solo las iniciales y la hora (antes se podía elegir el nombre; ese ajuste guardado ya no
   cuenta). Con esto activado, al guardar una sesión ya no
   se ofrece el enlace de Google Calendar ni el .ics.
-- **Informe y resultados en Drive.** «Guardar en mi Drive (PDF)» en el informe y «Guardar los resultados en mi
-  Drive (CSV)» en Ajustes los suben a la carpeta «OmniClin» de «Mi unidad», que la app crea la primera vez
-  (su id va en el ajuste sincronizado `drive_folder_id`). El PDF es el informe dibujado tal como se ve, una imagen
-  por página A4 (`../clinical/reportPdf.ts` con html-to-image, y `../app/pdf.ts`): el texto no se puede
-  seleccionar. Estos archivos no se cifran aunque la copia sí lo esté.
+- **Nada a la vista en Drive (desde el 29-10-2026).** Antes «Guardar en mi Drive» subía informes, recibos,
+  facturas, hojas de ejercicios y el CSV de resultados, sin cifrar, a la carpeta «OmniClin» (antes «Cénit ·
+  Fisiolab») de «Mi unidad». Se quitó por la revisión legal: los documentos se imprimen, se comparten o se descargan.
+  Lo ya subido sigue en el Drive de cada uno y la app ya no lo ve; a quien lo usó (su ajuste `drive_folder_id`), Ajustes
+  → Cuenta de Google le avisa con el enlace a esa carpeta hasta que pulsa «Ya lo he revisado».
 - **Copia siempre cifrada (en Drive y en Cloudflare).** La primera vez la app pide una contraseña de cifrado
   («needs-password», Ajustes → Cuenta de Google → Cifrado de la copia) y no sube nada hasta tenerla; no se puede
   dejar de cifrar. La base se comprime (gzip) y se cifra en el dispositivo antes de subirla, con AES-GCM de 256 bits

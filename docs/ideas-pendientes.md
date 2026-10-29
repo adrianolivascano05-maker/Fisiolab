@@ -759,3 +759,14 @@ sanitaria: son los cambios que pide la revisión.
   Short FES-I, Nijmegen, TMD Pain Screener, NDI, Oswestry, PCS y MIDAS (sus cortes no se han podido comprobar en la
   publicación). Las lecturas guardadas antes siguen en los datos (y en la exportación), pero no se enseñan; la carta
   de derivación ya no las pone. En el 5PQ incompleto, en vez de la frase, «Respuestas contestadas: 3 de 5».
+- **14. Fuera «Guardar en mi Drive».** Quitado de informe, alta, recibo, justificante, ejercicios, factura y
+  Ajustes › Copias (el CSV); la app ya no pide el permiso `drive.file` al entrar con Google. Política de privacidad,
+  pantalla de Privacidad, Ayuda y `src/cloud/README.md`, al día. **Lo ya subido** (sin cifrar) sigue en la carpeta
+  «OmniClin» (o «Cénit · Fisiolab») del Drive de quien lo guardó; la app ya no puede verlo ni borrarlo. A quien la
+  usó, Ajustes › Cuenta de Google le avisa con el enlace a la carpeta hasta que pulsa «Ya lo he revisado».
+  **Otra cosa en Drive:** solo la carpeta oculta de la app (`appDataFolder`), y solo en una instalación sin servidor
+  de Cloudflare: ahí iba la copia de la base. Va cifrada (sin contraseña no se sube nada; una copia muy antigua
+  pudo subirse sin cifrar antes de que el cifrado fuera obligatorio). Con el servidor de Cloudflare configurado
+  (`public/cloud.json`, como ahora) no hace falta: la app ni pide ese permiso ni la lee. Si alguien usó la app
+  antes de tener servidor, puede quedarle una copia vieja: se borra en Drive → Configuración → Gestionar
+  aplicaciones → OmniClin → Opciones → Eliminar datos ocultos de la aplicación.

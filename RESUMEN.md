@@ -73,7 +73,7 @@ Fecha: 2026-10-17
    - Con la nube activada (`public/cloud.json`, guía en `src/cloud/README.md`), cada fisioterapeuta entra con su cuenta de Google y sus pacientes se guardan también en su Google Drive, en la carpeta oculta de la app. Se junta fila a fila con la copia de la nube: gana el cambio más reciente.
    - Solo una pestaña a la vez (Web Lock); la segunda avisa y se bloquea.
    - Borrar un paciente borra todo lo suyo, pero avisa si su historia clínica aún hay que conservarla (5 años o lo que se ponga en Ajustes).
-   - Con la cuenta de Google, la siguiente cita de cada paciente se apunta sola en el calendario «OmniClin · Citas» de su Google Calendar, y el informe (PDF) y los resultados (CSV) se pueden guardar en la carpeta «OmniClin» de su Drive.
+   - Con la cuenta de Google, la siguiente cita de cada paciente se apunta sola en el calendario «OmniClin · Citas» de su Google Calendar. La app no guarda documentos en el Drive de nadie (se quitó «Guardar en mi Drive» el 29-10-2026).
    - **Protección de datos** (`src/privacy/README.md`):
      - Datos de la clínica en Ajustes.
      - Texto informativo del RGPD para que cada paciente lo firme, con sus consentimientos opcionales: fotos y vídeos, WhatsApp o correo, docencia y estudios.

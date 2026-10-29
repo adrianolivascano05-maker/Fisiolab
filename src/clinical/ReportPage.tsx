@@ -15,8 +15,7 @@ import { getPatient, listTests, listWellness } from "../data/repo";
 import { SharePdf } from "./SharePdf";
 import { TextField } from "../ui/Field";
 import { TextArea } from "./parts";
-import { DriveSaveButton } from "../cloud/DriveSaveButton";
-import { safeName } from "../cloud/saveToDrive";
+import { safeName } from "../app/download";
 import { Button } from "../ui/Button";
 import { answerText } from "./anamnesis";
 import { useAnamnesisSections } from "./useAnamnesis";
@@ -149,17 +148,6 @@ export function ReportPage() {
             }}
             fileName={safeName(`Informe ${patient.name} ${todayDay()}.pdf`)}
             title="Informe de fisioterapia"
-          />
-          <DriveSaveButton
-            label="Guardar en mi Drive (PDF)"
-            make={async () => {
-              const { reportPdf } = await import("./reportPdf");
-              return {
-                name: safeName(`Informe ${patient.name} ${todayDay()}.pdf`),
-                mimeType: "application/pdf",
-                bytes: await reportPdf(article.current!),
-              };
-            }}
           />
         </div>
 

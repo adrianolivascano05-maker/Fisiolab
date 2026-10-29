@@ -64,7 +64,7 @@ test.describe("Protección de datos", () => {
     await expectAccessible(page);
     await scribble(page, page.getByRole("img", { name: "Firma de Nora Firma" }));
     await page.getByRole("button", { name: "Guardar la hoja firmada" }).click();
-    await expect(page.getByText(/^Firmada en la pantalla el /)).toBeVisible();
+    await expect(page.getByRole("paragraph").filter({ hasText: /^Firmada en la pantalla el / })).toBeVisible();
     const notice = page.getByRole("article", { name: "Información sobre protección de datos" });
     const history = page.getByRole("region", { name: "Hojas firmadas" });
     await expect(history.getByRole("button", { name: /Firmada en la pantalla el .*Fotos y vídeos: sí · WhatsApp, SMS o correo: no/ })).toBeVisible();
@@ -160,7 +160,10 @@ test("PD5 la política de privacidad pública (la que pide Google) se abre sin e
   await page.setViewportSize({ width: 360, height: 740 });
   await page.goto("./politica-de-privacidad.html");
   await expect(page.getByRole("heading", { level: 1, name: "Política de privacidad de OmniClin" })).toBeVisible();
-  for (const scope of ["drive.file", "drive.appdata", "calendar.app.created"]) await expect(page.getByText(scope, { exact: true })).toBeVisible();
+  for (const scope of ["drive.appdata", "calendar.app.created"]) await expect(page.getByText(scope, { exact: true })).toBeVisible();
+  // Ya no pide el permiso de archivos de Drive: no guarda nada a la vista en el Drive de nadie.
+  await expect(page.getByText("drive.file", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/no guarda informes ni otros documentos en el Google Drive/)).toBeVisible();
   await expect(page.getByRole("link", { name: "cenitfisiolab@gmail.com" }).first()).toHaveAttribute("href", "mailto:cenitfisiolab@gmail.com");
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
   expect(await smallTargets(page)).toEqual([]);

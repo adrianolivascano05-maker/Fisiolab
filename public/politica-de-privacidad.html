@@ -116,10 +116,6 @@
           enseñar su nombre en la aplicación y comprobar que pertenece al equipo de su clínica.
         </li>
         <li>
-          <strong>Archivos de Google Drive creados por OmniClin</strong> (<code>drive.file</code>): solo los informes y resultados que el profesional
-          decide guardar en su Drive. OmniClin no ve ni toca el resto de archivos de su Drive.
-        </li>
-        <li>
           <strong>Carpeta de datos de la aplicación en Drive</strong> (<code>drive.appdata</code>), solo si la clínica elige guardar su copia en Google
           Drive: una carpeta oculta que solo usa OmniClin, con la copia cifrada.
         </li>
@@ -148,13 +144,15 @@
         <li>el Google Drive de cada fisioterapeuta, en la carpeta oculta de la aplicación.</li>
       </ul>
       <p>
-        Ni Cloudflare, ni Google, ni OmniClin pueden leer esas copias. Los vídeos de las mediciones no salen del dispositivo. Los
+        Ni Cloudflare, ni Google, ni OmniClin pueden leer esas copias. OmniClin no guarda informes ni otros documentos en el Google Drive
+        de nadie (hasta el 29 de octubre de 2026 se podían guardar en la carpeta «OmniClin» de Drive del profesional; los que se guardaron
+        siguen allí, en su cuenta, y OmniClin ya no puede verlos ni borrarlos). Los vídeos de las mediciones no salen del dispositivo. Los
         formularios que el paciente rellena desde su enlace van cifrados de extremo a extremo y se borran del servidor al recogerlos.
       </p>
 
       <h2>Proveedores</h2>
       <ul>
-        <li><strong>Google</strong>: inicio de sesión y, si se activan, Drive y Calendar.</li>
+        <li><strong>Google</strong>: inicio de sesión y, si se activa, Calendar (y la carpeta oculta de Drive, solo si la clínica guarda allí su copia).</li>
         <li><strong>Cloudflare</strong>: servidor de la clínica y almacén de archivos (Unión Europea), y alojamiento de la web.</li>
         <li><strong>GitHub</strong>: alojamiento de la web.</li>
       </ul>

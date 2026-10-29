@@ -164,8 +164,12 @@ export class FakeGoogle {
     await ctx.route("https://oauth2.googleapis.com/revoke", (r) => r.fulfill({ status: 200, headers: cors, body: "" }));
   }
 
+  /** Los permisos que la app ha pedido cada vez que ha ido a Google. */
+  requestedScopes: string[] = [];
+
   private auth(route: Route, who: string) {
     const u = new URL(route.request().url());
+    this.requestedScopes.push(u.searchParams.get("scope") ?? "");
     const back = new URL(u.searchParams.get("redirect_uri")!);
     const hint = u.searchParams.get("login_hint");
     const user = hint ? Object.values(this.users).find((x) => x.email === hint)! : this.users[who]!;

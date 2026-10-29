@@ -42,11 +42,11 @@ import { CalendarSettings } from "../cloud/CalendarSettings";
 import { getToken } from "../cloud/auth";
 import { ROLE_LABELS } from "../cloud/clinic";
 import { CloudSettings } from "../cloud/CloudSettings";
+import { OldDriveFiles } from "../cloud/OldDriveFiles";
 import { syncText } from "../cloud/SyncNotice";
 import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { cloudflarePending } from "../cloud/serverStatus";
 import { requestShare } from "../cloud/limits";
-import { DriveSaveButton } from "../cloud/DriveSaveButton";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { getDb } from "../data/db";
 import { DocsStorageCard } from "../documents/DocsStorageCard";
@@ -225,13 +225,14 @@ export function AccountSettingsPage() {
     <Page title="Cuenta de Google" backTo="/ajustes">
       {cloud ? (
         <>
+          <OldDriveFiles />
           <CloudSettings />
           <CalendarSettings />
           <EncryptionSettings />
         </>
       ) : (
         <>
-          <p>Con tu cuenta de Google, tus pacientes se guardan también en tu Google Drive y los tienes en cualquier dispositivo.</p>
+          <p>Con tu cuenta de Google tienes tus pacientes en cualquier dispositivo: la copia va cifrada.</p>
           <AccountCard />
         </>
       )}
@@ -366,10 +367,6 @@ export function DataSettingsPage() {
           >
             Exportar resultados a Excel (CSV)
           </Button>
-          <DriveSaveButton
-            label="Guardar los resultados en mi Drive (CSV)"
-            make={async () => ({ name: `fisiolab-resultados-${stamp()}.csv`, mimeType: "text/csv", bytes: new TextEncoder().encode(await exportCsv(getDb())) })}
-          />
         </Card>
       </section>
 

@@ -11,7 +11,7 @@ import { useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { safeName } from "../cloud/saveToDrive";
+import { safeName } from "../app/download";
 import { getAnamnesis, listQuestionnaires, listSessions } from "../data/clinical";
 import { getDb } from "../data/db";
 import { ageOn, getClinic } from "../data/privacy";

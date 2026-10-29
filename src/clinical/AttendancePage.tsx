@@ -7,8 +7,6 @@ import { Link, useParams, useSearchParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { DriveSaveButton } from "../cloud/DriveSaveButton";
-import { safeName } from "../cloud/saveToDrive";
 import { getAppointment, lastVisitOf } from "../data/appointments";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
@@ -20,7 +18,7 @@ import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { localInput } from "./pageKit";
 import { Letterhead, SignatureLine } from "./reportParts";
-import { saveFile } from "../app/download";
+import { safeName, saveFile } from "../app/download";
 
 const hour = (d: Date) => d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 const longDay = (d: Date) => d.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
@@ -129,7 +127,6 @@ export function AttendancePage() {
           >
             Guardar en PDF
           </Button>
-          <DriveSaveButton label="Guardar en mi Drive (PDF)" make={async () => ({ name: fileName, mimeType: "application/pdf", bytes: await pdf() })} />
         </form>
 
         <article
