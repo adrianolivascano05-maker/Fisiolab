@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { findFlags } from "../clinical/redFlags";
 import { loadCatalog, parseCoded } from "../clinical/cif/cif";
-import { usableForm } from "../clinical/forms";
+import { formFor } from "../clinical/forms";
 import { getKind } from "../clinical/questionnaires";
 import { getAnamnesisOf } from "../data/clinical";
 import { getCalendarSettings } from "../cloud/googleCalendar";
@@ -27,9 +27,14 @@ describe("clínica de prueba", () => {
       expect(GALLERY.some((t) => t.region === c.regions[0] && c.tests.test(t.group)), `${c.id}: tests`).toBe(true);
       for (const code of c.cif) expect(catalog.has(parseCoded(code)!.code), `${c.id}: ${code}`).toBe(true);
       for (const kind of c.questionnaires) {
-        const form = usableForm(kind, []);
-        expect(form, `${c.id}: ${kind} se rellena en la app`).toBeTruthy();
         const k = getKind(kind)!;
+        expect(k && !k.retired, `${c.id}: ${kind} se puede pasar`).toBe(true);
+        const form = formFor(kind);
+        // Los de solo nota se anotan con una nota del rango.
+        if (!form) {
+          expect(k.scoreOnly, `${c.id}: ${kind} se rellena en la app o se anota`).toBe(true);
+          continue;
+        }
         let seed = 1;
         const r = { next: () => ((seed = (seed * 16807) % 2147483647) / 2147483647), int: (a: number) => a, pick: <T,>(l: readonly T[]) => l[0]!, chance: () => false, some: <T,>(l: readonly T[]) => [...l] };
         const bad = fillForm(form!, k.better, 0.8, r);

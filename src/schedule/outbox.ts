@@ -158,5 +158,5 @@ export function itemWhen(i: OutboxItem): string {
   return "";
 }
 
-/** Los cuestionarios que se pueden mandar por enlace (sin los que necesitan un permiso que la clínica no ha marcado). */
-export const sendableKinds = (granted: readonly string[]) => new Set(SENDABLE.filter((k) => k.license !== "comprobar" || granted.includes(k.id)).map((k) => k.id));
+/** Los cuestionarios que se pueden mandar por enlace. */
+export const sendableKinds = () => new Set(SENDABLE.map((k) => k.id));

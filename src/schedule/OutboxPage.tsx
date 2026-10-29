@@ -17,7 +17,6 @@ import { getDb } from "../data/db";
 import { markOutbox } from "../data/outbox";
 import { memberEmail } from "../data/member";
 import { getClinic, mayMessage } from "../data/privacy";
-import { useGranted } from "../data/questionnairePermissions";
 import { setSetting } from "../data/repo";
 import { recordSentForms, uploadPatientForm, type UploadedForm } from "../patientForm/createForm";
 import { Alert } from "../ui/Alert";
@@ -54,15 +53,14 @@ export function OutboxPage() {
   const toast = useToast();
   const cloud = useCloud();
   const version = useDataVersion();
-  const granted = useGranted();
   const sections = useAnamnesisSections();
   const staff = useStaff();
   const { team } = useTeamMode();
   const data = useAsync(async () => {
     const db = getDb();
-    const [out, messages, clinic] = await Promise.all([loadOutbox(db, granted), loadMessages(db), getClinic(db)]);
+    const [out, messages, clinic] = await Promise.all([loadOutbox(db), loadMessages(db), getClinic(db)]);
     return { ...out, messages, clinicName: clinic.name || cloud?.clinic?.name || "" };
-  }, [version, granted.join(",")]);
+  }, [version]);
   /** Los envíos que se están mandando (uno o todos seguidos) y por cuál va. */
   const [run, setRun] = useState<{ ids: string[]; at: number } | null>(null);
   const [prepared, setPrepared] = useState<Record<string, Prepared>>({});

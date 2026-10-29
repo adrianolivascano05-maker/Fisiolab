@@ -204,7 +204,11 @@ export function PublicFormPage() {
             {form && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} />}
             {signing?.kind === "privacy" && <SignPrivacy toSign={signing.toSign} answers={answers} onChange={setAnswers} />}
             {signing?.kind === "consent" && <SignConsent toSign={signing.toSign} answers={answers} onChange={setAnswers} />}
-            {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && !signing && <Alert tone="danger" title="Este cuestionario no está en esta versión de la app." />}
+            {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && !signing && (
+              <Alert tone="info" title="Este cuestionario ya no se rellena por enlace">
+                Tu clínica te lo pasará en la consulta. No hace falta que hagas nada más.
+              </Alert>
+            )}
             {error && <Alert tone="danger" title={error} />}
             <Button type="submit" size="lg" block loading={sending} icon={<Send aria-hidden="true" className="size-5" />}>
               {signing ? "Firmar y enviar" : "Enviar"}

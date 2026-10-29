@@ -8,7 +8,7 @@ describe("banderas amarillas", () => {
     const hits = findYellowFlags({ creencias: "Le da miedo agacharse, cree que se le va a romper algo", estres: "Mucho estrés, está de baja" }, (f) => (f === "creencias" ? "Qué cree el paciente que le pasa" : f));
     expect(hits.map((h) => h.flag.id)).toEqual(["miedo", "animo", "trabajo"]);
     expect(hits[0]!.field).toBe("Qué cree el paciente que le pasa");
-    expect(hits[0]!.flag.measure).toContain("tsk11");
+    expect(hits[1]!.flag.measure).toEqual(["phq9", "gad7"]);
   });
 
   it("palabra entera y sin lo negado", () => {

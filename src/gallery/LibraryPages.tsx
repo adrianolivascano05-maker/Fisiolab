@@ -1,21 +1,18 @@
 // Biblioteca, estantes de Cuestionarios y Mediciones: qué es cada uno y cómo llevarlo a un paciente. Los tests de
-// exploración siguen en GalleryPages.tsx. Los permisos de los cuestionarios con dueño se marcan aquí (antes, en
-// Ajustes): en la ficha de cada uno y en la lista de permisos.
+// exploración siguen en GalleryPages.tsx. De los cuestionarios, solo los que se pueden pasar hoy: los de pago están
+// fuera del servicio y no salen.
 import { Activity, ClipboardCheck, Dumbbell, Footprints, ListChecks, Rotate3d, Timer, Zap, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { useParams } from "react-router";
-import { bumpData } from "../app/dataVersion";
 import { Page } from "../app/Page";
 import { useQuickMeasure } from "../app/quickMeasure";
 import { ForPatient } from "../clinical/RegisterInPatient";
-import { formFor, usableForm } from "../clinical/forms";
-import { getKind, QUESTIONNAIRES, TOPICS, type QuestionnaireKind } from "../clinical/questionnaires";
-import { getDb } from "../data/db";
-import { setGranted, useGranted } from "../data/questionnairePermissions";
+import { formFor } from "../clinical/forms";
+import { OfficialLink } from "../clinical/OfficialLink";
+import { ACTIVE, getKind, TOPICS, type QuestionnaireKind } from "../clinical/questionnaires";
 import { Card } from "../ui/Card";
 import { TextField } from "../ui/Field";
 import { Group, RowButton, RowLink } from "../ui/Grouped";
-import { useToast } from "../ui/Toast";
 import { Disclosure } from "./Disclosure";
 
 export const LIBRARY = "/biblioteca";
@@ -31,14 +28,11 @@ export const fold = (s: string) =>
     .toLowerCase();
 
 /** Cómo se pasa: con sus preguntas en la app, con su pantalla, o anotando la nota de la hoja oficial. */
-export function questionnaireHow(k: QuestionnaireKind, granted: readonly string[]): string {
+export function questionnaireHow(k: QuestionnaireKind): string {
   if (k.inApp) return "Se contesta en la app con su propia pantalla";
-  const f = usableForm(k.id, granted);
-  const n = f?.sections.reduce((acc, s) => acc + s.items.length, 0);
+  const n = formFor(k.id)?.sections.reduce((acc, s) => acc + s.items.length, 0);
   if (n) return `${n} preguntas en la app, la nota se calcula sola`;
-  if (k.license === "licencia") return "De pago: se anota la nota de la hoja oficial";
-  if (k.license === "comprobar" && formFor(k.id)) return "Pendiente del permiso de su titular: se anota la nota";
-  return "Se anota la nota de la hoja";
+  return "Con su hoja oficial: se anota la nota";
 }
 
 const range = (k: QuestionnaireKind) =>
@@ -58,33 +52,19 @@ function shelves(list: QuestionnaireKind[]) {
   ].filter((g) => g.items.length);
 }
 
-/** Biblioteca › Cuestionarios: todos, con buscador, y la lista de permisos. */
+/** Biblioteca › Cuestionarios: los que se pueden pasar, con buscador. */
 export function QuestionnaireShelf() {
-  const granted = useGranted();
   const [q, setQ] = useState("");
-  const list = QUESTIONNAIRES.filter((k) => questionnaireMatches(k, q));
-  const pending = QUESTIONNAIRES.filter((k) => k.license === "comprobar" && !!formFor(k.id) && !granted.includes(k.id)).length;
+  const list = ACTIVE.filter((k) => questionnaireMatches(k, q));
   return (
     <Page title="Cuestionarios" backTo={LIBRARY}>
-      <p className="text-text-muted">Qué mide cada uno, sus preguntas, cómo se puntúa y sus condiciones de uso. Desde la ficha de cada uno, «Pasar a un paciente».</p>
-      <TextField label="Buscar cuestionario" placeholder="Por ejemplo: rodilla, DN4, mareo, suelo pélvico" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" />
-      {!q.trim() && (
-        <Group>
-          <RowLink
-            to={`${QUESTIONNAIRES_URL}/permisos`}
-            icon={ClipboardCheck}
-            tone={pending ? "warning" : "accent"}
-            title="Permisos y licencias"
-            subtitle={pending ? `${pending} pendientes del permiso de su titular` : "Los que tienen dueño y a quién pedírselo"}
-            warn={!!pending}
-          />
-        </Group>
-      )}
+      <p className="text-text-muted">Qué mide cada uno, sus preguntas o dónde conseguir su hoja oficial, y cómo se puntúa. Desde la ficha de cada uno, «Pasar a un paciente».</p>
+      <TextField label="Buscar cuestionario" placeholder="Por ejemplo: rodilla, ánimo, mareo, suelo pélvico" value={q} onChange={(e) => setQ(e.target.value)} autoComplete="off" />
       {!list.length && <p className="text-text-muted">Ningún cuestionario con «{q.trim()}».</p>}
       {shelves(list).map((g) => (
         <Group key={g.title} title={g.title}>
           {g.items.map((k) => (
-            <RowLink key={k.id} to={questionnaireUrl(k.id)} title={k.name} subtitle={questionnaireHow(k, granted)} />
+            <RowLink key={k.id} to={questionnaireUrl(k.id)} title={k.name} subtitle={questionnaireHow(k)} />
           ))}
         </Group>
       ))}
@@ -92,39 +72,20 @@ export function QuestionnaireShelf() {
   );
 }
 
-/** La ficha de un cuestionario: qué mide, cómo se puntúa, sus preguntas, su permiso y «Pasar a un paciente». */
+/** La ficha de un cuestionario: qué mide, cómo se puntúa, sus preguntas o su hoja oficial, y «Pasar a un paciente». */
 export function QuestionnaireCard() {
   const { id = "" } = useParams();
   const k = getKind(id);
-  const saved = useGranted();
-  const [local, setLocal] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
-  const toast = useToast();
-  if (!k) {
+  if (!k || k.retired) {
     return (
       <Page title="Cuestionario" backTo={QUESTIONNAIRES_URL}>
-        <p className="text-text-muted">Este cuestionario no está en la Biblioteca.</p>
+        <p className="text-text-muted">{k ? `${k.name} está fuera del servicio: es de pago y ya no está en la app.` : "Este cuestionario no está en la Biblioteca."}</p>
       </Page>
     );
   }
-  const has = local ?? saved.includes(k.id);
-  const granted = has ? [...saved.filter((x) => x !== k.id), k.id] : saved.filter((x) => x !== k.id);
-  const form = usableForm(k.id, granted);
+  const form = formFor(k.id);
   const questions = form?.sections.reduce((acc, s) => acc + s.items.length, 0) ?? 0;
-  const canGrant = k.license === "comprobar" && !!formFor(k.id);
-
-  const toggle = async (on: boolean) => {
-    setLocal(on);
-    setBusy(true);
-    try {
-      await setGranted(getDb(), on ? [...saved.filter((x) => x !== k.id), k.id] : saved.filter((x) => x !== k.id));
-      bumpData();
-      toast(on ? `${k.name}: ya se puede rellenar en la app` : `${k.name}: solo se anota la nota`, "success");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <Page title={k.name} backTo={QUESTIONNAIRES_URL} backLabel="Cuestionarios" large>
@@ -140,7 +101,7 @@ export function QuestionnaireCard() {
             </>
           )}
           <dt className="text-text-muted">Cómo se pasa</dt>
-          <dd>{questionnaireHow(k, granted)}</dd>
+          <dd>{questionnaireHow(k)}</dd>
           {k.topic && (
             <>
               <dt className="text-text-muted">Tema</dt>
@@ -195,26 +156,7 @@ export function QuestionnaireCard() {
         </div>
       )}
 
-      {k.license && k.license !== "libre" && (
-        <section aria-labelledby="h-uso" className="flex flex-col gap-2">
-          <h2 id="h-uso" className="text-lg">
-            Condiciones de uso
-          </h2>
-          <p className="text-sm">
-            <b>{k.license === "licencia" ? "De pago para uso comercial" : k.license === "comprobar" ? "Pendiente del permiso de su titular" : "Libre, con registro o permiso"}.</b>{" "}
-            {k.licenseNote}
-          </p>
-          {canGrant && (
-            <label className="flex min-h-11 items-start gap-3 rounded-lg border border-border bg-bg p-3">
-              <input type="checkbox" className="mt-1 size-5 shrink-0 accent-accent" checked={has} disabled={busy} onChange={(e) => void toggle(e.target.checked)} />
-              <span className="flex flex-col gap-0.5">
-                <span className="font-semibold">Tenemos el permiso</span>
-                <span className="text-sm text-text-muted">Hasta marcarlo, solo se anota la nota de la hoja oficial. Vale para todo el equipo.</span>
-              </span>
-            </label>
-          )}
-        </section>
-      )}
+      {k.link && <OfficialLink link={k.link} />}
 
       {form?.source && <p className="text-xs text-text-muted">{form.source}</p>}
       {k.refs && <p className="text-xs text-text-muted">{k.refs}</p>}

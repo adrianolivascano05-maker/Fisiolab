@@ -87,11 +87,12 @@ test.describe("Comodidad del día a día", () => {
     await page.goto(`${page.url()}/anamnesis`);
     await page.getByLabel("Motivo principal").fill("Lumbalgia");
     await page.locator("summary", { hasText: "Tratamientos previos y expectativas" }).click();
-    await page.getByLabel("Qué cree el paciente que le pasa").fill("Le da miedo agacharse: cree que se le va a romper la espalda");
+    await page.getByLabel("Qué cree el paciente que le pasa").fill("Le da miedo agacharse: cree que se le va a romper la espalda y que no va a mejorar");
     await expect(page.getByRole("region", { name: /Banderas amarillas/ })).toContainText("Miedo al movimiento");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
-    await page.getByRole("region", { name: /Banderas amarillas/ }).getByRole("link", { name: /TSK-11/ }).click();
-    await expect(page).toHaveURL(/cuestionarios\/nuevo\?tipo=tsk11/);
+    // El miedo al movimiento se mide con cuestionarios de pago (fuera del servicio): sin enlace. El catastrofismo, con la PCS.
+    await page.getByRole("region", { name: /Banderas amarillas/ }).getByRole("link", { name: /PCS/ }).click();
+    await expect(page).toHaveURL(/cuestionarios\/nuevo\?tipo=pcs/);
   });
 
   test("US5 CIF: acotar por componente como un fisio, calificar con un toque y redactar; sale en la carta de derivación", async ({ page }) => {

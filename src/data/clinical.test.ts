@@ -174,15 +174,16 @@ describe("simetría y cuestionarios", () => {
   });
 
   it("catálogo: los de la zona primero, zonas que existen, «otro» con su rango y puntuaciones legibles", async () => {
-    const { byRegions, kindOf, QUESTIONNAIRES, scoreText } = await import("../clinical/questionnaires");
+    const { ACTIVE, byRegions, kindOf, QUESTIONNAIRES, scoreText } = await import("../clinical/questionnaires");
     const ids = new Set(BODY_REGIONS.map((r) => r.id));
     for (const q of QUESTIONNAIRES) for (const r of q.regions ?? []) expect(ids.has(r), `${q.id}: ${r}`).toBe(true);
     const knee = byRegions(["rodilla"]);
-    expect(knee.length).toBe(QUESTIONNAIRES.length);
+    // Sin los de pago, que están fuera del servicio.
+    expect(knee.length).toBe(ACTIVE.length);
+    expect(knee.some((k) => k.kind.retired)).toBe(false);
     const forKnee = knee.filter((k) => k.forRegion).map((k) => k.kind.id);
-    // Los de rodilla de siempre primero, en su orden; detrás, los nuevos de rodilla (Kujala, Lysholm, IKDC…).
-    expect(forKnee.slice(0, 4)).toEqual(["koos", "lefs", "visa_p", "acl_rsi"]);
-    expect(forKnee).toEqual(expect.arrayContaining(["kujala", "lysholm", "ikdc", "koos12", "oks", "womac"]));
+    expect(forKnee).toEqual(expect.arrayContaining(["acl_rsi", "kujala", "lysholm", "ikdc"]));
+    expect(forKnee).not.toContain("koos");
     expect(knee.findIndex((k) => !k.forRegion)).toBe(forKnee.length);
     const other = kindOf("otro", { name: "Escala propia", min: 0, max: 20, better: "lower" });
     expect(other).toMatchObject({ name: "Escala propia", max: 20, better: "lower" });

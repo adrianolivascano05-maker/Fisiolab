@@ -1,4 +1,4 @@
-// Cuestionarios nuevos de este grupo (docs/cuestionarios-nuevos.md): su ficha en el catálogo.
+// Cuestionarios de este grupo (docs/cuestionarios.md): su ficha en el catálogo.
 // Equilibrio y mareo, persona mayor, suelo pélvico, respiratorio, neurológico, hipermovilidad y salud general.
 import type { QuestionnaireKind } from "../questionnaires";
 
@@ -11,36 +11,7 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Equilibrio, caídas y mareo",
     hint: "Preocupación (miedo) a caerse en 7 actividades cotidianas, para personas mayores, la valoración del riesgo de caídas y los programas de equilibrio.",
-    license: "libre",
-    licenseNote:
-      "Uso gratuito citando la fuente; el grupo FES-I (ProFaNE, Universidad de Manchester) publica la traducción oficial española y pide que se le informe del uso: comprobar en su web si hay que registrarse.",
     refs: "Kempen et al., 2008 (original), DOI 10.1093/ageing/afm157; González Montaos et al., 2024 (validación española), DOI 10.1016/j.regg.2023.101436; Delbaere et al., 2010 (puntos de corte), DOI 10.1093/ageing/afp225",
-  },
-  {
-    id: "abc",
-    name: "ABC (confianza en el equilibrio)",
-    min: 0,
-    max: 100,
-    better: "higher",
-    unit: "%",
-    topic: "Equilibrio, caídas y mareo",
-    hint: "Confianza en no perder el equilibrio en 16 actividades de dificultad creciente, útil en personas mayores con buena función, trastornos vestibulares y neurología (menos efecto techo que la FES).",
-    license: "libre",
-    licenseNote: "Publicada por los autores y de uso clínico muy extendido; para uso comercial, comprobar con los autores (Powell y Myers, Universidad de Waterloo).",
-    reading: "En pacientes vestibulares españoles, el cambio mínimo detectable es de 16,94 puntos (SEM 8,64; Montilla-Ibáñez 2017).",
-    refs: "Powell y Myers, 1995 (original), DOI 10.1093/gerona/50a.1.m28; Montilla-Ibáñez et al., 2017 (validación española, pacientes vestibulares), DOI 10.3109/09638288.2016.1161087; Lajoie y Gallagher, 2004 (puntos de corte), DOI 10.1016/s0167-4943(03)00082-7",
-  },
-  {
-    id: "dhi",
-    name: "DHI (discapacidad por mareo)",
-    min: 0,
-    max: 100,
-    better: "lower",
-    topic: "Equilibrio, caídas y mareo",
-    hint: "Cuánto limitan el mareo y la inestabilidad en lo físico, lo funcional y lo emocional; el de referencia en rehabilitación vestibular (VPPB, hipofunción vestibular, mareo cervicogénico).",
-    license: "libre",
-    licenseNote: "Publicado en el artículo original y de uso clínico y académico muy extendido; para uso comercial, comprobar con los autores (Jacobson GP, Newman CW).",
-    refs: "Jacobson y Newman, 1990 (original), DOI 10.1001/archotol.1990.01870040046011; Pérez et al., 2000 (validación española), PMID 11270034 (el DOI no figura en PubMed); Whitney et al., 2004 (puntos de corte), DOI 10.1097/00129492-200403000-00010",
   },
   {
     id: "sarc_f",
@@ -50,8 +21,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Persona mayor",
     hint: "Cribado rápido de sarcopenia (fuerza, ayuda para caminar, levantarse de la silla, subir escaleras y caídas); si sale positivo, hay que medir la fuerza de prensión, la masa muscular y el rendimiento físico (EWGSOP2).",
-    license: "libre",
-    licenseNote: "Publicado por los autores (Saint Louis University); uso clínico gratuito.",
     refs: "Malmstrom y Morley, 2013 (original), DOI 10.1016/j.jamda.2013.05.018; Parra-Rodríguez et al., 2016 (validación al español, México), DOI 10.1016/j.jamda.2016.09.008; Malmstrom et al., 2016 (punto de corte), DOI 10.1002/jcsm.12048",
   },
   {
@@ -62,8 +31,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Persona mayor",
     hint: "Cribado de fragilidad con 5 preguntas (fatiga, resistencia, deambulación, enfermedades y pérdida de peso), que ayuda a orientar la dosis de ejercicio y a derivar a geriatría.",
-    license: "libre",
-    licenseNote: "Publicada por los autores (Saint Louis University); uso clínico gratuito.",
     refs: "Morley et al., 2012 (original), DOI 10.1007/s12603-012-0084-2; Rosas-Carrasco et al., 2016 (validación al español, México), DOI 10.1016/j.jamda.2016.07.008",
   },
   {
@@ -74,10 +41,9 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Suelo pélvico",
     hint: "Frecuencia, cantidad e impacto de la pérdida de orina, con una pregunta sin puntuación que orienta el tipo (esfuerzo, urgencia o mixta), al inicio y en el seguimiento de la fisioterapia de suelo pélvico, en mujeres y en hombres.",
-    license: "permiso",
-    licenseNote:
-      "Hay que pedir el permiso y firmar el acuerdo de licencia del ICIQ (Bristol Urological Institute, iciq.net), que facilita la versión española oficial; el uso comercial (por ejemplo, en software que se vende) lleva tarifa, así que hay que confirmar las condiciones con el ICIQ antes de publicar.",
     refs: "Avery et al., 2004 (original), DOI 10.1002/nau.20041; Espuña Pons et al., 2004 (validación española), DOI 10.1016/s0025-7753(04)74212-8; Klovning et al., 2009 (gravedad), DOI 10.1002/nau.20674",
+    scoreOnly: true,
+    link: { url: "https://iciq.net", label: "ICIQ (iciq.net)" },
   },
   {
     id: "pfdi_20",
@@ -87,9 +53,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Suelo pélvico",
     hint: "Presencia de síntomas de prolapso, colorrectoanales y urinarios, y cuánto molestan, en mujeres con disfunción del suelo pélvico, antes y después del tratamiento.",
-    license: "libre",
-    licenseNote:
-      "Publicado en el artículo original, de uso académico y clínico gratuito y sin titular comercial conocido; para distribuirlo comercialmente, comprobar con el autor (Barber MD, Cleveland Clinic).",
     refs: "Barber et al., 2005 (original), DOI 10.1016/j.ajog.2004.12.025; Sánchez-Sánchez et al., 2013 (validación española), DOI 10.1016/j.ejogrb.2013.07.006",
   },
   {
@@ -100,8 +63,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Suelo pélvico",
     hint: "Impacto de los síntomas de vejiga, intestino y vagina o pelvis en las actividades, la vida social y las emociones; se usa junto con el PFDI-20.",
-    license: "libre",
-    licenseNote: "Igual que el PFDI-20: de uso académico y clínico gratuito; para distribuirlo comercialmente, comprobar con el autor (Barber MD, Cleveland Clinic).",
     reading: "La versión española tiene efecto techo (25,4 %, Sánchez-Sánchez 2013).",
     refs: "Barber et al., 2005 (original), DOI 10.1016/j.ajog.2004.12.025; Sánchez-Sánchez et al., 2013 (validación española), DOI 10.1016/j.ejogrb.2013.07.006",
   },
@@ -113,8 +74,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Respiratorio",
     hint: "Síntomas de hiperventilación y respiración disfuncional, para cribar y seguir la reeducación respiratoria en ansiedad, asma, COVID persistente y disnea sin causa orgánica clara.",
-    license: "libre",
-    licenseNote: "De dominio público en la práctica: publicado en la literatura y de uso clínico gratuito.",
     refs: "van Dixhoorn y Duivenvoorden, 1985 (original), DOI 10.1016/0022-3999(85)90042-x; sin validación española en PubMed (versión española usada por Martínez-Moragón et al., 2005, DOI 10.1016/s1579-2129(06)60221-8)",
   },
   {
@@ -125,8 +84,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Respiratorio",
     hint: "Grado de discapacidad por falta de aire en la vida diaria (EPOC, rehabilitación respiratoria, COVID persistente, cardiopatía): un solo ítem para clasificar, no para detectar cambios pequeños.",
-    license: "libre",
-    licenseNote: "De dominio público (MRC/UKRI).",
     refs: "Fletcher et al., 1959 (original), DOI 10.1136/bmj.2.5147.257; Bestall et al., 1999 (validación clínica), DOI 10.1136/thx.54.7.581; sin validación española en PubMed",
   },
   {
@@ -137,38 +94,10 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Respiratorio",
     hint: "Impacto de la EPOC en el estado de salud, al inicio y al final de la rehabilitación pulmonar (también se ha usado en bronquiectasias).",
-    license: "licencia",
-    licenseNote:
-      "Copyright y marca de GlaxoSmithKline: para integrarlo en una app o software, o para uso comercial, hace falta su permiso o licencia, que se gestiona a través de catestonline.org o de Mapi Research Trust / ePROVIDE (comprobar el canal vigente).",
-    scoreOnly: true,
     reading: "Cambio mínimo importante: 2 puntos (Kon 2014).",
     refs: "Jones et al., 2009 (original), DOI 10.1183/09031936.00102509; Agustí et al., 2012 (validez de la versión española), DOI 10.3109/15412555.2012.692409; Kon et al., 2014 (cambio mínimo importante), DOI 10.1016/S2213-2600(14)70001-3",
-  },
-  {
-    id: "fss",
-    name: "FSS (gravedad de la fatiga)",
-    min: 1,
-    max: 7,
-    better: "lower",
-    topic: "Neurológico",
-    hint: "Gravedad de la fatiga y cómo afecta a la función, en esclerosis múltiple, lupus, Parkinson, ictus, COVID persistente, fibromialgia y para dosificar el ejercicio.",
-    license: "libre",
-    licenseNote: "Publicada en el artículo original y de uso clínico muy extendido; para uso comercial, comprobar con la autora (Lauren B. Krupp).",
-    refs: "Krupp et al., 1989 (original), DOI 10.1001/archneur.1989.00520460115022; sin validación española en PubMed",
-  },
-  {
-    id: "msws_12",
-    name: "MSWS-12 (marcha en esclerosis múltiple)",
-    min: 0,
-    max: 100,
-    better: "lower",
-    topic: "Neurológico",
-    hint: "Impacto de la esclerosis múltiple en la capacidad de caminar, percibido por el paciente, para seguir la rehabilitación de la marcha y los tratamientos (por ejemplo, fampridina).",
-    license: "comprobar",
-    licenseNote:
-      "El copyright es de los autores (Hobart JC y cols., UCL / Universidad de Plymouth): hay que confirmar con ellos si es de uso libre o si exige licencia para software comercial, y qué versión (1 o 2) se licencia.",
     scoreOnly: true,
-    refs: "Hobart et al., 2003 (original), DOI 10.1212/wnl.60.1.31; sin validación española en PubMed",
+    link: { url: "https://www.catestonline.org", label: "catestonline.org" },
   },
   {
     id: "hipermovilidad_5pq",
@@ -178,8 +107,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     topic: "Hipermovilidad",
     hint: "Cribado autoinformado de hipermovilidad articular generalizada (2 o más «sí» es positivo), como complemento a la escala de Beighton en dolor musculoesquelético difuso, inestabilidad articular recurrente o sospecha de trastorno del espectro de la hipermovilidad o de Ehlers-Danlos hipermóvil.",
-    license: "libre",
-    licenseNote: "Publicado en el artículo original; uso clínico gratuito.",
     refs: "Hakim y Grahame, 2003 (original), PMID 12723715 (el DOI no figura en PubMed); Aranda-Sánchez et al., 2023 (adaptación cultural al español y fiabilidad, Perú), DOI 10.5867/medwave.2023.01.2575; sin validación en España",
   },
   {
@@ -190,11 +117,9 @@ export const KINDS: QuestionnaireKind[] = [
     better: "higher",
     topic: "Calidad de vida",
     hint: "Calidad de vida relacionada con la salud, genérica (5 dimensiones y la escala visual EQ VAS), para comparar entre patologías y para el análisis de coste-utilidad; aquí se anota la EQ VAS (0-100), y el perfil de 5 dígitos y el índice con el conjunto de valores español, en las notas.",
-    license: "licencia",
-    licenseNote:
-      "Hay que registrar el uso en la EuroQol Research Foundation (euroqol.org) antes de empezar: el uso no comercial suele ser gratuito, el comercial tiene tarifa y las versiones electrónicas deben seguir el formato autorizado por EuroQol.",
-    scoreOnly: true,
     refs: "Herdman et al., 2011 (original), DOI 10.1007/s11136-011-9903-x; Ramos-Goñi et al., 2018 (conjunto de valores español), DOI 10.1016/j.jval.2017.10.023",
+    scoreOnly: true,
+    link: { url: "https://euroqol.org", label: "EuroQol Research Foundation" },
   },
   {
     id: "promis_10",
@@ -206,9 +131,8 @@ export const KINDS: QuestionnaireKind[] = [
     subscales: ["Salud física global (GPH)", "Salud mental global (GMH)"],
     topic: "Calidad de vida",
     hint: "Salud global física y mental en 10 ítems, alternativa breve y de uso libre a la RAND-36 para el seguimiento general de cualquier paciente; se guardan las puntuaciones brutas (4-20), que se pasan a T con la tabla oficial de HealthMeasures.",
-    license: "permiso",
-    licenseNote:
-      "Gratuito para uso clínico y de investigación (HealthMeasures / PROMIS Health Organization); para integrarlo en software comercial hace falta un acuerdo con la PHO o con HealthMeasures (comprobar), y hay que usar su traducción oficial al español.",
     refs: "Hays et al., 2009 (original), DOI 10.1007/s11136-009-9496-9; sin validación española en PubMed",
+    scoreOnly: true,
+    link: { url: "https://www.healthmeasures.net", label: "HealthMeasures" },
   },
 ];

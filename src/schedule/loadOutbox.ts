@@ -21,7 +21,7 @@ const addDay = (day: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-export async function loadOutbox(db: Db, granted: readonly string[], now = new Date()): Promise<{ items: OutboxItem[]; settings: OutboxSettings }> {
+export async function loadOutbox(db: Db, now = new Date()): Promise<{ items: OutboxItem[]; settings: OutboxSettings }> {
   const iso = now.toISOString();
   const settings = outboxSettings(await getSetting<Partial<OutboxSettings>>(db, OUTBOX_SETTINGS_KEY));
   // Lo más lejano que mira una regla: la anamnesis (hasta 72 horas antes); los recordatorios, mañana.
@@ -54,7 +54,7 @@ export async function loadOutbox(db: Db, granted: readonly string[], now = new D
     formsSent: forms,
     reviews: reviews.map((r): Contact & { reviewOn: string } => ({ patientId: r.patientId, name: r.name, phone: r.phone ?? "", email: r.email ?? "", contact: contactOf(r.privacy), reviewOn: r.reviewOn })),
     questionnaires,
-    sendable: sendableKinds(granted),
+    sendable: sendableKinds(),
     marks,
   });
   return { items, settings };

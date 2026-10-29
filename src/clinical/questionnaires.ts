@@ -1,8 +1,8 @@
 // Catálogo de cuestionarios. La PSFS, el cambio global percibido y el mapa del dolor se contestan en la app con su
-// propia pantalla. El resto se rellena entero en la app (src/clinical/forms, con la nota calculada) o, si se pasó
-// en papel, se anota solo la nota. Los de pago o con el texto sin comprobar (`scoreOnly`) solo se anotan; los que
-// están pendientes del permiso de su titular (`license: "comprobar"`) se rellenan en la app cuando la clínica marca
-// que lo tiene (Biblioteca › Cuestionarios: en su ficha o en «Permisos y licencias»). Los nuevos de cada grupo están en src/clinical/catalog.
+// propia pantalla. Los de uso libre se rellenan enteros en la app (src/clinical/forms, con la nota calculada). De los
+// que piden permiso a su titular o se consiguen en su web (`scoreOnly`) la app no tiene el texto: se pasan en la hoja
+// oficial, que se consigue en su enlace, y se anota la nota. Los de pago están fuera del servicio (`retired`,
+// catalog/retired.ts): solo se ven los que se guardaron antes. Los de cada grupo están en src/clinical/catalog.
 import { regionsOf, type Mark } from "./bodyMap";
 import { KINDS as COLUMNA } from "./catalog/columna";
 import { KINDS as DOLOR } from "./catalog/dolor";
@@ -10,6 +10,7 @@ import { KINDS as GENERAL } from "./catalog/general";
 import { KINDS as MIEMBRO_INFERIOR } from "./catalog/miembroInferior";
 import { KINDS as MIEMBRO_SUPERIOR } from "./catalog/miembroSuperior";
 import { KINDS as PIE_DEPORTE } from "./catalog/pieDeporte";
+import { KINDS as RETIRED } from "./catalog/retired";
 
 export type Better = "higher" | "lower";
 export type QuestionnaireKind = {
@@ -32,15 +33,13 @@ export type QuestionnaireKind = {
   /** Subescalas con su propio rango (FABQ): por nombre. */
   subscaleRange?: Record<string, { min: number; max: number }>;
   /**
-   * Condiciones de uso: «libre»; «permiso» (libre, pero la clínica tiene que pedirlo o registrarse); «comprobar»
-   * (pendiente de que el titular confirme el uso en una app: se rellena en la app solo cuando la clínica marca que lo
-   * tiene); «licencia» (de pago para uso comercial: sin preguntas, solo la nota). Sin el campo, como hasta ahora.
+   * Sin preguntas en la app: se pasa en la hoja oficial (de su web o con el permiso de su titular) y se anota la nota.
    */
-  license?: "libre" | "permiso" | "comprobar" | "licencia";
-  /** A quién pedir el permiso o la licencia, y cómo. */
-  licenseNote?: string;
-  /** Sin preguntas en la app (de pago, o con el texto original sin comprobar): solo se anota la nota de la hoja oficial. */
   scoreOnly?: boolean;
+  /** De solo nota: dónde se consigue la hoja oficial o se pide el permiso (sin `url`, a quién pedirlo). */
+  link?: { url?: string; label: string };
+  /** Fuera del servicio (de pago): no se pasa, ni se manda ni se anota; lo guardado antes se ve como registro antiguo. */
+  retired?: boolean;
   /** Cómo se lee la nota anotada: tramos de menor a mayor, cada uno hasta `upTo` incluido. Solo los verificados. */
   bands?: { upTo: number; text: string }[];
   /** Cambio mínimo importante o cómo interpretar la evolución, si está verificado. */
@@ -50,8 +49,24 @@ export type QuestionnaireKind = {
 };
 
 export const QUESTIONNAIRES: QuestionnaireKind[] = [
-  { id: "psfs", name: "PSFS · escala funcional específica del paciente", min: 0, max: 10, better: "higher", inApp: "psfs", hint: "El paciente elige hasta cinco actividades que le cuesta hacer y puntúa cada una de 0 (no puede) a 10 (como antes)." },
-  { id: "groc", name: "Cambio global percibido", min: -7, max: 7, better: "higher", inApp: "groc", hint: "Cómo está ahora respecto al inicio del tratamiento, de −7 (muchísimo peor) a +7 (muchísimo mejor)." },
+  {
+    id: "psfs",
+    name: "PSFS · escala funcional específica del paciente",
+    min: 0,
+    max: 10,
+    better: "higher",
+    inApp: "psfs",
+    hint: "El paciente elige hasta cinco actividades que le cuesta hacer y puntúa cada una de 0 (no puede) a 10 (como antes).",
+  },
+  {
+    id: "groc",
+    name: "Cambio global percibido",
+    min: -7,
+    max: 7,
+    better: "higher",
+    inApp: "groc",
+    hint: "Cómo está ahora respecto al inicio del tratamiento, de −7 (muchísimo peor) a +7 (muchísimo mejor).",
+  },
   {
     id: "mapa_dolor",
     name: "Mapa del dolor",
@@ -61,18 +76,86 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
     inApp: "bodymap",
     hint: "Dónde le duele, le hormiguea o lo nota rígido, con su intensidad de 0 a 10. La nota es la intensidad más alta.",
   },
-  { id: "koos", name: "KOOS (rodilla)", min: 0, max: 100, better: "higher", subscales: ["Dolor", "Síntomas", "AVD", "Deporte y ocio", "Calidad de vida"], regions: ["rodilla"] },
-  { id: "hoos", name: "HOOS (cadera)", min: 0, max: 100, better: "higher", subscales: ["Dolor", "Síntomas", "AVD", "Deporte y ocio", "Calidad de vida"], regions: ["cadera"] },
-  { id: "lefs", name: "LEFS (miembro inferior)", min: 0, max: 80, better: "higher", regions: ["cadera", "rodilla", "tobillo_pie"] },
-  { id: "faam", name: "FAAM AVD (tobillo y pie)", min: 0, max: 100, better: "higher", unit: "%", regions: ["tobillo_pie"] },
-  { id: "visa_a", name: "VISA-A (tendón de Aquiles)", min: 0, max: 100, better: "higher", regions: ["tobillo_pie"] },
-  { id: "visa_p", name: "VISA-P (tendón rotuliano)", min: 0, max: 100, better: "higher", regions: ["rodilla"] },
-  { id: "acl_rsi", name: "ACL-RSI (preparación psicológica)", min: 0, max: 100, better: "higher", regions: ["rodilla"] },
-  { id: "ndi", name: "NDI (cuello)", min: 0, max: 50, better: "lower", regions: ["cervical"] },
-  { id: "odi", name: "Oswestry (lumbar)", min: 0, max: 100, better: "lower", unit: "%", regions: ["lumbar", "sacroiliaca"] },
-  { id: "quickdash", name: "QuickDASH (miembro superior)", min: 0, max: 100, better: "lower", regions: ["hombro", "codo", "muneca_mano"] },
-  { id: "spadi", name: "SPADI (hombro)", min: 0, max: 100, better: "lower", regions: ["hombro"] },
-  { id: "tsk11", name: "TSK-11 (kinesiofobia)", min: 11, max: 44, better: "lower", topic: "Dolor, miedo y creencias" },
+  {
+    id: "faam",
+    name: "FAAM AVD (tobillo y pie)",
+    min: 0,
+    max: 100,
+    better: "higher",
+    unit: "%",
+    regions: ["tobillo_pie"],
+  },
+  {
+    id: "acl_rsi",
+    name: "ACL-RSI (preparación psicológica)",
+    min: 0,
+    max: 100,
+    better: "higher",
+    regions: ["rodilla"],
+    scoreOnly: true,
+    link: {
+      url: "https://doi.org/10.1002/jeo2.70046",
+      label: "Artículo de la validación, en abierto, con el cuestionario",
+    },
+    refs: "Webster, Feller y Lambros, 2008 (original); Donat-Roca et al., 2024 (validación española), J Exp Orthop 11:e70046, DOI 10.1002/jeo2.70046",
+  },
+  {
+    id: "ndi",
+    name: "NDI (cuello)",
+    min: 0,
+    max: 50,
+    better: "lower",
+    regions: ["cervical"],
+    scoreOnly: true,
+    link: {
+      url: "https://eprovide.mapi-trust.org/instruments/neck-disability-index",
+      label: "ePROVIDE · Mapi Research Trust",
+    },
+    refs: "Vernon y Mior, 1991; versión española de Andrade Ortega et al., 2010",
+  },
+  {
+    id: "odi",
+    name: "Oswestry (lumbar)",
+    min: 0,
+    max: 100,
+    better: "lower",
+    unit: "%",
+    regions: ["lumbar", "sacroiliaca"],
+    scoreOnly: true,
+    link: {
+      url: "https://eprovide.mapi-trust.org/odi-oswestry-disability-index/",
+      label: "ePROVIDE · Mapi Research Trust",
+    },
+    refs: "Fairbank et al., 1980 (versión 2.1a); versión española de Flórez García et al., 1995",
+  },
+  {
+    id: "quickdash",
+    name: "QuickDASH (miembro superior)",
+    min: 0,
+    max: 100,
+    better: "lower",
+    regions: ["hombro", "codo", "muneca_mano"],
+    scoreOnly: true,
+    link: {
+      url: "https://dash.iwh.on.ca",
+      label: "Institute for Work & Health (dash.iwh.on.ca)",
+    },
+    refs: "Beaton et al., 2005 (QuickDASH, Institute for Work & Health); versión española del IWH",
+  },
+  {
+    id: "spadi",
+    name: "SPADI (hombro)",
+    min: 0,
+    max: 100,
+    better: "lower",
+    regions: ["hombro"],
+    scoreOnly: true,
+    link: {
+      url: "https://doi.org/10.1186/s12955-015-0397-z",
+      label: "Artículo de la validación, en abierto, con el cuestionario",
+    },
+    refs: "Roach et al., 1991 (original); Membrilla-Mesa et al., 2015 (validación española), Health Qual Life Outcomes 13:200, DOI 10.1186/s12955-015-0397-z",
+  },
   // Generales: no son de una zona del cuerpo.
   {
     id: "rand36",
@@ -83,30 +166,70 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
     subscales: ["Función física", "Rol físico", "Dolor corporal", "Salud general", "Vitalidad", "Función social", "Rol emocional", "Salud mental"],
     topic: "Calidad de vida",
   },
-  { id: "phq9", name: "PHQ-9 (síntomas depresivos)", min: 0, max: 27, better: "lower", topic: "Estado de ánimo" },
-  { id: "gad7", name: "GAD-7 (ansiedad)", min: 0, max: 21, better: "lower", topic: "Estado de ánimo" },
-  { id: "pcs", name: "PCS (catastrofismo ante el dolor)", min: 0, max: 52, better: "lower", topic: "Dolor, miedo y creencias" },
-  { id: "pseq", name: "PSEQ (autoeficacia ante el dolor)", min: 0, max: 60, better: "higher", topic: "Dolor, miedo y creencias" },
   {
-    id: "fabq",
-    name: "FABQ (miedo y evitación)",
+    id: "phq9",
+    name: "PHQ-9 (síntomas depresivos)",
     min: 0,
-    max: 42,
+    max: 27,
     better: "lower",
-    subscales: ["Actividad física", "Trabajo"],
-    subscaleRange: { "Actividad física": { min: 0, max: 24 }, Trabajo: { min: 0, max: 42 } },
-    topic: "Dolor, miedo y creencias",
+    topic: "Estado de ánimo",
   },
-  { id: "csi", name: "CSI (sensibilización central)", min: 0, max: 100, better: "lower", topic: "Dolor, miedo y creencias" },
-  { id: "ompsq10", name: "Örebro corto (riesgo de que el dolor se cronifique)", min: 0, max: 100, better: "lower", topic: "Dolor, miedo y creencias" },
-  { id: "ipaq", name: "IPAQ corto (actividad física)", min: 0, max: 20000, better: "higher", unit: "MET-min/sem", topic: "Actividad física" },
+  {
+    id: "gad7",
+    name: "GAD-7 (ansiedad)",
+    min: 0,
+    max: 21,
+    better: "lower",
+    topic: "Estado de ánimo",
+  },
+  {
+    id: "pcs",
+    name: "PCS (catastrofismo ante el dolor)",
+    min: 0,
+    max: 52,
+    better: "lower",
+    topic: "Dolor, miedo y creencias",
+    scoreOnly: true,
+    link: {
+      url: "https://eprovide.mapi-trust.org",
+      label: "Permiso: ePROVIDE · Mapi Research Trust",
+    },
+    refs: "Sullivan, Bishop y Pivik, 1995 (original)",
+  },
+  {
+    id: "csi",
+    name: "CSI (sensibilización central)",
+    min: 0,
+    max: 100,
+    better: "lower",
+    topic: "Dolor, miedo y creencias",
+    scoreOnly: true,
+    link: {
+      url: "https://doi.org/10.1186/s40064-016-3515-4",
+      label: "Artículo de la validación, en abierto, con el cuestionario",
+    },
+    refs: "Mayer et al., 2012 (original); Cuesta-Vargas et al., 2016 (validación española), SpringerPlus 5:1837, DOI 10.1186/s40064-016-3515-4",
+  },
+  {
+    id: "ipaq",
+    name: "IPAQ corto (actividad física)",
+    min: 0,
+    max: 20000,
+    better: "higher",
+    unit: "MET-min/sem",
+    topic: "Actividad física",
+  },
   ...COLUMNA,
   ...MIEMBRO_SUPERIOR,
   ...MIEMBRO_INFERIOR,
   ...PIE_DEPORTE,
   ...DOLOR,
   ...GENERAL,
+  ...RETIRED,
 ];
+
+/** Los que se pueden pasar, mandar o anotar hoy (sin los de pago, que están fuera del servicio). */
+export const ACTIVE = QUESTIONNAIRES.filter((k) => !k.retired);
 
 /** Cómo se lee una nota anotada, con los tramos del catálogo. */
 export function bandText(k: QuestionnaireKind, score: number): string | null {
@@ -119,9 +242,12 @@ export const TOPICS = [...new Set(QUESTIONNAIRES.map((k) => k.topic).filter((t):
 export const OTHER = "otro";
 export const getKind = (id: string) => QUESTIONNAIRES.find((q) => q.id === id);
 
-/** El catálogo con los de las zonas del paciente primero (el orden de cada grupo no cambia). */
+/** El catálogo (sin los de fuera del servicio) con los de las zonas del paciente primero (el orden de cada grupo no cambia). */
 export function byRegions(regions: string[]): { kind: QuestionnaireKind; forRegion: boolean }[] {
-  const all = QUESTIONNAIRES.map((kind) => ({ kind, forRegion: !!kind.regions?.some((r) => regions.includes(r)) }));
+  const all = ACTIVE.map((kind) => ({
+    kind,
+    forRegion: !!kind.regions?.some((r) => regions.includes(r)),
+  }));
   return [...all.filter((k) => k.forRegion), ...all.filter((k) => !k.forRegion)];
 }
 
@@ -148,11 +274,20 @@ export function kindOf(kind: string, d: QDetails): QuestionnaireKind {
   const k = getKind(kind);
   const range = d.subscale ? k?.subscaleRange?.[d.subscale] : undefined;
   if (k) return range ? { ...k, ...range } : k;
-  return { id: OTHER, name: d.name || "Cuestionario", min: d.min ?? 0, max: d.max ?? 100, better: d.better ?? "higher" };
+  return {
+    id: OTHER,
+    name: d.name || "Cuestionario",
+    min: d.min ?? 0,
+    max: d.max ?? 100,
+    better: d.better ?? "higher",
+  };
 }
 
-/** Nombre para mostrar: con la subescala si la hay. */
-export const displayName = (kind: string, d: QDetails) => `${kindOf(kind, d).name}${d.subscale ? ` · ${d.subscale}` : ""}`;
+/** Nombre para mostrar: con la subescala si la hay, y los de fuera del servicio marcados como registro antiguo. */
+export const displayName = (kind: string, d: QDetails) => {
+  const k = kindOf(kind, d);
+  return `${k.name}${d.subscale ? ` · ${d.subscale}` : ""}${k.retired ? " (registro antiguo)" : ""}`;
+};
 
 /** Mapa del dolor: la intensidad más alta de lo marcado. */
 export function mapScore(marks: Mark[]): number {
@@ -168,7 +303,6 @@ export function psfsScore(activities: { name: string; score: number }[]): number
   if (!valid.length) throw new RangeError("Escribe al menos una actividad y puntúala.");
   return valid.reduce((s, a) => s + a.score, 0) / valid.length;
 }
-
 
 /** Texto de una puntuación: «62/100», «4,3/10», «+3». */
 export function scoreText(k: QuestionnaireKind, score: number): string {

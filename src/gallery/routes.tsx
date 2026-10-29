@@ -12,7 +12,6 @@ const GalleryTest = lazy(() => pages().then((m) => ({ default: m.GalleryTest }))
 const QuestionnaireShelf = lazy(() => library().then((m) => ({ default: m.QuestionnaireShelf })));
 const QuestionnaireCard = lazy(() => library().then((m) => ({ default: m.QuestionnaireCard })));
 const MeasurementShelf = lazy(() => library().then((m) => ({ default: m.MeasurementShelf })));
-const QuestionnaireLicensesPage = lazy(() => import("../pages/QuestionnaireLicensesPage").then((m) => ({ default: m.QuestionnaireLicensesPage })));
 
 const s = (el: ReactNode) => <Suspense fallback={null}>{el}</Suspense>;
 
@@ -25,12 +24,13 @@ function FromOldGuide() {
 export const galleryRoutes = [
   { path: "/biblioteca", element: s(<GalleryHome />) },
   { path: "/biblioteca/cuestionarios", element: s(<QuestionnaireShelf />) },
-  { path: "/biblioteca/cuestionarios/permisos", element: s(<QuestionnaireLicensesPage />) },
+  // La lista de permisos ya no existe: la app solo trae el texto de los libres (src/clinical/questionnaires.ts).
+  { path: "/biblioteca/cuestionarios/permisos", element: <Navigate to="/biblioteca/cuestionarios" replace /> },
   { path: "/biblioteca/cuestionarios/:id", element: s(<QuestionnaireCard />) },
   { path: "/biblioteca/mediciones", element: s(<MeasurementShelf />) },
   { path: "/biblioteca/:region", element: s(<GalleryRegion />) },
   { path: "/biblioteca/:region/:test", element: s(<GalleryTest />) },
   { path: "/exploracion/*", element: <FromOldGuide /> },
   { path: "/exploracion", element: <FromOldGuide /> },
-  { path: "/ajustes/cuestionarios", element: <Navigate to="/biblioteca/cuestionarios/permisos" replace /> },
+  { path: "/ajustes/cuestionarios", element: <Navigate to="/biblioteca/cuestionarios" replace /> },
 ];

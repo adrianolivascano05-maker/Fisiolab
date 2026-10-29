@@ -13,7 +13,8 @@ export type YellowFlag = {
   id: string;
   label: string;
   words: string[];
-  /** Cuestionarios de la app que lo miden (ids de src/clinical/questionnaires.ts). */
+  /** Cuestionarios de la app que lo miden (ids de src/clinical/questionnaires.ts): solo los que se pueden pasar (los de
+   * pago, como la TSK-11, el FABQ, el PSEQ o el Örebro, están fuera del servicio). */
   measure: string[];
   ask: string;
 };
@@ -23,7 +24,7 @@ const YELLOW_FLAGS: YellowFlag[] = [
     id: "miedo",
     label: "Miedo al movimiento o a hacerse daño",
     words: ["miedo a mover", "me da miedo", "le da miedo", "no me atrevo", "no se atreve", "evito", "evita", "se me va a romper", "se le va a romper", "romperse", "hacerme dano", "hacerse dano", "mejor no moverlo", "reposo absoluto"],
-    measure: ["tsk11", "fabq"],
+    measure: [],
     ask: "¿Qué cree que pasaría si se mueve o hace esa actividad? ¿Qué ha dejado de hacer por miedo?",
   },
   {
@@ -44,14 +45,14 @@ const YELLOW_FLAGS: YellowFlag[] = [
     id: "pasivo",
     label: "Expectativas pasivas o poca confianza en poder manejarlo",
     words: ["que me lo quiten", "que se lo quiten", "que me arreglen", "que le arreglen", "que me lo solucionen", "solo masaje", "no puedo hacer nada", "no puede hacer nada", "esperar a que se pase", "no depende de mi"],
-    measure: ["pseq"],
+    measure: [],
     ask: "¿Qué cree que puede hacer usted para mejorar? ¿Qué espera que hagamos nosotros?",
   },
   {
     id: "trabajo",
     label: "Trabajo: baja, conflicto o insatisfacción",
     words: ["de baja", "baja laboral", "accidente laboral", "accidente de trabajo", "mutua", "abogado", "juicio", "indemnizacion", "despido", "no aguanto el trabajo", "odio mi trabajo"],
-    measure: ["ompsq10"],
+    measure: [],
     ask: "¿Cómo está en el trabajo? ¿Cree que podrá volver o seguir? ¿Hay algún trámite o reclamación en marcha?",
   },
   {

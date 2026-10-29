@@ -19,9 +19,9 @@ import { BodyMapInput } from "./BodyMapParts";
 import { parseMarks } from "./bodyMap";
 import { Chips, NumberScale, TextArea } from "./parts";
 import { bandText, byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, TOPICS, type Better, type QDetails } from "./questionnaires";
-import { usableForm, type Answers as FormAnswers } from "./forms";
-import { useGranted } from "../data/questionnairePermissions";
+import { formFor, type Answers as FormAnswers } from "./forms";
 import { FormFill, formResult } from "./FormFill";
+import { OfficialLink } from "./OfficialLink";
 import { SENDABLE } from "./patientForms";
 import { Guard, localInput, useLoad } from "./pageKit";
 
@@ -50,7 +50,6 @@ type PsfsActivity = { name: string; score: number | null };
 
 export function QuestionnaireFormPage() {
   const { id = "", qid } = useParams();
-  const granted = useGranted();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -124,10 +123,10 @@ export function QuestionnaireFormPage() {
       </li>
     );
     const describe = (k: (typeof QUESTIONNAIRES)[number]) => {
-      const f = usableForm(k.id, granted);
+      const f = formFor(k.id);
       const n = f?.sections.reduce((acc, sec) => acc + sec.items.length, 0);
       const range = k.unit && k.unit !== "%" ? k.unit : `de ${k.min} a ${k.max}, ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`;
-      const how = n ? `${n} preguntas` : k.license === "licencia" ? "De pago: anotas la nota de la hoja oficial" : k.license === "comprobar" ? "Pendiente del permiso del titular: anotas la nota" : "Anotas la nota";
+      const how = n ? `${n} preguntas` : "Con su hoja oficial: anotas la nota";
       return `${how} · ${range}`;
     };
     // Buscar por nombre, sigla o para qué sirve, sin tildes.
@@ -166,7 +165,9 @@ export function QuestionnaireFormPage() {
   }
 
   const known = getKind(kind);
-  const form = usableForm(kind, granted);
+  // Los de pago están fuera del servicio: no se pasan ni se anotan; lo guardado antes se ve como registro antiguo.
+  const retired = !!known?.retired;
+  const form = retired ? undefined : formFor(kind);
   const filling = !!form && mode === "fill";
   const result = filling ? formResult(form, answers) : null;
   const otherMin = parseDecimal(other.min);
@@ -274,24 +275,29 @@ export function QuestionnaireFormPage() {
             onChange={(v) => v[0] && setMode(v[0] as "fill" | "score")}
           />
         )}
-        {!known?.inApp && kind !== OTHER && !filling && <p className="text-sm text-text-muted">Pásalo con su hoja oficial y escribe aquí la puntuación total.</p>}
+        {retired && (
+          <Alert tone="info" title={record ? "Registro antiguo" : "Fuera del servicio"}>
+            {record
+              ? "Este cuestionario es de pago y ya no está en la app: aquí se ve lo que se guardó, pero no se puede cambiar."
+              : "Este cuestionario es de pago y ya no está en la app: no se puede pasar ni anotar."}
+          </Alert>
+        )}
+        {!retired && !known?.inApp && kind !== OTHER && !filling && <p className="text-sm text-text-muted">Pásalo con su hoja oficial y escribe aquí la puntuación total.</p>}
         {known?.reading && <p className="text-sm">{known.reading}</p>}
-        {known?.license && known.license !== "libre" && known.licenseNote && (
-          <p className="text-sm text-text-muted">
-            {known.license === "licencia" ? "De pago para uso comercial" : known.license === "comprobar" ? "Pendiente del permiso de su titular" : "Libre, con registro o permiso"}: {known.licenseNote}
-          </p>
-        )}
-        {known?.license === "comprobar" && !form && (
-          <Link to={`/biblioteca/cuestionarios/${known.id}`} className="inline-flex min-h-11 items-center self-start text-sm font-semibold text-accent underline underline-offset-2">
-            Su ficha y el permiso, en la Biblioteca
-          </Link>
-        )}
+        {known?.link && <OfficialLink link={known.link} />}
         {known?.refs && <p className="text-xs text-text-muted">{known.refs}</p>}
         {previous && (
           <p className="text-sm">
             La última vez: <span className="nums font-semibold">{scoreText(k, previous.score)}</span> el {fmtDate(previous.performedAt)}
           </p>
         )}
+        {retired && record && (
+          <p className="nums text-lg">
+            {fmtDate(record.performedAt)}: <span className="font-semibold">{scoreText(k, record.score)}</span>
+            {(record.details as QDetails).subscale && <span className="text-text-muted"> · {(record.details as QDetails).subscale}</span>}
+          </p>
+        )}
+        {retired && record?.notes && <p className="text-sm">{record.notes}</p>}
         {!qid && (
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" onClick={() => setParams({}, { replace: true })}>
@@ -308,6 +314,13 @@ export function QuestionnaireFormPage() {
           </div>
         )}
       </Card>
+      {retired ? (
+        record && (
+          <Button variant="ghost" className="text-danger" icon={<Trash aria-hidden="true" className="size-4" />} onClick={() => setConfirm(true)}>
+            Borrar cuestionario
+          </Button>
+        )
+      ) : (
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
         <TextField label="Fecha y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         {kind === OTHER && (
@@ -417,6 +430,7 @@ export function QuestionnaireFormPage() {
           </Button>
         )}
       </form>
+      )}
       <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar este cuestionario?">
         <p>Se borrará el registro del {fmtDate(record?.performedAt ?? new Date().toISOString())}.</p>
         <Button variant="danger" block onClick={remove}>

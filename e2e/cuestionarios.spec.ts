@@ -1,5 +1,5 @@
-// Los cuestionarios nuevos (docs/cuestionarios-nuevos.md): buscarlos, rellenarlos, que lleguen con sus códigos CIF a
-// la carta de derivación (qué valoran, con las palabras de la CIF), los pendientes del permiso de su titular y los de solo nota con su lectura.
+// Los cuestionarios (docs/cuestionarios.md): buscarlos, anotarlos, que lleguen con sus códigos CIF a la carta de
+// derivación (qué valoran, con las palabras de la CIF), los de solo nota con su hoja oficial y los de pago, fuera.
 import type { Page } from "@playwright/test";
 import { expect, expectAccessible, test } from "./fixtures";
 
@@ -16,20 +16,18 @@ test.describe("Cuestionarios nuevos", () => {
     await page.clock.setFixedTime(new Date("2026-10-20T08:00:00Z"));
   });
 
-  test("CQ1 buscar, rellenar el Roland-Morris y verlo en la carta de derivación con su CIF", async ({ page }) => {
+  test("CQ1 buscar el Roland-Morris, anotar la nota de su hoja oficial y verlo en la carta de derivación con su CIF", async ({ page }) => {
     const record = await newPatient(page, "Rosa Roland");
     await page.goto(`${record}/cuestionarios/nuevo`);
     await page.getByLabel("Buscar cuestionario").fill("roland");
-    await expect(page.getByRole("button", { name: /^RMDQ/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /^KOOS/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^RMDQ/ })).toContainText("Con su hoja oficial: anotas la nota");
     await expectAccessible(page);
     await page.getByRole("button", { name: /^RMDQ/ }).click();
-    // 12 de las 24 frases le describen hoy.
-    const questions = page.getByRole("group").filter({ has: page.getByText("Sí, me describe hoy") });
-    await expect(questions).toHaveCount(24);
-    for (let i = 0; i < 12; i++) await questions.nth(i).getByText("Sí, me describe hoy").click();
-    const result = page.getByRole("heading", { name: "Resultado" }).locator("..");
-    await expect(result).toContainText("12/24");
+    // La app no trae sus preguntas: su hoja oficial, de dónde sale y la nota.
+    await expect(page.getByText("Rellenarlo aquí")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /rmdq\.org/ })).toHaveAttribute("href", "https://www.rmdq.org");
+    await expect(page.getByText(/Roland y Morris, 1983/)).toBeVisible();
+    await page.getByLabel("Puntuación").fill("12");
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(page.getByRole("list", { name: "Cuestionarios" })).toContainText("12/24");
 
@@ -51,42 +49,33 @@ test.describe("Cuestionarios nuevos", () => {
     await expectAccessible(page);
   });
 
-  test("CQ2 pendiente del permiso de su titular: solo nota hasta que la clínica marca que lo tiene", async ({ page }) => {
+  test("CQ2 los de pago, fuera del servicio: ni se buscan, ni se pasan, ni están en la Biblioteca", async ({ page }) => {
     const record = await newPatient(page, "Kiko Koos");
+    await page.goto(`${record}/cuestionarios/nuevo`);
+    await page.getByLabel("Buscar cuestionario").fill("koos");
+    await expect(page.getByText("Ningún cuestionario con «koos».")).toBeVisible();
     await page.goto(`${record}/cuestionarios/nuevo?tipo=koos12`);
-    await expect(page.getByText(/Pendiente del permiso de su titular/)).toBeVisible();
-    await expect(page.getByText("Rellenarlo aquí")).toHaveCount(0);
-    await expect(page.getByText("Pásalo con su hoja oficial y escribe aquí la puntuación total.")).toBeVisible();
-
-    // El permiso se marca en la Biblioteca: desde el aviso, en la ficha del cuestionario.
-    await page.getByRole("link", { name: "Su ficha y el permiso, en la Biblioteca" }).click();
-    await expect(page.getByRole("heading", { name: /^KOOS-12/, level: 1 })).toBeVisible();
-    await expect(page.getByText(/Pendiente del permiso de su titular\./)).toBeVisible();
+    await expect(page.getByText("Fuera del servicio")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Guardar cuestionario" })).toHaveCount(0);
     await expectAccessible(page);
-    // Y en la lista de permisos (antes en Ajustes, que ahora lleva aquí).
+
+    // En la Biblioteca tampoco; sin la lista de permisos (la antigua dirección lleva a los cuestionarios).
     await page.goto("./ajustes/cuestionarios");
-    await expect(page.getByRole("heading", { name: "Permisos y licencias", level: 1 })).toBeVisible();
-    await expect(page.getByRole("list", { name: "De pago: solo la nota" })).toContainText("WOMAC");
-    await page.getByRole("checkbox", { name: /Tenemos el permiso: KOOS-12/ }).check();
-    await expect(page.getByText(/KOOS-12 \(rodilla, forma corta\): ya se puede rellenar en la app/)).toBeVisible();
-    await expectAccessible(page);
-    // La ficha lo refleja y deja ver sus preguntas; «Pasar a un paciente» elige el paciente.
+    await expect(page.getByRole("heading", { name: "Cuestionarios", level: 1 })).toBeVisible();
+    await expect(page.getByText("Permisos y licencias")).toHaveCount(0);
+    await page.getByLabel("Buscar cuestionario").fill("womac");
+    await expect(page.getByText("Ningún cuestionario con «womac».")).toBeVisible();
     await page.goto("./biblioteca/cuestionarios/koos12");
-    await expect(page.getByRole("checkbox", { name: /Tenemos el permiso/ })).toBeChecked();
-    await page.getByText(/^Ver las \d+ preguntas$/).click();
-    await page.getByRole("button", { name: "Pasar a un paciente" }).click();
-    await page.getByRole("dialog", { name: "¿En qué paciente?" }).getByRole("link", { name: /^Kiko Koos/ }).click();
-
-    await page.goto(`${record}/cuestionarios/nuevo?tipo=koos12`);
-    await expect(page.getByText("Rellenarlo aquí")).toBeVisible();
+    await expect(page.getByText(/fuera del servicio/)).toBeVisible();
+    await expect(page.getByRole("checkbox")).toHaveCount(0);
   });
 
-  test("CQ3 de pago, solo la nota: se lee con sus tramos al anotarla", async ({ page }) => {
+  test("CQ3 con permiso de su titular, solo la nota: a quién pedirlo", async ({ page }) => {
     const record = await newPatient(page, "Nuria Neuropática");
     await page.goto(`${record}/cuestionarios/nuevo`);
     await page.getByLabel("Buscar cuestionario").fill("paindetect");
     await page.getByRole("button", { name: /^painDETECT/ }).click();
-    await expect(page.getByText(/De pago para uso comercial/)).toBeVisible();
+    await expect(page.getByText("Permiso: formulario de IQVIA")).toBeVisible();
     await page.getByLabel("Puntuación").fill("20");
     await expect(page.getByText("Componente neuropático probable (19 o más)")).toBeVisible();
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();

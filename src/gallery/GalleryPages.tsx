@@ -20,7 +20,6 @@ import type { SpecialTest } from "./types";
 import { useFavorites } from "./useFavorites";
 import { RegisterInPatient } from "../clinical/RegisterInPatient"; // enlace con la ficha clínica
 import { QUESTIONNAIRES } from "../clinical/questionnaires";
-import { useGranted } from "../data/questionnairePermissions";
 import { MEASURES, MEASURES_URL, measureMatches, questionnaireHow, questionnaireMatches, questionnaireUrl, QUESTIONNAIRES_URL } from "./LibraryPages";
 
 export const GALLERY = "/biblioteca";
@@ -109,7 +108,6 @@ export function GalleryHome() {
   const [q, setQ] = useState("");
   const [allTests, setAllTests] = useState(false);
   const { favorites } = useFavorites();
-  const granted = useGranted();
   const words = norm(q).split(/\s+/).filter(Boolean);
   const searching = words.length > 0;
   const found = searching
@@ -168,7 +166,7 @@ export function GalleryHome() {
             {foundQuestionnaires.length > 0 && (
               <Group title={`Cuestionarios (${foundQuestionnaires.length})`}>
                 {foundQuestionnaires.map((k) => (
-                  <RowLink key={k.id} to={questionnaireUrl(k.id)} title={k.name} subtitle={questionnaireHow(k, granted)} />
+                  <RowLink key={k.id} to={questionnaireUrl(k.id)} title={k.name} subtitle={questionnaireHow(k)} />
                 ))}
               </Group>
             )}

@@ -1,44 +1,68 @@
-// Los cuestionarios que se rellenan enteros en la app, por id del catálogo (../questionnaires.ts).
-import { form as aclRsi } from "./acl_rsi";
-import { form as csi } from "./csi";
-import { form as fabq } from "./fabq";
+// Los cuestionarios que se rellenan enteros en la app, por id del catálogo (../questionnaires.ts): solo los de uso
+// libre. Los de pago, o que piden permiso a su titular, no tienen aquí su texto: los de pago están fuera del servicio
+// (catalog/retired.ts) y de los demás se anota la nota de la hoja oficial.
+import { form as ases } from "./ases";
+import { form as bctq } from "./bctq";
+import { form as bipq } from "./bipq";
+import { form as cait } from "./cait";
+import { form as dass21 } from "./dass21";
 import { form as faam } from "./faam";
+import { form as faamDeporte } from "./faam_deporte";
+import { form as frail } from "./frail";
 import { form as gad7 } from "./gad7";
-import { form as hoos } from "./hoos";
+import { form as hipermovilidad5pq } from "./hipermovilidad_5pq";
 import { form as ipaq } from "./ipaq";
-import { form as koos } from "./koos";
-import { form as lefs } from "./lefs";
-import { form as ompsq10 } from "./ompsq10";
-import { form as pcs } from "./pcs";
+import { form as iprrs } from "./iprrs";
+import { form as jfls8 } from "./jfls8";
+import { form as kujala } from "./kujala";
+import { form as lysholm } from "./lysholm";
+import { form as marx } from "./marx";
+import { form as mmrc } from "./mmrc";
+import { form as nijmegen } from "./nijmegen";
+import { form as peg } from "./peg";
+import { form as pfdi20 } from "./pfdi_20";
+import { form as pfiq7 } from "./pfiq_7";
+import { form as phq4 } from "./phq4";
 import { form as phq9 } from "./phq9";
-import { form as pseq } from "./pseq";
 import { form as rand36 } from "./rand36";
-import { ndi, odi, quickdash, spadi, tsk11 } from "./sheets";
-import { getKind } from "../questionnaires";
+import { form as sarcF } from "./sarc_f";
+import { form as shortFesI } from "./short_fes_i";
+import { form as sst } from "./sst";
+import { form as tegner } from "./tegner";
+import { form as tmdPainScreener } from "./tmd_pain_screener";
 import type { QuestionForm } from "./types";
-import { FORMS as COLUMNA } from "./group_columna";
-import { FORMS as DOLOR } from "./group_dolor";
-import { FORMS as GENERAL } from "./group_general";
-import { FORMS as MIEMBRO_INFERIOR } from "./group_miembroInferior";
-import { FORMS as MIEMBRO_SUPERIOR } from "./group_miembroSuperior";
-import { FORMS as PIE_DEPORTE } from "./group_pieDeporte";
-import { form as visaA } from "./visa_a";
-import { form as visaP } from "./visa_p";
 
 const FORMS: QuestionForm[] = [
-  koos, hoos, lefs, faam, visaA, visaP, aclRsi, ndi, odi, quickdash, spadi, tsk11,
-  rand36, phq9, gad7, pcs, pseq, fabq, csi, ompsq10, ipaq,
-  ...COLUMNA, ...MIEMBRO_SUPERIOR, ...MIEMBRO_INFERIOR, ...PIE_DEPORTE, ...DOLOR, ...GENERAL,
+  ases,
+  bctq,
+  bipq,
+  cait,
+  dass21,
+  faam,
+  faamDeporte,
+  frail,
+  gad7,
+  hipermovilidad5pq,
+  ipaq,
+  iprrs,
+  jfls8,
+  kujala,
+  lysholm,
+  marx,
+  mmrc,
+  nijmegen,
+  peg,
+  pfdi20,
+  pfiq7,
+  phq4,
+  phq9,
+  rand36,
+  sarcF,
+  shortFesI,
+  sst,
+  tegner,
+  tmdPainScreener,
 ];
 
 export const formFor = (kind: string): QuestionForm | undefined => FORMS.find((f) => f.id === kind);
-
-/**
- * El formulario que se puede rellenar en la app: el de los pendientes del permiso de su titular, solo si la clínica
- * ha marcado que lo tiene (src/data/questionnairePermissions.ts); si no, se anota solo la nota.
- */
-export function usableForm(kind: string, granted: readonly string[]): QuestionForm | undefined {
-  if (getKind(kind)?.license === "comprobar" && !granted.includes(kind)) return undefined;
-  return formFor(kind);
-}
 export type { Answers, FormScore, Item, QuestionForm } from "./types";

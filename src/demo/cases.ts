@@ -96,7 +96,7 @@ export const CASES: DemoCase[] = [
     ],
     sesiones: [6, 10],
     tests: /inestabilidad lumbar|centralizaci|reglas de tratamiento|movilidad/i,
-    questionnaires: ["odi", "rmdq", "tsk11"],
+    questionnaires: ["odi", "rmdq", "peg"],
     rom: [],
     psfs: ["Estar sentado en el trabajo", "Agacharse a coger algo del suelo", "Jugar con mis hijos", "Conducir más de una hora"],
     tratamiento: [
@@ -148,7 +148,7 @@ export const CASES: DemoCase[] = [
     ],
     sesiones: [5, 8],
     tests: /cefalea|control motor/i,
-    questionnaires: ["ndi", "tsk11"],
+    questionnaires: ["ndi", "peg"],
     rom: [
       { movement: "neck_rotation", start: 58, gain: 14 },
       { movement: "neck_extension", start: 45, gain: 10 },
@@ -203,7 +203,7 @@ export const CASES: DemoCase[] = [
     ],
     sesiones: [8, 12],
     tests: /manguito|subacromial|rotador|choque/i,
-    questionnaires: ["spadi", "quickdash"],
+    questionnaires: ["spadi", "quickdash", "sst"],
     rom: [
       { movement: "shoulder_flexion", start: 130, gain: 35 },
       { movement: "shoulder_external_rotation", start: 55, gain: 25 },
@@ -259,7 +259,7 @@ export const CASES: DemoCase[] = [
     ],
     sesiones: [6, 10],
     tests: /esguince|inestabilidad|sindesmosis/i,
-    questionnaires: ["faam", "lefs"],
+    questionnaires: ["faam"],
     rom: [{ movement: "ankle_lunge", start: 30, gain: 9 }],
     psfs: ["Correr", "Cambios de dirección", "Bajar escaleras", "Jugar al fútbol sala"],
     tratamiento: [
@@ -306,7 +306,7 @@ export const CASES: DemoCase[] = [
     plan: ["Isométricos analgésicos, fuerza lenta y pesada, después pliometría y vuelta progresiva al deporte."],
     sesiones: [8, 12],
     tests: /rotuliana|femoropatelar/i,
-    questionnaires: ["visa_p", "lefs"],
+    questionnaires: ["kujala"],
     rom: [],
     psfs: ["Saltar", "Subir escaleras", "Sentadilla", "Correr"],
     tratamiento: [
@@ -475,7 +475,7 @@ export const CASES: DemoCase[] = [
     plan: ["Fuerza de la musculatura del pie y la pantorrilla con carga progresiva, estiramiento de la fascia y consejo de calzado."],
     sesiones: [5, 8],
     tests: /fascitis|gemelo/i,
-    questionnaires: ["faam", "lefs"],
+    questionnaires: ["faam"],
     rom: [{ movement: "ankle_lunge", start: 32, gain: 6 }],
     psfs: ["Caminar al levantarme", "Estar de pie en el trabajo", "Pasear"],
     tratamiento: [
@@ -517,7 +517,7 @@ export const CASES: DemoCase[] = [
     plan: ["Educación sobre posturas que comprimen el tendón, isométricos y fuerza progresiva de abductores."],
     sesiones: [6, 10],
     tests: /tendinopatía glútea|trocant/i,
-    questionnaires: ["lefs"],
+    questionnaires: ["peg"],
     rom: [{ movement: "hip_internal_rotation", start: 28, gain: 6 }],
     psfs: ["Subir escaleras", "Dormir de lado", "Caminar una hora"],
     tratamiento: [
@@ -558,7 +558,7 @@ export const CASES: DemoCase[] = [
     plan: ["Terapia manual dorsal y costal, ejercicio de movilidad y fuerza de la musculatura escapular."],
     sesiones: [3, 6],
     tests: /movilidad torácica|costillas/i,
-    questionnaires: ["tsk11"],
+    questionnaires: ["peg"],
     rom: [],
     psfs: ["Trabajar sentado", "Girarme en la cama"],
     tratamiento: ["Movilización dorsal, ejercicios de rotación torácica 3x10.", "Remo con banda 3x15, movilidad con foam roller."],

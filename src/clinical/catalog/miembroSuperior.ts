@@ -1,4 +1,4 @@
-// Cuestionarios nuevos de este grupo (docs/cuestionarios-nuevos.md): su ficha en el catálogo.
+// Cuestionarios de este grupo (docs/cuestionarios.md): su ficha en el catálogo.
 import type { QuestionnaireKind } from "../questionnaires";
 
 export const KINDS: QuestionnaireKind[] = [
@@ -12,10 +12,11 @@ export const KINDS: QuestionnaireKind[] = [
     subscales: ["Cuerpo principal", "Módulo de trabajo", "Módulo de deporte/artes escénicas"],
     regions: ["hombro", "codo", "muneca_mano"],
     hint: "Discapacidad y síntomas del miembro superior en cualquier trastorno musculoesquelético de hombro, codo, muñeca o mano; se elige en lugar del QuickDASH cuando hace falta más precisión o los módulos de trabajo y de deporte/música.",
-    license: "licencia",
-    licenseNote:
-      "Acuerdo de licencia con el Institute for Work & Health (IWH, Toronto) en dash.iwh.on.ca, apartado de permisos y licencias, antes de usarlo en la app; con él se obtiene también la traducción española oficial.",
     scoreOnly: true,
+    link: {
+      url: "https://dash.iwh.on.ca",
+      label: "Institute for Work & Health (dash.iwh.on.ca)",
+    },
     reading:
       "Cambio mínimo importante del cuerpo principal: 10,83 puntos como límite inferior y 15 como límite superior; cambio mínimo detectable al 90 %: 10,81 puntos (Franchignoni 2014).",
     refs: "Hudak et al., 1996 (original), DOI 10.1002/(SICI)1097-0274(199606)29:6<602::AID-AJIM4>3.0.CO;2-L; Hervás et al., 2006 (validación española), DOI 10.1157/13093053; Franchignoni et al., 2014 (MCID), DOI 10.2519/jospt.2014.4893",
@@ -28,25 +29,14 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     regions: ["muneca_mano"],
     hint: "Dolor y discapacidad de la muñeca: es la referencia en la fractura de radio distal y se usa también en otras lesiones de muñeca (esguinces, TFCC, rizartrosis con afectación de la muñeca).",
-    license: "comprobar",
-    licenseNote:
-      "Escribir a la autora, Joy C. MacDermid (Western University, Canadá), para confirmar las condiciones de uso dentro de software comercial antes de publicarlo en la app.",
     reading:
       "En la versión española (fractura de radio distal), el cambio mínimo detectable (MDC90) fue de 12,1–13,7 puntos (Rosales 2017); no hay MCID verificado.",
     refs: "MacDermid et al., 1998 (original), DOI 10.1097/00005131-199811000-00009; Rosales et al., 2017 (validación española), DOI 10.1186/s12955-017-0745-2; Simental-Mendía et al., 2026 (versión mexicana), DOI 10.1080/09638288.2025.2574534",
-  },
-  {
-    id: "prtee",
-    name: "PRTEE (codo de tenista)",
-    min: 0,
-    max: 100,
-    better: "lower",
-    regions: ["codo"],
-    hint: "Dolor y discapacidad en la epicondilalgia o tendinopatía lateral del codo; es la medida principal recomendada para seguir su evolución.",
-    license: "comprobar",
-    licenseNote: "Confirmar con la titular del copyright, Joy C. MacDermid, las condiciones de uso en software comercial antes de publicarlo en la app.",
-    reading: "En la versión española, el error estándar de medida fue del 11,9 % (Gallego-Izquierdo 2020); no hay MCID verificado.",
-    refs: "Overend et al., 1999 (original, como Patient-rated forearm evaluation questionnaire), DOI 10.1016/s0894-1130(99)80031-3; Rompe et al., 2007 (validación como PRTEE), DOI 10.1197/j.jht.2006.10.003; Gallego-Izquierdo et al., 2020 (validación española), DOI 10.1002/jor.24820",
+    scoreOnly: true,
+    link: {
+      url: "https://doi.org/10.1186/s12955-017-0745-2",
+      label: "Artículo de la validación, en abierto, con el cuestionario",
+    },
   },
   {
     id: "bctq",
@@ -58,8 +48,6 @@ export const KINDS: QuestionnaireKind[] = [
     subscales: ["Gravedad de síntomas (SSS)", "Estado funcional (FSS)"],
     regions: ["muneca_mano"],
     hint: "Gravedad de los síntomas y estado funcional en el síndrome del túnel carpiano, para seguir el tratamiento conservador (férulas, neurodinamia, terapia manual) y el postoperatorio.",
-    license: "libre",
-    licenseNote: "Los ítems están publicados íntegros en el artículo original y no consta ningún titular que cobre por su uso.",
     refs: "Levine et al., 1993 (original), DOI 10.2106/00004623-199311000-00002; Oteo-Álvaro et al., 2016 (validación española), DOI 10.1016/j.medcli.2015.10.013",
   },
   {
@@ -70,8 +58,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "higher",
     regions: ["hombro"],
     hint: "Dolor y función del hombro en las actividades de la vida diaria; se usa mucho en patología del manguito, en artroplastia y en ensayos de fisioterapia de hombro.",
-    license: "libre",
-    licenseNote: "Formulario estandarizado de la American Shoulder and Elbow Surgeons, de uso libre en clínica e investigación; no consta que cobre por su uso.",
     reading: "Cambio mínimo importante: 6,4 puntos; cambio mínimo detectable al 90 %: 9,7 puntos (Michener 2002, pacientes de fisioterapia).",
     refs: "Richards et al., 1994 (original), DOI 10.1016/S1058-2746(09)80019-0; Vrotsou et al., 2016 (validación española), DOI 10.1186/s12955-016-0552-1; Michener et al., 2002 (MCID), DOI 10.1067/mse.2002.127096; Policastro et al., 2019 (versión argentina), DOI 10.1016/j.msksp.2019.05.010",
   },
@@ -83,99 +69,6 @@ export const KINDS: QuestionnaireKind[] = [
     better: "higher",
     regions: ["hombro"],
     hint: "Función del hombro con 12 preguntas de sí/no sobre tareas concretas: es muy rápido y sirve para seguir la evolución en cualquier patología del hombro.",
-    license: "libre",
-    licenseNote: "Desarrollado en la Universidad de Washington (Matsen y cols.) y difundido libremente para uso clínico.",
     refs: "Lippitt et al., 1993 (original, capítulo de libro; referencia sin verificar, no está en PubMed); Membrilla-Mesa et al., 2015 (validación española), DOI 10.1007/s11136-014-0760-2",
-  },
-  {
-    id: "wosi",
-    name: "WOSI (inestabilidad de hombro)",
-    min: 0,
-    max: 2100,
-    better: "lower",
-    regions: ["hombro"],
-    hint: "Calidad de vida específica de la inestabilidad de hombro (luxación o subluxación glenohumeral), tanto en tratamiento conservador como después de una estabilización quirúrgica.",
-    license: "comprobar",
-    licenseNote:
-      "Pedirlo a A. Kirkley y al Fowler Kennedy Sport Medicine Clinic (Western University, Canadá), que suelen cederlo gratis previa solicitud, y confirmar las condiciones para uso comercial.",
-    scoreOnly: true,
-    reading: "Se anota el total, de 0 a 2100 (menos es mejor), no el % de normalidad, que es (2100 − total) / 2100 × 100.",
-    refs: "Kirkley et al., 1998 (original), DOI 10.1177/03635465980260060501; Yuguero et al., 2016 (validación española), DOI 10.1016/j.recot.2016.07.003",
-  },
-  {
-    id: "worc",
-    name: "WORC (manguito rotador)",
-    min: 0,
-    max: 2100,
-    better: "lower",
-    regions: ["hombro"],
-    hint: "Calidad de vida específica de la patología del manguito rotador (tendinopatía, dolor subacromial, roturas tratadas con fisioterapia o con cirugía).",
-    license: "comprobar",
-    licenseNote:
-      "Mismo titular que el WOSI: pedirlo a A. Kirkley y al Fowler Kennedy Sport Medicine Clinic (Western University, Canadá) y confirmar las condiciones para uso comercial.",
-    scoreOnly: true,
-    reading: "Se anota el total, de 0 a 2100 (menos es mejor), no el porcentaje, que es (2100 − total) / 2100 × 100.",
-    refs: "Kirkley et al., 2003 (original), DOI 10.1097/00042752-200303000-00004; sin validación española en PubMed (la adaptación española de Rodríguez et al., 2020 es del RC-QOL, no del WORC)",
-  },
-  {
-    id: "oss",
-    name: "OSS (hombro, Oxford)",
-    min: 0,
-    max: 48,
-    better: "higher",
-    regions: ["hombro"],
-    hint: "Dolor y función del hombro, sobre todo en patología degenerativa e inflamatoria y en el postoperatorio, salvo la cirugía de estabilización (para eso existe el Oxford Shoulder Instability Score).",
-    license: "licencia",
-    licenseNote:
-      "Licencia de pago de Oxford University Innovation (Clinical Outcomes, innovation.ox.ac.uk/outcome-measures) para uso comercial y en software; para uso clínico no comercial hay que registrarse.",
-    scoreOnly: true,
-    reading: "Se anota con el sistema de puntuación actual, de 0 a 48 (más es mejor), no con el original de 1996 (de 12 a 60, menos es mejor).",
-    refs: "Dawson et al., 1996 (original), sin DOI en PubMed (PMID 8682827); Torres-Lacomba et al., 2015 (validación española, tras cirugía de cáncer de mama), DOI 10.1186/s12955-015-0256-y",
-  },
-  {
-    id: "oes",
-    name: "OES (codo, Oxford)",
-    min: 0,
-    max: 100,
-    better: "higher",
-    // Tres dominios que se dan por separado, sin nota total.
-    subscales: ["Función del codo", "Dolor", "Social-psicológico"],
-    regions: ["codo"],
-    hint: "Función, dolor y repercusión psicosocial de los problemas de codo (artrosis, epicondilalgia, postoperatorios, secuelas de fracturas).",
-    license: "licencia",
-    licenseNote:
-      "Licencia de pago de Oxford University Innovation (innovation.ox.ac.uk/outcome-measures), con las mismas condiciones que la OSS: de pago para uso comercial y en software, y con registro para uso clínico no comercial.",
-    scoreOnly: true,
-    reading: "Cada dominio se anota por separado, de 0 a 100: la suma de sus 4 ítems (0–16) × 100/16.",
-    refs: "Dawson et al., 2008 (original), DOI 10.1302/0301-620X.90B4.20290; sin validación española en PubMed",
-  },
-  {
-    id: "sirsi",
-    name: "SIRSI (hombro, preparación psicológica)",
-    min: 0,
-    max: 100,
-    better: "higher",
-    unit: "%",
-    regions: ["hombro"],
-    hint: "Preparación psicológica (confianza, emociones, valoración del riesgo) para volver al deporte tras una luxación o inestabilidad traumática del hombro, con o sin cirugía: el equivalente de hombro del ACL-RSI.",
-    license: "comprobar",
-    licenseNote:
-      "Los autores (Gerometta y cols.) lo publicaron en Knee Surg Sports Traumatol Arthrosc (Springer) sin licencia declarada: confirmarlo con ellos y aplicar el mismo criterio que con el ACL-RSI de la app.",
-    refs: "Gerometta et al., 2018 (original), DOI 10.1007/s00167-017-4645-0; sin validación española en PubMed",
-  },
-  {
-    id: "uefi",
-    name: "UEFI (miembro superior)",
-    min: 0,
-    max: 80,
-    better: "higher",
-    regions: ["hombro", "codo", "muneca_mano"],
-    hint: "Función global del miembro superior en cualquier trastorno musculoesquelético: es el equivalente del LEFS para el miembro superior, con el mismo formato y la misma lógica.",
-    license: "comprobar",
-    licenseNote:
-      "Confirmar con los autores (P. W. Stratford y J. M. Binkley, McMaster University) las condiciones para software comercial, con el mismo criterio que se usó para el LEFS.",
-    reading:
-      "Cambio mínimo importante (mejoría): 8 puntos de 80; cambio mínimo detectable: 9,4 puntos; el MCID es mayor si el brazo afectado es el no dominante (Chesworth 2014).",
-    refs: "Stratford et al., 2001 (original, Physiother Can; referencia sin verificar, no está en PubMed); Chesworth et al., 2014 (MCID), DOI 10.3138/ptc.2013-45; sin validación española en PubMed",
   },
 ];

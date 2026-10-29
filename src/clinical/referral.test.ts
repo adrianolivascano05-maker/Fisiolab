@@ -38,7 +38,7 @@ describe("carta de derivación", () => {
     );
     expect(lines.map((l) => [l.name, l.score, l.reading, l.codes.join(" ")])).toEqual([
       ["Oswestry (lumbar)", "30 %", "Discapacidad moderada", "b28013 d410 d415 d430 d450"],
-      ["KOOS (rodilla) · Dolor", "60/100", null, "b28015"],
+      ["KOOS (rodilla) · Dolor (registro antiguo)", "60/100", null, "b28015"],
     ]);
   });
 

@@ -38,7 +38,8 @@ for (const width of [360, 412]) {
       `${patient}/informe`,
       `${patient}/derivacion`,
       `${patient}/cuestionarios/nuevo`,
-      `${patient}/cuestionarios/nuevo?tipo=dn4`,
+      `${patient}/cuestionarios/nuevo?tipo=dass21`,
+      `${patient}/cuestionarios/nuevo?tipo=odi`,
     ];
     for (const path of paths) {
       await page.goto(path);

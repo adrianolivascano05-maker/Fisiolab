@@ -119,6 +119,18 @@ describe("formularios para el paciente", () => {
     expect(formStatus((await getSentForm(db, c.id))!)).toBe("cancelled");
   });
 
+  it("contestado antes de que el cuestionario saliera de la app: sin nota, pero sus respuestas no se pierden", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Olga Antigua"));
+    const exp = new Date(Date.now() + 86_400_000).toISOString();
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: "odi", key: f.key, expiresAt: exp });
+    const { api } = server([{ id: f.id, response: await seal({ v: 1, answers: { s1: 2, s2: 1, s3: null, x: "texto" } }, f.key), answeredAt: exp }]);
+    expect(await collectAnswered(db, api, ANAMNESIS)).toEqual([{ patientId: pid, name: "Olga Antigua", kind: "odi", skipped: 0, incomplete: true }]);
+    expect(await listQuestionnaires(db, pid)).toEqual([]);
+    expect((await getSentForm(db, f.id))!.answers).toEqual({ s1: 2, s2: 1, s3: null });
+  });
+
   it("el enlace va a la dirección de los formularios, con la clave después de «#»", () => {
     expect(formLink("abc", "k1", "https://cenitfisiolab.pages.dev/")).toBe("https://cenitfisiolab.pages.dev/formulario/abc#k1");
   });

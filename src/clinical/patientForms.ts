@@ -13,7 +13,7 @@ import { cachedCloudConfig } from "../cloud/config";
 import { ALL_FIELDS, type Field, type Section } from "./anamnesis";
 import { formResult } from "./FormFill";
 import { formFor, type Answers as FormAnswers } from "./forms";
-import { getKind, QUESTIONNAIRES } from "./questionnaires";
+import { ACTIVE, getKind } from "./questionnaires";
 
 export const ANAMNESIS_KIND = "anamnesis";
 /** Pedirle sus informes y pruebas (archivos en PDF o fotos, src/documents): los sube con el enlace. */
@@ -152,7 +152,7 @@ export function patientSections(sections: Section[]): Section[] {
 }
 
 /** Los cuestionarios que se pueden mandar: los que tienen todas sus preguntas en la app y las contesta el paciente. */
-export const SENDABLE = QUESTIONNAIRES.filter((k) => {
+export const SENDABLE = ACTIVE.filter((k) => {
   const f = formFor(k.id);
   // Los que tienen una parte de exploración (DN4) los rellena el fisioterapeuta en la consulta.
   return !!f && !f.sections.some((s) => s.clinician);
@@ -284,7 +284,9 @@ export function mergeAnamnesis(
 /** Las respuestas de un cuestionario, solo las de sus ítems y con valores de sus opciones o rangos. */
 export function cleanFormAnswers(kind: string, incoming: Record<string, unknown>): FormAnswers {
   const form = formFor(kind);
-  if (!form) return {};
+  // Contestado antes de que el cuestionario saliera de la app (de pago o de solo nota): las respuestas, tal como
+  // llegaron, para que no se pierdan (se guardan con el formulario recogido, aunque ya no den nota).
+  if (!form) return Object.fromEntries(Object.entries(incoming).filter(([, v]) => v === null || (typeof v === "number" && Number.isFinite(v)))) as FormAnswers;
   const out: FormAnswers = {};
   for (const item of form.sections.flatMap((s) => s.items)) {
     const v = incoming[item.id];

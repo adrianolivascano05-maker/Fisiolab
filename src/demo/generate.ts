@@ -6,7 +6,7 @@ import { marksFromFrames } from "../calc/results";
 import { getMovement } from "../calc/rom";
 import { formatMarks, type Mark, type Symptom } from "../clinical/bodyMap";
 import { loadCatalog, parseCoded, makeEntry } from "../clinical/cif/cif";
-import { usableForm, type QuestionForm } from "../clinical/forms";
+import { formFor, type QuestionForm } from "../clinical/forms";
 import { getKind, mapScore, psfsScore } from "../clinical/questionnaires";
 import { consentContext } from "../consent/context";
 import { buildSections, templateById } from "../consent/templates";
@@ -514,11 +514,17 @@ export async function generateDemo(
       const sideTag = side === "d" ? "_d" : "_i";
       const quest = async (at: string, severity: number, painNow: number, withGroc: boolean) => {
         for (const kind of k.questionnaires) {
-          const form = usableForm(kind, []);
-          const better = getKind(kind)?.better;
-          if (!form || !better) continue;
-          const out = fillForm(form, better, severity, r);
-          if (out) await saveQuestionnaire(db, pid, { kind, performedAt: at, score: out.score, details: out.details, notes: "" });
+          const form = formFor(kind);
+          const q = getKind(kind);
+          if (!q || q.retired) continue;
+          if (form) {
+            const out = fillForm(form, q.better, severity, r);
+            if (out) await saveQuestionnaire(db, pid, { kind, performedAt: at, score: out.score, details: out.details, notes: "" });
+          } else {
+            // De solo nota (pasado en su hoja oficial): la nota, más mala cuanto más grave.
+            const bad = q.better === "lower" ? severity : 1 - severity;
+            await saveQuestionnaire(db, pid, { kind, performedAt: at, score: Math.round(q.min + bad * (q.max - q.min)), details: {}, notes: "" });
+          }
         }
         const marks: Mark[] = k.zones.map((z, n) => ({ zone: z.replace("_x", sideTag), symptom: (k.id === "tunel" ? "hormigueo" : "dolor") as Symptom, intensity: Math.max(0, painNow - n) }));
         await saveQuestionnaire(db, pid, { kind: "mapa_dolor", performedAt: at, score: mapScore(marks), details: { marks: formatMarks(marks) }, notes: "" });

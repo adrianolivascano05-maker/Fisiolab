@@ -31,7 +31,6 @@ import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
-import { useGranted } from "../data/questionnairePermissions";
 import { cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
 import { clinicComplete, getClinic, mayMessage } from "../data/privacy";
 import { ContactNote } from "../privacy/ContactNote";
@@ -205,8 +204,7 @@ export function SendFormsPage() {
 
 function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: string) => Promise<void> }) {
   // Los pendientes del permiso de su titular, solo si la clínica ha marcado que lo tiene.
-  const granted = useGranted();
-  const sendable = SENDABLE.filter((k) => k.license !== "comprobar" || granted.includes(k.id));
+  const sendable = SENDABLE;
   // Pedirle archivos, solo si el servidor de la clínica los guarda.
   const docs = useDocsUsage().usage?.enabled === true;
   const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || initial === PRIVACY_KIND || SENDABLE.some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);

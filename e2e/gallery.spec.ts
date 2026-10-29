@@ -54,7 +54,7 @@ test.describe("Galería de tests", () => {
     await expect(page.getByText("Nada coincide con «zzzz».")).toBeVisible();
     // Un solo buscador: también cuestionarios y mediciones.
     await page.getByLabel("Buscar en la Biblioteca").fill("rodilla");
-    await expect(page.getByRole("region", { name: /^Cuestionarios \(\d+\)/ }).getByRole("link", { name: /KOOS \(rodilla\)/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: /^Cuestionarios \(\d+\)/ }).getByRole("link", { name: /^Lysholm/ })).toBeVisible();
     await page.getByLabel("Buscar en la Biblioteca").fill("salto");
     await expect(page.getByRole("region", { name: "Mediciones (1)" }).getByRole("link", { name: /^Saltos/ })).toBeVisible();
     // La dirección antigua (/exploracion) lleva a la Biblioteca.
@@ -109,10 +109,10 @@ test.describe("Galería de tests", () => {
     await page.getByRole("link", { name: /^Los \d+ cuestionarios/ }).click();
     await expect(page.getByRole("heading", { name: "Cuestionarios", level: 1 })).toBeVisible();
     await expectAccessible(page);
-    await page.getByLabel("Buscar cuestionario").fill("lefs");
-    await page.getByRole("link", { name: /^LEFS/ }).click();
-    await expect(page.getByRole("heading", { name: /^LEFS/, level: 1 })).toBeVisible();
-    await expect(page.getByText("de 0 a 80, más es mejor")).toBeVisible();
+    await page.getByLabel("Buscar cuestionario").fill("lysholm");
+    await page.getByRole("link", { name: /^Lysholm/ }).click();
+    await expect(page.getByRole("heading", { name: /^Lysholm/, level: 1 })).toBeVisible();
+    await expect(page.getByText("de 0 a 100, más es mejor")).toBeVisible();
     await expect(page.getByRole("button", { name: "Pasar a un paciente" })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("link", { name: "Cuestionarios", exact: false }).first().click();
