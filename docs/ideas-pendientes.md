@@ -672,3 +672,11 @@ sanitaria: son los cambios que pide la revisión.
   editar. La lista de síntomas no cambia de texto, así que lo guardado se sigue leyendo igual. La ficha dice
   «Banderas rojas: N». La carta de derivación lista las banderas rojas y pide «su valoración», sin «descartar…»;
   la prioridad ya no la propone la app: sale «Sin indicar» y solo aparece en la carta si el fisio elige una.
+- **3. Tests sin calculadora ni lecturas del resultado.** Fuera de la Biblioteca la barra «Tu sospecha antes del
+  test» con la probabilidad tras el test (`postTest`). Fuera las frases que leen el resultado («cambio grande: casi
+  confirma / casi descarta»: `lrMeaning` en `src/gallery/evidence.ts` y `resultMeaning` en
+  `src/clinical/galleryLink.ts`) en la lista de la exploración, al registrar un test y en la columna «Qué aporta»
+  del informe. La Biblioteca conserva la tabla de sensibilidad, especificidad, LR+ y LR− con su fuente.
+  Queda por decidir: los textos generales de cada test en la Biblioteca (para qué sirve, cómo se interpreta,
+  precauciones) siguen teniendo consejos como «deriva», «pide imagen» o «no lo hagas si…» (unos 50, en 10 regiones).
+  No hablan de un paciente concreto; si la revisión los incluye, se reescriben aparte.

@@ -58,7 +58,8 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("button", { name: "Guardar resultado" }).click();
     await expect(page.getByText("Marca si ha sido positivo, negativo o dudoso.")).toBeVisible();
     await page.getByText("Positivo", { exact: true }).click();
-    await expect(page.getByText(/LR\+ .* · /).first()).toBeVisible();
+    // Sin frases que interpreten el resultado de este paciente: la evidencia está en la Biblioteca.
+    await expect(page.getByText(/LR\+|casi confirma|ayuda a confirmar|Combínalo/)).toHaveCount(0);
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar resultado" }).click();
 

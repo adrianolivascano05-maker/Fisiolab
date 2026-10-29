@@ -1,11 +1,9 @@
-// Enlace de la ficha clínica con la galería de tests (src/gallery): buscar tests, proponer los de la zona y
-// leer lo que significa un resultado con sus razones de verosimilitud. Si se quita la galería, solo hay que
+// Enlace de la ficha clínica con la galería de tests (src/gallery): buscar tests y proponer los de la zona. No
+// interpreta el resultado de un paciente: la evidencia de cada test está en la Biblioteca. Si se quita la galería, solo hay que
 // quitar este archivo y las pantallas que lo usan (los hallazgos guardados llevan su nombre y su región).
 import { tests } from "../gallery/data";
-import { likelihoodRatios, lrMeaning } from "../gallery/evidence";
 import { regionOf } from "../gallery/regions";
 import type { SpecialTest } from "../gallery/types";
-import type { FindingResult } from "../data/clinical";
 
 export type { SpecialTest };
 export const galleryTests = tests;
@@ -37,18 +35,3 @@ export function testsByRegion(regionIds: string[]): { region: string; tests: Spe
   return regionIds.map((region) => ({ region, tests: testsForRegions([region]) })).filter((g) => g.tests.length);
 }
 
-/** La fila de evidencia más completa del test. */
-function bestRow(t: SpecialTest) {
-  const rows = t.accuracy.map((a) => ({ a, lr: likelihoodRatios(a) }));
-  const score = (r: (typeof rows)[number]) => [r.a.sens, r.a.spec, r.lr.pos ?? undefined, r.lr.neg ?? undefined].filter((v) => v !== undefined).length;
-  return rows.filter((r) => score(r) > 0).sort((x, y) => score(y) - score(x))[0];
-}
-
-/** Qué aporta este resultado: «LR+ 8,5: cambio moderado, ayuda a confirmar (Benjaminse et al., 2006)». */
-export function resultMeaning(t: SpecialTest | undefined, result: FindingResult): { lr: number; text: string; source: string } | null {
-  if (!t || result === "inconclusive") return null;
-  const row = bestRow(t);
-  const lr = result === "positive" ? row?.lr.pos : row?.lr.neg;
-  if (!row || lr === null || lr === undefined) return null;
-  return { lr, text: lrMeaning(lr, result === "positive"), source: row.a.source };
-}

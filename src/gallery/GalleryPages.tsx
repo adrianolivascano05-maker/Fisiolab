@@ -14,7 +14,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { AnimatedFigure } from "./AnimatedFigure";
 import { tests } from "./data";
 import { Disclosure, useOpenState } from "./Disclosure";
-import { likelihoodRatios, lrMeaning, postTest } from "./evidence";
+import { likelihoodRatios } from "./evidence";
 import { regionBySlug, regionOf, regions } from "./regions";
 import type { SpecialTest } from "./types";
 import { useFavorites } from "./useFavorites";
@@ -449,9 +449,7 @@ export function GalleryTest() {
 }
 
 function Evidence({ t }: { t: SpecialTest }) {
-  const [pre, setPre] = useState(30);
   const rows = t.accuracy.map((a) => ({ a, lr: likelihoodRatios(a) }));
-  const best = bestRow(t);
   if (!verified(t)) {
     return (
       <p className="text-sm text-text-muted">
@@ -491,34 +489,6 @@ function Evidence({ t }: { t: SpecialTest }) {
           </tbody>
         </table>
       </div>
-      {best && (best.lr.pos !== null || best.lr.neg !== null) && (
-        <div className="flex flex-col gap-2 rounded-xl bg-surface p-3">
-          <p className="text-sm font-semibold">Qué cambia el resultado</p>
-          <label className="flex flex-col gap-1 text-sm">
-            <span>
-              Tu sospecha antes del test: <span className="nums font-semibold">{pre} %</span>
-            </span>
-            <input type="range" min={5} max={95} step={5} value={pre} onChange={(e) => setPre(Number(e.target.value))} aria-label="Probabilidad antes del test" className="h-11 accent-[var(--color-accent)]" />
-          </label>
-          <dl className="nums grid grid-cols-2 gap-2 text-sm">
-            {best.lr.pos !== null && (
-              <div className="rounded-lg bg-bg p-2">
-                <dt className="text-xs text-text-muted">Si es positivo</dt>
-                <dd className="text-xl font-semibold">{fmt(postTest(pre, best.lr.pos), 0)} %</dd>
-                <dd className="text-xs text-text-muted">{lrMeaning(best.lr.pos, true)}</dd>
-              </div>
-            )}
-            {best.lr.neg !== null && (
-              <div className="rounded-lg bg-bg p-2">
-                <dt className="text-xs text-text-muted">Si es negativo</dt>
-                <dd className="text-xl font-semibold">{fmt(postTest(pre, best.lr.neg), 0)} %</dd>
-                <dd className="text-xs text-text-muted">{lrMeaning(best.lr.neg, false)}</dd>
-              </div>
-            )}
-          </dl>
-          <p className="text-xs text-text-muted">Con los datos de {best.a.source}.</p>
-        </div>
-      )}
       <ul className="flex flex-col gap-1 text-xs text-text-muted">
         {[...new Set(t.accuracy.map((a) => `${a.citation}${a.doi ? ` doi:${a.doi}` : ""}`))].map((c) => (
           <li key={c}>{c}</li>

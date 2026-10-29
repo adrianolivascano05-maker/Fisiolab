@@ -22,7 +22,6 @@ import { answerText } from "./anamnesis";
 import { useAnamnesisSections } from "./useAnamnesis";
 import { BodyFigures, BodyMapLegend } from "./BodyMapParts";
 import { marksText, parseMarks } from "./bodyMap";
-import { findTest, resultMeaning } from "./galleryLink";
 import { trends } from "./measures";
 import { questionnaireGroups } from "./outcomeParts";
 import { PainChart, resultLabels } from "./parts";
@@ -238,12 +237,10 @@ export function ReportPage() {
                         <th className={th}>Lado</th>
                         <th className={th}>Resultado</th>
                         <th className={th}>Fecha</th>
-                        <th className={th}>Qué aporta</th>
                       </tr>
                     </thead>
                     <tbody>
                       {current.map((f) => {
-                        const m = resultMeaning(findTest(f.galleryTest), f.result);
                         return (
                           <tr key={f.id} className="break-inside-avoid">
                             <td className={td}>
@@ -253,7 +250,6 @@ export function ReportPage() {
                             <td className={td}>{f.side ? sideText[f.side] : "—"}</td>
                             <td className={`${td} font-semibold ${f.result === "positive" ? "text-danger" : ""}`}>{resultLabels[f.result]}</td>
                             <td className={`${td} nums`}>{fmtDateShort(f.performedAt)}</td>
-                            <td className={`${td} text-xs`}>{m ? `${f.result === "positive" ? "LR+" : "LR−"} ${fmt(m.lr, f.result === "positive" ? 1 : 2)}: ${m.text} (${m.source})` : "—"}</td>
                           </tr>
                         );
                       })}

@@ -5,7 +5,7 @@ import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 import { MeasurementsSection, QuestionnairesSection } from "./AssessmentSections";
 import { formStatus, listSentForms } from "../data/patientForms";
-import { fmt, fmtDate } from "../app/format";
+import { fmtDate } from "../app/format";
 import { LoadError, Page } from "../app/Page";
 import {
   deleteFinding,
@@ -30,7 +30,7 @@ import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { clinicalSummary, regionLabel } from "./anamnesis";
-import { findTest, galleryRegionLabel, galleryTests, galleryUrl, resultMeaning, searchTests, testsByRegion, type SpecialTest } from "./galleryLink";
+import { findTest, galleryRegionLabel, galleryTests, galleryUrl, searchTests, testsByRegion, type SpecialTest } from "./galleryLink";
 import { Chips, ResultBadge, resultLabels, TextArea } from "./parts";
 import { PatientShell } from "./PatientShell";
 import { Guard, localInput, useLoad } from "./pageKit";
@@ -190,7 +190,6 @@ export function AssessmentPage() {
 }
 
 function FindingRow({ f, id }: { f: Finding; id: string }) {
-  const meaning = resultMeaning(findTest(f.galleryTest), f.result);
   return (
     <li>
       <Link to={`/pacientes/${id}/exploracion/${f.id}`} className="block">
@@ -203,11 +202,6 @@ function FindingRow({ f, id }: { f: Finding; id: string }) {
             <ResultBadge result={f.result} />
           </span>
           <span className="text-sm text-text-muted">{fmtDate(f.performedAt)}</span>
-          {meaning && (
-            <span className="text-sm">
-              {f.result === "positive" ? "LR+" : "LR−"} {fmt(meaning.lr, f.result === "positive" ? 1 : 2)} · {meaning.text}
-            </span>
-          )}
           {f.notes && <span className="text-sm whitespace-pre-line">{f.notes}</span>}
         </Card>
       </Link>
@@ -304,7 +298,6 @@ export function FindingFormPage() {
   const testId = finding?.galleryTest ?? params.get("test");
   const test = testId ? findTest(testId) : undefined;
   const chosenSide = side === undefined ? sideFromAnamnesis(summary?.side ?? "") : side;
-  const meaning = result ? resultMeaning(test, result) : null;
 
   if (!testId) {
     return (
@@ -396,11 +389,6 @@ export function FindingFormPage() {
             ))}
           </div>
         </fieldset>
-        {meaning && (
-          <Alert tone={result === "positive" ? "warning" : "info"} title={`${result === "positive" ? "LR+" : "LR−"} ${fmt(meaning.lr, result === "positive" ? 1 : 2)} · ${meaning.text}`}>
-            Según {meaning.source}. Combínalo con el resto de la exploración.
-          </Alert>
-        )}
         <Chips
           label="Lado"
           options={sideOptions.map((o) => o.label)}

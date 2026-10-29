@@ -29,17 +29,17 @@ test.describe("Galería de tests", () => {
     // Desplegables: «Cómo se hace» abierto; la evidencia se abre y se recuerda.
     await expect(page.getByText("Estabiliza el fémur", { exact: false })).toBeVisible();
     await page.getByText("Evidencia y fuentes").click();
-    await expect(page.getByText("Qué cambia el resultado")).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: "LR+" })).toBeVisible();
     await expectAccessible(page);
     await page.getByRole("button", { name: "Añadir a favoritos" }).click();
     await page.reload();
-    await expect(page.getByText("Qué cambia el resultado")).toBeVisible(SCENE);
+    await expect(page.getByRole("columnheader", { name: "LR+" })).toBeVisible(SCENE);
     // Al recargar vuelve a sonar la animación; en pausa la página responde al momento.
     await page.getByRole("button", { name: "Pausar la animación" }).first().click(SCENE);
     await page.getByRole("button", { name: "Abrir todo" }).click();
     await expect(page.getByText("Precauciones")).toBeVisible();
     await page.getByRole("button", { name: "Cerrar todo" }).click();
-    await expect(page.getByText("Qué cambia el resultado")).toBeHidden();
+    await expect(page.getByRole("columnheader", { name: "LR+" })).toBeHidden();
     await page.getByRole("link", { name: "Volver" }).click();
     await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible(SCENE);
     await page.getByRole("link", { name: "Volver" }).click();
@@ -63,14 +63,16 @@ test.describe("Galería de tests", () => {
     await expect(page.getByRole("heading", { name: "Rodilla", level: 1 })).toBeVisible();
   });
 
-  test("G3 calculadora de probabilidad tras el test", async ({ page }) => {
+  test("G3 la evidencia es la tabla publicada con su fuente, sin calculadora ni lecturas del resultado", async ({ page }) => {
     await page.goto("./biblioteca");
     await page.getByLabel("Buscar en la Biblioteca").fill("Lachman");
     await page.getByRole("list", { name: "Resultados" }).getByRole("link").first().click();
     await page.getByText("Evidencia y fuentes").click();
-    await expect(page.getByText("Si es positivo")).toBeVisible();
-    await page.getByLabel("Probabilidad antes del test").fill("50");
-    await expect(page.getByText(/50 %/).first()).toBeVisible();
+    const table = page.getByRole("table").filter({ has: page.getByRole("columnheader", { name: "Fuente" }) });
+    await expect(table.getByRole("columnheader", { name: "Sens." })).toBeVisible();
+    await expect(table.getByRole("rowheader").first()).not.toBeEmpty();
+    await expect(page.getByLabel("Probabilidad antes del test")).toHaveCount(0);
+    await expect(page.getByText(/Tu sospecha|Si es positivo|casi confirma|casi descarta/)).toHaveCount(0);
   });
 
   test("G4 figura en 3D: se gira un poco y vuelve a la vista inicial", async ({ page }) => {
