@@ -59,7 +59,8 @@ Además:
 - **Siguiente cita** (migración 007): día, hora y duración al guardar una sesión. Se pasa al calendario del
   fisioterapeuta sin conectar ninguna cuenta (`calendar.ts`, `CalendarButton.tsx`): un enlace que abre Google
   Calendar con el evento escrito (se confirma con «Guardar») o un archivo .ics para el calendario del iPhone y
-  del Mac, Outlook y los demás. El evento lleva el nombre del paciente y la hora, nada de su historia clínica.
+  del Mac, Outlook y los demás. El evento lleva solo las iniciales del paciente y la hora: ni su nombre, ni
+  «Fisioterapia», ni un enlace a su ficha, ni nada de su historia clínica.
   Con la cuenta de Google conectada, la cita se apunta sola en el calendario «OmniClin · Citas» y se mueve si se
   cambia (`src/cloud/googleCalendar.ts`). Sin ella, si se cambia la cita, hay que volver a añadirla.
 

@@ -27,8 +27,8 @@ const TZ = "Europe/Madrid";
 const CALENDAR_SETTINGS = "calendar_auto";
 const CALENDAR_ID = "calendar_id";
 export type CalendarSettings = { enabled: boolean; names: EventNames };
-// Por defecto, solo las iniciales: el nombre completo de un paciente no tiene por qué estar en Google. Y desactivado
-// salvo para quien ya dio el permiso (el permiso se pide al activarlo: auth.ts, wantCalendar).
+// `names` lo guardaron versiones anteriores: el evento lleva siempre solo las iniciales (src/clinical/calendar.ts). Y
+// desactivado salvo para quien ya dio el permiso (el permiso se pide al activarlo: auth.ts, wantCalendar).
 const defaultCalendarSettings: CalendarSettings = { enabled: false, names: "initials" };
 
 export async function getCalendarSettings(db: Db): Promise<CalendarSettings> {
@@ -248,7 +248,7 @@ export class CalendarSync {
     const visits = await upcomingVisits(this.db, now, me ? { sub: me, email: memberEmail() } : null);
     const wanted = new Map<string, CalendarEvent>();
     for (const v of visits) {
-      const e = visitEvent(v, { id: v.patientId, name: v.name }, settings.names);
+      const e = visitEvent(v, { name: v.name });
       if (e) wanted.set(eventId(v.id), e);
     }
     const calId = await getSetting<string>(this.db, memberKey(CALENDAR_ID));

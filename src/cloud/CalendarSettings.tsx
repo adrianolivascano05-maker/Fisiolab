@@ -6,7 +6,6 @@ import { getDb } from "../data/db";
 import { CALENDAR_SCOPE, hasGranted, wantCalendar } from "./auth";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
-import { SelectField } from "../ui/Field";
 import { useCalendarState, useCloud } from "./cloudContext";
 import { CALENDAR_NAME, getCalendarSettings, saveCalendarSettings, type CalendarSettings as Settings, type CalendarState } from "./googleCalendar";
 
@@ -96,10 +95,6 @@ export function CalendarSettings() {
         )}
         {settings.enabled && s.status !== "no-permission" && (
           <>
-            <SelectField label="En el evento sale" value={settings.names} onChange={(e) => void save({ ...settings, names: e.target.value as Settings["names"] })}>
-              <option value="initials">Solo sus iniciales</option>
-              <option value="full">El nombre del paciente</option>
-            </SelectField>
             <Button variant="secondary" icon={<RefreshCw aria-hidden="true" className="size-5" />} loading={s.status === "working"} onClick={() => void cloud.calendar.run(true)}>
               Apuntar ahora
             </Button>
@@ -107,7 +102,7 @@ export function CalendarSettings() {
         )}
         <p className="text-sm text-text-muted">
           Cada siguiente cita que pongas al guardar una sesión aparece en el calendario «{CALENDAR_NAME}», y se cambia o se quita si la cambias. La app
-          solo puede tocar ese calendario, no los tuyos. El evento lleva el nombre (o las iniciales) y la hora, nada de su historia clínica. Si lo
+          solo puede tocar ese calendario, no los tuyos. El evento lleva solo las iniciales del paciente y la hora: ni su nombre ni nada de su historia clínica. Si lo
           desactivas, las citas ya apuntadas se quedan: puedes borrar el calendario entero desde Google Calendar.
         </p>
       </Card>

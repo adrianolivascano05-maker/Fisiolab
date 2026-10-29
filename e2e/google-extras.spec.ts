@@ -43,7 +43,8 @@ test.describe("Google Calendar y archivos en Drive", () => {
     expect(google.calendars).toHaveLength(1);
     expect(google.calendars[0]!.summary).toBe("OmniClin · Citas");
     const [ev] = google.events("ana");
-    expect(ev!.summary).toBe("Fisioterapia · L. C.");
+    expect(ev!.summary).toBe("L. C.");
+    expect(ev!.description ?? "").not.toMatch(/Lucía|Fisioterapia|http/);
     expect(Date.parse(ev!.start.dateTime)).toBe(Date.parse("2030-05-06T08:00:00Z")); // 10:00 en Madrid (verano)
     expect(Date.parse(ev!.end.dateTime) - Date.parse(ev!.start.dateTime)).toBe(45 * 60_000);
 
@@ -53,12 +54,12 @@ test.describe("Google Calendar y archivos en Drive", () => {
     await page.getByRole("button", { name: "Guardar cambios" }).click();
     await expect.poll(() => google.events("ana").map((e) => Date.parse(e.start.dateTime)), { timeout: 20_000 }).toEqual([Date.parse("2030-05-06T09:30:00Z")]);
 
-    // Por defecto solo van las iniciales; el nombre entero, si se elige.
+    // Siempre solo las iniciales: ya no se puede elegir el nombre entero.
     await page.goto("./ajustes/cuenta");
     await expect(page.getByRole("heading", { name: "Google Calendar" })).toBeVisible();
     await expectAccessible(page);
-    await page.getByLabel("En el evento sale").selectOption("full");
-    await expect.poll(() => google.events("ana")[0]?.summary, { timeout: 20_000 }).toBe("Fisioterapia · Lucía Cita");
+    await expect(page.getByLabel("En el evento sale")).toHaveCount(0);
+    expect(google.events("ana")[0]?.summary).toBe("L. C.");
     await expect(page.getByText(/La próxima cita está en el calendario «OmniClin · Citas»/)).toBeVisible();
 
     // Paciente borrado: su cita futura se quita del calendario.

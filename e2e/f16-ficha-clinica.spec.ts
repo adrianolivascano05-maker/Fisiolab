@@ -388,7 +388,7 @@ test.describe("F16 Ficha clínica", () => {
     await expect(sheet).toContainText("60 min");
     await expect(sheet.getByRole("link", { name: "Google Calendar" })).toHaveAttribute(
       "href",
-      /^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE&text=Fisioterapia\+%C2%B7\+Nora\+Calendario&dates=\d{8}T\d{6}Z%2F\d{8}T\d{6}Z&/,
+      /^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE&text=N\.\+C\.&dates=\d{8}T\d{6}Z%2F\d{8}T\d{6}Z&/,
     );
     await expectAccessible(page);
     // El enlace se abre de verdad en otra pestaña (sin salir a internet: la respuesta es local).
@@ -404,7 +404,8 @@ test.describe("F16 Ficha clínica", () => {
     const [dl] = await Promise.all([page.waitForEvent("download"), again.getByRole("button", { name: /\.ics/ }).click()]);
     expect(dl.suggestedFilename()).toMatch(/^cita-fisioterapia-\d{4}-\d{2}-\d{2}\.ics$/);
     const ics = readFileSync((await dl.path())!, "utf8");
-    expect(ics).toContain("SUMMARY:Fisioterapia · Nora Calendario");
+    expect(ics).toContain("SUMMARY:N. C.");
+    expect(ics).not.toMatch(/Nora|Fisioterapia|https?:/);
     const at = (k: string) => {
       const [, y, mo, d, h, mi] = ics.match(new RegExp(`${k}:(\\d{4})(\\d{2})(\\d{2})T(\\d{2})(\\d{2})00Z`))!.map(Number);
       return Date.UTC(y!, mo! - 1, d!, h!, mi!);

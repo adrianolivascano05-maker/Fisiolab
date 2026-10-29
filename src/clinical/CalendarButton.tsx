@@ -47,7 +47,7 @@ export function CalendarSheet({
       </Button>
       <p className="text-sm text-text-muted">
         Google Calendar se abre con la cita ya escrita: pulsa «Guardar». El archivo .ics lo abren el calendario del iPhone y del Mac, Outlook y casi
-        todos los demás. El evento lleva el nombre del paciente y la hora, nada de su historia clínica.
+        todos los demás. El evento lleva solo las iniciales del paciente y la hora, nada más.
       </p>
       {onNever && (
         <Button variant="ghost" block onClick={onNever}>

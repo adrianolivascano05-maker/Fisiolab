@@ -1,8 +1,9 @@
 // La siguiente cita en el calendario del fisioterapeuta sin conectar ninguna cuenta: un enlace que abre Google
 // Calendar con el evento ya escrito (se confirma con «Guardar») y un archivo .ics (RFC 5545) que abren el
-// calendario del iPhone o del Mac, Outlook y casi todos los demás. El evento lleva el nombre del paciente y la
-// hora, nada de su historia clínica. Con la cuenta de Google conectada, la app apunta además las citas sola en un
-// calendario suyo (src/cloud/googleCalendar.ts), con estos mismos eventos.
+// calendario del iPhone o del Mac, Outlook y casi todos los demás. El evento lleva solo las iniciales del paciente
+// y la hora: ni su nombre, ni «Fisioterapia», ni un enlace a su ficha, ni nada de su historia clínica. Con la cuenta
+// de Google conectada, la app apunta además las citas sola en un calendario suyo (src/cloud/googleCalendar.ts), con
+// estos mismos eventos.
 import type { Session } from "../data/clinical";
 import { saveFile } from "../app/download";
 
@@ -22,7 +23,10 @@ export const DEFAULT_VISIT_MINUTES = 45;
 export const fmtVisit = (iso: string) =>
   new Date(iso).toLocaleString("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 
-/** Cómo sale el paciente en el evento: con su nombre, o solo con sus iniciales (menos datos en el calendario). */
+/**
+ * Lo que guardaron las versiones anteriores en Ajustes › Google Calendar (nombre o iniciales). Ya no cambia nada: el
+ * evento lleva siempre las iniciales.
+ */
 export type EventNames = "full" | "initials";
 
 /** «Lucía Pérez Gil» → «L. P. G.» */
@@ -33,17 +37,16 @@ export const initials = (name: string) =>
     .map((w) => `${w[0]!.toUpperCase()}.`)
     .join(" ");
 
-/** El evento de la siguiente cita que se puso en una sesión. */
-export function visitEvent(s: Pick<Session, "id" | "nextAt" | "nextMinutes">, patient: { id: string; name: string }, names: EventNames = "full", origin = window.location.origin): CalendarEvent | null {
+/** El evento de una cita (la siguiente de una sesión o una de la agenda): solo las iniciales y la hora. */
+export function visitEvent(s: Pick<Session, "id" | "nextAt" | "nextMinutes">, patient: { name: string }): CalendarEvent | null {
   if (!s.nextAt) return null;
-  const link = new URL(`${import.meta.env.BASE_URL}pacientes/${patient.id}`, origin).href;
-  const who = names === "initials" ? initials(patient.name) : patient.name;
+  const who = initials(patient.name);
   return {
     uid: `cita-${s.id}@cenit-fisiolab`,
     start: s.nextAt,
     minutes: s.nextMinutes ?? DEFAULT_VISIT_MINUTES,
-    title: `Fisioterapia · ${who}`,
-    description: `Siguiente cita de ${who}.\nSu ficha en la app (en este dispositivo): ${link}`,
+    title: who,
+    description: `Cita de ${who}`,
   };
 }
 

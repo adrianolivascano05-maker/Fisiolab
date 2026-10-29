@@ -680,3 +680,9 @@ sanitaria: son los cambios que pide la revisión.
   Queda por decidir: los textos generales de cada test en la Biblioteca (para qué sirve, cómo se interpreta,
   precauciones) siguen teniendo consejos como «deriva», «pide imagen» o «no lo hagas si…» (unos 50, en 10 regiones).
   No hablan de un paciente concreto; si la revisión los incluye, se reescriben aparte.
+- **4. Calendario siempre con iniciales.** El evento de una cita (los botones manuales «Añadir al calendario» al
+  guardar una sesión, en la hoja de la cita y en Hoy, y la sincronización automática) lleva solo las iniciales y la
+  hora: título «L. P. G.», descripción «Cita de L. P. G.», sin «Fisioterapia» ni enlace a la ficha. Fuera la opción
+  «En el evento sale: el nombre del paciente» de Ajustes › Google Calendar; quien la tuviera elegida pasa a
+  iniciales en la siguiente sincronización. El id interno (`@cenit-fisiolab`) se queda. Ayuda, README y política de
+  privacidad al día.
