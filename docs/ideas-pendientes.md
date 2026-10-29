@@ -610,6 +610,8 @@ visible al momento y de poco riesgo:
 - **Medido** con la prueba de estrés (500 pacientes, `e2e/prueba.spec.ts`): los tiempos de primera carga de cada
   pantalla no cambian (ficha 0,4 → 0,3 s; agenda 0,9 → 1,0 s; cobros pendientes 0,9 s). Esa prueba no mide las
   recargas por cada toque, que es lo que reducen las tablas; en un móvil se notará en la agenda con muchas citas.
+- Menudencias de la misma lista: la ficha pregunta solo su entrada de la lista de espera (`waitlistOf`) en vez de
+  leer la lista entera, y la rejilla de la agenda lanza sus tres consultas (turnos, citas, cierres) a la vez.
 - No hecho (más riesgo, para otra tanda): el tope de 6 s del arranque esperando la sincronización, la copia entera
   por el hilo principal, el marcado con IA en un worker y el índice ligero de la galería para Exploración.
 

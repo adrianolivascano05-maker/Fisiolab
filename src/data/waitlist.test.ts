@@ -16,6 +16,7 @@ import {
   removePatientFromWaitlist,
   slotOf,
   sortWaitlist,
+  waitlistOf,
   updateWaitlist,
   waitlistCount,
   type WaitItem,
@@ -44,6 +45,9 @@ describe("lista de espera", () => {
     ]);
     expect(list[0]).toMatchObject({ phone: "612345678", contact: null });
     expect(list[1]!.nextId).toEqual(expect.any(String));
+    // La entrada de un paciente, sin leer la lista entera (la ficha); null si no está.
+    expect(await waitlistOf(db, luis)).toMatchObject({ name: "Luis Gil", nextAt: "2099-03-02T10:00:00.000Z" });
+    expect(await waitlistOf(db, "nadie")).toBeNull();
     expect(list[0]!.nextId).toBeNull();
     expect(await waitlistCount(db)).toBe(2);
   });

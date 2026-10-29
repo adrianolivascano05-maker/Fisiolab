@@ -24,7 +24,7 @@ import { getDb } from "../data/db";
 import { listPlans } from "../data/exercises";
 import { CONSENTS } from "../data/privacy";
 import { getPatient, listTests } from "../data/repo";
-import { listWaitlist, preferText } from "../data/waitlist";
+import { preferText, waitlistOf } from "../data/waitlist";
 import { Card } from "../ui/Card";
 import { Group, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
@@ -41,7 +41,7 @@ export function PatientPage() {
   const data = useAsync(async () => {
     const db = getDb();
     const today = todayDay();
-    const [patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, waitlist, files] = await Promise.all([
+    const [patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, waiting, files] = await Promise.all([
       getPatient(db, id),
       getAnamnesis(db, id),
       listSessions(db, id),
@@ -50,10 +50,10 @@ export function PatientPage() {
       listConsents(db, id),
       patientAccount(db, id, today),
       listPlans(db, id),
-      listWaitlist(db),
+      waitlistOf(db, id),
       countDocuments(db, id),
     ]);
-    return { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting: waitlist.find((w) => w.patientId === id) ?? null };
+    return { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting };
   }, [id]);
   const [assessing, setAssessing] = useState(false);
   const cloud = useCloud();

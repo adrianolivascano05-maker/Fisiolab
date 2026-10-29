@@ -82,14 +82,23 @@ const contactOf = (privacy: string | null): boolean | null => {
 
 /** La lista, los que más llevan esperando primero. Con `forWhom`, los que esperan a esa persona o a cualquiera. */
 export async function listWaitlist(db: Db, forWhom?: string | null): Promise<WaitItem[]> {
+  return queryWaitlist(db, forWhom ? "where w.assigned_to is null or w.assigned_to = ?2" : "", forWhom ? [now(), forWhom] : [now()]);
+}
+
+/** La entrada de un paciente en la lista de espera, o null (sin leer la lista entera: la ficha lo pregunta en cada apertura). */
+export async function waitlistOf(db: Db, patientId: string): Promise<WaitItem | null> {
+  return (await queryWaitlist(db, "where w.patient_id = ?2", [now(), patientId]))[0] ?? null;
+}
+
+async function queryWaitlist(db: Db, where: string, bind: (string | number | null)[]): Promise<WaitItem[]> {
   const rows = await db.query<Row>(
     `select w.*, p.name, p.phone, p.email, p.privacy,
             (select a.starts_at from appointments a where a.patient_id = w.patient_id and a.status = 'scheduled' and a.starts_at > ?1 order by a.starts_at limit 1) as next_at,
             (select a.id from appointments a where a.patient_id = w.patient_id and a.status = 'scheduled' and a.starts_at > ?1 order by a.starts_at limit 1) as next_id
        from waitlist w join patients p on p.id = w.patient_id
-      ${forWhom ? "where w.assigned_to is null or w.assigned_to = ?2" : ""}
+      ${where}
       order by w.created_at`,
-    forWhom ? [now(), forWhom] : [now()],
+    bind,
   );
   return rows.map((r) => ({
     id: r.id,

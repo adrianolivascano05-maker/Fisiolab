@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { bumpData } from "../app/dataVersion";
 import { getDb } from "../data/db";
-import { listWaitlist, removeFromWaitlist, type WaitItem } from "../data/waitlist";
+import { removeFromWaitlist, waitlistOf, type WaitItem } from "../data/waitlist";
 import { Button } from "../ui/Button";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
@@ -13,7 +13,7 @@ export function useLeaveWaitlist() {
   const toast = useToast();
   const [item, setItem] = useState<WaitItem | null>(null);
   const ask = async (patientId: string) => {
-    const found = (await listWaitlist(getDb())).find((w) => w.patientId === patientId);
+    const found = await waitlistOf(getDb(), patientId);
     if (found) setItem(found);
   };
   const sheet = (

@@ -123,7 +123,10 @@ export function SchedulePage() {
   const from = new Date(`${days[0]}T00:00:00`).toISOString();
   const to = new Date(`${addDays(days.at(-1)!, 1)}T00:00:00`).toISOString();
   const data = useAsync(
-    async () => ({ shifts: await shiftsBetween(getDb(), from, to), appointments: await agenda(getDb(), from, to), closures: await closuresBetween(getDb(), from, to) }),
+    async () => {
+      const [shifts, appointments, closures] = await Promise.all([shiftsBetween(getDb(), from, to), agenda(getDb(), from, to), closuresBetween(getDb(), from, to)]);
+      return { shifts, appointments, closures };
+    },
     [from, to],
     { tables: ["appointments", "patients", "schedule", "sessions", "waitlist"] },
   );
