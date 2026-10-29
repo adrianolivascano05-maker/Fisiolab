@@ -304,10 +304,12 @@ nada más.
 
 | Archivo | Qué es |
 | --- | --- |
-| `worker.js` | el servidor. JavaScript sin dependencias, para pegarlo tal cual en el panel |
+| `worker.js` | el servidor en un solo archivo, para pegarlo tal cual en el panel. **Se genera** con `npm run worker` a partir de `src/`: no se edita a mano |
+| `src/` | el código del servidor por partes: `index.js` (las rutas), `copy.js` y `copyStore.js` (la copia de cada clínica: trozos en R2, cambios y D1), `clinics.js` (clínicas y equipo), `provider.js` (el panel del proveedor), `forms.js` (formularios para el paciente), `documents.js` (archivos en R2), `auth.js` (la sesión de Google), `health.js`, `constants.js` (límites y `SERVER_VERSION`), `util.js`, `types.js` (tipos JSDoc) y `contract.js` (el borrador del contrato) |
 | `schema.sql` | las tablas de la base: `clinics` y `members` (cada clínica y su equipo), `clinic_status` (suspendida o en la papelera, con la declaración de baja), `creators` (altas desde el panel), `recovery` (la clave cerrada con el código de recuperación), `heads` (la copia vigente de cada clínica), `parts` (sus trozos, en texto base64), `deltas` (los lotes de cambios cifrados, numerados), `delta_base` (hasta qué lote lleva la copia entera, y su época) `access_requests` (las solicitudes de acceso: quién pide dar de alta qué clínica) `patient_forms` (los formularios para el paciente y sus respuestas, cifrados con la clave del enlace), `documents` (cada archivo de un paciente guardado en R2: de qué clínica es y cuánto ocupa) y `doc_requests` (cuántos archivos puede subir el paciente con cada enlace) |
 | `wrangler.toml` | la configuración, solo para instalarlo con Wrangler (siempre con `-c wrangler.toml`) |
 | `worker.test.ts`, `d1shim.ts` | las pruebas (`npx vitest run cloudflare`), con una base D1 simulada sobre SQLite |
+| `worker.build.test.ts` | comprueba que `worker.js` está al día con `src/` (si falla: `npm run worker`) |
 
 ## Para quien mantenga la app
 
@@ -316,8 +318,10 @@ Todas las rutas, salvo `/v1/salud` y las de `/v1/formularios/:fid` (las abre el 
 del ID de cliente `GOOGLE_CLIENT_ID` y de un correo verificado. Lo que puede hacer cada cuenta depende de la ruta:
 dar de alta clínicas, si su correo está en `ALLOWED_EMAILS`; usar una clínica, si es de su equipo (tabla
 `members`, por correo en minúsculas). La copia de cada clínica va en `heads`/`parts` con `owner = "clinic:<id>"`.
-Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "error": "…" }` en español. Al cambiar
-`worker.js` en algo que la app necesite, sube a la vez `SERVER_VERSION` (en `worker.js`) y `EXPECTED_SERVER_VERSION`
+Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "error": "…" }` en español. El servidor se edita en `cloudflare/src/*.js` y después `npm run worker` vuelve a generar `worker.js` (una
+concatenación sin empaquetador, `tools/build-worker.mjs`: quita los `import`/`export` entre módulos y deja el resto
+igual, comentarios incluidos); `worker.build.test.ts` falla si se olvida. Al cambiar el servidor en algo que la app
+necesite, sube a la vez `SERVER_VERSION` (en `src/constants.js`) y `EXPECTED_SERVER_VERSION`
 (en `src/cloud/serverStatus.ts`): así el panel del proveedor avisa de pegarlo. Una prueba de `worker.test.ts`
 comprueba que la que espera la app no es posterior a la del servidor.
 

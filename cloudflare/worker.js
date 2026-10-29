@@ -1,4 +1,6 @@
 // @ts-check
+// Generado por «npm run worker» a partir de cloudflare/src/*.js: no lo edites a mano (edita el módulo y vuelve a
+// generarlo). Es el archivo que se pega en el panel de Cloudflare (README.md de esta carpeta).
 // Servidor de datos de OmniClin en Cloudflare (Workers + D1). Guarda la copia CIFRADA de la base de cada clínica;
 // Google solo sirve para saber quién es. Cómo instalarlo: README.md de esta carpeta.
 //
@@ -109,6 +111,8 @@
 // que no tiene límite al día).
 // Nunca se escribe en el registro el contenido de una petición ni el token.
 
+// Los tipos que comparten los módulos del servidor (solo JSDoc: no hay código).
+
 /**
  * @typedef {object} D1Result
  * @property {Record<string, unknown>[]} [results]
@@ -174,6 +178,13 @@
  */
 
 /**
+ * @typedef {{ epoch: string, seq: number }} Base
+ * La sincronización por cambios de una copia: desde qué cambio la copia entera ya lo lleva todo (seq) y su época.
+ */
+
+// ---------- Límites y constantes ----------
+
+/**
  * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
@@ -181,75 +192,88 @@ const SERVER_VERSION = "2026-10-28";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 const MAGIC = "Q0VOSVRFTkMx";
+
 /** Caracteres por trozo (1 MB, todo ASCII): D1 no admite filas de más de 2 MB. */
 const PART_CHARS = 1_000_000;
+
 /** Tamaño máximo de una copia: 50 MB, en caracteres de base64. */
 const MAX_CHARS = Math.ceil((50 * 1024 * 1024) / 3) * 4;
+
 /** Trozos por viaje a D1, al escribir y al leer. */
 const PARTS_PER_TRIP = 4;
+
 /** La copia en R2: empieza por «CENITENC2» (cifrada por trozos, src/cloud/crypt.ts) y se sube en trozos de 8 MiB. */
 const COPY_MAGIC = new TextEncoder().encode("CENITENC2");
+
 const COPY_PART_BYTES = 8 * 1024 * 1024;
+
 /** Tamaño máximo de una copia en R2: de sobra (una clínica de 10.000 pacientes ocupa unos 54 MB). */
 const MAX_COPY_BYTES = 2 * 1024 * 1024 * 1024;
+
 /** Lotes de cambios por respuesta, y caracteres como mucho (se piden los siguientes con «more»). */
 const DELTAS_PER_TRIP = 100;
+
 const DELTA_TRIP_CHARS = 3_000_000;
+
 /** Días que una clínica borrada se puede recuperar antes de borrarse para siempre. */
 const DELETE_GRACE_DAYS = 30;
+
 /** Solicitudes de acceso pendientes como mucho (para que nadie llene la base pidiendo sin parar). */
 const MAX_PENDING_REQUESTS = 200;
+
 /** Personas como mucho en el equipo de una clínica. */
 const MAX_MEMBERS = 100;
 
 // Formularios para el paciente: la app los cifra con una clave que va solo en el enlace (después de «#», que el
 // navegador no manda al servidor), así que aquí no hay más que bytes ilegibles. El id lo pone la app al azar.
 const FORM_ID = /^[A-Za-z0-9_-]{22,64}$/;
+
 /** Caracteres del formulario cifrado y de las respuestas cifradas (base64). */
 const MAX_FORM_CHARS = 200_000;
+
 const MAX_ANSWER_CHARS = 400_000;
+
 /** Un enlace vale como mucho estos días; las respuestas que nadie recoge se borran a los 60. */
 const MAX_FORM_DAYS = 30;
+
 const KEEP_ANSWERS_DAYS = 60;
+
 /** Formularios sin recoger a la vez en una clínica. */
 const MAX_OPEN_FORMS = 500;
+
 // Documentos: la app los cifra antes de subirlos («CENITDOC1», vector de inicio y AES-GCM) con una clave que solo está
 // en la base de la clínica (o en el enlace del paciente), así que en R2 solo hay bytes ilegibles. Cada uno se guarda
 // en R2 como «<clínica>/<id>» y en la tabla documents se apunta lo que ocupa, para el tope de todo el almacén.
 const DOC_MAGIC = new TextEncoder().encode("CENITDOC1");
+
 /** Id de un documento: el que pone la app al azar, o «<formulario>.<n>» si lo subió un paciente con su enlace. */
 const DOC_ID = /^[A-Za-z0-9_-]{22,64}(\.(?:[1-9]|10))?$/;
+
 /** Un documento, como mucho: 5 MB y lo que añade el cifrado (con margen). */
 const MAX_DOC_BYTES = 5 * 1024 * 1024 + 64 * 1024;
+
 /** Tope de todo el almacén si no se dice otro con DOCS_CAP_GB (el nivel gratuito de R2 es de 10 GB al mes). */
 const DOCS_CAP_GB = 10;
+
 /** Desde qué parte del tope se avisa (en la app y en el panel del proveedor). */
 const WARN_SHARE = 0.7;
+
 /** Lo que puede ocupar la base D1, en MB, si no se dice otro con D1_CAP_MB: 500 en el plan gratuito (10 000 de pago). */
 const D1_CAP_MB = 500;
+
 /** Peticiones al día del plan gratuito de Workers, para toda la cuenta (se ponen a cero a las 00:00 UTC). */
 const DAILY_REQUESTS = 100_000;
+
 /** Documentos que puede subir un paciente con un mismo enlace, como mucho. */
 const MAX_DOCS_PER_FORM = 10;
+
 /** Documentos de pacientes sin recoger que se limpian en cada pasada. */
 const DOC_PURGE_BATCH = 100;
 
 /** Tokens comprobados que se recuerdan, y durante cuánto como mucho (segundos). */
 const CACHE_ENTRIES = 200;
-const CACHE_SECONDS = 300;
 
-class HttpError extends Error {
-  /**
-   * @param {number} status
-   * @param {string} message
-   * @param {Record<string, unknown>} [extra] más campos para la respuesta
-   */
-  constructor(status, message, extra) {
-    super(message);
-    this.status = status;
-    this.extra = extra;
-  }
-}
+const CACHE_SECONDS = 300;
 
 export default {
   /**
@@ -456,10 +480,7 @@ async function route(request, env, deps, originAllowed) {
   return clinicCopy(request, db, env.DOCS, clinicOwner(id), rest, deps.now);
 }
 
-/**
- * @typedef {{ epoch: string, seq: number }} Base
- * La sincronización por cambios de una copia: desde qué cambio la copia entera ya lo lleva todo (seq) y su época.
- */
+// ---------- La copia de una clínica: rutas, trozos en R2 y cambios ----------
 
 /**
  * @param {D1Database} db
@@ -724,14 +745,6 @@ async function copyUpload(request, db, docs, owner, rest, params, now) {
 const copyMethod = (/** @type {string} */ p, /** @type {string} */ method) =>
   (p === "/copia" && ["GET", "PUT", "DELETE"].includes(method)) || (p === "/copia/info" && method === "GET");
 
-const notFound = () => new HttpError(404, "Esta dirección no existe.");
-
-/** @param {Env} env */
-function database(env) {
-  if (!env.DB) throw new HttpError(500, "Falta el enlace «DB» con la base de datos D1.");
-  return env.DB;
-}
-
 /**
  * Leer, guardar o borrar una copia (la de una clínica o la personal).
  * @param {Request} request
@@ -758,6 +771,171 @@ async function copyRoute(request, db, owner, info, now) {
   // DELETE: la copia vigente y cualquier trozo que quede.
   await db.batch([db.prepare("DELETE FROM heads WHERE owner = ?").bind(owner), db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner)]);
   return new Response(null, { status: 204 });
+}
+
+// ---------- La copia en D1 ----------
+
+/**
+ * @param {D1Database} db
+ * @param {string} owner
+ * @returns {Promise<Head | null>}
+ */
+async function getHead(db, owner) {
+  const row = await db.prepare("SELECT version, parts, size, updated_at FROM heads WHERE owner = ?").bind(owner).first();
+  if (!row) return null;
+  return { version: String(row.version), parts: Number(row.parts), chars: Number(row.size), updatedAt: String(row.updated_at) };
+}
+
+/**
+ * La copia vigente, o null si no hay. Si a mitad de la lectura otra subida la sustituye (faltan trozos),
+ * se vuelve a empezar una vez; si sigue igual, 503 para que la app lo intente más tarde.
+ * @param {D1Database} db
+ * @param {string} owner
+ */
+async function readCopy(db, owner) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const head = await getHead(db, owner);
+    if (!head) return null;
+    const text = await readParts(db, owner, head);
+    if (text !== null) return { head, text };
+  }
+  throw new HttpError(503, "La copia se está cambiando en este momento. Inténtalo de nuevo en unos segundos.");
+}
+
+/**
+ * Los trozos de una versión, por orden, unidos en un solo texto; null si falta alguno.
+ * @param {D1Database} db
+ * @param {string} owner
+ * @param {Head} head
+ * @returns {Promise<string | null>}
+ */
+async function readParts(db, owner, head) {
+  /** @type {string[]} */
+  const texts = [];
+  let chars = 0;
+  const select = db.prepare("SELECT idx, data FROM parts WHERE owner = ? AND version = ? AND idx >= ? AND idx < ? ORDER BY idx");
+  for (let from = 0; from < head.parts; from += PARTS_PER_TRIP) {
+    const to = Math.min(from + PARTS_PER_TRIP, head.parts);
+    const { results = [] } = await select.bind(owner, head.version, from, to).all();
+    if (results.length !== to - from) return null;
+    for (let i = 0; i < results.length; i++) {
+      const row = /** @type {Record<string, unknown>} */ (results[i]);
+      if (Number(row.idx) !== from + i || typeof row.data !== "string") return null;
+      texts.push(row.data);
+      chars += row.data.length;
+    }
+  }
+  return chars === head.chars ? texts.join("") : null;
+}
+
+/**
+ * La condición de una subida: If-None-Match: * (crear) o If-Match con la versión que sustituye. 428 si no hay.
+ * @param {Request} request
+ */
+function precondition(request) {
+  const ifMatch = request.headers.get("If-Match");
+  const expected = ifMatch === null ? null : parseEtag(ifMatch);
+  const create = ifMatch === null && (request.headers.get("If-None-Match") ?? "").trim() === "*";
+  if (expected === null && !create) {
+    throw new HttpError(428, "Falta la condición de la subida: If-None-Match: * para crear la copia o If-Match con su versión para sustituirla.");
+  }
+  return { expected, create };
+}
+
+/**
+ * Guarda una copia nueva. Los trozos van con una versión nueva y la copia vigente solo cambia al final, con una
+ * escritura condicionada a la versión que dice el dispositivo: así nunca se pisa lo que subió otro.
+ * @param {Request} request
+ * @param {D1Database} db
+ * @param {string} owner
+ * @param {() => number} now
+ * @param {R2Bucket} [docs] si la copia que sustituye estaba en R2, se borra de allí
+ */
+async function writeCopy(request, db, owner, now, docs) {
+  const { expected, create } = precondition(request);
+  const tooBig = () => new HttpError(413, "La copia pasa de 50 MB, el máximo que guarda este servidor.");
+  if (Number(request.headers.get("Content-Length")) > MAX_CHARS) throw tooBig();
+  const text = await request.text();
+  if (text.length > MAX_CHARS) throw tooBig();
+  if (!(text.length > MAGIC.length && text.startsWith(MAGIC))) throw new HttpError(415, "Solo se guardan copias cifradas.");
+
+  // Si la condición ya no se cumple, se dice antes de escribir nada.
+  const current = await getHead(db, owner);
+  if (create ? current !== null : current?.version !== expected) throw conflict(current);
+
+  const version = crypto.randomUUID();
+  const chars = text.length;
+  const parts = Math.ceil(chars / PART_CHARS);
+  const updatedAt = new Date(now()).toISOString();
+  try {
+    await insertParts(db, owner, version, text, "INSERT");
+  } catch (err) {
+    await deleteVersion(db, owner, version).catch(() => {});
+    throw err;
+  }
+
+  const headWrite = create
+    ? db
+        .prepare("INSERT INTO heads (owner, version, parts, size, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(owner) DO NOTHING")
+        .bind(owner, version, parts, chars, updatedAt)
+    : db
+        .prepare("UPDATE heads SET version = ?, parts = ?, size = ?, updated_at = ? WHERE owner = ? AND version = ?")
+        .bind(version, parts, chars, updatedAt, owner, expected);
+  const result = await headWrite.run();
+  if (result.meta?.changes !== 1) {
+    // Otra subida ha llegado antes: fuera los trozos de esta.
+    await deleteVersion(db, owner, version);
+    throw conflict(await getHead(db, owner));
+  }
+
+  // Fuera los trozos de las demás versiones (la anterior y los restos de subidas cortadas), pero solo si esta
+  // sigue siendo la vigente: si otra subida ya la ha sustituido, no se toca lo suyo.
+  await db
+    .prepare("DELETE FROM parts WHERE owner = ? AND version <> ? AND EXISTS (SELECT 1 FROM heads WHERE owner = ? AND version = ?)")
+    .bind(owner, version, owner, version)
+    .run();
+  // Si otra subida casi simultánea ha borrado trozos de esta, se vuelven a poner (la copia vigente nunca queda coja).
+  const kept = await db.prepare("SELECT count(*) AS n FROM parts WHERE owner = ? AND version = ?").bind(owner, version).first();
+  if (Number(kept?.n) !== parts) await insertParts(db, owner, version, text, "INSERT OR REPLACE");
+  if (current?.parts === 0 && docs) await docs.delete(copyKey(owner, current.version));
+
+  return json(200, { version, size: approxBytes(chars), updatedAt }, { ETag: `"${version}"` });
+}
+
+/**
+ * Escribe los trozos de una versión, varios por viaje (cada viaje es una transacción).
+ * @param {D1Database} db
+ * @param {string} owner
+ * @param {string} version
+ * @param {string} text la copia en base64
+ * @param {"INSERT" | "INSERT OR REPLACE"} verb
+ */
+async function insertParts(db, owner, version, text, verb) {
+  const insert = db.prepare(`${verb} INTO parts (owner, version, idx, data) VALUES (?, ?, ?, ?)`);
+  const parts = Math.ceil(text.length / PART_CHARS);
+  for (let from = 0; from < parts; from += PARTS_PER_TRIP) {
+    const trip = [];
+    for (let i = from; i < Math.min(from + PARTS_PER_TRIP, parts); i++) {
+      trip.push(insert.bind(owner, version, i, text.slice(i * PART_CHARS, (i + 1) * PART_CHARS)));
+    }
+    await db.batch(trip);
+  }
+}
+
+/**
+ * @param {D1Database} db
+ * @param {string} owner
+ * @param {string} version
+ */
+async function deleteVersion(db, owner, version) {
+  await db.prepare("DELETE FROM parts WHERE owner = ? AND version = ?").bind(owner, version).run();
+}
+
+/** @param {Head | null} current */
+function conflict(current) {
+  return new HttpError(412, "La copia del servidor ha cambiado: hay que bajarla y juntarla antes de subir esta.", {
+    version: current ? current.version : null,
+  });
 }
 
 // ---------- Clínicas y equipo ----------
@@ -1167,49 +1345,58 @@ async function removeMember(db, id, email) {
 const lastAdmin = () => new HttpError(409, "La clínica tiene que tener al menos un administrador: nombra antes a otro.");
 
 /**
- * El cuerpo JSON de una petición (pequeño: un nombre, un papel).
- * @param {Request} request
- * @returns {Promise<unknown>}
+ * Las peticiones de hoy de toda la cuenta, según las estadísticas de Cloudflare (su API GraphQL, con un token de solo
+ * lectura). Contarlas aquí costaría una escritura por petición. Si falta el token o la API falla, lo dice sin
+ * romper el panel. El token nunca sale en la respuesta.
+ * @param {Env} env
+ * @param {{ now: () => number, fetch?: typeof fetch }} deps
  */
-async function readJson(request) {
-  if (Number(request.headers.get("Content-Length")) > 10_000) throw new HttpError(413, "La petición es demasiado grande.");
-  const text = await request.text();
-  if (text.length > 10_000) throw new HttpError(413, "La petición es demasiado grande.");
+async function requestUsage(env, deps) {
+  const n = Number(env.DAILY_REQUESTS);
+  const limit = env.DAILY_REQUESTS !== undefined && env.DAILY_REQUESTS !== "" && Number.isFinite(n) && n >= 0 ? Math.round(n) : DAILY_REQUESTS;
+  const base = { limit, warnAt: Math.round(limit * WARN_SHARE) };
+  const account = (env.CF_ACCOUNT_ID ?? "").trim();
+  const token = (env.CF_API_TOKEN ?? "").trim();
+  if (!account || !token) return { configured: false, ...base };
+  const now = new Date(deps.now());
+  const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+  const query = `query ($account: string, $start: string, $end: string) {
+    viewer { accounts(filter: { accountTag: $account }) {
+      workersInvocationsAdaptive(limit: 10000, filter: { datetime_geq: $start, datetime_leq: $end }) {
+        sum { requests errors }
+        dimensions { scriptName }
+      }
+    } }
+  }`;
+  const failed = (/** @type {string} */ error) => ({ configured: true, today: null, errors: null, since, ...base, error });
   try {
-    return JSON.parse(text);
+    const res = await (deps.fetch ?? fetch)("https://api.cloudflare.com/client/v4/graphql", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ query, variables: { account, start: since, end: now.toISOString() } }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (res.status === 401 || res.status === 403) return failed("Cloudflare no acepta el token CF_API_TOKEN: revisa que tenga el permiso «Account Analytics: Read».");
+    if (!res.ok) return failed(`Cloudflare no ha respondido bien (${res.status}). Inténtalo más tarde.`);
+    const body = /** @type {any} */ (await res.json());
+    if (body?.errors?.length) return failed(`Cloudflare dice: ${String(body.errors[0]?.message ?? "error").slice(0, 200)}`);
+    const accounts = body?.data?.viewer?.accounts;
+    if (!Array.isArray(accounts) || !accounts.length) return failed("Cloudflare no encuentra esa cuenta: revisa CF_ACCOUNT_ID.");
+    /** @type {{ sum?: { requests?: number, errors?: number } }[]} */
+    const rows = accounts[0]?.workersInvocationsAdaptive ?? [];
+    const sum = (/** @type {"requests" | "errors"} */ k) => rows.reduce((t, r) => t + Number(r?.sum?.[k] ?? 0), 0);
+    return { configured: true, today: sum("requests"), errors: sum("errors"), since, ...base };
   } catch {
-    throw new HttpError(400, "La petición no es JSON válido.");
+    return failed("No se ha podido preguntar a Cloudflare. Inténtalo más tarde.");
   }
 }
 
 // ---------- Formularios para el paciente ----------
 
-/**
- * El cuerpo JSON de una petición, hasta `max` caracteres.
- * @param {Request} request
- * @param {number} max
- * @returns {Promise<Record<string, unknown>>}
- */
-async function readBigJson(request, max) {
-  const tooBig = () => new HttpError(413, "La petición es demasiado grande.");
-  if (Number(request.headers.get("Content-Length")) > max + 1000) throw tooBig();
-  const text = await request.text();
-  if (text.length > max + 1000) throw tooBig();
-  try {
-    const body = JSON.parse(text);
-    if (typeof body === "object" && body !== null) return body;
-  } catch {
-    /* abajo */
-  }
-  throw new HttpError(400, "La petición no es JSON válido.");
-}
-
 /** Cuándo se limpiaron los formularios por última vez en esta instancia del servidor (ms), y cada cuánto como mucho. */
 let lastFormsPurge = -Infinity;
-const PURGE_EVERY_MS = 10 * 60_000;
 
-/** Texto base64 (lo cifrado), de 1 a `max` caracteres. */
-const isBase64 = (/** @type {unknown} */ v, /** @type {number} */ max) => typeof v === "string" && v.length > 0 && v.length <= max && /^[A-Za-z0-9+/]+={0,2}$/.test(v);
+const PURGE_EVERY_MS = 10 * 60_000;
 
 /**
  * Borra los formularios caducados sin responder, los ya recogidos al caducar y las respuestas que nadie ha recogido en
@@ -1326,6 +1513,7 @@ async function publicForm(request, db, id, answer, now) {
 
 const noDocs = () =>
   new HttpError(501, "El servidor de la clínica aún no tiene el almacén de documentos (R2): quien lo gestiona tiene que activarlo (cloudflare/README.md, «Documentos»).");
+
 const full = (/** @type {number} */ cap) =>
   new HttpError(507, `El almacén de documentos está lleno (${cap / 1e9} GB, el tope que ha puesto quien gestiona el servidor): borra los documentos que ya no hagan falta.`);
 
@@ -1337,53 +1525,6 @@ function docsLimits(env) {
   const gb = Number(env.DOCS_CAP_GB);
   const cap = Math.round((Number.isFinite(gb) && gb > 0 ? gb : DOCS_CAP_GB) * 1e9);
   return { cap, warnAt: Math.round(cap * WARN_SHARE) };
-}
-
-/**
- * Las peticiones de hoy de toda la cuenta, según las estadísticas de Cloudflare (su API GraphQL, con un token de solo
- * lectura). Contarlas aquí costaría una escritura por petición. Si falta el token o la API falla, lo dice sin
- * romper el panel. El token nunca sale en la respuesta.
- * @param {Env} env
- * @param {{ now: () => number, fetch?: typeof fetch }} deps
- */
-async function requestUsage(env, deps) {
-  const n = Number(env.DAILY_REQUESTS);
-  const limit = env.DAILY_REQUESTS !== undefined && env.DAILY_REQUESTS !== "" && Number.isFinite(n) && n >= 0 ? Math.round(n) : DAILY_REQUESTS;
-  const base = { limit, warnAt: Math.round(limit * WARN_SHARE) };
-  const account = (env.CF_ACCOUNT_ID ?? "").trim();
-  const token = (env.CF_API_TOKEN ?? "").trim();
-  if (!account || !token) return { configured: false, ...base };
-  const now = new Date(deps.now());
-  const since = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
-  const query = `query ($account: string, $start: string, $end: string) {
-    viewer { accounts(filter: { accountTag: $account }) {
-      workersInvocationsAdaptive(limit: 10000, filter: { datetime_geq: $start, datetime_leq: $end }) {
-        sum { requests errors }
-        dimensions { scriptName }
-      }
-    } }
-  }`;
-  const failed = (/** @type {string} */ error) => ({ configured: true, today: null, errors: null, since, ...base, error });
-  try {
-    const res = await (deps.fetch ?? fetch)("https://api.cloudflare.com/client/v4/graphql", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ query, variables: { account, start: since, end: now.toISOString() } }),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (res.status === 401 || res.status === 403) return failed("Cloudflare no acepta el token CF_API_TOKEN: revisa que tenga el permiso «Account Analytics: Read».");
-    if (!res.ok) return failed(`Cloudflare no ha respondido bien (${res.status}). Inténtalo más tarde.`);
-    const body = /** @type {any} */ (await res.json());
-    if (body?.errors?.length) return failed(`Cloudflare dice: ${String(body.errors[0]?.message ?? "error").slice(0, 200)}`);
-    const accounts = body?.data?.viewer?.accounts;
-    if (!Array.isArray(accounts) || !accounts.length) return failed("Cloudflare no encuentra esa cuenta: revisa CF_ACCOUNT_ID.");
-    /** @type {{ sum?: { requests?: number, errors?: number } }[]} */
-    const rows = accounts[0]?.workersInvocationsAdaptive ?? [];
-    const sum = (/** @type {"requests" | "errors"} */ k) => rows.reduce((t, r) => t + Number(r?.sum?.[k] ?? 0), 0);
-    return { configured: true, today: sum("requests"), errors: sum("errors"), since, ...base };
-  } catch {
-    return failed("No se ha podido preguntar a Cloudflare. Inténtalo más tarde.");
-  }
 }
 
 /** Dónde está un documento en R2. */
@@ -1430,38 +1571,6 @@ async function storedBytes(/** @type {D1Database} */ db) {
 async function readDoc(request) {
   const bytes = await readBytes(request, MAX_DOC_BYTES, () => new HttpError(413, "El documento pasa de 5 MB, el máximo."));
   if (bytes.byteLength <= DOC_MAGIC.length + 12 || !DOC_MAGIC.every((b, i) => bytes[i] === b)) throw new HttpError(415, "Solo se guardan documentos cifrados.");
-  return bytes;
-}
-
-/**
- * Los bytes de una petición, de `max` como mucho: se leen por trozos y se corta en cuanto pasa, aunque no diga cuánto
- * ocupa.
- * @param {Request} request
- * @param {number} max
- * @param {() => HttpError} tooBig
- */
-async function readBytes(request, max, tooBig) {
-  if (Number(request.headers.get("Content-Length")) > max) throw tooBig();
-  /** @type {Uint8Array[]} */
-  const chunks = [];
-  let size = 0;
-  const reader = request.body?.getReader();
-  for (;;) {
-    const part = reader ? await reader.read() : { done: true, value: undefined };
-    if (part.done || !part.value) break;
-    size += part.value.byteLength;
-    if (size > max) {
-      await reader?.cancel();
-      throw tooBig();
-    }
-    chunks.push(part.value);
-  }
-  const bytes = new Uint8Array(size);
-  let at = 0;
-  for (const c of chunks) {
-    bytes.set(c, at);
-    at += c.byteLength;
-  }
   return bytes;
 }
 
@@ -1697,172 +1806,99 @@ async function sha256Hex(text) {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-// ---------- La copia en D1 ----------
-
-/**
- * @param {D1Database} db
- * @param {string} owner
- * @returns {Promise<Head | null>}
- */
-async function getHead(db, owner) {
-  const row = await db.prepare("SELECT version, parts, size, updated_at FROM heads WHERE owner = ?").bind(owner).first();
-  if (!row) return null;
-  return { version: String(row.version), parts: Number(row.parts), chars: Number(row.size), updatedAt: String(row.updated_at) };
-}
-
-/**
- * La copia vigente, o null si no hay. Si a mitad de la lectura otra subida la sustituye (faltan trozos),
- * se vuelve a empezar una vez; si sigue igual, 503 para que la app lo intente más tarde.
- * @param {D1Database} db
- * @param {string} owner
- */
-async function readCopy(db, owner) {
-  for (let attempt = 0; attempt < 2; attempt++) {
-    const head = await getHead(db, owner);
-    if (!head) return null;
-    const text = await readParts(db, owner, head);
-    if (text !== null) return { head, text };
-  }
-  throw new HttpError(503, "La copia se está cambiando en este momento. Inténtalo de nuevo en unos segundos.");
-}
-
-/**
- * Los trozos de una versión, por orden, unidos en un solo texto; null si falta alguno.
- * @param {D1Database} db
- * @param {string} owner
- * @param {Head} head
- * @returns {Promise<string | null>}
- */
-async function readParts(db, owner, head) {
-  /** @type {string[]} */
-  const texts = [];
-  let chars = 0;
-  const select = db.prepare("SELECT idx, data FROM parts WHERE owner = ? AND version = ? AND idx >= ? AND idx < ? ORDER BY idx");
-  for (let from = 0; from < head.parts; from += PARTS_PER_TRIP) {
-    const to = Math.min(from + PARTS_PER_TRIP, head.parts);
-    const { results = [] } = await select.bind(owner, head.version, from, to).all();
-    if (results.length !== to - from) return null;
-    for (let i = 0; i < results.length; i++) {
-      const row = /** @type {Record<string, unknown>} */ (results[i]);
-      if (Number(row.idx) !== from + i || typeof row.data !== "string") return null;
-      texts.push(row.data);
-      chars += row.data.length;
-    }
-  }
-  return chars === head.chars ? texts.join("") : null;
-}
-
-/**
- * La condición de una subida: If-None-Match: * (crear) o If-Match con la versión que sustituye. 428 si no hay.
- * @param {Request} request
- */
-function precondition(request) {
-  const ifMatch = request.headers.get("If-Match");
-  const expected = ifMatch === null ? null : parseEtag(ifMatch);
-  const create = ifMatch === null && (request.headers.get("If-None-Match") ?? "").trim() === "*";
-  if (expected === null && !create) {
-    throw new HttpError(428, "Falta la condición de la subida: If-None-Match: * para crear la copia o If-Match con su versión para sustituirla.");
-  }
-  return { expected, create };
-}
-
-/**
- * Guarda una copia nueva. Los trozos van con una versión nueva y la copia vigente solo cambia al final, con una
- * escritura condicionada a la versión que dice el dispositivo: así nunca se pisa lo que subió otro.
- * @param {Request} request
- * @param {D1Database} db
- * @param {string} owner
- * @param {() => number} now
- * @param {R2Bucket} [docs] si la copia que sustituye estaba en R2, se borra de allí
- */
-async function writeCopy(request, db, owner, now, docs) {
-  const { expected, create } = precondition(request);
-  const tooBig = () => new HttpError(413, "La copia pasa de 50 MB, el máximo que guarda este servidor.");
-  if (Number(request.headers.get("Content-Length")) > MAX_CHARS) throw tooBig();
-  const text = await request.text();
-  if (text.length > MAX_CHARS) throw tooBig();
-  if (!(text.length > MAGIC.length && text.startsWith(MAGIC))) throw new HttpError(415, "Solo se guardan copias cifradas.");
-
-  // Si la condición ya no se cumple, se dice antes de escribir nada.
-  const current = await getHead(db, owner);
-  if (create ? current !== null : current?.version !== expected) throw conflict(current);
-
-  const version = crypto.randomUUID();
-  const chars = text.length;
-  const parts = Math.ceil(chars / PART_CHARS);
-  const updatedAt = new Date(now()).toISOString();
-  try {
-    await insertParts(db, owner, version, text, "INSERT");
-  } catch (err) {
-    await deleteVersion(db, owner, version).catch(() => {});
-    throw err;
-  }
-
-  const headWrite = create
-    ? db
-        .prepare("INSERT INTO heads (owner, version, parts, size, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(owner) DO NOTHING")
-        .bind(owner, version, parts, chars, updatedAt)
-    : db
-        .prepare("UPDATE heads SET version = ?, parts = ?, size = ?, updated_at = ? WHERE owner = ? AND version = ?")
-        .bind(version, parts, chars, updatedAt, owner, expected);
-  const result = await headWrite.run();
-  if (result.meta?.changes !== 1) {
-    // Otra subida ha llegado antes: fuera los trozos de esta.
-    await deleteVersion(db, owner, version);
-    throw conflict(await getHead(db, owner));
-  }
-
-  // Fuera los trozos de las demás versiones (la anterior y los restos de subidas cortadas), pero solo si esta
-  // sigue siendo la vigente: si otra subida ya la ha sustituido, no se toca lo suyo.
-  await db
-    .prepare("DELETE FROM parts WHERE owner = ? AND version <> ? AND EXISTS (SELECT 1 FROM heads WHERE owner = ? AND version = ?)")
-    .bind(owner, version, owner, version)
-    .run();
-  // Si otra subida casi simultánea ha borrado trozos de esta, se vuelven a poner (la copia vigente nunca queda coja).
-  const kept = await db.prepare("SELECT count(*) AS n FROM parts WHERE owner = ? AND version = ?").bind(owner, version).first();
-  if (Number(kept?.n) !== parts) await insertParts(db, owner, version, text, "INSERT OR REPLACE");
-  if (current?.parts === 0 && docs) await docs.delete(copyKey(owner, current.version));
-
-  return json(200, { version, size: approxBytes(chars), updatedAt }, { ETag: `"${version}"` });
-}
-
-/**
- * Escribe los trozos de una versión, varios por viaje (cada viaje es una transacción).
- * @param {D1Database} db
- * @param {string} owner
- * @param {string} version
- * @param {string} text la copia en base64
- * @param {"INSERT" | "INSERT OR REPLACE"} verb
- */
-async function insertParts(db, owner, version, text, verb) {
-  const insert = db.prepare(`${verb} INTO parts (owner, version, idx, data) VALUES (?, ?, ?, ?)`);
-  const parts = Math.ceil(text.length / PART_CHARS);
-  for (let from = 0; from < parts; from += PARTS_PER_TRIP) {
-    const trip = [];
-    for (let i = from; i < Math.min(from + PARTS_PER_TRIP, parts); i++) {
-      trip.push(insert.bind(owner, version, i, text.slice(i * PART_CHARS, (i + 1) * PART_CHARS)));
-    }
-    await db.batch(trip);
-  }
-}
-
-/**
- * @param {D1Database} db
- * @param {string} owner
- * @param {string} version
- */
-async function deleteVersion(db, owner, version) {
-  await db.prepare("DELETE FROM parts WHERE owner = ? AND version = ?").bind(owner, version).run();
-}
-
-/** @param {Head | null} current */
-function conflict(current) {
-  return new HttpError(412, "La copia del servidor ha cambiado: hay que bajarla y juntarla antes de subir esta.", {
-    version: current ? current.version : null,
-  });
-}
-
 // ---------- Utilidades ----------
+
+class HttpError extends Error {
+  /**
+   * @param {number} status
+   * @param {string} message
+   * @param {Record<string, unknown>} [extra] más campos para la respuesta
+   */
+  constructor(status, message, extra) {
+    super(message);
+    this.status = status;
+    this.extra = extra;
+  }
+}
+
+const notFound = () => new HttpError(404, "Esta dirección no existe.");
+
+/** @param {Env} env */
+function database(env) {
+  if (!env.DB) throw new HttpError(500, "Falta el enlace «DB» con la base de datos D1.");
+  return env.DB;
+}
+
+/**
+ * El cuerpo JSON de una petición (pequeño: un nombre, un papel).
+ * @param {Request} request
+ * @returns {Promise<unknown>}
+ */
+async function readJson(request) {
+  if (Number(request.headers.get("Content-Length")) > 10_000) throw new HttpError(413, "La petición es demasiado grande.");
+  const text = await request.text();
+  if (text.length > 10_000) throw new HttpError(413, "La petición es demasiado grande.");
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new HttpError(400, "La petición no es JSON válido.");
+  }
+}
+
+/**
+ * El cuerpo JSON de una petición, hasta `max` caracteres.
+ * @param {Request} request
+ * @param {number} max
+ * @returns {Promise<Record<string, unknown>>}
+ */
+async function readBigJson(request, max) {
+  const tooBig = () => new HttpError(413, "La petición es demasiado grande.");
+  if (Number(request.headers.get("Content-Length")) > max + 1000) throw tooBig();
+  const text = await request.text();
+  if (text.length > max + 1000) throw tooBig();
+  try {
+    const body = JSON.parse(text);
+    if (typeof body === "object" && body !== null) return body;
+  } catch {
+    /* abajo */
+  }
+  throw new HttpError(400, "La petición no es JSON válido.");
+}
+
+/**
+ * Los bytes de una petición, de `max` como mucho: se leen por trozos y se corta en cuanto pasa, aunque no diga cuánto
+ * ocupa.
+ * @param {Request} request
+ * @param {number} max
+ * @param {() => HttpError} tooBig
+ */
+async function readBytes(request, max, tooBig) {
+  if (Number(request.headers.get("Content-Length")) > max) throw tooBig();
+  /** @type {Uint8Array[]} */
+  const chunks = [];
+  let size = 0;
+  const reader = request.body?.getReader();
+  for (;;) {
+    const part = reader ? await reader.read() : { done: true, value: undefined };
+    if (part.done || !part.value) break;
+    size += part.value.byteLength;
+    if (size > max) {
+      await reader?.cancel();
+      throw tooBig();
+    }
+    chunks.push(part.value);
+  }
+  const bytes = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    bytes.set(c, at);
+    at += c.byteLength;
+  }
+  return bytes;
+}
+
+/** Texto base64 (lo cifrado), de 1 a `max` caracteres. */
+const isBase64 = (/** @type {unknown} */ v, /** @type {number} */ max) => typeof v === "string" && v.length > 0 && v.length <= max && /^[A-Za-z0-9+/]+={0,2}$/.test(v);
 
 /**
  * Bytes (aproximados: sin descontar el relleno «=») de una copia de `chars` caracteres de base64.

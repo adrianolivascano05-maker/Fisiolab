@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "tokens": "node tools/build-tokens.mjs",
+    "worker": "node tools/build-worker.mjs",
     "dev": "npm run tokens && vite",
     "build": "npm run tokens && npm run typecheck && vite build",
     "preview": "vite preview",

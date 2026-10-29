@@ -223,7 +223,8 @@ src/video/       meta.ts (fps, fps de grabación Android, horas de fotogramas), 
 src/pages/       una pantalla por archivo (S01 PatientsPage … S25 JumpHelp); rutas en src/App.tsx
 src/ui/          componentes del sistema de diseño (FrameScrubber, MetricCard, Sheet, Logo…)
 e2e/             pruebas Playwright por flujo (fixtures.ts con ayudas)
-tools/           build-tokens.mjs, build-icons.py, serve-dist.mjs (sirve el build como el alojamiento)
+tools/           build-tokens.mjs, build-worker.mjs (junta cloudflare/src en worker.js), build-icons.py, serve-dist.mjs
+cloudflare/      el servidor: src/*.js por partes (rutas, copia, clínicas, proveedor, formularios, documentos, sesión), worker.js generado, schema.sql, pruebas
 ```
 
 Pila: Vite + React 19 + TypeScript + Tailwind 4 (tokens) + React Router + SQLite WASM (OPFS) + mp4box + Recharts + vite-plugin-pwa.

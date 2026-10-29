@@ -615,6 +615,16 @@ visible al momento y de poco riesgo:
 - No hecho (más riesgo, para otra tanda): el tope de 6 s del arranque esperando la sincronización, la copia entera
   por el hilo principal, el marcado con IA en un worker y el índice ligero de la galería para Exploración.
 
+### Tanda «limpieza» (29-10-2026)
+
+- **El servidor por partes.** `cloudflare/worker.js` (2000 líneas) pasa a 13 módulos en `cloudflare/src/`
+  (rutas, copia, clínicas, proveedor, formularios, documentos, sesión de Google, constantes, utilidades, tipos y el
+  borrador del contrato). `worker.js` sigue existiendo porque es lo que se pega en Cloudflare, pero ahora lo genera
+  `npm run worker` (`tools/build-worker.mjs`: una concatenación sin empaquetador que quita los `import`/`export`
+  entre módulos y deja el resto igual, comentarios incluidos; comprueba que no se repita ningún nombre y que cada
+  import exista). La prueba `cloudflare/worker.build.test.ts` falla si se cambia un módulo sin regenerarlo. El
+  código del servidor no cambia (el `worker.js` generado tiene las mismas líneas que el anterior, solo reordenadas),
+  así que no hay que volver a pegarlo ni sube `SERVER_VERSION`.
+
 Pendiente de esa revisión: la de «vender con garantías» (registro de accesos, borrado remoto, historial de
-cambios, copia cifrada, rate limit) y la de limpieza (`worker.js` por partes, `AppointmentSheet`, `CloudGate`,
-`repo.ts`).
+cambios, copia cifrada, rate limit) y el resto de la de limpieza (`AppointmentSheet`, `CloudGate`, `repo.ts`).
