@@ -3,7 +3,6 @@
 // (catalog/retired.ts) y de los demás se anota la nota de la hoja oficial.
 import { form as ases } from "./ases";
 import { form as bctq } from "./bctq";
-import { form as bipq } from "./bipq";
 import { form as cait } from "./cait";
 import { form as dass21 } from "./dass21";
 import { form as faam } from "./faam";
@@ -35,7 +34,6 @@ import type { QuestionForm } from "./types";
 const FORMS: QuestionForm[] = [
   ases,
   bctq,
-  bipq,
   cait,
   dass21,
   faam,

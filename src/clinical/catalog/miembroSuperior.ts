@@ -3,25 +3,6 @@ import type { QuestionnaireKind } from "../questionnaires";
 
 export const KINDS: QuestionnaireKind[] = [
   {
-    id: "dash",
-    name: "DASH (miembro superior, versión completa)",
-    min: 0,
-    max: 100,
-    better: "lower",
-    // El cuerpo principal y cada módulo opcional se puntúan aparte y no se suman.
-    subscales: ["Cuerpo principal", "Módulo de trabajo", "Módulo de deporte/artes escénicas"],
-    regions: ["hombro", "codo", "muneca_mano"],
-    hint: "Discapacidad y síntomas del miembro superior en cualquier trastorno musculoesquelético de hombro, codo, muñeca o mano; se elige en lugar del QuickDASH cuando hace falta más precisión o los módulos de trabajo y de deporte/música.",
-    scoreOnly: true,
-    link: {
-      url: "https://dash.iwh.on.ca",
-      label: "Institute for Work & Health (dash.iwh.on.ca)",
-    },
-    reading:
-      "Cambio mínimo importante del cuerpo principal: 10,83 puntos como límite inferior y 15 como límite superior; cambio mínimo detectable al 90 %: 10,81 puntos (Franchignoni 2014).",
-    refs: "Hudak et al., 1996 (original), DOI 10.1002/(SICI)1097-0274(199606)29:6<602::AID-AJIM4>3.0.CO;2-L; Hervás et al., 2006 (validación española), DOI 10.1157/13093053; Franchignoni et al., 2014 (MCID), DOI 10.2519/jospt.2014.4893",
-  },
-  {
     id: "prwe",
     name: "PRWE (muñeca)",
     min: 0,

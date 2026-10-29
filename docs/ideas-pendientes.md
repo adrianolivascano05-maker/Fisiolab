@@ -729,21 +729,22 @@ sanitaria: son los cambios que pide la revisión.
   Prueba ES7 en `e2e/escritorio.spec.ts` (de 1280 a 1600 px), que fallaba antes del arreglo.
 - **11 y 12. Cuestionarios: de solo nota con su hoja oficial, y fuera los de pago.** La app ya no trae el texto de
   ningún cuestionario con dueño: se borraron sus archivos de `src/clinical/forms` (y `docs/cuestionarios-nuevos.md`,
-  que copiaba sus preguntas; queda `docs/cuestionarios.md`, sin preguntas). **Solo nota** (27): se pasan en su hoja
+  que copiaba sus preguntas; queda `docs/cuestionarios.md`, sin preguntas). **Solo nota** (26): se pasan en su hoja
   oficial y se anota la nota; cada uno con su cita y su enlace (`link` en el catálogo, `src/clinical/OfficialLink.tsx`).
   Los 8 artículos en abierto (CSI, SPADI, PGQ, PRWE, rNPQ, ACL-RSI, ALR-RSI, OSTRC-H2) están comprobados en PubMed (DOI).
   Las webs no se han podido abrir desde la sesión (sin red hacia ellas): `npm run check:links` las comprueba y hay que
   pasarlo con conexión antes de publicar. BPI-SF y painDETECT van sin enlace, solo a quién pedir el permiso, porque la
-  revisión no da su dirección. **Fuera del servicio** (39, `catalog/retired.ts`): no salen en el catálogo, la
+  revisión no da su dirección. **Fuera del servicio** (41, `catalog/retired.ts`): no salen en el catálogo, la
   Biblioteca, «Pasar un cuestionario» ni los envíos; lo guardado se sigue viendo con «(registro antiguo)» en la ficha,
   la evolución, el informe y la exportación, y se puede borrar pero no cambiar. Fuera el interruptor «Tenemos el
   permiso» y la lista «Permisos y licencias» (`/biblioteca/cuestionarios/permisos` lleva a la Biblioteca). Las
   banderas amarillas ya no proponen TSK-11, FABQ, PSEQ ni Örebro. Un enlace antiguo de uno de estos que abra el
   paciente le dice que se lo pasarán en la consulta; si ya lo había contestado, sus respuestas se guardan tal cual
-  con el formulario recogido. La clínica de prueba usa solo cuestionarios libres o de nota. **Por decidir:** el DASH
-  completo (de pago, del mismo titular que el QuickDASH) queda como de solo nota con el enlace del QuickDASH, y el
-  Brief IPQ, que la revisión no nombra, sigue entero en la app.
-- **10. Los libres, enteros en la app, con sus autores.** Los 31 de la lista (y el Brief IPQ, por decidir) se
+  con el formulario recogido. La clínica de prueba usa solo cuestionarios libres o de nota. **Por si acaso**, también fuera el
+  DASH completo y el Brief IPQ (no se pudo confirmar que fueran de uso libre; el Brief IPQ estaba entero en la app
+  y se ha borrado su texto). De los que están fuera solo queda en el código el nombre, el rango, qué es mejor y las
+  subescalas, para ver lo guardado; **las preguntas que hubo antes siguen en el historial de git** (no se reescribe).
+- **10. Los libres, enteros en la app, con sus autores.** Los 31 de la lista se
   rellenan enteros. Al pasarlo y en su ficha de la Biblioteca salen «Autores: …» (la cita) y el aviso «Traducción de
   trabajo: no se ha comprobado que sea el texto de la versión española validada»; al paciente, en su móvil, los
   autores. El aviso va en todos porque ninguno se ha cotejado palabra por palabra con la versión española publicada

@@ -1,7 +1,7 @@
-// Cuestionarios fuera del servicio: son de pago (o su titular no ha dado permiso para una app), así que ni se pasan
-// ni se mandan ni se anotan, y su texto no está en la app. Solo queda lo justo para seguir viendo lo que se guardó
-// antes (en la ficha, la evolución, el informe y la exportación), como registro antiguo: el nombre, el rango, qué es
-// mejor y las subescalas.
+// Cuestionarios fuera del servicio: son de pago, o no se ha podido confirmar que sean de uso libre (el DASH completo
+// y el Brief IPQ, por si acaso). Ni se pasan, ni se mandan, ni se anotan, y su texto no está en la app. Solo queda lo
+// justo para seguir viendo lo que se guardó antes (en la ficha, la evolución, el informe y la exportación), como
+// registro antiguo: el nombre, el rango, qué es mejor y las subescalas.
 import type { QuestionnaireKind } from "../questionnaires";
 
 export const KINDS: QuestionnaireKind[] = [
@@ -345,4 +345,14 @@ export const KINDS: QuestionnaireKind[] = [
     better: "lower",
     retired: true,
   },
+  {
+    id: "dash",
+    name: "DASH (miembro superior, versión completa)",
+    min: 0,
+    max: 100,
+    better: "lower",
+    subscales: ["Cuerpo principal", "Módulo de trabajo", "Módulo de deporte/artes escénicas"],
+    retired: true,
+  },
+  { id: "bipq", name: "Brief IPQ (percepción de la enfermedad)", min: 0, max: 80, better: "lower", retired: true },
 ];

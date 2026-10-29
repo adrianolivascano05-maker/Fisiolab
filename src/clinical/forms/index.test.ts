@@ -26,12 +26,12 @@ describe("cuestionarios enteros", () => {
         .map((k) => k.id)
         .sort();
     expect(ids((k) => !!k.retired)).toEqual(
-      "koos hoos koos12 hoos12 faos oks ohs oss oes womac hit6 tsk11 dn4 ihot12 hagos wosi worc msws_12 zcq pseq fss abc s_lanss lefs uefi prtee ffi sirsi visa_a visa_p visa_g fabq dhi wdq ears ompsq10 bq_lumbar bq_cuello start_msk"
+      "koos hoos koos12 hoos12 faos oks ohs oss oes womac hit6 tsk11 dn4 ihot12 hagos wosi worc msws_12 zcq pseq fss abc s_lanss lefs uefi prtee ffi sirsi visa_a visa_p visa_g fabq dhi wdq ears ompsq10 bq_lumbar bq_cuello start_msk dash bipq"
         .split(" ")
         .sort(),
     );
     expect(ids((k) => !!k.scoreOnly && !k.retired)).toEqual(
-      "quickdash odi ndi sbst ikdc rmdq pss10 promis_10 iciq_ui_sf eq5d5l cat midas cpaq8 back_paq10 pcs isi bpi_sf paindetect csi spadi pgq prwe rnpq acl_rsi alr_rsi ostrc_h2 dash"
+      "quickdash odi ndi sbst ikdc rmdq pss10 promis_10 iciq_ui_sf eq5d5l cat midas cpaq8 back_paq10 pcs isi bpi_sf paindetect csi spadi pgq prwe rnpq acl_rsi alr_rsi ostrc_h2"
         .split(" ")
         .sort(),
     );

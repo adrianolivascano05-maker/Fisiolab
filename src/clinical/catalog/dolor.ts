@@ -66,16 +66,6 @@ export const KINDS: QuestionnaireKind[] = [
     },
   },
   {
-    id: "bipq",
-    name: "Brief IPQ (percepción de la enfermedad)",
-    min: 0,
-    max: 80,
-    better: "lower",
-    topic: "Dolor, miedo y creencias",
-    hint: "Representación cognitiva y emocional que tiene el paciente de su problema (consecuencias, duración, control, eficacia del tratamiento, síntomas, preocupación, comprensión, impacto emocional); útil para orientar la educación en dolor y detectar creencias amenazantes.",
-    refs: "Broadbent et al., 2006 (original), DOI 10.1016/j.jpsychores.2005.10.020; Pacheco-Huergo et al., 2011 (validación lingüística española), DOI 10.1016/j.aprim.2010.11.022",
-  },
-  {
     id: "back_paq10",
     name: "Back-PAQ-10 (actitudes ante el dolor de espalda)",
     // Rango y sentido sin verificar en la ficha («ver hoja de puntuación del autor»): 10 frases de 5 respuestas

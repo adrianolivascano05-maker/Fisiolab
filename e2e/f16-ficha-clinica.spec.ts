@@ -135,7 +135,7 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByText("Sin sesiones todavía")).toBeVisible();
   });
 
-  test("F16-H5 cuestionarios: la PSFS en la app, el DASH por puntuación y su evolución", async ({ page }) => {
+  test("F16-H5 cuestionarios: la PSFS en la app, el BPI-SF por puntuación y su evolución", async ({ page }) => {
     await createPatient(page, { name: "Irene Cuestionarios" });
     await add(page, "Cuestionario").click();
     await page.getByRole("button", { name: /PSFS/ }).click();
@@ -163,21 +163,21 @@ test.describe("F16 Ficha clínica", () => {
     await expect(list).toContainText("6/10");
     await expect(list).toContainText(/en 2 pases \(\+3, mejor\)/);
 
-    // DASH: de solo nota (su hoja oficial), con su subescala y su rango.
+    // BPI-SF: de solo nota (su hoja oficial), con su subescala y su rango.
     await page.getByRole("link", { name: "Nuevo cuestionario" }).click();
-    await page.getByRole("button", { name: /^DASH \(miembro superior/ }).click();
-    await page.getByLabel("Puntuación", { exact: true }).fill("62");
+    await page.getByRole("button", { name: /^BPI-SF/ }).click();
+    await page.getByLabel("Puntuación", { exact: true }).fill("6");
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(page.getByText("Elige la subescala.")).toBeVisible();
-    await page.getByText("Cuerpo principal", { exact: true }).click();
-    await page.getByLabel("Puntuación", { exact: true }).fill("120");
+    await page.getByText("Intensidad", { exact: true }).click();
+    await page.getByLabel("Puntuación", { exact: true }).fill("12");
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
-    await expect(page.getByText("La puntuación va de 0 a 100.")).toBeVisible();
-    await page.getByLabel("Puntuación", { exact: true }).fill("62");
+    await expect(page.getByText("La puntuación va de 0 a 10.")).toBeVisible();
+    await page.getByLabel("Puntuación", { exact: true }).fill("6");
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
-    await expect(list).toContainText("DASH (miembro superior, versión completa) · Cuerpo principal");
-    await expect(list).toContainText("62/100");
+    await expect(list).toContainText("BPI-SF (Cuestionario Breve del Dolor) · Intensidad");
+    await expect(list).toContainText("6/10");
 
     await tab(page, "Resumen").click();
     await expect(page.getByRole("region", { name: "Situación" })).toContainText("Último cuestionario");
@@ -186,12 +186,12 @@ test.describe("F16 Ficha clínica", () => {
     await tab(page, "Valoración").click();
 
     // Corregir y borrar.
-    await page.getByRole("list", { name: "Cuestionarios" }).getByRole("link", { name: /DASH/ }).click();
-    await expect(page.getByLabel("Puntuación", { exact: true })).toHaveValue("62");
+    await page.getByRole("list", { name: "Cuestionarios" }).getByRole("link", { name: /BPI-SF/ }).click();
+    await expect(page.getByLabel("Puntuación", { exact: true })).toHaveValue("6");
     await page.getByRole("button", { name: "Borrar cuestionario" }).click();
     await page.getByRole("dialog", { name: "¿Borrar este cuestionario?" }).getByRole("button", { name: "Borrar" }).click();
     await expect(list).toContainText("PSFS");
-    await expect(list).not.toContainText("DASH");
+    await expect(list).not.toContainText("BPI-SF");
   });
 
   test("F16-H8 cuestionarios enteros en la app: la nota se calcula sola y se guarda", async ({ page }) => {
