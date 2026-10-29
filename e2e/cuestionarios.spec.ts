@@ -81,4 +81,17 @@ test.describe("Cuestionarios nuevos", () => {
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(page.getByRole("list", { name: "Cuestionarios" })).toContainText("painDETECT");
   });
+
+  test("CQ4 los libres, enteros en la app, con sus autores y el aviso de que la traducción es de trabajo", async ({ page }) => {
+    const record = await newPatient(page, "Laura Libre");
+    await page.goto(`${record}/cuestionarios/nuevo?tipo=phq9`);
+    await expect(page.getByText(/^Autores: Kroenke, Spitzer y Williams, 2001/)).toBeVisible();
+    await expect(page.getByText(/^Traducción de trabajo: no se ha comprobado/)).toBeVisible();
+    await expectAccessible(page);
+    await page.goto("./biblioteca/cuestionarios/rand36");
+    await expect(page.getByRole("heading", { name: /^RAND-36/, level: 1 })).toBeVisible();
+    await expect(page.getByText(/^Autores: RAND Health, 1992/)).toBeVisible();
+    await expect(page.getByText(/^Traducción de trabajo/)).toBeVisible();
+    await expect(page.getByText(/SF-36/)).toHaveCount(0);
+  });
 });

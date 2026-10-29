@@ -65,4 +65,5 @@ const FORMS: QuestionForm[] = [
 ];
 
 export const formFor = (kind: string): QuestionForm | undefined => FORMS.find((f) => f.id === kind);
+export { citeOf, WORKING_TRANSLATION } from "./types";
 export type { Answers, FormScore, Item, QuestionForm } from "./types";

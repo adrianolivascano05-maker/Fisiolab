@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ACTIVE, QUESTIONNAIRES } from "../questionnaires";
-import { formFor } from ".";
+import { citeOf, formFor, WORKING_TRANSLATION } from ".";
 
 describe("cuestionarios enteros", () => {
   it("todos los que se pueden pasar (salvo PSFS, cambio global y mapa del dolor, que tienen su pantalla) y no son de solo nota se rellenan enteros en la app", () => {
@@ -69,5 +69,19 @@ describe("cuestionarios enteros", () => {
       const r = f.score(all);
       for (const sub of r.subscores ?? []) expect(k.subscales, `${k.id}: ${sub.name}`).toContain(sub.name);
     }
+  });
+});
+
+describe("cita y traducción", () => {
+  it("cada uno que se rellena en la app tiene la cita de sus autores, sin la nota de texto de trabajo", () => {
+    for (const k of ACTIVE.filter((q) => !q.inApp && !q.scoreOnly)) {
+      const cite = citeOf(formFor(k.id)!);
+      expect(cite.length, k.id).toBeGreaterThan(10);
+      expect(cite, k.id).toMatch(/\d{4}/);
+      expect(cite, k.id).not.toMatch(/Texto de trabajo/);
+    }
+  });
+  it("el aviso de la traducción no dice que esté validada", () => {
+    expect(WORKING_TRANSLATION).toMatch(/no se ha comprobado/);
   });
 });

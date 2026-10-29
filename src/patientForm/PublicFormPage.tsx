@@ -8,7 +8,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { AnswerValue } from "../data/clinical";
 import { FieldInput } from "../clinical/FieldInput";
 import { FormFill, formResult } from "../clinical/FormFill";
-import { formFor, type Answers as FormAnswers } from "../clinical/forms";
+import { citeOf, formFor, type Answers as FormAnswers } from "../clinical/forms";
 import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, PRIVACY_KIND, seal, unseal, type FormRequest, type SentDoc } from "../clinical/patientForms";
 import { SignConsent, signedResponse, signMissing, SignPrivacy } from "./SignDocument";
 import { sizeText } from "../data/documents";
@@ -202,6 +202,7 @@ export function PublicFormPage() {
               </Card>
             ))}
             {form && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} />}
+            {form && <p className="text-xs text-text-muted">Autores del cuestionario: {citeOf(form)}.</p>}
             {signing?.kind === "privacy" && <SignPrivacy toSign={signing.toSign} answers={answers} onChange={setAnswers} />}
             {signing?.kind === "consent" && <SignConsent toSign={signing.toSign} answers={answers} onChange={setAnswers} />}
             {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && !signing && (

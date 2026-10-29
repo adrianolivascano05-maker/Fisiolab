@@ -743,3 +743,9 @@ sanitaria: son los cambios que pide la revisión.
   con el formulario recogido. La clínica de prueba usa solo cuestionarios libres o de nota. **Por decidir:** el DASH
   completo (de pago, del mismo titular que el QuickDASH) queda como de solo nota con el enlace del QuickDASH, y el
   Brief IPQ, que la revisión no nombra, sigue entero en la app.
+- **10. Los libres, enteros en la app, con sus autores.** Los 31 de la lista (y el Brief IPQ, por decidir) se
+  rellenan enteros. Al pasarlo y en su ficha de la Biblioteca salen «Autores: …» (la cita) y el aviso «Traducción de
+  trabajo: no se ha comprobado que sea el texto de la versión española validada»; al paciente, en su móvil, los
+  autores. El aviso va en todos porque ninguno se ha cotejado palabra por palabra con la versión española publicada
+  (lo decía el propio código de cada uno; el FAAM dice basarse en la FAAM-Sp, pero tampoco está cotejado). El
+  RAND-36 no se llama «SF-36» en ningún sitio.

@@ -8,6 +8,7 @@ import { Page } from "../app/Page";
 import { useQuickMeasure } from "../app/quickMeasure";
 import { ForPatient } from "../clinical/RegisterInPatient";
 import { formFor } from "../clinical/forms";
+import { FormCredits } from "../clinical/FormCredits";
 import { OfficialLink } from "../clinical/OfficialLink";
 import { ACTIVE, getKind, TOPICS, type QuestionnaireKind } from "../clinical/questionnaires";
 import { Card } from "../ui/Card";
@@ -158,8 +159,7 @@ export function QuestionnaireCard() {
 
       {k.link && <OfficialLink link={k.link} />}
 
-      {form?.source && <p className="text-xs text-text-muted">{form.source}</p>}
-      {k.refs && <p className="text-xs text-text-muted">{k.refs}</p>}
+      {form ? <FormCredits form={form} refs={k.refs} /> : k.refs && <p className="text-xs text-text-muted">{k.refs}</p>}
     </Page>
   );
 }

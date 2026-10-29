@@ -20,6 +20,7 @@ import { parseMarks } from "./bodyMap";
 import { Chips, NumberScale, TextArea } from "./parts";
 import { bandText, byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, TOPICS, type Better, type QDetails } from "./questionnaires";
 import { formFor, type Answers as FormAnswers } from "./forms";
+import { FormCredits } from "./FormCredits";
 import { FormFill, formResult } from "./FormFill";
 import { OfficialLink } from "./OfficialLink";
 import { SENDABLE } from "./patientForms";
@@ -285,7 +286,7 @@ export function QuestionnaireFormPage() {
         {!retired && !known?.inApp && kind !== OTHER && !filling && <p className="text-sm text-text-muted">Pásalo con su hoja oficial y escribe aquí la puntuación total.</p>}
         {known?.reading && <p className="text-sm">{known.reading}</p>}
         {known?.link && <OfficialLink link={known.link} />}
-        {known?.refs && <p className="text-xs text-text-muted">{known.refs}</p>}
+        {form ? <FormCredits form={form} refs={known?.refs} /> : known?.refs && <p className="text-xs text-text-muted">{known.refs}</p>}
         {previous && (
           <p className="text-sm">
             La última vez: <span className="nums font-semibold">{scoreText(k, previous.score)}</span> el {fmtDate(previous.performedAt)}

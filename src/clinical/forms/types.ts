@@ -53,6 +53,16 @@ export type QuestionForm = {
   source: string;
 };
 
+/** La cita de sus autores (lo que dice `source` sin la nota de que es un texto de trabajo). */
+export const citeOf = (f: QuestionForm) => f.source.split(/\s*(?:Texto de trabajo|El grupo FES-I)/)[0]!.trim().replace(/[.;]$/, "");
+
+/**
+ * Lo que se dice de la traducción de todos los que se rellenan en la app: ninguno se ha cotejado con la versión
+ * española validada, así que no se puede decir que lo sea.
+ */
+export const WORKING_TRANSLATION =
+  "Traducción de trabajo: no se ha comprobado que sea el texto de la versión española validada. Cotéjalo con la publicada antes de usarlo en consulta.";
+
 /** Las respuestas contestadas (sin «No aplica») de unos ítems. */
 export function answered(a: Answers, ids: string[]): number[] {
   return ids.map((id) => a[id]).filter((v): v is number => typeof v === "number");
