@@ -29,7 +29,8 @@ export async function uploadPatientForm(
   const id = newFormId();
   const key = newFormKey();
   const expiresAt = new Date(Date.now() + FORM_DAYS * 86_400_000).toISOString();
-  const brand = await formBrand(currentBrand(), await getClinic(db).catch(() => ({})));
+  const clinic = await getClinic(db).catch(() => null);
+  const brand = await formBrand(currentBrand(), clinic ?? {});
   const request: FormRequest = {
     v: 1,
     clinic: p.clinicName,
@@ -39,6 +40,7 @@ export async function uploadPatientForm(
     expiresAt,
     ...(brand ? { brand } : {}),
     ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}),
+    controller: { name: clinic?.name || p.clinicName, email: clinic?.email ?? "" },
   };
   await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt, ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}) });
   const episodeId = await currentEpisode(db, p.patientId);

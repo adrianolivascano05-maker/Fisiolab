@@ -37,6 +37,11 @@ export type FormRequest = {
   brand?: FormBrand;
   /** Si se le piden archivos, cuántos puede subir. */
   maxDocs?: number;
+  /**
+   * El responsable del tratamiento y el correo para ejercer los derechos (Ajustes › Clínica y protección de datos),
+   * para el texto informativo del principio. Los formularios mandados antes no lo llevan.
+   */
+  controller?: { name: string; email: string };
 };
 /**
  * Lo que vuelve cifrado: las respuestas por id de campo (anamnesis) o de ítem (cuestionario); si se le pidieron archivos,

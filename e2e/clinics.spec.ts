@@ -730,6 +730,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     // El teléfono de la clínica, para el pie de la página del paciente.
     await page.goto("./ajustes/clinica");
     await page.getByLabel("Teléfono").fill("600 000 001");
+    await page.getByLabel("Correo para ejercer los derechos").fill("datos@aurora.test");
     await page.getByRole("button", { name: "Guardar los datos de la clínica" }).click();
     await expect(page.getByText("Datos de la clínica guardados")).toBeVisible();
     // Privacidad, con el servidor de la clínica: dónde están los datos y quién puede verlos.
@@ -778,7 +779,13 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     // El lema, el texto de bienvenida, el contacto al pie y las esquinas rectas viajan también en el sobre.
     await expect(phone.getByRole("banner")).toContainText("Fisioterapia de barrio");
     await expect(phone.getByText("Gracias por rellenarlo antes de venir.")).toBeVisible();
-    await expect(phone.getByText("¿Dudas? Fisiolab Centro: 600 000 001")).toBeVisible();
+    await expect(phone.getByText(/¿Dudas\? Fisiolab Centro: 600 000 001/)).toBeVisible();
+    // Lo primero: adónde van sus respuestas, cifradas, quién es el responsable y cómo ejercer sus derechos.
+    const notice = phone.getByRole("region", { name: "Tus datos" });
+    await expect(notice).toContainText("Tus respuestas van cifradas desde tu móvil directamente a la historia clínica de Fisiolab Centro");
+    await expect(notice).toContainText("ni OmniClin, que da el servicio a la clínica");
+    await expect(notice).toContainText("Responsable: Fisiolab Centro, datos@aurora.test.");
+    await expect(notice).toContainText("Puedes pedir ver, corregir o borrar tus datos escribiendo a la clínica.");
     expect(await phone.getByRole("button", { name: "Enviar" }).evaluate((el) => getComputedStyle(el).borderRadius)).toBe("0px");
     // Lo del fisioterapeuta no se le pregunta.
     await expect(phone.getByText("Banderas rojas")).toHaveCount(0);

@@ -686,3 +686,12 @@ sanitaria: son los cambios que pide la revisión.
   «En el evento sale: el nombre del paciente» de Ajustes › Google Calendar; quien la tuviera elegida pasa a
   iniciales en la siguiente sincronización. El id interno (`@cenit-fisiolab`) se queda. Ayuda, README y política de
   privacidad al día.
+- **5. Información al paciente en su formulario.** Lo primero que lee al abrir el enlace (cuestionarios, anamnesis o
+  archivos): «Tus respuestas van cifradas desde tu móvil directamente a la historia clínica de [Clínica]. Nadie más
+  puede leerlas: ni OmniClin, que da el servicio a la clínica, ni el servidor por donde pasan, que las guarda en la
+  Unión Europea. Responsable: [Clínica], [correo]. Puedes pedir ver, corregir o borrar tus datos escribiendo a la
+  clínica.» Cambio sobre la propuesta: «que las guarda en la Unión Europea» en vez de «que está en la Unión
+  Europea», porque lo que está en la UE es donde se guardan (D1 y R2 con jurisdicción UE); el Worker de Cloudflare
+  atiende desde el punto de su red más cercano. El nombre y el correo salen de Ajustes › Clínica y protección de
+  datos y viajan en el sobre cifrado (`controller` en `FormRequest`); sin nombre, el de la clínica del servidor. Si
+  faltan, la pantalla de enviar formularios lo avisa. Los enlaces mandados antes salen sin correo.

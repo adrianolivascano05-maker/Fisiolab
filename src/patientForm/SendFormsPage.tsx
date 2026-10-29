@@ -26,7 +26,7 @@ import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { useGranted } from "../data/questionnairePermissions";
 import { cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
-import { getClinic } from "../data/privacy";
+import { clinicComplete, getClinic } from "../data/privacy";
 import { getPatient, type Patient } from "../data/repo";
 import { loadMessages, messageSubject, type MessageSettings } from "../messages/templates";
 import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
@@ -60,7 +60,7 @@ export function SendFormsPage() {
   const data = useAsync(async () => {
     const db = getDb();
     const [patient, forms, clinic, messages] = await Promise.all([getPatient(db, id), listSentForms(db, id), getClinic(db), loadMessages(db)]);
-    return { patient, forms, clinicName: clinic.name || cloud?.clinic?.name || "", messages };
+    return { patient, forms, clinicName: clinic.name || cloud?.clinic?.name || "", clinicReady: clinicComplete(clinic), messages };
   }, [id, version]);
   const [choosing, setChoosing] = useState<string | null>(params.get("enviar"));
   const [sharing, setSharing] = useState<SentForm | null>(null);
@@ -70,7 +70,7 @@ export function SendFormsPage() {
 
   if (data.error) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Formularios para el paciente" backTo={back}><Loading /></Page>;
-  const { patient, forms, clinicName, messages } = data.data;
+  const { patient, forms, clinicName, clinicReady, messages } = data.data;
   if (!patient) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const online = !!(cloud?.clinic && cloud.clinics);
   const closeChooser = () => {
@@ -84,6 +84,15 @@ export function SendFormsPage() {
         Mándale a {patient.name} su parte de la anamnesis o un cuestionario para que lo rellene desde su móvil, sin cuenta ni app. Lo que conteste se pone solo en
         su ficha: en la anamnesis, solo donde no hayas escrito nada.
       </p>
+      {online && !clinicReady && (
+        <Alert tone="warning" title="Faltan los datos de la clínica">
+          El formulario empieza diciendo al paciente quién es el responsable de sus datos y a qué correo escribir. Rellena el nombre y el correo en{" "}
+          <Link to="/ajustes/clinica" className="py-3 font-semibold underline underline-offset-2">
+            Ajustes › Clínica y protección de datos
+          </Link>
+          .
+        </Alert>
+      )}
       {!online ? (
         <Alert tone="info" title="Hace falta el servidor de la clínica">
           Para mandar formularios tienes que trabajar en una clínica con el servidor de OmniClin:{" "}

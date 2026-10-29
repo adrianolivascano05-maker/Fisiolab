@@ -156,6 +156,7 @@ export function PublicFormPage() {
         {request && (
           <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
             <h1 className="text-2xl leading-tight font-bold">{request.name ? `Hola, ${request.name}` : "Hola"}</h1>
+            <DataNotice request={request} />
             {request.brand?.patient?.welcome && <p className="text-lg">{request.brand.patient.welcome}</p>}
             {request.kind === DOCS_KIND ? (
               <p>
@@ -168,12 +169,6 @@ export function PublicFormPage() {
                 {request.kind === ANAMNESIS_KIND ? "Contesta lo que sepas; lo demás lo hablaréis en la consulta." : form?.instructions}
               </p>
             )}
-            <p className="flex gap-2 rounded-md bg-bg p-3 text-sm text-text-muted">
-              <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              {request.kind === DOCS_KIND
-                ? "Tus archivos salen cifrados de tu móvil y solo los puede abrir tu fisioterapeuta, que los guardará en tu historia clínica. Si tienes dudas, pregunta en la clínica."
-                : "Tus respuestas salen cifradas de tu móvil y solo las puede leer tu fisioterapeuta, que las guardará en tu historia clínica. Si tienes dudas, pregunta en la clínica."}
-            </p>
             {request.kind === DOCS_KIND && (
               <DocsUpload
                 formId={id}
@@ -318,5 +313,26 @@ function DocsUpload({ formId, linkKey, max, docs, onChange }: { formId: string; 
         </Alert>
       )}
     </Card>
+  );
+}
+
+/**
+ * Lo primero que lee el paciente: adónde van sus respuestas, que van cifradas, quién es el responsable y cómo ejercer
+ * sus derechos. Con los datos de Ajustes › Clínica y protección de datos que viajan en el sobre cifrado.
+ */
+function DataNotice({ request }: { request: FormRequest }) {
+  const clinic = request.controller?.name || request.clinic || "tu clínica";
+  const email = request.controller?.email ?? "";
+  const docs = request.kind === DOCS_KIND;
+  return (
+    <section aria-label="Tus datos" className="flex gap-2 rounded-md bg-bg p-3 text-sm">
+      <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-text-muted" />
+      <p>
+        {docs ? "Tus archivos van cifrados" : "Tus respuestas van cifradas"} desde tu móvil directamente a la historia clínica de {clinic}. Nadie más puede{" "}
+        {docs ? "abrirlos" : "leerlas"}: ni OmniClin, que da el servicio a la clínica, ni el servidor por donde {docs ? "pasan, que los guarda" : "pasan, que las guarda"} en
+        la Unión Europea. Responsable: {clinic}
+        {email ? `, ${email}` : ""}. Puedes pedir ver, corregir o borrar tus datos escribiendo a la clínica.
+      </p>
+    </section>
   );
 }
