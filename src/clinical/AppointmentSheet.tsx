@@ -1,39 +1,33 @@
 // Dar, cambiar o cerrar una cita (src/data/appointments.ts): desde la cabecera de la ficha (la próxima cita o «Dar
 // cita») y desde la agenda de hoy en Pacientes. Al cambiar algo se recargan las pantallas (y, con la cuenta de
 // Google, el calendario se pone al día solo). En una clínica, también con quién es (el horario, src/schedule).
-import { CalendarClock, CalendarX2, ChevronDown, FileCheck, Hourglass, Mail, MessageCircle, NotebookPen, Pencil, Phone, RotateCcw, Trash, UserPlus, UserRound, UserX, Wallet, ChevronRight } from "lucide-react";
+// El formulario está en AppointmentForm.tsx y los paneles (recordar, cobrar, «No vino», hueco libre) en
+// appointmentPanels.tsx; aquí, el estado de la hoja y la vista de la cita.
+import { CalendarX2, ChevronDown, FileCheck, NotebookPen, Pencil, RotateCcw, Trash, UserRound, UserX, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
 import { madridDay } from "../app/format";
 import { getClinic } from "../data/privacy";
 import { loadMessages, messageSubject } from "../messages/templates";
-import { appointmentVars, mailtoUrl, reminderMessage, waPhone, whatsappUrl } from "../schedule/reminders";
-import { clashes, createAppointment, createWeekly, deleteAppointment, markConfirmed, markReminded, STATUS_LABELS, updateAppointment, type AgendaItem, type Appointment, type AppointmentStatus } from "../data/appointments";
+import { appointmentVars, reminderMessage, waPhone } from "../schedule/reminders";
+import { deleteAppointment, STATUS_LABELS, updateAppointment, type Appointment, type AppointmentStatus } from "../data/appointments";
 import { useAsync } from "../app/useAsync";
-import { accountLine, addPayment, euros, getPricing, patientAccount } from "../data/billing";
+import { getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
-import { findPatients } from "../data/patientSearch";
-import { createPatient, getPatient, QUICK_PATIENT } from "../data/repo";
+import { getPatient } from "../data/repo";
 import { editText, lastEditOf } from "../data/editors";
-import { memberEmail } from "../data/member";
 import { listWaitlist } from "../data/waitlist";
 import { staffName, useStaff } from "../schedule/useStaff";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
-import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent } from "./calendar";
-import { CalendarButton } from "./CalendarButton";
+import { fmtVisit, visitEvent } from "./calendar";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
-import { PaymentForm } from "./billingForms";
-import { localInput, todayDay } from "./pageKit";
-import { Chips } from "./parts";
-
-const DURATIONS = ["30", "45", "60", "90"];
-/** Una serie de sesiones: cuántas citas, una por semana. */
-const REPEATS = [1, 2, 3, 4, 5, 6, 8, 10, 12];
+import { todayDay } from "./pageKit";
+import { AppointmentForm, useAppointmentForm } from "./AppointmentForm";
+import { FreedSlotPanel, MissedPanel, PayPanel, ReminderActions, type FreedSlot } from "./appointmentPanels";
 
 export function AppointmentSheet({
   open,
@@ -64,18 +58,14 @@ export function AppointmentSheet({
   /** Al dar una cita nueva (después de guardarla): p. ej., preguntar si sale de la lista de espera. */
   onCreated?: (patientId: string) => void;
 }) {
-  const [picked, setPicked] = useState<{ id: string; name: string } | null>(null);
-  const patientId = fixedPatient ?? picked?.id ?? "";
   const toast = useToast();
   const [editing, setEditing] = useState(!appointment);
-  const [when, setWhen] = useState("");
-  const [minutes, setMinutes] = useState(DEFAULT_VISIT_MINUTES);
   const staff = useStaff();
   const autoCalendar = useAutoCalendar();
   const edit = useAsync(async () => (open && appointment && staff.length ? lastEditOf(getDb(), "appointments", appointment.id) : null), [open, appointment?.id, staff.length]);
   const lastEdit = edit.data;
-  const [assignedTo, setAssignedTo] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   /** Su cuenta (bono y pendiente, para cobrar aquí mismo) y cómo recordarle la cita (teléfono, correo, permiso, mensaje). */
   const extra = useAsync(async () => {
     if (!open || !appointment) return null;
@@ -105,7 +95,6 @@ export function AppointmentSheet({
       subject: messageSubject("recordatorio", messages, appointmentVars(vars)),
     };
   }, [open, appointment?.id, appointment?.startsAt]);
-  const [paying, setPaying] = useState(false);
   /** Anular o borrar: primero se pregunta. */
   const [confirming, setConfirming] = useState<"cancel" | "delete" | null>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -114,42 +103,23 @@ export function AppointmentSheet({
   }, [confirming]);
   /** Antes del día de la cita («future»), el día o después sin marcar («now»), o ya marcada. */
   const phase = !appointment || appointment.status !== "scheduled" ? "marked" : madridDay(appointment.startsAt) > madridDay(new Date().toISOString()) ? "future" : "now";
-  const [error, setError] = useState<string | null>(null);
-  const [repeat, setRepeat] = useState(1);
-  /** Citas que ya hay a esa hora: se avisa antes de dar la cita. */
-  const [clash, setClash] = useState<AgendaItem[] | null>(null);
   /** Al anular o borrar una cita futura con gente en la lista de espera: el hueco, para ofrecérselo. */
-  const [freed, setFreed] = useState<{ startsAt: string; minutes: number; assignedTo: string | null; waiting: number; patientId: string } | null>(null);
+  const [freed, setFreed] = useState<FreedSlot | null>(null);
   /** Después de «No vino»: la cita marcada, para deshacerlo o darle otra. */
   const [missed, setMissed] = useState<Appointment | null>(null);
-  /** La nueva cita tras «No vino»: por defecto, la semana siguiente a la misma hora; se puede poner cualquiera. */
-  const [rebookAt, setRebookAt] = useState("");
-  const [rebookClash, setRebookClash] = useState<AgendaItem[] | null>(null);
   useEffect(() => {
     if (open) {
       setFreed(null);
       setMissed(null);
-      setPaying(false);
       setConfirming(null);
     }
   }, [open]);
-  /** El panel del hueco libre sustituye a los botones: el foco, a su acción principal. */
-  const offerRef = useRef<HTMLAnchorElement>(null);
-  useEffect(() => {
-    if (freed) offerRef.current?.focus();
-  }, [freed]);
 
-  // Cada vez que se abre: con los datos de la cita, o vacía para dar una nueva.
+  // Cada vez que se abre: ver la cita, o el formulario vacío para dar una nueva.
   useEffect(() => {
     if (!open) return;
     setEditing(!appointment);
-    setWhen(appointment ? localInput(appointment.startsAt) : start ? localInput(start) : "");
-    setMinutes(appointment?.minutes ?? DEFAULT_VISIT_MINUTES);
-    setAssignedTo(appointment ? (appointment.assignedTo ?? "") : person !== undefined ? (person ?? "") : (memberEmail() ?? ""));
-    setPicked(null);
     setError(null);
-    setRepeat(1);
-    setClash(null);
   }, [open, appointment, start, person]);
 
   async function run(work: () => Promise<unknown>, done: string, after?: () => void) {
@@ -168,35 +138,8 @@ export function AppointmentSheet({
     }
   }
 
-  const save = async (anyway = false) => {
-    if (!patientId) return setError("Elige el paciente.");
-    if (!when) return setError("Pon el día y la hora de la cita.");
-    const startsAt = new Date(when).toISOString();
-    // Sin equipo (sin clínica) no se toca con quién es.
-    const who = staff.length ? { assignedTo: assignedTo || null } : {};
-    const count = appointment ? 1 : repeat;
-    if (!anyway) {
-      // ¿Ya hay algo a esa hora (de esa persona, en una clínica)? Se avisa; se puede dar igualmente.
-      const found: AgendaItem[] = [];
-      for (let i = 0; i < count; i++) {
-        const d = new Date(when);
-        d.setDate(d.getDate() + 7 * i);
-        found.push(...(await clashes(getDb(), d.toISOString(), minutes, staff.length ? who.assignedTo : undefined, appointment?.id)));
-      }
-      if (found.length) return setClash(found);
-    }
-    setClash(null);
-    const last = new Date(when);
-    last.setDate(last.getDate() + 7 * (count - 1));
-    return run(
-      () =>
-        appointment
-          ? updateAppointment(getDb(), appointment.id, { startsAt, minutes, ...who })
-          : createWeekly(getDb(), patientId, { startsAt, minutes, ...who }, count),
-      appointment ? "Cita cambiada" : count > 1 ? `${count} citas dadas, una por semana hasta el ${fmtVisit(last.toISOString()).replace(/,.*$/, "")}` : "Cita dada",
-      appointment ? undefined : () => onCreated?.(patientId),
-    );
-  };
+  const form = useAppointmentForm({ open, appointment, start, person, fixedPatient, staff, run, setError, onCreated });
+  const patientId = form.patientId;
   const setStatus = (status: AppointmentStatus, done: string) => run(() => updateAppointment(getDb(), appointment!.id, { status }), done);
   /** «No vino»: se anota y, en vez de cerrar, se ofrece darle otra cita o deshacerlo. */
   async function markMissed() {
@@ -207,8 +150,6 @@ export function AppointmentSheet({
       await updateAppointment(getDb(), a.id, { status: "no_show" });
       bumpData("appointments");
       setMissed(a);
-      setRebookAt(localInput(daysLater(a.startsAt, 7)));
-      setRebookClash(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -234,12 +175,6 @@ export function AppointmentSheet({
       setBusy(false);
     }
   }
-  /** La misma hora del reloj unos días después (también si cambia la hora entre medias). */
-  const daysLater = (iso: string, days: number) => {
-    const d = new Date(iso);
-    d.setDate(d.getDate() + days);
-    return d.toISOString();
-  };
   /** Mover la cita sin escribir: una hora, un día o una semana antes o después. */
   const nudge = (minutes: number, label: string) => {
     const d = new Date(appointment!.startsAt);
@@ -247,79 +182,14 @@ export function AppointmentSheet({
     else d.setMinutes(d.getMinutes() + minutes);
     return run(() => updateAppointment(getDb(), appointment!.id, { startsAt: d.toISOString() }), `Cita movida ${label}: ${fmtVisit(d.toISOString())}`);
   };
-  const name = patientName ?? picked?.name ?? "";
+  const name = patientName ?? form.picked?.name ?? "";
 
   return (
     <Sheet open={open} onClose={onClose} title={missed ? `No vino: ${name}` : freed ? "Hueco libre" : appointment && !editing ? `Cita de ${name}` : appointment ? "Cambiar la cita" : patientName ? `Dar cita a ${patientName}` : "Nueva cita"}>
       {missed ? (
-        <div className="flex flex-col gap-3">
-          <p>
-            Anotado que no vino a la cita del <span className="font-semibold">{fmtVisit(missed.startsAt)}</span>. ¿Le das otra? Elige el día y la hora que quieras.
-          </p>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Atajos para la nueva cita">
-            {[1, 2, 7, 14].map((d) => (
-              <Button key={d} size="sm" variant={rebookAt === localInput(daysLater(missed.startsAt, d)) ? "primary" : "secondary"} onClick={() => setRebookAt(localInput(daysLater(missed.startsAt, d)))}>
-                {d === 1 ? "Al día siguiente" : d === 2 ? "En 2 días" : d === 7 ? "En 1 semana" : "En 2 semanas"}
-              </Button>
-            ))}
-          </div>
-          <TextField
-            label="Nueva cita"
-            type="datetime-local"
-            value={rebookAt}
-            onChange={(e) => {
-              setRebookAt(e.target.value);
-              setRebookClash(null);
-            }}
-            hint="A la misma hora; cambia el día o la hora como quieras."
-          />
-          {rebookClash && rebookClash.length > 0 && (
-            <Alert tone="warning" title={rebookClash.length === 1 ? "A esa hora ya hay otra cita" : `A esa hora ya hay ${rebookClash.length} citas`}>
-              {rebookClash.map((c) => `${c.name} (${fmtVisit(c.startsAt)})`).join(" · ")}. Puedes darla igualmente o elegir otra hora.
-            </Alert>
-          )}
-          <Button
-            loading={busy}
-            disabled={!rebookAt}
-            icon={<CalendarClock aria-hidden="true" className="size-5" />}
-            onClick={async () => {
-              const startsAt = new Date(rebookAt).toISOString();
-              if (!rebookClash) {
-                const found = await clashes(getDb(), startsAt, missed.minutes, staff.length ? (missed.assignedTo ?? null) : undefined);
-                if (found.length) return setRebookClash(found);
-              }
-              void run(
-                () => createAppointment(getDb(), missed.patientId, { startsAt, minutes: missed.minutes, assignedTo: missed.assignedTo ?? null }),
-                `Nueva cita: ${fmtVisit(startsAt)}`,
-              );
-            }}
-          >
-            {rebookClash?.length ? "Darle la cita igualmente" : "Darle esta cita"}
-          </Button>
-          <Button variant="secondary" loading={busy} icon={<RotateCcw aria-hidden="true" className="size-5" />} onClick={() => void run(() => updateAppointment(getDb(), missed.id, { status: "scheduled" }), "Deshecho: la cita vuelve a estar pendiente")}>
-            Deshacer «No vino»
-          </Button>
-          <Button variant="ghost" onClick={onClose}>
-            Listo
-          </Button>
-        </div>
+        <MissedPanel missed={missed} staff={staff} busy={busy} run={run} onClose={onClose} />
       ) : freed ? (
-        <div className="flex flex-col gap-3">
-          <Alert tone="info" title={freed.waiting === 1 ? "Hay 1 paciente en la lista de espera" : `Hay ${freed.waiting} pacientes en la lista de espera`}>
-            Se ha quedado libre el hueco del {fmtVisit(freed.startsAt)}. ¿Se lo ofreces?
-          </Alert>
-          <Link
-            ref={offerRef}
-            to={`/agenda/espera?${new URLSearchParams({ hueco: freed.startsAt, min: String(freed.minutes), sin: freed.patientId, ...(freed.assignedTo ? { con: freed.assignedTo } : {}) })}`}
-            onClick={onClose}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover"
-          >
-            <Hourglass aria-hidden="true" className="size-5" /> Ofrecer el hueco
-          </Link>
-          <Button variant="secondary" onClick={onClose}>
-            Ahora no
-          </Button>
-        </div>
+        <FreedSlotPanel freed={freed} onClose={onClose} />
       ) : appointment && !editing ? (
         <>
           <p>
@@ -346,53 +216,7 @@ export function AppointmentSheet({
           </Link>
 
           {/* Antes del día de la cita: recordarla. El día de la cita (o después, sin marcar): atenderla. */}
-          {phase === "future" && extra.data && (
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap gap-2">
-                {extra.data.contact !== false && extra.data.wa && (
-                  <a
-                    href={whatsappUrl(extra.data.wa, extra.data.reminder)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-hover"
-                    onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData("appointments"))}
-                  >
-                    <MessageCircle aria-hidden="true" className="size-5" /> Recordar por WhatsApp
-                  </a>
-                )}
-                {extra.data.contact !== false && extra.data.email && (
-                  <a
-                    href={mailtoUrl(extra.data.email, extra.data.subject, extra.data.reminder)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
-                    onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData("appointments"))}
-                  >
-                    <Mail aria-hidden="true" className="size-5" /> Correo
-                  </a>
-                )}
-                {extra.data.phone && (
-                  <a href={`tel:${extra.data.phone.replace(/\s+/g, "")}`} className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface">
-                    <Phone aria-hidden="true" className="size-5" /> Llamar
-                  </a>
-                )}
-              </div>
-              {extra.data.contact === false && <p className="text-sm text-text-muted">No acepta WhatsApp ni correo.</p>}
-              {/* Sin Google Calendar conectado: pasar la cita al calendario del fisio (antes, un botón en la cabecera de la ficha). */}
-              {autoCalendar ? (
-                <p className="text-sm text-text-muted">Apuntada en tu Google Calendar</p>
-              ) : (
-                extra.data.event && <CalendarButton event={extra.data.event} />
-              )}
-              <Button
-                size="sm"
-                variant="ghost"
-                className="self-start"
-                loading={busy}
-                onClick={() => void run(() => markConfirmed(getDb(), appointment.id, !appointment.confirmedAt), appointment.confirmedAt ? "Confirmación quitada" : "Anotado: confirmada")}
-              >
-                {appointment.confirmedAt ? "Quitar la confirmación" : "Ha confirmado que viene"}
-              </Button>
-            </div>
-          )}
+          {phase === "future" && extra.data && <ReminderActions appointment={appointment} info={extra.data} autoCalendar={autoCalendar} busy={busy} run={run} />}
           {phase === "now" && (
             <div className="grid grid-cols-[2fr_1fr] gap-2">
               <Link
@@ -408,36 +232,7 @@ export function AppointmentSheet({
             </div>
           )}
 
-          {extra.data && (
-            <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm">
-                  <span className="font-semibold">Cuenta: </span>
-                  {accountLine(extra.data.a) ?? "al día"}
-                </p>
-                {!paying && (
-                  <Button size="sm" variant="secondary" icon={<Wallet aria-hidden="true" className="size-4" />} onClick={() => setPaying(true)}>
-                    Cobrar
-                  </Button>
-                )}
-              </div>
-              {paying && (
-                <PaymentForm
-                  today={todayDay()}
-                  suggested={extra.data.a.balanceCents > 0 ? extra.data.a.balanceCents : extra.data.pricing.sessionCents}
-                  concept="Sesión de fisioterapia"
-                  submitLabel="Cobrar"
-                  onSave={async (input) => {
-                    await addPayment(getDb(), appointment.patientId, input);
-                    setPaying(false);
-                    toast(`Cobrado: ${euros(input.amountCents)}`, "success");
-                    bumpData("payments");
-                    extra.reload();
-                  }}
-                />
-              )}
-            </div>
-          )}
+          {extra.data && <PayPanel account={extra.data.a} pricing={extra.data.pricing} patientId={appointment.patientId} onPaid={extra.reload} />}
 
           {/* Solo de una cita que ya ha empezado: el justificante dice que ha asistido. */}
           {(appointment.status === "done" || (appointment.status === "scheduled" && Date.parse(appointment.startsAt) <= Date.now())) && (
@@ -522,147 +317,9 @@ export function AppointmentSheet({
           )}
         </>
       ) : (
-        <form
-          className="flex flex-col gap-3"
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          {!fixedPatient && !appointment && <PatientPicker
-              picked={picked}
-              onPick={(p) => {
-                setPicked(p);
-                setError(null);
-              }}
-            />}
-          <TextField
-            label="Día y hora"
-            type="datetime-local"
-            value={when}
-            onChange={(e) => {
-              setWhen(e.target.value);
-              setClash(null);
-            }}
-          />
-          <Chips label="Duración" options={DURATIONS} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => v[0] && setMinutes(Number(v[0]))} />
-          {!appointment && (
-            <SelectField label="Repetir" value={repeat} onChange={(e) => setRepeat(Number(e.target.value))}>
-              {REPEATS.map((n) => (
-                <option key={n} value={n}>
-                  {n === 1 ? "No se repite" : `Cada semana, ${n} citas`}
-                </option>
-              ))}
-            </SelectField>
-          )}
-          {staff.length > 0 && (
-            <SelectField
-              label="Con quién"
-              value={assignedTo}
-              onChange={(e) => {
-                setAssignedTo(e.target.value);
-                setClash(null);
-              }}
-            >
-              <option value="">Sin asignar</option>
-              {staff.map((p) => (
-                <option key={p.email} value={p.email}>
-                  {p.name}
-                </option>
-              ))}
-              {assignedTo && !staff.some((p) => p.email === assignedTo) && <option value={assignedTo}>{assignedTo}</option>}
-            </SelectField>
-          )}
-          {clash && (
-            <Alert tone="warning" title={clash.length === 1 ? "A esa hora ya hay una cita" : `A esas horas ya hay ${clash.length} citas`}>
-              {clash
-                .slice(0, 3)
-                .map((c) => `${c.name}, ${fmtVisit(c.startsAt)}${staff.length && c.assignedTo ? ` (con ${staffName(staff, c.assignedTo)})` : ""}`)
-                .join(" · ")}
-              {clash.length > 3 ? "…" : ""}. Cambia la hora{staff.length ? " o con quién es" : ""}, o dala igualmente.
-            </Alert>
-          )}
-          <Button type="submit" block loading={busy}>
-            {appointment ? "Guardar el cambio" : repeat > 1 ? `Dar las ${repeat} citas` : "Dar la cita"}
-          </Button>
-          {clash && (
-            <Button variant="secondary" block loading={busy} onClick={() => void save(true)}>
-              {appointment ? "Guardar igualmente" : "Darla igualmente"}
-            </Button>
-          )}
-          {onShiftInstead && !appointment && (
-            <Button variant="ghost" block icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={onShiftInstead}>
-              Poner un turno aquí en vez de una cita
-            </Button>
-          )}
-          {appointment && (
-            <Button variant="secondary" block onClick={() => setEditing(false)}>
-              Volver
-            </Button>
-          )}
-        </form>
+        <AppointmentForm form={form} appointment={appointment} fixedPatient={fixedPatient} staff={staff} busy={busy} setError={setError} onShiftInstead={onShiftInstead} onBack={() => setEditing(false)} />
       )}
       {error && <Alert tone="danger" title={error} />}
     </Sheet>
-  );
-}
-
-/** Elegir el paciente de una cita nueva (desde la agenda): buscar por nombre o teléfono y tocarlo. */
-export function PatientPicker({ picked, onPick }: { picked: { id: string; name: string } | null; onPick: (p: { id: string; name: string } | null) => void }) {
-  const [q, setQ] = useState("");
-  const [adding, setAdding] = useState(false);
-  // En la base, sin cargarlos todos: los 6 primeros que coinciden.
-  const all = useAsync(async () => (await findPatients(getDb(), { search: q, limit: 7 })).rows.filter((p) => p.name !== QUICK_PATIENT).slice(0, 6), [q]);
-  const found = all.data ?? [];
-  if (picked)
-    return (
-      <div className="flex items-center justify-between gap-2 rounded-md bg-surface px-3 py-2">
-        <span>
-          Paciente: <span className="font-semibold">{picked.name}</span>
-        </span>
-        <Button size="sm" variant="ghost" onClick={() => onPick(null)}>
-          Cambiar
-        </Button>
-      </div>
-    );
-  const exact = found.some((p) => p.name.trim().toLowerCase() === q.trim().toLowerCase());
-  return (
-    <div className="flex flex-col gap-2">
-      <TextField label="Paciente" placeholder="Busca por nombre o teléfono" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} />
-      {/* Primero los que ya existen (con su teléfono, por si hay dos con el mismo nombre); crear uno nuevo, al final. */}
-      <ul aria-label="Pacientes" className="flex flex-col divide-y divide-border rounded-md border border-border">
-        {found.map((p) => (
-          <li key={p.id}>
-            <button type="button" className="tap flex w-full items-baseline justify-between gap-3 px-3 text-left hover:bg-surface" onClick={() => onPick({ id: p.id, name: p.name })}>
-              <span className="font-semibold">{p.name}</span>
-              {p.phone && <span className="text-sm text-text-muted">{p.phone}</span>}
-            </button>
-          </li>
-        ))}
-        {all.data && !found.length && <li className="px-3 py-2 text-sm text-text-muted">Ningún paciente con ese nombre.</li>}
-      </ul>
-      {q.trim() && !exact && (
-        <Button
-          variant="ghost"
-          className="self-start"
-          loading={adding}
-          icon={<UserPlus aria-hidden="true" className="size-5" />}
-          onClick={async () => {
-            setAdding(true);
-            try {
-              const name = q.trim().replace(/\s+/g, " ");
-              const id = await createPatient(getDb(), { name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
-              onPick({ id, name });
-            } finally {
-              setAdding(false);
-            }
-          }}
-        >
-          {found.length ? `No es ninguno: crear «${q.trim()}»` : `Paciente nuevo: «${q.trim()}»`}
-        </Button>
-      )}
-      {!q.trim() && <p className="text-sm text-text-muted">¿Es nuevo? Escribe su nombre y créalo aquí mismo; el resto de su ficha, cuando venga.</p>}
-    </div>
   );
 }
