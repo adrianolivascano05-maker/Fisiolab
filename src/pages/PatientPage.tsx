@@ -78,7 +78,7 @@ export function PatientPage() {
   const optional = CONSENTS.filter((c) => privacy.consents?.[c.id] !== undefined).map((c) => `${c.label}: ${privacy.consents![c.id] ? "sí" : "no"}`);
 
   const summary = anamnesis ? clinicalSummary(anamnesis.answers) : null;
-  const alarms = anamnesis ? redFlagReview(anamnesis.answers, patient.birthDate) : null;
+  const alarms = anamnesis ? redFlagReview(anamnesis.answers) : null;
   const last = sessions[0] ?? null;
   const review = last?.reviewOn ?? null;
   const lastGroup = questionnaireGroups(questionnaires)[0];
@@ -137,7 +137,7 @@ export function PatientPage() {
               <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               <span>
                 <span className="font-semibold">
-                  {alarms.patterns.length ? `Alarmas: ${alarms.patterns.map((p) => `${p.pattern.name} (${p.pattern.urgency})`).join(" · ")}` : `Banderas rojas: ${alarms.hits.length}`}
+                  {`Banderas rojas: ${alarms.hits.length}`}
                 </span>{" "}
                 ·{" "}
                 <Link to={`/pacientes/${id}/anamnesis`} className="font-semibold underline underline-offset-2">

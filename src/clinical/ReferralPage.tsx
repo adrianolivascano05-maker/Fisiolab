@@ -1,5 +1,5 @@
 // Carta de derivación a su médico: los datos del paciente, por qué consulta, las alarmas encontradas en la
-// anamnesis (src/clinical/redFlags.ts), su funcionamiento redactado con la CIF (el perfil de la anamnesis o, si no lo
+// anamnesis (las banderas rojas: síntomas, sin agrupar en enfermedades ni con urgencia; src/clinical/redFlags.ts), su funcionamiento redactado con la CIF (el perfil de la anamnesis o, si no lo
 // hay, el que proponen los datos de la ficha: dolor, cuestionarios y mediciones; con el dato que respalda cada
 // calificador y sus factores personales), sus cuestionarios con cómo se leen y qué valoran dicho con las categorías
 // de la CIF, el diagnóstico fisioterapéutico y lo que se le ha hecho. Sale redactada con lo que hay
@@ -25,14 +25,18 @@ import { draftDiagnosis, personalFactors } from "./cif/prose";
 import { autoProfile, evidenceFrom } from "./cif/suggest";
 import { cifPhrases, informsText, latestQuestionnaires } from "./referral";
 import { symmetryRows } from "./symmetry";
-import { redFlagReview, type FlagHit, type Urgency } from "./redFlags";
+import { redFlagReview, type FlagHit } from "./redFlags";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { SharePdf } from "./SharePdf";
 
-type Priority = Urgency | "ordinaria";
-const PRIORITY: Record<Priority, string> = {
-  urgente: "Urgente: valoración hoy",
-  preferente: "Preferente: valoración en los próximos días",
+/**
+ * La prioridad la decide quien escribe la carta: la app no la propone ni la deduce de las banderas rojas. Sin elegir,
+ * la carta no la menciona.
+ */
+type Priority = "" | "urgente" | "preferente" | "ordinaria";
+const PRIORITY: Record<Exclude<Priority, "">, string> = {
+  urgente: "Urgente",
+  preferente: "Preferente",
   ordinaria: "Ordinaria",
 };
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
@@ -55,7 +59,7 @@ export function ReferralPage() {
   }, [id]);
   const article = useRef<HTMLElement>(null);
   const [to, setTo] = useState("A su médico de Atención Primaria");
-  const [priority, setPriority] = useState<Priority>("ordinaria");
+  const [priority, setPriority] = useState<Priority>("");
   const [reason, setReason] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [treatment, setTreatment] = useState("");
@@ -82,19 +86,16 @@ export function ReferralPage() {
       const entries = own.length ? own : autoProfile(evidence, (c) => titles.get(c), new Set());
       if (!live) return;
       setCif({ titles, profile: entries.map(readEntry).flatMap((e) => (e ? [e.coded] : [])) });
-      const { hits, patterns } = redFlagReview(a, patient.birthDate);
+      const { hits } = redFlagReview(a);
       const years = ageOn(patient.birthDate);
       const motivo = typeof a.motivo === "string" ? a.motivo.trim() : "";
       const phrases = cifPhrases(entries);
-      setPriority(patterns[0]?.pattern.urgency ?? "ordinaria");
       setReason(
         [
           `${years !== null ? `Paciente de ${years} años` : "Paciente"}${motivo ? ` que consulta por ${lower(motivo).replace(/\.$/, "")}` : " valorado en fisioterapia"}.`,
           phrases.length ? `Según la CIF, presenta ${listText(phrases)}.` : "",
           hits.length ? `En la valoración presenta: ${listText(hits.map((h) => `${lower(h.flag.label)}${how(h)}`))}.` : "",
-          patterns.length
-            ? `Solicito su valoración para descartar ${listText(patterns.map((p) => lower(p.pattern.name.replace(/^Posible /, ""))))} antes de continuar con el tratamiento de fisioterapia.`
-            : "Solicito su valoración.",
+          "Solicito su valoración.",
         ]
           .filter(Boolean)
           .join(" "),
@@ -121,7 +122,7 @@ export function ReferralPage() {
   const { patient, anamnesis, clinic, questionnaires } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
   const a = anamnesis?.answers ?? {};
-  const { hits, patterns } = redFlagReview(a, patient.birthDate);
+  const { hits } = redFlagReview(a);
   const years = ageOn(patient.birthDate);
   const results = latestQuestionnaires(questionnaires);
   const today = new Date().toISOString();
@@ -143,9 +144,13 @@ export function ReferralPage() {
           <p className="text-sm text-text-muted">Sale redactada con lo que hay en la ficha. Revísala y cambia lo que quieras: no se guarda.</p>
           <TextField label="Dirigida a" value={to} onChange={(e) => setTo(e.target.value)} />
           <fieldset className="flex flex-col gap-2">
-            <legend className="text-sm font-semibold">Prioridad</legend>
+            <legend className="text-sm font-semibold">Prioridad (la eliges tú; sin elegir, no sale en la carta)</legend>
             <div className="flex flex-wrap gap-x-4 gap-y-1">
-              {(Object.keys(PRIORITY) as Priority[]).map((p) => (
+              <label className="flex min-h-11 items-center gap-2">
+                <input type="radio" name="prioridad" className="size-5 accent-accent" checked={priority === ""} onChange={() => setPriority("")} />
+                Sin indicar
+              </label>
+              {(Object.keys(PRIORITY) as Exclude<Priority, "">[]).map((p) => (
                 <label key={p} className="flex min-h-11 items-center gap-2">
                   <input type="radio" name="prioridad" className="size-5 accent-accent" checked={priority === p} onChange={() => setPriority(p)} />
                   {PRIORITY[p]}
@@ -190,8 +195,12 @@ export function ReferralPage() {
           <Letterhead clinic={clinic} title="Informe de derivación" subtitle={fmtDate(today)} />
           <p>
             <span className="text-text-muted">A la atención de:</span> <span className="font-semibold">{to.trim() || "—"}</span>
-            <br />
-            <span className="text-text-muted">Prioridad:</span> <span className="font-semibold">{PRIORITY[priority]}</span>
+            {priority && (
+              <>
+                <br />
+                <span className="text-text-muted">Prioridad:</span> <span className="font-semibold">{PRIORITY[priority]}</span>
+              </>
+            )}
           </p>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 print:grid-cols-2">
             {facts.map(([k, v]) => (
@@ -205,7 +214,7 @@ export function ReferralPage() {
             <p className="whitespace-pre-line">{reason.trim() || "—"}</p>
           </Block>
           {hits.length > 0 && (
-            <Block title="Signos y síntomas de alarma">
+            <Block title="Banderas rojas (signos y síntomas)">
               <ul className="flex list-disc flex-col gap-0.5 pl-5">
                 {hits.map((h) => (
                   <li key={h.flag.id}>
@@ -214,7 +223,6 @@ export function ReferralPage() {
                   </li>
                 ))}
               </ul>
-              {patterns.length > 0 && <p className="mt-2">A descartar: {patterns.map((p) => `${lower(p.pattern.name.replace(/^Posible /, ""))} (${p.pattern.urgency})`).join("; ")}.</p>}
             </Block>
           )}
           {diagnosis.trim() && (

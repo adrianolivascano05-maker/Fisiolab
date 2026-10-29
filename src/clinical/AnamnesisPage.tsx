@@ -269,7 +269,6 @@ export function AnamnesisPage() {
                     <div className="@4xl:col-span-2">
                     <RedFlagPanel
                       answers={draft}
-                      birthDate={patient.birthDate}
                       labelOf={labelOf}
                       patientId={id}
                       onMark={(label) => {
@@ -334,7 +333,7 @@ export function AnamnesisPage() {
           <Send aria-hidden="true" className="size-4 shrink-0" /> Mandar su parte al paciente
         </Link>
       </div>
-      <RedFlagPanel answers={a} birthDate={patient.birthDate} labelOf={labelOf} patientId={id} />
+      <RedFlagPanel answers={a} labelOf={labelOf} patientId={id} />
       <YellowFlagPanel answers={a} labelOf={labelOf} patientId={id} />
       {sections.map((section) => {
         const rows = section.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");

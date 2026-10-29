@@ -42,7 +42,7 @@ export const BODY_REGIONS: { id: string; label: string }[] = [
 ];
 export const regionLabel = (id: string) => BODY_REGIONS.find((r) => r.id === id)?.label ?? id;
 
-/** La lista de banderas rojas del fisioterapeuta (src/clinical/redFlags.ts, con los cuadros que forman). */
+/** La lista de banderas rojas del fisioterapeuta: síntomas y signos (src/clinical/redFlags.ts). */
 const RED_FLAGS = RED_FLAG_LABELS;
 
 export const ANAMNESIS: Section[] = [
@@ -78,7 +78,7 @@ export const ANAMNESIS: Section[] = [
       { id: "ritmo", label: "Ritmo", type: "text", hint: "Mecánico, inflamatorio o mixto." },
       { id: "irradiacion", label: "Irradiación", type: "text" },
       { id: "evolucion", label: "Evolución desde el inicio", type: "textarea" },
-      { id: "banderas_rojas", label: "Banderas rojas", type: "multi", options: RED_FLAGS, hint: "Las que confirmes al preguntar. Abajo salen las que marcó el paciente o aparecen en lo escrito, y los cuadros que forman." },
+      { id: "banderas_rojas", label: "Banderas rojas", type: "multi", options: RED_FLAGS, hint: "Las que confirmes al preguntar. Abajo salen las que marcó el paciente o aparecen en lo escrito." },
       {
         id: "sintomas_paciente",
         label: "Síntomas de alarma que marcó el paciente",

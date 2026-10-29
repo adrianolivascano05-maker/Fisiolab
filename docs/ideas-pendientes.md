@@ -658,3 +658,17 @@ visible al momento y de poco riesgo:
 
 Pendiente de esa revisión: la de «vender con garantías» (registro de accesos, borrado remoto, historial de
 cambios, copia cifrada, rate limit).
+
+## Revisión legal: producto sanitario, protección de datos y licencias (29-10-2026)
+
+Lista del usuario, hecha por tandas y en su orden. Nada de esto está validado por un abogado ni por una autoridad
+sanitaria: son los cambios que pide la revisión.
+
+- **1 y 2. Banderas rojas como síntomas, sin cuadros ni urgencias.** Fuera la agrupación en cuadros con nombre de
+  enfermedad («Posible síndrome de cola de caballo», «Posible TVP»…: `PATTERNS` y `findPatterns`), «Urgente» y
+  «Preferente», «Si se confirma: que le vea un médico…», las preguntas para profundizar (entre ellas «No apliques
+  técnicas en el cuello») y la deducción por edad u osteoporosis. Se siguen llamando «Banderas rojas», en rojo: las
+  confirmadas y las que están por confirmar (las marcó el paciente o salen en lo escrito), con un «Confirmar» al
+  editar. La lista de síntomas no cambia de texto, así que lo guardado se sigue leyendo igual. La ficha dice
+  «Banderas rojas: N». La carta de derivación lista las banderas rojas y pide «su valoración», sin «descartar…»;
+  la prioridad ya no la propone la app: sale «Sin indicar» y solo aparece en la carta si el fisio elige una.

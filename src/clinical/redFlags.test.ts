@@ -35,19 +35,9 @@ describe("banderas rojas", () => {
     expect(ids({ motivo: "No le duele de noche, pero ha tenido fiebre" })).toEqual(["fiebre:texto"]);
   });
 
-  it("cauda equina y vascular cervical salen como urgentes y primero", () => {
-    const r = redFlagReview({ regiones: ["lumbar"], banderas_rojas: ["Alteración de esfínteres o anestesia en silla de montar"], motivo: "Lumbalgia con fiebre" }, null);
-    expect(r.patterns.map((p) => `${p.pattern.id}:${p.pattern.urgency}`)).toEqual(["cauda_equina:urgente", "infeccion:preferente"]);
-    const neck = redFlagReview({ regiones: ["cervical"], motivo: "Cervicalgia y visión doble desde ayer" }, null);
-    expect(neck.patterns[0]!.pattern.id).toBe("vascular_cervical");
+  it("solo la lista de síntomas: sin agrupar en enfermedades ni urgencia", () => {
+    const r = redFlagReview({ regiones: ["lumbar"], banderas_rojas: ["Alteración de esfínteres o anestesia en silla de montar"], motivo: "Lumbalgia con fiebre" });
+    expect(Object.keys(r)).toEqual(["hits"]);
+    expect(r.hits.map((h) => `${h.flag.id}:${h.from}`)).toEqual(["fiebre:texto", "esfinteres:marcada"]);
   });
-
-  it("cáncer con más de 50 años; fractura por corticoides u osteoporosis con la espalda", () => {
-    const today = new Date();
-    const born = `${today.getFullYear() - 60}-01-01`;
-    expect(redFlagReview({ banderas_rojas: ["Antecedente de cáncer"] }, born).patterns.map((p) => p.pattern.id)).toEqual(["cancer"]);
-    expect(redFlagReview({ banderas_rojas: ["Antecedente de cáncer"] }, `${today.getFullYear() - 30}-01-01`).patterns).toEqual([]);
-    expect(redFlagReview({ regiones: ["lumbar"], enfermedades: "Osteoporosis", medicacion: "Prednisona desde hace 2 años" }, born).patterns.map((p) => p.pattern.id)).toEqual(["fractura"]);
-  });
-
 });

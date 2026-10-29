@@ -43,7 +43,7 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByLabel("Fecha de reevaluación")).toHaveValue("");
   });
 
-  test("US3 la anamnesis avisa sola de las banderas rojas que se escriben y del cuadro que forman", async ({ page }) => {
+  test("US3 la anamnesis avisa sola de las banderas rojas que se escriben, sin cuadros ni urgencias", async ({ page }) => {
     await page.goto("./pacientes/nuevo");
     await page.getByLabel("Nombre").fill("Óscar Alarma");
     await page.getByRole("button", { name: "Crear paciente" }).click();
@@ -52,26 +52,28 @@ test.describe("Comodidad del día a día", () => {
     await page.getByRole("group", { name: "Zona", exact: true }).getByText("Cervical", { exact: true }).click();
     // Lo dicho en negativo no cuenta; lo demás sale mientras se escribe.
     await page.getByLabel("Motivo principal").fill("Dolor de cuello. No tiene fiebre. Desde ayer, mareo al girar la cabeza");
-    const alarms = page.getByRole("region", { name: /Alarmas/ });
-    await expect(alarms.getByRole("article", { name: "Posible origen vascular cervical (arterias del cuello)" })).toContainText("Urgente");
+    const alarms = page.getByRole("region", { name: /Banderas rojas/ });
+    await expect(alarms).toContainText("Mareo, visión doble");
     await expect(alarms).toContainText("En «Motivo principal»");
     await expect(alarms).not.toContainText("Fiebre o malestar general");
-    await alarms.getByText("Qué preguntar para profundizar").click();
-    await expect(alarms).toContainText("5 D y 3 N");
+    await expect(alarms).not.toContainText(/Posible|Urgente|Preferente|No apliques|médico/);
     await expectAccessible(page);
     // Confirmarla la marca en «Banderas rojas».
     await alarms.getByRole("button", { name: /Confirmar.*Mareo/ }).click();
     await expect(page.getByRole("checkbox", { name: /^Mareo, visión doble/ })).toBeChecked();
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByRole("link", { name: "Carta de derivación a su médico" })).toBeVisible();
-    await expect(page.getByRole("region", { name: /Alarmas/ })).toContainText("Confirmadas: Mareo, visión doble");
+    const confirmed = page.getByRole("region", { name: /Banderas rojas/ }).locator("div", { has: page.getByText("Confirmadas", { exact: true }) });
+    await expect(confirmed.getByRole("listitem")).toHaveText(/^Mareo, visión doble/);
 
-    // La carta de derivación sale redactada, urgente y con las alarmas.
+    // La carta de derivación sale redactada con las banderas rojas; la prioridad no la propone la app.
     await page.getByRole("link", { name: "Carta de derivación a su médico" }).click();
-    await expect(page.getByRole("radio", { name: /^Urgente/ })).toBeChecked();
+    await expect(page.getByRole("radio", { name: "Sin indicar" })).toBeChecked();
     const letter = page.getByRole("article", { name: "Carta de derivación" });
-    await expect(letter).toContainText("Signos y síntomas de alarma");
-    await expect(letter).toContainText("Solicito su valoración para descartar origen vascular cervical");
+    await expect(letter).toContainText("Banderas rojas (signos y síntomas)");
+    await expect(letter).toContainText("Mareo, visión doble");
+    await expect(letter).toContainText("Solicito su valoración.");
+    await expect(letter).not.toContainText(/Prioridad|descartar|Posible/);
     await page.getByLabel("Dirigida a").fill("Dra. Ruiz, Atención Primaria");
     await expect(letter).toContainText("Dra. Ruiz, Atención Primaria");
     await expectAccessible(page);

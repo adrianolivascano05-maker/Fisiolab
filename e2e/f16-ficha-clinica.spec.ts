@@ -22,8 +22,10 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
 
     await expect(page.getByRole("button", { name: "Editar" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Alarmas: 1 cuadro a descartar" })).toBeVisible();
-    await expect(page.getByRole("article", { name: "Posible infección" })).toContainText("Preferente");
+    // Banderas rojas: solo los síntomas, en rojo; sin agruparlos en enfermedades ni decir urgencia.
+    const flags = page.getByRole("region", { name: "Banderas rojas: 1" });
+    await expect(flags).toContainText("Fiebre o malestar general");
+    await expect(flags).not.toContainText(/Posible|Urgente|Preferente|médico hoy/);
     // Exacto: «6/10» también está dentro de «26/10/2026» si la prueba se pasa un día 26.
     await expect(page.getByText("6/10", { exact: true })).toBeVisible();
     await expectAccessible(page);
@@ -32,7 +34,7 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByRole("button", { name: "Motivo: Dolor de rodilla al bajar escaleras" })).toBeVisible();
     const situation = page.getByRole("region", { name: "Situación" });
     await expect(situation).toContainText("Tendinopatía rotuliana");
-    await expect(situation).toContainText("Alarmas: Posible infección (preferente)");
+    await expect(situation).toContainText("Banderas rojas: 1");
     // El dolor de la anamnesis ya dibuja la gráfica, en Sesiones.
     await tab(page, "Sesiones").click();
     await expect(page.getByRole("img", { name: /Dolor de 0 a 10/ })).toBeVisible();
