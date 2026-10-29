@@ -56,7 +56,7 @@ export function RemindersPage() {
 
   async function sent(a: ReminderItem) {
     await markReminded(getDb(), a.id);
-    bumpData();
+    bumpData("appointments");
   }
 
   return (
@@ -132,12 +132,12 @@ export function RemindersPage() {
             onSent={() => void sent(a)}
             onConfirm={async (yes) => {
               await markConfirmed(getDb(), a.id, yes);
-              bumpData();
+              bumpData("appointments");
               toast(yes ? `${a.name}: confirmada` : `${a.name}: sin confirmar`, "success");
             }}
             onConsent={async (yes) => {
               await setContactConsent(getDb(), a.patientId, yes);
-              bumpData();
+              bumpData("patients");
               toast(yes ? `${a.name}: acepta WhatsApp y correo` : `${a.name}: no acepta WhatsApp ni correo`, "success");
             }}
           />

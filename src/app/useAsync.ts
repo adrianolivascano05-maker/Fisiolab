@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import { useDataVersion } from "./dataVersion";
+import { useDataVersion, type DataTable } from "./dataVersion";
 
 type State<T> = { data: T | undefined; error: Error | null; loading: boolean };
 
-/** Carga datos de la base y permite recargarlos tras un cambio. */
-export function useAsync<T>(load: () => Promise<T>, deps: unknown[]) {
+/**
+ * Carga datos de la base y los recarga tras un cambio (bumpData). `tables`: las tablas que le importan a esta carga;
+ * con ellas, los cambios que nombran otras tablas no la relanzan (src/app/dataVersion.ts). Sin ellas, cualquier cambio.
+ */
+export function useAsync<T>(load: () => Promise<T>, deps: unknown[], opts: { tables?: readonly DataTable[] } = {}) {
   const [state, setState] = useState<State<T>>({ data: undefined, error: null, loading: true });
   const [tick, setTick] = useState(0);
-  const version = useDataVersion();
+  const version = useDataVersion(opts.tables);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- las dependencias las da quien llama
   const run = useCallback(load, deps);
   useEffect(() => {

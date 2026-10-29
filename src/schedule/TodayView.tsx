@@ -3,6 +3,7 @@
 // WhatsApp, llamar). Debajo, lo pendiente de la clínica (solo si hay algo): reevaluaciones de hoy o atrasadas, lo que
 // queda sin cobrar y los pacientes de hoy a los que les falta firmar algo; después, las citas de mañana con sus
 // recordatorios y la lista de espera.
+import { unsignedPatients } from "../data/patientSearch";
 import { CalendarCheck, CalendarClock, CalendarX2, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserRound, UserX, Wallet, BellRing, Send } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -60,8 +61,10 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
       remindersBetween(db, dayStart(tomorrow), dayStart(addDays(tomorrow, 1))),
     ]);
     const day = items.filter((a) => madridDay(a.startsAt) === today).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+    // Una sola consulta dice a quién le falta algo por firmar; el detalle (qué le falta) se mira solo de esos.
     const coming = [...new Set(day.filter((a) => a.status !== "cancelled").map((a) => a.patientId))];
-    const unsigned = (await Promise.all(coming.map(async (id) => ({ id, name: day.find((a) => a.patientId === id)!.name, missing: await unsignedOf(id) })))).filter((u) => u.missing.length);
+    const flagged = coming.length ? await unsignedPatients(db) : new Set<string>();
+    const unsigned = (await Promise.all(coming.filter((id) => flagged.has(id)).map(async (id) => ({ id, name: day.find((a) => a.patientId === id)!.name, missing: await unsignedOf(id) })))).filter((u) => u.missing.length);
     const owes = new Map(debtors.map((d) => [d.patientId, d.balanceCents]));
     return { day, reviews, debtors, owes, waiting, unsigned, tomorrow: tomorrowItems };
   }, [version, today]);

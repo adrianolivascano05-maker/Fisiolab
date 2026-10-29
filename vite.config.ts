@@ -86,9 +86,10 @@ export default defineConfig({
         // Todo lo necesario para abrir sin conexión, incluido el motor SQLite (.wasm) y sus workers.
         globPatterns: ["**/*.{js,css,html,wasm,woff2,png,svg}"],
         // Sin el motor de pose, que va aparte (abajo), sin el worker de ejemplo de sqlite-wasm (la app usa el suyo,
-        // src/data/sqlite.worker.ts) y sin las letras que puede elegir una clínica (src/brand/options.ts): se bajan al
-        // elegirlas y quedan guardadas (abajo).
-        globIgnores: ["**/{fraunces,manrope,lora,dm-sans}-*.woff2", "**/vision_*", "**/sqlite3-worker1-*"],
+        // src/data/sqlite.worker.ts), sin las letras que puede elegir una clínica (src/brand/options.ts: se bajan al
+        // elegirlas y quedan guardadas, abajo) y, de las dos de OmniClin, solo el alfabeto latino (el navegador baja
+        // los demás si alguna vez hacen falta).
+        globIgnores: ["**/{fraunces,manrope,lora,dm-sans}-*.woff2", "**/{source-sans-3,bricolage-grotesque}-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2", "**/vision_*", "**/sqlite3-worker1-*"],
         // Motor de pose (src/ai): ≈ 19 MB, se descarga la primera vez que se usa la IA y queda guardado.
         runtimeCaching: [
           { urlPattern: /\/assets\/(vision_|pose_landmarker)/, handler: "CacheFirst", options: { cacheName: "ia-pose" } },

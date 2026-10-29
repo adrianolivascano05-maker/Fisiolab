@@ -7,7 +7,7 @@ import { listStaff, type Staff } from "../data/schedule";
 
 export function useStaff(): Staff[] {
   const { team } = useTeamMode();
-  const staff = useAsync(async () => (team ? listStaff(getDb()) : []), [team]);
+  const staff = useAsync(async () => (team ? listStaff(getDb()) : []), [team], { tables: ["members"] });
   return staff.data ?? [];
 }
 

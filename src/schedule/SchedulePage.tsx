@@ -125,6 +125,7 @@ export function SchedulePage() {
   const data = useAsync(
     async () => ({ shifts: await shiftsBetween(getDb(), from, to), appointments: await agenda(getDb(), from, to), closures: await closuresBetween(getDb(), from, to) }),
     [from, to],
+    { tables: ["appointments", "patients", "schedule", "sessions", "waitlist"] },
   );
 
   useEffect(() => {
@@ -187,13 +188,13 @@ export function SchedulePage() {
     const before = { startsAt: item.startsAt, assignedTo: item.assignedTo, status: item.status };
     try {
       await updateAppointment(getDb(), item.id, { startsAt, ...person });
-      bumpData();
+      bumpData("appointments");
       const withWhom = "assignedTo" in person ? `, con ${staffName(staff, column.person ?? null)}` : "";
       setUndo({
         text: `${item.name}: ${fmtVisit(startsAt)}${withWhom}`,
         back: async () => {
           await updateAppointment(getDb(), item.id, before);
-          bumpData();
+          bumpData("appointments");
         },
       });
     } catch (e) {
@@ -328,7 +329,7 @@ export function SchedulePage() {
               try {
                 const n = await copyWeekForward(getDb(), from);
                 toast(n ? `${n === 1 ? "1 turno copiado" : `${n} turnos copiados`} a la semana siguiente` : "La semana siguiente ya tiene estos turnos", "success");
-                bumpData();
+                bumpData("schedule");
                 step(1);
               } catch (e) {
                 toast(e instanceof Error ? e.message : String(e), "danger");

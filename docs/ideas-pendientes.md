@@ -589,6 +589,30 @@ visible al momento y de poco riesgo:
   `madridDay`, `todayDay` y `addDays` se siguen importando de donde siempre (reexportados). Prueba `dates.test.ts`
   (medianoche UTC frente a Madrid, cambios de hora, meses).
 
-Pendiente de esa revisión: la tanda de rendimiento (`useAsync` selectivo, saldo pendiente en SQL, N+1 de Hoy,
-`FormInbox` perezoso), la de «vender con garantías» (registro de accesos, borrado remoto, historial de cambios,
-copia cifrada, rate limit) y la de limpieza (`worker.js` por partes, `AppointmentSheet`, `CloudGate`, `repo.ts`).
+### Tanda «rendimiento» (hecha el 28-10-2026, por la noche)
+
+- **Recargas por tablas.** `bumpData("appointments")` dice qué toca y `useAsync(load, deps, { tables })` qué le
+  importa a cada pantalla (`src/app/dataVersion.ts`). Sin tablas en uno u otro lado, todo sigue como antes (un
+  cambio sin tablas recarga todo; una pantalla sin tablas recarga con todo), así que no hay riesgo de pantallas
+  desactualizadas: solo dejan de recargarse las que han dicho sus tablas ante cambios de otras. Hecho en la agenda:
+  el equipo (`useStaff`, solo `members`) y la rejilla (citas, pacientes, turnos, sesiones, lista de espera); los
+  cambios de la hoja de la cita, Recordatorios, arrastrar una cita y copiar la semana van con su tabla. Queda por
+  etiquetar el resto de la app cuando se toque cada pantalla.
+- **Hoy sin N+1.** Lo que falta por firmar se mira con una consulta para todos (`unsignedPatients`) y el detalle
+  solo de los señalados: con 20 citas, de 60 consultas a 1 (más 3 por paciente con algo pendiente).
+- **Pendientes de cobro.** Solo se calculan los pacientes con algún cobro, bono o sesión (los demás no pueden deber
+  nada) y el mismo resultado sirve durante un segundo y mientras no cambie nada: Agenda › Hoy y el filtro de
+  Pacientes ya no lo calculan dos veces con cada cambio. El cálculo en sí no cambia (misma `allocate`).
+- **Arranque más ligero.** La bandeja de respuestas de los pacientes (`FormInbox`) se carga aparte y solo con
+  clínica en el servidor: el paquete de arranque pasa de 516 KB a 291 KB (el catálogo de los cuestionarios ya no
+  va en él). Las fuentes precargadas por el service worker pasan de 11 a 4 archivos (solo alfabeto latino; los demás
+  se bajan si alguna vez hacen falta).
+- **Medido** con la prueba de estrés (500 pacientes, `e2e/prueba.spec.ts`): los tiempos de primera carga de cada
+  pantalla no cambian (ficha 0,4 → 0,3 s; agenda 0,9 → 1,0 s; cobros pendientes 0,9 s). Esa prueba no mide las
+  recargas por cada toque, que es lo que reducen las tablas; en un móvil se notará en la agenda con muchas citas.
+- No hecho (más riesgo, para otra tanda): el tope de 6 s del arranque esperando la sincronización, la copia entera
+  por el hilo principal, el marcado con IA en un worker y el índice ligero de la galería para Exploración.
+
+Pendiente de esa revisión: la de «vender con garantías» (registro de accesos, borrado remoto, historial de
+cambios, copia cifrada, rate limit) y la de limpieza (`worker.js` por partes, `AppointmentSheet`, `CloudGate`,
+`repo.ts`).

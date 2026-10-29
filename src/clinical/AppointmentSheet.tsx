@@ -158,7 +158,7 @@ export function AppointmentSheet({
     try {
       await work();
       toast(done, "success");
-      bumpData();
+      bumpData("appointments", "waitlist");
       onClose();
       after?.();
     } catch (e) {
@@ -205,7 +205,7 @@ export function AppointmentSheet({
     setError(null);
     try {
       await updateAppointment(getDb(), a.id, { status: "no_show" });
-      bumpData();
+      bumpData("appointments");
       setMissed(a);
       setRebookAt(localInput(daysLater(a.startsAt, 7)));
       setRebookClash(null);
@@ -355,7 +355,7 @@ export function AppointmentSheet({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-md bg-accent px-4 font-semibold text-on-accent hover:bg-accent-hover"
-                    onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData())}
+                    onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData("appointments"))}
                   >
                     <MessageCircle aria-hidden="true" className="size-5" /> Recordar por WhatsApp
                   </a>
@@ -364,7 +364,7 @@ export function AppointmentSheet({
                   <a
                     href={mailtoUrl(extra.data.email, extra.data.subject, extra.data.reminder)}
                     className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-border bg-bg px-4 font-semibold hover:bg-surface"
-                    onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData())}
+                    onClick={() => void markReminded(getDb(), appointment.id).then(() => bumpData("appointments"))}
                   >
                     <Mail aria-hidden="true" className="size-5" /> Correo
                   </a>
@@ -431,7 +431,7 @@ export function AppointmentSheet({
                     await addPayment(getDb(), appointment.patientId, input);
                     setPaying(false);
                     toast(`Cobrado: ${euros(input.amountCents)}`, "success");
-                    bumpData();
+                    bumpData("payments");
                     extra.reload();
                   }}
                 />

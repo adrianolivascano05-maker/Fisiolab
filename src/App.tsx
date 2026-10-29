@@ -13,7 +13,7 @@ import { PatientsLayout } from "./app/PatientsLayout";
 import { RouteError } from "./app/RouteError";
 import { RouteFallback } from "./app/RouteFallback";
 import { useDesktop } from "./app/useMediaQuery";
-import { FormInbox } from "./patientForm/FormInbox"; // Respuestas de los pacientes a sus formularios (src/clinical/patientForms.ts)
+import { FormInboxGate } from "./patientForm/FormInboxGate"; // Respuestas de los pacientes a sus formularios, solo con clínica en el servidor
 import { DocSync } from "./documents/DocSync"; // Archivos del paciente: subir lo pendiente y borrar lo borrado (src/documents)
 
 // Al abrir la app solo se carga la lista de pacientes; cada pantalla se carga al entrar en ella (el service worker
@@ -202,7 +202,7 @@ export function App() {
         <CloudGate>
           <DbGate>
             <Router />
-            <FormInbox />
+            <FormInboxGate />
             <DocSync />
           </DbGate>
         </CloudGate>

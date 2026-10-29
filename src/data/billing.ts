@@ -3,6 +3,7 @@
 // caen en ningún bono son sueltas y valen el precio de Ajustes → Precios y cobros, solo desde el día en que se puso
 // (así no aparecen deudas de antes). Lo pendiente es lo que vale lo hecho menos lo cobrado. Las cantidades van en
 // céntimos. No son facturas.
+import { dataVersion } from "../app/dataVersion";
 import { dayOf as madridDay } from "../app/dates";
 import type { Db } from "./db";
 import { getSetting, setSetting } from "./repo";
@@ -372,14 +373,34 @@ export function accountLine(a: Account): string | null {
 
 export type Debtor = { patientId: string; name: string; balanceCents: number; lastPaidOn: string | null };
 
-/** Pacientes con algo pendiente de cobrar, de más a menos. Todo de una vez, no paciente a paciente. */
+/**
+ * Pacientes con algo pendiente de cobrar, de más a menos. Todo de una vez, no paciente a paciente, y solo de los
+ * pacientes que tienen algún cobro, bono o sesión (los demás no pueden deber nada). Agenda › Hoy y el filtro de
+ * Pacientes lo piden a la vez con cada cambio: el mismo resultado sirve durante un segundo (y mientras no cambie nada).
+ */
 export async function pendingAccounts(db: Db, today: string): Promise<Debtor[]> {
+  const version = dataVersion();
+  const now = Date.now();
+  if (pendingCache && pendingCache.db === db && pendingCache.today === today && pendingCache.version === version && now - pendingCache.at < PENDING_CACHE_MS) return pendingCache.value;
+  const value = computePendingAccounts(db, today);
+  pendingCache = { db, today, version, at: now, value };
+  value.catch(() => {
+    if (pendingCache?.value === value) pendingCache = null;
+  });
+  return value;
+}
+const PENDING_CACHE_MS = 1000;
+let pendingCache: { db: Db; today: string; version: number; at: number; value: Promise<Debtor[]> } | null = null;
+
+async function computePendingAccounts(db: Db, today: string): Promise<Debtor[]> {
   const [pricing, packs, payments, sessions, patients] = await Promise.all([
     getPricing(db),
     db.query<PackRow>("select * from packs"),
     db.query<PaymentRow>("select * from payments order by paid_on desc"),
     db.query<{ id: string; patient_id: string; performed_at: string }>("select id, patient_id, performed_at from sessions"),
-    db.query<{ id: string; name: string }>("select id, name from patients"),
+    db.query<{ id: string; name: string }>(
+      "select id, name from patients where id in (select patient_id from sessions union select patient_id from payments union select patient_id from packs)",
+    ),
   ]);
   const group = <T extends { patient_id: string }>(rows: T[]) => {
     const m = new Map<string, T[]>();
