@@ -13,7 +13,7 @@ import { useAsync } from "../app/useAsync";
 import { AppointmentSheet } from "../clinical/AppointmentSheet";
 import { fmtVisit } from "../clinical/calendar";
 import { addDays, localInput, todayDay } from "../clinical/pageKit";
-import { useCloud, useSyncState } from "../cloud/CloudGate";
+import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { agenda, updateAppointment, type AgendaItem } from "../data/appointments";
 import { closuresBetween, type Closure } from "../data/closures";
 import { getDb } from "../data/db";

@@ -5,7 +5,7 @@ import { CloudOff, LogIn, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
-import { useCloud, useSyncState } from "./CloudGate";
+import { useCloud, useSyncState } from "./cloudContext";
 import type { SyncState } from "./sync";
 
 /** Cambios sin subir durante tanto tiempo, sin error a la vista: algo no va bien. */

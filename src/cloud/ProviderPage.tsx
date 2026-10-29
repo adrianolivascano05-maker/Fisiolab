@@ -20,12 +20,11 @@ import { Group, Row, RowButton } from "../ui/Grouped";
 import { useToast } from "../ui/Toast";
 import { getToken } from "./auth";
 import type { OperatorClinic } from "./clinic";
-import { useCloud } from "./CloudGate";
+import { errText, useCloud } from "./cloudContext";
 import { limitWarnings, requestsText } from "./limits";
 import { cloudflarePending } from "./serverStatus";
 import { saveFile } from "../app/download";
 
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const mb = (bytes: number) => (bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`);
 const day = (iso: string) => new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
 

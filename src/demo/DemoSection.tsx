@@ -5,7 +5,7 @@ import { useState } from "react";
 import { bumpData } from "../app/dataVersion";
 import { fmtDateTime } from "../app/format";
 import { useAsync } from "../app/useAsync";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";

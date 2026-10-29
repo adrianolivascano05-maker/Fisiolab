@@ -9,7 +9,7 @@ import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { ANAMNESIS_KIND, formTitle } from "../clinical/patientForms";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { useTeamMode } from "../cloud/teamMode";
 import { markReminded } from "../data/appointments";
 import { getDb } from "../data/db";

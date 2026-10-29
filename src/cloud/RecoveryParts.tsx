@@ -10,11 +10,10 @@ import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { useCloud } from "./CloudGate";
+import { errText, useCloud } from "./cloudContext";
 import { checkPassword, confirmRecoverySaved, createRecovery, recoverWithCode, recoveryPending, WrongPassword } from "./recovery";
 import { saveFile } from "../app/download";
 
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** El kit de recuperación recién creado: el código, para guardarlo en PDF o imprimirlo, y confirmar que está guardado. */
 export function RecoveryKit({ code, salt, onClose }: { code: string; salt: string; onClose: () => void }) {

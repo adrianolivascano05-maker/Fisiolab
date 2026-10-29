@@ -1,7 +1,7 @@
 import { Link } from "react-router";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";
 import { SUPPORT_EMAIL } from "../app/contact";

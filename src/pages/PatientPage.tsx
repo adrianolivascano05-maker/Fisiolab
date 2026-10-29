@@ -7,7 +7,7 @@ import { fmtDate, testTitle } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { clinicalSummary, regionLabel } from "../clinical/anamnesis";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { mainValue } from "../clinical/measures";
 import { questionnaireGroups } from "../clinical/outcomeParts";
 import { PatientShell } from "../clinical/PatientShell";

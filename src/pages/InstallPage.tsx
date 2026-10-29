@@ -4,7 +4,7 @@ import { Check, Copy, Share2 } from "lucide-react";
 import { useState } from "react";
 import { Page } from "../app/Page";
 import { InstallSteps, useInstall } from "../app/pwa";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { QrCode } from "../ui/QrCode";

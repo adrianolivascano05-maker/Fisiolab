@@ -2,7 +2,7 @@
 // arrastra el catálogo de cuestionarios (src/clinical/patientForms.ts): se carga aparte y solo entonces, no en cada
 // arranque de la app.
 import { lazy, Suspense } from "react";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 
 const FormInbox = lazy(() => import("./FormInbox").then((m) => ({ default: m.FormInbox })));
 

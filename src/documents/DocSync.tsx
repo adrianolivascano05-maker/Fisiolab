@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bumpData } from "../app/dataVersion";
 import { getToken } from "../cloud/auth";
 import { clinicScope, type DocsUsage } from "../cloud/clinic";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { ServerError } from "../cloud/remote";
 import { getDb } from "../data/db";
 import { useAppLock } from "../privacy/AppLock";

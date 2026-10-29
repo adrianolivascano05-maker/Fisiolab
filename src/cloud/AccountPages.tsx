@@ -7,7 +7,8 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { TextField } from "../ui/Field";
 import { redirectUri, startLogin } from "./auth";
-import { syncText, useCloud, useSyncState } from "./CloudGate";
+import { syncText } from "./SyncNotice";
+import { useCloud, useSyncState } from "./cloudContext";
 import { isClientId, setDeviceClientId } from "./config";
 
 const primaryLink = "inline-flex h-12 items-center justify-center gap-2 rounded-md bg-accent px-5 font-semibold text-on-accent hover:bg-accent-hover";

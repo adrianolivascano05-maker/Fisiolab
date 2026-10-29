@@ -3,7 +3,7 @@ import { CalendarCheck, ChevronLeft, ChevronRight, Info, Plus, Search, SlidersHo
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { fmtDate, madridDay } from "../app/format";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { RecoveryReminder } from "../cloud/RecoveryParts";
 import { LoadError, Loading, Page } from "../app/Page";
 import { isIos, isStandalone } from "../app/pwa";

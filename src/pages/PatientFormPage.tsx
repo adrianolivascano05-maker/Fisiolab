@@ -5,7 +5,7 @@ import { LoadError, Loading, Page } from "../app/Page";
 import { getDb } from "../data/db";
 import { formStatus, listSentForms } from "../data/patientForms";
 import { getToken } from "../cloud/auth";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { clinicalRecord, getClinic, keepUntil } from "../data/privacy";
 import { createPatient, deletePatient, getPatient, updatePatient, type PatientInput, type Sex } from "../data/repo";
 import { SEED_PREFIX } from "../data/seed";

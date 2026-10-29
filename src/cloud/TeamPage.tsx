@@ -18,9 +18,8 @@ import { ensureStaff, removeStaff } from "../data/schedule";
 import { FullExportButton } from "../export/FullExportButton";
 import { getToken } from "./auth";
 import { chooseClinic, ROLE_LABELS, type Member, type Role } from "./clinic";
-import { useCloud } from "./CloudGate";
+import { errText, useCloud } from "./cloudContext";
 
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export function TeamPage() {
   const cloud = useCloud();

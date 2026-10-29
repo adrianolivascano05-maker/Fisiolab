@@ -7,7 +7,7 @@ import { bumpData, useDataVersion } from "../app/dataVersion";
 import { useAsync } from "../app/useAsync";
 import { getDb } from "../data/db";
 import { getSetting, setSetting } from "../data/repo";
-import { useCloud } from "./CloudGate";
+import { useCloud } from "./cloudContext";
 
 export type ClinicMode = "solo" | "team";
 const CLINIC_MODE_KEY = "clinic_mode";

@@ -22,7 +22,7 @@ import {
 } from "../clinical/patientForms";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { useGranted } from "../data/questionnairePermissions";
 import { cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";

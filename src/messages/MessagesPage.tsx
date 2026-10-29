@@ -8,7 +8,7 @@ import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { ownIdentity, useBrand } from "../brand/brand";
 import { addDays, todayDay } from "../clinical/pageKit";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { useTeamMode } from "../cloud/teamMode";
 import { getDb } from "../data/db";
 import { getClinic } from "../data/privacy";

@@ -7,7 +7,7 @@ import { CALENDAR_SCOPE, hasGranted, wantCalendar } from "./auth";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { SelectField } from "../ui/Field";
-import { useCalendarState, useCloud } from "./CloudGate";
+import { useCalendarState, useCloud } from "./cloudContext";
 import { CALENDAR_NAME, getCalendarSettings, saveCalendarSettings, type CalendarSettings as Settings, type CalendarState } from "./googleCalendar";
 
 /** Con la cuenta de Google: si las citas se apuntan solas (y no hace falta ofrecer el enlace o el .ics). */

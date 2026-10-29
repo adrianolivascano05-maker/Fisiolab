@@ -5,7 +5,7 @@ import type { Section } from "../clinical/anamnesis";
 import { currentBrand } from "../brand/brand";
 import { formBrand } from "../brand/form";
 import { getToken } from "../cloud/auth";
-import type { Cloud } from "../cloud/CloudGate";
+import type { Cloud } from "../cloud/cloudContext";
 import type { Db } from "../data/db";
 import { currentEpisode } from "../data/episodes";
 import { getClinic } from "../data/privacy";

@@ -10,12 +10,11 @@ import { Card } from "../ui/Card";
 import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { useCloud, useSyncState } from "./CloudGate";
+import { errText, useCloud, useSyncState } from "./cloudContext";
 import { deriveKeyBytes, ENCRYPTION_KEY, forgetKey, MIN_PASSWORD, newSalt, storeKey, WrongPassword, type EncryptionSetting } from "./crypt";
 import { createRecovery } from "./recovery";
 import { RecoverWithCode, RecoveryKit, RecoveryReminder } from "./RecoveryParts";
 
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** «la copia de tu Drive» o «la copia del servidor de la clínica». */
 function copyName(cloud: NonNullable<ReturnType<typeof useCloud>>) {

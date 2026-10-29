@@ -9,7 +9,7 @@ import { fmt } from "../app/format";
 import { Page } from "../app/Page";
 import { rememberPatient } from "../app/recent";
 import { useAsync } from "../app/useAsync";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { useDataVersion } from "../app/dataVersion";
 import { nextAppointmentOf } from "../data/appointments";
 import { euros, patientAccount } from "../data/billing";

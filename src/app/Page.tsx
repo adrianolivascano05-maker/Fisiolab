@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { SyncNotice } from "../cloud/CloudGate";
+import { SyncNotice } from "../cloud/SyncNotice";
 import { SyncFloat } from "../cloud/SyncFloat";
 import { Alert } from "../ui/Alert";
 import { SideNav, TabBar, TopBar } from "../ui/AppBar";

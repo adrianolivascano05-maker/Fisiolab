@@ -73,7 +73,11 @@ de la última cuenta que entró en él.
 | `googleCalendar.ts`, `CalendarSettings.tsx` | las citas solas en Google Calendar, en el calendario «OmniClin · Citas» que crea la app |
 | `saveToDrive.ts`, `DriveSaveButton.tsx` | guardar el informe en PDF y los resultados en CSV en la carpeta «OmniClin» de Drive |
 | `crypt.ts`, `EncryptionParts.tsx` | cifrado obligatorio de la copia con una contraseña, y pedirla en otro dispositivo |
-| `CloudGate.tsx` | pantallas de entrada (de pasar a la cuenta los datos que había sin cuenta y, con el servidor, de elegir o dar de alta la clínica), aviso de sincronización y la sección «Cuenta» de Ajustes |
+| `CloudGate.tsx` | al abrir la app decide qué se ve (entrar, volver a entrar, elegir clínica o la app) y pone en marcha la cuenta y la sincronización (`startCloud`) |
+| `cloudContext.ts` | lo que ve el resto de la app: `useCloud()`, `useSyncState()`, `useCalendarState()` y el tipo `Cloud` |
+| `screens.tsx` | las pantallas de entrada: entrar con Google, pasar a la cuenta los datos que había sin cuenta, volver a entrar y, con el servidor, elegir o dar de alta la clínica |
+| `SyncNotice.tsx` | `syncText` (cómo va la sincronización, en una frase) y el aviso arriba de cada pantalla: datos nuevos, cita doble, lo sustituido, la contraseña |
+| `CloudSettings.tsx` | la sección «Cuenta» de Ajustes (sincronizar ahora, cambios sustituidos, cerrar sesión) |
 | `../data/migrations/008_sync.sql`, `../data/syncMerge.ts` | registro de cambios por fila y fusión de dos copias |
 
 - **Al abrir la app**, si el token ha caducado, la app va a Google y vuelve sola en un segundo, si la sesión de

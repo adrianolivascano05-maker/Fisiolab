@@ -1,5 +1,6 @@
 // Quien entra con Google y aún no está en ninguna clínica: o le añade quien administra la suya, o pide al proveedor
 // permiso para dar de alta la suya (cloudflare/worker.js, /v1/solicitud). El proveedor lo acepta desde su panel.
+import { errText } from "./cloudContext";
 import { RefreshCw, Send } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { SUPPORT_EMAIL } from "../app/contact";
@@ -11,7 +12,6 @@ import { TextField } from "../ui/Field";
 import { getToken, startLogin } from "./auth";
 import { clinicApi, type AccessRequest, type Me } from "./clinic";
 
-const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export function AccessRequestCards({ me, baseUrl, clientId }: { me: Me; baseUrl: string; clientId: string }) {
   const [request, setRequest] = useState<AccessRequest | null>(me.request ?? null);

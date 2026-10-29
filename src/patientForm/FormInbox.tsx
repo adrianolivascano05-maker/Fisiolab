@@ -7,7 +7,7 @@ import { bumpData } from "../app/dataVersion";
 import { formTitle } from "../clinical/patientForms";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
-import { useCloud, useSyncState } from "../cloud/CloudGate";
+import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { useAppLock } from "../privacy/AppLock";
 import { useToast } from "../ui/Toast";

@@ -1,7 +1,7 @@
 // Ajustes → Clínica y protección de datos: los datos del responsable del tratamiento para el texto informativo y los
 // consentimientos, cuántos años se conserva la historia clínica y el contrato con el proveedor de la nube.
 import { useEffect, useState } from "react";
-import { useCloud } from "../cloud/CloudGate";
+import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { getClinic, MIN_RETENTION_YEARS, saveClinic, type ClinicInfo } from "../data/privacy";
 import { Alert } from "../ui/Alert";
