@@ -723,3 +723,7 @@ sanitaria: son los cambios que pide la revisión.
   apache.org; qrcode-generator, el aviso de su propio código y el texto oficial MIT; victory-vendor, los textos
   oficiales MIT e ISC (de SPDX), con plantilla sin titular y su autor según el paquete. Los textos oficiales están
   en `licenses/`. La página lo dice en cada uno.
+- **9. Nombre del paciente partido en el ordenador.** En la cabecera de la ficha, con la lista al lado, la fila de
+  chips (motivo, cita, WhatsApp, lo que debe) no bajaba de línea y estrechaba el nombre hasta partirlo. Ahora el
+  nombre guarda 16 rem y los chips bajan de línea si no caben; cada dato (edad, teléfono, peso, estatura) va entero.
+  Prueba ES7 en `e2e/escritorio.spec.ts` (de 1280 a 1600 px), que fallaba antes del arreglo.

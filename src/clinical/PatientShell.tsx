@@ -50,7 +50,10 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
         patient.phone,
         patient.bodyMassKg && `${fmt(patient.bodyMassKg)} kg`,
         patient.heightCm && `${fmt(patient.heightCm, 0)} cm`,
-      ].filter(Boolean)
+      ]
+        .filter((f): f is string => !!f)
+        // Cada dato entero en su línea: «172 cm», no «172» y «cm» en dos.
+        .map((f) => f.replace(/ /g, "\u00a0"))
     : [];
   return (
     <Page
@@ -67,15 +70,16 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
         )
       }
       header={
-        // En ancho (el ordenador), el nombre a la izquierda y los chips a la derecha, en una fila.
+        // En ancho (el ordenador), el nombre a la izquierda y los chips a la derecha, en una fila. El nombre guarda
+        // siempre su sitio (16 rem): si los chips no caben, bajan a otra línea en vez de estrecharlo letra a letra.
         <div className="flex flex-col gap-2 @2xl:flex-row @2xl:items-end @2xl:justify-between @2xl:gap-4">
-          <div className="flex min-w-0 flex-col">
+          <div className="flex min-w-0 flex-col @2xl:min-w-64">
             <h1 className="text-[1.75rem] leading-tight font-bold break-words">{name}</h1>
             {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin más datos"}</p>}
             {edit.data && <p className="text-xs text-text-muted">Última modificación: {editText(edit.data)}</p>}
           </div>
           {/* Una fila de chips: el motivo que se ve, la próxima cita (o darla) y lo que debe. Añadir al calendario, dentro de la cita. */}
-          <div className="flex flex-wrap items-center gap-2 @2xl:shrink-0 @2xl:justify-end">
+          <div className="flex flex-wrap items-center gap-2 @2xl:justify-end">
             {patient && <EpisodePicker patientId={id} />}
             {/* En una clínica con equipo: quién lo lleva (para el filtro «Fisio» de la lista). */}
             {patient && <PatientPhysios patientId={id} />}

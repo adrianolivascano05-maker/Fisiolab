@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { allowContact, expect, expectAccessible, loadSeed, test } from "./fixtures";
 
 // El ordenador (desde 1024 px): el menú principal a la izquierda en vez de la barra de abajo, Pacientes como lista
 // fija + ficha, el inicio con lo de hoy y las hojas centradas. Por debajo de 1024 px la app es la del móvil, que
@@ -198,5 +198,46 @@ test.describe("Ordenador", () => {
     await expect(list(page)).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Pacientes" })).toBeVisible();
     await expect(page.getByLabel("Buscar paciente")).toBeVisible();
+  });
+
+  test("ES7 la cabecera de la ficha no parte el nombre ni sus datos aunque haya muchos chips", async ({ page }) => {
+    // Con el motivo, la cita, WhatsApp y lo que debe en una fila, el nombre se quedaba en «Julia Domí / ngue / z Ortiz».
+    const name = "Julia Domínguez Ortiz";
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill(name);
+    await page.getByLabel("Teléfono").fill("+44 7700 900123");
+    await page.getByLabel("Peso").fill("60");
+    await page.getByLabel("Estatura").fill("172");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Anamnesis" }).click();
+    await page.getByLabel("Motivo principal").fill("Molestia lumbar que empezó al mover muebles en casa");
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByRole("button", { name: "Editar anamnesis" })).toBeVisible();
+    await allowContact(page, name);
+    await page.getByRole("link", { name: "Ficha", exact: true }).or(page.getByRole("link", { name: new RegExp(`^${name}`) })).first().click();
+    const header = page.getByRole("heading", { name, level: 1 });
+    for (const width of [1280, 1366, 1440, 1600]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(header).toBeVisible();
+      await expect(page.getByRole("button", { name: /^Motivo:/ })).toBeVisible();
+      await expect(page.getByRole("link", { name: "WhatsApp", exact: true })).toBeVisible();
+      const split = await header.locator("xpath=..").evaluate((box) => {
+        const out: string[] = [];
+        const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          for (const m of n.textContent!.matchAll(/[^\s·]+/g)) {
+            const r = document.createRange();
+            r.setStart(n, m.index);
+            r.setEnd(n, m.index + m[0].length);
+            if (new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1) out.push(m[0]);
+          }
+        }
+        return out;
+      });
+      expect(split, `${width} px`).toEqual([]);
+      expect(await scrollWidth(page)).toBeLessThanOrEqual(width);
+    }
+    await expectAccessible(page);
   });
 });
