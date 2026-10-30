@@ -116,7 +116,8 @@ test.describe("Clínica de prueba", () => {
       await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
       return Date.now() - start;
     })();
-    times["agenda"] = await timed(page, "./agenda", () => expect(page.getByRole("main")).toContainText(/\d+ citas/, { timeout: 30_000 }));
+    // Cargada la agenda de hoy, con citas o sin ellas (la clínica de prueba no tiene citas en fin de semana).
+    times["agenda"] = await timed(page, "./agenda", () => expect(page.getByRole("main")).toContainText(/\d+ citas|Hoy no hay citas/, { timeout: 30_000 }));
     // Cargada la lista de mañana, con citas o sin ellas (un viernes no hay): los datos salen al azar en cada carga.
     times["recordatorios"] = await timed(page, "./agenda/recordatorios", () => expect(page.getByText(/^\d+ citas? pendientes? · |^No hay citas pendientes ese día\.$/)).toBeVisible({ timeout: 30_000 }));
     times["lista de espera"] = await timed(page, "./agenda/espera", () => expect(page.getByText(/hueco/).first()).toBeVisible({ timeout: 30_000 }));

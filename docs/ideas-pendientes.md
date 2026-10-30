@@ -886,8 +886,8 @@ F15-H6 y PR3. F15-H6 destapó un fallo real al restaurar una copia más corta qu
 páginas viejas al final; ahora se restaura por trozos, que sí lo vacía (`src/data/sqlite.worker.ts`), la base se
 actualiza aunque la copia de antes de actualizar no se pueda escribir (`SQLITE_NOMEM` con el ordenador saturado) y
 esa copia se termina de escribir antes de contestar (`src/data/engine.ts`); después, F15-H6 y H2 pasan 3 de 3 en los
-dos modos. PR3: el modo estrés no tiene citas en sábado (la prueba pasó a medianoche y espera «n citas» hoy; pasa
-entre semana). 2 omitidas de siempre (WebKit).
+dos modos. PR3: el modo estrés no tiene citas en fin de semana y la prueba esperaba «n citas» hoy; ahora acepta también
+«Hoy no hay citas». 2 omitidas de siempre (WebKit).
 
 
 | Parte | Commit | Pruebas | Pendiente |
