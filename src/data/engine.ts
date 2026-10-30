@@ -72,8 +72,14 @@ export class Engine {
     const current = db.selectValue("pragma user_version") as number;
     const pending = [...this.migrations].sort((a, b) => a.version - b.version).filter((m) => m.version > current);
     if (backup && current > 0 && pending.length && this.storage.backups) {
-      const bytes = this.sqlite3.capi.sqlite3_js_db_export(db) as Uint8Array;
-      this.backupDone = this.storage.backups.save(backupName(current, pending.at(-1)!.version), bytes);
+      // Si no se puede sacar la copia (sin memoria para duplicar la base, p. ej.), se actualiza igual: quedarse sin
+      // abrir la base sería peor que quedarse sin esa copia.
+      try {
+        const bytes = this.sqlite3.capi.sqlite3_js_db_export(db) as Uint8Array;
+        this.backupDone = this.storage.backups.save(backupName(current, pending.at(-1)!.version), bytes);
+      } catch (e) {
+        console.warn("No se pudo guardar la copia de antes de actualizar:", e);
+      }
     }
     for (const m of pending) {
       db.transaction(() => {
@@ -205,6 +211,9 @@ export class Engine {
     try {
       await this.storage.replace(bytes);
       this.db = this.openAndMigrate();
+      // La copia de antes de actualizar, escrita del todo antes de contestar: si la página se recarga al momento, no
+      // se queda a medias.
+      await this.backupDone.catch(() => {});
       const ok = this.db.selectValue("pragma integrity_check");
       const hasPatients = this.db.selectValue("select count(*) from sqlite_master where name = 'patients'");
       if (ok !== "ok" || !hasPatients) throw new Error("La copia está dañada o no es de esta app.");

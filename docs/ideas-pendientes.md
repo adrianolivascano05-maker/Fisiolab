@@ -879,6 +879,17 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
 
 ### Tabla final del encargo (30-10-2026)
 
+Tandas completas de navegador antes de subir (31-10-2026, de madrugada): raíz 199 en verde, 2 fallos arreglados
+después (CL5 y F16-H7, commit `f9e2b9a`) y comprobados sueltos; `/Fisiolab/` 199 en verde y 2 fallos de entorno:
+F15-H6 y PR3. F15-H6 destapó un fallo real al restaurar una copia más corta que la base de antes (`SQLITE_CORRUPT`,
+«invalid rootpage», a veces): `importDb` del almacén OPFS de SQLite no vacía el archivo antes de escribir y quedaban
+páginas viejas al final; ahora se restaura por trozos, que sí lo vacía (`src/data/sqlite.worker.ts`), la base se
+actualiza aunque la copia de antes de actualizar no se pueda escribir (`SQLITE_NOMEM` con el ordenador saturado) y
+esa copia se termina de escribir antes de contestar (`src/data/engine.ts`); después, F15-H6 y H2 pasan 3 de 3 en los
+dos modos. PR3: el modo estrés no tiene citas en sábado (la prueba pasó a medianoche y espera «n citas» hoy; pasa
+entre semana). 2 omitidas de siempre (WebKit).
+
+
 | Parte | Commit | Pruebas | Pendiente |
 | --- | --- | --- | --- |
 | 1 · Probar antes de publicar | `dca32f0` | YAML validado, build normal y vista previa, tanda completa (raíz y `/Fisiolab/`) | Crear la rama `produccion` y pulsar «Publicar» (pasos-pendientes 0); titular en `LICENSE` |
@@ -889,7 +900,7 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
 | 5 · PIN con contraseña o código | `c55bd16` (+ `6c3eec3`) | `pin.test`, `pinProof.test`, `crypt.test`, CL6, privacidad | — |
 | 6 · Copias cifradas y recordatorio | `c853680` | `encryptedExport.test`, F15-H7, H2/H4/H6, CL5, archivos, pwa, simulacro | 7b (historial de copias en el servidor), fuera del encargo |
 | 7 · Equipo, caducidad, accesos | `787967a` | `accessLog.test`, `offlineExpiry.test`, CL2 | Nombrar administrador desde el panel del proveedor (no existe); plazo del registro con el DPD |
-| 8 · Arreglos menores | (este commit) | accesibilidad con `wcag22aa`, lint, unitarias | 62 avisos de lint para una pasada aparte |
+| 8 · Arreglos menores | `d9cd2ea` (+ `f9e2b9a` turnos tocables y hoja de la cita) | accesibilidad con `wcag22aa`, lint, unitarias | 62 avisos de lint para una pasada aparte |
   lint). Pendiente.
 - **Fuera del encargo, para más adelante:** reescritura completa de los consentimientos y de la hoja de protección de
   datos (versión «5»), anamnesis online a pacientes nuevos, historial de copias en el servidor y «Restaurar», textos

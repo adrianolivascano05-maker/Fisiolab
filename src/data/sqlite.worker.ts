@@ -121,7 +121,11 @@ async function start(): Promise<Engine> {
       persistent: true,
       open: () => new pool.OpfsSAHPoolDb(FILE),
       replace: async (bytes) => {
-        await pool.importDb(FILE, bytes);
+        // Por trozos (aquí, uno): esa variante vacía el archivo antes de escribir. La directa no lo hace, y si la
+        // copia nueva es más corta que la base de antes quedaban páginas viejas al final y la base salía dañada
+        // («invalid rootpage») al restaurar una copia anterior.
+        let sent = false;
+        await pool.importDb(FILE, async () => (sent ? undefined : ((sent = true), bytes)));
       },
       backups: await backupStore(FILE.replace(/^\//, "").replace(/\.sqlite3$/, "")).catch((err: unknown) => {
         console.warn("Sin sitio para las copias de antes de actualizar:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
