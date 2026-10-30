@@ -28,8 +28,9 @@ Además:
 
 - **Informe** (`/pacientes/:id/informe`, en Resumen › Documentos): datos, anamnesis, exploración con
   la evidencia de cada resultado, curva del dolor, mediciones con la simetría, cuestionarios y sesiones. Se eligen
-  los apartados y se imprime o se guarda en PDF con el diálogo del navegador (`window.print()`, A4). Con la cuenta de
-  Google, «Guardar en mi Drive (PDF)» lo sube a la carpeta «OmniClin» de Drive (`reportPdf.ts`).
+  los apartados y se imprime o se guarda en PDF con el diálogo del navegador (`window.print()`, A4), o se comparte el
+  PDF (`reportPdf.ts`). Ya no se guarda en Drive («Guardar en mi Drive» se quitó el 29-10-2026). Imprimirlo queda en
+  el registro de accesos (`src/data/accessLog.ts`).
 - **Cuestionarios** (`/pacientes/:id/cuestionarios/nuevo`): la PSFS (el paciente elige sus actividades; la
   siguiente vez se proponen las mismas) y el cambio global percibido (−7 a +7) tienen su propia pantalla. Los demás
   se rellenan enteros en la app, con el texto de cada pregunta y de cada respuesta (`forms/`), y la nota se calcula

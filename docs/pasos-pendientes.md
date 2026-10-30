@@ -1,8 +1,28 @@
 # Pasos pendientes (los hace quien administra la app)
 
-Cinco tareas que no se pueden hacer desde el código: cuatro son en las cuentas de Google y Cloudflare y la última,
-en un iPhone de verdad. Ninguna es urgente: la app funciona igual mientras tanto. Los menús son los de octubre de 2026; si alguno cambia de nombre, el
-orden es el mismo.
+Tareas que no se pueden hacer desde el código: en GitHub, en las cuentas de Google y Cloudflare y, la última, en un
+iPhone de verdad. Ninguna es urgente: la app funciona igual mientras tanto. Los menús son los de octubre de 2026; si
+alguno cambia de nombre, el orden es el mismo.
+
+## 0. Publicar la primera vez con el flujo nuevo (desde el 30-10-2026, unos 5 minutos)
+
+Desde el 30-10-2026 **un push ya no publica nada**: solo pasa las pruebas. Lo publicado sigue siendo lo de antes
+hasta que hagas esto:
+
+1. En GitHub, crea la rama `produccion` desde la rama de desarrollo (`claude/replica-skill-install-zv3ker`) cuando
+   quieras publicar lo que hay en ella: **Code** → selector de ramas → escribe `produccion` → **Create branch from
+   claude/replica-skill-install-zv3ker**. (Las sesiones automáticas no pueden crear esa rama: la creas tú.) Para
+   publicar algo más adelante, pon la rama `produccion` en el commit que quieras (o deja el campo `ref` del paso 2 en
+   el commit o la rama que sea).
+2. **Actions** → **Publicar** → **Run workflow** → `ref` = `produccion` (ya viene puesto) → **Run workflow**. Repite las
+   pruebas sobre ese commit y, si pasan, lo deja en `publicado-cloudflare` (Cloudflare Pages) y en GitHub Pages. Si
+   algo falla, no publica nada y lo ves en rojo.
+3. Volver atrás es lo mismo con el commit anterior en `ref`.
+4. En Cloudflare Pages, comprueba que **Production branch** es `publicado-cloudflare` y que las vistas previas
+   (**Preview branches**) son solo la rama de desarrollo o ninguna (apartado 2 de `cloudflare/README.md`): cualquier
+   otra rama que construya Cloudflare sale como vista previa **sin nube**, con pacientes de ejemplo.
+5. `LICENSE` tiene el titular entre corchetes («[NOMBRE Y APELLIDOS DEL TITULAR]», dirección y correo de contacto):
+   rellénalo con tus datos cuando quieras; es solo texto.
 
 ## 1. Google: sacar la app de «en pruebas» (unos 5 minutos)
 
@@ -13,9 +33,10 @@ nada: puede pedir el alta y tú la aceptas en Ajustes → Proveedor).
 1. Abre <https://console.cloud.google.com/auth/audience> con la cuenta dueña del proyecto. Arriba, comprueba que
    el proyecto elegido es **Cenit Fisiolab** (su nombre de antes; se puede cambiar a «OmniClin» en la configuración del proyecto sin que afecte a nada).
 2. Antes de publicar, mira <https://console.cloud.google.com/auth/scopes> (**Acceso a datos**): solo debe haber
-   permisos «no sensibles» (`openid`, correo, perfil, `drive.file` y, si se usa la copia en Drive,
-   `drive.appdata`). Si hay alguno en «Permisos sensibles» o «restringidos», quítalo y **Guardar**: la app pide el
-   del calendario solo a quien activa las citas en Google Calendar, no hace falta tenerlo ahí.
+   permisos «no sensibles» (`openid`, correo, perfil y, si se usa la copia en Drive, `drive.appdata`). Si está
+   `drive.file` (ya no se usa: la app no guarda nada a la vista en el Drive de nadie desde el 29-10-2026), quítalo.
+   Si hay alguno en «Permisos sensibles» o «restringidos», quítalo y **Guardar**: la app pide el del calendario solo a
+   quien activa las citas en Google Calendar, no hace falta tenerlo ahí.
 3. En **Marca** (<https://console.cloud.google.com/auth/branding>), Google exige cuatro datos antes de publicar:
    - **Nombre de la aplicación:** `OmniClin`.
    - **Correo de asistencia:** `cenitfisiolab@gmail.com`.

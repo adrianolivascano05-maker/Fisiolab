@@ -181,7 +181,14 @@ export async function findPatients(db: Db, query: PatientQuery = {}): Promise<{ 
   );
   // Una página vacía no dice cuántos hay (más allá del final, o sin pedir ninguno): se cuentan aparte.
   const total = found.length ? Number(found[0]!.total) : offset || limit === 0 ? Number((await db.query<{ n: number }>(`select count(*) as n from patients p ${sql}`, bind))[0]?.n ?? 0) : 0;
-  return { rows: found.map(({ total: _, ...r }) => r), total };
+  return {
+    rows: found.map((f) => {
+      const r = { ...f } as Partial<typeof f>;
+      delete r.total;
+      return r as Omit<typeof f, "total">;
+    }),
+    total,
+  };
 }
 
 /** Los que tienen algo pendiente de cobrar, de firmar o de cualquiera de las dos cosas. */

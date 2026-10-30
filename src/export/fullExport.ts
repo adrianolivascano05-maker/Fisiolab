@@ -67,13 +67,20 @@ export type Collected = {
 /** Las tablas que se exportan (las de la clínica; no los ajustes del dispositivo ni los de cada persona). */
 const EXPORT_TABLES = SYNC_TABLES.map((t) => t.name).filter((t) => !["settings", "devices", "validation_pairs"].includes(t));
 
+/** La fila sin una columna (las claves que no salen de la app). */
+function without<T extends Record<string, unknown>>(row: T, key: string): T {
+  const copy = { ...row };
+  delete copy[key];
+  return copy;
+}
+
 export async function collect(db: Db): Promise<Collected> {
   const tables: Record<string, R[]> = {};
   for (const t of EXPORT_TABLES) tables[t] = await db.query<R>(`select * from ${t}`);
   // La clave de cada enlace de formulario no sale de la app: lo que contestó el paciente, sí.
-  tables.patient_forms = (tables.patient_forms ?? []).map(({ form_key: _, ...r }) => r);
+  tables.patient_forms = (tables.patient_forms ?? []).map((r) => without(r, "form_key"));
   // Lo mismo con la clave de cada archivo del paciente: los archivos van en el .zip ya abiertos.
-  tables.documents = (tables.documents ?? []).map(({ doc_key: _, ...r }) => r);
+  tables.documents = (tables.documents ?? []).map((r) => without(r, "doc_key"));
   return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: withCustom(await getCustomFields(db)) };
 }
 
@@ -568,7 +575,7 @@ function privacySheetHtml(sh: SignedPrivacySheet): string {
 
 // ---------- El paquete ----------
 
-const safeName = (t: string) => t.replace(/[\\/:*?"<>|\u0000-\u001f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Paciente";
+const safeName = (t: string) => t.replace(/[\\/:*?"<>|\p{Cc}]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Paciente";
 
 const README = (c: Collected, count: number, at: Date, missing = 0) => `EXPORTACIÓN COMPLETA DE OMNICLIN
 ${c.clinic.name ? `${c.clinic.name}\n` : ""}Exportada el ${when(at.toISOString())} · ${count} pacientes

@@ -860,7 +860,32 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   (solo altas, suspender, recuperar, contrato y peticiones: `cloudflare/src/provider.js`); queda pendiente de decidir
   (con registro de quién y cuándo). Límite escrito en el runbook: los archivos de pacientes llevan cada uno su clave;
   cambiar la contraseña no los vuelve a cifrar. Pruebas: `accessLog.test.ts`, `offlineExpiry.test.ts`, CL2 ampliada.
-- **Parte 8 · Arreglos menores** (`docs/pasos-pendientes.md`, `RESUMEN.md`, `README.md`, WCAG 2.2 en axe, avisos de
+- **Parte 8 · Arreglos menores.** Hecho (30-10-2026). `docs/pasos-pendientes.md` sin `drive.file` (y con el apartado 0:
+  publicar la primera vez con el flujo nuevo); `RESUMEN.md` al día (fecha, cuestionarios según `docs/cuestionarios.md`,
+  consentimientos v4 sin firma por enlace, apartado del paquete de revisión); `README.md` en la raíz; axe comprueba
+  también WCAG 2.2 AA (`wcag22aa` en `e2e/fixtures.ts`): 0 hallazgos nuevos en las tandas de accesibilidad, usabilidad,
+  escritorio, móvil, pacientes y privacidad. Lint: de 65 avisos a 62 (0 errores). Arreglados los seguros: 3 parámetros
+  `_` sin usar (`fullExport.ts`, `patientSearch.ts`) y el `no-control-regex` de `fullExport.ts` (ahora `\p{Cc}` con
+  `u`); el código nuevo de las partes 5 a 7 no añade ninguno. Se dejan, con motivo: 30 `react(set-state-in-effect)`
+  (pantallas que reinician su estado cuando cambia la ficha o la hoja: quitarlos es rehacer cada una con `key` o estado
+  derivado, con riesgo de regresión y sin fallo conocido), 23 `react(purity)` (`new Date()`/`Date.now()` al pintar para
+  «hoy» y «ahora»: moverlos a estado cambia cuándo se actualiza la fecha a medianoche), 4 `react(refs)`, 3
+  `react(immutability)` (`cloud.closing = true`, a propósito) y 2 `react-hooks(exhaustive-deps)` (dependencias omitidas
+  a propósito: `cloud.closing` y `phase.request.kind`). Mejor una pasada aparte, pantalla a pantalla, con sus pruebas.
+
+### Tabla final del encargo (30-10-2026)
+
+| Parte | Commit | Pruebas | Pendiente |
+| --- | --- | --- | --- |
+| 1 · Probar antes de publicar | `dca32f0` | YAML validado, build normal y vista previa, tanda completa (raíz y `/Fisiolab/`) | Crear la rama `produccion` y pulsar «Publicar» (pasos-pendientes 0); titular en `LICENSE` |
+| 2 · Quitar la firma por enlace | `6bb2202` | `collect.test`, `fullExport.test`, CL17, mensajes | — |
+| 3a · Producto sanitario, textos | `0ae7cc5` | `templates.test`, CI2, US3, F16, CQ3, CL12 | Pegar `worker.js` `2026-10-30` en Cloudflare (contract.js); consentimientos v5 (fuera del encargo) |
+| 3b · Producto sanitario, funciones | `82f03a8` (+ `ae03a56` CQ1) | `suggest.test`, `prose.test`, `wellness.test`, US5/US6, F16-H6 | — |
+| 4 · Copia antes de migrar | `85d62be` | `oldVersions.test` (fixtures v8/v20/v33/v34), F15-H6 | — |
+| 5 · PIN con contraseña o código | `c55bd16` (+ `6c3eec3`) | `pin.test`, `pinProof.test`, `crypt.test`, CL6, privacidad | — |
+| 6 · Copias cifradas y recordatorio | `c853680` | `encryptedExport.test`, F15-H7, H2/H4/H6, CL5, archivos, pwa, simulacro | 7b (historial de copias en el servidor), fuera del encargo |
+| 7 · Equipo, caducidad, accesos | `787967a` | `accessLog.test`, `offlineExpiry.test`, CL2 | Nombrar administrador desde el panel del proveedor (no existe); plazo del registro con el DPD |
+| 8 · Arreglos menores | (este commit) | accesibilidad con `wcag22aa`, lint, unitarias | 62 avisos de lint para una pasada aparte |
   lint). Pendiente.
 - **Fuera del encargo, para más adelante:** reescritura completa de los consentimientos y de la hoja de protección de
   datos (versión «5»), anamnesis online a pacientes nuevos, historial de copias en el servidor y «Restaurar», textos
