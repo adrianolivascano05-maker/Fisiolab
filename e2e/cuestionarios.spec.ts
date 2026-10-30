@@ -31,21 +31,19 @@ test.describe("Cuestionarios nuevos", () => {
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(page.getByRole("list", { name: "Cuestionarios" })).toContainText("12/24");
 
-    // La carta: el funcionamiento con la CIF (propuesto con el cuestionario) y el cuestionario con sus códigos.
+    // La carta: el cuestionario con los códigos de la CIF que valora, sin calificador (la app no gradúa: eso lo
+    // decide el fisio en el perfil CIF de la anamnesis, y este paciente aún no lo tiene).
     await page.goto(`${record}`);
     await page.getByRole("link", { name: /^Carta de derivación/ }).click();
     const letter = page.getByRole("article", { name: "Carta de derivación" });
     await expect(letter).toContainText("RMDQ (lumbar, Roland-Morris)");
-    // Qué valora, dicho con la CIF y con el calificador que propone: 12/24 = 50 % de problema, GRAVE.
     await expect(letter).toContainText(
-      "Valora: dolor en la espalda (b28013.3), cambiar las posturas corporales básicas (d410.3), mantener la posición del cuerpo (d415.3), andar (d450.3) y vestirse (d540.3).",
+      "Valora: dolor en la espalda (b28013), cambiar las posturas corporales básicas (d410), mantener la posición del cuerpo (d415), andar (d450) y vestirse (d540).",
     );
-    await expect(letter).toContainText("Según la CIF, presenta");
-    await expect(letter).toContainText("dificultad grave para cambiar las posturas corporales básicas (d410.3)");
-    // Redactado: lo que respalda el mismo cuestionario con la misma gravedad, de una vez.
-    await expect(page.getByLabel("Funcionamiento según la CIF")).toHaveValue(
-      /Actividades y participación: dificultad grave para cambiar las posturas corporales básicas \(d410\.3\), para mantener la posición del cuerpo \(d415\.3\), para andar \(d450\.3\) y para vestirse \(d540\.3\), según RMDQ 12\/24 el 20 oct\./,
-    );
+    await expect(letter).not.toContainText("Según la CIF");
+    await expect(letter).not.toContainText(/d410\.\d/);
+    await expect(page.getByLabel("Funcionamiento según la CIF")).toHaveValue("");
+    await expect(page.getByText("Sale del perfil CIF de la anamnesis. Aún no tiene.")).toBeVisible();
     await expectAccessible(page);
   });
 
