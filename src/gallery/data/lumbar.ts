@@ -409,7 +409,7 @@ export const lumbarTests: SpecialTest[] = [
     ],
     positive: "Cuatro o más de los cinco hallazgos apoyan la estenosis; ninguno de los cinco hace muy improbable la estenosis.",
     interpretation:
-      "Sirve sobre todo para descartar: si no se cumple ninguno de los criterios, la estenosis es poco probable. Con 4 de 5 la probabilidad sube de forma moderada; confírmalo con la prueba de marcha y, si cambia el manejo, con imagen.",
+      "Sirve sobre todo para descartar: si no se cumple ninguno de los criterios, la estenosis es poco probable. Con 4 de 5 la probabilidad sube de forma moderada; la confirmación se hace con la prueba de marcha y con imagen.",
     accuracy: [
       {
         sens: 96,
@@ -743,7 +743,7 @@ export const lumbarTests: SpecialTest[] = [
     name: "Regla de predicción de Hicks (ejercicios de estabilización)",
     aka: ["Stabilization clinical prediction rule", "Hicks et al. 2005"],
     kind: "rule",
-    purpose: "Identifica a los pacientes con dolor lumbar no radicular que probablemente respondan a un programa de ejercicios de estabilización.",
+    purpose: "Regla de predicción publicada (Hicks et al., 2005) para identificar a los pacientes con dolor lumbar no radicular que probablemente respondan a un programa de ejercicios de estabilización.",
     position: "Combina edad, SLR, observación del movimiento y test de inestabilidad en prono.",
     steps: [
       "Edad menor de 40 años.",
@@ -751,7 +751,7 @@ export const lumbarTests: SpecialTest[] = [
       "Presencia de aberraciones del movimiento.",
       "Test de inestabilidad en prono positivo.",
     ],
-    positive: "Tres o más de los cuatro criterios predicen éxito con ejercicios de estabilización.",
+    positive: "En el estudio de derivación, tres o más de los cuatro criterios se asociaron a éxito con ejercicios de estabilización.",
     interpretation:
       "Es una regla pronóstica (orienta el tratamiento), no un diagnóstico de inestabilidad. Procede de un estudio de derivación pequeño sin validación posterior: úsala como orientación, no como criterio único.",
     accuracy: [
@@ -930,7 +930,7 @@ export const lumbarTests: SpecialTest[] = [
     ],
     positive: "Un aumento menor de unos 5 cm (distancia final por debajo de ~20 cm desde 15 cm) indica movilidad lumbar reducida.",
     interpretation:
-      "Útil para medir y seguir la movilidad, no para diagnosticar: en fases iniciales de espondiloartritis las medidas de movilidad tienen poco valor diagnóstico. Sospéchala por el dolor inflamatorio (inicio antes de los 45 años, rigidez matutina, mejora con el ejercicio) y deriva para analítica e imagen.",
+      "Útil para medir y seguir la movilidad, no para diagnosticar: en fases iniciales de espondiloartritis las medidas de movilidad tienen poco valor diagnóstico. El dolor inflamatorio (inicio antes de los 45 años, rigidez matutina, mejora con el ejercicio) se asocia a espondiloartritis; su diagnóstico requiere analítica e imagen.",
     accuracy: [],
     utility: "desconocida",
     figures: [
@@ -1012,7 +1012,7 @@ export const lumbarTests: SpecialTest[] = [
     name: "Regla de predicción de manipulación (Flynn/Childs)",
     aka: ["Manipulation clinical prediction rule", "Flynn et al. 2002", "Childs et al. 2004"],
     kind: "rule",
-    purpose: "Identifica a los pacientes con dolor lumbar no radicular que probablemente mejoren a corto plazo con manipulación lumbopélvica.",
+    purpose: "Regla de predicción publicada (Flynn/Childs) para identificar a los pacientes con dolor lumbar no radicular que probablemente mejoren a corto plazo con manipulación lumbopélvica.",
     position: "Combina historia, un cuestionario y la exploración en prono.",
     steps: [
       "Duración del episodio actual menor de 16 días.",
@@ -1034,7 +1034,7 @@ export const lumbarTests: SpecialTest[] = [
       },
     ],
     utility: "alta",
-    cautions: "Descarta antes contraindicaciones de manipulación: signos de alarma, osteoporosis, fractura, déficit neurológico progresivo o anticoagulación mal controlada.",
+    cautions: "Contraindicaciones descritas para la manipulación: signos de alarma, osteoporosis, fractura, déficit neurológico progresivo o anticoagulación mal controlada.",
     figures: [
       {
         view: "side",
@@ -1076,7 +1076,7 @@ export const lumbarTests: SpecialTest[] = [
     ],
     positive: "Al menos 4 de los 5.",
     interpretation:
-      "Ayudan a reconocer el dolor inflamatorio, no confirman la enfermedad: en la cohorte de validación la especificidad bajó al 72 %. Si se cumplen, sobre todo en un adulto joven, valora la derivación a reumatología (analítica e imagen de las sacroilíacas). Las medidas de movilidad (Schober) sirven más para el seguimiento que para el diagnóstico.",
+      "Ayudan a reconocer el dolor inflamatorio, no confirman la enfermedad: en la cohorte de validación la especificidad bajó al 72 %. Si se cumplen, sobre todo en un adulto joven, la bibliografía recomienda valoración reumatológica (analítica e imagen de las sacroilíacas). Las medidas de movilidad (Schober) sirven más para el seguimiento que para el diagnóstico.",
     accuracy: [
       { sens: 77, spec: 91.7, context: "Dolor lumbar crónico; referencia: juicio de 13 reumatólogos expertos que exploraron a 20 pacientes", ...SIEPER_2009 },
       { sens: 79.6, spec: 72.4, context: "Cohorte de validación de 648 pacientes con dolor lumbar crónico", ...SIEPER_2009 },

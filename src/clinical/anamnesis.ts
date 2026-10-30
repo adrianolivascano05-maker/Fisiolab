@@ -158,7 +158,7 @@ export const ANAMNESIS: Section[] = [
         id: "cif",
         label: "Perfil CIF",
         type: "cif",
-        hint: "Por componentes (funciones, estructuras, actividades y participación, ambientales): acota desde los atajos de fisioterapia o busca, califica con un toque y redacta con ellos el diagnóstico.",
+        hint: "Por componentes (funciones, estructuras, actividades y participación, ambientales): acota desde los atajos de fisioterapia o busca, califica cada uno y, si quieres, pásalo a texto en el diagnóstico.",
       },
       { id: "diagnostico_funcional", label: "Diagnóstico fisioterapéutico (criterio del profesional)", type: "textarea" },
       { id: "estructuras", label: "Estructuras implicadas", type: "text" },

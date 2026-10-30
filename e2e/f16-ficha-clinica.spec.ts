@@ -344,10 +344,12 @@ test.describe("F16 Ficha clínica", () => {
     await tab(page, "Valoración").click();
     const sym = page.getByRole("list", { name: "Simetría entre lados" });
     await expect(sym).toContainText("CMJ a una pierna");
-    await expect(sym).toContainText("bajo el 90 %");
+    // Los dos lados y el porcentaje, sin umbral ni aviso.
+    await expect(sym).not.toContainText("bajo el 90");
     await expectAccessible(page);
 
     await tab(page, "Resumen").click();
+    await expect(page.getByRole("region", { name: "Situación" })).not.toContainText("Simetría bajo");
     await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Informe de fisioterapia");

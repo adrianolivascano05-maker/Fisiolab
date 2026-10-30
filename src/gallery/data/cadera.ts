@@ -38,7 +38,7 @@ export const caderaTests: SpecialTest[] = [
     ],
     positive: "Reproduce el dolor inguinal o anterior de cadera que refiere el paciente.",
     interpretation:
-      "Muy sensible y muy poco específico: un FADIR negativo hace poco probable un choque femoroacetabular o una lesión del labrum, pero uno positivo no los confirma. Úsalo como cribado y confirma con la historia, otros tests e imagen.",
+      "Muy sensible y muy poco específico: un FADIR negativo hace poco probable un choque femoroacetabular o una lesión del labrum, pero uno positivo no los confirma. En la bibliografía se usa como cribado, junto con la historia, otros tests e imagen.",
     accuracy: [
       {
         sens: 99,
@@ -421,7 +421,7 @@ export const caderaTests: SpecialTest[] = [
     ],
     positive: "Tres o más de cinco hallazgos presentes; con cuatro o más la probabilidad de artrosis radiográfica es muy alta.",
     interpretation:
-      "Útil para confirmar: con 4 de 5 la LR+ es muy alta (aunque con intervalo de confianza amplio) y con 3 de 5 es moderada-alta. Con menos de 3 no descarta. Es una regla de derivación sin validar: confirma con radiografía si cambia el manejo.",
+      "Útil para confirmar: con 4 de 5 la LR+ es muy alta (aunque con intervalo de confianza amplio) y con 3 de 5 es moderada-alta. Con menos de 3 no descarta. Es una regla de derivación sin validar; en el estudio, el diagnóstico se confirmó con radiografía.",
     accuracy: [
       {
         lrPos: 24.3,
@@ -1152,7 +1152,7 @@ export const caderaTests: SpecialTest[] = [
     ],
     positive: "Sonido más apagado o débil en el lado sintomático.",
     interpretation:
-      "Muy útil para descartar: si el sonido es igual en ambos lados, una fractura de cadera (incluso oculta en la radiografía) es poco probable. Un positivo obliga a pedir imagen.",
+      "Muy útil para descartar: si el sonido es igual en ambos lados, una fractura de cadera (incluso oculta en la radiografía) es poco probable. En los estudios, los positivos se confirmaron con imagen.",
     accuracy: [
       {
         sens: 95,
@@ -1171,7 +1171,7 @@ export const caderaTests: SpecialTest[] = [
       },
     ],
     utility: "alta",
-    cautions: "Ante sospecha de fractura (caída, imposibilidad de cargar, pierna acortada y en rotación externa) no fuerces la cadera ni hagas tests de carga: deriva para imagen.",
+    cautions: "Con sospecha de fractura (caída, imposibilidad de cargar, pierna acortada y en rotación externa), la bibliografía desaconseja forzar la cadera y los tests de carga.",
     figures: [
       {
         view: "front",
@@ -1211,11 +1211,11 @@ export const caderaTests: SpecialTest[] = [
     ],
     positive: "Dolor agudo localizado en el muslo (fulcro) o en la ingle/muslo al aterrizar (salto), a menudo con aprensión.",
     interpretation:
-      "No se han podido comprobar datos de precisión con su fuente. Se usan como cribado en corredores o militares con dolor de muslo o ingle por sobrecarga; si son positivos, o si la sospecha es alta aunque sean negativos, pide RM.",
+      "No se han podido comprobar datos de precisión con su fuente. Se usan como cribado en corredores o militares con dolor de muslo o ingle por sobrecarga; en esos estudios, la confirmación se hizo con RM.",
     accuracy: [],
     utility: "desconocida",
     cautions:
-      "Una fractura por estrés del cuello femoral, sobre todo en su cara superior (de tensión), puede completarse: si hay dolor inguinal con la carga o en reposo, no hagas el salto y deriva para imagen.",
+      "Una fractura por estrés del cuello femoral, sobre todo en su cara superior (de tensión), puede completarse: con dolor inguinal en carga o en reposo, la bibliografía desaconseja la prueba del salto.",
     figures: [
       {
         view: "side",

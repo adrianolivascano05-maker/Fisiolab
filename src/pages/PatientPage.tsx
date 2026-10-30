@@ -1,5 +1,5 @@
 import { todayDay } from "../app/dates";
-import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Files, Hourglass, ListChecks, NotebookPen, Scale, Send, ShieldAlert, ShieldCheck, Stethoscope, Wallet } from "lucide-react";
+import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Files, Hourglass, ListChecks, NotebookPen, Send, ShieldAlert, ShieldCheck, Stethoscope, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { SHOW_EXERCISES } from "../app/features";
@@ -13,7 +13,6 @@ import { questionnaireGroups } from "../clinical/outcomeParts";
 import { PatientShell } from "../clinical/PatientShell";
 import { kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
 import { redFlagReview } from "../clinical/redFlags";
-import { LSI_REFERENCE, symmetryRows } from "../clinical/symmetry";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
 import { accountLine, patientAccount } from "../data/billing";
@@ -85,7 +84,6 @@ export function PatientPage() {
   const lastQ = lastGroup?.items[0];
   const lastTest = tests[0];
   const lastValue = lastTest ? mainValue(lastTest) : null;
-  const lowSymmetry = symmetryRows(tests).filter((r) => r.lsi < LSI_REFERENCE);
   const headline = summary?.diagnosis || summary?.reason || "";
   const where = [...(summary?.regions ?? []).map(regionLabel), summary?.side && summary.side !== "No aplica" ? summary.side.toLowerCase() : ""].filter(Boolean).join(" · ");
   const hasSituation = !!(headline || where || alarms?.hits.length || last || lastQ || lastTest);
@@ -162,17 +160,6 @@ export function PatientPage() {
             <p className="text-sm">
               <span className="font-semibold">Última medición</span> · {testTitle(lastTest)}
               {lastValue ? ` ${lastValue.text}${lastValue.unit === "°" ? "°" : lastValue.unit ? ` ${lastValue.unit}` : ""}` : ""} · {fmtDate(lastTest.performedAt)}
-            </p>
-          )}
-          {lowSymmetry.length > 0 && (
-            <p className="flex items-start gap-2 text-sm text-danger">
-              <Scale aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-              <span>
-                <span className="font-semibold">Simetría bajo el {LSI_REFERENCE} %:</span> {lowSymmetry.map((r) => `${r.title} ${Math.round(r.lsi)} %`).join(" · ")} ·{" "}
-                <Link to={`/pacientes/${id}/valoracion#mediciones`} className="font-semibold underline underline-offset-2">
-                  ver
-                </Link>
-              </span>
             </p>
           )}
           {review && review >= today && (

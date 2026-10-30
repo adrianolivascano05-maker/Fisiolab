@@ -740,7 +740,7 @@ export const hombroTests: SpecialTest[] = [
     ],
     positive: "Las tres positivas: alta probabilidad de rotura de espesor completo.",
     interpretation:
-      "Sirve sobre todo para confirmar: con las tres positivas la probabilidad postest fue alta en el estudio original. Con pocos positivos no se descarta: pide ecografía si la clínica lo sugiere (edad avanzada, traumatismo, debilidad). El signo de retraso en rotación externa añade especificidad.",
+      "Sirve sobre todo para confirmar: con las tres positivas la probabilidad postest fue alta en el estudio original. Con pocos positivos no se descarta: la confirmación se hace con ecografía, sobre todo si la clínica lo sugiere (edad avanzada, traumatismo, debilidad). El signo de retraso en rotación externa añade especificidad.",
     accuracy: [
       { ...PARK_2005, context: "Probabilidad postest del 91 % con las tres positivas para rotura de espesor completo; frente a artroscopia (sin razones de verosimilitud confirmadas)" },
     ],
@@ -1681,7 +1681,7 @@ export const hombroTests: SpecialTest[] = [
       "Da muchos falsos positivos, también en personas sanas: no lo uses para confirmar. En Gillard et al. (2001) las pruebas de provocación tuvieron de media una sensibilidad del 72 % y una especificidad del 53 %; la combinación de varias pruebas positivas mejora la especificidad.",
     accuracy: [],
     utility: "desconocida",
-    cautions: "Signos de alarma vascular (frialdad, palidez o cianosis, edema del brazo, úlceras digitales) requieren derivación urgente, no más pruebas.",
+    cautions: "La bibliografía considera la frialdad, la palidez o cianosis, el edema del brazo y las úlceras digitales signos de alarma vascular que requieren valoración médica urgente, no más pruebas.",
     figures: [
       {
         view: "front",
@@ -2021,7 +2021,7 @@ export const hombroTests: SpecialTest[] = [
     ],
     positive: "Las tres positivas, o dos positivas en un paciente de 60 años o más.",
     interpretation:
-      "Sirve en los dos sentidos: con las tres positivas, o dos y 60 años o más, la probabilidad de rotura fue del 98 % en el estudio original; si no hay ninguna, se descartó la rotura. Otro estudio (448 pacientes, artrografía) llegó a algo parecido: la debilidad en rotación externa, la edad de 65 o más y el dolor nocturno fueron los mejores predictores. Ante una sospecha alta, pide ecografía.",
+      "Sirve en los dos sentidos: con las tres positivas, o dos y 60 años o más, la probabilidad de rotura fue del 98 % en el estudio original; si no hay ninguna, se descartó la rotura. Otro estudio (448 pacientes, artrografía) llegó a algo parecido: la debilidad en rotación externa, la edad de 65 o más y el dolor nocturno fueron los mejores predictores. La confirmación se hace con ecografía.",
     accuracy: [
       {
         context: "Las tres positivas, o dos y edad ≥ 60 años: 98 % de probabilidad de rotura; sin ninguna, se descartó. 400 pacientes con y sin rotura, estudio prospectivo publicado como carta",

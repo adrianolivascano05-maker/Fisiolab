@@ -1,6 +1,6 @@
-// Simetría entre lados (barras con la referencia del 90 %) y cuestionarios (última puntuación, cambio desde el
-// primero y tendencia).
-import { ArrowDownRight, ArrowRight, ArrowUpRight, TriangleAlert } from "lucide-react";
+// Simetría entre lados (los dos lados y su porcentaje, sin umbral: la lectura es del profesional) y cuestionarios
+// (última puntuación, cambio desde el primero y tendencia).
+import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router";
 import { fmt, fmtDate } from "../app/format";
 import type { Questionnaire } from "../data/clinical";
@@ -8,36 +8,30 @@ import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
 import { Sparkline } from "./parts";
 import { displayName, kindOf, scoreText, type QDetails } from "./questionnaires";
-import { LSI_REFERENCE, type SymmetryRow } from "./symmetry";
+import type { SymmetryRow } from "./symmetry";
 
-/** Barras de simetría: lado peor / lado mejor, con la línea del 90 %. */
+/** Barras de simetría: lado peor / lado mejor. */
 export function SymmetryPanel({ rows }: { rows: SymmetryRow[] }) {
   if (!rows.length) return null;
   return (
     <ul aria-label="Simetría entre lados" className="flex flex-col gap-2">
       {rows.map((r) => {
-        const low = r.lsi < LSI_REFERENCE;
         return (
           <li key={r.title}>
             <Card className="flex flex-col gap-2">
               <div className="flex items-baseline justify-between gap-2">
                 <span className="font-semibold">{r.title}</span>
-                <span className={cx("nums shrink-0 font-semibold whitespace-nowrap", low ? "text-warning" : "text-accent")}>LSI {fmt(r.lsi, 0)} %</span>
+                <span className="nums shrink-0 font-semibold whitespace-nowrap text-accent">LSI {fmt(r.lsi, 0)} %</span>
               </div>
               <div className="relative h-3 rounded-pill bg-surface" aria-hidden="true">
-                <div className={cx("h-3 rounded-pill", low ? "bg-warning" : "bg-accent")} style={{ width: `${Math.min(100, r.lsi)}%` }} />
-                <div className="absolute -top-1 h-5 w-0.5 bg-text" style={{ left: `${LSI_REFERENCE}%` }} />
+                <div className="h-3 rounded-pill bg-accent" style={{ width: `${Math.min(100, r.lsi)}%` }} />
               </div>
               <div className="nums flex flex-wrap justify-between gap-x-3 text-sm text-text-muted">
                 <span>
                   Izq. <span className={cx(r.weaker === "left" ? "font-semibold text-text" : "")}>{r.left.text}</span> · Dcha.{" "}
                   <span className={cx(r.weaker === "right" ? "font-semibold text-text" : "")}>{r.right.text}</span>
                 </span>
-                <span className="inline-flex items-center gap-1">
-                  {low && <TriangleAlert aria-hidden="true" className="size-4 text-warning" />}
-                  {r.weaker === "equal" ? "iguales" : `peor la ${r.weaker === "left" ? "izquierda" : "derecha"}`}
-                  {low && ` · bajo el ${LSI_REFERENCE} %`}
-                </span>
+                <span className="inline-flex items-center gap-1">{r.weaker === "equal" ? "iguales" : `peor la ${r.weaker === "left" ? "izquierda" : "derecha"}`}</span>
               </div>
             </Card>
           </li>

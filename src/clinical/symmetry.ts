@@ -4,9 +4,6 @@ import { fmt } from "../app/format";
 import { getMovement, movementLabel } from "../calc/rom";
 import type { TestSummary } from "../data/repo";
 
-/** Referencia que se dibuja en las barras (la habitual en los criterios de vuelta al deporte). */
-export const LSI_REFERENCE = 90;
-
 export type SideValue = { value: number; text: string; at: string; testId: string };
 export type SymmetryRow = { title: string; left: SideValue; right: SideValue; lsi: number; weaker: "left" | "right" | "equal"; lowerIsBetter: boolean };
 

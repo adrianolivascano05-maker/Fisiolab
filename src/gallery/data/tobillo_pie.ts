@@ -194,7 +194,7 @@ export const tobilloPieTests: SpecialTest[] = [
       },
     ],
     utility: "alta",
-    cautions: "Antes, aplica las reglas de Ottawa para decidir si hace falta radiografía.",
+    cautions: "La bibliografía recomienda aplicar antes las reglas de Ottawa para decidir si hace falta radiografía.",
     figures: [
       {
         view: "side",
@@ -243,7 +243,7 @@ export const tobilloPieTests: SpecialTest[] = [
       { spec: 85, context: "Metaanálisis, 4 estudios (especificidad agrupada)", source: "Metaanálisis de sindesmosis, 2021", citation: sindesmosis2021 },
     ],
     utility: "moderada",
-    cautions: "Si el dolor es intenso o hay sospecha de fractura del peroné, pide radiografía antes.",
+    cautions: "Si el dolor es intenso o hay sospecha de fractura del peroné, la bibliografía recomienda radiografía antes.",
     figures: [
       {
         view: "front",
@@ -435,12 +435,12 @@ export const tobilloPieTests: SpecialTest[] = [
       "Si ambos son negativos, la lesión de sindesmosis es poco probable.",
       "Si alguno es positivo, haz el squeeze (y la rotación externa) para confirmar.",
     ],
-    positive: "Tests sensibles positivos más squeeze positivo: sospecha alta de lesión de sindesmosis; derivar para imagen.",
+    positive: "Tests sensibles positivos más squeeze positivo: sospecha alta de lesión de sindesmosis según el estudio; la confirmación se hace con imagen (RM, radiografía en carga).",
     interpretation:
       "Ningún test aislado es a la vez sensible y específico; la revisión de 2021 recomienda esta secuencia. Los tests clínicos no distinguen entre lesión estable e inestable: esa decisión requiere RM o artroscopia.",
     accuracy: [],
     utility: "desconocida",
-    cautions: "Sospecha alta: inmovilizar y derivar para imagen (RM, radiografía en carga).",
+    cautions: "Con sospecha alta, la confirmación se hace con imagen (RM, radiografía en carga).",
     figures: [
       {
         view: "front",
@@ -456,7 +456,7 @@ export const tobilloPieTests: SpecialTest[] = [
         },
         text: {
           setup: "Paciente en supino con la pierna derecha relajada.",
-          look: "Palpación del LTPA y zancada en flexión dorsal negativas: lesión poco probable. Si alguna es positiva y el squeeze también, sospecha alta: derivar para imagen.",
+          look: "Palpación del LTPA y zancada en flexión dorsal negativas: lesión poco probable. Si alguna es positiva y el squeeze también, sospecha alta según el estudio; la confirmación se hace con imagen.",
         },
         supuestos: ["Solo se dibuja el último paso (squeeze)."],
         place: { stance: "sit" },
@@ -473,7 +473,7 @@ export const tobilloPieTests: SpecialTest[] = [
     name: "Reglas de Ottawa para tobillo y mediopié",
     aka: ["Ottawa ankle rules", "Ottawa foot rules"],
     kind: "rule",
-    purpose: "Decide si un traumatismo de tobillo o mediopié necesita radiografía.",
+    purpose: "Regla publicada (Ottawa) para decidir si un traumatismo de tobillo o mediopié necesita radiografía.",
     position: "Paciente sentado o en supino para la palpación y luego de pie para valorar la carga.",
     steps: [
       "Palpa los 6 cm distales del borde posterior y la punta del maléolo lateral.",
@@ -522,14 +522,14 @@ export const tobilloPieTests: SpecialTest[] = [
     name: "Reglas de Berna (Bernese ankle rules)",
     aka: ["Bernese ankle rules", "Reglas de Berna"],
     kind: "rule",
-    purpose: "Decide la necesidad de radiografía tras un traumatismo en supinación de baja energía mediante tres maniobras de estrés indirecto.",
+    purpose: "Regla publicada (Berna) para decidir la necesidad de radiografía tras un traumatismo en supinación de baja energía mediante tres maniobras de estrés indirecto.",
     position: "Paciente en supino con la pierna relajada. El examinador realiza las maniobras sin palpar directamente la zona dolorosa.",
     steps: [
       "Estrés indirecto del peroné: comprime peroné contra tibia unos 10 cm por encima de la punta del maléolo lateral.",
       "Estrés directo del maléolo medial: presiona sobre él con la punta de los dedos.",
       "Compresión del retropié y mediopié: fija el tobillo y aprieta el pie en sentido longitudinal.",
     ],
-    positive: "Dolor en cualquiera de las tres maniobras: pedir radiografía.",
+    positive: "Según la regla, el dolor en cualquiera de las tres maniobras indica radiografía.",
     interpretation:
       "En su estudio original fue muy sensible y específica, pero un estudio comparativo posterior obtuvo cifras mucho peores que la regla de Ottawa. Úsala como complemento, no en lugar de Ottawa.",
     accuracy: [
@@ -576,7 +576,7 @@ export const tobilloPieTests: SpecialTest[] = [
     ],
     positive: "Dolor localizado y punzante en la zona sospechosa (tibia, peroné o metatarsiano).",
     interpretation:
-      "Útil sobre todo para descartar: en el único estudio disponible ningún caso con fractura de estrés tuvo el test negativo, pero muchos sin fractura lo tuvieron positivo. Si es positivo y hay dolor óseo localizado, deriva para imagen (la radiografía puede ser normal al principio; RM).",
+      "Útil sobre todo para descartar: en el único estudio disponible ningún caso con fractura de estrés tuvo el test negativo, pero muchos sin fractura lo tuvieron positivo. Si es positivo y hay dolor óseo localizado, la confirmación se hace con imagen (la radiografía puede ser normal al principio; RM).",
     accuracy: [
       {
         sens: 100,
@@ -999,7 +999,7 @@ export const tobilloPieTests: SpecialTest[] = [
     ],
     positive: "Aparición o aumento del dolor, entumecimiento u hormigueo en la planta, o Tinel más intenso en la posición mantenida.",
     interpretation:
-      "En el estudio original la maniobra aumentó el dolor a la palpación y el Tinel en casi todos los pies operados y en ningún voluntario sano; reprodujo el entumecimiento con mucha menos frecuencia. Al comparar con sanos y no con otras causas de dolor, sobrestima la precisión: confirma con estudio neurofisiológico o imagen.",
+      "En el estudio original la maniobra aumentó el dolor a la palpación y el Tinel en casi todos los pies operados y en ningún voluntario sano; reprodujo el entumecimiento con mucha menos frecuencia. Al comparar con sanos y no con otras causas de dolor, sobrestima la precisión: la confirmación se hace con estudio neurofisiológico o imagen.",
     accuracy: [
       {
         sens: 98,

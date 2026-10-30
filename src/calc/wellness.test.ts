@@ -16,10 +16,9 @@ describe("bienestar", () => {
     expect(b.mean).toBe(20);
     expect(b.sd).toBeCloseTo(Math.sqrt(2 / 3), 10);
     expect(b.diff).toBe(-3);
-    expect(b.low).toBe(true);
-    expect(compareToBaseline(20, [20, 21, 19, 20])!.low).toBe(false);
-    // Sin variación previa: cualquier bajada cuenta.
-    expect(compareToBaseline(19, [20, 20, 20])).toMatchObject({ z: null, low: true });
-    expect(compareToBaseline(20, [20, 20, 20])).toMatchObject({ z: null, low: false });
+    expect(b.n).toBe(4);
+    // Solo el dato: sin «z» ni «low» que clasifiquen al paciente.
+    expect(Object.keys(b).sort()).toEqual(["diff", "mean", "n", "sd"]);
+    expect(compareToBaseline(19, [20, 20, 20])).toEqual({ mean: 20, sd: 0, n: 3, diff: -1 });
   });
 });

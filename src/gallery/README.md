@@ -13,8 +13,8 @@ paciente solo si se llega desde su ficha (`?paciente=`); si no, se elige en una 
 
 Los tests:
 Cada test tiene ilustración propia, posición, pasos, qué es positivo, cómo interpretarlo, precauciones, datos de
-precisión con su fuente y una calculadora de probabilidad tras el test (razones de verosimilitud). No guarda nada
-en la base de datos: solo los favoritos, en el navegador.
+precisión con su fuente (información de la bibliografía; la app no hace cálculos sobre pacientes). No guarda nada en
+la base de datos: solo los favoritos, en el navegador.
 
 ## Qué hay aquí
 

@@ -812,8 +812,16 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   textos de StarT Back, 3Q/TMD, HIT-6, SARC-F, FRAIL, hipermovilidad, insomnio, PHQ-4 y CAIT sin órdenes. Mediciones
   con su línea de precisión sin comprobar; perfil fuerza-velocidad sin «déficit». Formulario de anamnesis del
   paciente: lo lee antes de la consulta, lo urgente al 112.
-- **Parte 3b · Funciones (CIF sin propuestas, simetría sin umbral, bienestar sin semáforo, biblioteca sin órdenes)
-  y comprobación final.** Pendiente.
+- **Parte 3b · Funciones (hecha el 30-10-2026).** CIF sin propuestas: fuera el «Borrador rápido con los datos de la
+  ficha», los calificadores propuestos y el «Usar»; un código nuevo entra «sin especificar», la hoja enseña «Atajos
+  de la zona» y, junto a cada código, el dato de la ficha tal cual («En la ficha: EVA 6/10 en la anamnesis»);
+  «Pasar el perfil CIF a texto» solo convierte lo elegido en frases; la carta de derivación usa solo el perfil del
+  profesional (sin él, el campo queda vacío). Simetría sin umbral: fuera el 90 % (la raya, los colores, «Simetría
+  bajo el 90 %» en la ficha y en el informe); se enseñan los dos lados y el porcentaje. Bienestar sin semáforo: la
+  media de 30 días y la diferencia, sin «por debajo de lo habitual» ni «conviene preguntar». Biblioteca de tests: 86
+  frases que eran órdenes clínicas («deriva», «pide radiografía», «confirma con imagen») pasan a atribuirse a la
+  bibliografía o a describir; «Precisión publicada» en vez de «Utilidad»; aviso de que nada se refiere a un paciente
+  concreto.
 - **Parte 4 · Copia del dispositivo antes de cada actualización de la base.** Pendiente.
 - **Parte 5 · PIN: contraseña de la clínica o código de recuperación para poner un PIN nuevo.** Pendiente.
 - **Parte 6 · Exportación cifrada y recordatorio semanal.** Pendiente.

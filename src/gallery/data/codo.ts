@@ -293,7 +293,7 @@ export const codoTests: SpecialTest[] = [
     ],
     positive: "Dolor en la cara medial del codo, apertura mayor que en el lado sano o tope blando.",
     interpretation:
-      "No se han confirmado datos de precisión. Úsalo junto al moving valgus stress test y la maniobra de ordeño, y pide imagen si la sospecha es alta.",
+      "No se han confirmado datos de precisión. En la bibliografía se usa junto al moving valgus stress test y la maniobra de ordeño; la confirmación se hace con imagen (ecografía o resonancia).",
     accuracy: [],
     utility: "desconocida",
     cautions: "Evitar en sospecha de fractura o luxación reciente.",
@@ -507,7 +507,7 @@ export const codoTests: SpecialTest[] = [
     ],
     positive: "Aprensión, dolor lateral o rechazo a extender el codo bajo carga.",
     interpretation:
-      "Más sensible que el pivot shift en el paciente despierto, por lo que ayuda a no pasar por alto la inestabilidad. No se ha comprobado la especificidad; confirma con imagen o exploración bajo anestesia.",
+      "Más sensible que el pivot shift en el paciente despierto, por lo que ayuda a no pasar por alto la inestabilidad. No se ha comprobado la especificidad; la confirmación se hace con imagen o exploración bajo anestesia.",
     accuracy: [{ sens: 87.5, context: "pacientes con inestabilidad posterolateral confirmada; sin dato de especificidad", ...REGAN }],
     utility: "desconocida",
     figures: [
@@ -689,7 +689,7 @@ export const codoTests: SpecialTest[] = [
     ],
     positive: "No se puede enganchar un cordón tenso: el tendón no se encuentra.",
     interpretation:
-      "El estudio original dio resultados perfectos, pero series más amplias muestran que falla en roturas parciales, crónicas o con el lacertus fibroso intacto. Un positivo apoya la rotura; un negativo no la descarta si la sospecha es alta: pide ecografía o resonancia.",
+      "El estudio original dio resultados perfectos, pero series más amplias muestran que falla en roturas parciales, crónicas o con el lacertus fibroso intacto. Un positivo apoya la rotura; un negativo no la descarta: la confirmación se hace con imagen (ecografía o resonancia).",
     accuracy: [
       {
         sens: 100,
@@ -741,7 +741,7 @@ export const codoTests: SpecialTest[] = [
     name: "Test de extensión del codo",
     aka: ["Elbow extension test"],
     kind: "test",
-    purpose: "Ayuda a decidir si un codo traumatizado necesita radiografía comprobando si se extiende del todo.",
+    purpose: "Prueba publicada (Appelboam et al., 2008) para ayudar a decidir si un codo traumatizado necesita radiografía comprobando si se extiende del todo.",
     position: "Paciente sentado con ambos hombros flexionados a 90° y antebrazos en supinación.",
     steps: [
       "Pide al paciente que extienda a la vez los dos codos todo lo que pueda.",
@@ -762,7 +762,7 @@ export const codoTests: SpecialTest[] = [
       },
     ],
     utility: "alta",
-    cautions: "No forzar la extensión. Si no extiende del todo, hay deformidad, crepitación o déficit neurovascular, derivar para radiografía.",
+    cautions: "No forzar la extensión. En el estudio, los que no extendían del todo se estudiaron con radiografía. La bibliografía considera la deformidad, la crepitación y el déficit neurovascular signos de alarma.",
     figures: [
       {
         view: "side",
@@ -802,7 +802,7 @@ export const codoTests: SpecialTest[] = [
     ],
     positive: "Al apretar el bíceps no aparece la supinación del antebrazo (o es mucho menor que en el lado sano).",
     interpretation:
-      "En su estudio original fue positivo en casi todas las sospechas de rotura completa y nunca en personas sin lesión. El estudio es pequeño y la especificidad se midió en controles sanos, no en pacientes con otros dolores de codo. Úsalo junto al hook test; si la sospecha sigue alta, pide ecografía o resonancia.",
+      "En su estudio original fue positivo en casi todas las sospechas de rotura completa y nunca en personas sin lesión. El estudio es pequeño y la especificidad se midió en controles sanos, no en pacientes con otros dolores de codo. En la bibliografía se usa junto al hook test; la confirmación se hace con imagen (ecografía o resonancia).",
     accuracy: [
       {
         spec: 100,

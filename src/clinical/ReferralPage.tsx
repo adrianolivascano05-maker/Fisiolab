@@ -1,9 +1,9 @@
-// Carta de derivación a su médico: los datos del paciente, por qué consulta, las alarmas encontradas en la
-// anamnesis (las banderas rojas: síntomas, sin agrupar en enfermedades ni con urgencia; src/clinical/redFlags.ts), su funcionamiento redactado con la CIF (el perfil de la anamnesis o, si no lo
-// hay, el que proponen los datos de la ficha: dolor, cuestionarios y mediciones; con el dato que respalda cada
-// calificador y sus factores personales), sus cuestionarios con cómo se leen y qué valoran dicho con las categorías
-// de la CIF, el diagnóstico fisioterapéutico y lo que se le ha hecho. Sale redactada con lo que hay
-// en la ficha en ese momento y todo se puede cambiar antes de imprimirla o enviarla; no se guarda.
+// Carta de derivación a su médico: los datos del paciente, por qué consulta, las banderas rojas que el profesional
+// ha confirmado en la anamnesis (síntomas, sin agrupar en enfermedades ni con urgencia; src/clinical/redFlags.ts), su
+// funcionamiento según el perfil CIF que hizo el profesional (si no lo hay, el campo queda vacío: la app no lo
+// propone) con sus factores personales, sus cuestionarios con cómo se leen y qué valoran dicho con las categorías de
+// la CIF, el diagnóstico fisioterapéutico y lo que se le ha hecho. Sale redactada con lo que hay en la ficha en ese
+// momento y todo se puede cambiar antes de imprimirla o enviarla; no se guarda.
 import { todayDay } from "../app/dates";
 import { Printer } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -15,16 +15,14 @@ import { safeName } from "../app/download";
 import { getAnamnesis, listQuestionnaires, listSessions } from "../data/clinical";
 import { getDb } from "../data/db";
 import { ageOn, getClinic } from "../data/privacy";
-import { getPatient, listTests } from "../data/repo";
+import { getPatient } from "../data/repo";
 import { TopBar } from "../ui/AppBar";
 import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { TextArea } from "./parts";
 import { loadCatalog, readEntry, type Coded } from "./cif/cif";
 import { draftDiagnosis, personalFactors } from "./cif/prose";
-import { autoProfile, evidenceFrom } from "./cif/suggest";
 import { cifPhrases, informsText, latestQuestionnaires } from "./referral";
-import { symmetryRows } from "./symmetry";
 import { redFlagReview } from "./redFlags";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { SharePdf } from "./SharePdf";
@@ -46,15 +44,14 @@ export function ReferralPage() {
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, anamnesis, sessions, clinic, questionnaires, tests] = await Promise.all([
+    const [patient, anamnesis, sessions, clinic, questionnaires] = await Promise.all([
       getPatient(db, id),
       getAnamnesis(db, id),
       listSessions(db, id),
       getClinic(db),
       listQuestionnaires(db, id),
-      listTests(db, id),
     ]);
-    return { patient, anamnesis, sessions, clinic, questionnaires, tests };
+    return { patient, anamnesis, sessions, clinic, questionnaires };
   }, [id]);
   const article = useRef<HTMLElement>(null);
   const [to, setTo] = useState("A su médico de Atención Primaria");
@@ -62,9 +59,8 @@ export function ReferralPage() {
   const [reason, setReason] = useState("");
   const [diagnosis, setDiagnosis] = useState("");
   const [treatment, setTreatment] = useState("");
-  /** El funcionamiento con la CIF, ya redactado; y si sale del perfil de la anamnesis o lo proponen los datos. */
+  /** El funcionamiento con la CIF, pasado a texto desde el perfil de la anamnesis. */
   const [functioning, setFunctioning] = useState("");
-  const [proposed, setProposed] = useState(false);
   const [withQuestionnaires, setWithQuestionnaires] = useState(true);
   /** Los títulos de la CIF y el perfil usado, para decir qué valora cada cuestionario. */
   const [cif, setCif] = useState<{ titles: Map<string, string>; profile: Coded[] }>({ titles: new Map(), profile: [] });
@@ -73,16 +69,14 @@ export function ReferralPage() {
   // La primera vez, la carta redactada con lo que hay en la ficha.
   useEffect(() => {
     if (ready || !data.data?.patient) return;
-    const { patient, anamnesis, sessions, questionnaires, tests } = data.data;
+    const { patient, anamnesis, sessions } = data.data;
     let live = true;
     void (async () => {
       const a = anamnesis?.answers ?? {};
-      // La CIF: el perfil de la anamnesis; sin él, el que proponen el dolor, los cuestionarios y las mediciones.
-      const own = Array.isArray(a.cif) ? (a.cif as string[]) : [];
+      // La CIF: solo el perfil que hizo el profesional en la anamnesis; sin él, nada (la app no lo propone).
+      const entries = Array.isArray(a.cif) ? (a.cif as string[]) : [];
       const catalog = await loadCatalog();
       const titles = new Map(catalog.map((e) => [e.code, e.title]));
-      const evidence = evidenceFrom(a, sessions, questionnaires, symmetryRows(tests));
-      const entries = own.length ? own : autoProfile(evidence, (c) => titles.get(c), new Set());
       if (!live) return;
       setCif({ titles, profile: entries.map(readEntry).flatMap((e) => (e ? [e.coded] : [])) });
       // Solo las banderas rojas confirmadas por el profesional: la carta no afirma lo que nadie ha comprobado.
@@ -100,8 +94,7 @@ export function ReferralPage() {
           .filter(Boolean)
           .join(" "),
       );
-      setFunctioning(draftDiagnosis(entries, { evidence, personal: personalFactors(a, patient.birthDate) }));
-      setProposed(!own.length && entries.length > 0);
+      setFunctioning(draftDiagnosis(entries, { personal: personalFactors(a, patient.birthDate) }));
       setDiagnosis(typeof a.diagnostico_funcional === "string" ? a.diagnostico_funcional : "");
       const first = sessions.at(-1);
       setTreatment(sessions.length ? `${sessions.length === 1 ? "1 sesión" : `${sessions.length} sesiones`} de fisioterapia desde el ${fmtDate(first!.performedAt)}.` : "Valoración inicial, sin tratamiento todavía.");
@@ -161,11 +154,7 @@ export function ReferralPage() {
           <TextArea label="Motivo de la derivación" value={reason} onChange={setReason} rows={5} />
           <TextArea
             label="Funcionamiento según la CIF"
-            hint={
-              proposed
-                ? "Propuesto con los datos de la ficha (dolor, cuestionarios y mediciones), porque la anamnesis aún no tiene perfil CIF: revísalo."
-                : "Del perfil CIF de la anamnesis, con el dato que respalda cada calificador y sus factores personales."
-            }
+            hint={cif.profile.length ? "Del perfil CIF de la anamnesis y sus factores personales." : "Sale del perfil CIF de la anamnesis. Aún no tiene."}
             value={functioning}
             onChange={setFunctioning}
             rows={5}

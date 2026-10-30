@@ -19,7 +19,7 @@ export function wellnessTotal(s: WellnessScores): number {
   return wellnessItems.reduce((sum, i) => sum + s[i.id], 0);
 }
 
-/** Respuestas de 1 o 2: lo que conviene preguntar antes de la sesión. */
+/** Respuestas de 1 o 2. */
 export function lowItems(s: WellnessScores): WellnessItem[] {
   return wellnessItems.filter((i) => s[i.id] <= 2).map((i) => i.id);
 }
@@ -27,18 +27,14 @@ export function lowItems(s: WellnessScores): WellnessItem[] {
 /** Registros previos necesarios para comparar con la media del paciente. */
 const MIN_BASELINE = 3;
 
-export type Baseline = { mean: number; sd: number; n: number; diff: number; z: number | null; low: boolean };
+export type Baseline = { mean: number; sd: number; n: number; diff: number };
 
-/**
- * Compara el total de hoy con los anteriores del paciente. Se marca como bajo si está más de una
- * desviación típica por debajo de su media (criterio habitual en el seguimiento diario).
- */
+/** El total de hoy frente a los anteriores del paciente: su media, la dispersión y la diferencia. Sin umbral ni
+ * clasificación: la lectura es del profesional (revisión del 30-10-2026). */
 export function compareToBaseline(today: number, previous: number[]): Baseline | null {
   if (previous.length < MIN_BASELINE) return null;
   const n = previous.length;
   const mean = previous.reduce((a, b) => a + b, 0) / n;
   const sd = Math.sqrt(previous.reduce((a, b) => a + (b - mean) ** 2, 0) / (n - 1));
-  const diff = today - mean;
-  const z = sd > 0 ? diff / sd : null;
-  return { mean, sd, n, diff, z, low: z === null ? diff < 0 : z <= -1 };
+  return { mean, sd, n, diff: today - mean };
 }

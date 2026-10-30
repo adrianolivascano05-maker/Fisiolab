@@ -41,7 +41,7 @@ test.describe("F13 Bienestar", () => {
     await answer(page, { "Calidad del sueño": 4 });
     await page.getByRole("button", { name: "Actualizar el de hoy" }).click();
     await expect(summary).toContainText("19");
-    await expect(summary).not.toContainText("Conviene preguntar");
+    await expect(summary).not.toContainText("Respuestas de 1 o 2");
     await expect(page.getByRole("table").getByRole("row")).toHaveCount(2);
     await expectAccessible(page);
 
@@ -49,14 +49,15 @@ test.describe("F13 Bienestar", () => {
     await expect(page.getByRole("link", { name: /^Bienestar diario.*19\/25/ })).toBeVisible();
   });
 
-  test("F13-H2 por debajo de lo habitual con los datos de ejemplo", async ({ page }) => {
+  test("F13-H2 su media de 30 días con los datos de ejemplo, sin clasificar el día", async ({ page }) => {
     await loadSeed(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
     await tab(page, "Valoración").click();
     await page.getByRole("link", { name: /^Bienestar diario.*14\/25/ }).click();
     const summary = page.getByRole("region", { name: "Resumen de hoy" });
-    await expect(summary).toContainText("Por debajo de lo habitual");
+    await expect(summary).toContainText("Su media de los últimos 30 días");
+    await expect(summary).not.toContainText("habitual");
     await expect(summary).toContainText("fatiga (2), calidad del sueño (2)");
     await expect(page.locator(".recharts-line")).toHaveCount(1);
     await expect(page.getByRole("table").getByRole("row")).toHaveCount(8);

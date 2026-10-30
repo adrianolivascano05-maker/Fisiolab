@@ -392,7 +392,7 @@ export const rodillaTests: SpecialTest[] = [
     ],
     positive: "La tibia, que estaba hundida, se desplaza hacia delante al contraer el cuádriceps.",
     interpretation:
-      "Muy específico: un positivo confirma con bastante seguridad la rotura del LCP, pero un negativo no la descarta. Úsalo junto al cajón posterior.",
+      "Muy específico: en los estudios, un positivo se asoció con bastante seguridad a la rotura del LCP, pero un negativo no la descarta. Úsalo junto al cajón posterior.",
     accuracy: [{ sens: 53, spec: 98, context: "Estudio ciego con exploradores expertos (cifras citadas en fuentes secundarias)", ...RUBINSTEIN }],
     utility: "alta",
     figures: [
@@ -535,7 +535,7 @@ export const rodillaTests: SpecialTest[] = [
       },
     ],
     utility: "moderada",
-    cautions: "Una apertura franca en extensión sugiere lesión multiligamentaria: deriva para valoración urgente y pruebas de imagen.",
+    cautions: "Una apertura franca en extensión se asocia a lesión multiligamentaria.",
     figures: [
       {
         view: "front",
@@ -614,7 +614,7 @@ export const rodillaTests: SpecialTest[] = [
       },
     ],
     utility: "baja",
-    cautions: "Una apertura franca en extensión sugiere lesión multiligamentaria: deriva y revisa la función del nervio peroneo.",
+    cautions: "Una apertura franca en extensión se asocia a lesión multiligamentaria; la exploración incluye la función del nervio peroneo.",
     figures: [
       {
         view: "front",
@@ -1704,7 +1704,7 @@ export const rodillaTests: SpecialTest[] = [
     name: "Regla de Ottawa para la rodilla",
     aka: ["Ottawa knee rule"],
     kind: "rule",
-    purpose: "Decide si hace falta radiografía tras un traumatismo agudo de rodilla.",
+    purpose: "Regla publicada (Ottawa) para decidir si hace falta radiografía tras un traumatismo agudo de rodilla.",
     position: "Paciente adulto tras traumatismo agudo; anamnesis, palpación e intento de marcha.",
     steps: [
       "Edad de 55 años o más.",
@@ -1713,7 +1713,7 @@ export const rodillaTests: SpecialTest[] = [
       "Incapacidad para flexionar la rodilla a 90°.",
       "Incapacidad para dar 4 pasos con carga, en el momento de la lesión y en la consulta (cojear cuenta como paso).",
     ],
-    positive: "Con cualquiera de los cinco criterios está indicada la radiografía.",
+    positive: "Según la regla, con cualquiera de los cinco criterios se indica radiografía.",
     interpretation:
       "Muy sensible: si no se cumple ningún criterio, se puede descartar fractura con seguridad y evitar la radiografía. Su especificidad es baja, así que un positivo no indica fractura, solo que hay que hacer la prueba.",
     accuracy: [
@@ -1756,14 +1756,14 @@ export const rodillaTests: SpecialTest[] = [
     name: "Regla de Pittsburgh para la rodilla",
     aka: ["Pittsburgh knee rule"],
     kind: "rule",
-    purpose: "Decide si hace falta radiografía tras un traumatismo cerrado o caída sobre la rodilla.",
+    purpose: "Regla publicada (Pittsburgh) para decidir si hace falta radiografía tras un traumatismo cerrado o caída sobre la rodilla.",
     position: "Paciente tras traumatismo contuso o caída; anamnesis e intento de marcha.",
     steps: [
       "Mecanismo: traumatismo contuso o caída.",
       "Edad menor de 12 años o mayor de 50 años.",
       "O bien incapacidad para dar 4 pasos con carga en urgencias (aquí no cuenta la cojera: el paso debe ser completo).",
     ],
-    positive: "Mecanismo compatible y al menos uno de los dos criterios: está indicada la radiografía.",
+    positive: "Según la regla, con mecanismo compatible y al menos uno de los dos criterios se indica radiografía.",
     interpretation:
       "Igual de sensible que Ottawa para descartar fractura y bastante más específica en la comparación directa, por lo que evita más radiografías. Puede aplicarse también en niños.",
     accuracy: [

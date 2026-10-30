@@ -90,7 +90,7 @@ export const atmTests: SpecialTest[] = [
       },
     ],
     utility: "alta",
-    cautions: "Si hay dolor facial con fiebre, inflamación, entumecimiento o pérdida de peso, piensa en otras causas y deriva.",
+    cautions: "La bibliografía señala que el dolor facial con fiebre, inflamación, entumecimiento o pérdida de peso puede tener otras causas que requieren valoración médica.",
     figures: [
       {
         view: "side",
@@ -252,7 +252,7 @@ export const atmTests: SpecialTest[] = [
     name: "Test del depresor lingual (fractura mandibular)",
     aka: ["Tongue blade test", "Test de la paleta"],
     kind: "test",
-    purpose: "Descartar una fractura de mandíbula tras un traumatismo facial antes de pedir imagen.",
+    purpose: "Prueba descrita para valorar la probabilidad de fractura de mandíbula tras un traumatismo facial.",
     position: "Paciente sentado tras un golpe en la mandíbula. Examinador delante con un depresor lingual de madera.",
     steps: [
       "Coloca el depresor entre los molares de un lado.",
@@ -262,7 +262,7 @@ export const atmTests: SpecialTest[] = [
     ],
     positive: "El paciente no puede sujetar el depresor (lo suelta o el dolor se lo impide). Negativo si el depresor se rompe sin que lo suelte.",
     interpretation:
-      "Muy sensible: si el paciente rompe el depresor en ambos lados, la fractura es poco probable. Poco específico: un positivo pide radiografía o TC. Combínalo con maloclusión, dolor a la palpación e hinchazón.",
+      "Muy sensible: si el paciente rompe el depresor en ambos lados, la fractura es poco probable. Poco específico: en el estudio, los positivos se confirmaron con radiografía o TC. Combínalo con maloclusión, dolor a la palpación e hinchazón.",
     accuracy: [
       {
         source: "Alonso y Purcell, 1995",
@@ -273,7 +273,7 @@ export const atmTests: SpecialTest[] = [
       },
     ],
     utility: "alta",
-    cautions: "Si hay maloclusión evidente, herida abierta intraoral o sospecha de lesión cervical o craneal, no lo hagas y deriva directamente.",
+    cautions: "Los autores no lo aplican si hay maloclusión evidente, herida abierta intraoral o sospecha de lesión cervical o craneal.",
     figures: [
       {
         view: "side",

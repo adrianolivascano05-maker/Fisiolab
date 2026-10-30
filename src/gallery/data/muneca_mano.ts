@@ -237,7 +237,7 @@ export const munecaManoTests: SpecialTest[] = [
     name: "Regla de Wainner para túnel carpiano",
     aka: ["Wainner clinical prediction rule", "Cluster de Wainner"],
     kind: "rule",
-    purpose: "Combina cinco datos de la historia y la exploración para confirmar un síndrome del túnel carpiano.",
+    purpose: "Combina cinco datos de la historia y la exploración en una regla publicada (Wainner et al., 2005) para el túnel carpiano.",
     position: "Paciente sentado. Se necesita un calibre (o regla) y el cuestionario de Boston (escala de gravedad de síntomas).",
     steps: [
       "1) Sacudir la mano alivia los síntomas.",
@@ -246,7 +246,7 @@ export const munecaManoTests: SpecialTest[] = [
       "4) Sensibilidad disminuida en el pulpejo del pulgar (territorio del mediano).",
       "5) Edad > 45 años.",
     ],
-    positive: "Cinco de cinco criterios: confirma con mucha fuerza. Cuatro de cinco: aumenta de forma moderada la probabilidad.",
+    positive: "En el estudio, cinco de cinco criterios dieron una LR+ de 18,3; cuatro de cinco, de 4,6.",
     interpretation:
       "Con los cinco criterios el diagnóstico queda prácticamente confirmado (LR+ 18,3), aunque pocos pacientes los cumplen todos. Con cuatro, la probabilidad sube de forma moderada. Phalen y Tinel no entraron en la regla.",
     accuracy: [
@@ -446,7 +446,7 @@ export const munecaManoTests: SpecialTest[] = [
       "Es el test clínico más sensible: si no duele, la fractura es poco probable. Su especificidad es muy variable, así que un positivo no la confirma; combínalo con el tubérculo y la compresión axial.",
     accuracy: [{ context: "8 estudios, 1164 pacientes; sensibilidad 87-100 %, especificidad 3-98 % (sin estimación agrupada por heterogeneidad)", ...MALLEE }],
     utility: "moderada",
-    cautions: "Ante sospecha de fractura de escafoides, inmovilizar y derivar para imagen aunque la radiografía inicial sea normal.",
+    cautions: "La bibliografía recomienda imagen ante sospecha de fractura de escafoides, aunque la radiografía inicial sea normal.",
     figures: [
       {
         view: "front",
@@ -489,7 +489,7 @@ export const munecaManoTests: SpecialTest[] = [
       "Sensible y poco específico: ayuda a descartar si es negativo. Combínalo con la tabaquera y la compresión axial para mejorar la especificidad.",
     accuracy: [{ context: "revisión sistemática; sensibilidad 82-100 %, especificidad 17-57 % según el estudio", ...MALLEE }],
     utility: "moderada",
-    cautions: "Ante sospecha de fractura, inmovilizar y derivar para imagen.",
+    cautions: "La bibliografía recomienda imagen ante sospecha de fractura de escafoides, aunque la radiografía inicial sea normal.",
     figures: [
       {
         view: "side",
@@ -532,7 +532,7 @@ export const munecaManoTests: SpecialTest[] = [
       "Su sensibilidad y especificidad varían mucho entre estudios; por sí solo no confirma ni descarta. Úsalo dentro de la combinación de tests de escafoides.",
     accuracy: [{ context: "8 estudios, 961 pacientes; sensibilidad 48-100 %, especificidad 22-97 %", ...MALLEE }],
     utility: "baja",
-    cautions: "Compresión suave; ante sospecha de fractura, inmovilizar y derivar para imagen.",
+    cautions: "Compresión suave. La bibliografía recomienda imagen ante sospecha de fractura de escafoides, aunque la radiografía inicial sea normal.",
     figures: [
       {
         view: "front",
@@ -564,7 +564,7 @@ export const munecaManoTests: SpecialTest[] = [
     name: "Combinación de tests para escafoides",
     aka: ["Scaphoid clinical cluster"],
     kind: "cluster",
-    purpose: "Combina la tabaquera, el tubérculo y la compresión axial para decidir quién necesita imagen avanzada tras una caída.",
+    purpose: "Combina la tabaquera, el tubérculo y la compresión axial; en el estudio se usó para decidir quién necesitaba imagen avanzada tras una caída.",
     position: "Paciente sentado tras una caída sobre la mano extendida, con radiografía inicial normal o dudosa.",
     steps: [
       "Palpa la tabaquera anatómica.",
@@ -577,7 +577,7 @@ export const munecaManoTests: SpecialTest[] = [
       "En la revisión, combinar tests aumentó la especificidad y la probabilidad de fractura tras un positivo manteniendo una sensibilidad alta. Aun así, la decisión final depende de la imagen.",
     accuracy: [{ context: "3 estudios: la combinación aumentó la especificidad manteniendo la sensibilidad alta (sin cifras agrupadas)", ...MALLEE }],
     utility: "moderada",
-    cautions: "Ante sospecha clínica persistente, inmovilizar y derivar para resonancia o TC.",
+    cautions: "La bibliografía recomienda imagen (resonancia o TC) ante sospecha clínica persistente, aunque la radiografía inicial sea normal.",
     figures: [
       {
         view: "front",
@@ -618,7 +618,7 @@ export const munecaManoTests: SpecialTest[] = [
       "Suelta el pulgar y nota si hay un chasquido.",
     ],
     positive: "Dolor dorsal en la zona escafolunar o chasquido al soltar el pulgar (el escafoides vuelve a su sitio).",
-    interpretation: "No se han confirmado datos de precisión. Puede ser positivo en muñecas laxas sanas: compara siempre con el otro lado y confirma con imagen.",
+    interpretation: "No se han confirmado datos de precisión. Puede ser positivo en muñecas laxas sanas: compara siempre con el otro lado; la confirmación se hace con imagen.",
     accuracy: [],
     utility: "desconocida",
     figures: [
@@ -832,7 +832,7 @@ export const munecaManoTests: SpecialTest[] = [
       "Compara la apertura y el tope con el lado sano.",
     ],
     positive: "Apertura mayor que en el lado sano (orientativo: > 30-35° o > 15° de diferencia) o ausencia de tope firme.",
-    interpretation: "No se han confirmado datos de precisión. Una rotura completa puede necesitar cirugía: si hay laxitud clara, deriva para imagen.",
+    interpretation: "No se han confirmado datos de precisión. Una rotura completa puede necesitar cirugía; con laxitud clara, la confirmación se hace con imagen.",
     accuracy: [],
     utility: "desconocida",
     cautions: "Hacer una radiografía antes si se sospecha fractura-avulsión en la base de la falange.",
@@ -950,10 +950,10 @@ export const munecaManoTests: SpecialTest[] = [
       "Suelta una arteria y cronometra cuánto tarda en volver el color; repite con la otra.",
     ],
     positive: "El color tarda más de unos 6-7 segundos en volver al soltar una arteria.",
-    interpretation: "No se han confirmado datos de precisión. Si es positivo o hay signos de isquemia, deriva para estudio con eco-Doppler.",
+    interpretation: "No se han confirmado datos de precisión. Si es positivo o hay signos de isquemia, la confirmación se hace con eco-Doppler.",
     accuracy: [],
     utility: "desconocida",
-    cautions: "Palidez, frialdad o dolor isquémico en reposo son signos de alarma: derivar de forma urgente.",
+    cautions: "La bibliografía considera la palidez, la frialdad o el dolor isquémico en reposo signos de alarma.",
     figures: [
       {
         view: "front",

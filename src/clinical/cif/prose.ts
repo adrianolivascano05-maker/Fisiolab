@@ -1,11 +1,9 @@
-// El perfil CIF redactado como lo escribiría un fisio: por componente, cada código en una frase con su calificador
-// («dificultad moderada para andar (d450.2; Oswestry 32 % el 20 oct)»), el dato que lo respalda cuando el calificador
-// coincide con lo propuesto (src/clinical/cif/suggest.ts) y, al final, los factores personales de la anamnesis, que
-// la CIF no codifica.
+// El perfil CIF pasado a texto, como lo escribiría un fisio: por componente, cada código en una frase con el
+// calificador que puso el profesional («dificultad moderada para andar (d450.2)») y, al final, los factores personales
+// de la anamnesis, que la CIF no codifica. Solo convierte lo elegido en frases: no añade datos ni justificaciones.
 import type { Answers } from "../../data/clinical";
 import { ageOn } from "../../data/privacy";
 import { COMPONENTS, LOCATION, NATURE, formatCoded, readEntry, type Coded, type Component } from "./cif";
-import { suggestQualifier, type Evidence } from "./suggest";
 
 const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 /** El título para ir dentro de una frase: sin las comillas de la edición en español y en minúscula. */
@@ -86,25 +84,15 @@ export function personalFactors(a: Answers, birthDate: string | null | undefined
 }
 
 /**
- * El diagnóstico fisioterapéutico redactado con la CIF, un párrafo por componente. Con `evidence`, los calificadores
- * que coinciden con lo propuesto se agrupan por el dato que los respalda («…, según RMDQ 12/24 el 20 oct»); con
+ * El perfil CIF pasado a texto, un párrafo por componente, con los calificadores que puso el profesional; con
  * `personal`, termina con los factores personales.
  */
-export function draftDiagnosis(entries: string[], opts: { evidence?: Evidence; personal?: string } = {}): string {
+export function draftDiagnosis(entries: string[], opts: { personal?: string } = {}): string {
   const parsed = entries.map(readEntry).filter((e): e is NonNullable<ReturnType<typeof readEntry>> => !!e);
   const lines: string[] = [];
   for (const comp of COMPONENTS) {
-    // Por el dato que los respalda, en el orden en que salen; sin dato, juntos.
-    const byEvidence = new Map<string, Phrase[]>();
-    for (const { coded, title } of parsed.filter((e) => e.coded.code[0] === comp.id)) {
-      const p = phraseParts(coded, title);
-      if (!p) continue;
-      const sug = opts.evidence ? suggestQualifier(coded.code, opts.evidence) : null;
-      const key = sug && sug.q === coded.q ? sug.short : "";
-      byEvidence.set(key, [...(byEvidence.get(key) ?? []), p]);
-    }
-    const groups = [...byEvidence].map(([why, parts]) => `${listText(mergeLeads(parts))}${why ? `, según ${why}` : ""}`);
-    if (groups.length) lines.push(`${HEAD[comp.id]}: ${groups.join("; ")}.`);
+    const parts = parsed.filter((e) => e.coded.code[0] === comp.id).flatMap(({ coded, title }) => phraseParts(coded, title) ?? []);
+    if (parts.length) lines.push(`${HEAD[comp.id]}: ${listText(mergeLeads(parts))}.`);
   }
   if (opts.personal) lines.push(`Factores personales: ${opts.personal}.`);
   return lines.join("\n");

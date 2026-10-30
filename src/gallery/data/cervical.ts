@@ -19,7 +19,7 @@ const MIELO = "Mielopatía cervical";
 const INESTAB = "Inestabilidad cervical superior";
 const CEFALEA = "Cefalea cervicogénica";
 const CONTROL = "Control motor";
-const TRAUMA = "Traumatismo cervical: ¿hace falta imagen?";
+const TRAUMA = "Traumatismo cervical: reglas de decisión publicadas";
 const VASCULAR = "Cribado vascular";
 
 export const cervicalTests: SpecialTest[] = [
@@ -418,7 +418,7 @@ export const cervicalTests: SpecialTest[] = [
       { ...WAINNER, lrPos: 30.3, context: "4 de 4 tests positivos (IC 95 % 1,7-538,2)." },
     ],
     utility: "alta",
-    cautions: "Si hay signos de mielopatía o déficit neurológico progresivo, deriva antes de seguir explorando.",
+    cautions: "La bibliografía considera los signos de mielopatía y el déficit neurológico progresivo signos de alarma que requieren valoración médica.",
     figures: [
       {
         view: "front",
@@ -520,10 +520,10 @@ export const cervicalTests: SpecialTest[] = [
     ],
     positive: "Extensión lenta del dedo gordo, a veces con apertura en abanico de los demás dedos.",
     interpretation:
-      "Las revisiones lo sitúan entre los signos más específicos de mielopatía, pero poco sensible: si aparece, deriva; si no aparece, no descarta. Forma parte del cluster de Cook.",
+      "Las revisiones lo sitúan entre los signos más específicos de mielopatía, pero poco sensible: su presencia se asocia a mielopatía; su ausencia no la descarta. Forma parte del cluster de Cook.",
     accuracy: [],
     utility: "desconocida",
-    cautions: "Un Babinski positivo de nueva aparición es un signo de alarma: deriva a médico.",
+    cautions: "La bibliografía considera un Babinski positivo de nueva aparición un signo de alarma que requiere valoración médica.",
     figures: [
       {
         view: "side",
@@ -565,7 +565,7 @@ export const cervicalTests: SpecialTest[] = [
       "Muy específico y poco sensible según las revisiones: un clonus mantenido apoya mucho la afectación medular; su ausencia no la descarta.",
     accuracy: [],
     utility: "desconocida",
-    cautions: "Un clonus mantenido de nueva aparición es un signo de alarma: deriva a médico.",
+    cautions: "La bibliografía considera un clonus mantenido de nueva aparición un signo de alarma que requiere valoración médica.",
     figures: [
       {
         view: "side",
@@ -614,10 +614,10 @@ export const cervicalTests: SpecialTest[] = [
     ],
     positive: "Sensación de descarga eléctrica que baja por la columna y se irradia a brazos o piernas.",
     interpretation:
-      "Poco sensible según los pocos estudios que hay: su ausencia no descarta. Si aparece, piensa en mielopatía (o esclerosis múltiple) y deriva.",
+      "Poco sensible según los pocos estudios que hay: su ausencia no descarta. Su presencia se asocia a mielopatía (o esclerosis múltiple).",
     accuracy: [],
     utility: "desconocida",
-    cautions: "Si es positivo, no sigas con la exploración del cuello y deriva a médico.",
+    cautions: "La bibliografía considera un resultado positivo un signo de alarma que requiere valoración médica antes de seguir explorando el cuello.",
     figures: [
       {
         view: "side",
@@ -699,13 +699,13 @@ export const cervicalTests: SpecialTest[] = [
     ],
     positive: "Para confirmar: 3 o más de 5. Para descartar: como mucho 1 de 5.",
     interpretation:
-      "Con 3 de 5 la mielopatía es muy probable (deriva). Si no hay ninguno o solo uno, es poco probable. Es un estudio de derivación: los intervalos de confianza son amplios.",
+      "En el estudio, con 3 de 5 la mielopatía fue muy probable. Si no hay ninguno o solo uno, es poco probable. Es un estudio de derivación: los intervalos de confianza son amplios.",
     accuracy: [
       { ...COOK_2010, sens: 94, lrNeg: 0.18, context: "Umbral 1 de 5 positivo, para descartar. Estudio de derivación, 249 pacientes." },
       { ...COOK_2010, sens: 19, spec: 99, lrPos: 30.9, context: "Umbral 3 de 5 positivos, para confirmar (IC 95 % del LR+ 5,5-181,8)." },
     ],
     utility: "alta",
-    cautions: "Ante sospecha de mielopatía evita la manipulación y las técnicas en posiciones extremas, y deriva a médico.",
+    cautions: "Ante sospecha de mielopatía, la bibliografía desaconseja la manipulación y las posiciones extremas, y la considera un signo de alarma que requiere valoración médica.",
     figures: [
       {
         view: "side",
@@ -745,7 +745,7 @@ export const cervicalTests: SpecialTest[] = [
     ],
     positive: "Se nota un deslizamiento posterior de la cabeza (a veces con un «clunk») o se alivian los síntomas que provocaba la flexión.",
     interpretation:
-      "En artritis reumatoide mostró buena capacidad para confirmar, pero estudios posteriores dan cifras muy variables y poca fiabilidad (revisión de Hutting, 2013). No sirve como cribado: ante sospecha clínica, pide imagen.",
+      "En artritis reumatoide mostró buena capacidad para confirmar, pero estudios posteriores dan cifras muy variables y poca fiabilidad (revisión de Hutting, 2013). No sirve como cribado: la bibliografía recomienda imagen ante sospecha clínica.",
     accuracy: [
       {
         source: "Uitvlugt e Indenbaum, 1988",
@@ -759,7 +759,7 @@ export const cervicalTests: SpecialTest[] = [
     ],
     utility: "alta",
     cautions:
-      "Test potencialmente peligroso. No lo hagas si hay síntomas neurológicos, traumatismo reciente o sospecha clara (artritis reumatoide, Down, uso crónico de corticoides): deriva para imagen. Movimiento mínimo y suave.",
+      "Test potencialmente peligroso. La bibliografía desaconseja hacerlo si hay síntomas neurológicos, traumatismo reciente o sospecha clara (artritis reumatoide, Down, corticoides mucho tiempo). Movimiento mínimo y suave.",
     figures: [
       {
         view: "side",
@@ -805,7 +805,7 @@ export const cervicalTests: SpecialTest[] = [
     accuracy: [],
     utility: "desconocida",
     cautions:
-      "Si aparece cualquier síntoma neurológico o vascular, para, mantén al paciente quieto y deriva urgente. No lo hagas tras un traumatismo agudo: aplica antes la regla canadiense.",
+      "Si aparece cualquier síntoma neurológico o vascular, la prueba se interrumpe. No está indicada tras un traumatismo agudo sin aplicar antes la regla canadiense.",
     figures: [
       {
         view: "side",
@@ -849,7 +849,7 @@ export const cervicalTests: SpecialTest[] = [
       "Sin datos de precisión comprobados y con fiabilidad discutida. Un resultado anómalo exige imagen; un resultado normal no garantiza la estabilidad.",
     accuracy: [],
     utility: "desconocida",
-    cautions: "Movimientos mínimos y lentos. Para ante cualquier síntoma y deriva. No lo uses tras traumatismo agudo sin descartar fractura.",
+    cautions: "Movimientos mínimos y lentos. Si aparece cualquier síntoma neurológico o vascular, la prueba se interrumpe. No está indicada tras un traumatismo agudo sin aplicar antes la regla canadiense.",
     figures: [
       {
         view: "front",
@@ -988,19 +988,19 @@ export const cervicalTests: SpecialTest[] = [
     name: "Regla canadiense de la columna cervical",
     aka: ["Canadian C-spine rule", "CCR"],
     kind: "rule",
-    purpose: "Decidir si un paciente alerta y estable tras un traumatismo necesita prueba de imagen cervical.",
+    purpose: "Regla publicada (Stiell et al., 2003) para decidir si un paciente alerta y estable tras un traumatismo necesita imagen cervical.",
     position: "Paciente alerta (Glasgow 15) y estable tras un traumatismo. Valoración con el cuello inmovilizado hasta llegar al paso 3.",
     steps: [
       "1. ¿Algún factor de alto riesgo? Edad ≥ 65, mecanismo peligroso (caída > 1 m o 5 escalones, carga axial, accidente a alta velocidad, vuelco, salida del vehículo, bici) o parestesias en extremidades. Si sí: imagen.",
       "2. ¿Algún factor de bajo riesgo que permita explorar el movimiento? Alcance trasero simple, sentado en urgencias, ha caminado en algún momento, dolor cervical de aparición tardía o sin dolor en la línea media posterior. Si no hay ninguno: imagen.",
       "3. ¿Puede rotar activamente el cuello 45° a derecha e izquierda? Si no: imagen.",
     ],
-    positive: "Indica imagen cualquier factor de alto riesgo, la ausencia de factores de bajo riesgo o la incapacidad para rotar 45° a ambos lados.",
+    positive: "Según la regla, indican imagen cualquier factor de alto riesgo, la ausencia de factores de bajo riesgo o la incapacidad para rotar 45° a ambos lados.",
     interpretation:
       "Muy sensible: si la regla dice que no hace falta imagen, la lesión importante es muy improbable. Más sensible y específica que NEXUS en la comparación directa.",
     accuracy: [{ ...STIELL_2003, sens: 99.4, spec: 45.1, context: "8283 pacientes en urgencias; lesión cervical clínicamente importante." }],
     utility: "alta",
-    cautions: "No aplicable a menores de 16 años, Glasgow < 15, constantes inestables, parálisis aguda o enfermedad vertebral conocida. Ante la duda, inmoviliza y deriva.",
+    cautions: "No aplicable a menores de 16 años, Glasgow < 15, constantes inestables, parálisis aguda o enfermedad vertebral conocida.",
     figures: [
       {
         view: "front",
@@ -1029,7 +1029,7 @@ export const cervicalTests: SpecialTest[] = [
     name: "Criterios NEXUS",
     aka: ["NEXUS low-risk criteria", "National Emergency X-Radiography Utilization Study"],
     kind: "rule",
-    purpose: "Identificar pacientes con traumatismo de bajo riesgo que no necesitan imagen cervical.",
+    purpose: "Criterios publicados (NEXUS) para identificar pacientes con traumatismo de bajo riesgo que no necesitan imagen cervical.",
     position: "Paciente tras traumatismo cerrado, valorado con el cuello inmovilizado.",
     steps: [
       "Sin dolor a la palpación de la línea media posterior cervical.",
@@ -1038,7 +1038,7 @@ export const cervicalTests: SpecialTest[] = [
       "Sin intoxicación.",
       "Sin lesión dolorosa que distraiga (p. ej. fractura de un hueso largo).",
     ],
-    positive: "Si falla cualquiera de los cinco criterios, hace falta imagen. Si se cumplen los cinco, el riesgo es bajo.",
+    positive: "Según los criterios, si falla cualquiera de los cinco se indica imagen; si se cumplen los cinco, el riesgo es bajo.",
     interpretation:
       "Muy sensible en el estudio original, aunque menos en la comparación con la regla canadiense, que es preferible en adultos alertas. Sirve para descartar, no para confirmar.",
     accuracy: [
@@ -1053,7 +1053,7 @@ export const cervicalTests: SpecialTest[] = [
       { ...STIELL_2003, sens: 90.7, spec: 36.8, context: "Comparación directa con la regla canadiense, 8283 pacientes alertas y estables." },
     ],
     utility: "alta",
-    cautions: "Ante cualquier criterio positivo, inmoviliza y deriva a urgencias.",
+    cautions: "Los criterios se diseñaron para urgencias.",
     figures: [
       {
         view: "side",
@@ -1097,7 +1097,7 @@ export const cervicalTests: SpecialTest[] = [
     accuracy: [],
     utility: "desconocida",
     cautions:
-      "Puede provocar síntomas: si aparecen, para y deriva. Ante sospecha de disección arterial (dolor de cuello o cabeza brusco e intenso, distinto de lo habitual) no explores: deriva urgente.",
+      "Puede provocar síntomas; si aparecen, la prueba se interrumpe. La bibliografía desaconseja explorar si se sospecha una disección arterial (dolor de cuello o cabeza brusco e intenso, distinto de lo habitual).",
     figures: [
       {
         view: "side",

@@ -2,9 +2,10 @@
 // estructuras, actividades y participación, factores ambientales), acotando poco a poco desde atajos de fisioterapia
 // («Dolor», «Movilidad y estabilidad», «Posturas y transferencias»…) o desde los capítulos de la propia CIF hasta la
 // categoría concreta, y calificando cada código en la misma hoja con un toque. Arriba de cada componente salen los
-// códigos que proponen los datos de la ficha (zona, dolor, cuestionarios y mediciones) con su calificador y el dato
-// que lo respalda. Con todo ello se redacta el diagnóstico fisioterapéutico (src/clinical/cif/prose.ts).
-import { Check, ChevronLeft, ChevronRight, NotebookPen, Plus, Search, Sparkles, Trash } from "lucide-react";
+// atajos de la zona de la anamnesis, sin calificar; junto a cada código elegido, el dato de la ficha tal cual («En la
+// ficha: EVA 6/10 en la anamnesis»), nunca como grado: el calificador lo pone el profesional (revisión del
+// 30-10-2026). Lo elegido se puede pasar a texto en el diagnóstico (src/clinical/cif/prose.ts).
+import { Check, ChevronLeft, ChevronRight, NotebookPen, Plus, Search, Trash } from "lucide-react";
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import { Button, IconButton } from "../../ui/Button";
 import { cx } from "../../ui/cx";
@@ -13,7 +14,7 @@ import { Sheet } from "../../ui/Sheet";
 import { COMPONENTS, LOCATION, NATURE, PERCENT, QUALIFIERS, loadCatalog, makeEntry, qualifierLabel, readEntry, recentCodes, rememberCode, searchCif, type CifEntry, type Coded, type Component } from "./cif";
 import { GROUPS, ancestorsOf } from "./groups";
 import { draftDiagnosis } from "./prose";
-import { autoProfile, proposedCodes, proposedCoded, suggestQualifier, type Evidence } from "./suggest";
+import { evidenceText, proposedCodes, proposedCoded, type Evidence } from "./suggest";
 
 function useCatalog(on: boolean) {
   const [list, setList] = useState<CifEntry[] | null>(null);
@@ -164,24 +165,11 @@ function QualifierEditor({ c, onChange: change }: { c: Coded; onChange: (c: Code
   );
 }
 
-/** Lo que proponen los datos de la ficha para este código, para volver a ello en un toque. */
-function Proposed({ c, evidence, onChange }: { c: Coded; evidence?: Evidence; onChange: (c: Coded) => void }) {
-  const sug = evidence ? suggestQualifier(c.code, evidence) : null;
-  if (!sug) return null;
-  const k = c.code[0] as Component;
-  const same = c.q === sug.q;
-  return (
-    <p className="flex flex-wrap items-center gap-x-2 text-sm">
-      <span className={same ? "text-text-muted" : ""}>
-        {same ? "Coincide con lo propuesto" : "Propuesto"}: {qualifierLabel(k, sug.q, { facilitator: c.facilitator })} · {sug.why}
-      </span>
-      {!same && (
-        <Button size="sm" variant="ghost" onClick={() => onChange({ ...c, q: sug.q })}>
-          Usar<span className="sr-only"> el propuesto para {c.code}</span>
-        </Button>
-      )}
-    </p>
-  );
+/** El dato de la ficha que tiene que ver con este código, como dato (sin escala CIF ni propuesta). */
+function FromRecord({ c, evidence }: { c: Coded; evidence?: Evidence }) {
+  const text = evidence ? evidenceText(c.code, evidence) : null;
+  if (!text) return null;
+  return <p className="text-sm text-text-muted">En la ficha: {text}</p>;
 }
 
 // ---------- El perfil en la anamnesis ----------
@@ -201,13 +189,12 @@ export function CifPicker({
   onChange: (v: string[]) => void;
   /** Zonas de la anamnesis: para proponer sus códigos. */
   regions?: string[];
-  /** Redactar el diagnóstico con los códigos elegidos. */
+  /** Pasar a texto los códigos elegidos. */
   onDraft?: () => void;
-  /** Lo que hay en la ficha (dolor, cuestionarios, simetría, lado): para proponer códigos y calificadores. */
+  /** Lo que hay en la ficha (dolor, cuestionarios, ángulos, lado): se enseña como dato junto a cada código. */
   evidence?: Evidence;
 }) {
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
   const entries: Chosen[] = value.map(readEntry).filter((e): e is Chosen => !!e);
   const ev = evidence ?? (regions.length ? { pain: null, questionnaires: [], symmetry: [], regions } : undefined);
   const set = (c: Coded) =>
@@ -223,19 +210,6 @@ export function CifPicker({
     rememberCode(e.code);
     onChange([...value, makeEntry(proposedCoded(e.code, ev), e.title)]);
   };
-  /** El borrador rápido: los códigos de su zona y de sus datos, con el calificador que proponen. */
-  const auto = async () => {
-    if (!ev) return;
-    setBusy(true);
-    try {
-      const list = await loadCatalog();
-      const titles = new Map(list.map((e) => [e.code, e.title]));
-      onChange([...value, ...autoProfile(ev, (c) => titles.get(c), new Set(entries.map((e) => e.coded.code)))]);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="text-sm font-semibold">{label}</legend>
@@ -259,7 +233,7 @@ export function CifPicker({
                           <Trash aria-hidden="true" className="size-5" />
                         </IconButton>
                       </div>
-                      <Proposed c={c} evidence={ev} onChange={set} />
+                      <FromRecord c={c} evidence={ev} />
                       <QualifierEditor c={c} onChange={set} />
                     </li>
                   ))}
@@ -270,17 +244,12 @@ export function CifPicker({
         </section>
       )}
       <div className="flex flex-wrap gap-2">
-        {ev && (
-          <Button variant="secondary" loading={busy} icon={<Sparkles aria-hidden="true" className="size-5" />} onClick={() => void auto()}>
-            Borrador rápido con los datos de la ficha
-          </Button>
-        )}
         <Button variant="secondary" icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setOpen(true)}>
           Añadir códigos de la CIF
         </Button>
         {onDraft && entries.length > 0 && (
           <Button variant="secondary" icon={<NotebookPen aria-hidden="true" className="size-5" />} onClick={onDraft}>
-            Redactar el diagnóstico con la CIF
+            Pasar el perfil CIF a texto
           </Button>
         )}
       </div>
@@ -434,12 +403,9 @@ function CifSheet({
       return (
         <>
           {section(
-            "Con los datos de la ficha",
-            proposals.map((e) => {
-              const s = suggestQualifier(e.code, evidence!);
-              return row(e, s ? `Propuesto: ${qualifierLabel(tab, s.q).toLowerCase()} · ${s.why}` : "De la zona de la anamnesis");
-            }),
-            "cif-propuestos",
+            "Atajos de la zona",
+            proposals.map((e) => row(e)),
+            "cif-atajos-zona",
           )}
           {section("Usados hace poco", recent.map((e) => row(e)), "cif-recientes")}
           <section aria-labelledby="cif-atajos">
@@ -530,7 +496,7 @@ function CifSheet({
       {value.length > 0 && (
         <details className="rounded-md border border-border p-3 text-sm">
           <summary className="min-h-11 cursor-pointer content-center font-semibold">Cómo queda redactado</summary>
-          <p className="mt-2 whitespace-pre-line">{draftDiagnosis(value, { evidence })}</p>
+          <p className="mt-2 whitespace-pre-line">{draftDiagnosis(value)}</p>
         </details>
       )}
       <p className="text-xs text-text-muted">CIF, Organización Mundial de la Salud, 2001. Toca un código para elegirlo y ponle aquí mismo su calificador; la flecha baja a lo más concreto.</p>

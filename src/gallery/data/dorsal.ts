@@ -76,10 +76,10 @@ export const dorsalTests: SpecialTest[] = [
     ],
     positive: "Dolor localizado en una costilla lejos del punto de presión (sugiere fractura) o dolor y rigidez en un nivel costovertebral concreto.",
     interpretation:
-      "Sin datos de precisión comprobados. Un dolor focal a distancia del punto comprimido tras un traumatismo hace sospechar fractura y pide radiografía.",
+      "Sin datos de precisión comprobados. Un dolor focal a distancia del punto comprimido tras un traumatismo se asocia a fractura; la confirmación se hace con radiografía.",
     accuracy: [],
     utility: "desconocida",
-    cautions: "Tras un traumatismo, pregunta por disnea o dolor al respirar y no fuerces: ante sospecha de fractura o neumotórax, deriva. Cuidado con la osteoporosis.",
+    cautions: "Tras un traumatismo, pregunta por disnea o dolor al respirar y no fuerces: ante sospecha de fractura o neumotórax, la bibliografía recomienda valoración médica. Cuidado con la osteoporosis.",
     figures: [
       {
         view: "side",
@@ -184,7 +184,7 @@ export const dorsalTests: SpecialTest[] = [
     ],
     positive: "Expansión reducida, habitualmente menos de 2,5 cm (ajusta por edad y sexo).",
     interpretation:
-      "Es una medida de seguimiento más que diagnóstica: poco sensible en fases iniciales y con concordancia moderada entre examinadores. Ante dolor lumbar o dorsal inflamatorio, sospecha espondiloartritis y deriva aunque la expansión sea normal (el Schober modificado se ve en lumbar).",
+      "Es una medida de seguimiento más que diagnóstica: poco sensible en fases iniciales y con concordancia moderada entre examinadores. El dolor lumbar o dorsal inflamatorio se asocia a espondiloartritis aunque la expansión sea normal (el Schober modificado se ve en lumbar).",
     accuracy: [],
     utility: "desconocida",
     figures: [
@@ -267,10 +267,10 @@ export const dorsalTests: SpecialTest[] = [
     ],
     positive: "Dolor agudo, intenso y localizado («como un pinchazo») en una apófisis espinosa.",
     interpretation:
-      "Útil tanto para confirmar como para descartar una fractura aguda en pacientes con sospecha. Combínalo con el signo del decúbito supino; si alguno es positivo, pide resonancia.",
+      "Útil tanto para confirmar como para descartar una fractura aguda en pacientes con sospecha. Se describe junto al signo del decúbito supino; en el estudio, la confirmación se hizo con resonancia.",
     accuracy: [{ ...LANGDON, sens: 87.5, spec: 90, context: "Pacientes con sospecha de fractura osteoporótica aguda, frente a resonancia magnética (48 fracturas)." }],
     utility: "alta",
-    cautions: "Percute con moderación en personas con osteoporosis conocida, cáncer o tratamiento con corticoides. Si hay signos neurológicos, deriva urgente.",
+    cautions: "Percute con moderación en personas con osteoporosis conocida, cáncer o tratamiento con corticoides. La bibliografía considera los signos neurológicos un signo de alarma.",
     figures: [
       {
         view: "side",
@@ -313,7 +313,7 @@ export const dorsalTests: SpecialTest[] = [
       "Muy útil para confirmar en pacientes con sospecha de fractura osteoporótica. Úsalo junto a la percusión con puño cerrado: cualquiera de los dos positivo justifica la resonancia.",
     accuracy: [{ ...LANGDON, sens: 81.25, spec: 93.33, context: "Pacientes con sospecha de fractura osteoporótica aguda, frente a resonancia magnética." }],
     utility: "alta",
-    cautions: "No fuerces la posición. Ante dolor muy intenso, pérdida de peso o antecedentes de cáncer, deriva.",
+    cautions: "No fuerces la posición. Ante dolor muy intenso, pérdida de peso o antecedentes de cáncer, la bibliografía recomienda valoración médica.",
     figures: [
       {
         view: "side",

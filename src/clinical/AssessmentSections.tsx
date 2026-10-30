@@ -9,7 +9,7 @@ import { wellnessTotal } from "../calc/wellness";
 import { Alert } from "../ui/Alert";
 import { AnalysisNav, TestList } from "./measureParts";
 import { QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
-import { LSI_REFERENCE, symmetryRows } from "./symmetry";
+import { symmetryRows } from "./symmetry";
 
 // ---------- Valoración: cuestionarios y mediciones ----------
 // Son dos de los tres bloques de la pestaña Valoración (la página está en ExplorationPages.tsx, con la exploración).
@@ -50,7 +50,6 @@ export function QuestionnairesSection({ id, questionnaires, wellness, waiting }:
 /** Valoración › Mediciones: medir, los análisis, la simetría entre lados y todas las mediciones. */
 export function MeasurementsSection({ id, patient, tests }: { id: string; patient: Patient; tests: TestSummary[] }) {
   const symmetry = symmetryRows(tests);
-  const above = symmetry.filter((r) => r.lsi >= LSI_REFERENCE).length;
   return (
     <div className="flex flex-col gap-3">
       <Link to={`/pacientes/${id}/test`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
@@ -64,17 +63,10 @@ export function MeasurementsSection({ id, patient, tests }: { id: string; patien
       <AnalysisNav id={id} tests={tests} />
       {symmetry.length > 0 && (
         <section aria-labelledby="simetria" className="flex flex-col gap-2">
-          <div className="flex items-baseline justify-between gap-2">
-            <h3 id="simetria" className="text-base">
-              Simetría entre lados
-            </h3>
-            <span className="nums text-sm text-text-muted">
-              {above} de {symmetry.length} en el {LSI_REFERENCE} % o más
-            </span>
-          </div>
-          <p className="-mt-1 text-sm text-text-muted">
-            Lado peor entre lado mejor, con la última medición de cada lado. La raya marca el {LSI_REFERENCE} %, la referencia que se suele pedir para volver al deporte.
-          </p>
+          <h3 id="simetria" className="text-base">
+            Simetría entre lados
+          </h3>
+          <p className="-mt-1 text-sm text-text-muted">Lado peor entre lado mejor, con la última medición de cada lado.</p>
           <SymmetryPanel rows={symmetry} />
         </section>
       )}

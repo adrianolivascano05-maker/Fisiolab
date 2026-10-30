@@ -26,9 +26,9 @@ export const GALLERY = "/biblioteca";
 const testUrl = (t: SpecialTest) => `${GALLERY}/${regionOf(t.region).slug}/${t.id}`;
 
 const utilityLabels: Record<SpecialTest["utility"], string> = {
-  alta: "Utilidad alta",
-  moderada: "Utilidad moderada",
-  baja: "Utilidad baja",
+  alta: "Precisión publicada alta",
+  moderada: "Precisión publicada moderada",
+  baja: "Precisión publicada baja",
   desconocida: "Sin contrastar",
 };
 
@@ -231,8 +231,8 @@ export function GalleryHome() {
             <RowButton icon={Zap} title="Medir ahora, sin ficha" subtitle="En la ficha «Medición rápida»" busy={quick.busy} onClick={() => void quick.start()} />
           </Group>
           <p className="text-xs text-text-muted">
-            Ilustraciones propias. Cifras de revisiones publicadas con su fuente; consúltala antes de citarlas. Ningún test por sí solo hace un
-            diagnóstico.
+            Ilustraciones propias. Información y cifras de la bibliografía, con su fuente; consúltala antes de citarlas. Nada de esto se refiere a
+            un paciente concreto.
           </p>
         </>
       )}
@@ -261,7 +261,7 @@ export function GalleryRegion() {
       <div className="flex items-center justify-between gap-2">
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={onlyUseful} onChange={(e) => setOnlyUseful(e.target.checked)} className="size-5 accent-[var(--color-accent)]" />
-          Solo utilidad alta
+          Solo precisión publicada alta
         </label>
         <button type="button" onClick={() => open.setAll(groups, !allOpen)} className="tap inline-flex items-center gap-1 rounded-md px-2 text-sm text-accent hover:bg-surface">
           {allOpen ? <ChevronsDownUp aria-hidden="true" className="size-4" /> : <ChevronsUpDown aria-hidden="true" className="size-4" />}
@@ -299,7 +299,7 @@ export function GalleryRegion() {
           );
         })}
       </div>
-      {!list.length && <p className="py-6 text-center text-text-muted">Ningún test de esta articulación tiene utilidad alta comprobada.</p>}
+      {!list.length && <p className="py-6 text-center text-text-muted">Ningún test de esta articulación tiene precisión publicada alta.</p>}
     </Page>
   );
 }
@@ -400,6 +400,7 @@ export function GalleryTest() {
           {allOpen ? "Cerrar todo" : "Abrir todo"}
         </button>
       </div>
+      <p className="text-sm text-text-muted">Información publicada sobre la prueba. No se refiere a ningún paciente: la interpretación de cada caso es del profesional.</p>
       <div className={listBox}>
         <Disclosure title="Posición" {...sec("posicion")}>
           <p>{t.position}</p>
@@ -419,7 +420,7 @@ export function GalleryTest() {
         <Disclosure title="Positivo si" {...sec("positivo")}>
           <p>{t.positive}</p>
         </Disclosure>
-        <Disclosure title="Cómo interpretarlo" {...sec("interpretar")}>
+        <Disclosure title="Qué dice la bibliografía" {...sec("interpretar")}>
           <p>{t.interpretation}</p>
         </Disclosure>
         {t.cautions && (

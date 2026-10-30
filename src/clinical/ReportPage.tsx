@@ -26,7 +26,7 @@ import { questionnaireGroups } from "./outcomeParts";
 import { PainChart, resultLabels } from "./parts";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { kindOf, scoreText, type QDetails } from "./questionnaires";
-import { LSI_REFERENCE, symmetryRows } from "./symmetry";
+import { symmetryRows } from "./symmetry";
 import { painSeries } from "./timeline";
 
 const sexLabels = { female: "Mujer", male: "Hombre", other: "Otro" } as const;
@@ -266,7 +266,7 @@ export function ReportPage() {
               {symmetry.length > 0 && (
                 <Scroll label="Simetría entre lados">
                   <table className="w-full border-collapse text-sm">
-                    <caption className="pb-1 text-left text-sm font-semibold">Simetría entre lados (lado peor / lado mejor; referencia {LSI_REFERENCE} %)</caption>
+                    <caption className="pb-1 text-left text-sm font-semibold">Simetría entre lados (lado peor / lado mejor)</caption>
                     <thead>
                       <tr>
                         <th className={th}>Medición</th>
@@ -281,7 +281,7 @@ export function ReportPage() {
                           <td className={td}>{r.title}</td>
                           <td className={`${td} text-right ${r.weaker === "left" ? "font-semibold" : ""}`}>{r.left.text}</td>
                           <td className={`${td} text-right ${r.weaker === "right" ? "font-semibold" : ""}`}>{r.right.text}</td>
-                          <td className={`${td} text-right font-semibold ${r.lsi < LSI_REFERENCE ? "text-warning" : ""}`}>{fmt(r.lsi, 0)} %</td>
+                          <td className={`${td} text-right font-semibold`}>{fmt(r.lsi, 0)} %</td>
                         </tr>
                       ))}
                     </tbody>

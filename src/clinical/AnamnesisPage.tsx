@@ -251,13 +251,12 @@ export function AnamnesisPage() {
                         evidence={evidenceFrom(draft, sessions, questionnaires, symmetryRows(tests))}
                         onDraft={() => {
                           const text = draftDiagnosis(Array.isArray(draft.cif) ? (draft.cif as string[]) : [], {
-                            evidence: evidenceFrom(draft, sessions, questionnaires, symmetryRows(tests)),
                             personal: personalFactors(draft, patient.birthDate),
                           });
                           const now = typeof draft.diagnostico_funcional === "string" ? draft.diagnostico_funcional.trim() : "";
                           // Lo redactado se añade debajo de lo que ya hubiera escrito; nunca lo borra.
                           set("diagnostico_funcional")(now ? `${now}\n\n${text}` : text);
-                          toast("Diagnóstico redactado con la CIF: revísalo debajo", "success");
+                          toast("Perfil CIF pasado a texto: revísalo debajo", "success");
                         }}
                       />
                     ) : (

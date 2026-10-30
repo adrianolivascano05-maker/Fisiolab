@@ -120,15 +120,15 @@ function TodaySummary({ entry, previous }: { entry: WellnessEntry; previous: Wel
   const base = compareToBaseline(total, previous.filter((e) => new Date(e.performedAt).getTime() >= since).map(wellnessTotal));
   return (
     <section aria-label="Resumen de hoy" className="flex flex-col gap-3">
-      <Card className={base?.low ? "flex flex-col gap-1 border-warning" : "flex flex-col gap-1"}>
+      <Card className="flex flex-col gap-1">
         <span className="text-sm text-text-muted">Bienestar de hoy</span>
         <span className="flex items-baseline gap-1">
           <span className="nums text-display">{total}</span>
           <span className="text-base text-text-muted">/ 25</span>
         </span>
         {base ? (
-          <span className={base.low ? "text-sm text-warning" : "text-sm"}>
-            {base.low ? "Por debajo de lo habitual" : "Dentro de lo habitual"}: su media de los últimos 30 días es {fmt(base.mean, 1)} ({base.diff >= 0 ? "+" : "−"}
+          <span className="text-sm">
+            Su media de los últimos 30 días: {fmt(base.mean, 1)} (hoy, {base.diff >= 0 ? "+" : "−"}
             {fmt(Math.abs(base.diff), 1)}).
           </span>
         ) : (
@@ -136,11 +136,7 @@ function TodaySummary({ entry, previous }: { entry: WellnessEntry; previous: Wel
         )}
         {entry.pain !== null && <span className="text-sm">Dolor de la lesión: {entry.pain} / 10</span>}
       </Card>
-      {low.length > 0 && (
-        <Alert tone="warning" title="Conviene preguntar antes de la sesión">
-          Respuestas de 1 o 2: {low.map((i) => `${itemLabel[i].toLowerCase()} (${entry[i]})`).join(", ")}.
-        </Alert>
-      )}
+      {low.length > 0 && <p className="text-sm">Respuestas de 1 o 2 hoy: {low.map((i) => `${itemLabel[i].toLowerCase()} (${entry[i]})`).join(", ")}.</p>}
     </section>
   );
 }
@@ -149,7 +145,7 @@ function History({ entries, onDelete }: { entries: WellnessEntry[]; onDelete: (e
   if (entries.length === 0) {
     return (
       <EmptyState icon={HeartPulse} title="Sin registros todavía">
-        Rellenarlo cada día de sesión permite ver cuándo se sale de lo habitual.
+        Rellenarlo cada día de sesión permite ver su evolución.
       </EmptyState>
     );
   }

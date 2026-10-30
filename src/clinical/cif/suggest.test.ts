@@ -1,49 +1,37 @@
 import { describe, expect, it } from "vitest";
 import type { Questionnaire } from "../../data/clinical";
-import { readEntry } from "./cif";
-import { CIF_TSV } from "./cifData";
-import { autoProfile, evidenceFrom, percentToQualifier, suggestQualifier } from "./suggest";
+import { evidenceFrom, evidenceText, proposedCoded, proposedCodes } from "./suggest";
 
-const titles = new Map(CIF_TSV.split("\n").map((l) => l.split("\t") as [string, string]));
 const q = (kind: string, score: number, performedAt = "2026-10-20T10:00:00Z"): Questionnaire => ({ id: kind, patientId: "p", kind, score, performedAt, details: {}, notes: "" });
 
-describe("calificadores propuestos", () => {
-  it("la escala genérica de la CIF", () => {
-    expect([0, 4, 5, 24, 25, 49, 50, 95, 96, 100].map(percentToQualifier)).toEqual([0, 0, 1, 1, 2, 2, 3, 3, 4, 4]);
+describe("la ficha en la hoja de la CIF: datos, no calificadores", () => {
+  it("un código nuevo entra sin calificar aunque haya datos; la estructura lleva el lado de la anamnesis", () => {
+    const ev = evidenceFrom({ regiones: ["rodilla"], lado: "Izquierdo", eva: 5 }, [{ pain: 8, performedAt: "2026-10-21T10:00:00Z" }], [q("koos12", 50)], []);
+    expect(proposedCoded("b28015", ev)).toEqual({ code: "b28015", q: 8, capacity: null, facilitator: false });
+    expect(proposedCoded("s75011", ev)).toMatchObject({ q: 8, location: 2 });
+    expect(proposedCoded("d450", ev).q).toBe(8);
+    expect(proposedCoded("b28015").q).toBe(8);
   });
 
-  it("dolor desde la última sesión o la EVA; actividades desde el cuestionario de la zona", () => {
+  it("el dato de la ficha, tal cual: dolor de la última sesión o la EVA, cuestionarios y ángulos", () => {
     const ev = evidenceFrom({ eva: 4, regiones: ["lumbar"] }, [{ pain: 6, performedAt: "2026-10-21T10:00:00Z" }], [q("odi", 32)], []);
-    expect(suggestQualifier("b28013", ev)).toMatchObject({ q: 3, why: expect.stringContaining("dolor 6/10 = 60 %") });
-    expect(suggestQualifier("d430", ev)).toMatchObject({ q: 2, why: expect.stringContaining("32 % de problema") });
-    expect(suggestQualifier("s76002", ev)).toBeNull();
-    // Sin sesiones, la EVA de la anamnesis; un cuestionario solo propone lo que informa.
-    const ev2 = evidenceFrom({ eva: 4, regiones: ["rodilla"] }, [], [q("odi", 32)], []);
-    expect(suggestQualifier("b280", ev2)).toMatchObject({ q: 2 });
-    expect(suggestQualifier("d440", ev2)).toBeNull();
-    // ISI → sueño; el KOOS por subescala: la de dolor informa el dolor, la de AVD las actividades.
-    const ev3 = evidenceFrom({ regiones: ["rodilla"] }, [], [{ ...q("koos", 25), details: { subscale: "Dolor" } }, { ...q("koos", 80), details: { subscale: "AVD" } }, q("isi", 13)], []);
-    expect(suggestQualifier("b134", ev3)).toMatchObject({ q: 2, why: expect.stringContaining("ISI") });
-    expect(suggestQualifier("b28015", ev3)).toMatchObject({ q: 3, why: expect.stringContaining("KOOS (rodilla) · Dolor") });
-    expect(suggestQualifier("d450", ev3)).toMatchObject({ q: 1, why: expect.stringContaining("KOOS (rodilla) · AVD") });
+    expect(evidenceText("b28013", ev)).toBe("Dolor 6/10 en la sesión del 21 oct");
+    expect(evidenceText("d430", ev)).toBe("Oswestry 32 % el 20 oct");
+    expect(evidenceText("s76002", ev)).toBeNull();
+    // Sin sesiones, la EVA de la anamnesis; un cuestionario solo acompaña a lo que informa.
+    const ev2 = evidenceFrom({ eva: 6, regiones: ["rodilla"] }, [], [q("odi", 32)], []);
+    expect(evidenceText("b280", ev2)).toBe("EVA 6/10 en la anamnesis");
+    expect(evidenceText("d440", ev2)).toBeNull();
+    const ev3 = evidenceFrom({ regiones: ["rodilla"] }, [], [{ ...q("koos", 25), details: { subscale: "Dolor" } }, q("isi", 13)], []);
+    expect(evidenceText("b134", ev3)).toMatch(/^ISI 13/);
+    expect(evidenceText("b28015", ev3)).toMatch(/^KOOS · Dolor 25\/100 el 20 oct$/);
+    // Nada en el texto convierte el dato en grado ni en porcentaje de problema.
+    for (const t of [evidenceText("b28013", ev), evidenceText("d430", ev), evidenceText("b134", ev3)]) expect(t).not.toMatch(/grave|moderad|liger|de problema|=/);
   });
 
-  it("los cuestionarios en que más es mejor también cuentan bien (LEFS 60/80 = 25 % de problema)", () => {
-    const ev = evidenceFrom({ regiones: ["rodilla"] }, [], [q("lefs", 60)], []);
-    expect(suggestQualifier("d450", ev)?.q).toBe(2);
-  });
-
-  it("el borrador rápido trae los códigos de la zona con lo propuesto y no repite", () => {
+  it("los atajos son los de la zona, sin cuestionarios ni dolor", () => {
     const ev = evidenceFrom({ regiones: ["lumbar"] }, [{ pain: 6, performedAt: "2026-10-21T10:00:00Z" }], [q("odi", 32), q("phq9", 9)], []);
-    const out = autoProfile(ev, (c) => titles.get(c), new Set(["d410"])).map((e) => readEntry(e)!);
-    expect(out.map((e) => `${e.coded.code}.${e.coded.q}`)).toEqual(["b28013.3", "s76002.8", "d415.2", "d430.2", "d450.2", "b152.2"]);
-    expect(out[0]!.title).toBe("Dolor en la espalda");
-  });
-
-  it("la estructura lleva el lado de la anamnesis y cada propuesta su dato en pocas palabras", () => {
-    const ev = evidenceFrom({ regiones: ["rodilla"], lado: "Izquierdo", eva: 5 }, [], [q("koos12", 50)], []);
-    const out = autoProfile(ev, (c) => titles.get(c), new Set()).map((e) => readEntry(e)!);
-    expect(out.find((e) => e.coded.code === "s75011")!.coded).toMatchObject({ q: 8, location: 2 });
-    expect(suggestQualifier("b28015", ev)?.short).toBe("EVA 5/10 en la anamnesis");
+    expect(proposedCodes(ev)).toEqual(["b28013", "s76002", "d410", "d415", "d430"]);
+    expect(proposedCodes(evidenceFrom({}, [], [], []))).toEqual(["b280"]);
   });
 });
