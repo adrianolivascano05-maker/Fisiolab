@@ -1,9 +1,9 @@
 // Worker que guarda la base en el almacenamiento privado del navegador (OPFS, VFS opfs-sahpool).
 // Si el navegador no lo permite, usa una base en memoria y lo dice: la app avisa de que no se guardará.
 import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
-import { Engine, type Storage } from "./engine";
+import { Engine, type BackupStore, type Storage } from "./engine";
 import { migrations } from "./migrations";
-import type { Request } from "./protocol";
+import type { BackupInfo, Request } from "./protocol";
 
 // Sin cuentas, la base de siempre. Con cuenta (src/cloud), la suya o la de su clínica: el nombre llega como nombre
 // del worker, con lo que hay que hacer al abrirla (db.ts, configureDb): «adopt», pasarle lo que había sin cuenta;
@@ -35,6 +35,50 @@ function acquireTabLock(): Promise<void> {
 }
 
 type Sqlite3 = Awaited<ReturnType<typeof sqlite3InitModule>>;
+
+/** Cuántas copias de antes de actualizar se guardan por base (las más recientes). */
+const BACKUPS_KEPT = 2;
+/** El acceso síncrono a un archivo de OPFS desde un worker (no está en los tipos del DOM). */
+type SyncHandle = { truncate(size: number): void; write(bytes: Uint8Array, opts?: { at: number }): number; flush(): void; close(): void };
+type SyncFileHandle = FileSystemFileHandle & { createSyncAccessHandle(): Promise<SyncHandle> };
+
+/**
+ * Las copias de antes de cada actualización de la base, en OPFS pero fuera del pool de SQLite: la carpeta
+ * «antes-de-migrar/<base>/», con «v<de>-a-v<a>.sqlite3». Se escriben desde el worker con un acceso síncrono (vale
+ * en Chrome, Safari y Firefox). Si OPFS no deja, la app sigue sin copias y lo dice en la consola.
+ */
+async function backupStore(base: string): Promise<BackupStore> {
+  const dir = async () => (await (await navigator.storage.getDirectory()).getDirectoryHandle("antes-de-migrar", { create: true })).getDirectoryHandle(base, { create: true });
+  const list = async (): Promise<BackupInfo[]> => {
+    const d = await dir();
+    const out: BackupInfo[] = [];
+    for await (const [name, handle] of d as unknown as AsyncIterable<[string, FileSystemHandle]>) {
+      if (handle.kind !== "file") continue;
+      const f = await (handle as FileSystemFileHandle).getFile();
+      out.push({ name, size: f.size, at: f.lastModified ? new Date(f.lastModified).toISOString() : null });
+    }
+    return out.sort((a, b) => (b.at ?? "").localeCompare(a.at ?? ""));
+  };
+  return {
+    list,
+    async read(name) {
+      const f = await (await (await dir()).getFileHandle(name)).getFile();
+      return new Uint8Array(await f.arrayBuffer());
+    },
+    async save(name, bytes) {
+      const d = await dir();
+      const handle = await ((await d.getFileHandle(name, { create: true })) as SyncFileHandle).createSyncAccessHandle();
+      try {
+        handle.truncate(0);
+        handle.write(bytes, { at: 0 });
+        handle.flush();
+      } finally {
+        handle.close();
+      }
+      for (const old of (await list()).slice(BACKUPS_KEPT)) await d.removeEntry(old.name);
+    },
+  };
+}
 
 /**
  * El almacenamiento privado (OPFS) solo lo puede tener abierto un contexto a la vez. La página anterior lo suelta al
@@ -79,6 +123,10 @@ async function start(): Promise<Engine> {
       replace: async (bytes) => {
         await pool.importDb(FILE, bytes);
       },
+      backups: await backupStore(FILE.replace(/^\//, "").replace(/\.sqlite3$/, "")).catch((err: unknown) => {
+        console.warn("Sin sitio para las copias de antes de actualizar:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
+        return undefined;
+      }),
     };
   } catch (err) {
     // Se ve en la consola del navegador (y en las pruebas): por qué no se guarda en el dispositivo.
@@ -86,6 +134,8 @@ async function start(): Promise<Engine> {
     storage = { persistent: false, open: () => new sqlite3.oo1.DB(":memory:", "c") };
   }
   const engine = new Engine(sqlite3, storage, migrations);
+  // La copia de antes de actualizar, escrita del todo antes de atender nada.
+  await engine.backupDone.catch((err: unknown) => console.warn("No se pudo guardar la copia de antes de actualizar:", err instanceof Error ? err.message : err));
   if (adoptFrom) {
     try {
       await engine.handle({ op: "merge", bytes: adoptFrom.bytes, member: adoptFrom.member });

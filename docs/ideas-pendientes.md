@@ -822,7 +822,14 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   frases que eran órdenes clínicas («deriva», «pide radiografía», «confirma con imagen») pasan a atribuirse a la
   bibliografía o a describir; «Precisión publicada» en vez de «Utilidad»; aviso de que nada se refiere a un paciente
   concreto.
-- **Parte 4 · Copia del dispositivo antes de cada actualización de la base.** Pendiente.
+- **Parte 4 · Copia del dispositivo antes de cada actualización de la base (hecha el 30-10-2026).** Antes de
+  aplicar una migración a una base que ya tiene datos, el motor la guarda tal como está (`Storage.backups`,
+  `src/data/engine.ts`) en OPFS fuera del pool de SQLite («antes-de-migrar/<base>/v<de>-a-v<a>.sqlite3», las dos
+  últimas; `src/data/sqlite.worker.ts`). No se hace con la copia de la nube. En Ajustes › Copias y exportar, «Copias
+  de este dispositivo antes de actualizar» con Descargar y Restaurar. Bases de las versiones 8, 20, 33 y 34 en
+  `src/data/fixtures/` y una prueba que las migra y comprueba la copia previa (`src/data/oldVersions.test.ts`); E2E
+  F15-H6. No hay vuelta atrás del esquema (los demás dispositivos ya lo tienen): si una migración se equivoca, se
+  arregla con otra, y los datos se recuperan de esta copia.
 - **Parte 5 · PIN: contraseña de la clínica o código de recuperación para poner un PIN nuevo.** Pendiente.
 - **Parte 6 · Exportación cifrada y recordatorio semanal.** Pendiente.
 - **Parte 7 · Equipo: cerrar el acceso al quitar a alguien, caducidad sin conexión y registro de accesos.** Pendiente.

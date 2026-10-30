@@ -66,6 +66,7 @@ import { Group, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { saveFile } from "../app/download";
+import { sizeText } from "../data/documents";
 
 const stamp = () => new Date().toISOString().slice(0, 10);
 
@@ -268,13 +269,15 @@ export function DataSettingsPage() {
   const toast = useToast();
   const cloud = useCloud();
   const input = useRef<HTMLInputElement>(null);
-  const [pending, setPending] = useState<File | null>(null);
+  /** La copia que se va a restaurar: un archivo elegido o una de las de antes de actualizar. */
+  const [pending, setPending] = useState<{ name: string; bytes: () => Promise<Uint8Array> } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const state = useAsync(async () => {
     const db = getDb();
     return {
       info: await db.info(),
       lastBackup: await getSetting<string>(db, "last_backup_at"),
+      backups: await db.listBackups(),
       seed: await hasSeed(db),
       // Si el navegador garantiza no borrar los datos por falta de espacio o por inactividad.
       protectedStorage: (await navigator.storage?.persisted?.()) ?? false,
@@ -341,11 +344,55 @@ export function DataSettingsPage() {
             accept=".sqlite3,.sqlite,.db,application/octet-stream,application/vnd.sqlite3"
             className="sr-only"
             aria-label="Elegir copia de seguridad"
-            onChange={(e) => setPending(e.target.files?.[0] ?? null)}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              setPending(f ? { name: f.name, bytes: async () => new Uint8Array(await f.arrayBuffer()) } : null);
+            }}
           />
           <Button variant="secondary" icon={<FileUp aria-hidden="true" className="size-5" />} onClick={() => input.current?.click()}>
             Restaurar una copia
           </Button>
+        </Card>
+        <Card className="flex flex-col gap-3">
+          <h3 className="font-semibold">Copias de este dispositivo antes de actualizar</h3>
+          <p className="text-sm text-text-muted">
+            Cada vez que una versión nueva de la app cambia la base de datos, antes se guarda aquí tal como estaba (las dos últimas). Si algo saliera mal
+            al actualizar, se puede descargar o restaurar.
+          </p>
+          {state.data && state.data.backups.length === 0 && <p className="text-sm text-text-muted">Ninguna todavía.</p>}
+          {state.data && state.data.backups.length > 0 && (
+            <ul aria-label="Copias de antes de actualizar" className="flex flex-col divide-y divide-border">
+              {state.data.backups.map((b) => {
+                const m = /^v(\d+)-a-v(\d+)\.sqlite3$/.exec(b.name);
+                return (
+                  <li key={b.name} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                    <span className="flex flex-col">
+                      <span className="font-semibold">{m ? `Base de la versión ${m[1]}, antes de pasar a la ${m[2]}` : b.name}</span>
+                      <span className="text-sm text-text-muted">
+                        {b.at ? fmtDateTime(b.at) : ""}
+                        {b.at ? " · " : ""}
+                        {sizeText(b.size)}
+                      </span>
+                    </span>
+                    <span className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        icon={<Download aria-hidden="true" className="size-4" />}
+                        loading={busy === `backup-${b.name}`}
+                        onClick={() => run(`backup-${b.name}`, async () => saveFile(`fisiolab-antes-de-actualizar-${b.name}`, await getDb().readBackup(b.name), "application/vnd.sqlite3"))}
+                      >
+                        Descargar
+                      </Button>
+                      <Button size="sm" variant="secondary" icon={<FileUp aria-hidden="true" className="size-4" />} onClick={() => setPending({ name: b.name, bytes: () => getDb().readBackup(b.name) })}>
+                        Restaurar
+                      </Button>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </Card>
       </section>
 
@@ -413,7 +460,7 @@ export function DataSettingsPage() {
           loading={busy === "restore"}
           onClick={() =>
             run("restore", async () => {
-              const bytes = new Uint8Array(await pending!.arrayBuffer());
+              const bytes = await pending!.bytes();
               setPending(null);
               await getDb().importBytes(bytes);
               toast("Copia restaurada", "success");

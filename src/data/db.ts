@@ -1,4 +1,4 @@
-import type { Bind, Info, Request, Snapshot, Statement } from "./protocol";
+import type { BackupInfo, Bind, Info, Request, Snapshot, Statement } from "./protocol";
 import type { DeltaItem, MergeResult, Pending } from "./syncMerge";
 
 /** Acceso a la base. La app usa el worker; los tests, el motor directamente. Mismas firmas. */
@@ -18,6 +18,9 @@ export interface Db {
   pending(): Promise<Pending>;
   apply(items: DeltaItem[], schema: number): Promise<MergeResult>;
   wipe(): Promise<void>;
+  /** Las copias de este dispositivo de antes de cada actualización de la base (engine.ts), y leer una. */
+  listBackups(): Promise<BackupInfo[]>;
+  readBackup(name: string): Promise<Uint8Array>;
 }
 
 export function dbFromHandler(handle: (req: Request) => Promise<unknown>): Db {
@@ -38,6 +41,8 @@ export function dbFromHandler(handle: (req: Request) => Promise<unknown>): Db {
     wipe: async () => {
       await handle({ op: "wipe" });
     },
+    listBackups: () => handle({ op: "backups" }) as Promise<BackupInfo[]>,
+    readBackup: (name) => handle({ op: "backup", name }) as Promise<Uint8Array>,
   };
 }
 

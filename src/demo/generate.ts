@@ -114,6 +114,8 @@ function batched(db: Db, size = 3000) {
     pending: () => db.pending(),
     apply: (i, s) => db.apply(i, s),
     wipe: () => db.wipe(),
+    listBackups: () => db.listBackups(),
+    readBackup: (n) => db.readBackup(n),
   };
   return { db: wrapped, flush };
 }

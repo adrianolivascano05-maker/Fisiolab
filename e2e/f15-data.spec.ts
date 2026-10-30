@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
 
@@ -44,6 +45,28 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Antes de la copia/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /Después de la copia/ })).toHaveCount(0);
+  });
+
+  test("F15-H6 al abrir una copia de una versión antigua, antes de actualizarla se guarda tal como estaba", async ({ page }) => {
+    await page.goto("./ajustes/datos");
+    await expect(page.getByText("Ninguna todavía.")).toBeVisible();
+    // Una base de la versión 20 (src/data/fixtures): al restaurarla se migra, y antes queda la copia de la versión 20.
+    await page.getByLabel("Elegir copia de seguridad").setInputFiles(fileURLToPath(new URL("../src/data/fixtures/v020.sqlite3", import.meta.url)));
+    await page.getByRole("button", { name: "Sustituir mis datos" }).click();
+    await expect(page.getByText("Copia restaurada")).toBeVisible();
+    const backups = page.getByRole("list", { name: "Copias de antes de actualizar" });
+    await expect(backups.getByRole("listitem")).toHaveCount(1);
+    await expect(backups).toContainText(/Base de la versión 20, antes de pasar a la \d+/);
+    await expectAccessible(page);
+    // Se puede descargar y restaurar (restaurarla vuelve a migrarla: sigue habiendo una sola copia, la misma).
+    const [dl] = await Promise.all([page.waitForEvent("download"), backups.getByRole("button", { name: "Descargar" }).click()]);
+    expect(dl.suggestedFilename()).toMatch(/^fisiolab-antes-de-actualizar-v20-a-v\d+\.sqlite3$/);
+    await backups.getByRole("button", { name: "Restaurar" }).click();
+    await page.getByRole("button", { name: "Sustituir mis datos" }).click();
+    await expect(page.getByText("Copia restaurada")).toBeVisible();
+    await expect(backups.getByRole("listitem")).toHaveCount(1);
+    await page.goto("./");
+    await expect(page.getByRole("link", { name: /Paciente de la versión 20/ })).toBeVisible();
   });
 
   test("F15-N1 un archivo que no es una copia no toca los datos", async ({ page }) => {

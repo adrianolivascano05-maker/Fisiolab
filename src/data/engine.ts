@@ -1,6 +1,6 @@
 // Núcleo de la base de datos: abre, migra y atiende peticiones. Lo usan el worker del navegador
 // y los tests en Node, así que no sabe nada de mensajes ni de OPFS.
-import type { Bind, Info, Request, Snapshot, Statement } from "./protocol";
+import type { BackupInfo, Bind, Info, Request, Snapshot, Statement } from "./protocol";
 import { applyDelta, mergeInto, pendingChanges, prepareForClinic, wipeAll, type DeltaItem, type MergeResult, type Pending } from "./syncMerge";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- la API de sqlite-wasm no está tipada al detalle */
@@ -9,12 +9,27 @@ type DB = any;
 
 export type Migration = { version: number; sql: string };
 
+/**
+ * Dónde se guardan las copias de antes de cada actualización de la base (fuera de la base; en el navegador, en OPFS
+ * aparte del pool: sqlite.worker.ts). `save` se queda con las 2 últimas.
+ */
+export type BackupStore = {
+  save: (name: string, bytes: Uint8Array) => Promise<void>;
+  list: () => Promise<BackupInfo[]>;
+  read: (name: string) => Promise<Uint8Array>;
+};
+
 export type Storage = {
   persistent: boolean;
   open: () => DB;
   /** Sustituye el archivo de la base por `bytes`. Solo con la base cerrada. */
   replace?: (bytes: Uint8Array) => Promise<void>;
+  /** Las copias de antes de actualizar; sin esto, no se guardan (base en memoria, pruebas). */
+  backups?: BackupStore;
 };
+
+/** El nombre de la copia de antes de actualizar: de qué versión a cuál. */
+export const backupName = (from: number, to: number) => `v${from}-a-v${to}.sqlite3`;
 
 const SQLITE_HEADER = "SQLite format 3\u0000";
 
@@ -30,6 +45,8 @@ function addFunctions(db: DB) {
 
 export class Engine {
   private db: DB;
+  /** La copia de antes de actualizar, si se está guardando: el worker la espera antes de atender nada. */
+  backupDone: Promise<void> = Promise.resolve();
 
   constructor(
     private sqlite3: Sqlite3,
@@ -40,15 +57,25 @@ export class Engine {
   }
 
   private openAndMigrate(): DB {
-    return this.migrate(this.storage.open());
+    return this.migrate(this.storage.open(), { backup: true });
   }
 
-  private migrate(db: DB): DB {
+  /**
+   * Aplica las migraciones que falten, cada una en su transacción (si una falla, no se aplica). Con `backup`, antes
+   * de tocar una base que ya tiene datos (user_version > 0) se guarda tal como está (Storage.backups): si una
+   * migración aplica algo equivocado, se sincroniza a todos los dispositivos y no hay vuelta atrás del esquema, así
+   * que esa copia es la forma de recuperar los datos. No se hace con la copia de la nube (merge), que es de otro.
+   */
+  private migrate(db: DB, { backup }: { backup: boolean }): DB {
     db.exec("pragma foreign_keys = on;");
     addFunctions(db);
     const current = db.selectValue("pragma user_version") as number;
-    for (const m of [...this.migrations].sort((a, b) => a.version - b.version)) {
-      if (m.version <= current) continue;
+    const pending = [...this.migrations].sort((a, b) => a.version - b.version).filter((m) => m.version > current);
+    if (backup && current > 0 && pending.length && this.storage.backups) {
+      const bytes = this.sqlite3.capi.sqlite3_js_db_export(db) as Uint8Array;
+      this.backupDone = this.storage.backups.save(backupName(current, pending.at(-1)!.version), bytes);
+    }
+    for (const m of pending) {
       db.transaction(() => {
         db.exec(m.sql);
         db.exec(`pragma user_version = ${m.version}`);
@@ -96,6 +123,11 @@ export class Engine {
       case "wipe":
         this.db.transaction(() => wipeAll(this.db));
         return null;
+      case "backups":
+        return this.storage.backups ? this.storage.backups.list() : ([] as BackupInfo[]);
+      case "backup":
+        if (!this.storage.backups) throw new Error("Este dispositivo no guarda copias de antes de actualizar.");
+        return this.storage.backups.read(req.name);
     }
   }
 
@@ -116,7 +148,7 @@ export class Engine {
       if (remote.selectValue("pragma integrity_check") !== "ok") throw new Error("La copia de la nube está dañada.");
       const version = remote.selectValue("pragma user_version") as number;
       if (version > this.latestVersion) throw new Error("La copia de la nube es de una versión más nueva de la app: actualiza la app en este dispositivo.");
-      this.migrate(remote);
+      this.migrate(remote, { backup: false });
       if (member) remote.transaction(() => prepareForClinic(remote, member));
       let result: MergeResult = { pulled: 0, needUpload: false };
       this.db.transaction(() => {

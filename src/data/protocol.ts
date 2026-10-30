@@ -16,7 +16,13 @@ export type Request =
   | { op: "pending" }
   | { op: "apply"; items: DeltaItem[]; schema: number }
   /** Vacía la base sin que cuente como borrado (cerrar sesión borrando los datos del dispositivo). */
-  | { op: "wipe" };
+  | { op: "wipe" }
+  /** Las copias de este dispositivo de antes de cada actualización de la base (engine.ts), y leer una. */
+  | { op: "backups" }
+  | { op: "backup"; name: string };
+
+/** Una copia de antes de actualizar la base: su nombre («v20-a-v34.sqlite3»), cuánto ocupa y de cuándo es. */
+export type BackupInfo = { name: string; size: number; at: string | null };
 
 export type Snapshot = { bytes: Uint8Array; changes: number };
 
