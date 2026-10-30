@@ -7,6 +7,7 @@ import { Archive } from "lucide-react";
 import { useState } from "react";
 import { getDb } from "../data/db";
 import { getDocument } from "../data/documents";
+import { logAccess } from "../data/accessLog";
 import { setSetting } from "../data/repo";
 import { readDocument } from "../documents/docSync";
 import { useDocsServer } from "../documents/DocsAutoSync";
@@ -51,6 +52,7 @@ export function FullExportButton({
       const { bytes, patients, missing } = await buildPackage(getDb(), { progress: (d, total) => setProgress(`Preparando ${d} de ${total} pacientes…`), files });
       await saveMaybeEncrypted(`OmniClin-${name.replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "") || "datos"}-${stamp()}.zip`, bytes, "application/zip", password);
       await setSetting(getDb(), "last_backup_at", new Date().toISOString());
+      await logAccess(getDb(), "exportar", (await getDb().query<{ id: string }>("select id from patients")).map((p) => p.id)).catch(() => {});
       setDone(true);
       toast(`Descargado: ${patients === 1 ? "1 paciente" : `${patients} pacientes`} con toda su historia. Guárdalo fuera de este dispositivo.`, "success");
       if (missing) toast(`${missing === 1 ? "1 archivo de paciente no se ha podido incluir" : `${missing} archivos de pacientes no se han podido incluir`} (sin conexión o aún sin subir): vuelve a descargar con conexión.`, "danger");

@@ -1,20 +1,27 @@
 // Ajustes → Equipo de la clínica (clinic.ts): quién forma parte de ella y, para quien la administra, añadir y quitar
 // gente, cambiar el nombre o borrarla del servidor. También cambiar de clínica o salir de ella en este dispositivo.
+// Al quitar a alguien, «Termina de cerrarle el acceso»: cambiar la contraseña de la clínica (EncryptionParts.tsx) y
+// anular los enlaces de formularios pendientes (todo el equipo tiene sus claves). Y, para quien administra, cuántos
+// días puede estar un dispositivo sin comprobar que sigue en el equipo (offlineExpiry.ts) y el registro de accesos.
 import { setClinicMode, useTeamMode } from "./teamMode";
-import { Building2, LogOut, Pencil, Repeat, ShieldCheck, Trash, UserPlus, UserRound } from "lucide-react";
+import { Building2, ClipboardList, KeyRound, LogOut, Pencil, Repeat, ShieldCheck, Trash, UserPlus, UserRound } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { Navigate } from "react-router";
+import { Navigate, useNavigate } from "react-router";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { SelectField, TextField } from "../ui/Field";
-import { Group, Row, RowButton } from "../ui/Grouped";
+import { Group, Row, RowButton, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
+import { formTitle } from "../clinical/patientForms";
 import { getDb } from "../data/db";
+import { cancelSentForm, listPendingForms } from "../data/patientForms";
+import { getSetting, setSetting } from "../data/repo";
 import { ensureStaff, removeStaff } from "../data/schedule";
+import { DEFAULT_OFFLINE_DAYS, OFFLINE_DAYS_KEY, OFFLINE_DAYS_OPTIONS, offlineDays } from "./offlineExpiry";
 import { FullExportButton } from "../export/FullExportButton";
 import { getToken } from "./auth";
 import { chooseClinic, ROLE_LABELS, type Member, type Role } from "./clinic";
@@ -44,6 +51,12 @@ export function TeamPage() {
   const [selected, setSelected] = useState<Member | null>(null);
   const [confirm, setConfirm] = useState<null | "leave" | "delete" | "rename">(null);
   const [newName, setNewName] = useState("");
+  /** A quien se acaba de quitar: la hoja «Termina de cerrarle el acceso». */
+  const [closing, setClosing] = useState<Member | null>(null);
+  const [cancelled, setCancelled] = useState<{ patientName: string; kind: string }[] | null>(null);
+  const pending = useAsync(() => (closing ? listPendingForms(getDb()) : Promise.resolve([])), [closing?.email]);
+  const days = useAsync(async () => offlineDays(await getSetting<number>(getDb(), OFFLINE_DAYS_KEY)), []);
+  const navigate = useNavigate();
   if (!cloud || !clinic || !api) return <Navigate to="/ajustes" replace />;
   const admin = clinic.role === "admin";
   const me = cloud.account.email.trim().toLowerCase();
@@ -102,7 +115,27 @@ export function TeamPage() {
       }, `${m.email} ya no está en el equipo`)
     ) {
       setSelected(null);
+      setCancelled(null);
+      setClosing(m);
       members.reload();
+    }
+  };
+  /** Anula todos los enlaces pendientes (aquí y en el servidor) y deja la lista de lo que hay que volver a mandar. */
+  const cancelPending = async () => {
+    const list = pending.data ?? [];
+    setBusy(true);
+    try {
+      const token = getToken();
+      for (const f of list) {
+        if (token) await api.forms.remove(token, clinic.id, f.id).catch(() => {}); // sin conexión: caduca solo; aquí queda anulado
+        await cancelSentForm(getDb(), f.id);
+      }
+      setCancelled(list.map((f) => ({ patientName: f.patientName, kind: f.kind })));
+      pending.reload();
+    } catch (e) {
+      toast(errText(e), "danger");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -142,7 +175,30 @@ export function TeamPage() {
             Cambiar el nombre
           </Button>
         )}
+        {admin && !solo && (
+          <SelectField
+            label="Sin conexión, un dispositivo deja de enseñar la clínica a los"
+            hint="Hasta que el servidor confirme que sigue en el equipo. No borra nada sin conexión."
+            value={String(days.data ?? DEFAULT_OFFLINE_DAYS)}
+            onChange={async (e) => {
+              await setSetting(getDb(), OFFLINE_DAYS_KEY, Number(e.target.value));
+              days.reload();
+            }}
+          >
+            {OFFLINE_DAYS_OPTIONS.map((d) => (
+              <option key={d} value={d}>
+                {d} días
+              </option>
+            ))}
+          </SelectField>
+        )}
       </Card>
+
+      {admin && !solo && (
+        <Group title="Registro">
+          <RowLink icon={ClipboardList} to="/ajustes/equipo/accesos" title="Registro de accesos" subtitle="Quién abrió qué ficha, la exportó o la imprimió" />
+        </Group>
+      )}
 
       {members.error ? (
         <Alert tone="warning" title={members.error.message} />
@@ -214,9 +270,10 @@ export function TeamPage() {
             {selected.email !== me && (
               <>
                 <p className="text-sm text-text-muted">
-                  Al quitarle del equipo deja de poder bajar la copia de la clínica y, la próxima vez que abra la app con conexión, sus pacientes se borran de
-                  sus dispositivos. Sale del horario: sus turnos desde hoy se borran y sus citas pendientes quedan sin asignar. Por más seguridad, cambia
-                  después la contraseña de cifrado (Ajustes → Cuenta).
+                  Al quitarle del equipo deja de poder bajar nada del servidor y, la próxima vez que abra la app con conexión, sus pacientes se borran de
+                  sus dispositivos (si pasa más de {days.data ?? DEFAULT_OFFLINE_DAYS} días sin conectarse, la app deja de enseñárselos). Sale del horario: sus
+                  turnos desde hoy se borran y sus citas pendientes quedan sin asignar. Después te pediremos cambiar la contraseña de la clínica y anular los
+                  enlaces de formularios pendientes.
                 </p>
                 <Button variant="danger" block loading={busy} onClick={() => void remove(selected)}>
                   Quitar del equipo
@@ -263,6 +320,62 @@ export function TeamPage() {
         <Button variant="secondary" block onClick={() => setConfirm(null)}>
           Cancelar
         </Button>
+      </Sheet>
+
+      <Sheet
+        open={closing !== null}
+        onClose={() => {
+          setClosing(null);
+          setCancelled(null);
+        }}
+        title="Termina de cerrarle el acceso"
+      >
+        {closing && (
+          <>
+            <p>
+              {closing.email} ya no puede bajar nada del servidor. Lo que ya bajó a sus dispositivos no se puede borrar desde aquí, pero con la contraseña
+              nueva no podrá abrir nada nuevo. Dísela en persona al resto del equipo. Guarda el código de recuperación nuevo.
+            </p>
+            <ol className="flex list-decimal flex-col gap-4 pl-5">
+              <li className="flex flex-col gap-2">
+                <span className="font-semibold">Cambiar ahora la contraseña de la clínica</span>
+                <Button icon={<KeyRound aria-hidden="true" className="size-5" />} onClick={() => void navigate("/ajustes/cuenta?cambiar-contrasena=1")}>
+                  Cambiar ahora la contraseña de la clínica
+                </Button>
+              </li>
+              <li className="flex flex-col gap-2">
+                <span className="font-semibold">Anular los enlaces de formularios pendientes y volver a mandarlos</span>
+                <p className="text-sm text-text-muted">
+                  Todo el equipo tiene las claves de los enlaces que están en el móvil de los pacientes: quien sale podría contestar uno.{" "}
+                  {pending.data === undefined
+                    ? ""
+                    : pending.data.length === 0 && !cancelled
+                      ? "No hay ninguno pendiente."
+                      : cancelled
+                        ? ""
+                        : `Hay ${pending.data.length === 1 ? "1 pendiente" : `${pending.data.length} pendientes`}.`}
+                </p>
+                {(pending.data?.length ?? 0) > 0 && !cancelled && (
+                  <Button variant="secondary" loading={busy} onClick={() => void cancelPending()}>
+                    Anular {pending.data!.length === 1 ? "el enlace pendiente" : `los ${pending.data!.length} enlaces pendientes`}
+                  </Button>
+                )}
+                {cancelled && (
+                  <div className="flex flex-col gap-1 text-sm">
+                    <p className="font-semibold">Anulados. Para volver a mandar, desde la ficha de cada paciente:</p>
+                    <ul aria-label="Para volver a mandar" className="list-disc pl-5">
+                      {cancelled.map((c, i) => (
+                        <li key={i}>
+                          {c.patientName} · {formTitle(c.kind)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </li>
+            </ol>
+          </>
+        )}
       </Sheet>
 
       {confirm === "delete" && <DeleteClinicSheet onClose={() => setConfirm(null)} />}

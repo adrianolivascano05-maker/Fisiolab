@@ -846,7 +846,20 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   sale también con nube a quien administra (sin clínica, a la cuenta) con el texto del espejo. Pruebas:
   `encryptedExport.test.ts`, F15-H7, H2/H4/H6 y CL5 (recordatorio con nube). Sin tocar el servidor (7b sigue
   pendiente: historial de copias y «Restaurar una copia anterior»).
-- **Parte 7 · Equipo: cerrar el acceso al quitar a alguien, caducidad sin conexión y registro de accesos.** Pendiente.
+- **Parte 7 · Equipo: cerrar el acceso al quitar a alguien, caducidad sin conexión y registro de accesos.** Hecho
+  (30-10-2026). (1) Al quitar a alguien del equipo sale «Termina de cerrarle el acceso» (`src/cloud/TeamPage.tsx`):
+  «Cambiar ahora la contraseña de la clínica» (abre el formulario de `EncryptionSettings`, `?cambiar-contrasena`) y
+  «Anular los enlaces de formularios pendientes» con la lista para volver a mandarlos. (2) Caducidad sin conexión
+  (`src/cloud/offlineExpiry.ts`, `CloudGate.tsx`): cada confirmación del servidor se apunta; pasados los días de la
+  clínica (3, 7 o 14; 7 por defecto, en Ajustes → Equipo) la clínica no se enseña hasta comprobarlo; sin conexión no se
+  borra nada. (3) Registro de accesos: migración 035 `access_log` (la 035, no la 036 del encargo: la última era la
+  034), una fila por persona, paciente, acción y día, solo se añade (borrar una fila reciente falla; los borrados que
+  lleguen no se aplican, `APPEND_ONLY`; lo de más de 2 años se poda sin viajar), pantalla Ajustes → Equipo → Registro
+  de accesos con filtros y CSV, y «Quién ha abierto esta ficha» en la ficha para quien administra. (4) Runbook
+  `docs/recuperar-la-clinica.md`. Comprobado: el panel del proveedor **no** permite nombrar un administrador nuevo
+  (solo altas, suspender, recuperar, contrato y peticiones: `cloudflare/src/provider.js`); queda pendiente de decidir
+  (con registro de quién y cuándo). Límite escrito en el runbook: los archivos de pacientes llevan cada uno su clave;
+  cambiar la contraseña no los vuelve a cifrar. Pruebas: `accessLog.test.ts`, `offlineExpiry.test.ts`, CL2 ampliada.
 - **Parte 8 · Arreglos menores** (`docs/pasos-pendientes.md`, `RESUMEN.md`, `README.md`, WCAG 2.2 en axe, avisos de
   lint). Pendiente.
 - **Fuera del encargo, para más adelante:** reescritura completa de los consentimientos y de la hoja de protección de

@@ -35,6 +35,7 @@ const OutboxPage = lazy(() => import("./schedule/OutboxPage").then((m) => ({ def
 const WaitlistPage = lazy(() => import("./schedule/WaitlistPage").then((m) => ({ default: m.WaitlistPage })));
 const DebtorsPage = lazy(() => import("./schedule/DebtorsPage").then((m) => ({ default: m.DebtorsPage })));
 const TeamPage = lazy(() => import("./cloud/TeamPage").then((m) => ({ default: m.TeamPage })));
+const AccessLogPage = lazy(() => import("./cloud/AccessLogPage").then((m) => ({ default: m.AccessLogPage })));
 const DesignPage = lazy(() => import("./pages/DesignPage").then((m) => ({ default: m.DesignPage })));
 const EvolutionPage = lazy(() => import("./pages/EvolutionPage").then((m) => ({ default: m.EvolutionPage })));
 const HelpPage = lazy(() => import("./pages/HelpPage").then((m) => ({ default: m.HelpPage })));
@@ -124,6 +125,7 @@ const routes = [
   { path: "/ajustes/sustituidos", element: l(<LostChangesPage />) }, // Cambios sustituidos (src/data/conflicts.ts)
   { path: "/ajustes/clinica", element: l(<ClinicSettingsPage />) },
   { path: "/ajustes/equipo", element: l(<TeamPage />) },
+  { path: "/ajustes/equipo/accesos", element: l(<AccessLogPage />) }, // Registro de accesos (src/data/accessLog.ts)
   { path: "/ajustes/proveedor", element: l(<ProviderPage />) },
   { path: "/agenda", element: l(<SchedulePage />) },
   { path: "/agenda/recordatorios", element: l(<RemindersPage />) },

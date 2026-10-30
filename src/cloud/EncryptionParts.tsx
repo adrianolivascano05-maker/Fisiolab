@@ -27,13 +27,14 @@ function copyName(cloud: NonNullable<ReturnType<typeof useCloud>>) {
   };
 }
 
-/** Ajustes → Cuenta de Google: cifrar la copia de la nube. */
-export function EncryptionSettings() {
+/** Ajustes → Cuenta de Google: cifrar la copia de la nube. `openOnMount`: con el formulario de cambiarla ya abierto. */
+export function EncryptionSettings({ openOnMount = false }: { openOnMount?: boolean } = {}) {
   const cloud = useCloud();
   const s = useSyncState();
   const toast = useToast();
   const enc = useAsync(async () => (await getSetting<EncryptionSetting>(getDb(), ENCRYPTION_KEY)) ?? null, []);
-  const [open, setOpen] = useState(false);
+  // Desde «Termina de cerrarle el acceso» (TeamPage) se llega con el formulario de cambiarla ya abierto.
+  const [open, setOpen] = useState(openOnMount);
   const [password, setPassword] = useState("");
   const [repeat, setRepeat] = useState("");
   const [error, setError] = useState<{ field: "password" | "repeat"; text: string } | null>(null);
@@ -120,7 +121,7 @@ export function EncryptionSettings() {
       </Card>
 
       {kit && <RecoveryKit code={kit.code} salt={kit.salt} onClose={() => setKit(null)} />}
-      <Sheet open={open} onClose={() => setOpen(false)} title={on ? "Cambiar la contraseña" : "Contraseña de cifrado"}>
+      <Sheet open={open && mayChange && s.status !== "needs-key"} onClose={() => setOpen(false)} title={on ? "Cambiar la contraseña" : "Contraseña de cifrado"}>
         <form className="flex flex-col gap-3" noValidate onSubmit={submit}>
           <TextField
             label={on ? "Contraseña nueva" : "Contraseña"}
@@ -141,7 +142,9 @@ export function EncryptionSettings() {
           />
           {on && (
             <p className="text-sm text-text-muted">
-              {clinic ? "A todo el equipo se le pedirá la contraseña nueva: dásela en persona." : "Tus otros dispositivos te pedirán la contraseña nueva."}
+              {clinic
+                ? "A todo el equipo se le pedirá la contraseña nueva en cada dispositivo: dásela en persona, nunca por correo ni por mensaje. Quien ya no esté en el equipo no podrá abrir nada nuevo. Guarda el código de recuperación nuevo y destruye el viejo."
+                : "Tus otros dispositivos te pedirán la contraseña nueva."}
             </p>
           )}
           <Button type="submit" block loading={busy}>

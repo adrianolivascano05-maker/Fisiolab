@@ -79,6 +79,24 @@ export function LoginScreen({ config, error }: { config: CloudConfig; error: str
   );
 }
 
+/** Caducidad sin conexión (offlineExpiry.ts): la clínica no se enseña hasta que el servidor confirme que sigue en el equipo. */
+export function ExpiredScreen({ clinic, days, online }: { clinic: string; days: number; online: boolean }) {
+  return (
+    <Shell>
+      <h1 className="flex items-center gap-2 text-xl">
+        <CloudOff aria-hidden="true" className="size-6 shrink-0 text-accent" /> Hace {days} días que este dispositivo no comprueba que sigues en el equipo
+      </h1>
+      <p>
+        Los pacientes de «{clinic}» no se enseñan hasta comprobarlo con el servidor de la clínica. {online ? "El servidor no ha contestado." : "Sin conexión."} Conéctate
+        para seguir: si sigues en el equipo, la app se abre como siempre.
+      </p>
+      <Button size="lg" block icon={<RefreshCw aria-hidden="true" className="size-5" />} onClick={() => location.reload()}>
+        Volver a comprobar
+      </Button>
+    </Shell>
+  );
+}
+
 export function WelcomeScreen({ account, localPatients }: { account: Account; localPatients: number }) {
   const choose = (adopt: boolean) => {
     setAccount(account, adopt);

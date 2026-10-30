@@ -14,29 +14,38 @@ import { authErrorText, clearToken, getToken, revokeToken, setCopyInDrive, silen
 import { adoptedIntoClinic, chooseClinic, chosenClinic, clinicApi, clinicDbFile, clinicScope, forgetClinic, isOperator, rememberOperator, setClinicNotice, takeClinicNotice, type ChosenClinic, type Me } from "./clinic";
 import { loadCloudConfig, type CloudConfig } from "./config";
 import { forgetKey } from "./crypt";
+import { checkExpired, daysSinceCheck, forgetCheck, offlineDays, OFFLINE_DAYS_KEY, recordCheck } from "./offlineExpiry";
+import { getSetting } from "../data/repo";
 import { AuthError, userInfo } from "./drive";
 import { CalendarSync } from "./googleCalendar";
 import { cloudflareStore, driveStore, ServerError } from "./remote";
 import { SyncController } from "./sync";
 import { CloudContext, errText, type Cloud } from "./cloudContext";
-import { Splash, LoginScreen, WelcomeScreen, ReconnectScreen, ClinicScreen, type ClinicScreenProps } from "./screens";
+import { Splash, LoginScreen, WelcomeScreen, ReconnectScreen, ClinicScreen, ExpiredScreen, type ClinicScreenProps } from "./screens";
 
 /**
  * En una clínica, al abrir: si ya no es del equipo, se borran sus datos de este dispositivo; si ha cambiado su nombre
- * o el papel de quien ha entrado, se pone al día.
+ * o el papel de quien ha entrado, se pone al día. Devuelve si el servidor ha contestado («checked», y se apunta la
+ * fecha: offlineExpiry.ts), si le ha echado («left») o si no se ha podido comprobar («unknown»).
  */
-async function refreshClinic(cloud: Cloud, token: Token) {
+async function refreshClinic(cloud: Cloud, token: Token): Promise<"checked" | "left" | "unknown"> {
   const current = cloud.clinic!;
   let me: Me;
   try {
     me = await cloud.clinics!.me(token);
   } catch {
-    return; // sin conexión o el servidor no responde: ya se mirará la próxima vez
+    return "unknown"; // sin conexión o el servidor no responde: ya se mirará la próxima vez
   }
   rememberOperator(cloud.account, !!me.operator);
   const now = me.clinics.find((c) => c.id === current.id);
-  if (!now) return cloud.leaveClinic(`Ya no formas parte de «${current.name}»: sus pacientes se han borrado de este dispositivo.`);
+  if (!now) {
+    forgetCheck(cloud.sync.scope);
+    await cloud.leaveClinic(`Ya no formas parte de «${current.name}»: sus pacientes se han borrado de este dispositivo.`);
+    return "left";
+  }
+  recordCheck(cloud.sync.scope);
   if (now.name !== current.name || now.role !== current.role || !!now.suspended !== !!current.suspended) cloud.updateClinic(now);
+  return "checked";
 }
 
 // La vuelta de Google se lee una sola vez (React en modo estricto monta dos veces).
@@ -52,6 +61,8 @@ type Phase =
   | { kind: "wait"; text: string }
   /** `clinic`: la elegida (undefined: aún no hay, y sin conexión no se puede seguir). */
   | { kind: "reconnect"; config: CloudConfig; account: Account; clinic?: ChosenClinic | null; error: string | null }
+  /** Demasiados días sin que el servidor confirme que sigue en la clínica (offlineExpiry.ts): hasta que haya conexión. */
+  | { kind: "expired"; clinic: ChosenClinic; days: number; online: boolean }
   | { kind: "ready"; cloud: Cloud };
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -192,6 +203,20 @@ export function CloudGate({ children }: { children: ReactNode }) {
         }
       }
       const cloud = startCloud(config, account, remount, clinic);
+      // Caducidad sin conexión: si hace demasiados días que el servidor no confirma que sigue en la clínica, no se
+      // enseña nada hasta comprobarlo (con conexión: si sigue, se abre; si no, refreshClinic borra sus datos).
+      if (clinic) {
+        const limit = offlineDays(await getSetting<number>(getDb(), OFFLINE_DAYS_KEY).catch(() => undefined));
+        if (checkExpired(cloud.sync.scope, limit)) {
+          const result = token && navigator.onLine ? await refreshClinic(cloud, token) : "unknown";
+          if (result === "left") return;
+          if (result === "unknown") {
+            cloud.closing = true;
+            cloud.sync.stop();
+            return setPhase({ kind: "expired", clinic, days: daysSinceCheck(cloud.sync.scope), online: navigator.onLine });
+          }
+        }
+      }
       if (token) {
         if (clinic) void refreshClinic(cloud, token);
         // Al abrir, primero lo que haya en la nube (hasta unos segundos; si tarda, sigue en segundo plano).
@@ -262,6 +287,8 @@ export function CloudGate({ children }: { children: ReactNode }) {
       return <LoginScreen config={phase.config} error={phase.error} />;
     case "welcome":
       return <WelcomeScreen account={phase.account} localPatients={phase.localPatients} />;
+    case "expired":
+      return <ExpiredScreen clinic={phase.clinic.name} days={phase.days} online={phase.online} />;
     case "clinic":
       return <ClinicScreen {...phase} />;
     case "reconnect": {

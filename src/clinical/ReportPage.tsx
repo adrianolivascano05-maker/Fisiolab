@@ -9,6 +9,7 @@ import { fmt, fmtDate, fmtDateShort } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { getAnamnesis, latestFindings, listFindings, listQuestionnaires, listSessions } from "../data/clinical";
+import { logAccess } from "../data/accessLog";
 import { getDb } from "../data/db";
 import { ageOn, getClinic } from "../data/privacy";
 import { getPatient, listTests, listWellness } from "../data/repo";
@@ -138,7 +139,14 @@ export function ReportPage() {
           </fieldset>
           <TextField label="Dirigido a (opcional)" placeholder="Por ejemplo: Dra. López, traumatología" value={to} onChange={(e) => setTo(e.target.value)} />
           <TextArea label="Nota para quien lo recibe (opcional)" value={note} onChange={setNote} />
-          <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
+          <Button
+            size="lg"
+            icon={<Printer aria-hidden="true" className="size-5" />}
+            onClick={() => {
+              void logAccess(getDb(), "imprimir_historia", id).catch(() => {});
+              window.print();
+            }}
+          >
             Imprimir
           </Button>
           <SharePdf

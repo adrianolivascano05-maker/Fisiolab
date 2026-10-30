@@ -29,7 +29,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useRef, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { readErrors } from "../app/errorLog";
 import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
@@ -48,6 +48,7 @@ import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { cloudflarePending } from "../cloud/serverStatus";
 import { requestShare } from "../cloud/limits";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
+import { logAccess } from "../data/accessLog";
 import { getDb } from "../data/db";
 import { DocsStorageCard } from "../documents/DocsStorageCard";
 import { DownloadChoice, saveMaybeEncrypted, type DownloadPick } from "../export/DownloadChoice";
@@ -224,6 +225,8 @@ const errorCount = (n: number) => (n === 0 ? "Problemas frecuentes e informe de 
 /** Ajustes → Cuenta de Google: la sesión y la sincronización, Google Calendar y el cifrado de la copia. */
 export function AccountSettingsPage() {
   const cloud = useCloud();
+  // Desde «Termina de cerrarle el acceso» (TeamPage): con el formulario de cambiar la contraseña ya abierto.
+  const [params] = useSearchParams();
   return (
     <Page title="Cuenta de Google" backTo="/ajustes">
       {cloud ? (
@@ -231,7 +234,7 @@ export function AccountSettingsPage() {
           <OldDriveFiles />
           <CloudSettings />
           <CalendarSettings />
-          <EncryptionSettings />
+          <EncryptionSettings openOnMount={params.has("cambiar-contrasena")} />
         </>
       ) : (
         <>
@@ -424,6 +427,7 @@ export function DataSettingsPage() {
             onClick={() =>
               run("csv", async () => {
                 saveFile(`fisiolab-resultados-${stamp()}.csv`, await exportCsv(getDb()), "text/csv;charset=utf-8");
+                await logAccess(getDb(), "exportar", (await getDb().query<{ id: string }>("select id from patients")).map((p) => p.id)).catch(() => {});
               })
             }
           >

@@ -14,6 +14,7 @@ import { useDataVersion } from "../app/dataVersion";
 import { nextAppointmentOf } from "../data/appointments";
 import { euros, patientAccount } from "../data/billing";
 import { editText, lastEditOfPatient } from "../data/editors";
+import { logAccess } from "../data/accessLog";
 import { getDb } from "../data/db";
 import { ageOn, mayMessage } from "../data/privacy";
 import type { Patient } from "../data/repo";
@@ -27,9 +28,16 @@ import { waPhone, whatsappUrl } from "../schedule/reminders";
 
 export function PatientShell({ patient, id, tabs = true, children }: { patient: Patient | null | undefined; id: string; tabs?: boolean; children: ReactNode }) {
   useEffect(() => rememberPatient(id), [id]);
+  // Registro de accesos (src/data/accessLog.ts): quién abrió la ficha, una vez al día.
+  const loaded = !!patient;
+  useEffect(() => {
+    if (loaded) void logAccess(getDb(), "abrir_ficha", id).catch(() => {});
+  }, [id, loaded]);
   const visit = useAsync(() => nextAppointmentOf(getDb(), id), [id]);
   // En una clínica, quién tocó la ficha por última vez.
-  const team = !!useCloud()?.clinic;
+  const cloud = useCloud();
+  const team = !!cloud?.clinic;
+  const admin = !!cloud?.clinic && cloud.clinic.role === "admin";
   const edit = useAsync(async () => (team ? lastEditOfPatient(getDb(), id) : null), [id, team]);
   const [managing, setManaging] = useState(false);
   const leave = useLeaveWaitlist();
@@ -77,6 +85,11 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
             <h1 className="text-[1.75rem] leading-tight font-bold break-words">{name}</h1>
             {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin más datos"}</p>}
             {edit.data && <p className="text-xs text-text-muted">Última modificación: {editText(edit.data)}</p>}
+            {admin && patient && (
+              <Link to={`/ajustes/equipo/accesos?paciente=${id}`} className="inline-flex min-h-11 items-center self-start text-xs font-semibold text-accent underline underline-offset-2">
+                Quién ha abierto esta ficha
+              </Link>
+            )}
           </div>
           {/* Una fila de chips: el motivo que se ve, la próxima cita (o darla) y lo que debe. Añadir al calendario, dentro de la cita. */}
           <div className="flex flex-wrap items-center gap-2 @2xl:justify-end">

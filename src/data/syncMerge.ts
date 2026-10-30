@@ -44,7 +44,11 @@ export const SYNC_TABLES: { name: string; pk: string[]; unique?: string[][] }[] 
   { name: "validation_pairs", pk: ["id"] },
   { name: "settings", pk: ["key"] },
   { name: "devices", pk: ["device"] },
+  { name: "access_log", pk: ["id"] },
 ];
+
+/** Tablas que solo se añaden (migración 035): un borrado que llegue de fuera no se aplica. */
+export const APPEND_ONLY = new Set(["access_log"]);
 
 /**
  * Columnas con un objeto JSON de respuestas: cada respuesta cuenta como un campo («answers.motivo»), así dos personas
@@ -437,6 +441,7 @@ function applyWith(
   const overwritten: { tbl: string; pk: string; device: string }[] = [];
   for (const r of theirs.values()) {
     if (!specs.has(r.tbl)) continue; // una tabla que esta versión no conoce: la copia es más nueva (se avisa antes)
+    if (r.op === "delete" && APPEND_ONLY.has(r.tbl)) continue; // el registro de accesos solo se añade
     const l = mineOf(r);
     if (l && l.op === r.op && l.at === r.at && l.device === r.device) continue; // el mismo cambio: ya está
     if (l && l.op === "upsert" && r.op === "upsert") {

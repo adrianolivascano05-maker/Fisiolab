@@ -195,11 +195,12 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     expect(errors).toEqual([]);
   });
 
-  test("CL2 equipo: Ana añade a Bruno y comparten pacientes; Carla, de fuera, no ve nada; al quitar a Bruno se borran de su móvil", async ({
+  test("CL2 equipo: Ana añade a Bruno y comparten pacientes; Carla, de fuera, no ve nada; al quitar a Bruno se borran de su móvil y se le cierra el acceso", async ({
     page,
     browser,
   }) => {
     test.slow();
+    const NEW = "otra frase larga 2026";
     const google = new FakeGoogle(users);
     google.creators = ["ana"]; // ALLOWED_EMAILS: solo Ana puede dar de alta clínicas
     const errors: string[] = [];
@@ -226,7 +227,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expectAccessible(page);
 
     // Bruno entra: tiene una sola clínica y nada que llevar, así que entra directo; con la contraseña ve a Lucía.
-    const bruno = await device(browser, google, "bruno", errors, [/status of 403/]);
+    const bruno = await device(browser, google, "bruno", errors, [/status of 403/, /status of 503/]);
     await enter(bruno);
     await patients(bruno);
     await unlock(bruno);
@@ -255,23 +256,91 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(carla.getByRole("button", { name: "Crear la clínica" })).toHaveCount(0);
     await expectAccessible(carla);
 
+    // Caducidad sin conexión: si hace 8 días que el servidor no confirma que Bruno sigue en el equipo, su móvil no
+    // enseña la clínica hasta comprobarlo (y no borra nada).
+    await bruno.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("fisiolab.checked.")).forEach((k) => localStorage.setItem(k, String(Date.now() - 8 * 86_400_000))));
+    await bruno.route("**/v1/yo", (r) => r.fulfill({ status: 503, body: "" }));
+    await bruno.goto("./");
+    await expect(bruno.getByRole("heading", { name: /Hace 8 días que este dispositivo no comprueba que sigues en el equipo/ })).toBeVisible({ timeout: 15_000 });
+    await expect(bruno.getByRole("link", { name: /Lucía Equipo/ })).toHaveCount(0);
+    await expectAccessible(bruno);
+    await bruno.unroute("**/v1/yo");
+    await bruno.getByRole("button", { name: "Volver a comprobar" }).click();
+    await expect(bruno.getByRole("link", { name: /Lucía Equipo/ })).toBeVisible({ timeout: 15_000 });
+
     // Ana quita a Bruno: al volver a abrir la app, los pacientes de la clínica se borran de su móvil.
     await page.goto("./ajustes/equipo");
     await page.getByRole("region", { name: "Equipo" }).getByRole("button", { name: /bruno@clinica\.test/ }).click();
     await page.getByRole("dialog", { name: "bruno@clinica.test" }).getByRole("button", { name: "Quitar del equipo" }).click();
     await expect(page.getByRole("region", { name: "Equipo" }).getByText("bruno@clinica.test")).toHaveCount(0);
+    // «Termina de cerrarle el acceso»: cambiar la contraseña de la clínica (no hay enlaces pendientes que anular).
+    const closeAccess = page.getByRole("dialog", { name: "Termina de cerrarle el acceso" });
+    await expect(closeAccess).toContainText("bruno@clinica.test ya no puede bajar nada del servidor.");
+    await expect(closeAccess.getByText("No hay ninguno pendiente.")).toBeVisible();
+    await expectAccessible(page);
+    await closeAccess.getByRole("button", { name: "Cambiar ahora la contraseña de la clínica" }).click();
+    const change = page.getByRole("dialog", { name: "Cambiar la contraseña" });
+    await expect(change).toBeVisible();
+    await change.getByLabel("Contraseña nueva").fill(NEW);
+    await change.getByLabel("Repite la contraseña").fill(NEW);
+    await change.getByRole("button", { name: "Cambiar la contraseña" }).click();
+    const kit = page.getByRole("dialog", { name: "Kit de recuperación de la clínica" });
+    await expect(kit).toBeVisible({ timeout: 15_000 });
+    await kit.getByLabel(/He guardado el código/).check();
+    await kit.getByRole("button", { name: "Hecho" }).click();
+    await expect
+      .poll(async () => (await FakeGoogle.open(google.clinicCopy("Fisiolab Centro")!.bytes, NEW)).includes(enc("Lucía Equipo")), { timeout: 20_000 })
+      .toBe(true);
     await bruno.goto("./");
     await expect(bruno.getByText("Ya no formas parte de «Fisiolab Centro»: sus pacientes se han borrado de este dispositivo.")).toBeVisible({ timeout: 15_000 });
     await expect(bruno.getByText("aún no está en ninguna clínica")).toBeVisible();
     // Si Ana vuelve a añadirle, la clínica le llega de nuevo desde el servidor (en su móvil no quedaba nada).
+    await page.goto("./ajustes/equipo");
     await page.getByLabel("Su correo de Google").fill("bruno@clinica.test");
     await page.getByRole("button", { name: "Añadir al equipo" }).click();
     await expect(page.getByRole("region", { name: "Equipo" }).getByRole("button", { name: /bruno@clinica\.test/ })).toBeVisible();
     await bruno.getByRole("button", { name: "Volver a comprobar" }).click();
     await patients(bruno);
     await expect(bruno.getByText("Lucía Equipo")).toHaveCount(0);
-    await unlock(bruno);
+    // La contraseña de antes ya no vale: con la nueva (que Ana le da en persona), vuelve a ver a Lucía.
+    await expect(bruno.getByRole("status").getByText(/está cifrada: escribe su contraseña/)).toBeVisible({ timeout: 15_000 });
+    await bruno.getByRole("button", { name: "Escribir la contraseña" }).click();
+    const ask = bruno.getByRole("dialog", { name: "Contraseña de la copia del servidor" });
+    await ask.getByLabel("Contraseña").fill(PASSWORD);
+    await ask.getByRole("button", { name: "Abrir la copia" }).click();
+    await expect(ask.getByText("No es la contraseña de esta copia.")).toBeVisible();
+    await ask.getByLabel("Contraseña").fill(NEW);
+    await ask.getByRole("button", { name: "Abrir la copia" }).click();
+    await bruno.getByRole("button", { name: "Mostrar" }).click();
     await expect(bruno.getByRole("link", { name: /Lucía Equipo/ })).toBeVisible();
+
+    // Registro de accesos: Ana (administra) ve quién abrió qué ficha; desde la ficha, «Quién ha abierto esta ficha».
+    await page.goto("./ajustes/equipo");
+    await page.getByRole("link", { name: /Registro de accesos/ }).click();
+    await expect(page.getByRole("heading", { name: "Registro de accesos" })).toBeVisible();
+    const log = page.getByRole("list", { name: "Accesos" });
+    await expect(log).toContainText("Paciente de Bruno · Abrió la ficha");
+    await expect(log).toContainText("Lucía Equipo · Abrió la ficha");
+    await expect(log).toContainText("ana@clinica.test");
+    await page.getByLabel("Paciente", { exact: true }).fill("lucía");
+    await expect(log).not.toContainText("Paciente de Bruno");
+    await page.getByLabel("Paciente", { exact: true }).fill("");
+    await page.getByLabel("Persona").selectOption("ana@clinica.test");
+    await expect(log).toContainText("Paciente de Bruno · Abrió la ficha");
+    const csv = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar en CSV" }).click()]).then(([d]) => d);
+    expect(csv.suggestedFilename()).toMatch(/^omniclin-registro-de-accesos-\d{4}-\d{2}-\d{2}\.csv$/);
+    await expectAccessible(page);
+    await page.goto("./");
+    await page.getByRole("link", { name: /Lucía Equipo/ }).click();
+    await page.getByRole("link", { name: "Quién ha abierto esta ficha" }).click();
+    await expect(page.getByText("Solo Lucía Equipo.")).toBeVisible();
+    await expect(log).toContainText("Lucía Equipo · Abrió la ficha");
+    await expect(log).not.toContainText("Paciente de Bruno");
+    // Bruno (no administra) no tiene el registro.
+    await bruno.goto("./ajustes/equipo");
+    await expect(bruno.getByRole("link", { name: /Registro de accesos/ })).toHaveCount(0);
+    await bruno.goto("./ajustes/equipo/accesos");
+    await expect(bruno.getByRole("heading", { name: "Equipo de la clínica" })).toBeVisible();
     expect(errors).toEqual([]);
   });
 

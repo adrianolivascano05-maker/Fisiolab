@@ -97,6 +97,15 @@ export async function markImported(db: Db, id: string, input: { answeredAt: stri
 }
 
 /** Anulado: el enlace ya no vale (también se borra del servidor). */
+/** Los enlaces pendientes de toda la clínica (sin contestar, sin caducar, sin anular), con el nombre del paciente. */
+export async function listPendingForms(db: Db): Promise<(SentForm & { patientName: string })[]> {
+  const rows = await db.query<Row & { patient_name: string }>(
+    "select f.*, p.name as patient_name from patient_forms f join patients p on p.id = f.patient_id where f.cancelled_at is null and f.imported_at is null and f.expires_at >= ? order by f.sent_at desc",
+    [now()],
+  );
+  return rows.map((r) => ({ ...toForm(r), patientName: r.patient_name }));
+}
+
 export async function cancelSentForm(db: Db, id: string): Promise<void> {
   const t = now();
   await db.transaction([{ sql: "update patient_forms set cancelled_at = ?, updated_at = ? where id = ? and imported_at is null", bind: [t, t, id] }]);
