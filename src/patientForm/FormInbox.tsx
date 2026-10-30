@@ -4,14 +4,14 @@
 // la conexión). Sin servidor, nada.
 import { useCallback, useEffect, useRef } from "react";
 import { bumpData } from "../app/dataVersion";
-import { formTitle, isSignKind, PRIVACY_KIND } from "../clinical/patientForms";
+import { formTitle, PRIVACY_KIND } from "../clinical/patientForms";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { useAppLock } from "../privacy/AppLock";
 import { useToast } from "../ui/Toast";
-import { collectAnswered } from "./collect";
+import { cancelSignLinks, collectAnswered } from "./collect";
 
 /** Una búsqueda cada vez (dos pantallas a la vez no recogen lo mismo dos veces). */
 let running: Promise<number | null> | null = null;
@@ -29,6 +29,8 @@ export function useCollectForms(): () => Promise<number | null> {
     if (!clinic || !api || !token || !navigator.onLine) return null;
     running = (async () => {
       try {
+        // Los enlaces de firma que queden pendientes (de antes del 30-10-2026) se anulan: ya no se recogen.
+        const cancelled = await cancelSignLinks(getDb(), (id) => api.forms.remove(token, clinic.id, id));
         const got = await collectAnswered(
           getDb(),
           { answered: () => api.forms.answered(token, clinic.id), remove: (id) => api.forms.remove(token, clinic.id, id), keepDoc: (id) => api.docs.keep(token, clinic.id, id) },
@@ -39,14 +41,14 @@ export function useCollectForms(): () => Promise<number | null> {
             toast(`${g.name || "Un paciente"} ha enviado ${g.files === 1 ? "1 archivo" : `${g.files} archivos`}: está${g.files === 1 ? "" : "n"} en sus archivos`, "success");
             continue;
           }
-          if (isSignKind(g.kind)) {
-            toast(`${g.name || "Un paciente"} ha firmado ${g.kind === PRIVACY_KIND ? "la hoja de protección de datos" : "un consentimiento informado"} en su móvil: está en su ficha`, "success");
+          if (g.refused) {
+            toast(`${g.name || "Un paciente"} firmó en su móvil ${g.kind === PRIVACY_KIND ? "la hoja de protección de datos" : "un consentimiento"}, pero ya no se recogen firmas por enlace: fírmalo en la clínica`, "danger");
             continue;
           }
           const extra = g.incomplete ? " (incompleto: sin nota)" : g.skipped ? ` · ${g.skipped === 1 ? "1 respuesta no se puso" : `${g.skipped} no se pusieron`}: ya había algo escrito` : "";
           toast(`${g.name || "Un paciente"} ha rellenado: ${formTitle(g.kind)}${extra}`, "success");
         }
-        if (got.length) bumpData();
+        if (got.length || cancelled) bumpData();
         return got.length;
       } catch {
         return null; // sin conexión o el servidor aún no tiene formularios: ya se mirará la próxima vez

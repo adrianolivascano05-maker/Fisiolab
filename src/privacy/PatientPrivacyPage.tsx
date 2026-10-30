@@ -1,15 +1,12 @@
 // Protección de datos de un paciente: el texto informativo para firmar en la pantalla o imprimir y firmar en papel, y
 // lo que se registra en la app (cuándo se le entregó, quién firmó y sus consentimientos opcionales: fotos y vídeos,
 // WhatsApp, docencia). Lo firmado en la pantalla se guarda tal cual, con la firma; las hojas anteriores se conservan.
-// Con el servidor de la clínica, también se le manda por enlace para que la lea y la firme en su móvil (vuelve igual).
+// Firmarla por enlace se retiró el 30-10-2026; las hojas firmadas así antes (`method: "link"`) se siguen viendo igual.
 import { todayDay as today } from "../app/dates";
-import { FilePen, Printer, Send, ShieldCheck } from "lucide-react";
+import { FilePen, Printer, ShieldCheck } from "lucide-react";
 import { TopBar } from "../ui/AppBar";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
-import { PRIVACY_KIND } from "../clinical/patientForms";
-import { createPatientForm } from "../patientForm/createForm";
-import { privacyToSign } from "./toSign";
+import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
@@ -47,8 +44,6 @@ export function PatientPrivacyPage() {
   const { id = "" } = useParams();
   const cloud = useCloud();
   const toast = useToast();
-  const navigate = useNavigate();
-  const [linking, setLinking] = useState(false);
   const data = useAsync(async () => {
     const db = getDb();
     const [patient, clinic] = await Promise.all([getPatient(db, id), getClinic(db)]);
@@ -251,33 +246,6 @@ export function PatientPrivacyPage() {
             >
               Firmar en la pantalla
             </Button>
-            {cloud?.clinic && cloud.clinics && (
-              <Button
-                variant="secondary"
-                loading={linking}
-                icon={<Send aria-hidden="true" className="size-5" />}
-                onClick={async () => {
-                  setLinking(true);
-                  setError(null);
-                  try {
-                    const created = await createPatientForm(getDb(), cloud, {
-                      patientId: id,
-                      patientName: patient.name,
-                      kind: PRIVACY_KIND,
-                      clinicName: clinic.name || cloud.clinic?.name || "",
-                      sections: [],
-                      privacy: privacyToSign(clinic, storage, { name: patient.name, privacy: form }),
-                    });
-                    navigate(`/pacientes/${id}/formularios?compartir=${created.id}`);
-                  } catch (e) {
-                    setError(e instanceof Error ? e.message : String(e));
-                    setLinking(false);
-                  }
-                }}
-              >
-                Enviar para que la firme en su móvil
-              </Button>
-            )}
             {error && !signing && <Alert tone="danger" title={error} />}
             <Button variant="secondary" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>
               Imprimir para firmar en papel

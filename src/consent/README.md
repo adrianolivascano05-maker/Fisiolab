@@ -69,10 +69,11 @@ logo, placa y si llevaba marca de agua; null si era la de OmniClin): `ConsentDoc
 aunque la clínica cambie de marca después. Los firmados antes de haber marca no llevan el campo y se ven como
 entonces, con la de OmniClin (`src/brand/docs.tsx`).
 
-## Firmar por enlace (29-10-2026)
+## Firmar por enlace (29-10-2026; retirado el 30-10-2026)
 
-Con el servidor de la clínica, «Enviar para que lo firme en su móvil»: el fisioterapeuta firma primero (o usa su
-firma guardada) y se crea un enlace cifrado como los de los cuestionarios (`src/patientForm`, tipo
-`consentimiento:<plantilla>`). El paciente lo lee entero en su móvil y firma con el dedo; al recogerlo
-(`collect.ts`) se guarda como uno firmado en la pantalla, con el documento tal como lo leyó y las dos firmas
-(`signatures.via = "link"`: en la lista sale «en su móvil»). Sin firma, no se guarda nada.
+Durante un día se pudo mandar un consentimiento al móvil del paciente (tipo `consentimiento:<plantilla>` de
+`src/patientForm`). **Retirado el 30-10-2026: se firma en la clínica**, en la pantalla o en papel (la revisión
+técnica encontró que quien tuviera el enlace podía devolver un documento distinto y que no se sabía quién firmaba).
+Lo firmado antes se conserva tal cual (`signatures.via = "link"`: en la lista sale «en su móvil»; en la exportación,
+«en su móvil, por enlace» con la hora real de la firma, la del envío). Un enlace pendiente se anula solo al abrir la
+app (`cancelSignLinks`); si llega una firma por uno de esos enlaces, no se guarda y la app avisa.

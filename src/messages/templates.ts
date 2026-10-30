@@ -1,12 +1,14 @@
 // Los mensajes que la app prepara para WhatsApp y correo (recordatorio, hueco libre, lista de espera, anamnesis,
-// cuestionarios antes de revisar, formulario por enlace, documento para firmar por enlace, petición de informes y pruebas y hoja de ejercicios). Cada clínica puede cambiar su texto y su asunto en
+// cuestionarios antes de revisar, formulario por enlace, petición de informes y pruebas y hoja de ejercicios). Cada clínica puede cambiar su texto y su asunto en
 // Ajustes › Mensajes a pacientes, y poner una firma común al final de todos. Las fichas como {nombre} o {dia} se
 // sustituyen al preparar cada mensaje. El ajuste va en la base de la clínica (cifrada y sincronizada). Nada se
 // envía solo: el mensaje se abre en el WhatsApp o el correo del dispositivo y lo manda la persona.
 import type { Db } from "../data/db";
 import { getSetting, setSetting } from "../data/repo";
 
-export type MessageKind = "recordatorio" | "hueco" | "espera" | "anamnesis" | "seguimiento" | "formulario" | "firma" | "archivos" | "ejercicios";
+// «firma» (documento para firmar por enlace) se retiró el 30-10-2026; lo que una clínica guardó con ese nombre se
+// ignora y desaparece al volver a guardar (saveMessages solo recorre MESSAGES).
+export type MessageKind = "recordatorio" | "hueco" | "espera" | "anamnesis" | "seguimiento" | "formulario" | "archivos" | "ejercicios";
 
 export type MessageSpec = {
   kind: MessageKind;
@@ -65,14 +67,6 @@ export const MESSAGES: MessageSpec[] = [
     where: "Ficha › Formularios › Enviar",
     text: `Hola {nombre}: desde {clinica} te pedimos que rellenes {formulario} antes de tu próxima visita. Es aquí:\n{enlace}\n${PRIVATE} El enlace vale hasta el {caduca}.`,
     subject: "Un formulario de {clinica}",
-    vars: ["{nombre}", "{clinica}", "{formulario}", "{enlace}", "{caduca}"],
-  },
-  {
-    kind: "firma",
-    label: "Documento para firmar por enlace",
-    where: "Ficha › Protección de datos y Consentimientos › Enviar para firmar en su móvil",
-    text: "Hola {nombre}: desde {clinica} te mandamos {formulario} para que lo leas y lo firmes desde tu móvil. Es aquí:\n{enlace}\nVa cifrado y solo lo verá tu clínica. El enlace vale hasta el {caduca}.",
-    subject: "Para firmar: {formulario}",
     vars: ["{nombre}", "{clinica}", "{formulario}", "{enlace}", "{caduca}"],
   },
   {

@@ -1,9 +1,9 @@
 // Ficha → Formularios para el paciente: mandarle su parte de la anamnesis o un cuestionario para que lo rellene desde
 // su móvil, ver en qué está cada uno y volver a mandar el enlace. Las respuestas llegan solas (FormInbox.tsx); aquí
 // también se pueden buscar a mano. ?enviar=anamnesis (o el id de un cuestionario) abre la hoja con eso elegido;
-// ?compartir=<id> abre «Mandar el enlace» de uno ya creado (la hoja de protección de datos o un consentimiento para
-// firmar, que se crean desde sus pantallas). Solo con el permiso de contacto firmado se manda por WhatsApp o correo; la
-// hoja de protección de datos, que es la que lo pide, también por WhatsApp si aún no lo ha firmado.
+// ?compartir=<id> abre «Mandar el enlace» de uno ya creado. Solo con el permiso de contacto firmado se manda por
+// WhatsApp o correo. La hoja de protección de datos y los consentimientos ya no se firman por enlace (30-10-2026): los
+// envíos de ese tipo recogidos antes siguen en la lista, con su enlace a lo firmado.
 import { Copy, Mail, MessageCircle, RefreshCw, Send, Share2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
@@ -26,7 +26,6 @@ import {
   PRIVACY_KIND,
   SENDABLE,
 } from "../clinical/patientForms";
-import { privacyToSign } from "../privacy/toSign";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud } from "../cloud/cloudContext";
@@ -74,7 +73,7 @@ export function SendFormsPage() {
   const [cancelling, setCancelling] = useState<SentForm | null>(null);
   const [looking, setLooking] = useState(false);
   const back = `/pacientes/${id}`;
-  // ?compartir=<id>: viene de crear un enlace para firmar en su pantalla (protección de datos o un consentimiento).
+  // ?compartir=<id>: abrir «Mandar el enlace» de un envío ya creado.
   const toShare = params.get("compartir");
   useEffect(() => {
     if (!toShare || !data.data) return;
@@ -85,7 +84,7 @@ export function SendFormsPage() {
 
   if (data.error) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Formularios para el paciente" backTo={back}><Loading /></Page>;
-  const { patient, forms, clinic, clinicName, clinicReady, messages } = data.data;
+  const { patient, forms, clinicName, clinicReady, messages } = data.data;
   if (!patient) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const online = !!(cloud?.clinic && cloud.clinics);
   const closeChooser = () => {
@@ -159,7 +158,6 @@ export function SendFormsPage() {
                 kind,
                 clinicName,
                 sections,
-                ...(kind === PRIVACY_KIND ? { privacy: privacyToSign(clinic, "server", patient) } : {}),
               });
               bumpData();
               closeChooser();
@@ -207,7 +205,7 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
   const sendable = SENDABLE;
   // Pedirle archivos, solo si el servidor de la clínica los guarda.
   const docs = useDocsUsage().usage?.enabled === true;
-  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || initial === PRIVACY_KIND || SENDABLE.some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
+  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || SENDABLE.some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
@@ -228,7 +226,6 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
     >
       <SelectField label="Qué le mandas" value={kind} onChange={(e) => setKind(e.target.value)}>
         <option value={ANAMNESIS_KIND}>Su parte de la anamnesis</option>
-        <option value={PRIVACY_KIND}>La hoja de protección de datos, para firmar</option>
         {(docs || kind === DOCS_KIND) && <option value={DOCS_KIND}>Sus informes y pruebas (PDF o fotos)</option>}
         <optgroup label="Cuestionarios">
           {sendable.map((k) => (
@@ -239,9 +236,7 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
         </optgroup>
       </SelectField>
       <p className="text-sm text-text-muted">
-        {kind === PRIVACY_KIND
-          ? "La lee entera en su móvil, contesta a cada permiso (fotos, WhatsApp, docencia) y la firma con el dedo. Vuelve firmada a su ficha, tal cual, como si la firmara aquí. Es lo único que se le puede mandar por WhatsApp antes de que firme el permiso de contacto."
-          : kind === DOCS_KIND
+        {kind === DOCS_KIND
           ? `Sube desde su móvil hasta ${DOCS_PER_LINK} informes o pruebas, en PDF o en foto (las fotos se pasan a PDF), de 5 MB como mucho cada uno. Llegan cifrados a sus archivos.`
           : kind === ANAMNESIS_KIND
             ? "Sus datos, lo que le pasa, su salud, su familia y su día a día, con preguntas dichas para el paciente (y las propias de tu clínica). La zona, el lado, las banderas rojas, las precauciones, la exploración y el plan son tuyos."
@@ -263,33 +258,25 @@ function ShareForm({ f, patient, clinicName, messages }: { f: SentForm; patient:
   const text = formMessage({ name: firstName(patient), clinic: clinicName, kind: f.kind, url, expiresAt: f.expiresAt }, messages);
   const phone = waPhone(patient.phone);
   const consent = patient.privacy.consents?.contact;
-  // La única excepción: la hoja de protección de datos (la que pide el permiso) va por WhatsApp aunque aún no lo haya
-  // firmado. Si ya dijo que no, tampoco.
-  const askingPermission = f.kind === PRIVACY_KIND && consent === undefined;
-  const byWhatsApp = mayMessage(consent) || askingPermission;
   const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
   const [canShare, setCanShare] = useState(false);
   useEffect(() => setCanShare(typeof navigator.share === "function"), []);
   return (
     <div className="flex flex-col gap-3">
-      {askingPermission ? (
-        <Alert tone="info" title="Aún no ha firmado el permiso de contacto">
-          Esta hoja es la que lo pide: se le puede mandar por WhatsApp. El correo y los demás mensajes, cuando lo firme.
-        </Alert>
-      ) : !mayMessage(consent) && (
+      {!mayMessage(consent) && (
         <Alert tone="warning" title={consent === false ? "No acepta WhatsApp ni correo" : "Falta su permiso de contacto"}>
           <ContactNote contact={consent} patientId={patient.id} extra="Dale el enlace en persona: que lo abra con su móvil en la consulta" className="text-text" />
         </Alert>
       )}
       <pre className="whitespace-pre-wrap rounded-md bg-surface p-3 font-sans text-sm break-words">{text}</pre>
       <div className="flex flex-wrap gap-2">
-        {phone && byWhatsApp && (
+        {phone && mayMessage(consent) && (
           <a href={whatsappUrl(phone, text)} target="_blank" rel="noopener noreferrer" className={cx(link, "bg-accent text-on-accent hover:bg-accent-hover")}>
             <MessageCircle aria-hidden="true" className="size-5" /> WhatsApp
           </a>
         )}
         {patient.email && mayMessage(consent) && (
-          <a href={mailtoUrl(patient.email, messageSubject(f.kind === DOCS_KIND ? "archivos" : isSignKind(f.kind) ? "firma" : "formulario", messages, { clinica: clinicName, formulario: formWhat(f.kind) }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
+          <a href={mailtoUrl(patient.email, messageSubject(f.kind === DOCS_KIND ? "archivos" : "formulario", messages, { clinica: clinicName, formulario: formWhat(f.kind) }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
             <Mail aria-hidden="true" className="size-5" /> Correo
           </a>
         )}

@@ -453,11 +453,15 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
 
   const consents = mine("consents").sort((a, b) => s(a.signed_at).localeCompare(s(b.signed_at)));
   if (consents.length) {
+    // Firmado por enlace (se hacía hasta el 30-10-2026): la hora real de la firma es la del envío, cuyo id es el del
+    // consentimiento sin «-c».
+    const linkSignedAt = new Map(mine("patient_forms").map((f) => [s(f.id), s(f.answered_at)]));
     parts.push(`<h2>Consentimientos informados</h2>`);
-    for (const r of consents) parts.push(consentHtml(r));
+    for (const r of consents) parts.push(consentHtml(r, linkSignedAt.get(s(r.id).replace(/-c$/, "")) || null));
   }
 
-  // Protección de datos: cuándo se le dio la información, sus permisos opcionales y las hojas firmadas en la pantalla.
+  // Protección de datos: cuándo se le dio la información, sus permisos opcionales y las hojas firmadas (en la pantalla
+  // o, hasta el 30-10-2026, en su móvil por enlace).
   const privacy = parsePrivacy(s(p.privacy) || null);
   if (privacy.informedAt || privacy.sheets?.length) {
     const answers = CONSENTS.filter((x) => privacy.consents?.[x.id] !== undefined).map((x) => `${x.label}: ${privacy.consents![x.id] ? "sí" : "no"}`);
@@ -522,7 +526,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
 }
 
 /** Un consentimiento tal como se firmó: el documento entero, las firmas y, si se retiró, cuándo. */
-function consentHtml(r: R): string {
+function consentHtml(r: R, linkSignedAt: string | null): string {
   const doc = json<{
     title?: string;
     version?: string;
@@ -535,10 +539,12 @@ function consentHtml(r: R): string {
     date?: string;
     place?: string;
   }>(r.document, {});
-  const sig = json<{ patient?: string; professional?: string; revocation?: string }>(r.signatures, {});
+  const sig = json<{ patient?: string; professional?: string; revocation?: string; via?: string }>(r.signatures, {});
+  const byLink = sig.via === "link";
+  const where = r.method === "paper" ? "(en papel)" : byLink ? "(en su móvil, por enlace)" : "(en pantalla)";
   const img = (src: string | undefined, label: string) =>
     `<div><strong>${h(label)}</strong>${src && src.startsWith("data:image/") ? `<img src="${escapeXml(src)}" alt="${h(label)}">` : `<p class="muted">${r.method === "paper" ? "Firmado en papel" : "Sin firma en pantalla"}</p>`}</div>`;
-  return `<div class="card"><h3>${h(doc.title ?? r.title)}</h3><p class="muted">Versión ${h(doc.version ?? r.version)} · firmado el ${h(when(r.signed_at))} ${r.method === "paper" ? "(en papel)" : "(en pantalla)"}${
+  return `<div class="card"><h3>${h(doc.title ?? r.title)}</h3><p class="muted">Versión ${h(doc.version ?? r.version)} · firmado el ${h(when(byLink && linkSignedAt ? linkSignedAt : r.signed_at))} ${where}${
     doc.professional?.name ? ` · informa ${h(doc.professional.name)}${doc.professional.license ? ` (nº col. ${h(doc.professional.license)})` : ""}` : ""
   }</p>${doc.representative ? `<p>Representante: ${h(doc.representative.name)} (${h(doc.representative.relation)})</p>` : ""}${doc.techniques?.length ? `<p><strong>Técnicas:</strong> ${h(doc.techniques.join(", "))}</p>` : ""}${(doc.sections ?? [])
     .map((x) => `<h3>${h(x.title)}</h3>${x.items.length === 1 ? `<p>${h(x.items[0])}</p>` : `<ul>${x.items.map((i) => `<li>${h(i)}</li>`).join("")}</ul>`}`)
@@ -547,10 +553,10 @@ function consentHtml(r: R): string {
   }</div>`;
 }
 
-/** Una hoja de protección de datos tal como se firmó en la pantalla: el texto, los permisos y la firma. */
+/** Una hoja de protección de datos tal como se firmó (en la pantalla o, antes, en su móvil): el texto, los permisos y la firma. */
 function privacySheetHtml(sh: SignedPrivacySheet): string {
   const signer = sh.signedBy ? `${sh.signedBy} (representante de ${sh.patientName})` : sh.patientName;
-  return `<div class="card"><h3>Hoja firmada en la pantalla el ${h(day(sh.date))}</h3><p class="muted">Versión del texto ${h(sh.version)}</p>${sh.sections
+  return `<div class="card"><h3>Hoja firmada ${sh.method === "link" ? "en su móvil, por enlace," : "en la pantalla"} el ${h(day(sh.date))}</h3><p class="muted">Versión del texto ${h(sh.version)}</p>${sh.sections
     .map((x) => `<h3>${h(x.title)}</h3>${x.paragraphs.map((t) => `<p>${h(t)}</p>`).join("")}`)
     .join("")}<h3>Permisos opcionales</h3><ul>${sh.consents
     .map((c) => `<li>${h(c.answer === null ? "Sin preguntar" : c.answer ? "Sí" : "No")}: ${h(c.text)}</li>`)

@@ -9,8 +9,7 @@ import type { AnswerValue } from "../data/clinical";
 import { FieldInput } from "../clinical/FieldInput";
 import { FormFill, formResult } from "../clinical/FormFill";
 import { citeOf, formFor, type Answers as FormAnswers } from "../clinical/forms";
-import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, PRIVACY_KIND, seal, unseal, type FormRequest, type SentDoc } from "../clinical/patientForms";
-import { SignConsent, signedResponse, signMissing, SignPrivacy } from "./SignDocument";
+import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, seal, unseal, type FormRequest, type SentDoc } from "../clinical/patientForms";
 import { sizeText } from "../data/documents";
 import { sealDoc } from "../documents/docCrypto";
 import { prepareFiles } from "../documents/prepare";
@@ -89,29 +88,26 @@ export function PublicFormPage() {
 
   // Lo que va escribiendo se guarda en el móvil hasta que lo envía.
   useEffect(() => {
-    if (phase.kind !== "form") return;
+    if (phase.kind !== "form" || isSignKind(phase.request.kind)) return;
     try {
-      // La firma no se guarda en el borrador (el recuadro sale vacío al volver): se firma de nuevo.
-      const { signature: _signature, ...draft } = answers;
-      localStorage.setItem(draftKey(id), JSON.stringify(draft));
+      localStorage.setItem(draftKey(id), JSON.stringify(answers));
     } catch {
       /* sin almacenamiento: no pasa nada */
     }
   }, [answers, id, phase.kind]);
 
   const request = phase.kind === "form" ? phase.request : null;
-  const form = request && request.kind !== ANAMNESIS_KIND && !isSignKind(request.kind) ? formFor(request.kind) : undefined;
-  /** Un enlace para firmar: la hoja de protección de datos o un consentimiento, con lo que trae para firmar. */
-  const signing = request?.kind === PRIVACY_KIND && request.privacy ? ({ kind: "privacy", toSign: request.privacy } as const) : request?.consent ? ({ kind: "consent", toSign: request.consent } as const) : null;
+  // Un enlace para firmar (la hoja de protección de datos o un consentimiento, de antes del 30-10-2026): ya no se
+  // firma por enlace; solo se le dice que lo firmará en la clínica.
+  const toSign = !!request && isSignKind(request.kind);
+  const form = request && request.kind !== ANAMNESIS_KIND && !toSign ? formFor(request.kind) : undefined;
   const result = form ? formResult(form, answers as FormAnswers) : null;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!request) return;
     setError(null);
-    const missing = signing ? signMissing(signing.kind, signing.toSign, answers) : null;
-    if (missing) return setError(missing);
-    const given = signing || Object.values(answers).some((v) => v !== null && v !== "" && v !== undefined && !(Array.isArray(v) && !v.length));
+    const given = Object.values(answers).some((v) => v !== null && v !== "" && v !== undefined && !(Array.isArray(v) && !v.length));
     if (!given) return setError(request.kind === DOCS_KIND ? "Sube al menos un archivo." : "Contesta al menos una pregunta.");
     if (result && "missing" in result) return setError(`${result.missing}. Contéstalas para poder enviarlo.`);
     setSending(true);
@@ -120,7 +116,7 @@ export function PublicFormPage() {
       const res = await fetch(`${base}/v1/formularios/${id}/respuesta`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ response: await seal({ v: 1, answers: signing ? signedResponse(signing.kind, signing.toSign, answers) : answers }, key) }),
+        body: JSON.stringify({ response: await seal({ v: 1, answers }, key) }),
       });
       if (res.status === 409) {
         dropDraft(id);
@@ -160,7 +156,12 @@ export function PublicFormPage() {
             Puedes cerrar esta página.
           </Alert>
         )}
-        {request && (
+        {request && toSign && (
+          <Alert tone="info" title="Este documento se firma en la clínica">
+            Tu clínica te lo dará para que lo leas y lo firmes allí, en la pantalla o en papel. No hace falta que hagas nada más con este enlace.
+          </Alert>
+        )}
+        {request && !toSign && (
           <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
             <h1 className="text-2xl leading-tight font-bold">{request.name ? `Hola, ${request.name}` : "Hola"}</h1>
             <DataNotice request={request} />
@@ -169,11 +170,6 @@ export function PublicFormPage() {
               <p>
                 {request.clinic || "Tu clínica"} te pide {formWhat(request.kind)}: informes de tu médico, resonancias, radiografías, analíticas… Súbelos aquí en
                 PDF o haciéndoles una foto.
-              </p>
-            ) : signing ? (
-              <p>
-                {request.clinic || "Tu clínica"} te pide que leas y firmes {formWhat(request.kind)}. Léelo entero; si tienes dudas, pregunta en la clínica
-                antes de firmar.
               </p>
             ) : (
               <p>
@@ -203,16 +199,14 @@ export function PublicFormPage() {
             ))}
             {form && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} />}
             {form && <p className="text-xs text-text-muted">Autores del cuestionario: {citeOf(form)}.</p>}
-            {signing?.kind === "privacy" && <SignPrivacy toSign={signing.toSign} answers={answers} onChange={setAnswers} />}
-            {signing?.kind === "consent" && <SignConsent toSign={signing.toSign} answers={answers} onChange={setAnswers} />}
-            {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && !signing && (
+            {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && (
               <Alert tone="info" title="Este cuestionario ya no se rellena por enlace">
                 Tu clínica te lo pasará en la consulta. No hace falta que hagas nada más.
               </Alert>
             )}
             {error && <Alert tone="danger" title={error} />}
             <Button type="submit" size="lg" block loading={sending} icon={<Send aria-hidden="true" className="size-5" />}>
-              {signing ? "Firmar y enviar" : "Enviar"}
+              Enviar
             </Button>
             <p className="text-center text-xs text-text-muted">
               El enlace vale hasta el {new Date(request.expiresAt).toLocaleDateString("es-ES", { day: "numeric", month: "long", timeZone: "Europe/Madrid" })}.
@@ -343,12 +337,11 @@ function DataNotice({ request }: { request: FormRequest }) {
   const clinic = request.controller?.name || request.clinic || "tu clínica";
   const email = request.controller?.email ?? "";
   const docs = request.kind === DOCS_KIND;
-  const sign = isSignKind(request.kind);
   return (
     <section aria-label="Tus datos" className="flex gap-2 rounded-md bg-bg p-3 text-sm">
       <Lock aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-text-muted" />
       <p>
-        {docs ? "Tus archivos van cifrados" : sign ? "Tu firma y tus respuestas van cifradas" : "Tus respuestas van cifradas"} desde tu móvil directamente a la
+        {docs ? "Tus archivos van cifrados" : "Tus respuestas van cifradas"} desde tu móvil directamente a la
         historia clínica de {clinic}. Nadie más puede {docs ? "abrirlos" : "leerlas"}: ni OmniClin, que da el servicio a la clínica, ni el servidor por donde{" "}
         {docs ? "pasan, que los guarda" : "pasan, que las guarda"} en
         la Unión Europea. Responsable: {clinic}

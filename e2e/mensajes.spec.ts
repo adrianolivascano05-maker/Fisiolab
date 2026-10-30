@@ -8,9 +8,9 @@ test.describe("Mensajes a pacientes", () => {
     await page.getByRole("region", { name: "Mensajes y formularios", exact: true }).getByRole("link", { name: /Mensajes a pacientes/ }).click();
     await expect(page.getByRole("heading", { name: "Mensajes a pacientes" })).toBeVisible();
     const list = page.getByRole("list", { name: "Mensajes" });
-    // Con «Documento para firmar por enlace» (la hoja de protección de datos y los consentimientos, por enlace).
-    await expect(list.getByRole("button")).toHaveCount(9);
-    await expect(list.getByRole("button", { name: /Documento para firmar por enlace/ })).toBeVisible();
+    // Sin «Documento para firmar por enlace»: la firma por enlace se retiró el 30-10-2026.
+    await expect(list.getByRole("button")).toHaveCount(8);
+    await expect(list.getByRole("button", { name: /Documento para firmar por enlace/ })).toHaveCount(0);
     await expect(list.getByRole("button", { name: /Recordatorio de cita/ })).toHaveAttribute("aria-pressed", "true");
     await expectAccessible(page);
 

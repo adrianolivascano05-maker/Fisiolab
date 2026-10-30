@@ -1,6 +1,6 @@
 // Crear un formulario para el paciente (su parte de la anamnesis o un cuestionario): se cifra con una clave nueva,
 // se sube al servidor de la clínica y se apunta en su ficha. Lo usan la ficha (SendFormsPage) y la bandeja de envíos.
-import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, newFormId, newFormKey, patientSections, seal, type ConsentToSign, type FormRequest, type PrivacyToSign } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, isSignKind, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
 import type { Section } from "../clinical/anamnesis";
 import { currentBrand } from "../brand/brand";
 import { formBrand } from "../brand/form";
@@ -19,17 +19,13 @@ export type UploadedForm = { record: Pick<SentForm, "id" | "patientId" | "episod
  * Sube un formulario al servidor (cifrado con una clave nueva) sin apuntarlo aún en la ficha: la bandeja lo apunta
  * solo cuando se envía. Si al final no se manda, el del servidor caduca solo y no lo tiene nadie.
  */
-/** Qué se manda: la anamnesis, un cuestionario o archivos (con `sections`), o un documento para firmar. */
+/** Qué se manda: la anamnesis, un cuestionario o archivos (con `sections`). */
 export type FormToCreate = {
   patientId: string;
   patientName: string;
   kind: string;
   clinicName: string;
   sections: Section[];
-  /** Con PRIVACY_KIND: la hoja de protección de datos tal como se va a firmar. */
-  privacy?: PrivacyToSign;
-  /** Con un consentimiento: el documento y la firma del fisioterapeuta. */
-  consent?: ConsentToSign;
 };
 
 export async function uploadPatientForm(
@@ -37,6 +33,8 @@ export async function uploadPatientForm(
   cloud: Cloud | null,
   p: FormToCreate,
 ): Promise<UploadedForm> {
+  // La hoja de protección de datos y los consentimientos ya no se firman por enlace (30-10-2026).
+  if (isSignKind(p.kind)) throw new Error("Los documentos para firmar se firman en la clínica.");
   const token = getToken();
   if (!token || !cloud?.clinic || !cloud.clinics) throw new Error("Tu sesión de Google ha caducado: vuelve a entrar en Ajustes → Cuenta y prueba otra vez.");
   const id = newFormId();
@@ -54,8 +52,6 @@ export async function uploadPatientForm(
     ...(brand ? { brand } : {}),
     ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}),
     controller: { name: clinic?.name || p.clinicName, email: clinic?.email ?? "" },
-    ...(p.privacy ? { privacy: p.privacy } : {}),
-    ...(p.consent ? { consent: p.consent } : {}),
   };
   await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt, ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}) });
   const episodeId = await currentEpisode(db, p.patientId);

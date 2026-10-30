@@ -4,6 +4,7 @@ import { createPack } from "../data/billing";
 import { saveAnamnesis, saveFinding, saveSession } from "../data/clinical";
 import { saveSignedConsent } from "../data/consents";
 import { setPatientPhysios } from "../data/patientStaff";
+import { addSentForm, markImported } from "../data/patientForms";
 import { savePatientPrivacy, signPrivacySheet } from "../data/privacy";
 import { createPatient } from "../data/repo";
 import { loadSeed } from "../data/seed";
@@ -110,5 +111,49 @@ describe("exportación completa", () => {
     expect(data.tablas).not.toHaveProperty("settings");
     expect(text(files.get("Copia de OmniClin.sqlite3")!.slice(0, 15))).toBe("SQLite format 3");
     expect(text(files.get("LEEME.txt"))).toContain("4 pacientes");
+  });
+
+  it("lo firmado por enlace antes del 30-10-2026 sale como «en su móvil, por enlace», con la hora real de la firma", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, { name: "Sara Enlace", birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
+    const png = "data:image/png;base64,iVBORw0KGgo=";
+    await signPrivacySheet(db, pid, { consents: { contact: true } }, {
+      version: "2026-10-27",
+      date: "2026-10-29",
+      at: "2026-10-29T10:00:00.000Z",
+      method: "link",
+      patientName: "Sara Enlace",
+      sections: [{ title: "Para qué", paragraphs: ["Para atenderle como fisioterapeuta."] }],
+      consents: [{ id: "contact", text: "WhatsApp, SMS o correo.", answer: true }],
+      signature: png,
+    });
+    // El consentimiento firmado por enlace: su id es el del envío más «-c», y la hora real de la firma, la del envío.
+    const formId = "enlace-antiguo-0123456789ab";
+    await addSentForm(db, { id: formId, patientId: pid, episodeId: pid, kind: "consentimiento:manual", key: "clave", expiresAt: "2026-11-12T00:00:00.000Z" });
+    await markImported(db, formId, { answeredAt: "2026-10-29T18:30:00.000Z", answers: { signed: true }, skipped: [] });
+    await saveSignedConsent(
+      db,
+      pid,
+      {
+        templateId: "manual",
+        version: "1",
+        title: "Terapia manual",
+        clinic: { name: "Fisio Centro", taxId: "", address: "" },
+        professional: { name: "Ana Ruiz", license: "123" },
+        patient: { name: "Sara Enlace", birthDate: null, idDoc: "" },
+        representative: null,
+        techniques: ["Movilización"],
+        sections: [{ title: "Riesgos", items: ["Dolor leve transitorio"] }],
+        date: "2026-10-29",
+        place: "Sevilla",
+      },
+      "screen",
+      { patient: png, professional: png, via: "link" },
+      `${formId}-c`,
+    );
+    const { bytes } = await buildPackage(db, { progress: () => {}, now: new Date("2026-10-30T10:00:00Z") });
+    const html = text((await readZip(bytes)).get("Historias clinicas/Sara Enlace.html"));
+    expect(html).toContain("Hoja firmada en su móvil, por enlace, el 29/10/2026");
+    expect(html).toContain("firmado el 29/10/2026 19:30 (en su móvil, por enlace)");
   });
 });

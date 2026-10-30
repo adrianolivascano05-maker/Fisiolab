@@ -13,6 +13,17 @@ const users = {
 };
 const enc = FakeGoogle.enc;
 const PASSWORD = "frase de la clínica 2026";
+
+/** Base64 para direcciones, como el de la app (src/clinical/patientForms.ts). */
+const b64url = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+/** Cifra como la app un sobre de formulario con la clave del enlace (para fabricar un enlace de antes del cambio). */
+async function sealLikeTheApp(data: unknown, key: string): Promise<string> {
+  const raw = Buffer.from(key.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  const k = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, k, new TextEncoder().encode(JSON.stringify(data))));
+  return Buffer.concat([Buffer.from(iv), Buffer.from(ct)]).toString("base64");
+}
 // Sin service worker: así cada carga lee cloud.json de la red (simulada).
 test.use({ serviceWorkers: "block" });
 
@@ -708,7 +719,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByRole("button", { name: "Escribir la contraseña" }).or(page.getByRole("link", { name: /Paciente Papelera/ }))).toBeVisible({ timeout: 15_000 });
     expect(errors).toEqual([]);
   });
-  test("CL17 firmar por enlace: la hoja de protección de datos (por WhatsApp aunque falte el permiso) y un consentimiento; vuelven firmados a su ficha", async ({ page, browser }) => {
+  test("CL17 la firma por enlace se retiró: no hay botones para mandarla y un enlace antiguo dice que se firma en la clínica", async ({ page, browser }) => {
     test.slow();
     const google = new FakeGoogle(users);
     await google.install(page.context(), () => "ana", { server: true });
@@ -717,97 +728,40 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await patients(page);
     await page.goto("./pacientes/nuevo");
     await page.getByLabel("Nombre").fill("Sara Firma");
-    await page.getByLabel("Teléfono").fill("611 222 333");
     await page.getByRole("button", { name: "Crear paciente" }).click();
     await expect(page.getByRole("heading", { name: "Sara Firma", level: 1 })).toBeVisible();
     const saraUrl = page.url();
-    // Sin el permiso de contacto firmado, la ficha no ofrece WhatsApp.
-    await expect(page.getByRole("link", { name: "WhatsApp", exact: true })).toHaveCount(0);
 
-    /** El enlace que sale en «Mandar el enlace» (está en el mensaje). */
-    const linkInShare = async () => {
-      const share = page.getByRole("dialog", { name: "Mandar el enlace" });
-      await expect(share).toBeVisible();
-      const text = (await share.locator("pre").textContent())!;
-      return { share, url: /https?:\/\/\S+\/formulario\/[A-Za-z0-9_-]+#[A-Za-z0-9_-]+/.exec(text)![0], text };
-    };
-    const { viewport, locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
-    const ctx = await browser.newContext({ viewport, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
+    // La hoja de protección de datos y los consentimientos: en la pantalla o en papel, nunca por enlace.
+    await page.goto(`${saraUrl}/proteccion-datos`);
+    await expect(page.getByRole("button", { name: "Firmar en la pantalla" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /firme en su móvil/ })).toHaveCount(0);
+    await page.goto(`${saraUrl}/consentimientos/nuevo?tipo=general`);
+    await expect(page.getByRole("button", { name: "Firmar en la pantalla" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /firme en su móvil/ })).toHaveCount(0);
+    // Y la hoja ya no está entre lo que se manda desde Formularios.
+    await page.goto(`${saraUrl}/formularios`);
+    await page.getByRole("button", { name: "Enviar un formulario" }).click();
+    const choices = page.getByLabel("Qué le mandas").locator("option");
+    await expect(choices.filter({ hasText: "Su parte de la anamnesis" })).toHaveCount(1);
+    await expect(choices.filter({ hasText: /protección de datos/ })).toHaveCount(0);
+
+    // Un enlace de firma creado antes del cambio (con el sobre de entonces), abierto en el móvil del paciente: solo
+    // le dice que se firma en la clínica, sin nada que enviar.
+    const id = b64url(crypto.getRandomValues(new Uint8Array(18)));
+    const key = b64url(crypto.getRandomValues(new Uint8Array(32)));
+    const expiresAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    const request = { v: 1, clinic: "Fisiolab Firma", name: "Sara", kind: "proteccion-datos", expiresAt, privacy: { version: "2026-10-27", patientName: "Sara Firma", sections: [], consents: [] } };
+    google.forms.set(id, { clinic: "antigua", request: await sealLikeTheApp(request, key), expiresAt });
+    const { baseURL, viewport, locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
+    const ctx = await browser.newContext({ baseURL, viewport, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
     await google.install(ctx, () => "carla", { server: true });
     const phone = await ctx.newPage();
-    const scribble = async (pad: ReturnType<Page["getByRole"]>) => {
-      await pad.scrollIntoViewIfNeeded();
-      const box = (await pad.boundingBox())!;
-      await phone.mouse.move(box.x + 30, box.y + box.height * 0.6);
-      await phone.mouse.down();
-      for (let i = 1; i <= 12; i++) await phone.mouse.move(box.x + 30 + i * 20, box.y + box.height * (0.6 + 0.2 * Math.sin(i)));
-      await phone.mouse.up();
-    };
-
-    // La hoja de protección de datos, desde su pantalla: es lo único que va por WhatsApp sin el permiso firmado.
-    await page.goto(`${saraUrl}/proteccion-datos`);
-    await page.getByRole("button", { name: "Enviar para que la firme en su móvil" }).click();
-    const sheetLink = await linkInShare();
-    await expect(sheetLink.share).toContainText("Aún no ha firmado el permiso de contacto");
-    await expect(sheetLink.share.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", /^https:\/\/wa\.me\/34611222333\?text=/);
-    expect(sheetLink.text).toContain("te mandamos la hoja de protección de datos para que lo leas y lo firmes");
-    await sheetLink.share.getByRole("button", { name: "Cerrar" }).click();
-
-    await phone.goto(sheetLink.url);
-    await expect(phone.getByRole("heading", { name: "Hola, Sara" })).toBeVisible({ timeout: 15_000 });
-    await expect(phone.getByText(/te pide que leas y firmes la hoja de protección de datos/)).toBeVisible();
-    await expect(phone.getByRole("article", { name: "Información sobre protección de datos" })).toContainText("Quién trata sus datos");
-    await phone.getByRole("button", { name: "Firmar y enviar" }).click();
-    await expect(phone.getByRole("alert")).toContainText("Contesta sí o no a: Fotos y vídeos, WhatsApp, SMS o correo, Docencia y estudios.");
-    await phone.getByRole("group", { name: "Fotos y vídeos" }).getByText("No", { exact: true }).click();
-    await phone.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByText("Sí", { exact: true }).click();
-    await phone.getByRole("group", { name: "Docencia y estudios" }).getByText("No", { exact: true }).click();
-    await phone.getByRole("button", { name: "Firmar y enviar" }).click();
-    await expect(phone.getByRole("alert")).toContainText("Falta tu firma");
-    await scribble(phone.getByRole("img", { name: "Tu firma (Sara Firma)" }));
+    await phone.goto(`./formulario/${id}#${key}`);
+    await expect(phone.getByText("Este documento se firma en la clínica")).toBeVisible({ timeout: 15_000 });
+    await expect(phone.getByText(/Tu clínica te lo dará para que lo leas y lo firmes allí/)).toBeVisible();
+    await expect(phone.getByRole("button", { name: /Firmar|Enviar/ })).toHaveCount(0);
     await expectAccessible(phone);
-    expect(await phone.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(412);
-    await phone.getByRole("button", { name: "Firmar y enviar" }).click();
-    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
-
-    // Vuelve firmada a su ficha, entera y con sus permisos: ya se le puede escribir.
-    await page.getByRole("button", { name: "Buscar respuestas" }).click();
-    await expect(page.getByText("Sara Firma ha firmado la hoja de protección de datos en su móvil: está en su ficha")).toBeVisible();
-    await expect(page.getByRole("list", { name: "Formularios enviados" })).toContainText("Firmado");
-    await page.getByRole("link", { name: "Ver la hoja firmada" }).click();
-    await expect(page.getByRole("paragraph").filter({ hasText: /^Firmada en su móvil el / })).toBeVisible();
-    await page.getByRole("region", { name: "Hojas firmadas" }).getByRole("button", { name: /Firmada en su móvil el .*WhatsApp, SMS o correo: sí/ }).click();
-    await expect(page.getByRole("article", { name: "Información sobre protección de datos" }).getByRole("img", { name: "Firma: Sara Firma" })).toBeVisible();
-    await page.goto(saraUrl);
-    await expect(page.getByRole("link", { name: "WhatsApp", exact: true })).toHaveAttribute("href", /^https:\/\/wa\.me\/34611222333/);
-
-    // Un consentimiento: firma primero el fisioterapeuta y el paciente lo firma en su móvil.
-    await page.goto(`${saraUrl}/consentimientos/nuevo?tipo=general`);
-    await page.getByLabel("Fisioterapeuta que informa").fill("Ana Fisio");
-    await page.getByRole("button", { name: "Enviar para que lo firme en su móvil" }).click();
-    await page.getByRole("button", { name: "Crear el enlace para firmar" }).click();
-    await expect(page.getByRole("alert")).toContainText("Falta tu firma");
-    const pad = page.getByRole("img", { name: "Firma del fisioterapeuta (Ana Fisio)" });
-    await pad.scrollIntoViewIfNeeded();
-    const box = (await pad.boundingBox())!;
-    await page.mouse.move(box.x + 30, box.y + box.height * 0.6);
-    await page.mouse.down();
-    for (let i = 1; i <= 12; i++) await page.mouse.move(box.x + 30 + i * 20, box.y + box.height * (0.6 + 0.2 * Math.sin(i)));
-    await page.mouse.up();
-    await page.getByRole("button", { name: "Crear el enlace para firmar" }).click();
-    const consentLink = await linkInShare();
-    await expect(consentLink.share.getByRole("link", { name: "WhatsApp" })).toBeVisible();
-    await consentLink.share.getByRole("button", { name: "Cerrar" }).click();
-    await phone.goto(consentLink.url);
-    await expect(phone.getByText(/te pide que leas y firmes el consentimiento informado/)).toBeVisible({ timeout: 15_000 });
-    await expect(phone.getByRole("img", { name: "Firma: Ana Fisio" })).toBeVisible();
-    await scribble(phone.getByRole("img", { name: "Firma de Sara Firma" }));
-    await phone.getByRole("button", { name: "Firmar y enviar" }).click();
-    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
-    await page.getByRole("button", { name: "Buscar respuestas" }).click();
-    await expect(page.getByText("Sara Firma ha firmado un consentimiento informado en su móvil: está en su ficha")).toBeVisible();
-    await page.getByRole("link", { name: "Ver sus consentimientos" }).click();
-    await expect(page.getByRole("link", { name: /Firmado el .* en su móvil/ })).toBeVisible();
     await ctx.close();
   });
 

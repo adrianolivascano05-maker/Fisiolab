@@ -46,10 +46,12 @@ Los datos de las funciones están en `../data/privacy.ts`.
 - **iPhone.** Sin instalar la app, Safari puede borrar los datos de una web que no se abre en unos días: la pantalla
   principal lo avisa con el enlace a «Instalar la app». La app pide además almacenamiento persistente.
 
-## Firmar la hoja por enlace (29-10-2026)
+## Firmar la hoja por enlace (29-10-2026; retirado el 30-10-2026)
 
-«Enviar para que la firme en su móvil» (en su pantalla de Protección de datos o en Formularios para el paciente):
-el paciente la lee entera, contesta sí o no a cada permiso y firma con el dedo. Vuelve a su ficha como una hoja
-firmada más (`method: "link"`), con su versión, el texto tal como lo leyó, sus respuestas y la firma
-(`src/privacy/toSign.ts`, `src/patientForm/SignDocument.tsx`, `collect.ts`). Es lo único que se puede mandar por
-WhatsApp sin el permiso de contacto firmado, porque es lo que lo pide; si dijo que no, tampoco.
+Durante un día se pudo mandar la hoja al móvil del paciente para que la firmara allí. **Retirado el 30-10-2026: se
+firma en la clínica**, en la pantalla o en papel (la revisión técnica encontró que quien tuviera el enlace podía
+devolver un documento distinto y que no se sabía quién firmaba). Lo firmado antes se conserva tal cual
+(`method: "link"`, en la ficha «Firmada en su móvil») y sale en la exportación como «firmada en su móvil, por
+enlace». Un enlace de firma que quedara pendiente se anula solo al abrir la app (`cancelSignLinks` en
+`src/patientForm/collect.ts`); si el paciente ya lo había firmado, no se guarda y la app avisa de que lo firme en la
+clínica. El paciente que abra uno de esos enlaces lee «Este documento se firma en la clínica».

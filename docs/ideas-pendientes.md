@@ -716,6 +716,8 @@ sanitaria: son los cambios que pide la revisión.
   tampoco), porque es la que lo pide. Mensaje nuevo en Ajustes › Mensajes: «Documento para firmar por enlace». Sin
   migraciones ni cambios en el servidor: la hoja guarda `method: "link"` y el consentimiento, `signatures.via:
   "link"`. Prueba de punta a punta en `e2e/clinics.spec.ts` (CL17) y del guardado en `src/patientForm/collect.test.ts`.
+  **Retirado el 30-10-2026** (parte 2 del paquete de revisión, abajo): quien tuviera el enlace podía devolver un
+  documento distinto y no se sabía quién firmaba. Se firma en la clínica; lo firmado por enlace se conserva.
 - **8. Licencias de terceros.** Ayuda › Acerca de › Licencias de terceros (`/ayuda/licencias`). La lista la hace el
   build (`tools/licenses.ts`): apunta cada paquete de `node_modules` que entra en la app o en sus workers (no lo que
   solo sirve para desarrollar) y escribe `licencias.json` con su licencia y el texto completo de su archivo de
@@ -790,8 +792,13 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   Enlaces de ejemplo de la vista previa de mensajes con un dominio neutro. Queda para el usuario: crear la rama
   `produccion` y lanzar «Publicar» la primera vez; quitar GitHub Pages del `publicar.yml` cuando acabe la mudanza del
   paso 2 de `docs/pasos-pendientes.md` (la cabecera del archivo dice cómo).
-- **Parte 2 · Quitar la firma por enlace** (la hoja de protección de datos y los consentimientos se firman en la
-  clínica; lo ya firmado se conserva). Pendiente.
+- **Parte 2 · Quitar la firma por enlace (hecha el 30-10-2026).** La hoja de protección de datos y los
+  consentimientos se firman en la clínica (pantalla o papel): fuera los botones «Enviar para que lo firme en su
+  móvil», la opción de Formularios, el mensaje «Documento para firmar por enlace», `SignDocument.tsx` y `toSign.ts`.
+  Lo firmado por enlace antes se conserva tal cual (`method: "link"`, `signatures.via = "link"`; en la exportación,
+  «en su móvil, por enlace» con la hora real de la firma). Los enlaces de firma pendientes se anulan solos al abrir
+  la app y antes de cada recogida (`cancelSignLinks`); una firma que llegue por uno de ellos no se guarda y la app
+  avisa de que se firme en la clínica. El paciente que abra uno lee «Este documento se firma en la clínica».
 - **Parte 3 · Que la app nunca saque conclusiones sobre un paciente** (finalidad prevista en un solo sitio,
   consentimientos sin «contraindicado», CIF sin propuestas, simetría sin umbral, bienestar sin semáforo, banderas como
   lista, cuestionarios con rangos solo de referencia, mediciones con su límite, biblioteca sin órdenes). Pendiente.
