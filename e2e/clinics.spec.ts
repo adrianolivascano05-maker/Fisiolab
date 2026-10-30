@@ -53,13 +53,18 @@ async function patients(page: Page) {
   const list = page.getByRole("heading", { name: "Pacientes", exact: true });
   const choose = page.getByRole("heading", { name: "Elige tu PIN" });
   await expect(list.or(choose)).toBeVisible({ timeout: 15_000 });
-  if (await choose.isVisible()) {
-    await page.keyboard.type("2580");
-    await page.getByRole("button", { name: "Siguiente" }).click();
-    await page.keyboard.type("2580");
-    await page.getByRole("button", { name: "Guardar el PIN" }).click();
-  }
+  if (await choose.isVisible()) await choosePin(page);
   await expect(list).toBeVisible({ timeout: 15_000 });
+}
+
+/** En «Elige tu PIN»: el 2580, dos veces. */
+async function choosePin(page: Page) {
+  await page.keyboard.type("2580");
+  await page.getByRole("button", { name: "Siguiente" }).click();
+  await page.keyboard.type("2580");
+  await page.getByRole("button", { name: "Guardar el PIN" }).click();
+  // Guardar la huella del PIN tarda un poco (PBKDF2): hasta que no desaparece la pantalla no está guardado.
+  await expect(page.getByRole("heading", { name: "Repite el PIN" })).toBeHidden();
 }
 
 /** Entrar con Google desde la pantalla de entrada (y, si hace falta, elegir la clínica). */
@@ -86,9 +91,10 @@ async function choosePassword(page: Page) {
   await sheet.getByLabel("Repite la contraseña").fill(PASSWORD);
   await sheet.getByRole("button", { name: "Cifrar", exact: true }).click();
   await expect(page.getByText("La copia del servidor de la clínica va cifrada")).toBeVisible();
-  // Quien administra recibe el kit de recuperación: hay que confirmar que se ha guardado.
+  // Quien administra recibe el kit de recuperación (sale cuando la clave cerrada con el código ya está en el
+  // servidor): hay que confirmar que se ha guardado.
   const kit = page.getByRole("dialog", { name: "Kit de recuperación de la clínica" });
-  if (await kit.isVisible().catch(() => false)) {
+  if (await kit.waitFor({ state: "visible", timeout: 10_000 }).then(() => true, () => false)) {
     const code = (await kit.getByTestId("recovery-code").textContent())!;
     await kit.getByLabel(/He guardado el código/).check();
     await kit.getByRole("button", { name: "Hecho" }).click();
@@ -500,8 +506,11 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByText("La contraseña no es la de la clínica.")).toBeVisible();
     await page.getByLabel("Contraseña de la clínica").fill(PASSWORD);
     await page.getByRole("button", { name: "Comprobar" }).click();
-    // Elige un PIN nuevo y sus pacientes siguen ahí.
+    // Elige un PIN nuevo donde estaba (Ajustes → Bloqueo) y sus pacientes siguen ahí.
     await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 15_000 });
+    await choosePin(page);
+    await expect(page.getByRole("heading", { name: "Bloqueo con PIN" })).toBeVisible();
+    await page.goto("./");
     await patients(page);
     await expect(page.getByRole("link", { name: /Paciente Bloqueo/ })).toBeVisible();
 
@@ -520,6 +529,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByLabel("Código de recuperación").fill(code);
     await page.getByRole("button", { name: "Comprobar" }).click();
     await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 15_000 });
+    await choosePin(page);
+    await page.goto("./");
     await patients(page);
 
     // Alguien borra el PIN del navegador: la app recuerda que aquí lo hubo y pide la contraseña antes de elegir otro.
