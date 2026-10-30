@@ -866,7 +866,11 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   también WCAG 2.2 AA (`wcag22aa` en `e2e/fixtures.ts`): 0 hallazgos nuevos en las tandas de accesibilidad, usabilidad,
   escritorio, móvil, pacientes y privacidad. Lint: de 65 avisos a 62 (0 errores). Arreglados los seguros: 3 parámetros
   `_` sin usar (`fullExport.ts`, `patientSearch.ts`) y el `no-control-regex` de `fullExport.ts` (ahora `\p{Cc}` con
-  `u`); el código nuevo de las partes 5 a 7 no añade ninguno. Se dejan, con motivo: 30 `react(set-state-in-effect)`
+  `u`); el código nuevo de las partes 5 a 7 no añade ninguno. Con `wcag22aa` salió un hallazgo real (2.5.8, tamaño del
+  objetivo): la barra fina de 4 px de cada turno en la agenda era un botón; ahora, si en la columna solo hay una
+  persona con turno, el turno es una banda de fondo que se toca (como en la vista Día por persona), y con varias
+  personas las barras son solo informativas (se editan desde la vista Día). Y una hoja dentro de otra ya no cierra
+  las dos (`src/ui/Sheet.tsx`): la hoja de la cita se queda abierta tras «Añadir al calendario». Se dejan, con motivo: 30 `react(set-state-in-effect)`
   (pantallas que reinician su estado cuando cambia la ficha o la hoja: quitarlos es rehacer cada una con `key` o estado
   derivado, con riesgo de regresión y sin fallo conocido), 23 `react(purity)` (`new Date()`/`Date.now()` al pintar para
   «hoy» y «ahora»: moverlos a estado cambia cuándo se actualiza la fecha a medianoche), 4 `react(refs)`, 3

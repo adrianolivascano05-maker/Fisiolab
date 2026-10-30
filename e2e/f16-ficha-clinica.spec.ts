@@ -404,6 +404,10 @@ test.describe("F16 Ficha clínica", () => {
     expect(new Date(at("DTSTART")).getUTCMinutes() % 15).toBe(0);
     expect(at("DTSTART") - Date.now()).toBeGreaterThan(6.9 * 24 * 3600_000);
     await expect(again).toBeHidden();
+    // La hoja de la cita sigue abierta (solo se cierra la del calendario): se cierra para seguir.
+    const visit = page.getByRole("dialog", { name: "Cita de Nora Calendario" });
+    await visit.getByRole("button", { name: "Cerrar" }).click();
+    await expect(visit).toBeHidden();
     await expect(page.getByText("Próxima cita:")).toBeVisible();
     await expect(page.getByText(/Siguiente cita: .* · 60 min/)).toBeVisible();
 

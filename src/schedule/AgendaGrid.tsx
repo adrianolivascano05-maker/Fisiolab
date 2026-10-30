@@ -303,8 +303,11 @@ export function AgendaGrid({
           const colItems = appointments.filter((a) => inColumn(c, dayOf(a.startsAt), a.assignedTo));
           const placed = placeInLanes(colItems, (a) => ({ start: minutesOf(a.startsAt), end: minutesOf(a.startsAt) + Math.max(a.minutes, 15) }));
           const dragged = ghost && ghost.col === ci ? appointments.find((a) => a.id === ghost.id) : undefined;
-          // Turnos: con columna de una persona, de fondo; si no, una barra fina de color por persona a la izquierda.
+          // Turnos: con columna de una persona (o una sola persona con turno ese día), de fondo y se tocan para
+          // editarlos; con varias personas en la misma columna, una barra fina de color por persona a la izquierda,
+          // solo informativa (demasiado estrecha para tocarla, WCAG 2.5.8: se editan desde la vista Día, por persona).
           const bandPeople = [...new Set(colShifts.map((s) => s.staffEmail))];
+          const gutter = c.person === undefined && bandPeople.length > 1 ? bandPeople.length * 5 : 0;
           return (
             <div
               key={c.key}
@@ -329,11 +332,11 @@ export function AgendaGrid({
                 const startM = minutesOf(s.startsAt);
                 const endM = dayOf(s.endsAt) === dayOf(s.startsAt) ? minutesOf(s.endsAt) : 24 * 60;
                 const label = `Turno de ${person?.name ?? s.staffEmail}, ${clock(startM)}–${clock(endM)}${s.note ? `, ${s.note}` : ""}`;
-                const band = c.person !== undefined;
+                const band = c.person !== undefined || bandPeople.length === 1;
                 const style = band
                   ? { top: top(startM), height: top(endM) - top(startM), left: 0, right: 0, background: tint(color, "1a") }
                   : { top: top(startM), height: top(endM) - top(startM), left: bandPeople.indexOf(s.staffEmail) * 5, width: 4, background: color };
-                return onShift ? (
+                return band && onShift ? (
                   <button key={s.id} type="button" aria-label={label} title={label} className="absolute rounded-sm" style={style} onClick={() => onShift(s)} />
                 ) : (
                   <div key={s.id} role="img" aria-label={label} title={label} className="absolute rounded-sm" style={style} />
@@ -386,8 +389,8 @@ export function AgendaGrid({
                   style={{
                     top: top(p.start),
                     height: Math.max(top(p.end) - top(p.start) - 2, 18),
-                    left: `calc(${(p.lane / p.lanes) * 100}% + ${c.person === undefined && bandPeople.length ? bandPeople.length * 5 + 2 : 2}px)`,
-                    width: `calc(${100 / p.lanes}% - ${c.person === undefined && bandPeople.length ? bandPeople.length * 5 + 4 : 4}px)`,
+                    left: `calc(${(p.lane / p.lanes) * 100}% + ${gutter + 2}px)`,
+                    width: `calc(${100 / p.lanes}% - ${gutter + 4}px)`,
                   }}
                   onPointerDown={(e) => start(e, p.item, ci)}
                   onPointerMove={move}
