@@ -38,11 +38,18 @@ Los datos de las funciones están en `../data/privacy.ts`.
   compartida, «Cambiar de cuenta de Google» desde la pantalla del PIN); en una clínica es obligatorio y se elige al
   entrar por primera vez. Se guarda su huella con PBKDF2-SHA-256 (150 000 vueltas y sal), nunca el PIN. Se pide al
   abrir la app, al volver a ella y tras el tiempo elegido sin usarla (por defecto 15 minutos; en una clínica, como
-  mucho 1 hora); recargar dentro de ese tiempo no lo pide. Con cuenta, tras 5 fallos o si se olvida, se vuelve a
-  entrar con Google y se elige otro (los datos se quedan); sin cuenta, tras 5 fallos hay que esperar 30 s (el doble
-  con cada fallo, hasta 15 min) y si se olvida solo queda borrar los datos. Opcional: Face ID o huella
-  (`passkey.ts`, WebAuthn del propio dispositivo). Es una barrera para quien coja el dispositivo desbloqueado: los
-  datos del dispositivo los protege el bloqueo del propio dispositivo, que además los cifra.
+  mucho 1 hora); recargar dentro de ese tiempo no lo pide. Tras 5 fallos hay que esperar 30 s (el doble con cada
+  fallo, hasta 15 min). Para poner un PIN nuevo donde ya hubo uno (tras 5 fallos, con «He olvidado el PIN» o si
+  alguien borró el PIN del navegador) hay que demostrar que se puede abrir la clínica (`pinProof.ts`, desde el
+  30-10-2026): la contraseña de la clínica (sin conexión) o el código de recuperación del kit (con conexión), que se
+  comparan con la clave guardada en el dispositivo sin exportarla (`crypt.ts`, `sameKey`). Volver a entrar con Google
+  no vale: el navegador ya tiene la sesión abierta. Quien no tenga ni la contraseña ni el código puede borrar los
+  datos del dispositivo (la copia de la clínica no se toca y vuelve a bajar con la contraseña). El contador de fallos
+  y la marca de que aquí se puso un PIN van también en IndexedDB (`fisiolab-claves`, almacén `pin`): borrar solo
+  localStorage no los reinicia; la marca solo se quita al quitar el PIN a propósito en Ajustes. Sin cuenta, si se
+  olvida solo queda borrar los datos. Opcional: Face ID o huella (`passkey.ts`, WebAuthn del propio dispositivo). Es
+  una barrera para quien coja el dispositivo desbloqueado: los datos del dispositivo los protege el bloqueo del
+  propio dispositivo, que además los cifra.
 - **iPhone.** Sin instalar la app, Safari puede borrar los datos de una web que no se abre en unos días: la pantalla
   principal lo avisa con el enlace a «Instalar la app». La app pide además almacenamiento persistente.
 

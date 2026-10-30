@@ -2,6 +2,10 @@
 // (PBKDF2-SHA-256 con sal), nunca el PIN. Es una barrera para quien coja el dispositivo desbloqueado: los datos
 // no se cifran con él (eso lo hace el propio dispositivo con su bloqueo). Con cuenta de Google, cada persona tiene
 // su PIN en el dispositivo (setLockScope): en una tablet compartida, cada una el suyo.
+// El contador de fallos y la marca de que aquí se puso un PIN van también en IndexedDB (crypt.ts, deviceGet): así no
+// se reinician borrando solo localStorage. Para poner un PIN nuevo donde ya hubo uno hace falta la contraseña de la
+// clínica o el código de recuperación (pinProof.ts).
+import { deviceDelete, deviceGet, devicePut } from "../cloud/crypt";
 
 const BASE_KEY = "fisiolab.lock";
 const ITERATIONS = 150_000;
@@ -16,6 +20,8 @@ export function setLockScope(sub: string | null) {
 }
 const key = () => (scope ? `${BASE_KEY}.${scope}` : BASE_KEY);
 const failsKey = () => `${key()}.fails`;
+/** La marca de que en este dispositivo se puso un PIN para esta cuenta (IndexedDB). */
+const setKey = (s: string | null) => `pin-set.${s ?? "dispositivo"}`;
 
 /** Cuánto tiempo sin usar la app (o fuera de ella) antes de pedir el PIN otra vez. */
 export const LOCK_AFTER: { ms: number; label: string }[] = [
@@ -70,7 +76,14 @@ export async function setPin(pin: string, afterMs = getLock()?.afterMs ?? DEFAUL
   const salt = crypto.getRandomValues(new Uint8Array(16));
   save({ ...getLock(), salt: b64(salt), hash: await digest(pin, salt), afterMs, length: pin.length, v: 2 });
   localStorage.removeItem(failsKey());
+  await deviceDelete(failsKey());
+  await devicePut(setKey(scope), true);
 }
+
+/** Si en este dispositivo se puso un PIN para esta cuenta (aunque alguien lo haya borrado de localStorage). */
+export const pinWasSet = (sub: string | null) => deviceGet<boolean>(setKey(sub)).then((v) => !!v);
+/** Los PIN de antes de esta marca (30-10-2026): al abrir con PIN, se apunta que aquí lo hubo. */
+export const markPinSet = () => devicePut(setKey(scope), true);
 
 export function setLockAfter(afterMs: number) {
   const c = getLock();
@@ -85,10 +98,13 @@ export function setPasskey(id: string | null) {
   save(id ? { ...rest, passkey: id } : rest);
 }
 
-export function clearLock() {
+/** Quita el PIN (y, con `forget`, la marca de que aquí hubo uno: solo al quitarlo a propósito en Ajustes). */
+export function clearLock(forget = false) {
   localStorage.removeItem(key());
   localStorage.removeItem(failsKey());
   localStorage.removeItem(`${key()}.active`);
+  void deviceDelete(failsKey());
+  if (forget) void deviceDelete(setKey(scope));
 }
 
 type Fails = { count: number; until: number };
@@ -117,12 +133,20 @@ export async function checkPin(pin: string): Promise<boolean> {
   const ok = (await digest(pin, unb64(c.salt))) === c.hash;
   if (ok) {
     localStorage.removeItem(failsKey());
+    void deviceDelete(failsKey());
     return true;
   }
   const count = fails().count + 1;
   const until = count >= MAX_FAILS ? Date.now() + Math.min(30_000 * 2 ** (count - MAX_FAILS), 15 * 60_000) : 0;
   localStorage.setItem(failsKey(), JSON.stringify({ count, until }));
+  void devicePut(failsKey(), { count, until } satisfies Fails);
   return false;
+}
+
+/** Al abrir: si IndexedDB recuerda más fallos que localStorage (alguien lo borró), manda el mayor. */
+export async function syncFailsFromDevice(): Promise<void> {
+  const remembered = await deviceGet<Fails>(failsKey());
+  if (remembered && remembered.count > fails().count) localStorage.setItem(failsKey(), JSON.stringify(remembered));
 }
 
 /**
@@ -145,4 +169,5 @@ export function lockedOnOpen(): boolean {
 /** Desbloqueo con Face ID o huella: cuenta como acertar el PIN. */
 export function unlockedOtherwise() {
   localStorage.removeItem(failsKey());
+  void deviceDelete(failsKey());
 }

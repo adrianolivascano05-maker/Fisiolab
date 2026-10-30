@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decrypt, deriveKey, deriveKeyBytes, encrypt, encryptPieces, encryptToPieces, isEncrypted, newRecoveryCode, newSalt, openWithCode, saltOf, sealForRecovery, WrongPassword } from "./crypt";
+import { decrypt, deriveKey, deriveKeyBytes, deviceDelete, deviceGet, devicePut, encrypt, encryptPieces, encryptToPieces, isEncrypted, newRecoveryCode, newSalt, openWithCode, saltOf, sameKey, sealForRecovery, WrongPassword } from "./crypt";
 
 describe("cifrado de la copia de Drive", () => {
   const bytes = new TextEncoder().encode("SQLite format 3\u0000 Lucía Pérez, rodilla derecha");
@@ -141,5 +141,28 @@ describe("código de recuperación", () => {
     expect(back.salt).toBe(salt);
     expect(await decrypt(enc, back.key)).toEqual(bytes);
     await expect(openWithCode(blob, newRecoveryCode())).rejects.toBeInstanceOf(WrongPassword);
+  });
+});
+
+describe("la clave guardada en el dispositivo", () => {
+  it("sameKey dice si dos claves son la misma sin exportarlas", async () => {
+    const salt = newSalt();
+    const a = await deriveKey("contraseña de la clínica", salt);
+    const again = await deriveKey("contraseña de la clínica", salt);
+    const other = await deriveKey("otra contraseña larga", salt);
+    const otherSalt = await deriveKey("contraseña de la clínica", newSalt());
+    expect(await sameKey(a, again)).toBe(true);
+    expect(await sameKey(a, other)).toBe(false);
+    expect(await sameKey(a, otherSalt)).toBe(false);
+  });
+
+  it("el pequeño almacén del dispositivo guarda, lee y borra (en memoria sin IndexedDB)", async () => {
+    await devicePut("pin-set.prueba", true);
+    await devicePut("fallos.prueba", { count: 3, until: 0 });
+    expect(await deviceGet<boolean>("pin-set.prueba")).toBe(true);
+    expect(await deviceGet<{ count: number }>("fallos.prueba")).toEqual({ count: 3, until: 0 });
+    await deviceDelete("pin-set.prueba");
+    expect(await deviceGet("pin-set.prueba")).toBeUndefined();
+    await deviceDelete("fallos.prueba");
   });
 });

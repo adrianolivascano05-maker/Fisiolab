@@ -830,7 +830,12 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   `src/data/fixtures/` y una prueba que las migra y comprueba la copia previa (`src/data/oldVersions.test.ts`); E2E
   F15-H6. No hay vuelta atrás del esquema (los demás dispositivos ya lo tienen): si una migración se equivoca, se
   arregla con otra, y los datos se recuperan de esta copia.
-- **Parte 5 · PIN: contraseña de la clínica o código de recuperación para poner un PIN nuevo.** Pendiente.
+- **Parte 5 · PIN: contraseña de la clínica o código de recuperación para poner un PIN nuevo.** Hecho (30-10-2026).
+  `src/privacy/pinProof.ts`: tras 5 fallos, con «He olvidado el PIN» o si falta el PIN donde ya hubo uno, la app pide
+  la contraseña de la clínica (sin conexión) o el código de recuperación (con conexión) y los comprueba con la clave
+  guardada en el dispositivo sin exportarla (`sameKey`); volver a entrar con Google ya no vale. Quien no tenga ni una
+  ni otro puede borrar los datos del dispositivo (vuelven a bajar). Contador de fallos y marca «aquí hubo PIN» también
+  en IndexedDB. Pruebas: `pin.test.ts`, `pinProof.test.ts`, `crypt.test.ts` y CL6 reescrita.
 - **Parte 6 · Exportación cifrada y recordatorio semanal.** Pendiente.
 - **Parte 7 · Equipo: cerrar el acceso al quitar a alguien, caducidad sin conexión y registro de accesos.** Pendiente.
 - **Parte 8 · Arreglos menores** (`docs/pasos-pendientes.md`, `RESUMEN.md`, `README.md`, WCAG 2.2 en axe, avisos de

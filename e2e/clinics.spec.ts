@@ -469,7 +469,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     expect(errors).toEqual([]);
   });
 
-  test("CL6 PIN de la clínica: obligatorio; tras 5 fallos se vuelve a entrar con Google y se elige otro", async ({ page }) => {
+  test("CL6 PIN de la clínica: obligatorio; para poner otro (5 fallos, olvido o PIN borrado) hace falta la contraseña o el código", async ({ page }) => {
+    test.slow();
     const google = new FakeGoogle(users);
     await google.install(page.context(), () => "ana", { server: true });
     await enter(page);
@@ -477,6 +478,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 15_000 });
     await expectAccessible(page);
     await patients(page);
+    const code = (await choosePassword(page))!;
+    expect(code).toBeTruthy();
     await createPatient(page, { name: "Paciente Bloqueo" });
     await page.goto("./ajustes/bloqueo");
     await expect(page.getByText("En una clínica el PIN es obligatorio.")).toBeVisible();
@@ -488,10 +491,44 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
       await expect(page.getByText(`PIN incorrecto. ${left}.`)).toBeVisible();
     }
     await page.keyboard.type("0000");
+    // 5 fallos: volver a entrar con Google no vale (la sesión ya está abierta); hay que escribir la contraseña de la clínica.
     await expect(page.getByRole("heading", { name: "Demasiados intentos" })).toBeVisible();
-    await page.getByRole("button", { name: "Entrar con Google" }).click();
-    // Vuelve de Google a su clínica: elige un PIN nuevo y sus pacientes siguen ahí.
+    await expect(page.getByRole("button", { name: "Entrar con Google" })).toHaveCount(0);
+    await expectAccessible(page);
+    await page.getByLabel("Contraseña de la clínica").fill("otra contraseña larga");
+    await page.getByRole("button", { name: "Comprobar" }).click();
+    await expect(page.getByText("La contraseña no es la de la clínica.")).toBeVisible();
+    await page.getByLabel("Contraseña de la clínica").fill(PASSWORD);
+    await page.getByRole("button", { name: "Comprobar" }).click();
+    // Elige un PIN nuevo y sus pacientes siguen ahí.
     await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 15_000 });
+    await patients(page);
+    await expect(page.getByRole("link", { name: /Paciente Bloqueo/ })).toBeVisible();
+
+    // «He olvidado el PIN»: también vale el código de recuperación del kit.
+    await page.goto("./ajustes/bloqueo");
+    await page.getByRole("button", { name: "Bloquear ahora" }).click();
+    await page.getByRole("button", { name: "He olvidado el PIN" }).click();
+    const forgot = page.getByRole("dialog", { name: "¿Has olvidado el PIN?" });
+    await expect(forgot.getByText(/la contraseña de la clínica .* o el código de recuperación/)).toBeVisible();
+    await forgot.getByRole("button", { name: "Continuar" }).click();
+    await expect(page.getByRole("heading", { name: "PIN nuevo" })).toBeVisible();
+    await page.getByRole("button", { name: "Código de recuperación" }).click();
+    await page.getByLabel("Código de recuperación").fill("AAAAA-BBBBB-CCCCC-DDDDD");
+    await page.getByRole("button", { name: "Comprobar" }).click();
+    await expect(page.getByText("Ese código no es el de la clínica.")).toBeVisible();
+    await page.getByLabel("Código de recuperación").fill(code);
+    await page.getByRole("button", { name: "Comprobar" }).click();
+    await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 15_000 });
+    await patients(page);
+
+    // Alguien borra el PIN del navegador: la app recuerda que aquí lo hubo y pide la contraseña antes de elegir otro.
+    await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("fisiolab.lock")).forEach((k) => localStorage.removeItem(k)));
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Antes de elegir el PIN" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toHaveCount(0);
+    await page.getByLabel("Contraseña de la clínica").fill(PASSWORD);
+    await page.getByRole("button", { name: "Comprobar" }).click();
     await patients(page);
     await expect(page.getByRole("link", { name: /Paciente Bloqueo/ })).toBeVisible();
   });

@@ -1,20 +1,26 @@
 // Bloqueo de la app con PIN (src/privacy/README.md), como el del móvil: teclado numérico grande que sale al
 // instante, y la app se va abriendo por detrás (la base, la sincronización) mientras se teclea, así que al acertar
 // ya está lista. Pide el PIN al abrir, al volver a la app y tras un rato sin usarla. Con cuenta de Google, cada
-// persona tiene el suyo en el dispositivo; en una clínica es obligatorio. Si se olvida, o tras 5 fallos, se vuelve a
-// entrar con Google y se elige otro. Opcional: Face ID o huella (passkey.ts).
-import { Delete, Fingerprint, Lock, LogIn, Repeat } from "lucide-react";
+// persona tiene el suyo en el dispositivo; en una clínica es obligatorio. Si se olvida, tras 5 fallos o si falta el
+// PIN donde ya hubo uno, para poner otro hay que escribir la contraseña de la clínica o el código de recuperación
+// (pinProof.ts), o borrar los datos del dispositivo; volver a entrar con Google no vale (la sesión ya está abierta).
+// Opcional: Face ID o huella (passkey.ts).
+import { Delete, Fingerprint, Lock, Repeat } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { clearAccount, getAccount } from "../cloud/account";
+import { getAccount } from "../cloud/account";
 import { startLogin } from "../cloud/auth";
-import { chosenClinic } from "../cloud/clinic";
+import { chosenClinic, clinicScope } from "../cloud/clinic";
 import { cachedCloudConfig } from "../cloud/config";
+import { forgetKey } from "../cloud/crypt";
+import { cacheDrop } from "../documents/cache";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
+import { TextField } from "../ui/Field";
 import { LogoMark, Wordmark } from "../ui/Logo";
 import { Sheet } from "../ui/Sheet";
 import { checkPasskey } from "./passkey";
-import { checkPin, clearLock, failCount, getLock, isPin, lastActiveAt, lockedOnOpen, markActive, MAX_FAILS, setLockScope, setPin, unlockedOtherwise, waitUntil } from "./pin";
+import { checkPin, clearLock, failCount, getLock, isPin, lastActiveAt, lockedOnOpen, markActive, markPinSet, MAX_FAILS, setLockScope, setPin, syncFailsFromDevice, unlockedOtherwise, waitUntil } from "./pin";
+import { checkClinicPassword, checkRecoveryCode, proofNeeded, proofWaitUntil, type Proof } from "./pinProof";
 
 type LockApi = { lockNow: () => void; required: boolean; /** La pantalla del PIN tapa la app. */ locked: boolean };
 const LockContext = createContext<LockApi>({ lockNow: () => {}, required: false, locked: false });
@@ -26,15 +32,28 @@ function pinRequired(): boolean {
   return !!account && !!cachedCloudConfig()?.cloudflareUrl && !!chosenClinic(account);
 }
 
-/** Volver a entrar con Google (la misma cuenta u otra): se olvida el PIN de aquí y se elige otro después. */
-function backToGoogle(chooseAccount: boolean) {
-  const config = cachedCloudConfig();
+/** De quién son el PIN (la cuenta) y la clave de cifrado (la cuenta en su clínica, o la cuenta con su copia en Drive). */
+function scopes() {
   const account = getAccount();
+  const config = cachedCloudConfig();
+  const clinic = account && config?.cloudflareUrl ? chosenClinic(account) : null;
+  return { account, config, clinic, pinScope: account?.sub ?? null, keyScope: account ? (clinic ? clinicScope(account, clinic) : account.sub) : null };
+}
+
+/**
+ * Borra de este dispositivo los datos de esta cuenta (la copia de la nube no se toca) y quita el PIN. Al recargar, la
+ * app pide la contraseña y los datos vuelven a bajar.
+ */
+async function wipeDevice(keyScope: string | null) {
+  const { getDb } = await import("../data/db");
+  await getDb().wipe();
+  if (keyScope) {
+    await forgetKey(keyScope);
+    localStorage.removeItem(`fisiolab.sync.${keyScope}`);
+    await cacheDrop(keyScope).catch(() => {});
+  }
   clearLock();
-  if (!config) return location.reload();
-  if (chooseAccount) return startLogin(config.googleClientId, { chooseAccount: true, returnTo: import.meta.env.BASE_URL });
-  clearAccount();
-  startLogin(config.googleClientId, { hint: account?.email, returnTo: import.meta.env.BASE_URL });
+  location.reload();
 }
 
 export function AppLock({ children }: { children: ReactNode }) {
@@ -43,6 +62,10 @@ export function AppLock({ children }: { children: ReactNode }) {
   const required = pinRequired();
   const [locked, setLocked] = useState(lockedOnOpen);
   const [needsPin, setNeedsPin] = useState(() => required && getLock() === null);
+  /** Ya ha demostrado que puede abrir la clínica (contraseña o código): elige el PIN sin volver a pedirlo. */
+  const [proved, setProved] = useState(false);
+  /** El contador de fallos de IndexedDB ya está mirado (si alguien borró el de localStorage, manda el mayor). */
+  const [failsReady, setFailsReady] = useState(false);
   const lastActive = useRef(Date.now());
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
@@ -52,6 +75,11 @@ export function AppLock({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (locked) document.querySelectorAll<HTMLDialogElement>("dialog[open]").forEach((d) => d.close());
   }, [locked]);
+  // Los fallos que recuerda IndexedDB, y la marca de que aquí hay PIN (para los de antes de la marca).
+  useEffect(() => {
+    void syncFailsFromDevice().finally(() => setFailsReady(true));
+    if (getLock()) void markPinSet();
+  }, []);
 
   useEffect(() => {
     const touch = () => {
@@ -107,9 +135,11 @@ export function AppLock({ children }: { children: ReactNode }) {
       {needsPin ? (
         <ChoosePin
           name={account?.name ?? ""}
+          proved={proved}
           onDone={() => {
             lastActive.current = Date.now();
             markActive();
+            setProved(false);
             setNeedsPin(false);
             setLocked(false);
           }}
@@ -117,10 +147,18 @@ export function AppLock({ children }: { children: ReactNode }) {
       ) : (
         locked && (
           <LockScreen
+            key={failsReady ? "listo" : "mirando"}
             onUnlock={() => {
               hiddenAt.current = null;
               lastActive.current = Date.now();
               markActive();
+              setLocked(false);
+            }}
+            onReset={() => {
+              // Ha demostrado que puede abrir la clínica: fuera el PIN de aquí y a elegir otro.
+              clearLock();
+              setProved(true);
+              setNeedsPin(true);
               setLocked(false);
             }}
           />
@@ -207,7 +245,7 @@ function PinPad({
   );
 }
 
-function LockScreen({ onUnlock }: { onUnlock: () => void }) {
+function LockScreen({ onUnlock, onReset }: { onUnlock: () => void; onReset: () => void }) {
   const config = getLock();
   const account = getAccount();
   const cloud = !!cachedCloudConfig() && !!account;
@@ -215,6 +253,8 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [forgot, setForgot] = useState(false);
+  /** Está demostrando que puede abrir la clínica para poner un PIN nuevo. */
+  const [proving, setProving] = useState(false);
   const [tooMany, setTooMany] = useState(() => cloud && failCount() >= MAX_FAILS);
   const [until, setUntil] = useState(waitUntil);
   const [now, setNow] = useState(Date.now);
@@ -268,15 +308,8 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
 
   const seconds = until ? Math.max(1, Math.ceil((until - now) / 1000)) : 0;
   const subtitle = account ? account.name : undefined;
-  if (tooMany)
-    return (
-      <Shell title="Demasiados intentos" subtitle={subtitle}>
-        <p className="text-center">Por seguridad, vuelve a entrar con tu cuenta de Google. Después elegirás un PIN nuevo.</p>
-        <Button size="lg" block icon={<LogIn aria-hidden="true" className="size-5" />} onClick={() => backToGoogle(false)}>
-          Entrar con Google
-        </Button>
-      </Shell>
-    );
+  if (tooMany) return <ProvePin title="Demasiados intentos" subtitle={subtitle} onProved={onReset} />;
+  if (proving) return <ProvePin title="PIN nuevo" subtitle={subtitle} onProved={onReset} onCancel={() => setProving(false)} />;
   return (
     <Shell title="Introduce tu PIN" subtitle={subtitle}>
       <PinPad
@@ -313,7 +346,10 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
       </div>
       <Sheet open={forgot} onClose={() => setForgot(false)} title="¿Has olvidado el PIN?">
         {cloud ? (
-          <p>Vuelve a entrar con tu cuenta de Google ({account?.email}) y elige un PIN nuevo. Tus datos se quedan en este dispositivo.</p>
+          <p>
+            Para poner un PIN nuevo, escribe la contraseña de la clínica (la que pusiste al instalar la app) o el código de recuperación. Si no los tienes, puedes
+            borrar los datos de este dispositivo: vuelven a bajar cuando tengas la contraseña.
+          </p>
         ) : (
           <p>Sin cuenta de Google, la única forma es borrar los datos de este dispositivo y quitar el PIN. Solo podrás recuperarlos con una copia de seguridad.</p>
         )}
@@ -321,14 +357,14 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
           variant={cloud ? "primary" : "danger"}
           block
           onClick={async () => {
-            if (cloud) return backToGoogle(false);
-            const { getDb } = await import("../data/db");
-            await getDb().wipe();
-            clearLock();
-            location.reload();
+            if (cloud) {
+              setForgot(false);
+              return setProving(true);
+            }
+            await wipeDevice(null);
           }}
         >
-          {cloud ? "Entrar con Google" : "Borrar los datos y quitar el PIN"}
+          {cloud ? "Continuar" : "Borrar los datos y quitar el PIN"}
         </Button>
         <Button variant="secondary" block onClick={() => setForgot(false)}>
           Cancelar
@@ -338,12 +374,151 @@ function LockScreen({ onUnlock }: { onUnlock: () => void }) {
   );
 }
 
-/** En una clínica, la primera vez en el dispositivo: elegir el PIN (dos veces). */
-function ChoosePin({ name, onDone }: { name: string; onDone: () => void }) {
+/**
+ * Demostrar que se puede abrir la clínica antes de poner un PIN nuevo: la contraseña de la clínica (sin conexión) o
+ * el código de recuperación (con conexión), comprobados con la clave guardada en el dispositivo (pinProof.ts). Si
+ * aquí nunca hubo PIN, no hay nada que demostrar; si hubo PIN pero no hay clave guardada, solo queda borrar los datos
+ * del dispositivo (vuelven a bajar con la contraseña).
+ */
+function ProvePin({ title, subtitle, onProved, onCancel }: { title: string; subtitle?: string; onProved: () => void; onCancel?: () => void }) {
+  const { config, clinic, pinScope, keyScope } = scopes();
+  const [need, setNeed] = useState<Proof | null>(null);
+  const [tab, setTab] = useState<"password" | "code">("password");
+  const [value, setValue] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirmWipe, setConfirmWipe] = useState(false);
+  const [until, setUntil] = useState(() => (keyScope ? proofWaitUntil(keyScope) : 0));
+  const [now, setNow] = useState(Date.now);
+  const done = useRef(false);
+  useEffect(() => {
+    void proofNeeded(pinScope, keyScope).then(setNeed);
+  }, [pinScope, keyScope]);
+  useEffect(() => {
+    if (need !== "none" || done.current) return;
+    done.current = true;
+    onProved();
+  }, [need, onProved]);
+  useEffect(() => {
+    if (!until) return;
+    const t = setInterval(() => {
+      setNow(Date.now());
+      if (Date.now() >= until) setUntil(0);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [until]);
+
+  const check = async () => {
+    if (!keyScope || !value.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const ok = tab === "password" ? await checkClinicPassword(keyScope, value) : await checkRecoveryCode(config!.cloudflareUrl!, clinic!.id, keyScope, value.trim());
+      if (ok) return onProved();
+      setValue("");
+      const wait = proofWaitUntil(keyScope);
+      setUntil(wait);
+      setError(wait ? null : tab === "password" ? "La contraseña no es la de la clínica." : "Ese código no es el de la clínica.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const seconds = until ? Math.max(1, Math.ceil((until - now) / 1000)) : 0;
+  const pick = (t: "password" | "code") => {
+    setTab(t);
+    setValue("");
+    setError(null);
+  };
+  if (need === null || need === "none") {
+    return (
+      <Shell title={title} subtitle={subtitle}>
+        <p className="text-sm text-text-muted">Un momento…</p>
+      </Shell>
+    );
+  }
+  return (
+    <Shell title={title} subtitle={subtitle}>
+      {need === "wipe" ? (
+        <p className="text-center">Para poner un PIN nuevo en este dispositivo, primero se borran sus datos; bajan de nuevo al escribir la contraseña de la clínica.</p>
+      ) : (
+        <>
+          <p className="text-center text-sm">
+            Para poner un PIN nuevo, escribe la contraseña de la clínica (la que pusiste al instalar la app) o el código de recuperación. Si no los tienes, puedes
+            borrar los datos de este dispositivo: vuelven a bajar cuando tengas la contraseña.
+          </p>
+          {clinic && (
+            <div role="group" aria-label="Cómo lo demuestras" className="flex flex-wrap justify-center gap-2">
+              <Button size="sm" variant={tab === "password" ? "primary" : "secondary"} aria-pressed={tab === "password"} onClick={() => pick("password")}>
+                Contraseña de la clínica
+              </Button>
+              <Button size="sm" variant={tab === "code" ? "primary" : "secondary"} aria-pressed={tab === "code"} onClick={() => pick("code")}>
+                Código de recuperación
+              </Button>
+            </div>
+          )}
+          <form
+            className="flex w-full flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void check();
+            }}
+          >
+            <TextField
+              label={tab === "code" ? "Código de recuperación" : clinic ? "Contraseña de la clínica" : "Contraseña de cifrado de la copia"}
+              type={tab === "code" ? "text" : "password"}
+              autoComplete={tab === "code" ? "off" : "current-password"}
+              autoFocus
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              disabled={busy || !!seconds}
+            />
+            <p role="alert" className="min-h-5 text-sm font-semibold text-danger">
+              {seconds ? `Demasiados intentos. Espera ${seconds} s.` : error}
+            </p>
+            <Button type="submit" size="lg" block loading={busy} disabled={!value.trim() || !!seconds}>
+              Comprobar
+            </Button>
+          </form>
+        </>
+      )}
+      {!confirmWipe ? (
+        <Button variant={need === "wipe" ? "danger" : "ghost"} block onClick={() => setConfirmWipe(true)}>
+          Borrar los datos de este dispositivo
+        </Button>
+      ) : (
+        <div className="flex w-full flex-col gap-2">
+          <p className="text-center text-sm">Se borran solo de este dispositivo; la copia de la clínica no se toca y vuelve a bajar con la contraseña.</p>
+          <Button variant="danger" block onClick={() => void wipeDevice(keyScope)}>
+            Sí, borrar los datos de aquí
+          </Button>
+          <Button variant="secondary" block onClick={() => setConfirmWipe(false)}>
+            No
+          </Button>
+        </div>
+      )}
+      {onCancel && (
+        <Button variant="ghost" block onClick={onCancel}>
+          Volver
+        </Button>
+      )}
+    </Shell>
+  );
+}
+
+/**
+ * En una clínica, la primera vez en el dispositivo: elegir el PIN (dos veces). Si aquí ya hubo un PIN (alguien lo
+ * borró del navegador), antes hay que demostrar que se puede abrir la clínica (ProvePin), salvo que ya lo haya hecho.
+ */
+function ChoosePin({ name, proved, onDone }: { name: string; proved: boolean; onDone: () => void }) {
+  const [ok, setOk] = useState(proved);
   const [first, setFirst] = useState<string | null>(null);
   const [pin, setPinText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const proven = useCallback(() => setOk(true), []);
+  if (!ok) return <ProvePin title="Antes de elegir el PIN" subtitle={name || undefined} onProved={proven} />;
   const next = async () => {
     if (!isPin(pin)) return setError("De 4 a 8 cifras.");
     if (first === null) {

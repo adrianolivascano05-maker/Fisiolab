@@ -210,28 +210,79 @@ const legacyName = (sub: string) => `fisiolab.crypt.${sub}`;
 
 /** Sin IndexedDB (pruebas en Node), la clave solo vive mientras dure la página. */
 const memory = new Map<string, StoredKey>();
+const deviceMemory = new Map<string, unknown>();
 let keysDb: Promise<IDBDatabase> | null = null;
 
+/** La base «fisiolab-claves»: las claves (almacén «claves») y, desde la versión 2, el almacén «pin» (src/privacy). */
 function openKeys(): Promise<IDBDatabase> {
   keysDb ??= new Promise((resolve, reject) => {
-    const req = indexedDB.open("fisiolab-claves", 1);
-    req.onupgradeneeded = () => req.result.createObjectStore("claves");
+    const req = indexedDB.open("fisiolab-claves", 2);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains("claves")) req.result.createObjectStore("claves");
+      if (!req.result.objectStoreNames.contains("pin")) req.result.createObjectStore("pin");
+    };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
   return keysDb;
 }
 
-async function keysStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+async function keysStore<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>, name: "claves" | "pin" = "claves"): Promise<T> {
   const db = await openKeys();
   return new Promise((resolve, reject) => {
-    const req = run(db.transaction("claves", mode).objectStore("claves"));
+    const req = run(db.transaction(name, mode).objectStore(name));
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
 const hasIdb = () => typeof indexedDB !== "undefined";
+
+/**
+ * Un pequeño almacén del dispositivo en IndexedDB (almacén «pin»), para lo del bloqueo que no debe reiniciarse
+ * borrando solo localStorage (src/privacy/pin.ts: el contador de fallos, y que en este dispositivo se puso un PIN).
+ */
+export async function deviceGet<T>(key: string): Promise<T | undefined> {
+  if (!hasIdb()) return deviceMemory.get(key) as T | undefined;
+  try {
+    return await keysStore<T | undefined>("readonly", (s) => s.get(key), "pin");
+  } catch {
+    return undefined;
+  }
+}
+export async function devicePut(key: string, value: unknown): Promise<void> {
+  if (!hasIdb()) {
+    deviceMemory.set(key, value);
+    return;
+  }
+  try {
+    await keysStore("readwrite", (s) => s.put(value, key), "pin");
+  } catch {
+    /* sin IndexedDB: queda lo de localStorage */
+  }
+}
+export async function deviceDelete(key: string): Promise<void> {
+  deviceMemory.delete(key);
+  if (!hasIdb()) return;
+  try {
+    await keysStore("readwrite", (s) => s.delete(key), "pin");
+  } catch {
+    /* nada */
+  }
+}
+
+/** Si `candidate` es la misma clave que `stored` (sin exportarlas): se cifra algo al azar con una y se abre con la otra. */
+export async function sameKey(stored: CryptoKey, candidate: CryptoKey): Promise<boolean> {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const probe = crypto.getRandomValues(new Uint8Array(32));
+  const sealed = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, stored, probe as BufferSource);
+  try {
+    const opened = new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv }, candidate, sealed));
+    return opened.length === probe.length && opened.every((b, i) => b === probe[i]);
+  } catch {
+    return false;
+  }
+}
 
 export async function storedKey(sub: string): Promise<StoredKey | null> {
   try {

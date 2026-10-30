@@ -51,7 +51,7 @@ export function LockSettings() {
       if (!(await checkPin(current))) return setError({ field: "current", text: "No es el PIN actual." });
     }
     if (mode === "remove") {
-      clearLock();
+      clearLock(true);
       setConfig(null);
       setMode(null);
       return toast("Bloqueo quitado", "success");
