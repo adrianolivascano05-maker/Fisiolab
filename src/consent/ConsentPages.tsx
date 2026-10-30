@@ -2,7 +2,7 @@
 // y los demás; prepararlos con lo que se va a hacer, firmarlos en la pantalla o en papel, imprimirlos y retirarlos.
 // Firmarlos por enlace se retiró el 30-10-2026; los firmados así antes (`signatures.via = "link"`) se ven igual.
 import { todayDay as today } from "../app/dates";
-import { FilePen, Printer, ShieldAlert, Undo2 } from "lucide-react";
+import { FilePen, Printer, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { fmtDate } from "../app/format";
@@ -48,7 +48,7 @@ const active = (consents: SignedConsent[], template: string) => consents.find((c
 function DetectedWarning({ id, ctx }: { id: string; ctx: ConsentContext }) {
   if (!ctx.detected.length) return null;
   return (
-    <Alert tone="warning" title="Revisa las precauciones de la anamnesis">
+    <Alert tone="info" title="Revisa las precauciones de la anamnesis">
       <ul className="list-disc pl-5">
         {ctx.detected.map((d) => (
           <li key={d.precaution}>
@@ -74,20 +74,16 @@ export function ConsentListPage() {
   const { patient, consents, ctx, hasAnamnesis } = data.data;
   if (!patient || !ctx) return <Page title="Consentimientos" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
 
-  const row = (t: ConsentTemplate, reason: string | null) => {
-    const absolute = t.personal(ctx).filter((r) => r.absolute);
-    return (
-      <RowLink
-        key={t.id}
-        to={`${base(id)}/nuevo?tipo=${t.id}`}
-        icon={absolute.length ? ShieldAlert : FilePen}
-        tone={absolute.length ? "danger" : "accent"}
-        title={t.title}
-        subtitle={absolute.length ? "Contraindicado según la anamnesis" : [reason, t.written === "required" ? "por escrito obligatorio" : null].filter(Boolean).join(" · ") || t.summary}
-        warn={!!absolute.length}
-      />
-    );
-  };
+  const row = (t: ConsentTemplate, reason: string | null) => (
+    <RowLink
+      key={t.id}
+      to={`${base(id)}/nuevo?tipo=${t.id}`}
+      icon={FilePen}
+      tone="accent"
+      title={t.title}
+      subtitle={[reason, t.written === "required" ? "por escrito obligatorio" : null].filter(Boolean).join(" · ") || t.summary}
+    />
+  );
   const proposed = TEMPLATES.map((t) => ({ t, reason: t.suggest(ctx) })).filter(({ t, reason }) => reason && !active(consents, t.id));
   const others = TEMPLATES.filter((t) => !proposed.some((p) => p.t.id === t.id) && !active(consents, t.id));
 
@@ -176,7 +172,6 @@ export function ConsentNewPage() {
   if (data.error) return <Page title={t.title} backTo={back} tabs={false}><LoadError error={data.error} /></Page>;
   if (!data.data || !doc || withRep === null || !techniques) return <Page title={t.title} backTo={back} tabs={false}><Loading /></Page>;
   const { ctx } = data.data;
-  const absolute = ctx ? t.personal(ctx).filter((r) => r.absolute) : [];
   const field = (key: keyof typeof form) => ({ value: form[key], onChange: (e: { target: { value: string } }) => setForm({ ...form, [key]: e.target.value }) });
 
   const save = async (method: "screen" | "paper") => {
@@ -201,13 +196,17 @@ export function ConsentNewPage() {
       </div>
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
         <div className="flex flex-col gap-4 print:hidden">
-          {absolute.length > 0 && (
-            <Alert tone="danger" title="Contraindicado según la anamnesis">
+          {ctx && (ctx.precautions.length > 0 || ctx.redFlags.length > 0) && (
+            <Alert tone="info" title="Consta en la anamnesis">
               <ul className="list-disc pl-5">
-                {absolute.map((r) => (
-                  <li key={r.text}>{r.text}</li>
+                {ctx.precautions.map((p) => (
+                  <li key={p}>{precautionLabel(p)}</li>
+                ))}
+                {ctx.redFlags.map((f) => (
+                  <li key={f}>{f}</li>
                 ))}
               </ul>
+              Revísalo antes de decidir qué técnicas vas a usar. La decisión es tuya.
             </Alert>
           )}
           {ctx && <DetectedWarning id={id} ctx={ctx} />}

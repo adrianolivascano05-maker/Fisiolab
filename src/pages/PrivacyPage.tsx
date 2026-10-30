@@ -1,3 +1,4 @@
+import { PURPOSE_SHORT } from "../app/purpose";
 import { Link } from "react-router";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
@@ -90,8 +91,7 @@ export function PrivacyPage() {
           .
         </p>
         <p className="text-sm text-text-muted">
-          Los resultados son una ayuda para el seguimiento y no sustituyen el juicio clínico. Esto no es asesoramiento legal: la clínica debe revisarlo con
-          su delegado de protección de datos.
+          {PURPOSE_SHORT} Esto no es asesoramiento legal: la clínica debe revisarlo con su delegado de protección de datos.
         </p>
       </article>
     </Page>

@@ -22,7 +22,7 @@ export function RangesTable({ ranges }: { ranges: NonNullable<QuestionnaireKind[
           ))}
         </tbody>
       </table>
-      <figcaption className="text-xs text-text-muted">Fuente: {ranges.cite}</figcaption>
+      <figcaption className="text-xs text-text-muted">Fuente: {ranges.cite}. Categorías del estudio citado, como referencia: la app no las aplica a la nota del paciente.</figcaption>
     </figure>
   );
 }

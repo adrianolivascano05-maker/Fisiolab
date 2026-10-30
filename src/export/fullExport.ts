@@ -9,6 +9,7 @@
 // - «Copia de OmniClin.sqlite3»: la copia de seguridad que se restaura en OmniClin.
 // - «LEEME.txt»: qué es cada cosa.
 // Los vídeos de las mediciones no van: se quedan en el dispositivo donde se grabaron.
+import { DOC_FOOTER } from "../app/purpose";
 import { getExercise } from "../calc/strength";
 import { getMovement, movementLabel } from "../calc/rom";
 import { wellnessItems } from "../calc/wellness";
@@ -336,7 +337,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
   const staff = new Map(T.staff!.map((x) => [s(x.email), s(x.name)]));
   const parts: string[] = [];
   const clinicLine = [c.clinic.name, c.clinic.taxId && `NIF ${c.clinic.taxId}`, c.clinic.address].filter(Boolean).join(" · ");
-  parts.push(`<p class="muted">${h(clinicLine || "Historia clínica")}</p><h1>${h(p.name)}</h1><p class="muted">Historia clínica exportada de OmniClin el ${h(when(exportedAt.toISOString()))}. OmniClin registra y organiza; las decisiones clínicas son del profesional.</p>`);
+  parts.push(`<p class="muted">${h(clinicLine || "Historia clínica")}</p><h1>${h(p.name)}</h1><p class="muted">Historia clínica exportada de OmniClin el ${h(when(exportedAt.toISOString()))}. ${h(DOC_FOOTER)}</p>`);
 
   const datos: [string, string][] = [
     ["Fecha de nacimiento", day(p.birth_date)],

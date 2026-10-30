@@ -16,9 +16,9 @@ import { EmptyState } from "../ui/EmptyState";
 import { useToast } from "../ui/Toast";
 
 const orientationText = {
-  force_deficit: "Déficit de fuerza: el perfil está más orientado a la velocidad de lo óptimo.",
-  velocity_deficit: "Déficit de velocidad: el perfil está más orientado a la fuerza de lo óptimo.",
-  balanced: "Perfil equilibrado: a menos del 10 % del óptimo.",
+  force_deficit: "Pendiente más orientada a la velocidad que la óptima del modelo (Samozino).",
+  velocity_deficit: "Pendiente más orientada a la fuerza que la óptima del modelo (Samozino).",
+  balanced: "A menos del 10 % de la pendiente óptima del modelo.",
 } as const;
 
 /** S09 Perfil fuerza-velocidad */

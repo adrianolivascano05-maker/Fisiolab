@@ -22,7 +22,7 @@ export const KINDS: QuestionnaireKind[] = [
     max: 9,
     better: "lower",
     regions: ["lumbar"],
-    hint: "Clasifica al paciente con dolor lumbar en riesgo bajo, medio o alto de mal pronóstico (cronificación o discapacidad persistente) para ajustar el tratamiento por estratos; se usa en la primera visita.",
+    hint: "Cuestionario de 9 preguntas con el que sus autores separan a los pacientes con dolor lumbar en tres grupos según el riesgo de mala evolución (Hill et al., 2008). En la app solo se anota la nota.",
     refs: "Hill et al., 2008 (original), DOI 10.1002/art.23563; Gusi et al., 2011 (versión española: traducción y adaptación transcultural, sin estudio psicométrico completo), DOI 10.1016/j.aprim.2010.05.019",
     scoreOnly: true,
     link: {
@@ -47,7 +47,7 @@ export const KINDS: QuestionnaireKind[] = [
     max: 7,
     better: "lower",
     regions: ["atm"],
-    hint: "Cribado rápido de un trastorno temporomandibular doloroso (mialgia o artralgia), útil en pacientes con cefalea o dolor cervical o facial para decidir si hay que explorar la ATM.",
+    hint: "Cribado rápido de un trastorno temporomandibular doloroso (mialgia o artralgia), propuesto por sus autores para identificar dolor temporomandibular en pacientes con cefalea o dolor cervical o facial.",
     refs: "Gonzalez et al., 2011 (original), DOI 10.14219/jada.archive.2011.0088; sin validación española en PubMed",
   },
   {
@@ -73,7 +73,7 @@ export const KINDS: QuestionnaireKind[] = [
     max: 450,
     better: "lower",
     topic: "Cefalea",
-    hint: "Días perdidos o con rendimiento reducido por la cefalea en los últimos 3 meses (trabajo o estudios, casa, ocio), para cuantificar la discapacidad en migraña y cefaleas y decidir si hay que derivar.",
+    hint: "Días perdidos o con rendimiento reducido por la cefalea en los últimos 3 meses (trabajo o estudios, casa, ocio), para cuantificar la discapacidad en migraña y cefaleas.",
     refs: "Stewart et al., 2001 (original), DOI 10.1212/wnl.56.suppl_1.s20; Rodríguez-Almagro et al., 2020 (validación española, estudiantes universitarios), DOI 10.1186/s12883-020-01646-y",
     scoreOnly: true,
     link: { url: "https://headaches.org", label: "PDF en headaches.org" },

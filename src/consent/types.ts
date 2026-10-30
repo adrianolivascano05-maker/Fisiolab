@@ -26,12 +26,13 @@ export type ConsentContext = {
 /** Una técnica concreta dentro de un consentimiento (se marcan las que se van a usar). */
 export type Technique = { id: string; label: string };
 
-/** Una contraindicación o precaución que sale de la anamnesis para esta plantilla. */
+/**
+ * Información de riesgos que sale de la anamnesis para esta plantilla: el riesgo y que el fisioterapeuta lo valora.
+ * La app no da veredictos de contraindicación: la decisión es del profesional (revisión del 30-10-2026).
+ */
 export type PersonalRisk = {
   /** Lo que se le dice al paciente, en segunda persona («Como toma anticoagulantes, …»). */
   text: string;
-  /** Contraindicación absoluta: el aviso para el fisioterapeuta es rojo y no se debería aplicar. */
-  absolute?: boolean;
 };
 
 export type ConsentTemplate = {

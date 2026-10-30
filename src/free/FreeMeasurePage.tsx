@@ -70,8 +70,8 @@ export function FreeMeasurePage() {
     <Page title={title} backTo={back} tabs={false}>
       <p className="text-text-muted">{patient.name}</p>
       <Alert tone="info" title="Experimental">
-        La pose 3D la estima una IA a partir de una sola cámara, en el propio móvil (nada sale de él). Sirve para seguir un movimiento; para
-        un valor clínico exacto, usa la movilidad con goniómetro o inclinómetro.
+        La pose 3D la estima una IA a partir de una sola cámara, en el propio móvil (nada sale de él). Es una estimación sin validar: revisa los
+        puntos y no la uses como único dato para decidir.
       </Alert>
       <input ref={input} type="file" accept="video/*" className="sr-only" aria-label="Elegir vídeo" tabIndex={-1} onChange={(e) => e.target.files?.[0] && setFile(e.target.files[0])} />
       <Button size="lg" block icon={<Upload aria-hidden="true" className="size-5" />} onClick={() => input.current?.click()}>

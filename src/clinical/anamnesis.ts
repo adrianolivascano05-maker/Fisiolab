@@ -81,7 +81,7 @@ export const ANAMNESIS: Section[] = [
       { id: "banderas_rojas", label: "Banderas rojas", type: "multi", options: RED_FLAGS, hint: "Las que confirmes al preguntar. Abajo salen las que marcó el paciente o aparecen en lo escrito." },
       {
         id: "sintomas_paciente",
-        label: "Síntomas de alarma que marcó el paciente",
+        label: "Síntomas que marcó el paciente en su formulario",
         type: "multi",
         options: PATIENT_FLAG_LABELS,
         hint: "Los marca el paciente en su formulario: pregúntale por cada uno.",

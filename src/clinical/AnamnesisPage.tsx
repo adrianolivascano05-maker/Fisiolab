@@ -270,7 +270,6 @@ export function AnamnesisPage() {
                     <RedFlagPanel
                       answers={draft}
                       labelOf={labelOf}
-                      patientId={id}
                       onMark={(label) => {
                         const now = Array.isArray(draft.banderas_rojas) ? (draft.banderas_rojas as string[]) : [];
                         if (!now.includes(label)) set("banderas_rojas")([...now, label]);
@@ -333,7 +332,7 @@ export function AnamnesisPage() {
           <Send aria-hidden="true" className="size-4 shrink-0" /> Mandar su parte al paciente
         </Link>
       </div>
-      <RedFlagPanel answers={a} labelOf={labelOf} patientId={id} />
+      <RedFlagPanel answers={a} labelOf={labelOf} />
       <YellowFlagPanel answers={a} labelOf={labelOf} patientId={id} />
       {sections.map((section) => {
         const rows = section.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");

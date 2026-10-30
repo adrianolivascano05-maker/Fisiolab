@@ -87,7 +87,7 @@ export default defineConfig({
       manifest: {
         name: "OmniClin",
         short_name: "OmniClin",
-        description: "Registro y organización para fisioterapia: fichas, mediciones en vídeo y sensores, tests de exploración y agenda. Las decisiones clínicas son del profesional.",
+        description: "Registro y organización de la actividad de fisioterapia: historia clínica, agenda, cobros y medición del rendimiento físico. No es un producto sanitario: no diagnostica ni propone tratamientos.",
         lang: "es",
         start_url: base,
         scope: base,

@@ -16,7 +16,7 @@ test.describe("Fase 2 de saltos", () => {
     const card = (label: string) => page.getByText(label, { exact: true }).locator("..");
     await expect(card("F0")).toContainText(/(29|30|31),\d\s*N\/kg/);
     await expect(card("V0")).toContainText(/3,[3-5]\d\s*m\/s/);
-    await expect(page.getByText(/Déficit de fuerza/)).toBeVisible();
+    await expect(page.getByText(/Pendiente más orientada a la velocidad que la óptima del modelo/)).toBeVisible();
     await expect(page.locator(".recharts-scatter-symbol")).toHaveCount(4);
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar perfil" }).click();

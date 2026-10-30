@@ -1,4 +1,5 @@
 import { ClipboardCheck, EyeOff } from "lucide-react";
+import { MEASURE_NOTE } from "../app/purpose";
 import { Link } from "react-router";
 import type { Test } from "../data/repo";
 import type { ValidationKind } from "../data/validation";
@@ -22,6 +23,7 @@ export function ValidateLinks({ test }: { test: Test }) {
   const blind = !!test.video && (k.kind === "jump_height" || k.kind === "bar_velocity");
   return (
     <div className="flex flex-col gap-1">
+      <p className="text-sm text-text-muted">{MEASURE_NOTE}</p>
       {blind && (
         <Link to={`/tests/${test.id}/marcar?ciego=1`} className={link}>
           <EyeOff aria-hidden="true" className="size-5" /> Marcar otra vez a ciegas (fiabilidad)

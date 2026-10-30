@@ -6,7 +6,7 @@
  * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
-export const SERVER_VERSION = "2026-10-28";
+export const SERVER_VERSION = "2026-10-30";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 export const MAGIC = "Q0VOSVRFTkMx";

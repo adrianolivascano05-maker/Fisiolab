@@ -74,7 +74,6 @@ export function QuestionnaireTiles({ patientId, items }: { patientId: string; it
         const first = g.items.at(-1)!;
         const k = kindOf(last.kind, last.details as QDetails);
         const diff = g.items.length > 1 ? last.score - first.score : null;
-        const better = diff === null || diff === 0 ? null : (diff > 0) === (k.better === "higher");
         const Arrow = diff === null || diff === 0 ? ArrowRight : diff > 0 ? ArrowUpRight : ArrowDownRight;
         return (
           <li key={g.key}>
@@ -91,10 +90,10 @@ export function QuestionnaireTiles({ patientId, items }: { patientId: string; it
                   <Sparkline values={g.items.slice(0, 8).reverse().map((q) => q.score)} />
                 </span>
                 {diff !== null && (
-                  <span className={cx("nums inline-flex items-center gap-0.5 text-sm", better === null ? "text-text-muted" : better ? "text-success" : "text-danger")}>
+                  <span className="nums inline-flex items-center gap-0.5 text-sm text-text-muted">
                     <Arrow aria-hidden="true" className="size-4" />
                     {scoreText(k, first.score)} → {scoreText(k, last.score)} en {g.items.length} pases ({diff > 0 ? "+" : diff < 0 ? "−" : "±"}
-                    {fmt(Math.abs(diff), Number.isInteger(diff) ? 0 : 1)}{better === null ? "" : better ? ", mejor" : ", peor"})
+                    {fmt(Math.abs(diff), Number.isInteger(diff) ? 0 : 1)})
                   </span>
                 )}
               </Card>

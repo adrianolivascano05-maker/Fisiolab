@@ -81,6 +81,7 @@ test.describe("Cuestionarios nuevos", () => {
     const ranges = page.getByRole("table", { name: /^Rangos publicados/ });
     await expect(ranges).toContainText("19–38");
     await expect(page.getByText(/^Fuente: Freynhagen et al., 2006/)).toBeVisible();
+    await expect(page.getByText(/la app no las aplica a la nota del paciente/)).toBeVisible();
     await expect(page.getByText(/neuropático probable \(19 o más\)$/)).toHaveCount(0);
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(page.getByRole("list", { name: "Cuestionarios" })).toContainText("painDETECT");

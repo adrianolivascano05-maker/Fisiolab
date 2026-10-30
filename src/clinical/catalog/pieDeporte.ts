@@ -12,7 +12,7 @@ export const KINDS: QuestionnaireKind[] = [
     regions: ["tobillo_pie"],
     hint: "Presencia y gravedad de la inestabilidad crónica de tobillo, para el cribado tras esguinces de repetición y el seguimiento; se contesta para cada tobillo por separado.",
     reading:
-      "25 o menos indica inestabilidad crónica de tobillo (punto de corte recalibrado y recomendado, Wright et al. 2014); el punto de corte original era 27,5 (27 o menos, Hiller et al. 2006).",
+      "Wright et al. (2014) proponen 25 o menos como punto de corte de inestabilidad crónica de tobillo; el original era 27 o menos (Hiller et al., 2006).",
     refs: "Hiller et al., 2006 (original), DOI 10.1016/j.apmr.2006.05.022; Cruz-Díaz et al., 2013 (validación española), DOI 10.1007/s10067-012-2095-0; Rodríguez-Fernández et al., 2015 (validación española), DOI 10.3109/09638288.2014.984879; Wright et al., 2014 (punto de corte), DOI 10.1016/j.apmr.2014.04.017",
     ranges: {
       title: "Puntos de corte de inestabilidad crónica de tobillo (de cada tobillo)",

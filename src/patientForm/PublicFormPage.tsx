@@ -177,6 +177,12 @@ export function PublicFormPage() {
                 {request.kind === ANAMNESIS_KIND ? "Contesta lo que sepas; lo demás lo hablaréis en la consulta." : form?.instructions}
               </p>
             )}
+            {request.kind === ANAMNESIS_KIND && (
+              <p className="text-sm">
+                Tu fisioterapeuta lo leerá antes de la consulta, no al momento. Si te encuentras mal o tienes algo urgente, no esperes: llama al 112 o a tu
+                centro de salud.
+              </p>
+            )}
             {request.kind === DOCS_KIND && (
               <DocsUpload
                 formId={id}

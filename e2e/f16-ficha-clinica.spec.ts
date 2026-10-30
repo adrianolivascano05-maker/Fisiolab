@@ -161,7 +161,7 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByRole("group", { name: "Cómo hace la actividad 2" }).getByText("5", { exact: true }).click();
     await page.getByRole("button", { name: "Guardar cuestionario" }).click();
     await expect(list).toContainText("6/10");
-    await expect(list).toContainText(/en 2 pases \(\+3, mejor\)/);
+    await expect(list).toContainText(/en 2 pases \(\+3\)/);
 
     // BPI-SF: de solo nota (su hoja oficial), con su subescala y su rango.
     await page.getByRole("link", { name: "Nuevo cuestionario" }).click();

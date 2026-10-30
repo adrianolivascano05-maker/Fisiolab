@@ -70,7 +70,7 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 ## 3. Cloudflare: pegar el `worker.js` nuevo y borrar las tablas de la reserva (unos 10 minutos)
 
 **Hecho el 27-10-2026** (versión `2026-10-27.2`; tablas de la reserva borradas, no quedaba ninguna sin recoger) **y
-otra vez el 28-10-2026** (versión `2026-10-28`, la del cambio de nombre; `/v1/salud` la confirma). Nada pendiente aquí.
+otra vez el 28-10-2026** (versión `2026-10-28`, la del cambio de nombre; `/v1/salud` la confirma). **Pendiente otra vez desde el 30-10-2026** (versión `2026-10-30`): cambia el texto del contrato de encargado (la finalidad prevista de la app, de la revisión de producto sanitario). Solo hay que pegar el `worker.js` nuevo (paso 4 de `cloudflare/README.md`); las tablas no cambian.
 
 La reserva online se ha quitado (24-10-2026) y el servidor se ha dejado más limpio (bloque 3: formularios repetidos
 a la vez, lotes de cambios que se leían de más, tiempo límite con Google, menos limpiezas en cada consulta). El

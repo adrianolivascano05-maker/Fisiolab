@@ -1,5 +1,5 @@
 import { todayDay } from "../app/dates";
-import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Files, Hourglass, ListChecks, NotebookPen, Scale, Send, ShieldAlert, ShieldCheck, Stethoscope, TriangleAlert, Wallet } from "lucide-react";
+import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Files, Hourglass, ListChecks, NotebookPen, Scale, Send, ShieldAlert, ShieldCheck, Stethoscope, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { SHOW_EXERCISES } from "../app/features";
@@ -133,8 +133,8 @@ export function PatientPage() {
             </p>
           )}
           {alarms && alarms.hits.length > 0 && (
-            <p className="flex items-start gap-2 text-sm text-danger">
-              <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+            <p className="flex items-start gap-2 text-sm">
+              <ListChecks aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
               <span>
                 <span className="font-semibold">
                   {`Banderas rojas: ${alarms.hits.length}`}

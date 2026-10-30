@@ -6,9 +6,11 @@
 //
 // Cinco documentos cortos, uno por familia de técnicas («Tratamientos invasivos, como la punción seca… etc.»). Cada
 // uno dice qué es, sus riesgos, cuándo no se aplica y las alternativas (Ley 41/2002, art. 10). `personal` añade lo
-// del paciente a partir de lo MARCADO en la anamnesis (`ctx.precautions`, zonas, edad, sexo, banderas rojas). Lo
-// que solo se ha detectado en el texto libre (`ctx.detected`) no genera texto para el paciente: la pantalla avisa
-// de ello al fisioterapeuta, que decide si marcarlo.
+// del paciente a partir de lo MARCADO en la anamnesis (`ctx.precautions`, zonas, sexo, banderas rojas): el riesgo y
+// que su fisioterapeuta lo valora o lo adapta; la app no decide por el profesional ni da veredictos de
+// contraindicación (revisión del 30-10-2026; la edad sola ya no añade frases). Lo que solo se ha detectado en el texto
+// libre (`ctx.detected`) no genera texto para el paciente: la pantalla avisa de ello al fisioterapeuta, que decide si
+// marcarlo.
 import type { ConsentContext, ConsentTemplate, PersonalRisk } from "./types";
 
 /** Sin tildes ni mayúsculas, para buscar palabras en el plan. */
@@ -29,18 +31,16 @@ const inZone = (ctx: ConsentContext) => (...ids: string[]) => ids.some((id) => c
 /** Banderas rojas marcadas, para citarlas en el texto. */
 const flagText = (ctx: ConsentContext) => ctx.redFlags.map((f) => f.toLowerCase()).join("; ");
 
-/** Se queda con los textos cuya condición se cumple; el tercer valor marca la contraindicación absoluta. */
-const pick = (items: [boolean, string, boolean?][]): PersonalRisk[] =>
-  items.filter(([when]) => when).map(([, text, absolute]) => (absolute ? { text, absolute: true } : { text }));
+/** Se queda con los textos cuya condición se cumple. */
+const pick = (items: [boolean, string][]): PersonalRisk[] => items.filter(([when]) => when).map(([, text]) => ({ text }));
 
 const isMinor = (ctx: ConsentContext) => ctx.age !== null && ctx.age < 18;
-const isOlder = (ctx: ConsentContext) => ctx.age !== null && ctx.age >= 65;
 
 export const TEMPLATES: ConsentTemplate[] = [
   // 1. De base, para cualquier paciente.
   {
     id: "general",
-    version: "3",
+    version: "4",
     title: "Valoración y tratamiento de fisioterapia",
     summary: "Exploración, pruebas físicas, terapia manual, ejercicio, vendajes, calor o frío, etc.",
     written: "recommended",
@@ -71,17 +71,17 @@ export const TEMPLATES: ConsentTemplate[] = [
     personal(ctx) {
       const has = marked(ctx);
       return pick([
-        [ctx.redFlags.length > 0, `Nos ha comentado algún signo de alarma (${flagText(ctx)}): puede que deba verle un médico antes de seguir.`],
-        [has("osteoporosis"), "Como tiene osteoporosis, las técnicas manuales y las pruebas serán suaves, sin presiones fuertes, saltos de mucho impacto ni fuerza máxima."],
-        [has("anticoagulantes") || has("coagulacion"), "Como toma anticoagulantes o tiene un trastorno de la coagulación, le pueden salir moratones con más facilidad: el masaje y la presión serán suaves."],
-        [has("embarazo"), "Como está o puede estar embarazada, se adaptarán las posturas y los ejercicios, y no se aplicará calor sobre el abdomen ni la zona lumbar."],
-        [has("cardiaco"), "Como tiene una enfermedad del corazón o tensión alta, el esfuerzo se aumentará poco a poco y no se harán pruebas de esfuerzo máximo sin el visto bueno de su médico."],
-        [has("diabetes"), "Como tiene diabetes, se vigilará la piel con el calor y el frío; si va a hacer ejercicio, traiga algo de azúcar."],
-        [has("sensibilidad"), "Como tiene la sensibilidad alterada, puede no notar si el calor o el frío son excesivos: se aplicarán menos tiempo."],
-        [has("piel"), "Como tiene heridas o problemas de piel en la zona, no se pondrán sobre ellos vendajes, calor, frío ni cremas."],
-        [has("trombosis"), "Como tiene trombosis o varices importantes, no se hará masaje ni se aplicará calor sobre ellas."],
-        [has("cancer"), "Como tiene o ha tenido cáncer, no se hará masaje profundo ni se aplicará calor sobre la zona afectada."],
-        [has("linfedema"), "Como tiene linfedema o le quitaron ganglios en ese brazo o pierna, se evitarán en él el calor, las presiones fuertes y los vendajes apretados."],
+        [ctx.redFlags.length > 0, `Nos ha comentado: ${flagText(ctx)}. Su fisioterapeuta valorará con usted si hace falta otra valoración antes de seguir.`],
+        [has("osteoporosis"), "Como tiene osteoporosis, el hueso es más frágil: las presiones fuertes, los saltos de mucho impacto y la fuerza máxima tienen más riesgo, y su fisioterapeuta lo adaptará."],
+        [has("anticoagulantes") || has("coagulacion"), "Como toma anticoagulantes o tiene un trastorno de la coagulación, le pueden salir moratones con más facilidad: su fisioterapeuta adaptará el masaje y la presión."],
+        [has("embarazo"), "Como está o puede estar embarazada, algunas posturas y ejercicios, y el calor sobre el abdomen o la zona lumbar, tienen más riesgo: su fisioterapeuta lo adaptará."],
+        [has("cardiaco"), "Como tiene una enfermedad del corazón o tensión alta, el esfuerzo intenso tiene más riesgo: su fisioterapeuta lo aumentará poco a poco y valorará con usted cualquier prueba de esfuerzo máximo."],
+        [has("diabetes"), "Como tiene diabetes, la piel sufre más con el calor y el frío y el azúcar puede bajar con el ejercicio: su fisioterapeuta lo tendrá en cuenta; si va a hacer ejercicio, traiga algo de azúcar."],
+        [has("sensibilidad"), "Como tiene la sensibilidad alterada, puede no notar si el calor o el frío son excesivos: su fisioterapeuta adaptará el tiempo y la intensidad."],
+        [has("piel"), "Como tiene heridas o problemas de piel en la zona, los vendajes, el calor, el frío y las cremas sobre ellos tienen más riesgo: su fisioterapeuta lo adaptará."],
+        [has("trombosis"), "Como tiene trombosis o varices importantes, el masaje y el calor sobre ellas tienen más riesgo: su fisioterapeuta lo adaptará."],
+        [has("cancer"), "Como tiene o ha tenido cáncer, el masaje profundo y el calor sobre la zona afectada tienen más riesgo: su fisioterapeuta lo adaptará."],
+        [has("linfedema"), "Como tiene linfedema o le quitaron ganglios en ese brazo o pierna, el calor, las presiones fuertes y los vendajes apretados en él tienen más riesgo: su fisioterapeuta lo adaptará."],
         [isMinor(ctx), "Como es menor de edad, su madre, padre o representante pueden estar presentes en las sesiones."],
       ]);
     },
@@ -90,7 +90,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 2. Con aguja: por escrito obligado (procedimiento invasor, Ley 41/2002, art. 8.2).
   {
     id: "invasiva",
-    version: "3",
+    version: "4",
     title: "Tratamientos invasivos",
     summary: "Punción seca, electrólisis percutánea, neuromodulación percutánea, etc.",
     written: "required",
@@ -126,17 +126,17 @@ export const TEMPLATES: ConsentTemplate[] = [
       const has = marked(ctx);
       const zone = inZone(ctx);
       return pick([
-        [has("coagulacion"), "Como tiene un trastorno de la coagulación, no se le debe aplicar esta técnica por el riesgo de sangrado.", true],
-        [has("linfedema"), "Como tiene linfedema o le quitaron ganglios en ese brazo o pierna, no se le debe pinchar en él.", true],
-        [has("anticoagulantes"), "Como toma anticoagulantes o antiagregantes, es más fácil que salga un moratón: se harán menos punciones, no profundas, y se presionará después."],
-        [has("embarazo"), "Como está o puede estar embarazada, no se pincha la zona lumbar, el abdomen ni la pelvis, y en los tres primeros meses se evita esta técnica.", zone("lumbar", "sacroiliaca")],
-        [zone("dorsal", "cervical", "hombro"), "Como la zona a tratar está cerca del pulmón, hay un riesgo raro de neumotórax: se pinchará solo en direcciones seguras."],
-        [has("agujas"), "Como le dan miedo las agujas o se ha mareado con ellas, se hará tumbado y con pocas punciones al principio."],
-        [has("inmunosupresion") || has("diabetes"), "Como tiene diabetes o las defensas bajas, el riesgo de infección es mayor: se extremará la limpieza."],
-        [has("epilepsia"), "Como tiene epilepsia, si no está bien controlada no se aplicará esta técnica."],
-        [has("marcapasos") || has("metal"), "Como lleva un implante electrónico o metal en la zona, no se pasará corriente por la aguja."],
-        [has("alergia_metal"), "Como tiene alergia a metales o al látex, se usarán guantes sin látex y se valorará si las agujas son adecuadas para usted."],
-        [has("cancer"), "Como tiene o ha tenido cáncer, no se pinchará en la zona afectada."],
+        [has("coagulacion"), "Como tiene un trastorno de la coagulación, el riesgo de sangrado con la aguja es mayor. Su fisioterapeuta valorará con usted si se aplica en su caso."],
+        [has("linfedema"), "Como tiene linfedema o le quitaron ganglios en ese brazo o pierna, pinchar en él tiene más riesgo. Su fisioterapeuta valorará con usted si se aplica en esa zona."],
+        [has("anticoagulantes"), "Como toma anticoagulantes o antiagregantes, es más fácil que salga un moratón: su fisioterapeuta adaptará el número y la profundidad de las punciones y presionará después."],
+        [has("embarazo"), "Como está o puede estar embarazada, en general no se pincha la zona lumbar, el abdomen ni la pelvis, y en los tres primeros meses se suele evitar esta técnica. Su fisioterapeuta lo valorará con usted."],
+        [zone("dorsal", "cervical", "hombro"), "Como la zona a tratar está cerca del pulmón, hay un riesgo raro de neumotórax: su fisioterapeuta pinchará solo en direcciones seguras."],
+        [has("agujas"), "Como le dan miedo las agujas o se ha mareado con ellas, puede marearse: su fisioterapeuta lo adaptará, tumbado y con pocas punciones al principio."],
+        [has("inmunosupresion") || has("diabetes"), "Como tiene diabetes o las defensas bajas, el riesgo de infección es mayor: su fisioterapeuta extremará la limpieza."],
+        [has("epilepsia"), "Como tiene epilepsia, esta técnica tiene más riesgo si no está bien controlada: su fisioterapeuta lo valorará con usted."],
+        [has("marcapasos") || has("metal"), "Como lleva un implante electrónico o metal en la zona, pasar corriente por la aguja tiene más riesgo: su fisioterapeuta lo valorará con usted."],
+        [has("alergia_metal"), "Como tiene alergia a metales o al látex, los guantes con látex o algunas agujas pueden darle reacción: su fisioterapeuta usará material sin látex y valorará con usted qué agujas son adecuadas."],
+        [has("cancer"), "Como tiene o ha tenido cáncer, pinchar en la zona afectada tiene más riesgo: su fisioterapeuta lo valorará con usted."],
       ]);
     },
   },
@@ -144,7 +144,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 3. Con impulso rápido: por escrito por sus riesgos graves, aunque sean muy raros.
   {
     id: "manipulacion",
-    version: "3",
+    version: "4",
     title: "Manipulaciones articulares",
     summary: "Manipulaciones con impulso rápido del cuello, la espalda u otras articulaciones, etc.",
     written: "required",
@@ -175,16 +175,15 @@ export const TEMPLATES: ConsentTemplate[] = [
       const has = marked(ctx);
       const zone = inZone(ctx);
       return pick([
-        [ctx.redFlags.length > 0, `Nos ha comentado algún signo de alarma (${flagText(ctx)}): no se le deben aplicar manipulaciones hasta que lo valore un médico.`, true],
-        [has("osteoporosis"), "Como tiene osteoporosis, no se le deben aplicar manipulaciones: se usarán técnicas suaves.", true],
-        [has("cancer"), "Como tiene o ha tenido cáncer, el hueso podría estar afectado: no se le deben aplicar manipulaciones.", true],
-        [has("cervical_vascular"), "Como ha tenido problemas en las arterias del cuello, o mareo o vértigo de origen cervical, no se le debe manipular el cuello.", zone("cervical")],
-        [has("reuma"), "Como tiene una enfermedad reumática inflamatoria, no se le debe manipular el cuello.", zone("cervical")],
-        [zone("cervical"), "Como la zona a tratar es el cuello, antes se le preguntará por mareos, vértigo y otros síntomas para reducir el riesgo de lesión de una arteria."],
-        [isOlder(ctx), `Como tiene ${ctx.age} años, el hueso puede ser más frágil: se preferirán técnicas suaves.`],
-        [has("anticoagulantes") || has("coagulacion"), "Como toma anticoagulantes o tiene un trastorno de la coagulación, no se le manipulará el cuello y en otras zonas se preferirán técnicas suaves."],
-        [has("embarazo"), "Como está o puede estar embarazada, no se manipularán la zona lumbar ni la pelvis."],
-        [has("metal"), "Como tiene una prótesis o material metálico en la zona, no se manipulará esa articulación."],
+        [ctx.redFlags.length > 0, `Nos ha comentado: ${flagText(ctx)}. Su fisioterapeuta valorará con usted si estas técnicas son adecuadas en su caso.`],
+        [has("osteoporosis"), "Como tiene osteoporosis, el hueso es más frágil y las manipulaciones tienen más riesgo. Su fisioterapeuta valorará con usted si se aplican o se usan técnicas suaves."],
+        [has("cancer"), "Como tiene o ha tenido cáncer, el hueso podría estar afectado y las manipulaciones tienen más riesgo. Su fisioterapeuta lo valorará con usted."],
+        [has("cervical_vascular"), "Como ha tenido problemas en las arterias del cuello, o mareo o vértigo de origen cervical, manipular el cuello tiene más riesgo. Su fisioterapeuta lo valorará con usted."],
+        [has("reuma"), "Como tiene una enfermedad reumática inflamatoria, manipular el cuello tiene más riesgo. Su fisioterapeuta lo valorará con usted."],
+        [zone("cervical"), "Como la zona a tratar es el cuello, existe un riesgo muy raro de lesión de una arteria: su fisioterapeuta le preguntará antes por mareos, vértigo y otros síntomas."],
+        [has("anticoagulantes") || has("coagulacion"), "Como toma anticoagulantes o tiene un trastorno de la coagulación, las manipulaciones, sobre todo del cuello, tienen más riesgo de sangrado: su fisioterapeuta valorará con usted si se aplican o se usan técnicas suaves."],
+        [has("embarazo"), "Como está o puede estar embarazada, manipular la zona lumbar o la pelvis tiene más riesgo: su fisioterapeuta lo valorará con usted."],
+        [has("metal"), "Como tiene una prótesis o material metálico en la zona, manipular esa articulación tiene más riesgo: su fisioterapeuta lo valorará con usted."],
       ]);
     },
   },
@@ -192,7 +191,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 4. Aparatos.
   {
     id: "electroterapia",
-    version: "3",
+    version: "4",
     title: "Electroterapia y otros aparatos",
     summary: "TENS, ultrasonido, tecarterapia, láser, ondas de choque, magnetoterapia, etc.",
     written: "recommended",
@@ -227,16 +226,16 @@ export const TEMPLATES: ConsentTemplate[] = [
     personal(ctx) {
       const has = marked(ctx);
       return pick([
-        [has("marcapasos"), "Como lleva marcapasos u otro implante electrónico, no se le deben aplicar corrientes, diatermia ni magnetoterapia.", true],
-        [has("embarazo"), "Como está o puede estar embarazada, no se aplicarán diatermia ni ondas de choque, ni nada sobre el abdomen, la pelvis o la zona lumbar."],
-        [has("coagulacion"), "Como tiene un trastorno de la coagulación, no se aplicarán ondas de choque."],
-        [has("anticoagulantes"), "Como toma anticoagulantes o antiagregantes, las ondas de choque se aplicarán con menos intensidad o no se aplicarán."],
-        [has("cancer"), "Como tiene o ha tenido cáncer, no se aplicarán sobre la zona afectada."],
-        [has("trombosis"), "Como tiene trombosis o varices importantes, no se aplicarán sobre ellas."],
-        [has("metal"), "Como tiene una prótesis o material metálico en la zona, no se aplicará diatermia sobre ella."],
-        [has("sensibilidad"), "Como tiene la sensibilidad alterada en la zona, se usará menos intensidad y se revisará la piel."],
-        [has("epilepsia"), "Como tiene epilepsia, no se aplicarán en la cabeza ni en el cuello."],
-        [isMinor(ctx), "Como es menor de edad, no se aplicarán ultrasonido, calor profundo ni ondas de choque cerca de los cartílagos de crecimiento."],
+        [has("marcapasos"), "Como lleva marcapasos u otro implante electrónico, las corrientes, la diatermia y la magnetoterapia pueden interferir con él. Su fisioterapeuta valorará con usted qué aparatos se pueden usar."],
+        [has("embarazo"), "Como está o puede estar embarazada, la diatermia, las ondas de choque y cualquier aparato sobre el abdomen, la pelvis o la zona lumbar tienen más riesgo: su fisioterapeuta valorará con usted qué se puede usar."],
+        [has("coagulacion"), "Como tiene un trastorno de la coagulación, las ondas de choque tienen más riesgo de sangrado: su fisioterapeuta lo valorará con usted."],
+        [has("anticoagulantes"), "Como toma anticoagulantes o antiagregantes, las ondas de choque pueden producir más hematomas: su fisioterapeuta valorará con usted la intensidad o si se aplican."],
+        [has("cancer"), "Como tiene o ha tenido cáncer, aplicar aparatos sobre la zona afectada tiene más riesgo: su fisioterapeuta lo valorará con usted."],
+        [has("trombosis"), "Como tiene trombosis o varices importantes, aplicar aparatos sobre ellas tiene más riesgo: su fisioterapeuta lo adaptará."],
+        [has("metal"), "Como tiene una prótesis o material metálico en la zona, la diatermia sobre ella puede calentarlo: su fisioterapeuta lo valorará con usted."],
+        [has("sensibilidad"), "Como tiene la sensibilidad alterada en la zona, puede no notar una intensidad excesiva: su fisioterapeuta usará menos intensidad y revisará la piel."],
+        [has("epilepsia"), "Como tiene epilepsia, aplicar corrientes en la cabeza o el cuello tiene más riesgo: su fisioterapeuta lo valorará con usted."],
+        [isMinor(ctx), "Como es menor de edad, el ultrasonido, el calor profundo y las ondas de choque cerca de los cartílagos de crecimiento tienen más riesgo: su fisioterapeuta lo adaptará."],
       ]);
     },
   },
@@ -244,7 +243,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 5. Suelo pélvico, también por dentro: por escrito (intracavitario e íntimo).
   {
     id: "suelo_pelvico",
-    version: "3",
+    version: "4",
     title: "Suelo pélvico",
     summary: "Exploración y tratamiento del suelo pélvico, también por vía vaginal o anal, con sonda, etc.",
     written: "required",
@@ -276,13 +275,13 @@ export const TEMPLATES: ConsentTemplate[] = [
       const has = marked(ctx);
       const sphincters = ctx.redFlags.some((f) => fold(f).includes("esfinter"));
       return pick([
-        [sphincters, "Nos ha comentado cambios en el control de la orina o las heces: si es algo nuevo, debe verle un médico con urgencia antes de seguir."],
-        [has("embarazo"), "Como está o puede estar embarazada, la exploración por dentro solo se hará si su médico o matrona lo ven adecuado, y sin electroestimulación."],
-        [isMinor(ctx), "Como es menor de edad, la exploración por dentro solo se hará si es imprescindible y con su madre, padre o representante informado."],
+        [sphincters, "Nos ha comentado cambios en el control de la orina o las heces. Su fisioterapeuta lo valorará con usted antes de seguir."],
+        [has("embarazo"), "Como está o puede estar embarazada, la exploración por dentro y la electroestimulación tienen más riesgo: su fisioterapeuta lo valorará con usted y, si hace falta, con su médico o matrona."],
+        [isMinor(ctx), "Como es menor de edad, la exploración por dentro requiere especial cuidado: su fisioterapeuta la valorará con usted y con su madre, padre o representante."],
         [ctx.sex === "male", "En su caso, la exploración por dentro sería por vía anal."],
-        [has("alergia_metal"), "Como tiene alergia al látex o a metales, se usarán guantes y materiales sin látex."],
-        [has("anticoagulantes") || has("coagulacion"), "Como toma anticoagulantes o tiene un trastorno de la coagulación, la exploración será especialmente suave."],
-        [has("marcapasos"), "Como lleva marcapasos u otro implante electrónico, no se usará electroestimulación con sonda."],
+        [has("alergia_metal"), "Como tiene alergia al látex o a metales, los guantes o materiales con látex pueden darle reacción: su fisioterapeuta usará material sin látex."],
+        [has("anticoagulantes") || has("coagulacion"), "Como toma anticoagulantes o tiene un trastorno de la coagulación, la exploración tiene más riesgo de pequeños sangrados: su fisioterapeuta la adaptará."],
+        [has("marcapasos"), "Como lleva marcapasos u otro implante electrónico, la electroestimulación con sonda puede interferir con él: su fisioterapeuta valorará con usted qué se puede usar."],
       ]);
     },
   },

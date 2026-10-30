@@ -1,5 +1,6 @@
-// Las banderas amarillas de la anamnesis (src/clinical/yellowFlags.ts): lo que se ha escrito que las sugiere, qué
-// preguntar y el cuestionario de la app que las mide.
+// Las banderas amarillas de la anamnesis (src/clinical/yellowFlags.ts): las frases escritas que coinciden con la
+// lista de factores psicosociales de Nicholas et al. (2011), con los cuestionarios de la biblioteca sobre el tema. La
+// app solo busca palabras: no valora al paciente.
 import { ClipboardList } from "lucide-react";
 import { Link } from "react-router";
 import type { Answers } from "../data/clinical";
@@ -12,9 +13,11 @@ export function YellowFlagPanel({ answers, labelOf, patientId, links = true }: {
   return (
     <section aria-labelledby="h-amarillas" className="flex flex-col gap-3 rounded-lg border-2 border-warning bg-bg p-4">
       <h3 id="h-amarillas" className="text-lg">
-        Banderas amarillas: {hits.length === 1 ? "1 factor" : `${hits.length} factores`} a valorar
+        Banderas amarillas: {hits.length === 1 ? "1 frase anotada" : `${hits.length} frases anotadas`}
       </h3>
-      <p className="text-sm text-text-muted">Factores psicológicos y sociales que pueden alargar el dolor. Pregunta y, si se confirma, mídelo con su cuestionario.</p>
+      <p className="text-sm text-text-muted">
+        Frases de la anamnesis que coinciden con la lista de factores psicosociales de Nicholas et al. (2011). La app solo busca palabras: no valora al paciente.
+      </p>
       <ul className="flex flex-col gap-3">
         {hits.map((h) => (
           <li key={h.flag.id} className="flex flex-col gap-1 rounded-md bg-warning-soft p-3">
@@ -23,6 +26,7 @@ export function YellowFlagPanel({ answers, labelOf, patientId, links = true }: {
               En «{h.field}»: «{h.quote}»
             </span>
             <span className="text-sm">{h.flag.ask}</span>
+            <span className="text-xs text-text-muted">Cuestionarios de la biblioteca sobre este tema:</span>
             <span className="flex flex-wrap gap-x-4 gap-y-1">
               {h.flag.measure.map((q) =>
                 links ? (
@@ -40,7 +44,7 @@ export function YellowFlagPanel({ answers, labelOf, patientId, links = true }: {
         ))}
       </ul>
       <p className="text-xs text-text-muted">
-        No etiqueta al paciente: es para preguntar y medir. Fuente:{" "}
+        No es una valoración del paciente. Fuente:{" "}
         <a className="font-semibold text-accent underline" href="https://doi.org/10.2522/ptj.20100224" target="_blank" rel="noreferrer">
           Nicholas et al., Phys Ther 2011
         </a>

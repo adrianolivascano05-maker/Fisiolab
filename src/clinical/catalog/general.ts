@@ -20,7 +20,7 @@ export const KINDS: QuestionnaireKind[] = [
     max: 10,
     better: "lower",
     topic: "Persona mayor",
-    hint: "Cribado rápido de sarcopenia (fuerza, ayuda para caminar, levantarse de la silla, subir escaleras y caídas); si sale positivo, hay que medir la fuerza de prensión, la masa muscular y el rendimiento físico (EWGSOP2).",
+    hint: "Cribado rápido de sarcopenia (fuerza, ayuda para caminar, levantarse de la silla, subir escaleras y caídas); el consenso EWGSOP2 propone después medir la fuerza de prensión, la masa muscular y el rendimiento físico.",
     refs: "Malmstrom y Morley, 2013 (original), DOI 10.1016/j.jamda.2013.05.018; Parra-Rodríguez et al., 2016 (validación al español, México), DOI 10.1016/j.jamda.2016.09.008; Malmstrom et al., 2016 (punto de corte), DOI 10.1002/jcsm.12048",
     ranges: {
       title: "Punto de corte",
@@ -38,7 +38,7 @@ export const KINDS: QuestionnaireKind[] = [
     max: 5,
     better: "lower",
     topic: "Persona mayor",
-    hint: "Cribado de fragilidad con 5 preguntas (fatiga, resistencia, deambulación, enfermedades y pérdida de peso), que ayuda a orientar la dosis de ejercicio y a derivar a geriatría.",
+    hint: "Cribado de fragilidad con 5 preguntas (fatiga, resistencia, deambulación, enfermedades y pérdida de peso), propuesto por sus autores para identificar fragilidad.",
     refs: "Morley et al., 2012 (original), DOI 10.1007/s12603-012-0084-2; Rosas-Carrasco et al., 2016 (validación al español, México), DOI 10.1016/j.jamda.2016.07.008",
   },
   {
@@ -124,14 +124,14 @@ export const KINDS: QuestionnaireKind[] = [
     max: 5,
     better: "lower",
     topic: "Hipermovilidad",
-    hint: "Cribado autoinformado de hipermovilidad articular generalizada (2 o más «sí» es positivo), como complemento a la escala de Beighton en dolor musculoesquelético difuso, inestabilidad articular recurrente o sospecha de trastorno del espectro de la hipermovilidad o de Ehlers-Danlos hipermóvil.",
+    hint: "Cribado autoinformado de hipermovilidad articular generalizada (punto de corte de los autores: 2 o más «sí»), como complemento a la escala de Beighton en dolor musculoesquelético difuso, inestabilidad articular recurrente o sospecha de trastorno del espectro de la hipermovilidad o de Ehlers-Danlos hipermóvil.",
     refs: "Hakim y Grahame, 2003 (original), PMID 12723715 (el DOI no figura en PubMed); Aranda-Sánchez et al., 2023 (adaptación cultural al español y fiabilidad, Perú), DOI 10.5867/medwave.2023.01.2575; sin validación en España",
     ranges: {
       title: "Punto de corte",
       cite: "Hakim y Grahame, 2003, Int J Clin Pract, PMID 12723715",
       rows: [
         { from: 0, to: 1, label: "Menos de 2 «sí»" },
-        { from: 2, to: 5, label: "2 o más «sí»: el corte del cuestionario para detectar hipermovilidad" },
+        { from: 2, to: 5, label: "2 o más «sí» (punto de corte de los autores)" },
       ],
     },
   },

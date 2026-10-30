@@ -42,10 +42,15 @@ con el colegio profesional o la asesoría jurídica de la clínica antes de usar
 - **Se proponen solos**: el de valoración y tratamiento siempre; los demás si el plan de intervención o el
   diagnóstico los nombran (punción, electrólisis, manipulación, TENS, ondas de choque, suelo pélvico…). El resumen
   de la ficha avisa de los que la ley pide por escrito y faltan.
-- **Riesgos personales**: cada plantilla añade los suyos según las precauciones marcadas, la zona, la edad y las
-  banderas rojas («Como toma anticoagulantes, el riesgo de hematoma es mayor…»). Las contraindicaciones absolutas
-  salen en rojo para el fisioterapeuta. Lo que está escrito en el texto libre y no marcado («Sintrom») solo avisa al
+- **Riesgos personales**: cada plantilla añade los suyos según las precauciones marcadas, la zona, el sexo y las
+  banderas rojas marcadas: cada una añade la información de riesgos que corresponde («…tiene más riesgo. Su
+  fisioterapeuta lo valorará con usted»), sin decidir por el profesional. La pantalla enseña lo que consta en la
+  anamnesis («Consta en la anamnesis»); la app no da veredictos de contraindicación (revisión del 30-10-2026; las
+  plantillas pasaron a la versión «4»). Lo que está escrito en el texto libre y no marcado («Sintrom») solo avisa al
   fisioterapeuta: no pasa al documento hasta que se marca.
+- **Versiones**: la «4» es la del 30-10-2026 (textos sin veredicto). La próxima reescritura completa de los
+  consentimientos (pendiente: antes hay que revisar los riesgos de cada técnica con el colegio o el seguro) tendrá que
+  usar la versión «5».
 - **Lo firmado no cambia**: se guarda el texto entero y la versión de la plantilla. Un consentimiento firmado no se
   borra (es historia clínica): se retira, con fecha, motivo y, si está, la firma del paciente.
 - **Motivo de consulta**: cada consentimiento va al motivo que se está viendo, como las sesiones.

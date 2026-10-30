@@ -115,7 +115,7 @@ export const KINDS: QuestionnaireKind[] = [
       label: "Permiso: ePROVIDE · Mapi Research Trust",
     },
     ranges: {
-      title: "Punto de corte para detectar insomnio en población general",
+      title: "Punto de corte publicado (población general)",
       cite: "Morin et al., 2011, Sleep, DOI 10.1093/sleep/34.5.601",
       rows: [
         { from: 0, to: 9, label: "Menos de 10" },
@@ -156,7 +156,7 @@ export const KINDS: QuestionnaireKind[] = [
     max: 12,
     better: "lower",
     topic: "Estado de ánimo",
-    hint: "Forma corta que junta el PHQ-2 y el GAD-2 (los 2 primeros ítems del PHQ-9 y del GAD-7): cribado de 1 minuto; si sale positivo, pasar el PHQ-9 o el GAD-7 completo.",
+    hint: "Forma corta que junta el PHQ-2 y el GAD-2 (los 2 primeros ítems del PHQ-9 y del GAD-7): cribado de 1 minuto; sus autores proponen pasar el PHQ-9 o el GAD-7 completo si se supera el punto de corte.",
     refs: "Kroenke et al., 2009 (original), DOI 10.1176/appi.psy.50.6.613; Cano-Vindel et al., 2018 (validación española, atención primaria), DOI 10.1016/j.jad.2018.01.030; Löwe et al., 2009 (normas en población general), DOI 10.1016/j.jad.2009.06.019",
   },
 ];

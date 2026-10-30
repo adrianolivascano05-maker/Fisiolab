@@ -75,4 +75,28 @@ test.describe("Consentimientos", () => {
     // Retirado: vuelve a proponerse.
     await expect(page.getByRole("region", { name: "Propuestos para este paciente" })).toContainText("Tratamientos invasivos");
   });
+
+  test("CI2 con osteoporosis y manipulación, la app no dice «contraindicado»: enseña lo que consta y la decisión es del fisio", async ({ page }) => {
+    await createPatient(page, { name: "Rosa Osteoporosis" });
+    await tab(page, "Anamnesis").click();
+    await page.getByLabel("Motivo principal").fill("Dolor lumbar");
+    await page.getByText("Osteoporosis", { exact: true }).click();
+    await page.getByLabel("Plan de intervención propuesto").fill("Manipulación lumbar y ejercicio");
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByRole("button", { name: "Editar" })).toBeVisible();
+    await page.goto(page.url().replace(/\/anamnesis$/, "/consentimientos"));
+    await expect(page.getByRole("heading", { name: "Consentimientos" })).toBeVisible();
+    const proposed = page.getByRole("region", { name: "Propuestos para este paciente" });
+    await expect(proposed).toContainText("Manipulaciones articulares");
+    await expect(page.getByText(/Contraindicado/)).toHaveCount(0);
+    await proposed.getByRole("link", { name: /Manipulaciones articulares/ }).click();
+    const notice = page.getByRole("status").filter({ hasText: "Consta en la anamnesis" });
+    await expect(notice).toBeVisible();
+    await expect(notice.getByRole("listitem")).toHaveText(["Osteoporosis"]);
+    await expect(notice).toContainText("La decisión es tuya.");
+    await expect(page.getByText(/Contraindicado|no se le debe/)).toHaveCount(0);
+    // En el documento, el riesgo y que el fisioterapeuta lo valora con el paciente.
+    await expect(page.locator("article")).toContainText("Como tiene osteoporosis, el hueso es más frágil y las manipulaciones tienen más riesgo. Su fisioterapeuta valorará con usted");
+    await expectAccessible(page);
+  });
 });

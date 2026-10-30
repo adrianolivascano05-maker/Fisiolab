@@ -25,6 +25,8 @@ test.describe("F02 Medir un CMJ", () => {
     await expect(page.getByText("30,7", { exact: true })).toBeVisible();
     await expect(page.getByText("Tiempo de vuelo 500 ms")).toBeVisible();
     await expect(page.getByText("Potencia media")).toBeVisible();
+    // Cada medición dice que su precisión no está comprobada frente a un sistema de referencia.
+    await expect(page.getByText(/Su precisión aún no se ha comprobado/)).toBeVisible();
     await expectAccessible(page);
 
     await page.reload();

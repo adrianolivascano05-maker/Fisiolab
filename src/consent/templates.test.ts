@@ -27,13 +27,12 @@ const IDS = ["general", "invasiva", "manipulacion", "electroterapia", "suelo_pel
 const suggested = (planText: string) => TEMPLATES.filter((t) => t.suggest(ctx({ planText })) !== null).map((t) => t.id);
 
 const texts = (id: string, over: Partial<ConsentContext>) => tpl(id).personal(ctx(over)).map((r) => r.text).join("\n");
-const absolutes = (id: string, over: Partial<ConsentContext>) => tpl(id).personal(ctx(over)).filter((r) => r.absolute).map((r) => r.text);
 
 describe("plantillas de consentimiento", () => {
   it("las cinco, con ids únicos, versión y textos cortos", () => {
     expect(TEMPLATES.map((t) => t.id)).toEqual(IDS);
     for (const t of TEMPLATES) {
-      expect(t.version, t.id).toBe("3");
+      expect(t.version, t.id).toBe("4");
       expect(t.title.trim(), t.id).not.toBe("");
       expect(t.summary, t.id).toMatch(/, etc\.$/);
       expect(t.description.length, t.id).toBeLessThanOrEqual(2);
@@ -101,39 +100,43 @@ describe("suggest: palabras del plan, sin tildes ni mayúsculas", () => {
 });
 
 describe("personal: lo de cada paciente según su anamnesis", () => {
-  it("invasiva y anticoagulantes: más moratones, no absoluta", () => {
+  it("invasiva y anticoagulantes: más moratones", () => {
     const r = tpl("invasiva").personal(ctx({ precautions: ["anticoagulantes"] }));
     expect(r).toHaveLength(1);
     expect(r[0].text).toMatch(/^Como toma anticoagulantes o antiagregantes, es más fácil que salga un moratón/);
-    expect(r[0].absolute).toBeFalsy();
   });
 
-  it("contraindicaciones absolutas, una precaución cada vez", () => {
-    const found: string[] = [];
+  const ZONES = [[], ["cervical"], ["dorsal"], ["lumbar"], ["sacroiliaca"], ["hombro"], ["rodilla"]];
+  const FLAGS = [[], ["Dolor nocturno que no cede con el reposo", "Alteración de esfínteres o anestesia en silla de montar"]];
+
+  it("ninguna plantilla da veredictos: sin «absolute» y sin «no se debe», «con urgencia» ni «Contraindicado»", () => {
     for (const t of TEMPLATES) {
-      for (const p of PRECAUTIONS) {
-        if (t.personal(ctx({ precautions: [p.id] })).some((r) => r.absolute)) found.push(`${t.id}+${p.id}`);
+      for (const p of [...PRECAUTIONS.map((x) => [x.id]), PRECAUTIONS.map((x) => x.id)]) {
+        for (const regions of ZONES) {
+          for (const redFlags of FLAGS) {
+            for (const r of t.personal(ctx({ precautions: p, regions, redFlags, age: 70 }))) {
+              expect(Object.keys(r), `${t.id}: ${r.text}`).toEqual(["text"]);
+              expect(r.text, `${t.id}: ${r.text}`).not.toMatch(/no se le debe|no se debe|con urgencia|Contraindicado/);
+            }
+          }
+        }
       }
     }
-    expect(found.sort()).toEqual(
-      ["invasiva+coagulacion", "invasiva+linfedema", "electroterapia+marcapasos", "manipulacion+osteoporosis", "manipulacion+cancer"].sort(),
-    );
   });
 
-  it("manipulación: banderas rojas, y arterias del cuello o artritis inflamatoria solo si es el cuello", () => {
-    expect(absolutes("manipulacion", { redFlags: ["Dolor nocturno que no cede con el reposo"] })).toHaveLength(1);
-    expect(texts("manipulacion", { redFlags: ["Dolor nocturno que no cede con el reposo"] })).toContain("dolor nocturno que no cede con el reposo");
-    expect(absolutes("manipulacion", { precautions: ["cervical_vascular"], regions: ["cervical"] })).toHaveLength(1);
-    expect(absolutes("manipulacion", { precautions: ["cervical_vascular"], regions: ["lumbar"] })).toHaveLength(0);
-    expect(texts("manipulacion", { precautions: ["cervical_vascular"], regions: ["lumbar"] })).toMatch(/no se le debe manipular el cuello/);
-    expect(absolutes("manipulacion", { precautions: ["reuma"], regions: ["cervical"] })).toHaveLength(1);
-    expect(absolutes("manipulacion", { precautions: ["reuma"] })).toHaveLength(0);
+  it("manipulación: banderas rojas y precauciones, dichas como riesgo que valora el fisioterapeuta", () => {
+    const flagged = texts("manipulacion", { redFlags: ["Dolor nocturno que no cede con el reposo"] });
+    expect(flagged).toContain("dolor nocturno que no cede con el reposo");
+    expect(flagged).toContain("valorará con usted");
+    expect(texts("manipulacion", { precautions: ["cervical_vascular"], regions: ["lumbar"] })).toMatch(/manipular el cuello tiene más riesgo/);
+    expect(texts("manipulacion", { precautions: ["reuma"] })).toMatch(/enfermedad reumática inflamatoria/);
+    expect(texts("manipulacion", { precautions: ["osteoporosis"] })).toMatch(/valorará con usted si se aplican o se usan técnicas suaves/);
   });
 
-  it("manipulación: aviso si es el cuello y hueso más frágil desde los 65", () => {
+  it("manipulación: aviso si es el cuello; la edad sola no añade nada", () => {
     expect(texts("manipulacion", { regions: ["cervical"] })).toMatch(/arteria/);
     expect(texts("manipulacion", { regions: ["lumbar"] })).toBe("");
-    expect(texts("manipulacion", { age: 70 })).toMatch(/Como tiene 70 años, el hueso puede ser más frágil/);
+    expect(texts("manipulacion", { age: 70 })).toBe("");
     expect(texts("manipulacion", { age: 64 })).toBe("");
   });
 
@@ -142,11 +145,12 @@ describe("personal: lo de cada paciente según su anamnesis", () => {
     expect(texts("invasiva", { regions: ["lumbar", "rodilla"] })).not.toMatch(/neumotórax/);
   });
 
-  it("invasiva y embarazo: absoluta solo si la zona es lumbar o pélvica", () => {
-    expect(absolutes("invasiva", { precautions: ["embarazo"], regions: ["lumbar"] })).toHaveLength(1);
-    expect(absolutes("invasiva", { precautions: ["embarazo"], regions: ["sacroiliaca"] })).toHaveLength(1);
-    expect(absolutes("invasiva", { precautions: ["embarazo"], regions: ["hombro"] })).toHaveLength(0);
-    expect(texts("invasiva", { precautions: ["embarazo"], regions: ["hombro"] })).toMatch(/no se pincha la zona lumbar/);
+  it("invasiva y embarazo: el mismo texto en cualquier zona, y lo valora el fisioterapeuta", () => {
+    for (const regions of [["lumbar"], ["sacroiliaca"], ["hombro"]]) {
+      const t = texts("invasiva", { precautions: ["embarazo"], regions });
+      expect(t, regions.join()).toMatch(/en general no se pincha la zona lumbar/);
+      expect(t, regions.join()).toMatch(/lo valorará con usted/);
+    }
   });
 
   it("aparatos en menores: cartílagos de crecimiento", () => {
@@ -154,11 +158,10 @@ describe("personal: lo de cada paciente según su anamnesis", () => {
     expect(texts("electroterapia", { age: 18 })).toBe("");
   });
 
-  it("suelo pélvico y embarazo: según su médico o matrona, no absoluta", () => {
+  it("suelo pélvico y embarazo: con su médico o matrona", () => {
     const r = tpl("suelo_pelvico").personal(ctx({ precautions: ["embarazo"] }));
     expect(r).toHaveLength(1);
     expect(r[0].text).toMatch(/médico o matrona/);
-    expect(r[0].absolute).toBeFalsy();
     expect(texts("suelo_pelvico", { sex: "male" })).toMatch(/vía anal/);
     expect(texts("suelo_pelvico", { sex: "female" })).toBe("");
   });
@@ -174,7 +177,7 @@ describe("personal: lo de cada paciente según su anamnesis", () => {
     for (const t of TEMPLATES) expect(t.personal(ctx({ detected })), t.id).toEqual([]);
   });
 
-  it("los textos van en segunda persona, sin huecos y en una frase", () => {
+  it("los textos van en segunda persona, sin huecos y en una o dos frases", () => {
     const full = ctx({
       age: 70,
       sex: "male",
@@ -184,10 +187,10 @@ describe("personal: lo de cada paciente según su anamnesis", () => {
     });
     for (const t of TEMPLATES) {
       for (const r of t.personal(full)) {
-        expect(r.text, t.id).toMatch(/^(Como |Nos ha comentado |En su caso)/);
+        expect(r.text, t.id).toMatch(/^(Como |Nos ha comentado[: ]|En su caso)/);
         expect(r.text, t.id).not.toMatch(/undefined|null|\$\{/);
         expect(r.text.endsWith("."), r.text).toBe(true);
-        expect(r.text.slice(0, -1), r.text).not.toMatch(/\. [A-ZÁÉÍÓÚ]/);
+        expect(r.text.split(". ").length, r.text).toBeLessThanOrEqual(2);
       }
     }
   });

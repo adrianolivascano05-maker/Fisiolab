@@ -25,7 +25,7 @@ import { draftDiagnosis, personalFactors } from "./cif/prose";
 import { autoProfile, evidenceFrom } from "./cif/suggest";
 import { cifPhrases, informsText, latestQuestionnaires } from "./referral";
 import { symmetryRows } from "./symmetry";
-import { redFlagReview, type FlagHit } from "./redFlags";
+import { redFlagReview } from "./redFlags";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { SharePdf } from "./SharePdf";
 
@@ -41,7 +41,6 @@ const PRIORITY: Record<Exclude<Priority, "">, string> = {
 };
 const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const listText = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} y ${xs.at(-1)}`);
-const how = (h: FlagHit) => (h.from === "marcada" ? "" : h.from === "paciente" ? " (referido por el paciente)" : " (anotado en la anamnesis, por confirmar)");
 
 export function ReferralPage() {
   const { id = "" } = useParams();
@@ -86,7 +85,8 @@ export function ReferralPage() {
       const entries = own.length ? own : autoProfile(evidence, (c) => titles.get(c), new Set());
       if (!live) return;
       setCif({ titles, profile: entries.map(readEntry).flatMap((e) => (e ? [e.coded] : [])) });
-      const { hits } = redFlagReview(a);
+      // Solo las banderas rojas confirmadas por el profesional: la carta no afirma lo que nadie ha comprobado.
+      const confirmed = redFlagReview(a).hits.filter((h) => h.from === "marcada");
       const years = ageOn(patient.birthDate);
       const motivo = typeof a.motivo === "string" ? a.motivo.trim() : "";
       const phrases = cifPhrases(entries);
@@ -94,7 +94,7 @@ export function ReferralPage() {
         [
           `${years !== null ? `Paciente de ${years} años` : "Paciente"}${motivo ? ` que consulta por ${lower(motivo).replace(/\.$/, "")}` : " valorado en fisioterapia"}.`,
           phrases.length ? `Según la CIF, presenta ${listText(phrases)}.` : "",
-          hits.length ? `En la valoración presenta: ${listText(hits.map((h) => `${lower(h.flag.label)}${how(h)}`))}.` : "",
+          confirmed.length ? `Refiere: ${listText(confirmed.map((h) => lower(h.flag.label)))}.` : "",
           "Solicito su valoración.",
         ]
           .filter(Boolean)
@@ -122,7 +122,7 @@ export function ReferralPage() {
   const { patient, anamnesis, clinic, questionnaires } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
   const a = anamnesis?.answers ?? {};
-  const { hits } = redFlagReview(a);
+  const confirmed = redFlagReview(a).hits.filter((h) => h.from === "marcada");
   const years = ageOn(patient.birthDate);
   const results = latestQuestionnaires(questionnaires);
   const today = new Date().toISOString();
@@ -213,14 +213,11 @@ export function ReferralPage() {
           <Block title="Motivo de la derivación">
             <p className="whitespace-pre-line">{reason.trim() || "—"}</p>
           </Block>
-          {hits.length > 0 && (
+          {confirmed.length > 0 && (
             <Block title="Banderas rojas (signos y síntomas)">
               <ul className="flex list-disc flex-col gap-0.5 pl-5">
-                {hits.map((h) => (
-                  <li key={h.flag.id}>
-                    {h.flag.label}
-                    {how(h)}
-                  </li>
+                {confirmed.map((h) => (
+                  <li key={h.flag.id}>{h.flag.label}</li>
                 ))}
               </ul>
             </Block>

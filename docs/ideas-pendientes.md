@@ -663,6 +663,8 @@ cambios, copia cifrada, rate limit).
 
 ## Revisión legal: producto sanitario, protección de datos y licencias (29-10-2026)
 
+Lo que aquí se describe como quitado ya no está en la app: es la historia de los cambios.
+
 Lista del usuario, hecha por tandas y en su orden. Nada de esto está validado por un abogado ni por una autoridad
 sanitaria: son los cambios que pide la revisión.
 
@@ -799,9 +801,19 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   «en su móvil, por enlace» con la hora real de la firma). Los enlaces de firma pendientes se anulan solos al abrir
   la app y antes de cada recogida (`cancelSignLinks`); una firma que llegue por uno de ellos no se guarda y la app
   avisa de que se firme en la clínica. El paciente que abra uno lee «Este documento se firma en la clínica».
-- **Parte 3 · Que la app nunca saque conclusiones sobre un paciente** (finalidad prevista en un solo sitio,
-  consentimientos sin «contraindicado», CIF sin propuestas, simetría sin umbral, bienestar sin semáforo, banderas como
-  lista, cuestionarios con rangos solo de referencia, mediciones con su límite, biblioteca sin órdenes). Pendiente.
+- **Parte 3a · Textos para que la app no concluya nada sobre un paciente (hecha el 30-10-2026).** Finalidad
+  prevista en un solo sitio (`src/app/purpose.ts`: ayuda, pie de los documentos, exportación, Ajustes › Protección
+  de datos, línea de cada medición; copiada en el manifiesto, `index.html`, la política de privacidad y el contrato de
+  encargado, que pasa a la versión `2026-10-30`: hay que pegar el `worker.js` otra vez). Consentimientos sin
+  «Contraindicado»: fuera `absolute`, las frases dicen el riesgo y que el fisioterapeuta lo valora, la pantalla
+  enseña «Consta en la anamnesis», plantillas en la versión «4» (la próxima reescritura, la «5»). Banderas rojas
+  como lista de comprobación sin rojo ni enlace a la carta; la carta de derivación solo lleva las confirmadas
+  («Refiere: …»). Banderas amarillas como «frases anotadas». Rangos de los cuestionarios como referencia publicada;
+  textos de StarT Back, 3Q/TMD, HIT-6, SARC-F, FRAIL, hipermovilidad, insomnio, PHQ-4 y CAIT sin órdenes. Mediciones
+  con su línea de precisión sin comprobar; perfil fuerza-velocidad sin «déficit». Formulario de anamnesis del
+  paciente: lo lee antes de la consulta, lo urgente al 112.
+- **Parte 3b · Funciones (CIF sin propuestas, simetría sin umbral, bienestar sin semáforo, biblioteca sin órdenes)
+  y comprobación final.** Pendiente.
 - **Parte 4 · Copia del dispositivo antes de cada actualización de la base.** Pendiente.
 - **Parte 5 · PIN: contraseña de la clínica o código de recuperación para poner un PIN nuevo.** Pendiente.
 - **Parte 6 · Exportación cifrada y recordatorio semanal.** Pendiente.

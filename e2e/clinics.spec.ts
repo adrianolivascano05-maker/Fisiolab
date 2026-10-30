@@ -828,6 +828,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await phone.goto(anamnesisLink);
     await expect(phone.getByRole("heading", { name: "Hola, Nora" })).toBeVisible({ timeout: 15_000 });
     await expect(phone.getByText("Fisiolab Centro te pide que rellenes unas preguntas sobre tu salud")).toBeVisible();
+    // No es una consulta a distancia: lo leerá antes de la cita; lo urgente, al 112.
+    await expect(phone.getByText(/llama al 112/)).toBeVisible();
     // Con la marca de la clínica: su nombre en la cabecera, sus colores y su título; el servidor no la ve.
     await expect(phone.getByRole("banner")).toContainText("Clínica Aurora");
     expect(await phone.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--color-brand").trim().toUpperCase())).not.toBe("#0E3B2E");

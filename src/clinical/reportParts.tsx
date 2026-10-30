@@ -3,6 +3,7 @@
 // agua y los apartados con su título. Los documentos se generan cada vez: llevan la marca que haya ahora. Con marca,
 // el membrete sigue sus opciones (src/brand/brand.ts, `letterhead`): el logo a la derecha, a la izquierda o centrado,
 // el lema, con o sin datos de contacto, la banda de color y un pie propio junto a la firma.
+import { DOC_FOOTER } from "../app/purpose";
 import { useEffect, useState, type ReactNode } from "react";
 import { ownIdentity, useBrand } from "../brand/brand";
 import { MADE_WITH, Watermark } from "../brand/docs";
@@ -72,9 +73,6 @@ export function Block({ title, children }: { title: string; children: ReactNode 
   );
 }
 
-/** Lo que es la app: registra y organiza; no decide nada clínico (va al pie de los informes y en la ayuda). */
-export const RECORD_ONLY = "OmniClin registra y organiza; las decisiones clínicas son del profesional.";
-
 /** La firma dibujada de quien usa la app (Ajustes › Clínica), si la tiene; null mientras se lee o si no la hay. */
 function usePhysioSignature(): string | null {
   const [png, setPng] = useState<string | null>(null);
@@ -112,7 +110,7 @@ export function SignatureLine({ name, license, date }: { name: string; license: 
       </div>
       {footer && <p className="break-inside-avoid border-t border-border pt-2 text-xs text-text-muted">{footer}</p>}
       <p className="text-xs text-text-muted">
-        {MADE_WITH} {RECORD_ONLY}
+        {MADE_WITH} {DOC_FOOTER}
       </p>
     </footer>
   );

@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { SUPPORT_EMAIL } from "../app/contact";
 import { Page } from "../app/Page";
-import { RECORD_ONLY } from "../clinical/reportParts";
+import { PURPOSE_LONG, PURPOSE_SHORT } from "../app/purpose";
 import { Card } from "../ui/Card";
 
 // Enlaces dentro de una frase: el relleno vertical agranda la zona táctil (44 px) sin mover el texto.
@@ -36,9 +36,9 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "Consentimientos",
     body: (
       <>
-        En el Resumen › Legal, <b>Consentimientos informados</b>: la app propone los que necesita según su anamnesis (punción, manipulación, suelo pélvico…), con sus
-        riesgos personales ya escritos si marcas sus <b>precauciones</b> en la anamnesis. Se firman con el dedo en la pantalla o se imprimen, y se
-        pueden retirar.
+        En el Resumen › Legal, <b>Consentimientos informados</b>: arriba salen los que nombra tu plan de intervención (punción, manipulación, suelo
+        pélvico…). Si marcas sus <b>precauciones</b> en la anamnesis, el documento incluye la información de riesgos de cada una para que la revises. Se
+        firman con el dedo en la pantalla o se imprimen, y se pueden retirar.
       </>
     ),
   },
@@ -147,8 +147,7 @@ export function HelpPage() {
   return (
     <Page title="Cómo se usa" backTo="/ajustes">
       <p className="rounded-md bg-accent-soft p-3 text-sm">
-        <b>Qué es OmniClin.</b> Una herramienta de registro y organización para tu práctica: fichas, anamnesis, mediciones, sesiones y agenda, todo a
-        mano. No diagnostica ni decide tratamientos. {RECORD_ONLY}
+        <b>Qué es OmniClin.</b> {PURPOSE_SHORT}
       </p>
       <ol aria-label="Pasos" className="flex flex-col gap-3">
         {steps.map((s, i) => (
@@ -241,6 +240,12 @@ export function HelpPage() {
         <h2 id="h-acerca" className="text-lg">
           Acerca de
         </h2>
+        <h3 className="font-semibold">{PURPOSE_LONG.title}</h3>
+        {PURPOSE_LONG.paragraphs.map((t) => (
+          <p key={t.slice(0, 24)} className="text-sm">
+            {t}
+          </p>
+        ))}
         <p className="text-sm">Versión: {__APP_VERSION__}</p>
         <p className="text-sm">
           OmniClin usa programas y letras de otros, publicados con licencias libres:{" "}

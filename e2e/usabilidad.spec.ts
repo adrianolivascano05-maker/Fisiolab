@@ -58,22 +58,34 @@ test.describe("Comodidad del día a día", () => {
     await expect(alarms).not.toContainText("Fiebre o malestar general");
     await expect(alarms).not.toContainText(/Posible|Urgente|Preferente|No apliques|médico/);
     await expectAccessible(page);
-    // Confirmarla la marca en «Banderas rojas».
+    // Sin confirmar, la carta de derivación no la incluye; y el panel ya no enlaza a la carta (está en Resumen).
+    await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    await expect(page.getByRole("button", { name: "Editar" })).toBeVisible();
+    await expect(page.getByRole("region", { name: /Banderas rojas/ }).getByRole("link")).toHaveCount(0);
+    const toLetter = async () => {
+      await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
+      await page.getByRole("link", { name: /^Carta de derivación/ }).click();
+    };
+    await toLetter();
+    const letter = page.getByRole("article", { name: "Carta de derivación" });
+    await expect(letter).toContainText("Solicito su valoración.");
+    await expect(letter).not.toContainText(/Mareo|por confirmar|Banderas rojas/);
+
+    // Confirmarla la marca en «Banderas rojas»; entonces sí va en la carta. La prioridad no la propone la app.
+    await page.goBack();
+    await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Anamnesis" }).click();
+    await page.getByRole("button", { name: "Editar" }).click();
     await alarms.getByRole("button", { name: /Confirmar.*Mareo/ }).click();
     await expect(page.getByRole("checkbox", { name: /^Mareo, visión doble/ })).toBeChecked();
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
-    await expect(page.getByRole("link", { name: "Carta de derivación a su médico" })).toBeVisible();
     const confirmed = page.getByRole("region", { name: /Banderas rojas/ }).locator("div", { has: page.getByText("Confirmadas", { exact: true }) });
     await expect(confirmed.getByRole("listitem")).toHaveText(/^Mareo, visión doble/);
-
-    // La carta de derivación sale redactada con las banderas rojas; la prioridad no la propone la app.
-    await page.getByRole("link", { name: "Carta de derivación a su médico" }).click();
+    await toLetter();
     await expect(page.getByRole("radio", { name: "Sin indicar" })).toBeChecked();
-    const letter = page.getByRole("article", { name: "Carta de derivación" });
     await expect(letter).toContainText("Banderas rojas (signos y síntomas)");
-    await expect(letter).toContainText("Mareo, visión doble");
+    await expect(letter).toContainText(/Refiere: mareo, visión doble/);
     await expect(letter).toContainText("Solicito su valoración.");
-    await expect(letter).not.toContainText(/Prioridad|descartar|Posible/);
+    await expect(letter).not.toContainText(/Prioridad|descartar|Posible|por confirmar/);
     await page.getByLabel("Dirigida a").fill("Dra. Ruiz, Atención Primaria");
     await expect(letter).toContainText("Dra. Ruiz, Atención Primaria");
     await expectAccessible(page);
