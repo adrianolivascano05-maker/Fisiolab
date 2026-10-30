@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { expect, expectAccessible, loadSeed, test, withoutCloud } from "./fixtures";
+import { downloadFrom, expect, expectAccessible, loadSeed, test, withoutCloud } from "./fixtures";
 
 // Simulacro de desastre: se pierde el móvil. Con la copia de seguridad descargada, en un dispositivo nuevo (otro
 // navegador, sin nada guardado) se restaura y tiene que estar todo: pacientes, anamnesis, sesiones, valoraciones,
@@ -46,7 +46,7 @@ test("SIM1 se pierde el móvil: en uno nuevo, la copia de seguridad lo devuelve 
   expect(before.pacientes).toMatch(/Marcos Vidal.*Lucía Herr|Lucía Herr.*Marcos Vidal/);
 
   await page.goto("./ajustes/datos");
-  const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar copia de seguridad" }).click()]);
+  const dl = await downloadFrom(page, page.getByRole("button", { name: "Descargar copia de seguridad" }));
   const backup = (await dl.path())!;
 
   // El móvil nuevo: otro navegador, vacío.

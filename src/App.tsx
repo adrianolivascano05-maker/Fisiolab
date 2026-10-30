@@ -75,6 +75,7 @@ const PublicFormPage = lazy(() => import("./patientForm/PublicFormPage").then((m
 // Compartir → OmniClin (Android): archivos que llegan de otra app para la ficha de un paciente.
 const SharedFilesPage = lazy(() => import("./documents/SharedFilesPage").then((m) => ({ default: m.SharedFilesPage })));
 const OldLinkPage = lazy(() => import("./app/OldLinkPage").then((m) => ({ default: m.OldLinkPage })));
+const OpenEncryptedPage = lazy(() => import("./export/OpenEncrypted").then((m) => ({ default: m.OpenEncryptedPage })));
 const ToBillPage = lazy(() => import("./invoices/ToBillPage").then((m) => ({ default: m.ToBillPage })));
 const IssuedInvoicesPage = lazy(() => import("./invoices/IssuedInvoicesPage").then((m) => ({ default: m.IssuedInvoicesPage })));
 const InvoicePage = lazy(() => import("./invoices/InvoicePage").then((m) => ({ default: m.InvoicePage })));
@@ -173,10 +174,11 @@ function Router() {
 }
 
 /**
- * Las páginas que abre el paciente sin cuenta: su formulario (…/formulario/<id>#<clave>). Van sin la base, sin PIN y
- * sin la app. Los enlaces antiguos de la reserva por internet y para anular una cita dicen que se hable con la clínica.
+ * Las páginas que se abren sin cuenta: el formulario del paciente (…/formulario/<id>#<clave>) y «Abrir una copia
+ * cifrada» (/abrir-copia, también sin conexión). Van sin la base, sin PIN y sin la app. Los enlaces antiguos de la
+ * reserva por internet y para anular una cita dicen que se hable con la clínica.
  */
-const PUBLIC_PAGES = { formulario: PublicFormPage, reservar: OldLinkPage, cita: OldLinkPage };
+const PUBLIC_PAGES = { formulario: PublicFormPage, reservar: OldLinkPage, cita: OldLinkPage, "abrir-copia": OpenEncryptedPage };
 const publicPage = () => {
   const first = location.pathname.slice((BASENAME === "/" ? "" : BASENAME).length).split("/")[1] ?? "";
   return Object.hasOwn(PUBLIC_PAGES, first) ? PUBLIC_PAGES[first as keyof typeof PUBLIC_PAGES] : null;

@@ -356,8 +356,10 @@ export function PatientNotices({ hasRealPatients }: { hasRealPatients: boolean }
           Instala la app en este iPhone: si no, Safari puede borrar los pacientes tras unos días sin abrirla.
         </Notice>
       )}
-      {/* Con la nube, la copia es automática: no hace falta recordar la de archivo. */}
-      {!cloud && <BackupReminder hasRealPatients={hasRealPatients} lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)} />}
+      {/* También con la nube (a quien administra la clínica): la nube es un espejo, no una copia de ayer. */}
+      {(!cloud || !cloud.clinic || cloud.clinic.role === "admin") && (
+        <BackupReminder cloud={!!cloud} hasRealPatients={hasRealPatients} lastBackup={lastBackup.loading ? undefined : (lastBackup.data ?? null)} />
+      )}
     </div>
   );
 }
@@ -446,11 +448,23 @@ const dayPlus = (n: number) => addDays(todayDay(), n);
 
 const BACKUP_EVERY_DAYS = 7;
 
-/** Recordatorio semanal: los datos solo están en este dispositivo. */
-function BackupReminder({ hasRealPatients, lastBackup }: { hasRealPatients: boolean; lastBackup: string | null | undefined }) {
+/**
+ * Recordatorio semanal de la copia en archivo. Sin nube, los datos solo están en este dispositivo. Con nube, la
+ * sincronización es un espejo: lo que se borra (o se estropea) se borra también en el servidor y en los demás
+ * dispositivos, y no hay «copia de ayer»; «Descargar todo» cada semana la pone fuera.
+ */
+function BackupReminder({ cloud, hasRealPatients, lastBackup }: { cloud: boolean; hasRealPatients: boolean; lastBackup: string | null | undefined }) {
   if (!hasRealPatients || lastBackup === undefined) return null;
   const days = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86_400_000) : null;
   if (days !== null && days < BACKUP_EVERY_DAYS) return null;
+  if (cloud) {
+    return (
+      <Notice to="/ajustes/datos" link="Copias de seguridad y exportar">
+        {days === null ? "Todavía no has descargado ninguna copia." : `La última copia descargada fue hace ${days} días.`} La nube es un espejo: si se borra algo, se borra
+        también allí. Descarga todo y guárdalo fuera de este dispositivo.
+      </Notice>
+    );
+  }
   return (
     <Notice to="/ajustes/datos" link="Hacer la copia">
       {days === null ? "Todavía no has hecho ninguna copia de seguridad." : `La última copia de seguridad fue hace ${days} días.`} Los datos solo están en este dispositivo.

@@ -836,7 +836,16 @@ punto de control antes de subir. Nada de esto está validado por un abogado ni p
   guardada en el dispositivo sin exportarla (`sameKey`); volver a entrar con Google ya no vale. Quien no tenga ni una
   ni otro puede borrar los datos del dispositivo (vuelven a bajar). Contador de fallos y marca «aquí hubo PIN» también
   en IndexedDB. Pruebas: `pin.test.ts`, `pinProof.test.ts`, `crypt.test.ts` y CL6 reescrita.
-- **Parte 6 · Exportación cifrada y recordatorio semanal.** Pendiente.
+- **Parte 6 · Exportación cifrada y recordatorio semanal.** Hecho (30-10-2026), solo en la app. Al pulsar «Descargar
+  todo», la copia .sqlite3 o una de antes de actualizar sale la hoja «Cómo descargar» (`src/export/DownloadChoice.tsx`):
+  cifrada con contraseña (recomendado; al menos 10 caracteres, escrita dos veces, con el aviso de que no se recupera)
+  en un `.omniclin` (`src/export/encryptedExport.ts`: marca `OMNIEXP1`, PBKDF2-SHA-256 600 000 vueltas + AES-GCM, el
+  nombre de dentro autenticado), o sin cifrar con su aviso. «Abrir una copia cifrada» en Ajustes → Copias y exportar y
+  en la página pública `/abrir-copia` (enlace desde la pantalla de entrada; sin cuenta, sin PIN y sin conexión)
+  descarga lo que hay dentro. «Descargar todo» cuenta como copia hecha (`last_backup_at`), y el recordatorio semanal
+  sale también con nube a quien administra (sin clínica, a la cuenta) con el texto del espejo. Pruebas:
+  `encryptedExport.test.ts`, F15-H7, H2/H4/H6 y CL5 (recordatorio con nube). Sin tocar el servidor (7b sigue
+  pendiente: historial de copias y «Restaurar una copia anterior»).
 - **Parte 7 · Equipo: cerrar el acceso al quitar a alguien, caducidad sin conexión y registro de accesos.** Pendiente.
 - **Parte 8 · Arreglos menores** (`docs/pasos-pendientes.md`, `RESUMEN.md`, `README.md`, WCAG 2.2 en axe, avisos de
   lint). Pendiente.

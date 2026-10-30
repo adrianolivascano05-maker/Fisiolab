@@ -1,4 +1,4 @@
-import { add, createPatient, expect, expectAccessible, markAt, test, withoutCloud } from "./fixtures";
+import { add, createPatient, downloadFrom, expect, expectAccessible, markAt, test, withoutCloud } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 /** Espera a que el service worker controle la página (en la primera visita hace falta recargar). */
@@ -147,7 +147,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     await expect(page.getByRole("status").filter({ hasText: "copia de seguridad" })).toBeVisible();
     await expect(page.getByText(/Todavía no has hecho ninguna copia de seguridad/)).toBeVisible();
     await page.getByRole("link", { name: "Hacer la copia" }).click();
-    await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar copia de seguridad" }).click()]);
+    await downloadFrom(page, page.getByRole("button", { name: "Descargar copia de seguridad" }));
     await expect(page.getByText(/Última copia: \d/)).toBeVisible();
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Real/ })).toBeVisible();

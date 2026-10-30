@@ -1,6 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
-import { createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { createPatient, downloadFrom, expect, expectAccessible, loadSeed, test } from "./fixtures";
 
 test.describe("F15 Exportar, copiar y restaurar", () => {
   test("F15-H1 CSV para Excel en español", async ({ page }) => {
@@ -19,7 +19,8 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
   test("F15-H4 descargar todo: historias legibles, Excel y copia en un .zip", async ({ page }) => {
     await loadSeed(page);
     await page.goto("./ajustes/datos");
-    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar todo (historias, Excel y copia)" }).click()]);
+    await expect(page.getByText("Última copia: nunca")).toBeVisible();
+    const dl = await downloadFrom(page, page.getByRole("button", { name: "Descargar todo (historias, Excel y copia)" }));
     expect(dl.suggestedFilename()).toMatch(/^OmniClin-Fisiolab-\d{4}-\d{2}-\d{2}\.zip$/);
     const bytes = readFileSync((await dl.path())!);
     expect(bytes.subarray(0, 2).toString("latin1")).toBe("PK");
@@ -27,13 +28,70 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     for (const f of ["LEEME.txt", "Indice de pacientes.html", "Todos los datos.xlsx", "Copia de OmniClin.sqlite3", "Historias clinicas/"]) expect(names, f).toContain(f);
     await expect(page.getByText(/Descargado: 3 pacientes con toda su historia/)).toBeVisible();
     await expectAccessible(page);
+    // Cuenta como copia de seguridad hecha.
+    await page.reload();
+    await expect(page.getByText(/Última copia: \d/)).toBeVisible();
+  });
+
+  test("F15-H7 copia cifrada con contraseña: un .omniclin que no se lee, y se abre con su contraseña (también sin cuenta)", async ({ page }) => {
+    await loadSeed(page);
+    await page.goto("./ajustes/datos");
+    const all = page.getByRole("button", { name: "Descargar todo (historias, Excel y copia)" });
+    // Contraseña corta o distinta: no deja.
+    await all.click();
+    const sheet = page.getByRole("dialog", { name: "Cómo descargar" });
+    await expect(sheet.getByLabel("Cifrada con contraseña (recomendado)")).toBeChecked();
+    await sheet.getByLabel("Contraseña", { exact: true }).fill("corta");
+    await sheet.getByLabel("Repite la contraseña").fill("corta");
+    await sheet.getByRole("button", { name: "Descargar", exact: true }).click();
+    await expect(sheet.getByRole("alert")).toContainText("al menos 10 caracteres");
+    await sheet.getByLabel("Contraseña", { exact: true }).fill("frase de la clínica 2026");
+    await sheet.getByLabel("Repite la contraseña").fill("otra frase distinta");
+    await sheet.getByRole("button", { name: "Descargar", exact: true }).click();
+    await expect(sheet.getByRole("alert")).toContainText("no coinciden");
+    await expectAccessible(page);
+    await sheet.getByLabel("Repite la contraseña").fill("frase de la clínica 2026");
+    const [dl] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Descargar", exact: true }).click()]);
+    expect(dl.suggestedFilename()).toMatch(/^OmniClin-Fisiolab-\d{4}-\d{2}-\d{2}-cifrado\.omniclin$/);
+    const enc = readFileSync((await dl.path())!);
+    expect(enc.subarray(0, 8).toString("latin1")).toBe("OMNIEXP1");
+    expect(enc.toString("latin1")).not.toContain("LEEME.txt");
+    const file = { name: dl.suggestedFilename(), mimeType: "application/octet-stream", buffer: enc };
+
+    // Abrirla en Ajustes: con la contraseña mala no, con la buena baja el .zip de dentro.
+    await page.getByLabel("Elegir copia cifrada").setInputFiles(file);
+    await page.getByLabel("Contraseña de la copia").fill("otra frase distinta");
+    await page.getByRole("button", { name: "Abrir y descargar lo de dentro" }).click();
+    await expect(page.getByText("La contraseña no es la de esta copia.")).toBeVisible();
+    await page.getByLabel("Contraseña de la copia").fill("frase de la clínica 2026");
+    const [zip] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Abrir y descargar lo de dentro" }).click()]);
+    expect(zip.suggestedFilename()).toMatch(/^OmniClin-Fisiolab-\d{4}-\d{2}-\d{2}\.zip$/);
+    expect(readFileSync((await zip.path())!).toString("latin1")).toContain("LEEME.txt");
+    await expect(page.getByText(`Descargado: ${zip.suggestedFilename()}`)).toBeVisible();
+
+    // La copia .sqlite3 suelta, también cifrada.
+    const copy = await downloadFrom(page, page.getByRole("button", { name: "Descargar copia de seguridad" }), "frase de la clínica 2026");
+    expect(copy.suggestedFilename()).toMatch(/^fisiolab-copia-\d{4}-\d{2}-\d{2}-cifrado\.omniclin$/);
+    expect(readFileSync((await copy.path())!).subarray(0, 8).toString("latin1")).toBe("OMNIEXP1");
+
+    // Sin cuenta ni app: la página pública, que funciona aunque no se pueda entrar.
+    await page.goto("./abrir-copia");
+    await expect(page.getByRole("heading", { name: "Abrir una copia cifrada", level: 1 })).toBeVisible();
+    await page.getByLabel("Elegir copia cifrada").setInputFiles(file);
+    await page.getByLabel("Contraseña de la copia").fill("frase de la clínica 2026");
+    const [again] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Abrir y descargar lo de dentro" }).click()]);
+    expect(again.suggestedFilename()).toMatch(/\.zip$/);
+    await expectAccessible(page);
+    await page.getByRole("link", { name: "Volver a la app" }).click();
+    await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible();
   });
 
   test("F15-H2 copia de seguridad y restauración", async ({ page }) => {
     await createPatient(page, { name: "Antes de la copia" });
     await page.goto("./ajustes/datos");
     await expect(page.getByText("Última copia: nunca")).toBeVisible();
-    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar copia de seguridad" }).click()]);
+    const dl = await downloadFrom(page, page.getByRole("button", { name: "Descargar copia de seguridad" }));
+    expect(dl.suggestedFilename()).toMatch(/^fisiolab-copia-\d{4}-\d{2}-\d{2}\.sqlite3$/);
     const backup = (await dl.path())!;
     await expect(page.getByText(/Última copia: \d/)).toBeVisible();
 
@@ -59,7 +117,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await expect(backups).toContainText(/Base de la versión 20, antes de pasar a la \d+/);
     await expectAccessible(page);
     // Se puede descargar y restaurar (restaurarla vuelve a migrarla: sigue habiendo una sola copia, la misma).
-    const [dl] = await Promise.all([page.waitForEvent("download"), backups.getByRole("button", { name: "Descargar" }).click()]);
+    const dl = await downloadFrom(page, backups.getByRole("button", { name: "Descargar" }));
     expect(dl.suggestedFilename()).toMatch(/^fisiolab-antes-de-actualizar-v20-a-v\d+\.sqlite3$/);
     await backups.getByRole("button", { name: "Restaurar" }).click();
     await page.getByRole("button", { name: "Sustituir mis datos" }).click();

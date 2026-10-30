@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { test as base, expect, type BrowserContext, type Page } from "@playwright/test";
+import { test as base, expect, type BrowserContext, type Download, type Locator, type Page } from "@playwright/test";
 import { fileURLToPath } from "node:url";
 
 /** Vídeos de prueba en VP9 (el Chromium de pruebas no reproduce H.264). */
@@ -170,6 +170,26 @@ export async function loadSeed(page: Page) {
   await page.goto("./ajustes/datos");
   await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
   await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
+}
+
+/**
+ * Pulsa un botón de descarga de una copia (Descargar todo, la copia .sqlite3 o una de antes de actualizar), que abre
+ * la hoja «Cómo descargar» (src/export/DownloadChoice.tsx), y elige sin cifrar o, con `password`, cifrada.
+ */
+export async function downloadFrom(page: Page, button: Locator, password?: string): Promise<Download> {
+  await button.click();
+  const sheet = page.getByRole("dialog", { name: "Cómo descargar" });
+  if (password) {
+    await sheet.getByLabel("Cifrada con contraseña (recomendado)").check();
+    await sheet.getByLabel("Contraseña", { exact: true }).fill(password);
+    await sheet.getByLabel("Repite la contraseña").fill(password);
+  } else {
+    await sheet.getByLabel(/^Sin cifrar/).check();
+    await expect(sheet.getByText("Contiene historias clínicas sin proteger")).toBeVisible();
+  }
+  const [dl] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Descargar", exact: true }).click()]);
+  await expect(sheet).toBeHidden();
+  return dl;
 }
 
 /**

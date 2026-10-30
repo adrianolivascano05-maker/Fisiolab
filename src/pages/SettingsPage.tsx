@@ -50,7 +50,9 @@ import { requestShare } from "../cloud/limits";
 import { EncryptionSettings } from "../cloud/EncryptionParts";
 import { getDb } from "../data/db";
 import { DocsStorageCard } from "../documents/DocsStorageCard";
+import { DownloadChoice, saveMaybeEncrypted, type DownloadPick } from "../export/DownloadChoice";
 import { FullExportButton } from "../export/FullExportButton";
+import { OpenEncryptedCard } from "../export/OpenEncrypted";
 import { clinicComplete, getClinic } from "../data/privacy";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
 import { hasSeed, loadSeed, removeSeed } from "../data/seed";
@@ -271,6 +273,8 @@ export function DataSettingsPage() {
   const input = useRef<HTMLInputElement>(null);
   /** La copia que se va a restaurar: un archivo elegido o una de las de antes de actualizar. */
   const [pending, setPending] = useState<{ name: string; bytes: () => Promise<Uint8Array> } | null>(null);
+  /** La copia que se va a descargar, cuando se está eligiendo si va cifrada (DownloadChoice). */
+  const [choosing, setChoosing] = useState<{ what: string; run: (pick: DownloadPick) => Promise<void> } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const state = useAsync(async () => {
     const db = getDb();
@@ -317,10 +321,11 @@ export function DataSettingsPage() {
           <h3 className="font-semibold">Todos tus datos, para leer sin la app</h3>
           <p className="text-sm text-text-muted">
             Un archivo .zip con la historia clínica de cada paciente (se abre en cualquier navegador y se imprime), sus archivos en PDF, un Excel con
-            todo y la copia de seguridad. Es lo que te llevas si un día dejas OmniClin.
+            todo y la copia de seguridad. Es lo que te llevas si un día dejas OmniClin. Puede ir cifrado con contraseña.
           </p>
           <FullExportButton name={cloud?.clinic?.name ?? "Fisiolab"} />
         </Card>
+        <OpenEncryptedCard />
         <DocsStorageCard />
         <Card className="flex flex-col gap-3">
           <p className="text-sm">Última copia: {state.data?.lastBackup ? fmtDateTime(state.data.lastBackup) : "nunca"}</p>
@@ -328,11 +333,15 @@ export function DataSettingsPage() {
             icon={<Download aria-hidden="true" className="size-5" />}
             loading={busy === "backup"}
             onClick={() =>
-              run("backup", async () => {
-                const db = getDb();
-                saveFile(`fisiolab-copia-${stamp()}.sqlite3`, await db.exportBytes(), "application/vnd.sqlite3");
-                await setSetting(db, "last_backup_at", new Date().toISOString());
-                toast("Copia descargada. Guárdala fuera del móvil (correo, nube de la clínica…).", "success");
+              setChoosing({
+                what: "La copia de seguridad de OmniClin (.sqlite3): todos los datos de este dispositivo.",
+                run: (pick) =>
+                  run("backup", async () => {
+                    const db = getDb();
+                    await saveMaybeEncrypted(`fisiolab-copia-${stamp()}.sqlite3`, await db.exportBytes(), "application/vnd.sqlite3", pick.password);
+                    await setSetting(db, "last_backup_at", new Date().toISOString());
+                    toast("Copia descargada. Guárdala fuera del móvil (correo, nube de la clínica…).", "success");
+                  }),
               })
             }
           >
@@ -380,7 +389,13 @@ export function DataSettingsPage() {
                         variant="secondary"
                         icon={<Download aria-hidden="true" className="size-4" />}
                         loading={busy === `backup-${b.name}`}
-                        onClick={() => run(`backup-${b.name}`, async () => saveFile(`fisiolab-antes-de-actualizar-${b.name}`, await getDb().readBackup(b.name), "application/vnd.sqlite3"))}
+                        onClick={() =>
+                          setChoosing({
+                            what: `La base de antes de actualizar (${b.name}).`,
+                            run: (pick) =>
+                              run(`backup-${b.name}`, async () => saveMaybeEncrypted(`fisiolab-antes-de-actualizar-${b.name}`, await getDb().readBackup(b.name), "application/vnd.sqlite3", pick.password)),
+                          })
+                        }
                       >
                         Descargar
                       </Button>
@@ -452,6 +467,16 @@ export function DataSettingsPage() {
 
       <DemoSection />
 
+      <DownloadChoice
+        open={choosing !== null}
+        onClose={() => setChoosing(null)}
+        what={choosing?.what ?? ""}
+        onPick={(pick) => {
+          const c = choosing;
+          setChoosing(null);
+          if (c) void c.run(pick);
+        }}
+      />
       <Sheet open={!!pending} onClose={() => setPending(null)} title="¿Restaurar esta copia?">
         <p>Los datos actuales de este dispositivo se sustituirán por los de «{pending?.name}». Si no tienes copia de lo actual, descárgala antes.</p>
         <Button

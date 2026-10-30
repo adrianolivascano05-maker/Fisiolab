@@ -28,7 +28,7 @@ que la app no falle: sirve para que falle menos, enterarse pronto y arreglarlo r
 2. Si es una duda de uso, contestar y, si se repite, añadirla a los problemas frecuentes (`src/pages/ReportProblemPage.tsx`).
 3. Si es un fallo: reproducirlo con datos inventados, escribir una prueba que lo reproduzca, arreglarlo y publicar.
    Contestar con la versión que lo arregla (sale en el informe: el commit y la fecha).
-4. Si hay riesgo de perder datos: pedir antes de nada que descargue una copia de seguridad (Ajustes › Copias y
+4. Si hay riesgo de perder datos: pedir antes de nada que descargue una copia de seguridad (mejor cifrada con contraseña, y que la apunte: sin ella no se abre) (Ajustes › Copias y
    exportar) y que no borre la app.
 
 Si una clínica dice que la app «se ve rara» o no se lee algo después de poner su marca: Ajustes › Marca de la clínica

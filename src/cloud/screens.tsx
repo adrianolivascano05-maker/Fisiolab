@@ -72,6 +72,9 @@ export function LoginScreen({ config, error }: { config: CloudConfig; error: str
       >
         Entrar con Google
       </Button>
+      <a href={`${import.meta.env.BASE_URL}abrir-copia`} className="inline-flex min-h-11 items-center self-start text-sm font-semibold text-accent underline underline-offset-2">
+        Abrir una copia cifrada (sin cuenta)
+      </a>
     </Shell>
   );
 }

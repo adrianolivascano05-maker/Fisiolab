@@ -2,7 +2,7 @@
 // de alta la clínica, añadir al equipo, compartir pacientes, que nadie de fuera los vea y llevar a la clínica lo que
 // había en el dispositivo.
 import type { Browser, Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
+import { createPatient, downloadFrom, expect, expectAccessible, smallTargets, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
 import { EXPECTED_SERVER_VERSION } from "../src/cloud/serverStatus";
 
@@ -422,6 +422,14 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await patients(page);
     await createPatient(page, { name: "Paciente Horario" });
     await choosePassword(page);
+    // Quien administra ve el recordatorio semanal de descargar todo (la nube es un espejo); se va al descargar.
+    await page.goto("./");
+    const reminder = page.getByRole("status").filter({ hasText: "La nube es un espejo" });
+    await expect(reminder).toContainText("Todavía no has descargado ninguna copia.");
+    await reminder.getByRole("link", { name: "Copias de seguridad y exportar" }).click();
+    await downloadFrom(page, page.getByRole("button", { name: "Descargar todo (historias, Excel y copia)" }));
+    await page.goto("./");
+    await expect(reminder).toHaveCount(0);
     await page.goto("./ajustes/equipo");
     await page.getByLabel("Su correo de Google").fill("bruno@clinica.test");
     await page.getByRole("button", { name: "Añadir al equipo" }).click();
@@ -462,6 +470,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await enter(bruno);
     await patients(bruno);
     await unlock(bruno);
+    // El recordatorio de la copia es de quien administra: Bruno no lo ve.
+    await expect(bruno.getByRole("status").filter({ hasText: "La nube es un espejo" })).toHaveCount(0);
     await bruno.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Agenda" }).click();
     await bruno.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
     await expect(bruno.getByRole("button", { name: "Turno de Bruno Gil, 09:00–14:00" })).toBeVisible();
@@ -751,7 +761,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("button", { name: /Borrar la clínica del servidor/ }).click();
     const sheet = page.getByRole("dialog", { name: "Borrar una clínica del servidor" });
     await expect(sheet.getByRole("button", { name: "Borrar «Fisiolab Centro»" })).toBeDisabled();
-    const [backup] = await Promise.all([page.waitForEvent("download"), sheet.getByRole("button", { name: "Descargar todos los datos" }).click()]);
+    const backup = await downloadFrom(page, sheet.getByRole("button", { name: "Descargar todos los datos" }));
     expect(backup.suggestedFilename()).toMatch(/^OmniClin-Fisiolab-Centro-\d{4}-\d{2}-\d{2}\.zip$/);
     await sheet.getByRole("checkbox", { name: /Declaro que la clínica conserva/ }).check();
     await expectAccessible(page);

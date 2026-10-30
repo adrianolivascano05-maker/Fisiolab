@@ -3,7 +3,7 @@
 // enlace para que el paciente suba los suyos desde su móvil, que llegan solos a su ficha.
 import type { Browser, Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
+import { createPatient, downloadFrom, expect, expectAccessible, smallTargets, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
 
 const users = {
@@ -108,7 +108,7 @@ test.describe("Archivos del paciente", () => {
     // Descargar todo: con sus archivos en PDF.
     await page.goto("./ajustes/datos");
     await expect(page.getByText(/2 archivos de esta clínica/)).toBeVisible();
-    const [zip] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Descargar todo (historias, Excel y copia)" }).click()]);
+    const zip = await downloadFrom(page, page.getByRole("button", { name: "Descargar todo (historias, Excel y copia)" }));
     const names = readFileSync((await zip.path())!).toString("latin1");
     expect(names).toContain("Archivos de pacientes/Nora Archivos/Resonancia rodilla derecha.pdf");
 

@@ -21,7 +21,8 @@ export function Sheet({ open, onClose, title, children }: SheetProps) {
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      // Solo el cierre de esta hoja: React reparte «close» también a las hojas de fuera (una hoja dentro de otra).
+      onClose={(e) => e.target === ref.current && onClose()}
       onClick={(e) => e.target === ref.current && onClose()}
       aria-labelledby={titleId}
       className="safe-bottom m-0 mt-auto max-h-[85dvh] w-full max-w-none rounded-t-lg bg-bg p-0 text-text shadow-pop backdrop:bg-text/40 lg:m-auto lg:w-[34rem] lg:max-w-[calc(100vw-2rem)] lg:rounded-lg"

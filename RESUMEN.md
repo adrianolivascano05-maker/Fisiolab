@@ -36,7 +36,7 @@ Fecha: 2026-10-17
 - Bienestar: cuestionario diario (fatiga, sueño, dolor muscular, estrés y ánimo, de 1 a 5) más dolor de la lesión; total sobre 25, comparación con su media y avisos.
 - Movilidad: 14 movimientos de tobillo (lunge), cadera, hombro y cuello, medidos con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.
 - Evolución con gráfica y tabla.
-- Exportación CSV para Excel, y copia de seguridad que se puede restaurar.
+- Exportación CSV para Excel, y copia de seguridad que se puede restaurar. Las copias (Descargar todo y la .sqlite3) pueden ir cifradas con contraseña (`.omniclin`), y se abren en Ajustes o en `/abrir-copia` sin cuenta.
 - App instalable que funciona sin conexión.
 - Ayuda ilustrada.
 - Datos de ejemplo, y una clínica de prueba con 100 o 500 pacientes inventados para probarla con volumen (`src/demo/`).
@@ -70,7 +70,7 @@ Fecha: 2026-10-17
 1. **Por fases, saltos primero.** El usuario pidió «toda la app»; se construye por fases. Las fases 1 a 4 están hechas.
 2. **Web instalable (PWA), no app nativa.** Funciona en cualquier móvil, sin tiendas, sin cuentas de desarrollador y gratis.
 3. **Datos en el dispositivo:** SQLite WASM sobre OPFS, sin servidor propio. Son datos de salud (RGPD), con coste 0 € y funcionan sin conexión. Consecuencias:
-   - Sin la nube activada no se sincroniza entre móviles; se pasa la copia de seguridad, y hay recordatorio semanal de copia.
+   - Sin la nube activada no se sincroniza entre móviles; se pasa la copia de seguridad, y hay recordatorio semanal de copia. Con nube, el recordatorio semanal de «Descargar todo» le sale a quien administra: la nube es un espejo, no una copia de ayer.
    - Con la nube activada (`public/cloud.json`, guía en `src/cloud/README.md`), cada fisioterapeuta entra con su cuenta de Google y sus pacientes se guardan también en su Google Drive, en la carpeta oculta de la app. Se junta fila a fila con la copia de la nube: gana el cambio más reciente.
    - Solo una pestaña a la vez (Web Lock); la segunda avisa y se bloquea.
    - Borrar un paciente borra todo lo suyo, pero avisa si su historia clínica aún hay que conservarla (5 años o lo que se ponga en Ajustes).
