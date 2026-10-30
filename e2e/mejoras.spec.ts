@@ -74,7 +74,8 @@ test.describe("Mejoras frente a la competencia", () => {
     await createPatient(page, { name: "Bea Bono" });
     const url = page.url();
     await page.getByRole("link", { name: /Bonos y cobros/ }).click();
-    await expect(page.getByRole("status")).toHaveText("Al día");
+    // Mientras carga hay otros «status» (los esqueletos de carga): se busca el del saldo.
+    await expect(page.getByRole("status").filter({ hasText: "Al día" })).toHaveText("Al día");
     await page.getByRole("button", { name: "Vender un bono" }).click();
     const sheet = page.getByRole("dialog", { name: "Vender un bono" });
     await sheet.getByLabel("Sesiones").fill("5");
@@ -103,7 +104,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await pay.getByText("Efectivo").click();
     await pay.getByRole("button", { name: "Guardar el cobro" }).click();
     await expect(page.getByText("Pagado a cuenta")).toBeVisible();
-    await expect(page.getByRole("status")).toHaveText(/25,50/);
+    await expect(page.getByRole("status").filter({ hasText: /25,50/ })).toBeVisible();
     await expectAccessible(page);
 
     await page.goto("./ajustes/cobros");

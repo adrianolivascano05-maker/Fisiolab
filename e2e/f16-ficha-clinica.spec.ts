@@ -307,7 +307,8 @@ test.describe("F16 Ficha clínica", () => {
     await add(page, "Sesión").click();
     await page.getByLabel("Tratamiento").fill("Control motor");
     await page.getByRole("button", { name: "Guardar sesión" }).click();
-    await expect(page.getByText("Control motor")).toBeVisible();
+    // Sale en el detalle de la sesión y, según el ancho, también en la lista de sesiones.
+    await expect(page.getByText("Control motor").first()).toBeVisible();
     await expect(page.getByText("Propiocepción")).toHaveCount(0);
 
     // Al primer motivo: su anamnesis y su sesión.

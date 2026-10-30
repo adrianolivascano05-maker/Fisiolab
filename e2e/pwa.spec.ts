@@ -133,6 +133,8 @@ test.describe("PWA: instalable y sin conexión", () => {
   });
 
   test("PWA-E3 recordatorio de copia con pacientes reales, no con los de ejemplo", async ({ page }) => {
+    // Cargar los datos de ejemplo ya tarda casi medio minuto: con el límite normal va justo.
+    test.slow();
     await page.goto("./ajustes/datos");
     await page.getByRole("button", { name: "Cargar datos de ejemplo" }).click();
     await expect(page.getByRole("button", { name: "Borrar los datos de ejemplo" })).toBeVisible({ timeout: 30_000 });
