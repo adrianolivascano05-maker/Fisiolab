@@ -41,6 +41,15 @@ async function tapPhoto(page: Page, x: number, y: number) {
 }
 
 test.describe("F11 Movilidad", () => {
+  // Los Chromium nuevos piden permiso para el sensor, como el iPhone, y en las pruebas no hay nadie que lo acepte:
+  // se responde «sí» como lo haría el fisio al tocar «Activar el inclinómetro».
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      for (const api of [globalThis.DeviceOrientationEvent, globalThis.DeviceMotionEvent] as unknown as { requestPermission?: () => Promise<string> }[])
+        if (typeof api?.requestPermission === "function") api.requestPermission = () => Promise.resolve("granted");
+    });
+  });
+
   test("F11-H1 lunge con el inclinómetro: tres lecturas, media y distancia a la pared", async ({ page }) => {
     await createPatient(page, { name: "Tobillo" });
     await startRom(page, "Tobillo", /lunge/, "Izquierdo");

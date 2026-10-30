@@ -27,15 +27,28 @@ export const test = base.extend<{ consoleErrors: string[] }>({
       return use(context);
     }
     // El contexto efímero de las pruebas en WebKit (como una ventana privada de Safari) no da el almacenamiento privado
-    // (OPFS): la app va en memoria y pierde los datos al recargar. Un contexto «persistente» sí lo da, pero el WebKit
-    // de Playwright 1.56 no arranca así en Mac («Browser started with no default context»; arreglado en versiones
-    // posteriores). Se intenta y, si no puede, se sigue con el efímero, avisando.
+    // (OPFS): la app va en memoria y pierde los datos al recargar. Un contexto «persistente» sí lo da (el WebKit de
+    // Playwright 1.56 no arrancaba así en Mac; la 1.64 sí). Se intenta y, si no puede, se sigue con el efímero, avisando.
     const { baseURL, viewport, locale, timezoneId, isMobile, hasTouch } = testInfo.project.use;
     let persistent: BrowserContext | null = null;
     try {
       persistent = await playwright.webkit.launchPersistentContext("", { baseURL, viewport, locale, timezoneId, isMobile, hasTouch });
     } catch (e) {
       console.warn(`WebKit sin contexto persistente (${e instanceof Error ? e.message.split("\n")[0] : String(e)}): la app irá en memoria.`);
+    }
+    // Lo guardado en una prueba aparecía en la siguiente: cada prueba empieza con el almacenamiento vacío, como
+    // con un navegador nuevo. Se vacía desde un archivo suelto del mismo sitio, sin abrir la app (que usaría la base).
+    if (persistent) {
+      const blank = await persistent.newPage();
+      await blank.goto(new URL("favicon.png", baseURL).href);
+      await blank.evaluate(async () => {
+        const root = (await navigator.storage.getDirectory()) as FileSystemDirectoryHandle & { keys(): AsyncIterable<string> };
+        for await (const name of root.keys()) await root.removeEntry(name, { recursive: true });
+        for (const db of await indexedDB.databases()) if (db.name) indexedDB.deleteDatabase(db.name);
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+      await blank.close();
     }
     await withoutCloud(persistent ?? context);
     await use(persistent ?? context);

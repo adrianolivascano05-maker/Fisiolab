@@ -278,7 +278,8 @@ test.describe("Marca de la clínica", () => {
     await expect(page.getByText("Vuelve la marca de OmniClin")).toBeVisible();
     expect((await cssVar(page, "--radius-md")).toLowerCase()).toBe("10px");
     expect(await page.evaluate(() => document.documentElement.dataset.header)).toBeUndefined();
-    expect(await page.getByRole("heading", { name: "Colores" }).evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/Bricolage/);
+    // Se espera a que se asiente: si la pantalla se repinta justo al leer, el título aún no tiene letra.
+    await expect.poll(() => page.getByRole("heading", { name: "Colores" }).evaluate((el) => getComputedStyle(el).fontFamily)).toMatch(/Bricolage/);
   });
 
   test("MB4 el membrete sigue sus opciones (logo, lema, contacto, banda, pie) y la firma dibujada del fisio sale en el informe", async ({ page }) => {

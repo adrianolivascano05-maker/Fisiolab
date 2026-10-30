@@ -497,9 +497,11 @@ antes, o enseñar el decimal) cambia cómo se guarda la medición: decidirlo ant
   started with no default context», [playwright-rust #39](https://github.com/padamson/playwright-rust/issues/39));
   está arreglado en versiones posteriores, y otros proyectos necesitaron la 1.64 ([maibuk #514](https://github.com/M4ss1ck/maibuk/pull/514)).
   Las pruebas ya intentan el perfil persistente y, si no pueden, siguen como antes avisando.
-- **Siguiente paso para tener una señal fiable de Safari:** subir Playwright a la 1.64 o posterior. Cambia el
-  Chromium de todas las pruebas, así que hay que pasar la tanda completa en los dos modos después (una hora larga)
-  y revisar los fallos que salgan. Hasta entonces, el trabajo «webkit» de GitHub sigue siendo solo informativo.
+- **Playwright subido a la 1.64.1 (30-10-2026):** en el Mac el perfil persistente ya arranca y pasan 34 de 42
+  (antes 22). Lo que quedaba: los datos de una prueba aparecían en la siguiente (ahora cada prueba vacía el
+  almacenamiento antes de empezar) y un aviso de contraste en la agenda que hay que mirar cuando eso esté arreglado.
+  El Chromium nuevo pide permiso para el sensor de inclinación, como el iPhone: las pruebas de Movilidad lo aceptan
+  solas. El trabajo «webkit» de GitHub sigue siendo solo informativo hasta que salga entero en verde.
 - **Lo más importante sigue siendo probar en un iPhone de verdad** (pasos en docs/pasos-pendientes.md, «Probar en
   un iPhone»): un iPhone real tiene almacenamiento persistente, así que nada de lo anterior tiene por qué pasar ahí.
 
