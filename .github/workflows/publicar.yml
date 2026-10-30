@@ -1,0 +1,115 @@
+# Publicar: solo a mano. Actions → «Publicar» → «Run workflow» → en «ref», qué se publica (por defecto la rama
+# «produccion»; para volver atrás, el commit que estaba publicado antes). Vuelve a pasar todas las pruebas sobre ese
+# commit y, solo si pasan, lo deja en la rama «publicado-cloudflare» (de ahí publica Cloudflare Pages: la dirección de
+# la clínica y de los formularios de los pacientes) y en GitHub Pages (la dirección antigua).
+#
+# Quitar GitHub Pages (cuando todos los dispositivos usen la dirección de Cloudflare, docs/pasos-pendientes.md paso 2):
+#   1. Borra el trabajo «pages» y, en «comprobar», el `env: BASE_PATH`, el `cp … 404.html` y «upload-pages-artifact».
+#   2. En «e2e», deja solo la base "/" (quita la matriz).
+#   3. En GitHub, Settings → Pages → «Unpublish site».
+# Con eso, un repositorio privado con GitHub gratuito (que no tiene Pages) publica igual.
+name: Publicar
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Qué se publica: rama, etiqueta o commit (para volver atrás, el commit anterior)"
+        required: true
+        default: produccion
+        type: string
+
+permissions:
+  contents: read
+
+# Una publicación cada vez; si llega otra, espera a que acabe la anterior.
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Corrector de código
+        run: npm run lint
+      - name: Pruebas de fórmulas, base de datos y vídeo
+        run: npm test
+      # El build incluye el typecheck (package.json). Bajo /<repositorio>/ mientras GitHub Pages siga en uso;
+      # Cloudflare Pages hace su propio `npm run build` en la raíz a partir de la rama publicado-cloudflare.
+      - name: Build bajo /<repositorio>/
+        run: npm run build
+        env:
+          BASE_PATH: /${{ github.event.repository.name }}/
+      # GitHub Pages no tiene rutas de aplicación: las desconocidas sirven 404.html, que es la propia app.
+      - run: cp dist/index.html dist/404.html
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  # Las pruebas de pantallas (Playwright, Chromium) en los dos alojamientos: en la raíz (Cloudflare) y bajo
+  # /<repositorio>/ (GitHub Pages). Si alguna falla, no se publica.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        base: ["/", "/${{ github.event.repository.name }}/"]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Pruebas de pantallas bajo ${{ matrix.base }}
+        run: npx playwright test
+        env:
+          E2E_BASE: ${{ matrix.base }}
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-fallos-${{ strategy.job-index }}
+          path: test-results
+          retention-days: 7
+
+  # Cloudflare Pages publica lo que llega a esta rama (solo si han pasado todas las pruebas). El entorno «produccion»
+  # permite, en Settings → Environments, exigir que alguien apruebe cada publicación.
+  cloudflare:
+    needs: [comprobar, e2e]
+    runs-on: ubuntu-latest
+    environment: produccion
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.ref }}
+      - run: git push --force origin HEAD:refs/heads/publicado-cloudflare
+
+  # GitHub Pages: la dirección antigua de la clínica, hasta la mudanza (ver la cabecera para quitarlo).
+  pages:
+    needs: [comprobar, e2e]
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

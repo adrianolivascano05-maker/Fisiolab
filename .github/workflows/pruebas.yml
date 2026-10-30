@@ -1,0 +1,79 @@
+# Pruebas en cada push a cualquier rama salvo «produccion» y «publicado-cloudflare», y en cada pull request a
+# «produccion». Aquí no se publica nada: publicar es aparte y a mano (publicar.yml: Actions → «Publicar»). Así un
+# cambio que falla no llega a la clínica, y uno que pasa tampoco llega hasta que alguien lo decide.
+# Las pantallas en Safari (WebKit) van en webkit.yml, una vez por semana.
+name: Pruebas
+
+on:
+  push:
+    branches-ignore: [produccion, publicado-cloudflare]
+  pull_request:
+    branches: [produccion]
+
+permissions:
+  contents: read
+
+# Dos pushes seguidos a la misma rama: la tanda anterior se cancela, solo importa la última.
+concurrency:
+  group: pruebas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Claves olvidadas (tokens, contraseñas…) en lo nuevo de este push o de este pull request: gitleaks, con la acción
+  # fijada a un commit concreto (el de la etiqueta v2.3.9). Necesita el historial entero para comparar con el commit
+  # anterior. Si encuentra algo, la clave se cambia primero en su panel (Cloudflare, Google…): borrarla del código no basta.
+  secretos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+
+  comprobar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Corrector de código (oxlint, .oxlintrc.json): los errores paran la tanda; los avisos solo se enseñan.
+      - name: Corrector de código
+        run: npm run lint
+      - name: Tipos
+        run: npm run typecheck
+      - name: Pruebas de fórmulas, base de datos y vídeo
+        run: npm test
+      - name: Build
+        run: npm run build
+
+  # Las pruebas de pantallas (Playwright, Chromium) en la raíz, como en Cloudflare Pages. La pasada bajo
+  # /<repositorio>/ (GitHub Pages) solo se hace al publicar, mientras GitHub Pages siga en uso.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Pruebas de pantallas
+        run: npx playwright test
+        env:
+          E2E_BASE: /
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-fallos
+          path: test-results
+          retention-days: 7

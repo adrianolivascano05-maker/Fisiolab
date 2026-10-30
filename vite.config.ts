@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from "vite";
-import { readFileSync } from "node:fs";
+import { copyFileSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { execSync } from "node:child_process";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -35,6 +36,24 @@ function cspMeta(): Plugin {
   };
 }
 
+/**
+ * Vista previa de Cloudflare Pages (cualquier rama que no sea la publicada): la app va sin nube, con la cloud.json
+ * vacía de public/cloud.preview.json en lugar de la real. El servidor y Google solo aceptan la dirección publicada,
+ * y la vista previa es pública: pacientes de ejemplo, nunca datos reales. Vite copia public/ antes de escribir el
+ * build, así que aquí se sobrescribe al final.
+ */
+function previewCloud(): Plugin {
+  const branch = process.env.CF_PAGES_BRANCH;
+  const preview = !!branch && branch !== "publicado-cloudflare";
+  return {
+    name: "cloud-preview",
+    apply: "build",
+    closeBundle() {
+      if (preview) copyFileSync(new URL("./public/cloud.preview.json", import.meta.url), join("dist", "cloud.json"));
+    },
+  };
+}
+
 /** La versión que sale en el informe de fallos: el commit del build (o «desarrollo» si no hay git). */
 function appVersion() {
   try {
@@ -55,6 +74,7 @@ export default defineConfig({
   build: { assetsInlineLimit: (file) => (file.endsWith(".woff2") ? false : undefined), chunkSizeWarningLimit: 700 },
   plugins: [
     cspMeta(),
+    previewCloud(),
     licenses.collect(),
     licenses.emit,
     react(),

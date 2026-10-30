@@ -124,6 +124,13 @@ con clínicas (tablas `clinics` y `members`), después a la sincronización por 
 sus tablas (`booking_pages`, `bookings` y `cancel_links`) ya no se usan y se pueden borrar (`docs/pasos-pendientes.md`). La consola junta en una línea lo que se pega: si dice «No SQL statements detected», pega solo las sentencias
 `CREATE`, sin las líneas de comentario (las que empiezan por `--`).
 
+**Antes de ejecutar un `schema.sql` nuevo**, apunta el marcador de Time Travel de la base, para poder volver a cómo
+estaba si algo sale mal (desde la terminal, en la carpeta `cloudflare/`):
+`npx wrangler d1 time-travel info cenit-datos -c wrangler.toml` da un `bookmark`; guárdalo con la fecha. Para volver:
+`npx wrangler d1 time-travel restore cenit-datos --bookmark=<marcador> -c wrangler.toml`. En el plan gratuito se puede
+volver a cualquier momento de los últimos 7 días. Las copias de las clínicas van aparte (R2 o la tabla `parts`); Time
+Travel es para las tablas del servidor.
+
 ## Documentos (los archivos de los pacientes, en R2)
 
 Es opcional. Sin esto la app funciona igual, pero no ofrece **Archivos del paciente** ni el enlace para que el
@@ -194,11 +201,16 @@ abren los pacientes los formularios que se les mandan, en vez de en la direcció
 
 1. **Workers & Pages** → **Create** → **Pages** → **Connect to Git** → elige el repositorio de la app (Cloudflare
    pide permiso en GitHub la primera vez).
-2. Nombre del proyecto: `cenitfisiolab`. **Production branch**: `publicado-cloudflare` (la deja ahí el
-   flujo de GitHub cuando pasan todas las pruebas). **Framework preset**: None. **Build command**:
-   `npm run build`. **Build output directory**: `dist`. **Save and Deploy**.
-3. En el proyecto, **Settings** → **Builds & deployments** → **Preview deployments**: **None** (así solo se
-   publica lo probado).
+2. Nombre del proyecto: `cenitfisiolab`. **Production branch**: `publicado-cloudflare` (la deja ahí «Publicar», en
+   GitHub → Actions, cuando pasan todas las pruebas: `.github/workflows/publicar.yml`). **Framework preset**: None.
+   **Build command**: `npm run build`. **Build output directory**: `dist`. **Save and Deploy**.
+3. En el proyecto, **Settings** → **Builds & deployments** → **Preview deployments** (o **Branch control**):
+   **Custom branches**, y en **Preview branches** solo la rama de desarrollo, `claude/replica-skill-install-zv3ker`.
+   Cada push a esa rama da una dirección fija de vista previa (`claude-replica-skill-install-zv3ker.cenitfisiolab.pages.dev`)
+   para mirar un cambio antes de publicarlo. La vista previa va **sin nube** (en ese build la app usa
+   `public/cloud.preview.json`, vacío, en lugar de `cloud.json`; lo hace `vite.config.ts` cuando `CF_PAGES_BRANCH` no
+   es `publicado-cloudflare`): el servidor y Google solo aceptan la dirección publicada. Es pública: solo pacientes de
+   ejemplo, nunca datos reales. Si prefieres no tener vista previa, **None**.
 4. En el Worker del servidor, añade la dirección nueva a `ALLOWED_ORIGINS` (separada por una coma):
    `https://cenitfisiolab.pages.dev`.
 5. En `public/cloud.json`, `"formsUrl": "https://cenitfisiolab.pages.dev/"`: los enlaces de los formularios van ahí
@@ -224,6 +236,9 @@ correos de los fisioterapeutas. Después:
 npx wrangler d1 execute cenit-datos --remote --file schema.sql -c wrangler.toml
 npx wrangler deploy -c wrangler.toml
 ```
+
+Cuando más adelante vuelvas a ejecutar un `schema.sql` nuevo, antes apunta el marcador de Time Travel
+(`npx wrangler d1 time-travel info cenit-datos -c wrangler.toml`; arriba, «Antes de ejecutar un `schema.sql` nuevo»).
 
 Termina con la comprobación y la conexión de la app (pasos 8 y 9 de arriba). Con Wrangler, las variables de
 `wrangler.toml` sustituyen a las del panel en cada `deploy`. Elige un camino, el panel o Wrangler, y mantén las

@@ -773,3 +773,34 @@ sanitaria: son los cambios que pide la revisión.
   (`public/cloud.json`, como ahora) no hace falta: la app ni pide ese permiso ni la lee. Si alguien usó la app
   antes de tener servidor, puede quedarle una copia vieja: se borra en Drive → Configuración → Gestionar
   aplicaciones → la app (con el nombre que tenga en Google) → Opciones → Eliminar datos ocultos de la aplicación.
+
+## Paquete de revisión técnica y legal (encargo del 30-10-2026)
+
+Sale de la revisión del 30-10-2026 (el paquete de 10 puntos que trajo el usuario). Se hace por partes, cada una con su
+punto de control antes de subir. Nada de esto está validado por un abogado ni por una autoridad sanitaria.
+
+- **Parte 1 · Probar antes de publicar (hecha el 30-10-2026, pendiente de subir).** `pages.yml` se sustituye por tres
+  workflows: `pruebas.yml` (cada push a cualquier rama salvo `produccion` y `publicado-cloudflare`, y cada pull
+  request a `produccion`: gitleaks sobre lo nuevo, lint, tipos, unitarias, build y pantallas en Chromium en la raíz;
+  no publica), `publicar.yml` (solo a mano, con el commit o la rama que se publica, `produccion` por defecto: repite
+  las pruebas y deja el commit en `publicado-cloudflare` y en GitHub Pages; para volver atrás, el commit anterior) y
+  `webkit.yml` (Safari en un Mac, los lunes y a mano, solo informa). Vista previa de Cloudflare Pages sin nube
+  (`public/cloud.preview.json`, `CF_PAGES_BRANCH` en `vite.config.ts`). `LICENSE` «todos los derechos reservados»
+  con los datos del titular entre corchetes (faltan: nombre, dirección o correo) y `"license": "UNLICENSED"`.
+  Enlaces de ejemplo de la vista previa de mensajes con un dominio neutro. Queda para el usuario: crear la rama
+  `produccion` y lanzar «Publicar» la primera vez; quitar GitHub Pages del `publicar.yml` cuando acabe la mudanza del
+  paso 2 de `docs/pasos-pendientes.md` (la cabecera del archivo dice cómo).
+- **Parte 2 · Quitar la firma por enlace** (la hoja de protección de datos y los consentimientos se firman en la
+  clínica; lo ya firmado se conserva). Pendiente.
+- **Parte 3 · Que la app nunca saque conclusiones sobre un paciente** (finalidad prevista en un solo sitio,
+  consentimientos sin «contraindicado», CIF sin propuestas, simetría sin umbral, bienestar sin semáforo, banderas como
+  lista, cuestionarios con rangos solo de referencia, mediciones con su límite, biblioteca sin órdenes). Pendiente.
+- **Parte 4 · Copia del dispositivo antes de cada actualización de la base.** Pendiente.
+- **Parte 5 · PIN: contraseña de la clínica o código de recuperación para poner un PIN nuevo.** Pendiente.
+- **Parte 6 · Exportación cifrada y recordatorio semanal.** Pendiente.
+- **Parte 7 · Equipo: cerrar el acceso al quitar a alguien, caducidad sin conexión y registro de accesos.** Pendiente.
+- **Parte 8 · Arreglos menores** (`docs/pasos-pendientes.md`, `RESUMEN.md`, `README.md`, WCAG 2.2 en axe, avisos de
+  lint). Pendiente.
+- **Fuera del encargo, para más adelante:** reescritura completa de los consentimientos y de la hoja de protección de
+  datos (versión «5»), anamnesis online a pacientes nuevos, historial de copias en el servidor y «Restaurar», textos
+  legales dentro de la app, dominio de los formularios y repositorio privado.

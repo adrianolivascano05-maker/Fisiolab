@@ -6,8 +6,8 @@ Fecha: 2026-10-17
 
 - **App:** OmniClin (antes «Impulso» y, hasta el 28-10-2026, «Cénit · Fisiolab», que se descartó porque «CENIT» está registrada; marca en el apartado 5: paleta papel y bosque con modo oscuro sobre el bosque, Bricolage Grotesque + Source Sans 3, logo del anillo de tres arcos con el sol de oro). Ficha clínica de fisioterapia y medición por vídeo a cámara lenta: se marcan fotogramas y la app calcula altura del salto, RSI, fuerza, potencia, etc. Código, nombre, logo y textos propios.
 - **Uso:** interno en la clínica Fisiolab, en el móvil **Android (Pixel 7 Pro)** del usuario.
-- **Publicada (versión de prueba):** https://adrianolivascano05-maker.github.io/Fisiolab/
-- **Código:** repositorio `adrianolivascano05-maker/Fisiolab` (público). Rama principal y única: `claude/replica-skill-install-zv3ker`. Cada push a esa rama vuelve a publicar la app (GitHub Actions → GitHub Pages).
+- **Publicada:** https://adrianolivascano05-maker.github.io/Fisiolab/ (la clínica, hasta la mudanza del paso 2 de `docs/pasos-pendientes.md`) y https://cenitfisiolab.pages.dev/ (Cloudflare Pages: los formularios de los pacientes).
+- **Código:** repositorio `adrianolivascano05-maker/Fisiolab` (público). Rama de desarrollo: `claude/replica-skill-install-zv3ker`. Desde el 30-10-2026 **un push no publica**: pasa las pruebas (`.github/workflows/pruebas.yml`) y nada más. Publicar es a mano: la rama `produccion` → GitHub → Actions → «Publicar» (`publicar.yml`), que repite las pruebas sobre ese commit y, si pasan, lo deja en `publicado-cloudflare` (Cloudflare Pages) y en GitHub Pages. Volver atrás es «Publicar» con el commit anterior. Safari (WebKit) se prueba los lunes en un Mac (`webkit.yml`), solo informativo.
 - **Método:** las skills «replica» instaladas en `.claude/skills/` (recon → architect → design → build → test → diff → brand → deploy). Sus documentos de trabajo se quitaron del repositorio el 2026-10-20 (quedan en el historial de git).
 
 ## 2. Estado actual
@@ -249,7 +249,7 @@ python3 .claude/skills/replica-design/contrast.py src/styles/tokens.json
 Convenciones:
 - Commits en inglés, con una línea de título y el cuerpo.
 - La app y la documentación, en español.
-- Pruebas antes de cada push: el push publica.
+- Pruebas antes de cada push. El push ya no publica (GitHub vuelve a pasar la tanda); publicar es Actions → «Publicar».
 - Los vídeos del usuario no se suben al repositorio.
 
 ## 7. Siguientes pasos recomendados
