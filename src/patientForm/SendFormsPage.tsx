@@ -44,7 +44,7 @@ import { cx } from "../ui/cx";
 import { SelectField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { useDocsUsage } from "../documents/DocSync";
+import { useDocsUsage } from "../documents/DocsAutoSync";
 import { createPatientForm } from "./createForm";
 import { useCollectForms } from "./FormInbox";
 

@@ -1,5 +1,6 @@
 // Dos archivos cuyo nombre solo cambia en mayúsculas (BodyMap.tsx y bodyMap.ts) conviven en Linux, pero en un Mac o
-// en Windows el sistema los confunde y la app no compila. Pasó el 24-10-2026 con la prueba de Safari en un Mac.
+// en Windows el sistema los confunde y la app no compila. Pasó el 24-10-2026 con la prueba de Safari en un Mac, y otra
+// vez el 29-10-2026 con DocSync.tsx y docSync.ts: el nombre completo cambia, pero se importan igual («./docSync»).
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -24,6 +25,19 @@ describe("nombres de archivo", () => {
       const key = path.toLowerCase();
       const other = seen.get(key);
       if (other && other !== path) clashes.push(`${other} ↔ ${path}`);
+      seen.set(key, path);
+    }
+    expect(clashes).toEqual([]);
+  });
+  it("ni dos módulos que se importen igual salvo mayúsculas (sin la extensión: .ts, .tsx…)", () => {
+    const seen = new Map<string, string>();
+    const clashes: string[] = [];
+    for (const path of walk(ROOT)) {
+      const m = /^(.*)\.(ts|tsx|js|jsx|mjs|cjs)$/.exec(path);
+      if (!m) continue;
+      const key = m[1]!.toLowerCase();
+      const other = seen.get(key);
+      if (other && other.replace(/\.[^.]+$/, "") !== m[1]) clashes.push(`${other} ↔ ${path}`);
       seen.set(key, path);
     }
     expect(clashes).toEqual([]);

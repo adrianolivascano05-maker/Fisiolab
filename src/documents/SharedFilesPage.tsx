@@ -16,7 +16,7 @@ import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { addPatientFiles } from "./docSync";
-import { useDocsServer, useDocsUsage } from "./DocSync";
+import { useDocsServer, useDocsUsage } from "./DocsAutoSync";
 import { prepareFiles } from "./prepare";
 
 const SHARED = "cenit-compartidos";

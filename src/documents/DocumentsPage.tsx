@@ -19,7 +19,7 @@ import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { addPatientFiles, readDocument, syncDocuments } from "./docSync";
-import { useDocsServer, useDocsUsage } from "./DocSync";
+import { useDocsServer, useDocsUsage } from "./DocsAutoSync";
 import { prepareFiles } from "./prepare";
 
 /** El nombre del archivo al guardarlo o enviarlo: el que se ve, sin lo que no admiten los sistemas de archivos. */

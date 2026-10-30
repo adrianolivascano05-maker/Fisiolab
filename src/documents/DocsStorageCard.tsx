@@ -8,7 +8,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { useToast } from "../ui/Toast";
 import { freeDeviceSpace } from "./docSync";
-import { useDocsServer, useDocsUsage } from "./DocSync";
+import { useDocsServer, useDocsUsage } from "./DocsAutoSync";
 
 export function DocsStorageCard() {
   const toast = useToast();

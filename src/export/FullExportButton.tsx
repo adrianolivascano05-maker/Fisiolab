@@ -6,7 +6,7 @@ import { useState } from "react";
 import { getDb } from "../data/db";
 import { getDocument } from "../data/documents";
 import { readDocument } from "../documents/docSync";
-import { useDocsServer } from "../documents/DocSync";
+import { useDocsServer } from "../documents/DocsAutoSync";
 import { Button } from "../ui/Button";
 import { useToast } from "../ui/Toast";
 import { saveFile } from "../app/download";

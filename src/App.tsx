@@ -14,7 +14,7 @@ import { RouteError } from "./app/RouteError";
 import { RouteFallback } from "./app/RouteFallback";
 import { useDesktop } from "./app/useMediaQuery";
 import { FormInboxGate } from "./patientForm/FormInboxGate"; // Respuestas de los pacientes a sus formularios, solo con clínica en el servidor
-import { DocSync } from "./documents/DocSync"; // Archivos del paciente: subir lo pendiente y borrar lo borrado (src/documents)
+import { DocSync } from "./documents/DocsAutoSync"; // Archivos del paciente: subir lo pendiente y borrar lo borrado (src/documents)
 
 // Al abrir la app solo se carga la lista de pacientes; cada pantalla se carga al entrar en ella (el service worker
 // ya las tiene guardadas, así que es inmediato también sin conexión).

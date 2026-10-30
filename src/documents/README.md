@@ -14,7 +14,7 @@ con el servidor de la clínica y si ese servidor tiene el almacén de archivos (
 - **En el dispositivo** (`cache.ts`): los bytes cifrados en IndexedDB (`cenit-archivos.<clínica>`). Se guardan al
   añadirlos y al abrirlos; «Liberar espacio en este dispositivo» (Ajustes › Copias y exportar) borra los que ya
   están en el servidor.
-- **Con el servidor** (`docSync.ts`, `DocSync.tsx`): al añadir se intenta subir ya; si no se puede, se sube solo
+- **Con el servidor** (`docSync.ts`, `DocsAutoSync.tsx`): al añadir se intenta subir ya; si no se puede, se sube solo
   después (cada minuto con la app abierta). Al borrar, el id va a `document_trash` (no se sincroniza) y se borra del
   servidor en la siguiente vuelta. Otro dispositivo baja el archivo solo al abrirlo.
 - **Preparar** (`prepare.ts`, `imagesToPdf.ts`): los PDF tal cual; las fotos de una misma vez, reducidas a JPEG y
