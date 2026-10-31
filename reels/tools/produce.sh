@@ -10,6 +10,8 @@ if [[ "${1:-}" != "--skip-voice" ]]; then
   ffmpeg -y -v error -i public/voz/voz_raw.wav \
     -af "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.15,areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.3,areverse,adelay=350|350,apad=pad_dur=0.4,loudnorm=I=-16:TP=-1.5:LRA=11" \
     -ar 48000 -ac 1 public/voz/voz.wav
+  # Palabras con tiempos (modelo de audio de Gemini, cuota distinta del TTS); si falla, se reparten por caracteres
+  node --no-warnings tools/align_words.mjs public/voz/voz.wav public/voz/voz.words.json || true
   node --no-warnings tools/align.mjs public/voz/voz.wav
 fi
 node --no-warnings tools/music.mjs

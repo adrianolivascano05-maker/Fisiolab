@@ -32,6 +32,9 @@ Referencias:
 2. «Este estudio debería enseñarse en primero de fisio.»
 3. «Lo que más influye en acertar la vértebra no es el paciente. Eres tú.»
 
+## Cambio de guion (v2)
+Se añade una frase de quiz antes del dato, para que el espectador apueste: «¿Cuántos crees que acertaron?» (en pantalla: 90 % · 75 % · 60 %, un dedo pulsa el 75 % y luego las tres se tachan cuando llega el 47 %). No cambia ningún dato.
+
 ## Notas de rigor aplicadas
 - No se dice que el estudio midiera L4 (midió L1, L3 y L5). «L4» aparece solo como ejemplo de lo que se dice en consulta.
 - No se dice «como lanzar una moneda»: la moneda es solo imagen en el gancho (si prefieres quitarla, borra `<Coin>` en `src/scenes/Gancho.tsx`).

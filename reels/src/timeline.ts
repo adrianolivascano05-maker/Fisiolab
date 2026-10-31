@@ -1,6 +1,6 @@
-import { FPS, flatSentences, SCENES, SceneId, Sentence, Timings } from "./config";
+import { FPS, flatSentences, norm, SCENES, SceneId, Sentence, Timings, WordTiming } from "./config";
 
-export type SentenceClock = { start: number; end: number; sentence: Sentence };
+export type SentenceClock = { start: number; end: number; sentence: Sentence; words: { w: string; start: number; end: number }[] };
 export type SceneClock = {
   id: SceneId;
   /** Frame de inicio en la línea de tiempo principal */
@@ -13,11 +13,10 @@ export type SceneClock = {
 
 const f = (sec: number) => Math.round(sec * FPS);
 
-/** Convierte los tiempos de la voz en escenas: cada escena arranca con su primera frase
- *  (un poco antes, para que el corte caiga justo antes de hablar). */
+/** Convierte los tiempos de la voz en escenas: cada escena arranca un poco antes de su primera frase. */
 export const buildTimeline = (t: Timings): { scenes: SceneClock[]; total: number } => {
   const flat = flatSentences();
-  const LEAD = 0.12; // s que la escena empieza antes de su primera frase
+  const LEAD = 0.12;
   const starts: number[] = SCENES.map((sc, i) => {
     const idx = flat.findIndex((x) => x.scene === sc.id);
     return i === 0 ? 0 : f(t.sentences[idx].start - LEAD);
@@ -33,16 +32,35 @@ export const buildTimeline = (t: Timings): { scenes: SceneClock[]; total: number
         start: f(t.sentences[j].start) - from,
         end: f(t.sentences[j].end) - from,
         sentence: x.sentence,
+        words: (t.sentences[j].words ?? []).map((w: WordTiming) => ({ w: norm(w.w), start: f(w.start) - from, end: f(w.end) - from })),
       }));
     return { id: sc.id, from, dur: next - from, s };
   });
   return { scenes, total };
 };
 
-/** Frame (relativo) en el que se pronuncia aproximadamente una palabra de la frase. */
-export const wordAt = (c: SentenceClock, word: string): number => {
-  const text = c.sentence.text;
-  const i = text.toLowerCase().indexOf(word.toLowerCase());
-  const pos = i < 0 ? 0 : i;
-  return Math.round(c.start + ((c.end - c.start) * pos) / Math.max(1, text.length));
+/** Frame (relativo a la escena) en que EMPIEZA una palabra de la frase (n-ésima aparición, desde 0). */
+export const wordAt = (c: SentenceClock, word: string, nth = 0): number => {
+  const target = norm(word);
+  let k = 0;
+  for (const w of c.words) {
+    if (w.w === target || w.w.startsWith(target)) {
+      if (k === nth) return w.start;
+      k++;
+    }
+  }
+  return c.start;
+};
+
+/** Frame en que TERMINA una palabra. */
+export const wordEnd = (c: SentenceClock, word: string, nth = 0): number => {
+  const target = norm(word);
+  let k = 0;
+  for (const w of c.words) {
+    if (w.w === target || w.w.startsWith(target)) {
+      if (k === nth) return w.end;
+      k++;
+    }
+  }
+  return c.end;
 };

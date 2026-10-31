@@ -1,6 +1,7 @@
 import { Audio } from "@remotion/media";
-import { AbsoluteFill, Sequence, staticFile } from "remotion";
+import { AbsoluteFill, Sequence, staticFile, useCurrentFrame } from "remotion";
 import { Background } from "./components/Background";
+import { Progress } from "./components/Engage";
 import { SourceTag } from "./components/SourceTag";
 import { Subtitles } from "./components/Subtitles";
 import { FPS, Timings } from "./config";
@@ -13,6 +14,7 @@ import { Hallazgo } from "./scenes/Hallazgo";
 import { Matiz } from "./scenes/Matiz";
 import { Prueba } from "./scenes/Prueba";
 import { QueHacer } from "./scenes/QueHacer";
+import { Quiz } from "./scenes/Quiz";
 import { SceneProps } from "./scenes/types";
 import { fontFamily } from "./theme";
 import { buildTimeline, SceneClock } from "./timeline";
@@ -23,6 +25,7 @@ const COMPONENTS: Record<SceneClock["id"], React.FC<SceneProps>> = {
   gancho: Gancho,
   prueba: Prueba,
   estudio: Estudio,
+  quiz: Quiz,
   hallazgo: Hallazgo,
   giro: Giro,
   matiz: Matiz,
@@ -49,6 +52,7 @@ const duck = (t: Timings) => (f: number) => {
 };
 
 export const Reel: React.FC<ReelProps> = ({ timings, hasVoice }) => {
+  const frame = useCurrentFrame();
   const { scenes, total } = buildTimeline(timings);
   const hallazgo = scenes.find((s) => s.id === "hallazgo")!;
   const riserAt = hallazgo.from + hallazgo.s[0].start - Math.round(0.9 * FPS) - Math.round(1.6 * FPS) + Math.round(0.35 * FPS);
@@ -66,6 +70,7 @@ export const Reel: React.FC<ReelProps> = ({ timings, hasVoice }) => {
         );
       })}
       <Subtitles timings={timings} />
+      <Progress scenes={scenes} frame={frame} />
       <SourceTag from={dataFrom} to={dataTo} />
       <SourceTag from={total - Math.round(2.2 * FPS)} to={total} />
 

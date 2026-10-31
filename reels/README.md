@@ -5,6 +5,9 @@ Reel vertical (1080×1920, 30 fps) con animaciones en código, voz en off de Gem
 ## Primer vídeo
 «Palpamos el nivel correcto la mitad de las veces» (Custers 2024 · reel 1; dato original de Harlick 2007). Composición principal `PalpacionL4`; cada escena también está suelta en la carpeta «Escenas» de Remotion Studio; portada en el still `Portada`.
 
+## Sincronía palabra a palabra
+`public/voz/timings.json` guarda el inicio y el fin de **cada palabra**. Las escenas disparan cada visual con `wordAt(frase, "palabra")` y los subtítulos resaltan la palabra que se está diciendo. Con la voz real, `tools/align.mjs` fija las frases por silencios y `tools/align_words.mjs` (modelo de audio de Gemini, cuota distinta del TTS) reparte las palabras dentro de cada frase; si ese paso falla, se reparten por caracteres.
+
 ## Dónde se cambia todo
 - `src/config.ts`: textos del guion (frase a frase), palabras resaltadas en los subtítulos, datos, colores y metadatos. **Es el único archivo que hay que tocar para otro vídeo** (más las escenas si el visual cambia).
 - `public/voz/timings.json`: tiempos de cada frase (los genera `tools/align.mjs` a partir de la voz, o `tools/estimate.mjs` como estimación mientras no hay voz). `calculateMetadata` lee este archivo y de ahí sale la duración de cada escena y del vídeo.

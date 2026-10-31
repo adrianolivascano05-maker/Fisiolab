@@ -1,39 +1,52 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { CLAMP, COLORS, FPS, Timings, flatSentences } from "../config";
+import { CLAMP, COLORS, FPS, Timings, flatSentences, norm } from "../config";
 import { LAYOUT, SAFE, fontFamily } from "../theme";
 
-type Chunk = { words: string[]; start: number; end: number; keys: string[] };
+type Tok = { text: string; start: number; end: number; key: boolean };
+type Chunk = { toks: Tok[]; start: number; end: number };
 
-const strip = (w: string) => w.replace(/[«»"“”¿?¡!,.:;()]/g, "");
-
-/** Divide cada frase en trozos de subtítulo con tiempos proporcionales a sus caracteres. */
+/** Convierte frases + tiempos de palabra en líneas de subtítulo, fusionando grupos con `display` (p. ej. «setenta y cinco» → «75»). */
 export const buildChunks = (t: Timings): Chunk[] => {
-  const flat = flatSentences();
   const out: Chunk[] = [];
-  flat.forEach(({ sentence }, i) => {
-    const { start, end } = t.sentences[i];
+  flatSentences().forEach(({ sentence }, i) => {
+    const st = t.sentences[i];
+    const words = st.words ?? [];
     const parts = sentence.chunks ?? [sentence.text];
-    const total = parts.reduce((a, p) => a + p.length, 0);
-    let acc = 0;
+    const keys = (sentence.keys ?? []).map(norm);
+    const display = Object.entries(sentence.display ?? {}).map(([k, v]) => ({ spoken: k.split(/\s+/).map(norm), show: v }));
+    let wi = 0;
     parts.forEach((p) => {
-      const s0 = start + ((end - start) * acc) / total;
-      acc += p.length;
-      const s1 = start + ((end - start) * acc) / total;
-      out.push({ words: p.split(" "), start: s0 * FPS, end: s1 * FPS, keys: sentence.keys ?? [] });
+      const raw = p.split(/\s+/).filter(Boolean);
+      const toks: Tok[] = [];
+      let k = 0;
+      while (k < raw.length) {
+        const w = words[wi] ?? { start: st.start, end: st.end };
+        const d = display.find((x) => x.spoken.every((s, j) => norm(raw[k + j] ?? "") === s));
+        if (d) {
+          const n = d.spoken.length;
+          const last = words[wi + n - 1] ?? w;
+          const trail = raw[k + n - 1].match(/[.,:;?!…»"]+$/)?.[0] ?? "";
+          toks.push({ text: d.show + trail, start: w.start * FPS, end: last.end * FPS, key: keys.includes(norm(d.show)) });
+          k += n; wi += n;
+        } else {
+          toks.push({ text: raw[k], start: w.start * FPS, end: w.end * FPS, key: keys.includes(norm(raw[k])) });
+          k++; wi++;
+        }
+      }
+      out.push({ toks, start: toks[0].start, end: toks[toks.length - 1].end });
     });
   });
   return out;
 };
 
-/** Subtítulos grandes sincronizados con la voz, palabra a palabra, con la palabra clave en naranja. */
+/** Subtítulos «héroe»: la línea actual en grande y la palabra que se está diciendo salta y se tiñe de naranja. */
 export const Subtitles: React.FC<{ timings: Timings }> = ({ timings }) => {
   const frame = useCurrentFrame();
   const chunks = buildChunks(timings);
-  const i = chunks.findIndex((c, k) => frame >= c.start - 2 && (k + 1 >= chunks.length ? frame <= c.end + FPS * 1.2 : frame < chunks[k + 1].start - 2));
+  const i = chunks.findIndex((c, k) => frame >= c.start - 2 && (k + 1 >= chunks.length ? frame <= c.end + FPS * 1.5 : frame < chunks[k + 1].start - 2));
   if (i < 0) return null;
   const c = chunks[i];
-  const chars = c.words.reduce((a, w) => a + w.length + 1, 0);
-  let acc = 0;
+  const cur = c.toks.findIndex((tk, k) => frame >= tk.start && (k + 1 >= c.toks.length || frame < c.toks[k + 1].start));
   return (
     <div
       style={{
@@ -46,33 +59,34 @@ export const Subtitles: React.FC<{ timings: Timings }> = ({ timings }) => {
         flexWrap: "wrap",
         alignContent: "center",
         justifyContent: "center",
-        columnGap: 18,
-        rowGap: 4,
+        columnGap: 6,
+        rowGap: 6,
         fontFamily,
         fontWeight: 900,
-        fontSize: 64,
-        lineHeight: 1.15,
+        fontSize: 68,
+        lineHeight: 1.12,
         textAlign: "center",
         color: COLORS.white,
-        textShadow: "0 4px 24px rgba(0,0,0,0.8), 0 0 2px rgba(0,0,0,0.9)",
+        textShadow: "0 4px 24px rgba(0,0,0,0.85)",
       }}
     >
-      {c.words.map((w, k) => {
-        const at = c.start + ((c.end - c.start) * 0.85 * acc) / chars;
-        acc += w.length + 1;
-        const key = c.keys.includes(strip(w));
+      {c.toks.map((tk, k) => {
+        const said = frame >= tk.start;
+        const active = k === cur;
         return (
           <span
             key={`${i}-${k}`}
             style={{
               display: "inline-block",
-              color: key ? COLORS.orange : COLORS.white,
-              textShadow: key ? `0 0 26px ${COLORS.orange}99` : undefined,
-              opacity: interpolate(frame, [at, at + 3], [0, 1], CLAMP),
-              scale: interpolate(frame, [at, at + 8], [1.35, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
+              padding: "0 14px",
+              color: active ? COLORS.orange : tk.key ? COLORS.orange : said ? COLORS.white : "rgba(255,255,255,0.35)",
+              textShadow: active || tk.key ? `0 0 30px ${COLORS.orange}aa` : undefined,
+              scale: String(active ? interpolate(frame, [tk.start, tk.start + 5], [1.2, 1.12], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }) : 1),
+              translate: active ? "0px -3px" : "0px 0px",
+              opacity: interpolate(frame, [c.start - 2, c.start + 2], [0, 1], CLAMP),
             }}
           >
-            {w}
+            {tk.text}
           </span>
         );
       })}

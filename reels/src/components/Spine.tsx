@@ -15,7 +15,10 @@ export const Spine: React.FC<{
   start: number;
   xray?: number; // 0..1 progreso del barrido de rayos X
   markers?: { level: number; at: number }[]; // marcadores que caen sobre las espinosas
-}> = ({ start, xray = 0, markers = [] }) => {
+  skinAt?: number; // frame en que aparece la línea de la piel sobre las espinosas
+  painAt?: number; // frame en que late el dolor lumbar (L4-L5)
+  glowLevels?: { levels: number[]; at: number; color?: string }; // niveles que se iluminan
+}> = ({ start, xray = 0, markers = [], skinAt, painAt, glowLevels }) => {
   const frame = useCurrentFrame();
   const sweepY = interpolate(xray, [0, 1], [-60, SPINE_H + 60]);
   const bone = xray > 0 ? COLORS.cyan : "rgba(255,255,255,0.92)";
@@ -28,10 +31,14 @@ export const Spine: React.FC<{
           <stop offset="100%" stopColor={COLORS.cyan} stopOpacity={0} />
         </linearGradient>
       </defs>
+      {painAt !== undefined && frame >= painAt ? (
+        <ellipse cx={150} cy={36 + 3.5 * VH + 40} rx={200} ry={150} fill={COLORS.red} opacity={0.22 + 0.12 * Math.sin((frame - painAt) / 3)} style={{ filter: "blur(30px)" }} />
+      ) : null}
       {LEVELS.map((lv, i) => {
         const y = 36 + i * VH;
         const s = interpolate(frame, [start + i * 4, start + i * 4 + 10], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.56, 0.64, 1) });
-        const lit = xray > 0 && sweepY > y + 30 ? 1 : 0;
+        const glow = glowLevels && frame >= glowLevels.at && glowLevels.levels.includes(i);
+        const lit = (xray > 0 && sweepY > y + 30) || glow ? 1 : 0;
         return (
           <g key={lv} style={{ transformOrigin: `150px ${y + 45}px`, scale: String(s) }}>
             {/* Cuerpo vertebral */}
@@ -73,6 +80,10 @@ export const Spine: React.FC<{
           </g>
         );
       })}
+      {/* Línea de la piel sobre las espinosas */}
+      {skinAt !== undefined && frame >= skinAt ? (
+        <path d={`M350 -20 C 360 200, 330 500, 352 ${SPINE_H + 20}`} fill="none" stroke="#FFD9B3" strokeWidth={6} strokeLinecap="round" strokeDasharray="18 12" pathLength={1} strokeDashoffset={interpolate(frame, [skinAt, skinAt + 12], [1, 0], CLAMP)} style={{ strokeDasharray: undefined }} opacity={0.9} />
+      ) : null}
       {/* Barrido de rayos X */}
       {xray > 0 && xray < 1 ? <rect x={-60} y={sweepY - 70} width={SPINE_W + 120} height={140} fill="url(#xrayBand)" /> : null}
     </svg>
