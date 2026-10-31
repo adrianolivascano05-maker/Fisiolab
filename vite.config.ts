@@ -83,7 +83,7 @@ export default defineConfig({
       // "prompt": la versión nueva espera a que se pulse «Actualizar»; recargar a mitad de un
       // marcado perdería el vídeo elegido.
       registerType: "prompt",
-      includeAssets: ["favicon.png", "icons/apple-touch-icon.png"],
+      includeAssets: ["favicon.png", "icons/omniclin-apple-touch-icon.png"],
       manifest: {
         name: "OmniClin",
         short_name: "OmniClin",
@@ -95,10 +95,12 @@ export default defineConfig({
         orientation: "portrait",
         background_color: tokens.color.canvas,
         theme_color: tokens.color.brand,
+        // Los archivos llevan «omniclin-» desde el 31-10-2026: con un nombre nuevo, Android ve que el icono ha cambiado y
+        // actualiza antes el de la app instalada (que seguía con el logo de «Cénit»).
         icons: [
-          { src: `${base}icons/icon-192.png`, sizes: "192x192", type: "image/png" },
-          { src: `${base}icons/icon-512.png`, sizes: "512x512", type: "image/png" },
-          { src: `${base}icons/maskable-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: `${base}icons/omniclin-icon-192.png`, sizes: "192x192", type: "image/png" },
+          { src: `${base}icons/omniclin-icon-512.png`, sizes: "512x512", type: "image/png" },
+          { src: `${base}icons/omniclin-maskable-512.png`, sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
         // Compartir → OmniClin desde WhatsApp, el correo o la galería (Android): PDF y fotos para la ficha de un paciente.
         share_target: {

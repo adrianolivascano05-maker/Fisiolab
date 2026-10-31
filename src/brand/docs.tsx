@@ -22,7 +22,7 @@ export function docVars(brand: Brand | null | undefined): CSSProperties {
 /** La imagen de la marca de agua: el logo o, sin logo, la inicial sobre el color principal; con la identidad de OmniClin, su símbolo. */
 export function watermarkSrc(brand: Brand): string {
   const own = ownIdentity(brand);
-  if (!own) return `${import.meta.env.BASE_URL}icons/icon-512.png`;
+  if (!own) return `${import.meta.env.BASE_URL}icons/omniclin-icon-512.png`;
   return own.logo ?? initialIcon(own, 512);
 }
 

@@ -60,10 +60,10 @@ def icon(size: int, *, maskable: bool, rounded: bool) -> Image.Image:
 
 
 OUT.mkdir(parents=True, exist_ok=True)
-icon(192, maskable=False, rounded=True).save(OUT / "icon-192.png")
-icon(512, maskable=False, rounded=True).save(OUT / "icon-512.png")
-icon(512, maskable=True, rounded=False).save(OUT / "maskable-512.png")
-icon(180, maskable=False, rounded=False).convert("RGB").save(OUT / "apple-touch-icon.png")
+icon(192, maskable=False, rounded=True).save(OUT / "omniclin-icon-192.png")
+icon(512, maskable=False, rounded=True).save(OUT / "omniclin-icon-512.png")
+icon(512, maskable=True, rounded=False).save(OUT / "omniclin-maskable-512.png")
+icon(180, maskable=False, rounded=False).convert("RGB").save(OUT / "omniclin-apple-touch-icon.png")
 icon(64, maskable=False, rounded=True).save(ROOT / "public/favicon.png")
-icon(1024, maskable=False, rounded=False).convert("RGB").save(OUT / "icon-1024.png")
+icon(1024, maskable=False, rounded=False).convert("RGB").save(OUT / "omniclin-icon-1024.png")
 print("iconos en", OUT)

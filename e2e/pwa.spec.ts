@@ -17,7 +17,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     expect(manifest).toMatchObject({ name: "OmniClin", short_name: "OmniClin", display: "standalone", lang: "es", start_url: base, scope: base });
     for (const icon of manifest.icons) expect((await request.get(icon.src)).status(), icon.src).toBe(200);
     expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === "maskable")).toBe(true);
-    expect((await request.get("icons/apple-touch-icon.png")).status()).toBe(200);
+    expect((await request.get("icons/omniclin-apple-touch-icon.png")).status()).toBe(200);
   });
 
   test("PWA-H3 los datos se guardan en el dispositivo: siguen al recargar y al abrir otra dirección en la misma pestaña", async ({ page }) => {
