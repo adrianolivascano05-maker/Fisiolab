@@ -341,7 +341,7 @@ export function DataSettingsPage() {
                 run: (pick) =>
                   run("backup", async () => {
                     const db = getDb();
-                    await saveMaybeEncrypted(`fisiolab-copia-${stamp()}.sqlite3`, await db.exportBytes(), "application/vnd.sqlite3", pick.password);
+                    await saveMaybeEncrypted(`OmniClin-copia-${stamp()}.sqlite3`, await db.exportBytes(), "application/vnd.sqlite3", pick.password);
                     await setSetting(db, "last_backup_at", new Date().toISOString());
                     toast("Copia descargada. Guárdala fuera del móvil (correo, nube de la clínica…).", "success");
                   }),
@@ -396,7 +396,7 @@ export function DataSettingsPage() {
                           setChoosing({
                             what: `La base de antes de actualizar (${b.name}).`,
                             run: (pick) =>
-                              run(`backup-${b.name}`, async () => saveMaybeEncrypted(`fisiolab-antes-de-actualizar-${b.name}`, await getDb().readBackup(b.name), "application/vnd.sqlite3", pick.password)),
+                              run(`backup-${b.name}`, async () => saveMaybeEncrypted(`OmniClin-antes-de-actualizar-${b.name}`, await getDb().readBackup(b.name), "application/vnd.sqlite3", pick.password)),
                           })
                         }
                       >
@@ -426,7 +426,7 @@ export function DataSettingsPage() {
             loading={busy === "csv"}
             onClick={() =>
               run("csv", async () => {
-                saveFile(`fisiolab-resultados-${stamp()}.csv`, await exportCsv(getDb()), "text/csv;charset=utf-8");
+                saveFile(`OmniClin-resultados-${stamp()}.csv`, await exportCsv(getDb()), "text/csv;charset=utf-8");
                 await logAccess(getDb(), "exportar", (await getDb().query<{ id: string }>("select id from patients")).map((p) => p.id)).catch(() => {});
               })
             }

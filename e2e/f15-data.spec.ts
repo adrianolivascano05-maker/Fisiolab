@@ -8,7 +8,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await expectAccessible(page);
     const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: /Exportar resultados/ }).click()]);
     const text = readFileSync((await dl.path())!, "utf8");
-    expect(dl.suggestedFilename()).toMatch(/^fisiolab-resultados-\d{4}-\d{2}-\d{2}\.csv$/);
+    expect(dl.suggestedFilename()).toMatch(/^OmniClin-resultados-\d{4}-\d{2}-\d{2}\.csv$/);
     expect(text.charCodeAt(0)).toBe(0xfeff);
     expect(text).toContain("paciente;fecha;test;movimiento;lado;metodo;carga_kg;altura_caida_cm;fps_grabacion;intento;metrica;valor;unidad");
     expect(text).toMatch(/Ejemplo · Lucía Herrero;[^;]+;cmj;;;;0;;240;;jump_height_cm;\d+,\d+;cm/);
@@ -71,7 +71,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
 
     // La copia .sqlite3 suelta, también cifrada.
     const copy = await downloadFrom(page, page.getByRole("button", { name: "Descargar copia de seguridad" }), "frase de la clínica 2026");
-    expect(copy.suggestedFilename()).toMatch(/^fisiolab-copia-\d{4}-\d{2}-\d{2}-cifrado\.omniclin$/);
+    expect(copy.suggestedFilename()).toMatch(/^OmniClin-copia-\d{4}-\d{2}-\d{2}-cifrado\.omniclin$/);
     expect(readFileSync((await copy.path())!).subarray(0, 8).toString("latin1")).toBe("OMNIEXP1");
 
     // Sin cuenta ni app: la página pública, que funciona aunque no se pueda entrar.
@@ -91,7 +91,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await page.goto("./ajustes/datos");
     await expect(page.getByText("Última copia: nunca")).toBeVisible();
     const dl = await downloadFrom(page, page.getByRole("button", { name: "Descargar copia de seguridad" }));
-    expect(dl.suggestedFilename()).toMatch(/^fisiolab-copia-\d{4}-\d{2}-\d{2}\.sqlite3$/);
+    expect(dl.suggestedFilename()).toMatch(/^OmniClin-copia-\d{4}-\d{2}-\d{2}\.sqlite3$/);
     const backup = (await dl.path())!;
     await expect(page.getByText(/Última copia: \d/)).toBeVisible();
 
@@ -118,7 +118,7 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     await expectAccessible(page);
     // Se puede descargar y restaurar (restaurarla vuelve a migrarla: sigue habiendo una sola copia, la misma).
     const dl = await downloadFrom(page, backups.getByRole("button", { name: "Descargar" }));
-    expect(dl.suggestedFilename()).toMatch(/^fisiolab-antes-de-actualizar-v20-a-v\d+\.sqlite3$/);
+    expect(dl.suggestedFilename()).toMatch(/^OmniClin-antes-de-actualizar-v20-a-v\d+\.sqlite3$/);
     await backups.getByRole("button", { name: "Restaurar" }).click();
     await page.getByRole("button", { name: "Sustituir mis datos" }).click();
     await expect(page.getByText("Copia restaurada")).toBeVisible();

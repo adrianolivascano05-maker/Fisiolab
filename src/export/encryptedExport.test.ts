@@ -36,6 +36,6 @@ describe("copia cifrada con contraseña (.omniclin)", () => {
     expect(checkExportPassword("frase larga 1", "frase larga 1")).toBeNull();
     await expect(encryptExport(zip, "x.zip", "corta")).rejects.toThrow("al menos 10");
     expect(encryptedName("OmniClin-Fisiolab-2026-10-30.zip")).toBe("OmniClin-Fisiolab-2026-10-30-cifrado.omniclin");
-    expect(encryptedName("fisiolab-copia-2026-10-30.sqlite3")).toBe("fisiolab-copia-2026-10-30-cifrado.omniclin");
+    expect(encryptedName("OmniClin-copia-2026-10-30.sqlite3")).toBe("OmniClin-copia-2026-10-30-cifrado.omniclin");
   });
 });
