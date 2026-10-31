@@ -18,6 +18,10 @@ hasta que hagas esto:
    pruebas sobre ese commit y, si pasan, lo deja en `publicado-cloudflare` (Cloudflare Pages) y en GitHub Pages. Si
    algo falla, no publica nada y lo ves en rojo.
 3. Volver atrás es lo mismo con el commit anterior en `ref`.
+3 bis. **Una sola vez:** GitHub Pages solo dejaba publicar desde la rama de desarrollo. En GitHub → **Settings** →
+   **Environments** → `github-pages` → **Deployment branches and tags** → **Add deployment branch or tag rule** →
+   escribe `produccion` → **Add rule**. Sin esto, «Publicar» deja la app en Cloudflare pero el paso de GitHub Pages
+   sale en rojo (pasó en la primera publicación, el 31-10-2026).
 4. En Cloudflare Pages, comprueba que **Production branch** es `publicado-cloudflare` y que las vistas previas
    (**Preview branches**) son solo la rama de desarrollo o ninguna (apartado 2 de `cloudflare/README.md`): cualquier
    otra rama que construya Cloudflare sale como vista previa **sin nube**, con pacientes de ejemplo.
