@@ -169,6 +169,40 @@ describe("formularios para el paciente", () => {
     expect((await getSentForm(db, f.id))!.answers).toEqual({ alergias: "Polen" });
   });
 
+  it("de la anamnesis solo entran las preguntas que se le mandaron (meta.fields)", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Solo Algunas"));
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: ANAMNESIS_KIND, key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), meta: { fields: ["alergias"] } });
+    const response = await seal({ v: 1, answers: { motivo: "Me duele", alergias: "Polen" } }, f.key);
+    const { api } = server([{ id: f.id, response, answeredAt: new Date().toISOString() }]);
+    await collectAnswered(db, api, ANAMNESIS);
+    expect((await getAnamnesis(db, pid))?.answers).toEqual({ alergias: "Polen" });
+  });
+
+  it("paciente nuevo: el acuse y la petición de contacto se apuntan con el texto del envío, sin dar el permiso", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Nueva Paciente"));
+    const intake = { version: "2026-10-31", contactText: "Quiero que me escribáis por WhatsApp o correo." };
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: ANAMNESIS_KIND, key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), meta: { intake } });
+    // Un envío sin la información: lo que diga __intake no cuenta.
+    const g = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: g.id, patientId: pid, episodeId: pid, kind: ANAMNESIS_KIND, key: g.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString() });
+    const at = "2026-10-31T09:00:00.000Z";
+    const { api } = server([
+      { id: f.id, response: await seal({ v: 1, answers: { alergias: "Polen", __intake: { ack: true, contact: true, text: "otro texto" } } }, f.key), answeredAt: at },
+      { id: g.id, response: await seal({ v: 1, answers: { __intake: { ack: true, contact: true } } }, g.key), answeredAt: at },
+    ]);
+    await collectAnswered(db, api, ANAMNESIS);
+    const p = (await getPatient(db, pid))!.privacy;
+    expect(p.intakeAcks).toEqual([{ at, formId: f.id, version: "2026-10-31" }]);
+    expect(p.contactRequests).toEqual([{ at, formId: f.id, text: intake.contactText, version: "2026-10-31" }]);
+    expect(p.consents?.contact).toBeUndefined();
+    expect((await getSentForm(db, f.id))!.answers).toMatchObject({ alergias: "Polen", __intake: { ack: true, contact: true } });
+    expect((await getSentForm(db, g.id))!.answers).not.toHaveProperty("__intake");
+  });
+
   it("el mensaje dice quién lo pide, qué es y hasta cuándo vale", () => {
     const text = formMessage({ name: "Nora", clinic: "Fisiolab", kind: "gad7", url: "https://x/formulario/abc#k", expiresAt: "2026-11-04T10:00:00Z" });
     expect(text).toContain("Hola Nora: desde Fisiolab te pedimos que rellenes el cuestionario «GAD-7 (ansiedad)»");

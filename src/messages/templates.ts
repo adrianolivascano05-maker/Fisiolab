@@ -89,6 +89,27 @@ export const MESSAGES: MessageSpec[] = [
 
 export const specOf = (kind: MessageKind): MessageSpec => MESSAGES.find((m) => m.kind === kind)!;
 
+/**
+ * El primer mensaje a un paciente nuevo que aún no ha firmado el permiso de contacto (la excepción de mayMessage,
+ * src/data/privacy.ts): el enlace de su anamnesis, sin datos de salud, sin la palabra «fisioterapia» y sin la firma
+ * común (podría llevarla). No se puede cambiar en Ajustes: va a quien aún no ha dicho que se le pueda escribir.
+ */
+export const FIRST_MESSAGE = {
+  label: "Primer mensaje a un paciente nuevo",
+  where: "La anamnesis antes de la primera cita, a quien aún no ha firmado el permiso de contacto",
+  withDate: "Hola, {nombre}. Te escribimos de {clinica} por la cita que has pedido para el {dia} a las {hora}. Antes de venir, si quieres, puedes rellenar este formulario: {enlace} Caduca el {caduca}. Si no has pedido cita, ignora este mensaje.",
+  noDate: "Hola, {nombre}. Te escribimos de {clinica} por la cita que has pedido. Antes de venir, si quieres, puedes rellenar este formulario: {enlace} Caduca el {caduca}. Si no has pedido cita, ignora este mensaje.",
+  subject: "Tu cita en {clinica}",
+};
+
+/** El primer mensaje, relleno: con la cita si la hay. */
+export function firstMessageText(p: { name: string; clinic: string; url: string; expiresAt: string; startsAt?: string | null }): string {
+  const caduca = new Date(p.expiresAt).toLocaleDateString("es-ES", { day: "numeric", month: "long", timeZone: "Europe/Madrid" });
+  const vars: MessageVars = { nombre: firstName(p.name), clinica: p.clinic, enlace: p.url, caduca };
+  return p.startsAt ? fillTemplate(FIRST_MESSAGE.withDate, { ...vars, dia: dayText(p.startsAt), hora: hourText(p.startsAt) }) : fillTemplate(FIRST_MESSAGE.noDate, vars);
+}
+export const firstMessageSubject = (clinic: string) => fillTemplate(FIRST_MESSAGE.subject, { clinica: clinic });
+
 /** Lo que guarda la clínica: por mensaje, el texto o el asunto que haya cambiado, y la firma común. */
 export type MessageTexts = Partial<Record<MessageKind, { text?: string; subject?: string }>>;
 export type MessageSettings = { texts: MessageTexts; signature: string };

@@ -6,6 +6,7 @@
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { FormBrand } from "../brand/form";
 import type { Db } from "../data/db";
+import type { PrivacySection } from "../data/privacy";
 import { messageText, type MessageSettings } from "../messages/templates";
 import { cachedCloudConfig } from "../cloud/config";
 import { ALL_FIELDS, type Field, type Section } from "./anamnesis";
@@ -52,6 +53,12 @@ export type FormRequest = {
    * para el texto informativo del principio. Los formularios mandados antes no lo llevan.
    */
   controller?: { name: string; email: string };
+  /**
+   * Anamnesis inicial a un paciente nuevo que aún no ha firmado la hoja de protección de datos: la información en una
+   * capa, la casilla obligatoria de «He leído» y la opcional de contacto (src/privacy/intakeText.ts). La respuesta
+   * lleva `answers.__intake = { ack, contact }`.
+   */
+  intake?: { version: string; notice: PrivacySection[]; ackText: string; contactText: string };
 };
 /**
  * Lo que vuelve cifrado: las respuestas por id de campo (anamnesis) o de ítem (cuestionario); si se le pidieron archivos,
@@ -234,18 +241,23 @@ function cleanValue(f: Field, v: unknown): AnswerValue {
 /**
  * Pone en la anamnesis lo que ha contestado el paciente: solo en los campos que se le preguntan y que estaban vacíos.
  * Lo que ya tenía escrito el fisioterapeuta no se toca: esos campos van en `skipped` (lo que contestó se puede ver).
+ * `sentFields`: las preguntas que se le mandaron (migración 036); si viene, solo se aceptan las que estén en las dos
+ * (lo enviado y la plantilla de ahora): una pregunta añadida después no la vio y una quitada ya no existe.
  */
 export function mergeAnamnesis(
   current: Answers,
   incoming: Record<string, unknown>,
   sections: Section[],
+  sentFields?: string[],
 ): { merged: Answers; filled: string[]; skipped: string[]; clean: Answers } {
+  const sent = sentFields ? new Set(sentFields) : null;
   const merged: Answers = { ...current };
   /** Lo que contestó, solo de lo que se le preguntó y limpio (lo que se guarda para verlo). */
   const clean: Answers = {};
   const done: string[] = [];
   const skipped: string[] = [];
   for (const f of patientSections(sections).flatMap((s) => s.fields)) {
+    if (sent && !sent.has(f.id)) continue;
     const v = cleanValue(f, incoming[f.id]);
     if (!filled(v)) continue;
     clean[f.id] = v;

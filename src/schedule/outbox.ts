@@ -10,6 +10,7 @@
 // - Seguimiento: antes de una reevaluación, los cuestionarios que rellenó al empezar, para ver cómo va. Hace falta el
 //   servidor de la clínica.
 import { mayMessage } from "../data/privacy";
+import type { BookingContact } from "../data/privacy";
 import { madridDay } from "../app/format";
 import { ANAMNESIS_KIND, SENDABLE } from "../clinical/patientForms";
 import type { ReminderItem } from "../data/appointments";
@@ -31,7 +32,8 @@ export const DEFAULT_OUTBOX: OutboxSettings = { reminders: true, anamnesis: true
 export const outboxSettings = (s: Partial<OutboxSettings> | null | undefined): OutboxSettings => ({ ...DEFAULT_OUTBOX, ...s });
 
 /** Un paciente, con lo que hace falta para escribirle. */
-export type Contact = { patientId: string; name: string; phone: string; email: string; contact: boolean | null };
+/** `booking`: paciente nuevo que ha pedido cita y ha dado ese contacto (solo en la anamnesis inicial). */
+export type Contact = { patientId: string; name: string; phone: string; email: string; contact: boolean | null; booking?: BookingContact | null };
 
 export type OutboxItem = Contact & {
   /** La regla y a qué va: «recordatorio:<cita>», «anamnesis:<cita>», «seguimiento:<paciente>:<día>». */
@@ -104,9 +106,13 @@ export function buildOutbox(input: OutboxInput): OutboxItem[] {
     for (const a of firstOf.values()) {
       const id = `anamnesis:${a.id}`;
       const start = Date.parse(a.startsAt);
-      if (start <= t || start > horizon || done.has(id) || !mayMessage(a.contact)) continue;
+      if (start <= t || start > horizon || done.has(id)) continue;
       if (input.seenBefore.has(a.patientId) || input.withAnamnesis.has(a.patientId) || recentAnamnesis.has(a.patientId)) continue;
-      out.push({ ...contactOf(a), id, rule: "anamnesis", appointment: a, needsForms: true });
+      // Paciente nuevo: con su «Sí» firmado o, si ha pedido cita y ha dado su teléfono o correo para gestionarla, por
+      // ese canal (la excepción de mayMessage).
+      const purpose = (channel: "whatsapp" | "email") => ({ kind: "anamnesis-inicial" as const, isNew: true, booking: a.booking, channel });
+      if (!mayMessage(a.contact, purpose("whatsapp")) && !mayMessage(a.contact, purpose("email"))) continue;
+      out.push({ ...contactOf(a), booking: a.booking, id, rule: "anamnesis", appointment: a, needsForms: true });
     }
   }
 

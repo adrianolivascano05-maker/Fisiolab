@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { saveSession } from "./clinical";
 import type { Db } from "./db";
-import { ageOn, changedSinceSigned, clinicalRecord, getClinic, keepUntil, MIN_RETENTION_YEARS, saveClinic, savePatientPrivacy, signPrivacySheet, type SignedPrivacySheet } from "./privacy";
+import { ageOn, answerContactRequest, changedSinceSigned, clinicalRecord, getClinic, keepUntil, mayMessage, MIN_RETENTION_YEARS, pendingContactRequest, recordIntake, saveClinic, savePatientPrivacy, setBookingContact, signPrivacySheet, type SignedPrivacySheet } from "./privacy";
 import { privacySections } from "../privacy/privacyText";
 import { createPatient, getPatient } from "./repo";
+import { isNewPatient } from "./patients";
 import { createTestDb } from "./testDb";
 
 let db: Db;
@@ -88,5 +89,64 @@ describe("protección de datos", () => {
     expect(ageOn("2012-05-20", new Date(2026, 4, 19))).toBe(13);
     expect(ageOn("2012-05-20", new Date(2026, 4, 20))).toBe(14);
     expect(ageOn(null)).toBeNull();
+  });
+});
+
+describe("paciente nuevo: anamnesis sin el permiso de contacto firmado", () => {
+  const booking = { at: "2026-10-30T10:00:00.000Z", by: "Laura", channels: ["whatsapp" as const] };
+  const first = (channel: "whatsapp" | "email", isNew = true, b: typeof booking | null = booking) => ({ kind: "anamnesis-inicial" as const, isNew, booking: b, channel });
+
+  it("mayMessage: con el «Sí», siempre; sin firmar, solo la anamnesis inicial por el canal que dio; con un «No», nunca", () => {
+    expect(mayMessage(true)).toBe(true);
+    expect(mayMessage(null)).toBe(false);
+    expect(mayMessage(undefined, first("whatsapp"))).toBe(true);
+    expect(mayMessage(null, first("whatsapp"))).toBe(true);
+    expect(mayMessage(null, first("email"))).toBe(false);
+    expect(mayMessage(null, first("whatsapp", false))).toBe(false);
+    expect(mayMessage(null, first("whatsapp", true, null))).toBe(false);
+    expect(mayMessage(false, first("whatsapp"))).toBe(false);
+  });
+
+  it("lo que pide en el formulario se apunta una vez y no da el permiso hasta que la clínica lo confirma", async () => {
+    await setBookingContact(db, pid, ["whatsapp"], "Laura");
+    expect((await getPatient(db, pid))!.privacy.bookingContact).toMatchObject({ by: "Laura", channels: ["whatsapp"] });
+    const ack = { at: "2026-10-31T09:00:00.000Z", formId: "f1", version: "2026-10-31" };
+    const request = { at: ack.at, formId: "f1", text: "Quiero que me escribáis", version: "2026-10-31" };
+    await recordIntake(db, pid, { ack, request });
+    await recordIntake(db, pid, { ack, request });
+    let p = (await getPatient(db, pid))!.privacy;
+    expect(p.intakeAcks).toEqual([ack]);
+    expect(p.contactRequests).toEqual([request]);
+    expect(p.consents?.contact).toBeUndefined();
+    expect(pendingContactRequest(p)).toEqual(request);
+
+    await answerContactRequest(db, pid, "f1", false, "Laura");
+    p = (await getPatient(db, pid))!.privacy;
+    expect(pendingContactRequest(p)).toBeNull();
+    expect(p.contactRequests![0]!.dismissedAt).toBeTruthy();
+    expect(p.consents?.contact).toBeUndefined();
+
+    await recordIntake(db, pid, { request: { ...request, formId: "f2" } });
+    await answerContactRequest(db, pid, "f2", true, "Laura");
+    p = (await getPatient(db, pid))!.privacy;
+    expect(p.consents?.contact).toBe(true);
+    expect(p.contactRequests![1]).toMatchObject({ formId: "f2", confirmedBy: "Laura" });
+
+    await setBookingContact(db, pid, null, "Laura");
+    expect((await getPatient(db, pid))!.privacy.bookingContact).toBeUndefined();
+  });
+
+  it("el permiso confirmado después de la última hoja no obliga a firmar otra", () => {
+    const sheet = { version: "v", date: "2026-10-20", at: "2026-10-20T09:00:00.000Z", method: "screen" as const, patientName: "Ana", signedBy: undefined, sections: [], consents: [{ id: "contact" as const, text: "WhatsApp", answer: null }], signature: "" } as unknown as SignedPrivacySheet;
+    const req = { at: "2026-10-30T09:00:00.000Z", formId: "f", text: "t", version: "v" };
+    expect(changedSinceSigned({ sheets: [sheet], consents: { contact: true } })).toBe(true);
+    expect(changedSinceSigned({ sheets: [sheet], consents: { contact: true }, contactRequests: [{ ...req, confirmedAt: "2026-10-30T10:00:00.000Z" }] })).toBe(false);
+    expect(changedSinceSigned({ sheets: [sheet], consents: { contact: true }, contactRequests: [{ ...req, confirmedAt: "2026-10-19T10:00:00.000Z" }] })).toBe(true);
+  });
+
+  it("es nuevo hasta que tiene una sesión", async () => {
+    expect(await isNewPatient(db, pid)).toBe(true);
+    await saveSession(db, pid, { pain: null, subjective: "", objective: "", treatment: "x", plan: "", reviewOn: null, nextAt: null, nextMinutes: null, performedAt: "2026-10-20T09:00:00.000Z" });
+    expect(await isNewPatient(db, pid)).toBe(false);
   });
 });

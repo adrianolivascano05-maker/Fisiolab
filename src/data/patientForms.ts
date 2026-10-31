@@ -23,7 +23,14 @@ export type SentForm = {
   answers: Record<string, unknown> | null;
   /** Campos de la anamnesis que no se pusieron porque ya había algo escrito. */
   skipped: string[];
+  meta: FormMeta | null;
 };
+
+/**
+ * Qué se mandó (migración 036): las preguntas de la anamnesis que vio el paciente y, a un paciente nuevo, la versión y
+ * el texto de la información y de la casilla de contacto. Los envíos de antes no lo tienen (null).
+ */
+export type FormMeta = { fields?: string[]; intake?: { version: string; contactText: string } };
 
 export type FormStatus = "pending" | "done" | "expired" | "cancelled";
 
@@ -48,6 +55,7 @@ type Row = {
   cancelled_at: string | null;
   answers: string | null;
   skipped: string;
+  meta: string | null;
 };
 
 const toForm = (r: Row): SentForm => ({
@@ -63,14 +71,15 @@ const toForm = (r: Row): SentForm => ({
   cancelledAt: r.cancelled_at,
   answers: r.answers ? (JSON.parse(r.answers) as Record<string, unknown>) : null,
   skipped: JSON.parse(r.skipped || "[]") as string[],
+  meta: r.meta ? (JSON.parse(r.meta) as FormMeta) : null,
 });
 
-export async function addSentForm(db: Db, f: Pick<SentForm, "id" | "patientId" | "episodeId" | "kind" | "key" | "expiresAt">): Promise<void> {
+export async function addSentForm(db: Db, f: Pick<SentForm, "id" | "patientId" | "episodeId" | "kind" | "key" | "expiresAt"> & { meta?: FormMeta | null }): Promise<void> {
   const t = now();
   await db.transaction([
     {
-      sql: "insert into patient_forms (id, patient_id, episode_id, kind, form_key, sent_at, expires_at, updated_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
-      bind: [f.id, f.patientId, f.episodeId, f.kind, f.key, t, f.expiresAt, t],
+      sql: "insert into patient_forms (id, patient_id, episode_id, kind, form_key, sent_at, expires_at, updated_at, meta) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      bind: [f.id, f.patientId, f.episodeId, f.kind, f.key, t, f.expiresAt, t, f.meta ? JSON.stringify(f.meta) : null],
     },
   ]);
 }

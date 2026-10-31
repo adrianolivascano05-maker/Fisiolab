@@ -116,6 +116,20 @@ export async function listPatients(db: Db, search = "", now = new Date()): Promi
   return rows.filter((r) => matchesPatient(r, search));
 }
 
+/**
+ * Paciente nuevo: sin sesiones, sin citas anteriores no anuladas y sin anamnesis con respuestas (lo mismo que mira la
+ * bandeja de envíos para la anamnesis antes de la primera cita, src/schedule/loadOutbox.ts).
+ */
+export async function isNewPatient(db: Db, patientId: string, now = new Date().toISOString()): Promise<boolean> {
+  const [row] = await db.query<{ n: number }>(
+    `select (select count(*) from sessions where patient_id = ?1)
+          + (select count(*) from appointments where patient_id = ?1 and status != 'cancelled' and starts_at < ?2)
+          + (select count(*) from anamnesis where patient_id = ?1 and answers not in ('', '{}')) as n`,
+    [patientId, now],
+  );
+  return (row?.n ?? 0) === 0;
+}
+
 export async function getPatient(db: Db, id: string): Promise<Patient | null> {
   const rows = await db.query<PatientRow>("select * from patients where id = ?", [id]);
   return rows[0] ? toPatient(rows[0]) : null;

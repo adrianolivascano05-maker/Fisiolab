@@ -38,7 +38,7 @@ import {
   type OutboxRule,
   type OutboxSettings,
 } from "./outbox";
-import { loadMessages, messageSubject, type MessageKind } from "../messages/templates";
+import { firstMessageSubject, firstMessageText, loadMessages, messageSubject, type MessageKind } from "../messages/templates";
 import { mailtoUrl, reminderMessage, waPhone, whatsappUrl } from "./reminders";
 import { staffName, useStaff } from "./useStaff";
 import { plural } from "../app/format";
@@ -82,6 +82,8 @@ export function OutboxPage() {
     try {
       if (i.rule === "anamnesis") {
         const f = await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections });
+        // Sin su «Sí» firmado (ha pedido cita y ha dado este contacto): el primer mensaje fijo, sin datos de salud.
+        if (i.contact !== true) return { text: firstMessageText({ name: i.name, clinic: clinicName, url: f.url, expiresAt: f.record.expiresAt, startsAt: i.appointment!.startsAt }), forms: [f] };
         return { text: anamnesisText({ name: i.name, clinic: clinicName, startsAt: i.appointment!.startsAt, url: f.url }, messages), forms: [f] };
       }
       const forms: UploadedForm[] = [];
@@ -183,7 +185,7 @@ export function OutboxPage() {
             key={run.ids[run.at] ?? "fin"}
             item={byId.get(run.ids[run.at] ?? "") ?? null}
             prepared={prepared[run.ids[run.at] ?? ""]}
-            subjectOf={(i) => messageSubject(KIND[i.rule], messages, { clinica: clinicName })}
+            subjectOf={(i) => (i.rule === "anamnesis" && i.contact !== true ? firstMessageSubject(clinicName) : messageSubject(KIND[i.rule], messages, { clinica: clinicName }))}
             onPrepare={async (i) => {
               const p = await prepare(i);
               setPrepared((m) => ({ ...m, [i.id]: p }));
@@ -248,8 +250,10 @@ function SendStep({
       </>
     );
   }
-  const phone = mayMessage(item.contact) ? waPhone(item.phone) : null;
-  const email = mayMessage(item.contact) ? item.email : "";
+  // La anamnesis inicial a un paciente nuevo sale también por el canal que dio al pedir cita (mayMessage).
+  const purpose = (channel: "whatsapp" | "email") => (item.rule === "anamnesis" ? { kind: "anamnesis-inicial" as const, isNew: true, booking: item.booking, channel } : undefined);
+  const phone = mayMessage(item.contact, purpose("whatsapp")) ? waPhone(item.phone) : null;
+  const email = mayMessage(item.contact, purpose("email")) ? item.email : "";
   const link = "inline-flex min-h-12 items-center justify-center gap-2 rounded-md px-4 font-semibold";
   return (
     <div className="flex flex-col gap-3">

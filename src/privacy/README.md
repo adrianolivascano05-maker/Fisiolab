@@ -53,6 +53,17 @@ Los datos de las funciones están en `../data/privacy.ts`.
 - **iPhone.** Sin instalar la app, Safari puede borrar los datos de una web que no se abre en unos días: la pantalla
   principal lo avisa con el enlace a «Instalar la app». La app pide además almacenamiento persistente.
 
+## Paciente nuevo: su anamnesis sin el permiso de contacto firmado (31-10-2026)
+
+Única excepción a «solo con el "Sí" firmado» (`mayMessage` en `../data/privacy.ts`): la anamnesis inicial de un
+paciente nuevo que ha pedido cita y ha dado ese teléfono o correo para gestionarla, cuando el fisio lo marca
+(`bookingContact`). Nunca si dijo «No». Va un mensaje fijo sin datos de salud (`FIRST_MESSAGE` en
+`../messages/templates.ts`). En el formulario el paciente lee la información (`intakeText.ts`), marca «He leído esta
+información» (acuse, `intakeAcks`) y, si quiere, pide que le escriban (`contactRequests`); eso no es el permiso hasta
+que alguien de la clínica pulsa «Confirmar» en la hoja de protección de datos de su ficha. Textos de trabajo: la base
+legal (art. 6.1.b RGPD) y los textos los tiene que confirmar el delegado de protección de datos. Detalle en
+`../../docs/ideas-pendientes.md` («4b»).
+
 ## Firmar la hoja por enlace (29-10-2026; retirado el 30-10-2026)
 
 Durante un día se pudo mandar la hoja al móvil del paciente para que la firmara allí. **Retirado el 30-10-2026: se

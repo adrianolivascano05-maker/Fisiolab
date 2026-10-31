@@ -52,6 +52,9 @@ export function PublicFormPage() {
   });
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Paciente nuevo (request.intake): «He leído esta información» (obligatoria) y la casilla opcional de contacto. */
+  const [intakeAck, setIntakeAck] = useState(false);
+  const [intakeContact, setIntakeContact] = useState(false);
 
   useEffect(() => {
     document.title = "Formulario · OmniClin";
@@ -110,13 +113,15 @@ export function PublicFormPage() {
     const given = Object.values(answers).some((v) => v !== null && v !== "" && v !== undefined && !(Array.isArray(v) && !v.length));
     if (!given) return setError(request.kind === DOCS_KIND ? "Sube al menos un archivo." : "Contesta al menos una pregunta.");
     if (result && "missing" in result) return setError(`${result.missing}. Contéstalas para poder enviarlo.`);
+    if (request.intake && !intakeAck) return setError("Marca que has leído la información sobre protección de datos.");
     setSending(true);
     try {
       const base = await serverUrl();
+      const sent = request.intake ? { ...answers, __intake: { ack: true, contact: intakeContact } } : answers;
       const res = await fetch(`${base}/v1/formularios/${id}/respuesta`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ response: await seal({ v: 1, answers }, key) }),
+        body: JSON.stringify({ response: await seal({ v: 1, answers: sent }, key) }),
       });
       if (res.status === 409) {
         dropDraft(id);
@@ -165,6 +170,7 @@ export function PublicFormPage() {
           <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
             <h1 className="text-2xl leading-tight font-bold">{request.name ? `Hola, ${request.name}` : "Hola"}</h1>
             <DataNotice request={request} />
+            {request.intake && <IntakeNotice intake={request.intake} ack={intakeAck} contact={intakeContact} onAck={setIntakeAck} onContact={setIntakeContact} />}
             {request.brand?.patient?.welcome && <p className="text-lg">{request.brand.patient.welcome}</p>}
             {request.kind === DOCS_KIND ? (
               <p>
@@ -332,6 +338,52 @@ function DocsUpload({ formId, linkKey, max, docs, onChange }: { formId: string; 
         </Alert>
       )}
     </Card>
+  );
+}
+
+/**
+ * Paciente nuevo que aún no ha firmado la hoja de protección de datos (src/privacy/intakeText.ts): la información en
+ * una capa, «He leído esta información» (obligatoria: solo confirma que la ha leído) y, aparte y sin marcar, la casilla
+ * opcional para que le escriban por WhatsApp, SMS o correo.
+ */
+function IntakeNotice({
+  intake,
+  ack,
+  contact,
+  onAck,
+  onContact,
+}: {
+  intake: NonNullable<FormRequest["intake"]>;
+  ack: boolean;
+  contact: boolean;
+  onAck: (v: boolean) => void;
+  onContact: (v: boolean) => void;
+}) {
+  return (
+    <section aria-label="Cómo tratamos tus datos" className="flex flex-col gap-3 rounded-md bg-bg p-4 text-sm">
+      {intake.notice.map((s) => (
+        <div key={s.title} className="flex flex-col gap-2">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Lock aria-hidden="true" className="size-4 shrink-0 text-text-muted" /> {s.title}
+          </h2>
+          <ul className="flex list-disc flex-col gap-1 pl-5">
+            {s.paragraphs.map((p) => (
+              <li key={p}>{p}</li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      <label className="flex min-h-11 items-start gap-3 font-semibold">
+        <input type="checkbox" className="mt-1 size-5 shrink-0 accent-accent" checked={ack} onChange={(e) => onAck(e.target.checked)} />
+        <span>
+          {intake.ackText} <span className="font-normal text-text-muted">Solo confirma que la has leído; no es un consentimiento.</span>
+        </span>
+      </label>
+      <label className="flex min-h-11 items-start gap-3">
+        <input type="checkbox" className="mt-1 size-5 shrink-0 accent-accent" checked={contact} onChange={(e) => onContact(e.target.checked)} />
+        <span>{intake.contactText}</span>
+      </label>
+    </section>
   );
 }
 

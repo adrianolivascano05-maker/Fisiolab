@@ -2,6 +2,7 @@
 // que se da al guardar una sesión lleva el id de esa sesión (src/data/clinical.ts, saveSession); las demás se dan
 // desde la ficha. Al apuntar una sesión, las citas pendientes de ese día pasan a atendidas. En una clínica, cada cita
 // lleva quién la dio (migración 014) y con quién es (migración 015, el horario): va al Google Calendar de esa persona.
+import type { BookingContact } from "./privacy";
 import { madridDay } from "../app/format";
 import type { Db } from "./db";
 import { member, memberEmail } from "./member";
@@ -100,8 +101,11 @@ export async function markConfirmed(db: Db, id: string, confirmed: boolean): Pro
   await db.transaction([{ sql: "update appointments set confirmed_at = ?, updated_at = ? where id = ?", bind: [confirmed ? now() : null, now(), id] }]);
 }
 
-/** Una cita para recordar: con el teléfono, el correo y el permiso de contacto del paciente. */
-export type ReminderItem = AgendaItem & { phone: string; email: string; contact: boolean | null };
+/**
+ * Una cita para recordar: con el teléfono, el correo y el permiso de contacto del paciente, y si ha pedido cita y ha dado
+ * ese contacto para gestionarla (la excepción de la anamnesis inicial, src/data/privacy.ts).
+ */
+export type ReminderItem = AgendaItem & { phone: string; email: string; contact: boolean | null; booking: BookingContact | null };
 
 /** Las citas pendientes entre dos instantes, con lo necesario para recordárselas al paciente. */
 export async function remindersBetween(db: Db, from: string, to: string): Promise<ReminderItem[]> {
@@ -112,13 +116,16 @@ export async function remindersBetween(db: Db, from: string, to: string): Promis
   );
   return rows.map((r) => {
     let contact: boolean | null = null;
+    let booking: BookingContact | null = null;
     try {
-      const v = (JSON.parse(r.privacy || "{}") as { consents?: { contact?: boolean } }).consents?.contact;
+      const privacy = JSON.parse(r.privacy || "{}") as { consents?: { contact?: boolean }; bookingContact?: BookingContact };
+      const v = privacy.consents?.contact;
       contact = typeof v === "boolean" ? v : null;
+      booking = privacy.bookingContact?.channels?.length ? privacy.bookingContact : null;
     } catch {
       /* sin datos de privacidad */
     }
-    return { ...toAppointment(r), name: r.name!, phone: r.phone ?? "", email: r.email ?? "", contact };
+    return { ...toAppointment(r), name: r.name!, phone: r.phone ?? "", email: r.email ?? "", contact, booking };
   });
 }
 

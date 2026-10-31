@@ -19,7 +19,7 @@ import { cx } from "../ui/cx";
 import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { dayText, hourText } from "../schedule/reminders";
-import { fillTemplate, loadMessages, MESSAGES, messageSubject, messageText, saveMessages, specOf, type MessageKind, type MessageSettings, type MessageVars } from "./templates";
+import { FIRST_MESSAGE, fillTemplate, loadMessages, MESSAGES, messageSubject, messageText, saveMessages, specOf, type MessageKind, type MessageSettings, type MessageVars } from "./templates";
 
 /** Lo que significa cada ficha, para la ayuda. */
 const VAR_HELP: Record<string, string> = {
@@ -192,6 +192,16 @@ function Editor({ saved, clinicName, onSaved }: { saved: MessageSettings; clinic
               hint="Opcional. Se añade al final de cada mensaje, después de una línea en blanco."
               onChange={(e) => setS((v) => ({ ...v, signature: e.target.value }))}
             />
+          </Card>
+
+          <Card className="flex flex-col gap-2">
+            <p className="font-semibold">{FIRST_MESSAGE.label}</p>
+            <p className="text-sm text-text-muted">
+              {FIRST_MESSAGE.where}. Este texto no se puede cambiar: va a pacientes que aún no han dado su permiso de contacto, sin datos de salud y sin la firma.
+            </p>
+            <p aria-label="Primer mensaje a un paciente nuevo" className="rounded-md bg-surface p-3 text-sm whitespace-pre-line">
+              {FIRST_MESSAGE.withDate}
+            </p>
           </Card>
 
           {error && <Alert tone="danger" title={error} />}

@@ -9,11 +9,13 @@ import type { Cloud } from "../cloud/cloudContext";
 import type { Db } from "../data/db";
 import { currentEpisode } from "../data/episodes";
 import { getClinic } from "../data/privacy";
-import { addSentForm, type SentForm } from "../data/patientForms";
+import { addSentForm, type FormMeta, type SentForm } from "../data/patientForms";
+import { getPatient, isNewPatient } from "../data/patients";
+import { INTAKE_ACK_TEXT, INTAKE_TEXT_VERSION, intakeContactText, intakeNotice } from "../privacy/intakeText";
 
 export type CreatedForm = SentForm & { url: string };
 /** Un formulario ya subido al servidor que aún no se ha apuntado en la ficha (hasta que se manda de verdad). */
-export type UploadedForm = { record: Pick<SentForm, "id" | "patientId" | "episodeId" | "kind" | "key" | "expiresAt">; url: string };
+export type UploadedForm = { record: Pick<SentForm, "id" | "patientId" | "episodeId" | "kind" | "key" | "expiresAt" | "meta">; url: string };
 
 /**
  * Sube un formulario al servidor (cifrado con una clave nueva) sin apuntarlo aún en la ficha: la bandeja lo apunta
@@ -42,12 +44,24 @@ export async function uploadPatientForm(
   const expiresAt = new Date(Date.now() + FORM_DAYS * 86_400_000).toISOString();
   const clinic = await getClinic(db).catch(() => null);
   const brand = await formBrand(currentBrand(), clinic ?? {});
+  const sections = p.kind === ANAMNESIS_KIND ? patientSections(p.sections) : null;
+  // A un paciente nuevo que aún no ha dicho «Sí» al contacto, la anamnesis empieza con la información de protección de
+  // datos, el «He leído» y la casilla opcional de contacto (src/privacy/intakeText.ts).
+  const patient = sections ? await getPatient(db, p.patientId) : null;
+  const intake =
+    sections && clinic && patient && patient.privacy.consents?.contact !== true && (await isNewPatient(db, p.patientId))
+      ? { version: INTAKE_TEXT_VERSION, notice: intakeNotice(clinic, p.clinicName), ackText: INTAKE_ACK_TEXT, contactText: intakeContactText(clinic, p.clinicName) }
+      : null;
+  const meta: FormMeta | null = sections
+    ? { fields: sections.flatMap((s) => s.fields.map((f) => f.id)), ...(intake ? { intake: { version: intake.version, contactText: intake.contactText } } : {}) }
+    : null;
   const request: FormRequest = {
     v: 1,
     clinic: p.clinicName,
     name: p.patientName.trim().split(/\s+/)[0] ?? "",
     kind: p.kind,
-    ...(p.kind === ANAMNESIS_KIND ? { sections: patientSections(p.sections) } : {}),
+    ...(sections ? { sections } : {}),
+    ...(intake ? { intake } : {}),
     expiresAt,
     ...(brand ? { brand } : {}),
     ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}),
@@ -55,7 +69,7 @@ export async function uploadPatientForm(
   };
   await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt, ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}) });
   const episodeId = await currentEpisode(db, p.patientId);
-  return { record: { id, patientId: p.patientId, episodeId, kind: p.kind, key, expiresAt }, url: formLink(id, key) };
+  return { record: { id, patientId: p.patientId, episodeId, kind: p.kind, key, expiresAt, meta }, url: formLink(id, key) };
 }
 
 /** Apunta en la ficha los formularios que se acaban de mandar (para recoger sus respuestas). */

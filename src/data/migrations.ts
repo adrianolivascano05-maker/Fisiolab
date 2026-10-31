@@ -33,6 +33,7 @@ import documents032 from "./migrations/032_documents.sql?raw";
 import syncFields033 from "./migrations/033_sync_fields.sql?raw";
 import patientStaff034 from "./migrations/034_patient_staff.sql?raw";
 import accessLog035 from "./migrations/035_access_log.sql?raw";
+import formMeta036 from "./migrations/036_form_meta.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -71,4 +72,5 @@ export const migrations: Migration[] = [
   { version: 33, sql: syncFields033 },
   { version: 34, sql: patientStaff034 },
   { version: 35, sql: accessLog035 },
+  { version: 36, sql: formMeta036 },
 ];

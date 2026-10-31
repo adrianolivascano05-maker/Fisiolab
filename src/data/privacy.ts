@@ -50,6 +50,20 @@ export type SignedPrivacySheet = {
   signature: string;
 };
 
+export type ContactChannel = "whatsapp" | "email";
+/**
+ * Paciente nuevo que ha pedido cita y ha dado este teléfono o correo para gestionarla (lo marca el fisio al mandarle la
+ * anamnesis): la única excepción para escribirle sin el permiso de contacto firmado (mayMessage). Quién y cuándo.
+ */
+export type BookingContact = { at: string; by: string; channels: ContactChannel[] };
+/**
+ * Lo que pidió en el formulario online de paciente nuevo: que le escriban por WhatsApp, SMS o correo. Con el texto
+ * exacto que vio, su versión y la hora del servidor. No es el permiso hasta que alguien de la clínica lo confirma.
+ */
+export type ContactRequest = { at: string; formId: string; text: string; version: string; confirmedAt?: string; confirmedBy?: string; dismissedAt?: string };
+/** Que leyó la información de protección de datos en el formulario online (acuse, no consentimiento). */
+export type IntakeAck = { at: string; formId: string; version: string };
+
 export type PatientPrivacy = {
   /** Día en que se le entregó la información (AAAA-MM-DD). */
   informedAt?: string;
@@ -59,6 +73,12 @@ export type PatientPrivacy = {
   consents?: Partial<Record<Consent, boolean>>;
   /** Las hojas firmadas en la pantalla, de la primera a la última (si cambian sus permisos, se firma otra). */
   sheets?: SignedPrivacySheet[];
+  /** Paciente nuevo: ha pedido cita y ha dado este contacto para gestionarla (excepción de mayMessage). */
+  bookingContact?: BookingContact;
+  /** Lo que pidió en el formulario online sobre el contacto, del primero al último. */
+  contactRequests?: ContactRequest[];
+  /** Acuses de «He leído la información» del formulario online. */
+  intakeAcks?: IntakeAck[];
   /** Última vez que cambió algo de esto (ISO). */
   updatedAt?: string;
 };
@@ -91,18 +111,72 @@ export async function signPrivacySheet(db: Db, patientId: string, privacy: Patie
   await savePatientPrivacy(db, patientId, { ...privacy, informedAt: sheet.date, sheets: [...before, sheet] });
 }
 
-/** Si los permisos de ahora no son los de la última hoja firmada (habría que firmar otra). */
+/**
+ * Si los permisos de ahora no son los de la última hoja firmada (habría que firmar otra). El permiso de contacto que
+ * pidió en el formulario online y la clínica confirmó después de esa hoja no cuenta como cambio.
+ */
 export function changedSinceSigned(p: PatientPrivacy): boolean {
   const last = p.sheets?.at(-1);
   if (!last) return false;
-  return CONSENTS.some((c) => (p.consents?.[c.id] ?? null) !== (last.consents.find((x) => x.id === c.id)?.answer ?? null)) || (p.signedBy?.trim() || undefined) !== last.signedBy;
+  const confirmedLater = (p.contactRequests ?? []).some((r) => r.confirmedAt && r.confirmedAt > last.at);
+  return (
+    CONSENTS.some((c) => !(c.id === "contact" && confirmedLater && p.consents?.contact === true) && (p.consents?.[c.id] ?? null) !== (last.consents.find((x) => x.id === c.id)?.answer ?? null)) ||
+    (p.signedBy?.trim() || undefined) !== last.signedBy
+  );
 }
+
+/** Para qué se le quiere escribir, cuando no es lo de siempre: la anamnesis inicial a un paciente nuevo. */
+export type MessagePurpose = { kind: "anamnesis-inicial"; isNew: boolean; booking?: BookingContact | null; channel: ContactChannel };
 
 /**
  * Solo con el permiso de contacto firmado como «Sí» (la hoja de protección de datos, en la pantalla o en papel) se
- * le escribe por WhatsApp, SMS o correo. Sin preguntar, tampoco: se le llama o se le da en persona.
+ * le escribe por WhatsApp, SMS o correo. Sin preguntar, tampoco: se le llama o se le da en persona. Única excepción:
+ * la anamnesis inicial de un paciente nuevo que ha pedido cita y ha dado ese teléfono o correo para gestionarla (lo
+ * marca el fisio: bookingContact; art. 6.1.b RGPD, medidas a petición del interesado). Con un «No», nunca.
  */
-export const mayMessage = (contact: boolean | null | undefined) => contact === true;
+export const mayMessage = (contact: boolean | null | undefined, purpose?: MessagePurpose) =>
+  contact === true || (contact !== false && purpose?.kind === "anamnesis-inicial" && purpose.isNew && !!purpose.booking?.channels.includes(purpose.channel));
+
+/** Lo que pidió en el formulario y nadie ha confirmado ni descartado aún. */
+export const pendingContactRequest = (p: PatientPrivacy): ContactRequest | null =>
+  [...(p.contactRequests ?? [])].reverse().find((r) => !r.confirmedAt && !r.dismissedAt) ?? null;
+
+async function updatePrivacy(db: Db, patientId: string, change: (p: PatientPrivacy) => PatientPrivacy): Promise<void> {
+  const [row] = await db.query<{ privacy: string | null }>("select privacy from patients where id = ?", [patientId]);
+  if (!row) throw new RangeError("Este paciente no existe.");
+  await savePatientPrivacy(db, patientId, change(parsePrivacy(row.privacy)));
+}
+
+/** Marca (o quita, con null) que ha pedido cita y ha dado estos canales para gestionarla. */
+export async function setBookingContact(db: Db, patientId: string, channels: ContactChannel[] | null, by: string): Promise<void> {
+  await updatePrivacy(db, patientId, (p) => {
+    const { bookingContact: _, ...rest } = p;
+    return channels?.length ? { ...rest, bookingContact: { at: new Date().toISOString(), by, channels } } : rest;
+  });
+}
+
+/**
+ * Lo que llega del formulario online de paciente nuevo: el acuse de la información y, si la marcó, la petición de que
+ * le escriban. Cada uno se apunta una vez por envío (recoger dos veces no lo repite). No toca el permiso de contacto.
+ */
+export async function recordIntake(db: Db, patientId: string, input: { ack?: IntakeAck; request?: ContactRequest }): Promise<void> {
+  if (!input.ack && !input.request) return;
+  await updatePrivacy(db, patientId, (p) => ({
+    ...p,
+    ...(input.ack && !(p.intakeAcks ?? []).some((a) => a.formId === input.ack!.formId) ? { intakeAcks: [...(p.intakeAcks ?? []), input.ack] } : {}),
+    ...(input.request && !(p.contactRequests ?? []).some((r) => r.formId === input.request!.formId) ? { contactRequests: [...(p.contactRequests ?? []), input.request] } : {}),
+  }));
+}
+
+/** «Confirmar» (pone el permiso de contacto en «Sí») o «No apuntarlo» lo que pidió en el formulario. */
+export async function answerContactRequest(db: Db, patientId: string, formId: string, confirm: boolean, by: string): Promise<void> {
+  const t = new Date().toISOString();
+  await updatePrivacy(db, patientId, (p) => ({
+    ...p,
+    ...(confirm ? { consents: { ...p.consents, contact: true } } : {}),
+    contactRequests: (p.contactRequests ?? []).map((r) => (r.formId !== formId ? r : confirm ? { ...r, confirmedAt: t, confirmedBy: by } : { ...r, dismissedAt: t })),
+  }));
+}
 export const MISSING_CONTACT = "Falta su permiso de contacto: que firme la hoja de protección de datos";
 export const REFUSED_CONTACT = "No acepta WhatsApp ni correo";
 /** Por qué no se le puede escribir (null si sí se puede). */

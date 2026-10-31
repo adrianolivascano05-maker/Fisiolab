@@ -17,6 +17,7 @@ const appt = (id: string, patientId: string, startsAt: string, extra: Partial<Re
   phone: "600111222",
   email: "",
   contact: true,
+  booking: null,
   ...extra,
 });
 const input = (over: Partial<OutboxInput> = {}): OutboxInput => ({
@@ -82,6 +83,21 @@ describe("bandeja: anamnesis antes de la primera cita", () => {
     expect(ids(input({ upcoming: [first], formsSent: [{ patientId: "nuevo", kind: "anamnesis", sentAt: "2026-10-19T10:00:00.000Z" }] }))).toEqual([]);
     expect(ids(input({ upcoming: [{ ...first, contact: false }] }))).toEqual([]);
     expect(ids(input({ upcoming: [first], marks: [{ id: "anamnesis:primera", patientId: "nuevo", rule: "anamnesis", status: "sent", at: NOW, by: "" }] }))).toEqual([]);
+  });
+
+  it("paciente nuevo sin el «Sí» firmado: sale solo si ha pedido cita y ha dado ese contacto; con un «No», nunca", () => {
+    const booking = { at: "2026-10-19T10:00:00.000Z", by: "Laura", channels: ["whatsapp" as const] };
+    const sinFirmar = { ...first, contact: null };
+    expect(ids(input({ upcoming: [sinFirmar] }))).toEqual([]);
+    const out = buildOutbox(input({ upcoming: [{ ...sinFirmar, booking }] }));
+    expect(out.map((x) => x.id)).toEqual(["anamnesis:primera"]);
+    expect(out[0]!.booking).toEqual(booking);
+    expect(ids(input({ upcoming: [{ ...first, contact: false, booking }] }))).toEqual([]);
+    // Si ya ha venido, no es la anamnesis inicial.
+    expect(ids(input({ upcoming: [{ ...sinFirmar, booking }], seenBefore: new Set(["nuevo"]) }))).toEqual([]);
+    // El recordatorio no se acoge a la excepción.
+    const manana = appt("manana", "nuevo", "2026-10-21T08:00:00.000Z", { contact: null, booking });
+    expect(ids(input({ upcoming: [manana], seenBefore: new Set(["nuevo"]) }))).toEqual([]);
   });
 
   it("solo para la primera de sus citas", () => {

@@ -31,10 +31,12 @@ import { getToken } from "../cloud/auth";
 import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { cancelSentForm, formStatus, listSentForms, type SentForm } from "../data/patientForms";
-import { clinicComplete, getClinic, mayMessage } from "../data/privacy";
+import { clinicComplete, getClinic, mayMessage, setBookingContact, type BookingContact, type ContactChannel, type MessagePurpose } from "../data/privacy";
+import { memberEmail } from "../data/member";
+import { isNewPatient } from "../data/patients";
 import { ContactNote } from "../privacy/ContactNote";
 import { getPatient, type Patient } from "../data/repo";
-import { loadMessages, messageSubject, type MessageSettings } from "../messages/templates";
+import { firstMessageSubject, firstMessageText, loadMessages, messageSubject, type MessageSettings } from "../messages/templates";
 import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -65,8 +67,8 @@ export function SendFormsPage() {
   const collect = useCollectForms();
   const data = useAsync(async () => {
     const db = getDb();
-    const [patient, forms, clinic, messages] = await Promise.all([getPatient(db, id), listSentForms(db, id), getClinic(db), loadMessages(db)]);
-    return { patient, forms, clinic, clinicName: clinic.name || cloud?.clinic?.name || "", clinicReady: clinicComplete(clinic), messages };
+    const [patient, forms, clinic, messages, isNew] = await Promise.all([getPatient(db, id), listSentForms(db, id), getClinic(db), loadMessages(db), isNewPatient(db, id)]);
+    return { patient, forms, clinic, clinicName: clinic.name || cloud?.clinic?.name || "", clinicReady: clinicComplete(clinic), messages, isNew };
   }, [id, version]);
   const [choosing, setChoosing] = useState<string | null>(params.get("enviar"));
   const [sharing, setSharing] = useState<SentForm | null>(null);
@@ -84,7 +86,7 @@ export function SendFormsPage() {
 
   if (data.error) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Formularios para el paciente" backTo={back}><Loading /></Page>;
-  const { patient, forms, clinicName, clinicReady, messages } = data.data;
+  const { patient, forms, clinicName, clinicReady, messages, isNew } = data.data;
   if (!patient) return <Page title="Formularios para el paciente" backTo={back}><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const online = !!(cloud?.clinic && cloud.clinics);
   const closeChooser = () => {
@@ -168,7 +170,7 @@ export function SendFormsPage() {
       </Sheet>
 
       <Sheet open={!!sharing} onClose={() => setSharing(null)} title="Mandar el enlace">
-        {sharing && <ShareForm f={sharing} patient={patient} clinicName={clinicName} messages={messages} />}
+        {sharing && <ShareForm f={sharing} patient={patient} clinicName={clinicName} messages={messages} isNew={isNew} onBooking={() => bumpData()} />}
       </Sheet>
 
       <Sheet open={!!cancelling} onClose={() => setCancelling(null)} title="¿Anular el enlace?">
@@ -251,32 +253,91 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
   );
 }
 
-/** El mensaje con el enlace y por dónde mandarlo. */
-function ShareForm({ f, patient, clinicName, messages }: { f: SentForm; patient: Patient; clinicName: string; messages: MessageSettings }) {
+/**
+ * El mensaje con el enlace y por dónde mandarlo. A un paciente nuevo sin permiso de contacto, su anamnesis se puede
+ * mandar si el fisio marca que ha pedido cita y ha dado ese teléfono o correo para gestionarla (src/data/privacy.ts,
+ * mayMessage): entonces va el primer mensaje fijo, sin datos de salud (firstMessageText).
+ */
+function ShareForm({ f, patient, clinicName, messages, isNew, onBooking }: { f: SentForm; patient: Patient; clinicName: string; messages: MessageSettings; isNew: boolean; onBooking: () => void }) {
   const toast = useToast();
   const url = formLink(f.id, f.key);
-  const text = formMessage({ name: firstName(patient), clinic: clinicName, kind: f.kind, url, expiresAt: f.expiresAt }, messages);
   const phone = waPhone(patient.phone);
   const consent = patient.privacy.consents?.contact;
+  // Lo que se ve marcado cambia al momento; se guarda detrás (saveBooking).
+  const [booking, setBooking] = useState<BookingContact | null>(patient.privacy.bookingContact ?? null);
+  const firstContact = f.kind === ANAMNESIS_KIND && isNew && consent !== true && consent !== false;
+  const purpose = (channel: ContactChannel): MessagePurpose | undefined => (firstContact ? { kind: "anamnesis-inicial", isNew, booking, channel } : undefined);
+  const byWhatsapp = !!phone && mayMessage(consent, purpose("whatsapp"));
+  const byEmail = !!patient.email && mayMessage(consent, purpose("email"));
+  const first = consent !== true && (byWhatsapp || byEmail);
+  const text = first
+    ? firstMessageText({ name: patient.name, clinic: clinicName, url, expiresAt: f.expiresAt })
+    : formMessage({ name: firstName(patient), clinic: clinicName, kind: f.kind, url, expiresAt: f.expiresAt }, messages);
+  const subject = first ? firstMessageSubject(clinicName) : messageSubject(f.kind === DOCS_KIND ? "archivos" : "formulario", messages, { clinica: clinicName, formulario: formWhat(f.kind) });
   const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
   const [canShare, setCanShare] = useState(false);
   useEffect(() => setCanShare(typeof navigator.share === "function"), []);
+  const channels: { id: ContactChannel; label: string }[] = [
+    ...(phone ? [{ id: "whatsapp" as const, label: `WhatsApp al ${patient.phone}` }] : []),
+    ...(patient.email ? [{ id: "email" as const, label: `Correo a ${patient.email}` }] : []),
+  ];
+  const [picked, setPicked] = useState<ContactChannel[]>(() => booking?.channels ?? channels.map((c) => c.id));
+  const saveBooking = async (on: boolean, list = picked) => {
+    const by = memberEmail() ?? "este dispositivo";
+    setBooking(on && list.length ? { at: new Date().toISOString(), by, channels: list } : null);
+    try {
+      await setBookingContact(getDb(), patient.id, on && list.length ? list : null, by);
+      onBooking();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), "danger");
+    }
+  };
   return (
     <div className="flex flex-col gap-3">
-      {!mayMessage(consent) && (
+      {firstContact && channels.length > 0 && (
+        <Card className="flex flex-col gap-2">
+          <p className="font-semibold">Paciente nuevo sin permiso de contacto</p>
+          <p className="text-sm text-text-muted">
+            Puedes mandarle este formulario por el teléfono o el correo que te ha dado para su cita. Va un mensaje corto, sin datos de salud, y rellenarlo es
+            voluntario. Para los recordatorios seguirá haciendo falta su permiso.
+          </p>
+          <label className="flex min-h-11 items-start gap-3">
+            <input type="checkbox" className="mt-1 size-5 shrink-0 accent-accent" checked={!!booking} onChange={(e) => void saveBooking(e.target.checked)} />
+            <span>Ha pedido cita y nos ha dado este teléfono o correo para gestionarla</span>
+          </label>
+          {booking &&
+            channels.length > 1 &&
+            channels.map((c) => (
+              <label key={c.id} className="ml-8 flex min-h-11 items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="size-5 shrink-0 accent-accent"
+                  checked={picked.includes(c.id)}
+                  onChange={(e) => {
+                    const list = e.target.checked ? [...picked, c.id] : picked.filter((x) => x !== c.id);
+                    setPicked(list);
+                    void saveBooking(true, list);
+                  }}
+                />
+                {c.label}
+              </label>
+            ))}
+        </Card>
+      )}
+      {!mayMessage(consent) && !first && (
         <Alert tone="warning" title={consent === false ? "No acepta WhatsApp ni correo" : "Falta su permiso de contacto"}>
           <ContactNote contact={consent} patientId={patient.id} extra="Dale el enlace en persona: que lo abra con su móvil en la consulta" className="text-text" />
         </Alert>
       )}
       <pre className="whitespace-pre-wrap rounded-md bg-surface p-3 font-sans text-sm break-words">{text}</pre>
       <div className="flex flex-wrap gap-2">
-        {phone && mayMessage(consent) && (
+        {byWhatsapp && (
           <a href={whatsappUrl(phone, text)} target="_blank" rel="noopener noreferrer" className={cx(link, "bg-accent text-on-accent hover:bg-accent-hover")}>
             <MessageCircle aria-hidden="true" className="size-5" /> WhatsApp
           </a>
         )}
-        {patient.email && mayMessage(consent) && (
-          <a href={mailtoUrl(patient.email, messageSubject(f.kind === DOCS_KIND ? "archivos" : "formulario", messages, { clinica: clinicName, formulario: formWhat(f.kind) }), text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
+        {byEmail && (
+          <a href={mailtoUrl(patient.email, subject, text)} className={cx(link, "border border-border bg-bg hover:bg-surface")}>
             <Mail aria-hidden="true" className="size-5" /> Correo
           </a>
         )}

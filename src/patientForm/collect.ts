@@ -9,6 +9,7 @@ import { getAnamnesisOf, saveAnamnesisOf } from "../data/clinical";
 import type { Db } from "../data/db";
 import { currentEpisode } from "../data/episodes";
 import { cancelSentForm, getSentForm, markImported } from "../data/patientForms";
+import { recordIntake } from "../data/privacy";
 import { addDocument, cleanName, getDocument, MAX_DOC_BYTES } from "../data/documents";
 import { ServerError } from "../cloud/remote";
 import type { Section } from "../clinical/anamnesis";
@@ -142,10 +143,23 @@ export async function collectAnswered(db: Db, api: FormsApi, template: Section[]
     }
     if (sent.kind === ANAMNESIS_KIND) {
       const current = (await getAnamnesisOf(db, sent.patientId, episode))?.answers ?? {};
-      const m = mergeAnamnesis(current, incoming, template);
+      // Solo las preguntas que se le mandaron (migración 036); los envíos de antes, con la plantilla de ahora.
+      const m = mergeAnamnesis(current, incoming, template, sent.meta?.fields);
       if (m.filled.length) await saveAnamnesisOf(db, sent.patientId, episode, m.merged);
       skipped = m.skipped;
-      await markImported(db, f.id, { answeredAt: f.answeredAt, answers: m.clean, skipped });
+      // Paciente nuevo: el acuse de la información y, si la marcó, la petición de contacto, con la hora del servidor y
+      // el texto que mandó la clínica (no el que diga la respuesta). Solo si el envío llevaba esa información.
+      let intake: { ack: boolean; contact: boolean } | null = null;
+      const given = incoming.__intake;
+      if (sent.meta?.intake && typeof given === "object" && given !== null) {
+        const { ack, contact } = given as Record<string, unknown>;
+        intake = { ack: ack === true, contact: contact === true };
+        await recordIntake(db, sent.patientId, {
+          ...(intake.ack ? { ack: { at: f.answeredAt, formId: f.id, version: sent.meta.intake.version } } : {}),
+          ...(intake.contact ? { request: { at: f.answeredAt, formId: f.id, text: sent.meta.intake.contactText, version: sent.meta.intake.version } } : {}),
+        });
+      }
+      await markImported(db, f.id, { answeredAt: f.answeredAt, answers: intake ? { ...m.clean, __intake: intake } : m.clean, skipped });
     } else {
       const answers = cleanFormAnswers(sent.kind, incoming);
       incomplete = (await saveAnsweredQuestionnaire(db, sent.patientId, episode, sent.kind, answers, f.answeredAt, f.id)) === 0;

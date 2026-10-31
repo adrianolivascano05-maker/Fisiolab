@@ -967,7 +967,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(phone.getByText("Gracias por rellenarlo antes de venir.")).toBeVisible();
     await expect(phone.getByText(/¿Dudas\? Fisiolab Centro: 600 000 001/)).toBeVisible();
     // Lo primero: adónde van sus respuestas, cifradas, quién es el responsable y cómo ejercer sus derechos.
-    const notice = phone.getByRole("region", { name: "Tus datos" });
+    const notice = phone.getByRole("region", { name: "Tus datos", exact: true });
     await expect(notice).toContainText("Tus respuestas van cifradas desde tu móvil directamente a la historia clínica de Fisiolab Centro");
     await expect(notice).toContainText("ni OmniClin, que da el servicio a la clínica");
     await expect(notice).toContainText("Responsable: Fisiolab Centro, datos@aurora.test.");
@@ -978,6 +978,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await phone.getByLabel("¿Por qué vienes? Cuéntanos qué te pasa").fill("Me duele la rodilla al bajar escaleras");
     await phone.getByLabel("¿Tienes alguna alergia?").fill("Ninguna");
     await expectAccessible(phone);
+    // Paciente nuevo sin la hoja firmada: antes de enviar, que ha leído la información (src/privacy/intakeText.ts).
+    await phone.getByRole("checkbox", { name: /^He leído esta información/ }).check();
     await phone.getByRole("button", { name: "Enviar" }).click();
     await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
     // Si vuelve a abrir el enlace, ve que ya lo envió.
@@ -1022,6 +1024,101 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(phone.getByText("Este formulario ya se envió")).toBeVisible();
     await phone.context().close();
     expect(errors).toEqual([]);
+  });
+
+  test("CL18 paciente nuevo sin permiso de contacto: su anamnesis por el teléfono que dio al pedir cita; lee la información y puede pedir que le escriban", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await page.goto("./ajustes/clinica");
+    await page.getByLabel("Clínica (nombre o razón social)").fill("Fisiolab Centro S.L.");
+    await page.getByLabel("Correo para ejercer los derechos").fill("datos@centro.test");
+    await page.getByRole("button", { name: "Guardar los datos de la clínica" }).click();
+    await expect(page.getByText("Datos de la clínica guardados")).toBeVisible();
+
+    /** Paciente con teléfono, sin la hoja firmada. */
+    const newPatient = async (name: string) => {
+      await page.goto("./pacientes/nuevo");
+      await page.getByLabel("Nombre").fill(name);
+      await page.getByLabel("Teléfono").fill("600 123 456");
+      await page.getByRole("button", { name: "Crear paciente" }).click();
+      await expect(page.getByRole("heading", { name })).toBeVisible();
+      return page.url();
+    };
+    const sendAnamnesis = async (url: string) => {
+      await page.goto(`${url}/formularios`);
+      await page.getByRole("button", { name: "Enviar un formulario" }).click();
+      await page.getByRole("dialog", { name: "Enviar un formulario" }).getByRole("button", { name: "Crear el enlace" }).click();
+      return page.getByRole("dialog", { name: "Mandar el enlace" });
+    };
+
+    // Con un «No» en el permiso de contacto, nunca: ni la tarjeta ni WhatsApp.
+    const noUrl = await newPatient("Pablo Noquiere");
+    await page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Sin entregar/ }).click();
+    await page.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByText("No", { exact: true }).click();
+    await page.getByRole("button", { name: "Guardar", exact: true }).click();
+    await expect(page.getByText(/Información entregada el/)).toBeVisible();
+    let share = await sendAnamnesis(noUrl);
+    await expect(share.getByText("No acepta WhatsApp ni correo", { exact: true })).toBeVisible();
+    await expect(share.getByText("Paciente nuevo sin permiso de contacto")).toHaveCount(0);
+    await expect(share.getByRole("link", { name: "WhatsApp" })).toHaveCount(0);
+
+    // Sin firmar: no sale WhatsApp hasta marcar que ha pedido cita y ha dado ese teléfono.
+    const lucasUrl = await newPatient("Lucas Primera");
+    share = await sendAnamnesis(lucasUrl);
+    await expect(share.getByText("Paciente nuevo sin permiso de contacto")).toBeVisible();
+    await expect(share.getByRole("link", { name: "WhatsApp" })).toHaveCount(0);
+    await share.getByRole("checkbox", { name: "Ha pedido cita y nos ha dado este teléfono o correo para gestionarla" }).check();
+    const whatsapp = share.getByRole("link", { name: "WhatsApp" });
+    await expect(whatsapp).toBeVisible();
+    // El mensaje mínimo: sin datos de salud y sin la palabra «fisioterapia».
+    const text = (await share.locator("pre").textContent())!;
+    expect(text).toMatch(/^Hola, Lucas\. Te escribimos de Fisiolab Centro S\.L\. por la cita que has pedido\./);
+    expect(text).not.toMatch(/fisioterap|salud/i);
+    expect(decodeURIComponent((await whatsapp.getAttribute("href"))!)).toContain("Si no has pedido cita, ignora este mensaje.");
+    await expectAccessible(page);
+    const link = /https?:\/\/\S+\/formulario\/[A-Za-z0-9_-]+#[A-Za-z0-9_-]+/.exec(text)![0];
+    await share.getByRole("button", { name: "Cerrar" }).click();
+
+    // En el móvil del paciente: la información, el acuse obligatorio y la casilla de contacto, sin marcar.
+    const { viewport, locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
+    const ctx = await browser.newContext({ viewport, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
+    await google.install(ctx, () => "carla", { server: true });
+    const phone = await ctx.newPage();
+    await phone.goto(link);
+    await expect(phone.getByRole("heading", { name: "Hola, Lucas" })).toBeVisible({ timeout: 15_000 });
+    const info = phone.getByRole("region", { name: "Cómo tratamos tus datos" });
+    await expect(info).toContainText("Responsable: Fisiolab Centro S.L.");
+    await expect(info).toContainText("No te pedimos consentimiento para esto.");
+    const contact = phone.getByRole("checkbox", { name: /^Opcional\. Sí, quiero que Fisiolab Centro S\.L\. me escriba/ });
+    await expect(contact).not.toBeChecked();
+    await phone.getByLabel("¿Por qué vienes? Cuéntanos qué te pasa").fill("Me duele el hombro");
+    await expectAccessible(phone);
+    expect(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByRole("alert")).toContainText("Marca que has leído la información sobre protección de datos.");
+    await phone.getByRole("checkbox", { name: /^He leído esta información/ }).check();
+    await contact.check();
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
+    await ctx.close();
+
+    // Al recogerlo: queda apuntado, pero el permiso no está hasta que la clínica lo confirma.
+    await page.getByRole("button", { name: "Buscar respuestas" }).click();
+    await expect(page.getByText("Lucas Primera ha rellenado: Anamnesis (su parte)")).toBeVisible();
+    await page.goto(lucasUrl);
+    await page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Sin entregar/ }).click();
+    await expect(page.getByText(/^Leyó la información de protección de datos en el formulario online el /)).toBeVisible();
+    const pending = page.getByRole("status").filter({ hasText: "Pedido en el formulario el" });
+    await expect(pending).toContainText("Lo que marcó: «Opcional. Sí, quiero que Fisiolab Centro S.L. me escriba");
+    await expectAccessible(page);
+    await pending.getByRole("button", { name: "Confirmar" }).click();
+    await expect(page.getByText("Permiso de contacto confirmado")).toBeVisible();
+    await expect(page.getByText(/Pedido en el formulario el/)).toHaveCount(0);
+    await expect(page.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByRole("radio", { name: "Sí" })).toBeChecked();
   });
 
   test("CL13 sincronizar sin perder nada: datos distintos a la vez se juntan; lo mismo, se recupera; la ventana flotante avisa", async ({ page, browser }) => {

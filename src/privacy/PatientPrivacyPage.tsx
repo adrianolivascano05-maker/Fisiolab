@@ -12,13 +12,16 @@ import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
+import { memberEmail } from "../data/member";
 import {
   ADULT_CONSENT_AGE,
+  CONSENTS,
   ageOn,
+  answerContactRequest,
   changedSinceSigned,
   clinicComplete,
-  CONSENTS,
   getClinic,
+  pendingContactRequest,
   savePatientPrivacy,
   signPrivacySheet,
   type PatientPrivacy,
@@ -132,6 +135,39 @@ export function PatientPrivacyPage() {
           ) : (
             <Alert tone="warning" title="Aún no consta que se le haya dado esta información">
               Apunta abajo sus respuestas y que la firme en la pantalla. O imprímela, que la firme en papel, y guarda la fecha.
+            </Alert>
+          )}
+          {saved.intakeAcks?.length ? (
+            <p className="text-sm text-text-muted">
+              Leyó la información de protección de datos en el formulario online el {fmtDate(saved.intakeAcks.at(-1)!.at)}.
+            </p>
+          ) : null}
+          {pendingContactRequest(saved) && (
+            <Alert tone="info" title={`Pedido en el formulario el ${fmtDate(pendingContactRequest(saved)!.at)}`}>
+              <p>En el formulario online marcó que quiere que le escribáis por WhatsApp, SMS o correo para sus citas. Confírmalo con el paciente en la consulta.</p>
+              <p className="mt-1 text-sm text-text-muted">Lo que marcó: «{pendingContactRequest(saved)!.text}»</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    await answerContactRequest(getDb(), id, pendingContactRequest(saved)!.formId, true, memberEmail() ?? "este dispositivo");
+                    toast("Permiso de contacto confirmado", "success");
+                    data.reload();
+                  }}
+                >
+                  Confirmar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={async () => {
+                    await answerContactRequest(getDb(), id, pendingContactRequest(saved)!.formId, false, memberEmail() ?? "este dispositivo");
+                    data.reload();
+                  }}
+                >
+                  No apuntarlo
+                </Button>
+              </div>
             </Alert>
           )}
           {!clinicComplete(clinic) && (

@@ -903,5 +903,37 @@ dos modos. PR3: el modo estrés no tiene citas en fin de semana y la prueba espe
 | 8 · Arreglos menores | `d9cd2ea` (+ `f9e2b9a` turnos tocables y hoja de la cita) | accesibilidad con `wcag22aa`, lint, unitarias | 62 avisos de lint para una pasada aparte |
   lint). Pendiente.
 - **Fuera del encargo, para más adelante:** reescritura completa de los consentimientos y de la hoja de protección de
-  datos (versión «5»), anamnesis online a pacientes nuevos, historial de copias en el servidor y «Restaurar», textos
-  legales dentro de la app, dominio de los formularios y repositorio privado.
+  datos (versión «5»), historial de copias en el servidor y «Restaurar», textos legales dentro de la app, dominio de
+  los formularios y repositorio privado. (La anamnesis online a pacientes nuevos se hizo el 31-10-2026: ver abajo.)
+
+### Anamnesis online a pacientes nuevos sin permiso de contacto (4b, 31-10-2026)
+
+Antes, a un paciente nuevo que aún no había firmado la hoja de protección de datos no se le podía mandar nada por
+WhatsApp ni correo, ni siquiera su anamnesis antes de la primera cita. Ahora hay una única excepción, en
+`mayMessage` (`src/data/privacy.ts`):
+
+- **Cuándo.** Solo la anamnesis inicial, solo a un paciente nuevo (sin sesiones, sin citas pasadas no anuladas y sin
+  anamnesis con respuestas: `isNewPatient` en `src/data/patients.ts`), solo si el fisio marca «Ha pedido cita y nos
+  ha dado este teléfono o correo para gestionarla» (`bookingContact`, con quién y cuándo) y solo por ese canal.
+  **Con un «No» firmado, nunca.** Los recordatorios y todo lo demás siguen pidiendo el «Sí» firmado.
+- **El mensaje.** Fijo y corto, sin datos de salud, sin la palabra «fisioterapia» y sin la firma común
+  (`FIRST_MESSAGE` en `src/messages/templates.ts`). No se puede cambiar en Ajustes; en Ajustes › Mensajes se ve de
+  solo lectura.
+- **Dónde.** En «Mandar el enlace» (formularios del paciente) sale la tarjeta «Paciente nuevo sin permiso de
+  contacto» con la casilla; la bandeja de envíos (Agenda › Hoy › Envíos) incluye a esos pacientes y usa el mismo
+  mensaje, con la fecha de la cita.
+- **En el móvil del paciente.** Debajo del aviso corto de siempre, la información de protección de datos en una capa
+  (`src/privacy/intakeText.ts`, documento 05 apartado 6.1 del paquete de revisión), la casilla obligatoria «He leído
+  esta información» (solo confirma que la ha leído; no es un consentimiento) y, aparte y sin marcar, la casilla
+  opcional para que le escriban por WhatsApp, SMS o correo.
+- **Al recoger.** Se apunta el acuse (`intakeAcks`) y, si la marcó, la petición (`contactRequests`) con la hora del
+  servidor y el texto y la versión que mandó la clínica (migración 036: `patient_forms.meta`), no los que diga la
+  respuesta. **No da el permiso por sí sola**: en la hoja de protección de datos de su ficha sale «Pedido en el
+  formulario el …» con «Confirmar» (pone el permiso en «Sí») o «No apuntarlo». El «Sí» confirmado así no obliga a
+  firmar otra hoja. De la anamnesis solo se guardan las preguntas que se le mandaron (`meta.fields`).
+- **Pruebas.** `privacy.test`, `outbox.test`, `collect.test`, `templates.test` y CL18 en `e2e/clinics.spec.ts`
+  (también CL12, que ahora marca el acuse).
+- **Pendiente, y no es poco:** son **textos de trabajo**. Ni la base legal (art. 6.1.b RGPD, medidas
+  precontractuales a petición del interesado) ni los textos están revisados por un abogado ni por el delegado de
+  protección de datos. Hay que confirmarlo con él antes de usarlo con pacientes reales. Al cambiar los textos, sube
+  `INTAKE_TEXT_VERSION`.
