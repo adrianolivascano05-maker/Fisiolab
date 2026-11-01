@@ -1,9 +1,9 @@
 import { interpolate, useCurrentFrame } from "remotion";
-import { CLAMP, COLORS, META } from "../config";
+import { CLAMP, COLORS } from "../config";
 import { LAYOUT, fontFamily } from "../theme";
 
 /** Etiqueta discreta de fuente durante los datos. */
-export const SourceTag: React.FC<{ from: number; to: number }> = ({ from, to }) => {
+export const SourceTag: React.FC<{ from: number; to: number; text: string }> = ({ from, to, text }) => {
   const frame = useCurrentFrame();
   return (
     <div
@@ -21,7 +21,7 @@ export const SourceTag: React.FC<{ from: number; to: number }> = ({ from, to }) 
         opacity: interpolate(frame, [from, from + 10, to - 10, to], [0, 1, 1, 0], CLAMP),
       }}
     >
-      {META.fuente}
+      {text}
     </div>
   );
 };

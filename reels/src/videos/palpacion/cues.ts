@@ -1,4 +1,4 @@
-import { SceneClock, wordAt, wordEnd } from "./timeline";
+import { SceneClock, wordAt, wordEnd } from "../../timeline";
 
 /** Efecto de sonido en un frame RELATIVO a la escena. */
 export type Cue = { at: number; file: string; vol?: number };

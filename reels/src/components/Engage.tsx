@@ -1,17 +1,16 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { CLAMP, COLORS, SCENES, WIDTH } from "../config";
+import { CLAMP, COLORS, WIDTH } from "../config";
 import { fontFamily } from "../theme";
 import { SceneClock } from "../timeline";
 
 /** Barra de progreso por capítulos (una pastilla por escena) en la parte alta de la zona segura. */
-export const Progress: React.FC<{ scenes: SceneClock[]; frame: number }> = ({ scenes, frame }) => (
+export const Progress: React.FC<{ scenes: SceneClock[]; frame: number; dataScene: string }> = ({ scenes, frame, dataScene }) => (
   <div style={{ position: "absolute", top: 262, left: 90, right: 90, display: "flex", gap: 8 }}>
-    {SCENES.map((s, i) => {
-      const c = scenes[i];
+    {scenes.map((c) => {
       const p = interpolate(frame, [c.from, c.from + c.dur], [0, 1], CLAMP);
       return (
-        <div key={s.id} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.18)", overflow: "hidden" }}>
-          <div style={{ width: `${p * 100}%`, height: "100%", backgroundColor: i === SCENES.findIndex((x) => x.id === "hallazgo") ? COLORS.orange : COLORS.cyan }} />
+        <div key={c.id} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.18)", overflow: "hidden" }}>
+          <div style={{ width: `${p * 100}%`, height: "100%", backgroundColor: c.id === dataScene ? COLORS.orange : COLORS.cyan }} />
         </div>
       );
     })}

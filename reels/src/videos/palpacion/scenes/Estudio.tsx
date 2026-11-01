@@ -1,11 +1,11 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { Hand, Marker, Person, pop } from "../components/Pictograms";
-import { Punch } from "../components/Punch";
-import { Spine } from "../components/Spine";
-import { CLAMP, COLORS, DATA } from "../config";
-import { LAYOUT, SAFE } from "../theme";
-import { wordAt, wordEnd } from "../timeline";
-import { SceneProps } from "./types";
+import { Hand, Marker, Person, pop } from "../../../components/Pictograms";
+import { Punch } from "../../../components/Punch";
+import { Spine } from "../../../components/Spine";
+import { CLAMP, COLORS } from "../../../config";
+import { DATA } from "../config";
+import { LAYOUT, SAFE } from "../../../theme";
+import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 
 /** Estudio: 5 fisios, mano, rotulador, L1-L3-L5 que caen al nombrarlos, contador de 75 pacientes, dolor, piel y radiografía. */
 export const Estudio: React.FC<SceneProps> = ({ c }) => {

@@ -2,11 +2,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { loadConfig, ROOT } from "./config.mjs";
+import { loadConfig, ROOT, vpath } from "./config.mjs";
 const cfg = await loadConfig();
-const timings = JSON.parse(fs.readFileSync(path.join(ROOT, "public/voz/timings.json"), "utf8"));
+const timings = JSON.parse(fs.readFileSync(vpath("voz/timings.json"), "utf8"));
 const flat = cfg.SCENES.flatMap((s) => s.sentences.map(() => s.id));
-const idx = flat.indexOf("hallazgo");
+const idx = flat.indexOf(cfg.DATA_SCENE ?? "hallazgo");
 const gapAt = timings.sentences[idx].start + 0.35; // el hueco termina justo cuando arranca "el 47 %"
 const dur = timings.sentences.at(-1).end + timings.tail;
-execFileSync("python3", [path.join(ROOT, "tools/make_music.py"), String(dur + 0.5), String(gapAt), path.join(ROOT, "public/sfx/music.wav"), "0.9"], { stdio: "inherit" });
+execFileSync("python3", [path.join(ROOT, "tools/make_music.py"), String(dur + 0.5), String(gapAt), vpath("music.wav"), "0.9"], { stdio: "inherit" });

@@ -1,11 +1,10 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { CommentBox } from "../components/Engage";
-import { Arrow, Cross } from "../components/Icons";
-import { Punch, Slam } from "../components/Punch";
-import { Stage } from "../components/Stage";
-import { CLAMP, COLORS } from "../config";
-import { wordAt, wordEnd } from "../timeline";
-import { SceneProps } from "./types";
+import { CommentBox } from "../../../components/Engage";
+import { Arrow, Cross } from "../../../components/Icons";
+import { Punch, Slam } from "../../../components/Punch";
+import { Stage } from "../../../components/Stage";
+import { CLAMP, COLORS } from "../../../config";
+import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 
 /** CTA: caja de comentario que teclea «L4», sello de «seguridad», tarjeta Parte 2 y ✗ en confirma/descarta. */
 export const Cta: React.FC<SceneProps> = ({ c }) => {

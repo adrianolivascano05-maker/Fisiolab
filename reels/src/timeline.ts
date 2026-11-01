@@ -1,8 +1,8 @@
-import { FPS, flatSentences, norm, SCENES, SceneId, Sentence, Timings, WordTiming } from "./config";
+import { FPS, flatSentences, norm, SceneDef, Sentence, Timings, WordTiming } from "./config";
 
 export type SentenceClock = { start: number; end: number; sentence: Sentence; words: { w: string; start: number; end: number }[] };
 export type SceneClock = {
-  id: SceneId;
+  id: string;
   /** Frame de inicio en la línea de tiempo principal */
   from: number;
   /** Duración en frames */
@@ -14,8 +14,8 @@ export type SceneClock = {
 const f = (sec: number) => Math.round(sec * FPS);
 
 /** Convierte los tiempos de la voz en escenas: cada escena arranca un poco antes de su primera frase. */
-export const buildTimeline = (t: Timings): { scenes: SceneClock[]; total: number } => {
-  const flat = flatSentences();
+export const buildTimeline = (SCENES: SceneDef[], t: Timings): { scenes: SceneClock[]; total: number } => {
+  const flat = flatSentences(SCENES);
   const LEAD = 0.12;
   const starts: number[] = SCENES.map((sc, i) => {
     const idx = flat.findIndex((x) => x.scene === sc.id);
@@ -64,3 +64,5 @@ export const wordEnd = (c: SentenceClock, word: string, nth = 0): number => {
   }
   return c.end;
 };
+
+export type SceneProps = { c: SceneClock };

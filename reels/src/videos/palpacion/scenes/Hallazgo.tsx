@@ -1,12 +1,12 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { Option } from "../components/Engage";
-import { Target, Vertebra } from "../components/Pictograms";
-import { Punch } from "../components/Punch";
-import { Ring } from "../components/Ring";
-import { Stage } from "../components/Stage";
-import { CLAMP, COLORS, DATA } from "../config";
-import { wordAt, wordEnd } from "../timeline";
-import { SceneProps } from "./types";
+import { Option } from "../../../components/Engage";
+import { Target, Vertebra } from "../../../components/Pictograms";
+import { Punch } from "../../../components/Punch";
+import { Ring } from "../../../components/Ring";
+import { Stage } from "../../../components/Stage";
+import { CLAMP, COLORS } from "../../../config";
+import { DATA } from "../config";
+import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 
 /** Hallazgo: diana sobre la vértebra, las tres opciones del quiz caen tachadas y el 47 % frena en seco. */
 export const Hallazgo: React.FC<SceneProps> = ({ c }) => {

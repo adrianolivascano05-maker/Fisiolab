@@ -5,8 +5,12 @@ import path from "node:path";
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 export const ROOT = root;
 
+/** Id de carpeta del vídeo (public/<id>/, src/videos/<id>/): primer argumento o variable VIDEO. */
+export const VIDEO = process.env.VIDEO ?? "palpacion";
+export const vpath = (...p) => path.join(root, "public", VIDEO, ...p);
+
 export async function loadConfig() {
-  return import(pathToFileURL(path.join(root, "src/config.ts")).href);
+  return import(pathToFileURL(path.join(root, "src/videos", VIDEO, "config.ts")).href);
 }
 
 /** Peso de cada palabra hablada (caracteres + pausa tras puntuación). */

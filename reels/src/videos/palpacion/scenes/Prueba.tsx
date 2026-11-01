@@ -1,11 +1,10 @@
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
-import { Check, Cross } from "../components/Icons";
-import { Bubble } from "../components/Pictograms";
-import { Punch, Slam } from "../components/Punch";
-import { Stage } from "../components/Stage";
-import { CLAMP, COLORS, HEIGHT, WIDTH } from "../config";
-import { wordAt, wordEnd } from "../timeline";
-import { SceneProps } from "./types";
+import { Check, Cross } from "../../../components/Icons";
+import { Bubble } from "../../../components/Pictograms";
+import { Punch, Slam } from "../../../components/Punch";
+import { Stage } from "../../../components/Stage";
+import { CLAMP, COLORS, HEIGHT, WIDTH } from "../../../config";
+import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 
 /** Prueba: «opinión» tachada, «comprobaron» ✓, «radiografía» con fogonazo y barrido. */
 export const Prueba: React.FC<SceneProps> = ({ c }) => {

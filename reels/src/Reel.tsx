@@ -5,33 +5,11 @@ import { Progress } from "./components/Engage";
 import { SourceTag } from "./components/SourceTag";
 import { Subtitles } from "./components/Subtitles";
 import { FPS, Timings } from "./config";
-import { sceneCues } from "./cues";
-import { Cta } from "./scenes/Cta";
-import { Estudio } from "./scenes/Estudio";
-import { Gancho } from "./scenes/Gancho";
-import { Giro } from "./scenes/Giro";
-import { Hallazgo } from "./scenes/Hallazgo";
-import { Matiz } from "./scenes/Matiz";
-import { Prueba } from "./scenes/Prueba";
-import { QueHacer } from "./scenes/QueHacer";
-import { Quiz } from "./scenes/Quiz";
-import { SceneProps } from "./scenes/types";
 import { fontFamily } from "./theme";
-import { buildTimeline, SceneClock } from "./timeline";
+import { buildTimeline } from "./timeline";
+import { VideoDef } from "./videos/types";
 
 export type ReelProps = { timings: Timings; hasVoice: boolean };
-
-const COMPONENTS: Record<SceneClock["id"], React.FC<SceneProps>> = {
-  gancho: Gancho,
-  prueba: Prueba,
-  estudio: Estudio,
-  quiz: Quiz,
-  hallazgo: Hallazgo,
-  giro: Giro,
-  matiz: Matiz,
-  quehacer: QueHacer,
-  cta: Cta,
-};
 
 const Sfx: React.FC<{ at: number; file: string; vol?: number }> = ({ at, file, vol = 1 }) =>
   at < 0 ? null : (
@@ -51,48 +29,56 @@ const duck = (t: Timings) => (f: number) => {
   return 0.3 - 0.19 * k;
 };
 
-export const Reel: React.FC<ReelProps> = ({ timings, hasVoice }) => {
-  const frame = useCurrentFrame();
-  const { scenes, total } = buildTimeline(timings);
-  const hallazgo = scenes.find((s) => s.id === "hallazgo")!;
-  const riserAt = hallazgo.from + hallazgo.s[0].start - Math.round(0.9 * FPS) - Math.round(1.6 * FPS) + Math.round(0.35 * FPS);
-  const dataFrom = scenes.find((s) => s.id === "estudio")!.from;
-  const dataTo = scenes.find((s) => s.id === "quehacer")!.from;
-  return (
-    <AbsoluteFill style={{ fontFamily }}>
-      <Background />
-      {scenes.map((c) => {
-        const Comp = COMPONENTS[c.id];
-        return (
-          <Sequence key={c.id} name={c.id} from={c.from} durationInFrames={c.dur} layout="none">
-            <Comp c={c} />
-          </Sequence>
-        );
-      })}
-      <Subtitles timings={timings} />
-      <Progress scenes={scenes} frame={frame} />
-      <SourceTag from={dataFrom} to={dataTo} />
-      <SourceTag from={total - Math.round(2.2 * FPS)} to={total} />
+/** Crea la composición de un reel a partir de su definición (escenas, efectos, assets). */
+export const makeReel = (video: VideoDef): React.FC<ReelProps> => {
+  const Reel: React.FC<ReelProps> = ({ timings, hasVoice }) => {
+    const frame = useCurrentFrame();
+    const { scenes, total } = buildTimeline(video.scenes, timings);
+    const data = scenes.find((s) => s.id === video.dataScene)!;
+    const riserAt = data.from + data.s[0].start - Math.round(0.9 * FPS) - Math.round(1.6 * FPS) + Math.round(0.35 * FPS);
+    const dataFrom = scenes.find((s) => s.id === video.sourceScenes[0])!.from;
+    const last = scenes.find((s) => s.id === video.sourceScenes[1])!;
+    const dataTo = last.from + last.dur;
+    return (
+      <AbsoluteFill style={{ fontFamily }}>
+        <Background />
+        {scenes.map((c) => {
+          const Comp = video.components[c.id];
+          return (
+            <Sequence key={c.id} name={c.id} from={c.from} durationInFrames={c.dur} layout="none">
+              <Comp c={c} />
+            </Sequence>
+          );
+        })}
+        <Subtitles scenes={video.scenes} timings={timings} />
+        <Progress scenes={scenes} frame={frame} dataScene={video.dataScene} />
+        <SourceTag from={dataFrom} to={dataTo} text={video.meta.fuente} />
+        <SourceTag from={total - Math.round(2.2 * FPS)} to={total} text={video.meta.fuente} />
 
-      {/* Sonido */}
-      {hasVoice ? <Audio src={staticFile("voz/voz.wav")} volume={0.9} /> : null}
-      <Audio src={staticFile("sfx/music.wav")} volume={duck(timings)} />
-      {scenes.slice(1).map((c) => (
-        <Sfx key={`w${c.id}`} at={c.from - 4} file="whoosh" vol={0.45} />
-      ))}
-      {scenes.flatMap((c) => sceneCues(c).map((q, i) => <Sfx key={`${c.id}${i}`} at={c.from + q.at} file={q.file} vol={(q.vol ?? 1) * 0.65} />))}
-      <Sfx at={riserAt} file="riser" vol={0.4} />
-    </AbsoluteFill>
-  );
+        {/* Sonido */}
+        {hasVoice ? <Audio src={staticFile(`${video.folder}/voz/voz.wav`)} volume={0.9} /> : null}
+        <Audio src={staticFile(`${video.folder}/music.wav`)} volume={duck(timings)} />
+        {scenes.slice(1).map((c) => (
+          <Sfx key={`w${c.id}`} at={c.from - 4} file="whoosh" vol={0.45} />
+        ))}
+        {scenes.flatMap((c) => video.cues(c).map((q, i) => <Sfx key={`${c.id}${i}`} at={c.from + q.at} file={q.file} vol={(q.vol ?? 1) * 0.65} />))}
+        <Sfx at={riserAt} file="riser" vol={0.4} />
+      </AbsoluteFill>
+    );
+  };
+  return Reel;
 };
 
 /** Una escena suelta (para previsualizarla en Studio) con el mismo audio y subtítulos. */
-export const SceneSolo: React.FC<ReelProps & { sceneId: SceneClock["id"] }> = ({ sceneId, ...props }) => {
-  const { scenes } = buildTimeline(props.timings);
-  const c = scenes.find((s) => s.id === sceneId)!;
-  return (
-    <Sequence from={-c.from} layout="none">
-      <Reel {...props} />
-    </Sequence>
-  );
+export const makeSceneSolo = (video: VideoDef, Reel: React.FC<ReelProps>): React.FC<ReelProps & { sceneId: string }> => {
+  const SceneSolo: React.FC<ReelProps & { sceneId: string }> = ({ sceneId, ...props }) => {
+    const { scenes } = buildTimeline(video.scenes, props.timings);
+    const c = scenes.find((s) => s.id === sceneId)!;
+    return (
+      <Sequence from={-c.from} layout="none">
+        <Reel {...props} />
+      </Sequence>
+    );
+  };
+  return SceneSolo;
 };

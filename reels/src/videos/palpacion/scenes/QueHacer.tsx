@@ -1,11 +1,10 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { Check } from "../components/Icons";
-import { Person, Target } from "../components/Pictograms";
-import { Punch } from "../components/Punch";
-import { Stage } from "../components/Stage";
-import { CLAMP, COLORS } from "../config";
-import { SentenceClock, wordAt, wordEnd } from "../timeline";
-import { SceneProps } from "./types";
+import { Check } from "../../../components/Icons";
+import { Person, Target } from "../../../components/Pictograms";
+import { Punch } from "../../../components/Punch";
+import { Stage } from "../../../components/Stage";
+import { CLAMP, COLORS } from "../../../config";
+import { SceneProps, SentenceClock, wordAt, wordEnd } from "../../../timeline";
 
 /** Bocadillo que se escribe palabra a palabra al ritmo de la voz. */
 const TypedBubble: React.FC<{ s: SentenceClock; words: string[]; color: string; strikeAt?: number; at: number }> = ({ s, words, color, strikeAt, at }) => {

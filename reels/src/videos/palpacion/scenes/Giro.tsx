@@ -1,11 +1,10 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { Cross } from "../components/Icons";
-import { Calendar, Gauge, Hand, Person, Scale, Sex } from "../components/Pictograms";
-import { Punch, Slam } from "../components/Punch";
-import { Stage } from "../components/Stage";
-import { CLAMP, COLORS } from "../config";
-import { wordAt, wordEnd } from "../timeline";
-import { SceneProps } from "./types";
+import { Cross } from "../../../components/Icons";
+import { Calendar, Gauge, Hand, Person, Scale, Sex } from "../../../components/Pictograms";
+import { Punch, Slam } from "../../../components/Punch";
+import { Stage } from "../../../components/Stage";
+import { CLAMP, COLORS } from "../../../config";
+import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 
 const Item: React.FC<{ label: string; at: number; crossAt: number; dim: number; children: React.ReactNode }> = ({ label, at, crossAt, dim, children }) => {
   const frame = useCurrentFrame();

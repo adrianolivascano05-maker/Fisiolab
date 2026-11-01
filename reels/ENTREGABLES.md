@@ -59,3 +59,61 @@ Se añade una frase de quiz antes del dato, para que el espectador apueste: «¿
 
 Duración objetivo: 40–45 s. Limitación obligatoria en la descripción: revisión narrativa (no sistemática) que recoge datos de otros estudios; los rangos tan amplios reflejan estudios heterogéneos.
 Sello final sugerido: «VALOR LIMITADO». Teaser verificado en el reel 6 de Custers (Telli 2008: tres o más pruebas de provocación positivas; FABERE el más sensible, 91,4 %).
+
+---
+
+# Reel 2 · «El test de Kemp no confirma ni descarta» · entregables
+
+**Pilar:** Mito vs. evidencia · **Público:** fisios clínicos y estudiantes · **Duración:** 47,6 s · Composición `Kemp` (carpeta `src/videos/kemp/`, assets en `public/kemp/`).
+
+## Portada
+Línea 1: **Kemp positivo** · Dato: **≠ facetario** · Subtítulo: NI CONFIRMA NI DESCARTA (`npx remotion still Kemp-Portada out/portada-kemp.png`).
+
+## Guion locutado
+Kemp positivo. Y anotas: facetario. Pues ese test ni confirma ni descarta. / Lo dice una revisión de 2024 que reunió los datos de los estudios que lo midieron. / Sensibilidad: de 0,23… a 1. Especificidad: de 0,116… a 0,673. / Entonces, un Kemp positivo, ¿confirma o descarta? / Con esa especificidad, sale positivo en mucha gente sin dolor facetario. Y con esa sensibilidad, un negativo tampoco te deja tranquilo. / La revisión no dice que no sirva. Dice que es una pieza: dolor que aumenta al extender, que no suele pasar de la rodilla, y exploración neurológica normal. / Así que no escribas «facetario» solo por un Kemp. Anota las cuatro piezas. / Comenta «Kemp» si lo usas a diario. Y en la parte 3: la sacroilíaca, donde un test no basta y necesitas tres.
+
+## Descripción del post
+Extensión con rotación, duele, y escribimos «facetario». Pero el test de Kemp, por sí solo, no lo sostiene.
+
+- **Sensibilidad: de 0,23 a 1.** Tan variable que un negativo no te deja tranquilo.
+- **Especificidad: de 0,116 a 0,673.** Tan baja que sale positivo en mucha gente sin dolor facetario.
+- Conclusión de la revisión: **ni confirma ni descarta de forma fiable**. Es una pieza, no un veredicto.
+
+Mañana en consulta: no escribas «facetario» por un Kemp. Júntalo con dolor que aumenta al extender, que no suele pasar de la rodilla y exploración neurológica normal (así describe la revisión el dolor facetario unilateral).
+
+Aviso: revisión narrativa (no sistemática) que recoge los valores de una revisión sistemática de 2014; los rangos tan amplios reflejan estudios heterogéneos. «Sensible y negativo descarta, específico y positivo confirma» es la interpretación estándar de esos valores, no una frase del paper.
+
+Referencias:
+1. Stuber K, Lerede C, Kristmanson K, Sajko S, Bruno P. The diagnostic accuracy of the Kemp's test: a systematic review. J Can Chiropr Assoc. 2014;58(3):258-267.
+2. Custers P, Van de Kelft E, Eeckhaut B, et al. Clinical Examination, Diagnosis, and Conservative Treatment of Chronic Low Back Pain: A Narrative Review. Life (Basel). 2024;14(9):1090. doi:10.3390/life14091090
+
+¿Qué combinas tú con el Kemp? Comenta «Kemp».
+
+#fisioterapia #lumbalgia #fisioterapeuta #terapiamanual #evidenciacientifica #estudiantesdefisio #dolorlumbar #testdekemp
+
+## 3 ganchos alternativos (A/B)
+1. «Un Kemp positivo no te dice que el dolor sea facetario.»
+2. «Especificidad 0,116. Repito: cero coma ciento dieciséis.»
+3. «El test que haces a diario y que la evidencia no respalda solo.»
+
+## Dónde verificarlo
+Custers 2024: apartado 3.2.5 «Kemp's Test» (valores y «neither reliably confirms nor excludes»), tabla 5 (referencia 25 = Stuber 2014) y apartado 5.2 «Unilateral Facet Joint Pain» (dolor que aumenta con la extensión, no suele pasar de la rodilla, Kemp a menudo positivo, exploración neurológica normal).
+
+---
+
+# Propuesta de guion · Parte 3: la sacroilíaca, un test no basta
+
+**Pilar:** Aplicación clínica en 1 minuto · **Público:** fisios clínicos · Datos de Custers 2024, apartados 3.4 (30 % de las lumbalgias atribuidas a la sacroilíaca), 3.4.1 (FABERE), 3.4.2 (provocación) y 3.4.3 (Telli et al. 2008).
+
+| Escena | Voz | En pantalla |
+|---|---|---|
+| Gancho | «Para la sacroilíaca, un test no basta. Necesitas tres.» | «1 TEST» tachado → «3» gigante |
+| Prueba | «Lo dice una revisión de 2024 que cita un estudio de Telli, de 2008, sobre fiabilidad y validez de estos tests.» | Tarjeta «Life 2024» → ficha «Telli 2008» |
+| Problema | «La revisión atribuye a la sacroilíaca el 30 % de las lumbalgias. Y muchas veces se etiqueta con un solo test positivo.» | 10 siluetas, 3 se iluminan; ficha con «sacroilíaca» por un solo test |
+| Hallazgo | «Ese estudio concluyó que se puede hablar de disfunción sacroilíaca cuando tres o más pruebas de provocación son positivas: distracción, compresión, empuje del muslo, Gaenslen y cizallamiento.» | Contador 1-2-3 con las cinco pruebas en pictogramas |
+| Giro | «Y el más sensible fue el FABERE, el del cuatro: noventa y uno coma cuatro por ciento.» | Pierna en «4» y «91,4 %» con anillo |
+| Matiz | «Un test muy sensible sirve sobre todo para descartar: si sale negativo, la sacroilíaca baja en tu lista. Y ojo: la revisión admite que la sacroilíaca está menos investigada.» | «NEGATIVO → BAJA EN LA LISTA»; chip «menos investigada» |
+| Qué hacer | «Mañana: haz las cinco de provocación y cuenta positivos antes de etiquetar.» | Lista de cinco con contador de positivos |
+| CTA | «Comenta "tres" si ya las cuentas. Y en la parte 4: el Lasègue, el test que la propia revisión interpreta al revés.» | Botón «Comenta tres»; tarjeta «PARTE 4 →» |
+
+Limitación obligatoria: revisión narrativa; el criterio «3 o más positivas» y el 91,4 % salen de un único estudio (Telli 2008); «sensible y negativo descarta» es interpretación estándar, no frase del paper. Teaser verificado: Custers invierte la interpretación de SLR y SLR cruzada (reel 2 de Custers).

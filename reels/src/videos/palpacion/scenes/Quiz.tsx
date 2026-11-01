@@ -1,12 +1,12 @@
 import { interpolate, useCurrentFrame } from "remotion";
-import { Option, centerX } from "../components/Engage";
-import { Finger } from "../components/Pictograms";
-import { Punch, Slam } from "../components/Punch";
-import { Stage } from "../components/Stage";
-import { CLAMP, COLORS, DATA } from "../config";
-import { LAYOUT } from "../theme";
-import { wordAt } from "../timeline";
-import { SceneProps } from "./types";
+import { Option, centerX } from "../../../components/Engage";
+import { Finger } from "../../../components/Pictograms";
+import { Punch, Slam } from "../../../components/Punch";
+import { Stage } from "../../../components/Stage";
+import { CLAMP, COLORS } from "../../../config";
+import { DATA } from "../config";
+import { LAYOUT } from "../../../theme";
+import { SceneProps, wordAt } from "../../../timeline";
 
 /** Quiz: el espectador apuesta antes del dato. Un dedo duda y pulsa una opción. */
 export const Quiz: React.FC<SceneProps> = ({ c }) => {

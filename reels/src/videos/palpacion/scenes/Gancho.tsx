@@ -1,11 +1,11 @@
 import { interpolate, useCurrentFrame } from "remotion";
-import { Cross } from "../components/Icons";
-import { Hand, Person, Vertebra, pop } from "../components/Pictograms";
-import { Punch, Slam } from "../components/Punch";
-import { Stage } from "../components/Stage";
-import { CLAMP, COLORS, DATA } from "../config";
-import { wordAt } from "../timeline";
-import { SceneProps } from "./types";
+import { Cross } from "../../../components/Icons";
+import { Hand, Person, Vertebra, pop } from "../../../components/Pictograms";
+import { Punch, Slam } from "../../../components/Punch";
+import { Stage } from "../../../components/Stage";
+import { CLAMP, COLORS } from "../../../config";
+import { DATA } from "../config";
+import { SceneProps, wordAt } from "../../../timeline";
 
 /** Gancho: cada palabra dispara un pictograma; «MÁS DE LA MITAD FALLÓ» entra de golpe con temblor. */
 export const Gancho: React.FC<SceneProps> = ({ c }) => {

@@ -1,14 +1,14 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { CLAMP, COLORS, FPS, Timings, flatSentences, norm } from "../config";
+import { CLAMP, COLORS, FPS, SceneDef, Timings, flatSentences, norm } from "../config";
 import { LAYOUT, SAFE, fontFamily } from "../theme";
 
 type Tok = { text: string; start: number; end: number; key: boolean };
 type Chunk = { toks: Tok[]; start: number; end: number };
 
 /** Convierte frases + tiempos de palabra en líneas de subtítulo, fusionando grupos con `display` (p. ej. «setenta y cinco» → «75»). */
-export const buildChunks = (t: Timings): Chunk[] => {
+export const buildChunks = (scenes: SceneDef[], t: Timings): Chunk[] => {
   const out: Chunk[] = [];
-  flatSentences().forEach(({ sentence }, i) => {
+  flatSentences(scenes).forEach(({ sentence }, i) => {
     const st = t.sentences[i];
     const words = st.words ?? [];
     const parts = sentence.chunks ?? [sentence.text];
@@ -40,9 +40,9 @@ export const buildChunks = (t: Timings): Chunk[] => {
 };
 
 /** Subtítulos «héroe»: la línea actual en grande y la palabra que se está diciendo salta y se tiñe de naranja. */
-export const Subtitles: React.FC<{ timings: Timings }> = ({ timings }) => {
+export const Subtitles: React.FC<{ scenes: SceneDef[]; timings: Timings }> = ({ scenes, timings }) => {
   const frame = useCurrentFrame();
-  const chunks = buildChunks(timings);
+  const chunks = buildChunks(scenes, timings);
   const i = chunks.findIndex((c, k) => frame >= c.start - 2 && (k + 1 >= chunks.length ? frame <= c.end + FPS * 1.5 : frame < chunks[k + 1].start - 2));
   if (i < 0) return null;
   const c = chunks[i];

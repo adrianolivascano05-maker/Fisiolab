@@ -2,8 +2,18 @@
 
 Reel vertical (1080×1920, 30 fps) con animaciones en código, voz en off de Gemini TTS (voz fija «Dani», Achird) y sonido sintetizado sin copyright.
 
-## Primer vídeo
-«Palpamos el nivel correcto la mitad de las veces» (Custers 2024 · reel 1; dato original de Harlick 2007). Composición principal `PalpacionL4`; cada escena también está suelta en la carpeta «Escenas» de Remotion Studio; portada en el still `Portada`.
+## Vídeos
+| Carpeta | Composición | Reel |
+|---|---|---|
+| `src/videos/palpacion` | `PalpacionL4` | «Palpamos el nivel correcto la mitad de las veces» (Custers 2024 · reel 1; Harlick 2007) |
+| `src/videos/kemp` | `Kemp` | «El test de Kemp no confirma ni descarta» (Custers 2024 · reel 5; Stuber 2014) |
+
+Cada vídeo tiene su carpeta en `src/videos/<id>/` (config.ts con el guion y los datos, scenes/, cues.ts, index.ts) y sus assets en `public/<id>/` (voz/ y music.wav). Se registra en `src/videos/index.ts`. En Studio cada reel aparece con su portada (`<Id>-Portada`) y sus escenas sueltas.
+
+## Añadir un vídeo nuevo
+1. Copia `src/videos/kemp` a `src/videos/<nuevo>`, cambia `META`, `SCENES` (guion frase a frase, con `keys` y `display`) y `DATA`; escribe o adapta las escenas (cada visual se dispara con `wordAt(frase, "palabra")`).
+2. Añádelo a `src/videos/index.ts`.
+3. `VIDEO=<nuevo> node tools/estimate.mjs` para previsualizar sin voz; `tools/produce.sh <nuevo>` para voz, alineación, música y render.
 
 ## Sincronía palabra a palabra
 `public/voz/timings.json` guarda el inicio y el fin de **cada palabra**. Las escenas disparan cada visual con `wordAt(frase, "palabra")` y los subtítulos resaltan la palabra que se está diciendo. Con la voz real, `tools/align.mjs` fija las frases por silencios y `tools/align_words.mjs` (modelo de audio de Gemini, cuota distinta del TTS) reparte las palabras dentro de cada frase; si ese paso falla, se reparten por caracteres.
@@ -17,9 +27,9 @@ Reel vertical (1080×1920, 30 fps) con animaciones en código, voz en off de Gem
 ## Producir
 ```bash
 npm i
-tools/produce.sh            # voz (1 petición TTS) → normalización → alineación → música → render
-tools/produce.sh --skip-voice   # solo música + render con los tiempos actuales
-npx remotion still Portada out/portada.png
+tools/produce.sh kemp            # voz (1 petición TTS) → normalización → alineación → música → render
+tools/produce.sh kemp --skip-voice   # solo música + render con los tiempos actuales
+npx remotion still Kemp-Portada out/portada-kemp.png
 npx remotion studio         # previsualizar
 ```
 Si no hay voz, `tools/estimate.mjs` crea tiempos estimados y el render sale sin voz (hasta que exista `public/voz/voz.wav`).
@@ -28,6 +38,6 @@ Si no hay voz, `tools/estimate.mjs` crea tiempos estimados y el render sale sin 
 - `remotion.config.ts` apunta al Chromium headless preinstalado (remotion.media está bloqueado).
 - Fuente Montserrat local en `public/fonts` (`@remotion/fonts`); nada de `@remotion/google-fonts`.
 - Efectos en `public/sfx` generados con ffmpeg; base musical con `tools/make_music.py` (numpy), con hueco de silencio antes del dato fuerte y ducking bajo la voz.
-- Gemini TTS: capa gratuita, 10 peticiones/día con `gemini-3.8-flash-tts`. Una sola toma por vídeo.
+- Gemini TTS: capa gratuita, 10 peticiones/día con `gemini-3.8-flash-tts`. Una sola toma por vídeo. El prompt de estilo exige castellano de España (zeta /θ/, sin seseo); `tools/check_accent.mjs voz.wav` pide a un modelo de audio que lo verifique.
 
 Entregables del primer vídeo (portada, descripción, ganchos alternativos y guion de la parte 2): `ENTREGABLES.md`.

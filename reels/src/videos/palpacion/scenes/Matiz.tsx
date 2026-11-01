@@ -1,11 +1,11 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { Check, Cross } from "../components/Icons";
-import { Hand, Person, Vertebra } from "../components/Pictograms";
-import { Punch, Slam } from "../components/Punch";
-import { Stage } from "../components/Stage";
-import { CLAMP, COLORS, DATA } from "../config";
-import { wordAt, wordEnd } from "../timeline";
-import { SceneProps } from "./types";
+import { Check, Cross } from "../../../components/Icons";
+import { Hand, Person, Vertebra } from "../../../components/Pictograms";
+import { Punch, Slam } from "../../../components/Punch";
+import { Stage } from "../../../components/Stage";
+import { CLAMP, COLORS } from "../../../config";
+import { DATA } from "../config";
+import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 
 /** Matiz: 3 de 4 personas en verde, barra 47→72 %, ±1 nivel, la mano llega a la zona pero no a la vértebra. */
 export const Matiz: React.FC<SceneProps> = ({ c }) => {

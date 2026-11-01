@@ -11,7 +11,10 @@ STYLE = ("Lee el siguiente guion como un chico de unos 27 años de Madrid, con a
          "(castellano, pronunciando la z y la c como en España). Tono carismático pero relajado y natural, "
          "como si se lo contaras a un colega tomando algo: cercano, con una sonrisa ligera en la voz, "
          "sin sonar a locutor de anuncio, sin énfasis exagerados ni voz de vendedor. Ritmo tranquilo, "
-         "con pequeñas pausas naturales.")
+         "con pequeñas pausas naturales. "
+         "OBLIGATORIO: acento castellano de España en todo momento, NUNCA latinoamericano ni neutro: "
+         "la z y la c ante e/i se pronuncian como zeta castellana /θ/ (cinco, especificidad, vértebra, "
+         "sensibilidad, hacer), nada de seseo; la s final se pronuncia; entonación y muletillas de Madrid.")
 
 def prompt(text):
     # Las notas van separadas del TRANSCRIPT; si se mezclan, el modelo lee también las instrucciones.

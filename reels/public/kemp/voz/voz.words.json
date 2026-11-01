@@ -1,0 +1,709 @@
+{
+ "words": [
+  {
+   "w": "Kemp",
+   "start": 0,
+   "end": 0.29
+  },
+  {
+   "w": "positivo",
+   "start": 0.29,
+   "end": 0.8
+  },
+  {
+   "w": "y",
+   "start": 0.8,
+   "end": 0.88
+  },
+  {
+   "w": "anotas",
+   "start": 0.88,
+   "end": 1.24
+  },
+  {
+   "w": "facetario",
+   "start": 1.24,
+   "end": 1.87
+  },
+  {
+   "w": "Pues",
+   "start": 2.38,
+   "end": 2.64
+  },
+  {
+   "w": "ese",
+   "start": 2.64,
+   "end": 2.79
+  },
+  {
+   "w": "test",
+   "start": 2.79,
+   "end": 2.98
+  },
+  {
+   "w": "ni",
+   "start": 2.98,
+   "end": 3.11
+  },
+  {
+   "w": "confirma",
+   "start": 3.11,
+   "end": 3.62
+  },
+  {
+   "w": "ni",
+   "start": 3.62,
+   "end": 3.73
+  },
+  {
+   "w": "descarta",
+   "start": 3.73,
+   "end": 4.32
+  },
+  {
+   "w": "Lo",
+   "start": 4.73,
+   "end": 4.87
+  },
+  {
+   "w": "dice",
+   "start": 4.87,
+   "end": 5.06
+  },
+  {
+   "w": "una",
+   "start": 5.06,
+   "end": 5.17
+  },
+  {
+   "w": "revisión",
+   "start": 5.17,
+   "end": 5.63
+  },
+  {
+   "w": "de",
+   "start": 5.63,
+   "end": 5.71
+  },
+  {
+   "w": "dos",
+   "start": 5.71,
+   "end": 5.94
+  },
+  {
+   "w": "mil",
+   "start": 5.94,
+   "end": 6.09
+  },
+  {
+   "w": "veinticuatro",
+   "start": 6.09,
+   "end": 6.64
+  },
+  {
+   "w": "que",
+   "start": 6.64,
+   "end": 6.76
+  },
+  {
+   "w": "reunió",
+   "start": 6.76,
+   "end": 7.09
+  },
+  {
+   "w": "los",
+   "start": 7.09,
+   "end": 7.23
+  },
+  {
+   "w": "datos",
+   "start": 7.23,
+   "end": 7.51
+  },
+  {
+   "w": "de",
+   "start": 7.51,
+   "end": 7.63
+  },
+  {
+   "w": "los",
+   "start": 7.63,
+   "end": 7.75
+  },
+  {
+   "w": "estudios",
+   "start": 7.75,
+   "end": 8.14
+  },
+  {
+   "w": "que",
+   "start": 8.14,
+   "end": 8.27
+  },
+  {
+   "w": "lo",
+   "start": 8.27,
+   "end": 8.36
+  },
+  {
+   "w": "midieron",
+   "start": 8.36,
+   "end": 8.83
+  },
+  {
+   "w": "sensibilidad",
+   "start": 9.33,
+   "end": 9.96
+  },
+  {
+   "w": "de",
+   "start": 9.96,
+   "end": 10.35
+  },
+  {
+   "w": "cero",
+   "start": 10.35,
+   "end": 10.74
+  },
+  {
+   "w": "coma",
+   "start": 10.74,
+   "end": 10.95
+  },
+  {
+   "w": "veintitrés",
+   "start": 10.95,
+   "end": 11.45
+  },
+  {
+   "w": "a",
+   "start": 11.45,
+   "end": 11.6
+  },
+  {
+   "w": "uno",
+   "start": 11.6,
+   "end": 12.01
+  },
+  {
+   "w": "especificidad",
+   "start": 12.44,
+   "end": 13.2
+  },
+  {
+   "w": "de",
+   "start": 13.2,
+   "end": 13.62
+  },
+  {
+   "w": "cero",
+   "start": 13.62,
+   "end": 13.97
+  },
+  {
+   "w": "coma",
+   "start": 13.97,
+   "end": 14.18
+  },
+  {
+   "w": "ciento",
+   "start": 14.18,
+   "end": 14.48
+  },
+  {
+   "w": "dieciséis",
+   "start": 14.48,
+   "end": 14.98
+  },
+  {
+   "w": "a",
+   "start": 14.98,
+   "end": 15.11
+  },
+  {
+   "w": "cero",
+   "start": 15.11,
+   "end": 15.48
+  },
+  {
+   "w": "coma",
+   "start": 15.48,
+   "end": 15.71
+  },
+  {
+   "w": "seiscientos",
+   "start": 15.71,
+   "end": 16.15
+  },
+  {
+   "w": "setenta",
+   "start": 16.15,
+   "end": 16.48
+  },
+  {
+   "w": "y",
+   "start": 16.48,
+   "end": 16.59
+  },
+  {
+   "w": "tres",
+   "start": 16.59,
+   "end": 16.9
+  },
+  {
+   "w": "Entonces",
+   "start": 17.37,
+   "end": 17.81
+  },
+  {
+   "w": "un",
+   "start": 17.81,
+   "end": 17.94
+  },
+  {
+   "w": "Kemp",
+   "start": 17.94,
+   "end": 18.23
+  },
+  {
+   "w": "positivo",
+   "start": 18.23,
+   "end": 18.82
+  },
+  {
+   "w": "confirma",
+   "start": 19.12,
+   "end": 19.64
+  },
+  {
+   "w": "o",
+   "start": 19.64,
+   "end": 19.78
+  },
+  {
+   "w": "descarta",
+   "start": 19.78,
+   "end": 20.4
+  },
+  {
+   "w": "Con",
+   "start": 20.89,
+   "end": 21.08
+  },
+  {
+   "w": "esa",
+   "start": 21.08,
+   "end": 21.21
+  },
+  {
+   "w": "especificidad",
+   "start": 21.21,
+   "end": 21.9
+  },
+  {
+   "w": "sale",
+   "start": 21.9,
+   "end": 22.18
+  },
+  {
+   "w": "positivo",
+   "start": 22.18,
+   "end": 22.58
+  },
+  {
+   "w": "en",
+   "start": 22.58,
+   "end": 22.68
+  },
+  {
+   "w": "mucha",
+   "start": 22.68,
+   "end": 22.95
+  },
+  {
+   "w": "gente",
+   "start": 22.95,
+   "end": 23.18
+  },
+  {
+   "w": "sin",
+   "start": 23.18,
+   "end": 23.36
+  },
+  {
+   "w": "dolor",
+   "start": 23.36,
+   "end": 23.59
+  },
+  {
+   "w": "facetario",
+   "start": 23.59,
+   "end": 24.23
+  },
+  {
+   "w": "y",
+   "start": 24.47,
+   "end": 24.62
+  },
+  {
+   "w": "con",
+   "start": 24.62,
+   "end": 24.78
+  },
+  {
+   "w": "esa",
+   "start": 24.78,
+   "end": 24.97
+  },
+  {
+   "w": "sensibilidad",
+   "start": 24.97,
+   "end": 25.66
+  },
+  {
+   "w": "un",
+   "start": 25.66,
+   "end": 25.82
+  },
+  {
+   "w": "negativo",
+   "start": 25.82,
+   "end": 26.24
+  },
+  {
+   "w": "tampoco",
+   "start": 26.24,
+   "end": 26.65
+  },
+  {
+   "w": "te",
+   "start": 26.65,
+   "end": 26.79
+  },
+  {
+   "w": "deja",
+   "start": 26.79,
+   "end": 27.02
+  },
+  {
+   "w": "tranquilo",
+   "start": 27.02,
+   "end": 27.56
+  },
+  {
+   "w": "La",
+   "start": 27.87,
+   "end": 28.05
+  },
+  {
+   "w": "revisión",
+   "start": 28.05,
+   "end": 28.45
+  },
+  {
+   "w": "no",
+   "start": 28.45,
+   "end": 28.58
+  },
+  {
+   "w": "dice",
+   "start": 28.58,
+   "end": 28.77
+  },
+  {
+   "w": "que",
+   "start": 28.77,
+   "end": 28.87
+  },
+  {
+   "w": "no",
+   "start": 28.87,
+   "end": 29.04
+  },
+  {
+   "w": "sirva",
+   "start": 29.04,
+   "end": 29.49
+  },
+  {
+   "w": "dice",
+   "start": 29.74,
+   "end": 30.01
+  },
+  {
+   "w": "que",
+   "start": 30.01,
+   "end": 30.12
+  },
+  {
+   "w": "es",
+   "start": 30.12,
+   "end": 30.25
+  },
+  {
+   "w": "una",
+   "start": 30.25,
+   "end": 30.4
+  },
+  {
+   "w": "pieza",
+   "start": 30.4,
+   "end": 30.88
+  },
+  {
+   "w": "dolor",
+   "start": 31.25,
+   "end": 31.57
+  },
+  {
+   "w": "que",
+   "start": 31.57,
+   "end": 31.69
+  },
+  {
+   "w": "aumenta",
+   "start": 31.69,
+   "end": 32.06
+  },
+  {
+   "w": "al",
+   "start": 32.06,
+   "end": 32.22
+  },
+  {
+   "w": "extender",
+   "start": 32.22,
+   "end": 32.74
+  },
+  {
+   "w": "que",
+   "start": 32.96,
+   "end": 33.15
+  },
+  {
+   "w": "no",
+   "start": 33.15,
+   "end": 33.27
+  },
+  {
+   "w": "suele",
+   "start": 33.27,
+   "end": 33.51
+  },
+  {
+   "w": "pasar",
+   "start": 33.51,
+   "end": 33.78
+  },
+  {
+   "w": "de",
+   "start": 33.78,
+   "end": 33.89
+  },
+  {
+   "w": "la",
+   "start": 33.89,
+   "end": 33.99
+  },
+  {
+   "w": "rodilla",
+   "start": 33.99,
+   "end": 34.48
+  },
+  {
+   "w": "y",
+   "start": 34.61,
+   "end": 34.79
+  },
+  {
+   "w": "exploración",
+   "start": 34.79,
+   "end": 35.43
+  },
+  {
+   "w": "neurológica",
+   "start": 35.43,
+   "end": 35.97
+  },
+  {
+   "w": "normal",
+   "start": 35.97,
+   "end": 36.49
+  },
+  {
+   "w": "Así",
+   "start": 36.91,
+   "end": 37.1
+  },
+  {
+   "w": "que",
+   "start": 37.1,
+   "end": 37.21
+  },
+  {
+   "w": "no",
+   "start": 37.21,
+   "end": 37.33
+  },
+  {
+   "w": "escribas",
+   "start": 37.33,
+   "end": 37.71
+  },
+  {
+   "w": "facetario",
+   "start": 37.71,
+   "end": 38.29
+  },
+  {
+   "w": "solo",
+   "start": 38.45,
+   "end": 38.74
+  },
+  {
+   "w": "por",
+   "start": 38.74,
+   "end": 38.89
+  },
+  {
+   "w": "un",
+   "start": 38.89,
+   "end": 39.02
+  },
+  {
+   "w": "Kemp",
+   "start": 39.02,
+   "end": 39.38
+  },
+  {
+   "w": "anota",
+   "start": 39.63,
+   "end": 39.95
+  },
+  {
+   "w": "las",
+   "start": 39.95,
+   "end": 40.09
+  },
+  {
+   "w": "cuatro",
+   "start": 40.09,
+   "end": 40.38
+  },
+  {
+   "w": "piezas",
+   "start": 40.38,
+   "end": 40.85
+  },
+  {
+   "w": "Comenta",
+   "start": 41.05,
+   "end": 41.44
+  },
+  {
+   "w": "Kemp",
+   "start": 41.44,
+   "end": 41.73
+  },
+  {
+   "w": "si",
+   "start": 41.73,
+   "end": 41.87
+  },
+  {
+   "w": "lo",
+   "start": 41.87,
+   "end": 41.97
+  },
+  {
+   "w": "usas",
+   "start": 41.97,
+   "end": 42.22
+  },
+  {
+   "w": "a",
+   "start": 42.22,
+   "end": 42.34
+  },
+  {
+   "w": "diario",
+   "start": 42.34,
+   "end": 42.72
+  },
+  {
+   "w": "y",
+   "start": 42.72,
+   "end": 42.82
+  },
+  {
+   "w": "en",
+   "start": 42.82,
+   "end": 42.92
+  },
+  {
+   "w": "la",
+   "start": 42.92,
+   "end": 43.01
+  },
+  {
+   "w": "parte",
+   "start": 43.01,
+   "end": 43.25
+  },
+  {
+   "w": "tres",
+   "start": 43.25,
+   "end": 43.51
+  },
+  {
+   "w": "la",
+   "start": 43.51,
+   "end": 43.64
+  },
+  {
+   "w": "sacroilíaca",
+   "start": 43.64,
+   "end": 44.33
+  },
+  {
+   "w": "donde",
+   "start": 44.49,
+   "end": 44.8
+  },
+  {
+   "w": "un",
+   "start": 44.8,
+   "end": 44.97
+  },
+  {
+   "w": "test",
+   "start": 44.97,
+   "end": 45.16
+  },
+  {
+   "w": "no",
+   "start": 45.16,
+   "end": 45.32
+  },
+  {
+   "w": "basta",
+   "start": 45.32,
+   "end": 45.69
+  },
+  {
+   "w": "y",
+   "start": 45.69,
+   "end": 45.79
+  },
+  {
+   "w": "necesitas",
+   "start": 45.79,
+   "end": 46.24
+  },
+  {
+   "w": "tres",
+   "start": 46.24,
+   "end": 46.74
+  }
+ ]
+}
