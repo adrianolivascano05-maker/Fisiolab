@@ -17,5 +17,5 @@ fi
 node --no-warnings tools/music.mjs
 npx remotion render PalpacionL4 out/reel-palpacion-l4.mp4 --codec=h264 --crf=18 --audio-codec=aac
 # Seguridad: pico ≤ -1 dB sin tocar el vídeo
-ffmpeg -y -v error -i out/reel-palpacion-l4.mp4 -c:v copy -af "alimiter=limit=0.89:attack=3:release=60" -c:a aac -b:a 192k out/reel-palpacion-l4.final.mp4 && mv out/reel-palpacion-l4.final.mp4 out/reel-palpacion-l4.mp4
+ffmpeg -y -v error -i out/reel-palpacion-l4.mp4 -c:v copy -af "alimiter=limit=0.8:attack=5:release=50:level=false" -c:a aac -b:a 192k out/reel-palpacion-l4.final.mp4 && mv out/reel-palpacion-l4.final.mp4 out/reel-palpacion-l4.mp4
 ffmpeg -i out/reel-palpacion-l4.mp4 -af "astats=measure_perchannel=none:measure_overall=Peak_level" -f null - 2>&1 | grep "Peak level"

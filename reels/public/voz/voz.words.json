@@ -1,0 +1,844 @@
+{
+ "words": [
+  {
+   "w": "Fisios",
+   "start": 0,
+   "end": 0.4
+  },
+  {
+   "w": "expertos",
+   "start": 0.4,
+   "end": 0.9
+  },
+  {
+   "w": "palpando",
+   "start": 1,
+   "end": 1.48
+  },
+  {
+   "w": "lumbares",
+   "start": 1.48,
+   "end": 2.05
+  },
+  {
+   "w": "y",
+   "start": 2.3,
+   "end": 2.45
+  },
+  {
+   "w": "más",
+   "start": 2.45,
+   "end": 2.65
+  },
+  {
+   "w": "de",
+   "start": 2.65,
+   "end": 2.75
+  },
+  {
+   "w": "la",
+   "start": 2.75,
+   "end": 2.85
+  },
+  {
+   "w": "mitad",
+   "start": 2.85,
+   "end": 3.15
+  },
+  {
+   "w": "se",
+   "start": 3.15,
+   "end": 3.25
+  },
+  {
+   "w": "equivocaron",
+   "start": 3.25,
+   "end": 3.85
+  },
+  {
+   "w": "de",
+   "start": 3.85,
+   "end": 3.95
+  },
+  {
+   "w": "vértebra",
+   "start": 3.95,
+   "end": 4.45
+  },
+  {
+   "w": "Y",
+   "start": 4.8,
+   "end": 4.9
+  },
+  {
+   "w": "no",
+   "start": 4.9,
+   "end": 5.05
+  },
+  {
+   "w": "es",
+   "start": 5.05,
+   "end": 5.15
+  },
+  {
+   "w": "una",
+   "start": 5.15,
+   "end": 5.3
+  },
+  {
+   "w": "opinión",
+   "start": 5.3,
+   "end": 5.8
+  },
+  {
+   "w": "lo",
+   "start": 5.95,
+   "end": 6.08
+  },
+  {
+   "w": "comprobaron",
+   "start": 6.08,
+   "end": 6.65
+  },
+  {
+   "w": "con",
+   "start": 6.65,
+   "end": 6.78
+  },
+  {
+   "w": "radiografía",
+   "start": 6.78,
+   "end": 7.5
+  },
+  {
+   "w": "Cinco",
+   "start": 8.15,
+   "end": 8.48
+  },
+  {
+   "w": "fisios",
+   "start": 8.48,
+   "end": 8.8
+  },
+  {
+   "w": "de",
+   "start": 8.8,
+   "end": 8.9
+  },
+  {
+   "w": "terapia",
+   "start": 8.9,
+   "end": 9.3
+  },
+  {
+   "w": "manual",
+   "start": 9.3,
+   "end": 9.7
+  },
+  {
+   "w": "marcaron",
+   "start": 9.7,
+   "end": 10.2
+  },
+  {
+   "w": "L",
+   "start": 10.2,
+   "end": 10.4
+  },
+  {
+   "w": "uno",
+   "start": 10.4,
+   "end": 10.8
+  },
+  {
+   "w": "L",
+   "start": 10.8,
+   "end": 11
+  },
+  {
+   "w": "tres",
+   "start": 11,
+   "end": 11.35
+  },
+  {
+   "w": "y",
+   "start": 11.35,
+   "end": 11.45
+  },
+  {
+   "w": "L",
+   "start": 11.45,
+   "end": 11.65
+  },
+  {
+   "w": "cinco",
+   "start": 11.65,
+   "end": 12.05
+  },
+  {
+   "w": "en",
+   "start": 12.05,
+   "end": 12.2
+  },
+  {
+   "w": "setenta",
+   "start": 12.2,
+   "end": 12.6
+  },
+  {
+   "w": "y",
+   "start": 12.6,
+   "end": 12.65
+  },
+  {
+   "w": "cinco",
+   "start": 12.65,
+   "end": 12.95
+  },
+  {
+   "w": "pacientes",
+   "start": 12.95,
+   "end": 13.5
+  },
+  {
+   "w": "con",
+   "start": 13.5,
+   "end": 13.62
+  },
+  {
+   "w": "lumbalgia",
+   "start": 13.62,
+   "end": 14.3
+  },
+  {
+   "w": "Marcador",
+   "start": 14.6,
+   "end": 15.1
+  },
+  {
+   "w": "en",
+   "start": 15.1,
+   "end": 15.2
+  },
+  {
+   "w": "la",
+   "start": 15.2,
+   "end": 15.3
+  },
+  {
+   "w": "piel",
+   "start": 15.3,
+   "end": 15.6
+  },
+  {
+   "w": "y",
+   "start": 15.6,
+   "end": 15.7
+  },
+  {
+   "w": "radiografía",
+   "start": 15.7,
+   "end": 16.45
+  },
+  {
+   "w": "Cuántos",
+   "start": 17,
+   "end": 17.3
+  },
+  {
+   "w": "crees",
+   "start": 17.3,
+   "end": 17.5
+  },
+  {
+   "w": "que",
+   "start": 17.5,
+   "end": 17.6
+  },
+  {
+   "w": "acertaron",
+   "start": 17.6,
+   "end": 18.2
+  },
+  {
+   "w": "Vértebra",
+   "start": 18.5,
+   "end": 18.9
+  },
+  {
+   "w": "exacta",
+   "start": 18.9,
+   "end": 19.45
+  },
+  {
+   "w": "El",
+   "start": 19.8,
+   "end": 19.95
+  },
+  {
+   "w": "cuarenta",
+   "start": 19.95,
+   "end": 20.35
+  },
+  {
+   "w": "y",
+   "start": 20.35,
+   "end": 20.4
+  },
+  {
+   "w": "siete",
+   "start": 20.4,
+   "end": 20.7
+  },
+  {
+   "w": "por",
+   "start": 20.7,
+   "end": 20.85
+  },
+  {
+   "w": "ciento",
+   "start": 20.85,
+   "end": 21.25
+  },
+  {
+   "w": "Pero",
+   "start": 21.8,
+   "end": 21.95
+  },
+  {
+   "w": "lo",
+   "start": 21.95,
+   "end": 22.05
+  },
+  {
+   "w": "más",
+   "start": 22.05,
+   "end": 22.25
+  },
+  {
+   "w": "incómodo",
+   "start": 22.25,
+   "end": 22.75
+  },
+  {
+   "w": "es",
+   "start": 22.75,
+   "end": 22.85
+  },
+  {
+   "w": "esto",
+   "start": 22.85,
+   "end": 23.2
+  },
+  {
+   "w": "Lo",
+   "start": 23.4,
+   "end": 23.5
+  },
+  {
+   "w": "que",
+   "start": 23.5,
+   "end": 23.6
+  },
+  {
+   "w": "más",
+   "start": 23.6,
+   "end": 23.8
+  },
+  {
+   "w": "cambiaba",
+   "start": 23.8,
+   "end": 24.2
+  },
+  {
+   "w": "el",
+   "start": 24.2,
+   "end": 24.3
+  },
+  {
+   "w": "resultado",
+   "start": 24.3,
+   "end": 24.85
+  },
+  {
+   "w": "no",
+   "start": 24.85,
+   "end": 24.95
+  },
+  {
+   "w": "era",
+   "start": 24.95,
+   "end": 25.1
+  },
+  {
+   "w": "el",
+   "start": 25.1,
+   "end": 25.2
+  },
+  {
+   "w": "paciente",
+   "start": 25.2,
+   "end": 25.75
+  },
+  {
+   "w": "ni",
+   "start": 25.75,
+   "end": 25.9
+  },
+  {
+   "w": "su",
+   "start": 25.9,
+   "end": 26
+  },
+  {
+   "w": "peso",
+   "start": 26,
+   "end": 26.3
+  },
+  {
+   "w": "ni",
+   "start": 26.3,
+   "end": 26.4
+  },
+  {
+   "w": "su",
+   "start": 26.4,
+   "end": 26.5
+  },
+  {
+   "w": "edad",
+   "start": 26.5,
+   "end": 26.9
+  },
+  {
+   "w": "era",
+   "start": 27,
+   "end": 27.2
+  },
+  {
+   "w": "quién",
+   "start": 27.2,
+   "end": 27.45
+  },
+  {
+   "w": "palpaba",
+   "start": 27.45,
+   "end": 28.05
+  },
+  {
+   "w": "La",
+   "start": 28.4,
+   "end": 28.5
+  },
+  {
+   "w": "buena",
+   "start": 28.5,
+   "end": 28.75
+  },
+  {
+   "w": "noticia",
+   "start": 28.75,
+   "end": 29.25
+  },
+  {
+   "w": "Casi",
+   "start": 29.5,
+   "end": 29.8
+  },
+  {
+   "w": "tres",
+   "start": 29.8,
+   "end": 30.05
+  },
+  {
+   "w": "de",
+   "start": 30.05,
+   "end": 30.15
+  },
+  {
+   "w": "cada",
+   "start": 30.15,
+   "end": 30.35
+  },
+  {
+   "w": "cuatro",
+   "start": 30.35,
+   "end": 30.7
+  },
+  {
+   "w": "acertaban",
+   "start": 30.7,
+   "end": 31.25
+  },
+  {
+   "w": "o",
+   "start": 31.25,
+   "end": 31.35
+  },
+  {
+   "w": "se",
+   "start": 31.35,
+   "end": 31.45
+  },
+  {
+   "w": "quedaban",
+   "start": 31.45,
+   "end": 31.85
+  },
+  {
+   "w": "a",
+   "start": 31.85,
+   "end": 31.9
+  },
+  {
+   "w": "un",
+   "start": 31.9,
+   "end": 32.05
+  },
+  {
+   "w": "nivel",
+   "start": 32.05,
+   "end": 32.45
+  },
+  {
+   "w": "La",
+   "start": 32.8,
+   "end": 32.9
+  },
+  {
+   "w": "palpación",
+   "start": 32.9,
+   "end": 33.45
+  },
+  {
+   "w": "te",
+   "start": 33.45,
+   "end": 33.55
+  },
+  {
+   "w": "lleva",
+   "start": 33.55,
+   "end": 33.75
+  },
+  {
+   "w": "a",
+   "start": 33.75,
+   "end": 33.8
+  },
+  {
+   "w": "la",
+   "start": 33.8,
+   "end": 33.9
+  },
+  {
+   "w": "zona",
+   "start": 33.9,
+   "end": 34.3
+  },
+  {
+   "w": "no",
+   "start": 34.4,
+   "end": 34.55
+  },
+  {
+   "w": "a",
+   "start": 34.55,
+   "end": 34.6
+  },
+  {
+   "w": "la",
+   "start": 34.6,
+   "end": 34.7
+  },
+  {
+   "w": "vértebra",
+   "start": 34.7,
+   "end": 35.25
+  },
+  {
+   "w": "Así",
+   "start": 35.6,
+   "end": 35.8
+  },
+  {
+   "w": "que",
+   "start": 35.8,
+   "end": 35.9
+  },
+  {
+   "w": "deja",
+   "start": 35.9,
+   "end": 36.1
+  },
+  {
+   "w": "de",
+   "start": 36.1,
+   "end": 36.2
+  },
+  {
+   "w": "decir",
+   "start": 36.2,
+   "end": 36.5
+  },
+  {
+   "w": "tienes",
+   "start": 36.5,
+   "end": 36.8
+  },
+  {
+   "w": "L",
+   "start": 36.8,
+   "end": 37
+  },
+  {
+   "w": "cuatro",
+   "start": 37,
+   "end": 37.3
+  },
+  {
+   "w": "L",
+   "start": 37.3,
+   "end": 37.5
+  },
+  {
+   "w": "cinco",
+   "start": 37.5,
+   "end": 37.8
+  },
+  {
+   "w": "bloqueada",
+   "start": 37.8,
+   "end": 38.35
+  },
+  {
+   "w": "Di",
+   "start": 38.6,
+   "end": 38.75
+  },
+  {
+   "w": "zona",
+   "start": 38.75,
+   "end": 39.05
+  },
+  {
+   "w": "lumbar",
+   "start": 39.05,
+   "end": 39.35
+  },
+  {
+   "w": "baja",
+   "start": 39.35,
+   "end": 39.75
+  },
+  {
+   "w": "y",
+   "start": 39.9,
+   "end": 40
+  },
+  {
+   "w": "busca",
+   "start": 40,
+   "end": 40.3
+  },
+  {
+   "w": "el",
+   "start": 40.3,
+   "end": 40.4
+  },
+  {
+   "w": "dolor",
+   "start": 40.4,
+   "end": 40.7
+  },
+  {
+   "w": "que",
+   "start": 40.7,
+   "end": 40.8
+  },
+  {
+   "w": "el",
+   "start": 40.8,
+   "end": 40.9
+  },
+  {
+   "w": "paciente",
+   "start": 40.9,
+   "end": 41.35
+  },
+  {
+   "w": "reconoce",
+   "start": 41.35,
+   "end": 41.8
+  },
+  {
+   "w": "como",
+   "start": 41.8,
+   "end": 41.95
+  },
+  {
+   "w": "suyo",
+   "start": 41.95,
+   "end": 42.35
+  },
+  {
+   "w": "Comenta",
+   "start": 42.8,
+   "end": 43.2
+  },
+  {
+   "w": "L",
+   "start": 43.2,
+   "end": 43.4
+  },
+  {
+   "w": "cuatro",
+   "start": 43.4,
+   "end": 43.7
+  },
+  {
+   "w": "si",
+   "start": 43.7,
+   "end": 43.85
+  },
+  {
+   "w": "alguna",
+   "start": 43.85,
+   "end": 44.15
+  },
+  {
+   "w": "vez",
+   "start": 44.15,
+   "end": 44.3
+  },
+  {
+   "w": "lo",
+   "start": 44.3,
+   "end": 44.4
+  },
+  {
+   "w": "has",
+   "start": 44.4,
+   "end": 44.5
+  },
+  {
+   "w": "dicho",
+   "start": 44.5,
+   "end": 44.75
+  },
+  {
+   "w": "con",
+   "start": 44.75,
+   "end": 44.9
+  },
+  {
+   "w": "total",
+   "start": 44.9,
+   "end": 45.2
+  },
+  {
+   "w": "seguridad",
+   "start": 45.2,
+   "end": 45.85
+  },
+  {
+   "w": "Y",
+   "start": 46.2,
+   "end": 46.3
+  },
+  {
+   "w": "en",
+   "start": 46.3,
+   "end": 46.4
+  },
+  {
+   "w": "la",
+   "start": 46.4,
+   "end": 46.5
+  },
+  {
+   "w": "parte",
+   "start": 46.5,
+   "end": 46.75
+  },
+  {
+   "w": "dos",
+   "start": 46.75,
+   "end": 47.05
+  },
+  {
+   "w": "el",
+   "start": 47.2,
+   "end": 47.3
+  },
+  {
+   "w": "test",
+   "start": 47.3,
+   "end": 47.6
+  },
+  {
+   "w": "que",
+   "start": 47.6,
+   "end": 47.7
+  },
+  {
+   "w": "usamos",
+   "start": 47.7,
+   "end": 48.05
+  },
+  {
+   "w": "a",
+   "start": 48.05,
+   "end": 48.15
+  },
+  {
+   "w": "diario",
+   "start": 48.15,
+   "end": 48.5
+  },
+  {
+   "w": "y",
+   "start": 48.5,
+   "end": 48.6
+  },
+  {
+   "w": "que",
+   "start": 48.6,
+   "end": 48.7
+  },
+  {
+   "w": "según",
+   "start": 48.7,
+   "end": 48.95
+  },
+  {
+   "w": "esta",
+   "start": 48.95,
+   "end": 49.2
+  },
+  {
+   "w": "revisión",
+   "start": 49.2,
+   "end": 49.7
+  },
+  {
+   "w": "ni",
+   "start": 49.7,
+   "end": 49.85
+  },
+  {
+   "w": "confirma",
+   "start": 49.85,
+   "end": 50.35
+  },
+  {
+   "w": "ni",
+   "start": 50.35,
+   "end": 50.5
+  },
+  {
+   "w": "descarta",
+   "start": 50.5,
+   "end": 51.1
+  }
+ ]
+}

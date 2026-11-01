@@ -48,7 +48,7 @@ const duck = (t: Timings) => (f: number) => {
     const d = sec < s.start - 0.1 ? s.start - 0.1 - sec : sec > s.end + 0.25 ? sec - s.end - 0.25 : 0;
     k = Math.max(k, Math.max(0, 1 - d / 0.35));
   }
-  return 0.34 - 0.2 * k;
+  return 0.3 - 0.19 * k;
 };
 
 export const Reel: React.FC<ReelProps> = ({ timings, hasVoice }) => {
@@ -75,13 +75,13 @@ export const Reel: React.FC<ReelProps> = ({ timings, hasVoice }) => {
       <SourceTag from={total - Math.round(2.2 * FPS)} to={total} />
 
       {/* Sonido */}
-      {hasVoice ? <Audio src={staticFile("voz/voz.wav")} volume={1} /> : null}
+      {hasVoice ? <Audio src={staticFile("voz/voz.wav")} volume={0.9} /> : null}
       <Audio src={staticFile("sfx/music.wav")} volume={duck(timings)} />
       {scenes.slice(1).map((c) => (
-        <Sfx key={`w${c.id}`} at={c.from - 4} file="whoosh" vol={0.55} />
+        <Sfx key={`w${c.id}`} at={c.from - 4} file="whoosh" vol={0.45} />
       ))}
-      {scenes.flatMap((c) => sceneCues(c).map((q, i) => <Sfx key={`${c.id}${i}`} at={c.from + q.at} file={q.file} vol={(q.vol ?? 1) * 0.8} />))}
-      <Sfx at={riserAt} file="riser" vol={0.5} />
+      {scenes.flatMap((c) => sceneCues(c).map((q, i) => <Sfx key={`${c.id}${i}`} at={c.from + q.at} file={q.file} vol={(q.vol ?? 1) * 0.65} />))}
+      <Sfx at={riserAt} file="riser" vol={0.4} />
     </AbsoluteFill>
   );
 };
