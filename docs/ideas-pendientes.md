@@ -963,8 +963,12 @@ primero, facturación/reserva/recordatorios como extras de pago, y qué hacer co
 - **Servidor `2026-11-02`:** tope por IP (docs/pasos-pendientes.md, 3 bis).
 - Pruebas: AG1, AG3, PWA-H4, MS1, `worker.test` (tope por IP).
 
-**Aplazado: movilidad de rodilla, codo y muñeca.** La tabla `tests` tiene una regla (CHECK) con los tipos de medición
-de la primera versión (`001_init.sql`): `rom_knee` y compañía no caben. Hace falta rehacer esa tabla en una migración
-(copiar, borrar y renombrar, con sus índices y disparadores, y con cuidado de no borrar los resultados por las claves
-ajenas) y, además, que **todos** los dispositivos de una clínica estén actualizados antes de medir una rodilla: uno
-antiguo rechazaría esa medición al sincronizar. La columna lumbar, con un solo móvil, no se separa de la cadera.
+**Movilidad de rodilla, codo y muñeca (hecho después, el mismo día, migración 037).** La tabla `tests` tenía una regla
+(CHECK) con los tipos de la primera versión (`001_init.sql`). Rehacer la tabla (copiar, borrar y renombrar) habría
+borrado en cascada sus resultados, vídeos y marcas por las claves ajenas, así que la regla se amplía en su sitio con
+`writable_schema`, el procedimiento de la documentación de SQLite para cambios que no tocan cómo se guardan los datos
+(`037_rom_joints.sql`; si el texto no cambia, la migración falla y la base queda como estaba). Seis movimientos nuevos
+en `src/calc/rom.ts`: flexión de rodilla, flexión, pronación y supinación de codo, y flexión y extensión de muñeca, con
+el inclinómetro, sobre foto (salvo prono-supinación) o con el goniómetro. Un dispositivo sin actualizar que reciba una
+de estas mediciones no la mete a medias: pide actualizar la app (cada lote de cambios lleva su versión de la base,
+`engine.ts`). La columna lumbar no: con un solo móvil no se separa de la cadera. Pruebas: `rom.test` y F11-H6.

@@ -18,6 +18,16 @@ beforeEach(async () => {
 });
 
 describe("movilidad", () => {
+  it("rodilla, codo y muñeca (migración 037): se guardan con su tipo y la regla de la tabla sigue entera", async () => {
+    const knee = await createRomTest(db, { patientId: pid, movement: "knee_flexion", side: "right", method: "manual", readings: [95], wallDistanceCm: null });
+    const elbow = await createRomTest(db, { patientId: pid, movement: "elbow_pronation", side: "left", method: "sensor", readings: [80], wallDistanceCm: null });
+    const wrist = await createRomTest(db, { patientId: pid, movement: "wrist_extension", side: "left", method: "photo", readings: [70], wallDistanceCm: null });
+    expect([(await getTest(db, knee))?.type, (await getTest(db, elbow))?.type, (await getTest(db, wrist))?.type]).toEqual(["rom_knee", "rom_elbow", "rom_wrist"]);
+    // La regla sigue rechazando lo que no es un tipo conocido, y la base está sana.
+    await expect(db.query("update tests set type = 'rom_lumbar' where id = ?", [knee])).rejects.toThrow(/CHECK/);
+    expect(await db.query("pragma integrity_check")).toEqual([{ integrity_check: "ok" }]);
+  });
+
   it("guarda la media de las lecturas, cada lectura y la distancia a la pared", async () => {
     const id = await createRomTest(db, { patientId: pid, movement: "ankle_lunge", side: "left", method: "sensor", readings: [40, 42, 44], wallDistanceCm: 11 });
     const t = await getTest(db, id);

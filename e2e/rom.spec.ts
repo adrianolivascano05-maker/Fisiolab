@@ -168,4 +168,25 @@ test.describe("F11 Movilidad", () => {
     await expect(page.getByRole("row")).toHaveCount(5);
     await expectAccessible(page);
   });
+
+  test("F11-H6 rodilla, codo y muñeca: flexión de rodilla con goniómetro", async ({ page }) => {
+    await createPatient(page, { name: "Rodilla Prótesis" });
+    await add(page, "Medición").click();
+    await page.getByRole("link", { name: /Movilidad/ }).click();
+    for (const j of ["Rodilla", "Codo", "Muñeca"]) await expect(page.getByRole("radio", { name: j })).toBeAttached();
+    await page.getByRole("radio", { name: "Codo" }).check({ force: true });
+    await expect(page.getByRole("radio", { name: /^Pronación/ })).toBeAttached();
+    await page.getByRole("radio", { name: "Rodilla" }).check({ force: true });
+    await page.getByRole("radio", { name: /^Flexión/ }).check({ force: true });
+    await page.getByRole("radio", { name: "Derecho" }).check({ force: true });
+    await page.getByRole("button", { name: "Continuar" }).click();
+    await page.getByRole("radio", { name: "Goniómetro" }).check({ force: true });
+    await page.getByLabel("Ángulo medido").fill("95");
+    await page.getByRole("button", { name: "Registrar lectura" }).click();
+    await page.getByRole("button", { name: "Guardar" }).click();
+    await expect(page.getByText("95", { exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Volver" }).first().click();
+    await expect(page.getByRole("link", { name: /Rodilla · flexión derecha.*95°/ })).toBeVisible();
+    await expectAccessible(page);
+  });
 });

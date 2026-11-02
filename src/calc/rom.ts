@@ -1,7 +1,7 @@
 // Movilidad (S19): catálogo de movimientos y la geometría del inclinómetro y del ángulo sobre foto.
 // Funciones puras, sin dependencias: las prueba rom.test.ts.
 
-export type RomJoint = "ankle" | "hip" | "shoulder" | "neck";
+export type RomJoint = "ankle" | "hip" | "shoulder" | "neck" | "knee" | "elbow" | "wrist";
 export type RomType = `rom_${RomJoint}`;
 export type RomMethod = "sensor" | "photo" | "manual";
 
@@ -44,6 +44,9 @@ export const jointLabels: Record<RomJoint, string> = {
   hip: "Cadera",
   shoulder: "Hombro",
   neck: "Cuello",
+  knee: "Rodilla",
+  elbow: "Codo",
+  wrist: "Muñeca",
 };
 
 export const methodLabels: Record<RomMethod, string> = {
@@ -207,6 +210,74 @@ export const movements: Movement[] = [
     phone: "Sobre la frente, con la pantalla hacia arriba.",
     photo: null,
     maxDeg: 100,
+  },
+  // Rodilla, codo y muñeca (02-11-2026, migración 037): con el inclinómetro (cero en la posición de inicio), sobre foto
+  // o con el goniómetro. Posiciones habituales de goniometría; el máximo solo avisa de un valor poco plausible.
+  {
+    id: "knee_flexion",
+    joint: "knee",
+    label: "Flexión",
+    sided: true,
+    sensor: "relative",
+    position: "Boca arriba. Pon a cero con la rodilla estirada sobre la camilla y dobla la rodilla deslizando el talón hacia el glúteo.",
+    phone: "A lo largo de la tibia, por delante, cerca del tobillo.",
+    photo: { kind: "three", points: ["Cadera (trocánter mayor)", "Rodilla (cara externa)", "Tobillo (maléolo externo)"], convert: "supplement", note: "Foto de lado." },
+    maxDeg: 160,
+  },
+  {
+    id: "elbow_flexion",
+    joint: "elbow",
+    label: "Flexión",
+    sided: true,
+    sensor: "relative",
+    position: "Sentado o boca arriba, con el brazo junto al cuerpo y la palma hacia arriba. Pon a cero con el codo estirado y dóblalo todo lo posible.",
+    phone: "Sobre la cara de delante del antebrazo, cerca de la muñeca.",
+    photo: { kind: "three", points: ["Hombro (acromion)", "Codo (epicóndilo)", "Muñeca (apófisis estiloides del radio)"], convert: "supplement", note: "Foto de lado." },
+    maxDeg: 160,
+  },
+  {
+    id: "elbow_pronation",
+    joint: "elbow",
+    label: "Pronación",
+    sided: true,
+    sensor: "relative",
+    position: "Sentado, con el codo a 90° pegado al cuerpo y el pulgar hacia arriba. Pon a cero así y gira la palma hacia abajo sin separar el codo.",
+    phone: "Sobre el dorso de la muñeca, a lo ancho.",
+    photo: null,
+    maxDeg: 100,
+  },
+  {
+    id: "elbow_supination",
+    joint: "elbow",
+    label: "Supinación",
+    sided: true,
+    sensor: "relative",
+    position: "Sentado, con el codo a 90° pegado al cuerpo y el pulgar hacia arriba. Pon a cero así y gira la palma hacia arriba sin separar el codo.",
+    phone: "Sobre la cara de delante de la muñeca, a lo ancho.",
+    photo: null,
+    maxDeg: 100,
+  },
+  {
+    id: "wrist_flexion",
+    joint: "wrist",
+    label: "Flexión",
+    sided: true,
+    sensor: "relative",
+    position: "Sentado, con el antebrazo apoyado en la mesa, palma hacia abajo y la mano fuera del borde. Pon a cero con la mano recta y dóblala hacia abajo.",
+    phone: "Sobre el dorso de la mano.",
+    photo: { kind: "three", points: ["Codo (epicóndilo)", "Muñeca (apófisis estiloides del cúbito)", "Nudillo del meñique"], convert: "supplement", note: "Foto de lado." },
+    maxDeg: 100,
+  },
+  {
+    id: "wrist_extension",
+    joint: "wrist",
+    label: "Extensión",
+    sided: true,
+    sensor: "relative",
+    position: "Sentado, con el antebrazo apoyado en la mesa, palma hacia abajo y la mano fuera del borde. Pon a cero con la mano recta y súbela hacia arriba.",
+    phone: "Sobre el dorso de la mano.",
+    photo: { kind: "three", points: ["Codo (epicóndilo)", "Muñeca (apófisis estiloides del cúbito)", "Nudillo del meñique"], convert: "supplement", note: "Foto de lado." },
+    maxDeg: 90,
   },
 ];
 

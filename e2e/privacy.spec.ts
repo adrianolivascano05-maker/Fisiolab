@@ -145,7 +145,9 @@ test.describe("Protección de datos", () => {
     // Quitarlo pide el PIN actual.
     await page.goto("./ajustes/bloqueo");
     await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeVisible();
-    await page.keyboard.type("2468");
+    // Con el teclado de la pantalla (el del ordenador ya se ha probado arriba): no depende de que la pantalla de
+    // bloqueo ya escuche el teclado cuando la máquina va cargada.
+    for (const d of "2468") await page.getByRole("group", { name: "Teclado del PIN" }).getByRole("button", { name: d, exact: true }).click();
     await page.getByRole("button", { name: "Quitar el bloqueo" }).click();
     const remove = page.getByRole("dialog", { name: "Quitar el bloqueo" });
     await remove.getByLabel("PIN actual").fill("2468");

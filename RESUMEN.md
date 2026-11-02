@@ -34,7 +34,7 @@ Fecha: 2026-10-30 (última revisión de este resumen)
 - Comparar pacientes (ranking por 21 medidas): quitado a petición del usuario el 2026-10-19; se recupera del commit `f820bb2` (`src/pages/ComparePage.tsx`, `src/data/compare.ts`) si se vuelve a pedir.
 - Nórdico de isquios: ángulo de rotura en el vídeo (o a mano) y momento estimado por pierna.
 - Bienestar: cuestionario diario (fatiga, sueño, dolor muscular, estrés y ánimo, de 1 a 5) más dolor de la lesión; total sobre 25, comparación con su media y avisos.
-- Movilidad: 14 movimientos de tobillo (lunge), cadera, hombro y cuello, medidos con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.
+- Movilidad: 20 movimientos de tobillo (lunge), rodilla, cadera, hombro, codo, muñeca y cuello (rodilla, codo y muñeca desde el 02-11-2026, migración 037; la columna lumbar no, porque un solo móvil no la separa de la cadera), medidos con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.
 - Evolución con gráfica y tabla.
 - Exportación CSV para Excel, y copia de seguridad que se puede restaurar. Las copias (Descargar todo y la .sqlite3) pueden ir cifradas con contraseña (`.omniclin`), y se abren en Ajustes o en `/abrir-copia` sin cuenta.
 - App instalable que funciona sin conexión.

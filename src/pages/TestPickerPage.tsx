@@ -8,7 +8,7 @@ const categories = [
   { slug: "fuerza", icon: Dumbbell, title: "Fuerza", detail: "Velocidad de barra, 1RM" },
   { slug: "sprint", icon: Timer, title: "Sprint", detail: "Tiempos y cambios de dirección" },
   { slug: "carrera", icon: Footprints, title: "Carrera", detail: "Contacto y frecuencia de paso" },
-  { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, cadera, hombro, cuello" },
+  { slug: "movilidad", icon: Rotate3d, title: "Movilidad", detail: "Tobillo, rodilla, cadera, hombro, codo, muñeca, cuello" },
   { slug: "isquios", icon: Zap, title: "Nórdico", detail: "Ángulo de rotura y fuerza" },
 ] as const;
 

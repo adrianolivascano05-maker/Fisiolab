@@ -29,7 +29,7 @@ export function RomSummaryPage() {
   if (data.error) return <Page title={title} backTo={back}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title={title} backTo={back}><Loading /></Page>;
   const { patient, entries } = data.data;
-  // En el orden del catálogo: tobillo, cadera, hombro, cuello.
+  // En el orden del catálogo: tobillo, cadera, hombro, cuello, rodilla, codo y muñeca.
   const measured = movements.filter((m) => entries.some((e) => e.movement === m.id));
 
   return (
