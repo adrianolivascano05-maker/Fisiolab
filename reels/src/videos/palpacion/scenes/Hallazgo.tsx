@@ -42,7 +42,7 @@ export const Hallazgo: React.FC<SceneProps> = ({ c }) => {
           </div>
         </div>
       </Stage>
-      <div style={{ position: "absolute", inset: 0, backgroundColor: COLORS.orange, opacity: interpolate(frame, [stop, stop + 1, stop + 8], [0, 0.3, 0], CLAMP) }} />
+      <div style={{ position: "absolute", inset: 0, backgroundColor: COLORS.orange, opacity: interpolate(frame, [stop, stop + 1, stop + 8], [0, 0.15, 0], CLAMP) }} />
     </Punch>
   );
 };

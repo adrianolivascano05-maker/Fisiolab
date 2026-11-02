@@ -6,7 +6,7 @@ import fs from "node:fs";
 import { execFileSync, spawnSync } from "node:child_process";
 import { loadConfig, vpath } from "./config.mjs";
 
-const KEEP = +(process.env.PAUSE_KEEP ?? 0.26); // s de pausa que se conservan entre frases
+const KEEP = +(process.env.PAUSE_KEEP ?? 0.34); // s de pausa que se conservan entre frases
 const MIN_CUT = 0.42; // solo se recortan pausas más largas que esto
 const INTRO = +(process.env.INTRO ?? 0.8); // s de silencio inicial para el cold open
 

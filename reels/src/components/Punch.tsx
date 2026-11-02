@@ -8,8 +8,8 @@ export const Punch: React.FC<{ children: React.ReactNode; shakeAt?: number[]; am
   let sy = 0;
   for (const a of shakeAt) {
     const d = frame - a;
-    if (d >= 0 && d < 14) {
-      const k = (1 - d / 14) * 22 * amount;
+    if (d >= 0 && d < 10) {
+      const k = (1 - d / 10) * 11 * amount;
       sx += (random(`sx${a}${frame}`) - 0.5) * k;
       sy += (random(`sy${a}${frame}`) - 0.5) * k;
     }
@@ -17,7 +17,7 @@ export const Punch: React.FC<{ children: React.ReactNode; shakeAt?: number[]; am
   return (
     <AbsoluteFill
       style={{
-        scale: interpolate(frame, [0, 9], [1.14, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
+        scale: interpolate(frame, [0, 10], [1.07, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
         translate: `${sx}px ${sy}px`,
       }}
     >
@@ -38,7 +38,7 @@ export const Slam: React.FC<{
 }> = ({ text, at, size = 120, color = "white", weight = 900, glow = false, spacing = -2 }) => {
   const frame = useCurrentFrame();
   const d = frame - at;
-  const tremble = d >= 0 && d < 10 ? (random(`t${at}${frame}`) - 0.5) * (10 - d) * 1.6 : 0;
+  const tremble = d >= 0 && d < 8 ? (random(`t${at}${frame}`) - 0.5) * (8 - d) * 0.8 : 0;
   return (
     <div
       style={{
@@ -50,7 +50,7 @@ export const Slam: React.FC<{
         textAlign: "center",
         textShadow: glow ? `0 0 40px ${color}99, 0 6px 30px rgba(0,0,0,0.6)` : "0 6px 30px rgba(0,0,0,0.6)",
         opacity: interpolate(frame, [at, at + 2], [0, 1], CLAMP),
-        scale: interpolate(frame, [at, at + 10], [2.4, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1), output: "perceptual-scale" }),
+        scale: interpolate(frame, [at, at + 12], [1.7, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1), output: "perceptual-scale" }),
         translate: `${tremble}px ${tremble * 0.6}px`,
       }}
     >

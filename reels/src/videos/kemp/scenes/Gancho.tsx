@@ -52,7 +52,7 @@ export const Gancho: React.FC<SceneProps> = ({ c }) => {
           ) : null}
         </div>
       </Stage>
-      <div style={{ position: "absolute", inset: 0, backgroundColor: COLORS.red, opacity: interpolate(frame, [desc, desc + 1, desc + 8], [0, 0.3, 0], CLAMP) }} />
+      <div style={{ position: "absolute", inset: 0, backgroundColor: COLORS.red, opacity: interpolate(frame, [desc, desc + 1, desc + 8], [0, 0.15, 0], CLAMP) }} />
     </Punch>
   );
 };

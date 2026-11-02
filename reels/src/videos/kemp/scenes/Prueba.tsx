@@ -28,7 +28,7 @@ export const Prueba: React.FC<SceneProps> = ({ c }) => {
   const mid = wordAt(s0, "midieron");
   return (
     <Punch shakeAt={[year]} amount={0.6}>
-      <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [0, 1, 10], [0, 0.5, 0], CLAMP) }} />
+      <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [0, 1, 10], [0, 0.3, 0], CLAMP) }} />
       <Stage gap={30} justify="flex-start">
         <div style={{ marginTop: 10 }}>
           <Slam text="NO ES UNA OPINIÓN" at={0} size={70} color={COLORS.white} />

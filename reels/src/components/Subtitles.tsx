@@ -81,9 +81,9 @@ export const Subtitles: React.FC<{ scenes: SceneDef[]; timings: Timings }> = ({ 
               padding: "0 12px",
               color: active ? COLORS.orange : tk.key ? COLORS.orange : said ? COLORS.white : "rgba(255,255,255,0.35)",
               textShadow: active || tk.key ? `0 0 30px ${COLORS.orange}aa` : undefined,
-              scale: String(active ? interpolate(frame, [tk.start, tk.start + 5], [1.2, 1.12], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }) : 1),
-              translate: active ? "0px -3px" : "0px 0px",
-              opacity: interpolate(frame, [c.start - 2, c.start + 2], [0, 1], CLAMP),
+              scale: String(active ? interpolate(frame, [tk.start, tk.start + 6], [1.1, 1.06], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }) : 1),
+              translate: "0px 0px",
+              opacity: interpolate(frame, [c.start - 3, c.start + 3], [0, 1], CLAMP),
             }}
           >
             {tk.text}

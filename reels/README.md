@@ -20,8 +20,9 @@ Cada vídeo tiene su carpeta en `src/videos/<id>/` (config.ts con el guion y los
 
 ## Recursos de enganche (v3)
 - **Cold open** de 0,8 s con el dato a pantalla completa antes de la voz (`META.coldOpen`), y el mismo fotograma al final para que el bucle enganche.
-- **Pausas recortadas**: `tools/tighten.mjs` acorta a 0,26 s las pausas entre frases de la toma existente (no regenera la voz; guarda `voz_tight.wav` y `timings.orig.json`). Respeta el silencio dramático antes del dato.
+- **Pausas recortadas**: `tools/tighten.mjs` acorta a 0,34 s las pausas entre frases de la toma existente (no regenera la voz; guarda `voz_tight.wav` y `timings.orig.json`). Respeta el silencio dramático antes del dato.
 - **Cámara continua** (zoom y deriva por escena) y **color por escena** (`tints` en el `VideoDef`), con fogonazo en cada corte.
+- **Cadencia**: en `src/Reel.tsx`, `spaceOut()` deja como mucho un efecto de sonido cada 0,3 s (`MIN_GAP`), priorizando impactos y rayos X; los rebotes, temblores y fogonazos están calibrados para que no haya más de un estímulo cada 0,3 s.
 - **Cuenta atrás 3-2-1 y 0,3 s de negro** justo antes del dato fuerte; **aviso «guárdalo»** en la escena `saveScene`.
 - **Clips reales (B-roll)**: si existe `public/<id>/broll/<escena>.mp4`, se muestra debajo de los rótulos de esa escena (en bucle, sin audio, al 55 %). Graba clips verticales de 3 a 5 s y ponlos ahí.
 

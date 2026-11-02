@@ -4,7 +4,7 @@ import { fontFamily } from "../theme";
 
 /** Entrada con rebote a partir del frame `at` (devuelve la escala 0..1). */
 export const pop = (frame: number, at: number, len = 12) =>
-  interpolate(frame, [at, at + len], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.56, 0.64, 1) });
+  interpolate(frame, [at, at + len + 2], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.25, 0.64, 1) });
 
 const Wrap: React.FC<{ at: number; size: number; children: React.ReactNode; glow?: string; delay?: number }> = ({ at, size, children, glow, delay = 0 }) => {
   const frame = useCurrentFrame();

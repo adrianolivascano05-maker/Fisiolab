@@ -19,7 +19,7 @@ export const Prueba: React.FC<SceneProps> = ({ c }) => {
   return (
     <Punch shakeAt={[opX, rx]} amount={0.8}>
       <AbsoluteFill style={{ backgroundColor: "white", opacity: interpolate(frame, [0, 1, 10], [1, 1, 0], CLAMP) }} />
-      <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [rx, rx + 1, rx + 10], [0, 0.6, 0], CLAMP) }} />
+      <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [rx, rx + 1, rx + 10], [0, 0.35, 0], CLAMP) }} />
       <Stage gap={30}>
         <div style={{ display: "flex", gap: 40, alignItems: "center", opacity: fade, scale: String(0.6 + 0.4 * fade) }}>
           <div style={{ position: "relative" }}>

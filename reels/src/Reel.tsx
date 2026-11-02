@@ -19,6 +19,22 @@ const Sfx: React.FC<{ at: number; file: string; vol?: number }> = ({ at, file, v
     </Sequence>
   );
 
+type Q = { at: number; file: string; vol: number };
+const PRIORITY = ["impact", "xray", "riser", "ding", "error", "whoosh", "pop", "click"];
+const MIN_GAP = Math.round(0.3 * FPS);
+
+/** Deja como mucho un efecto cada 0,3 s: primero los importantes (impacto, rayos X...), luego el resto si cabe. */
+const spaceOut = (cues: Q[]): Q[] => {
+  const kept: Q[] = [];
+  for (const file of PRIORITY) {
+    for (const q of cues.filter((c) => c.file === file).sort((a, b) => a.at - b.at)) {
+      if (q.at < 0) continue;
+      if (kept.every((k) => Math.abs(k.at - q.at) >= MIN_GAP)) kept.push(q);
+    }
+  }
+  return kept.sort((a, b) => a.at - b.at);
+};
+
 /** Ducking: la base baja mientras habla la voz. */
 const duck = (t: Timings) => (f: number) => {
   const sec = f / FPS;
@@ -78,21 +94,21 @@ export const makeReel = (video: VideoDef): React.FC<ReelProps> => {
         <ColdOpen meta={video.meta} from={0} dur={intro} />
         <ColdOpen meta={video.meta} from={total - outroLen} dur={outroLen} outro />
 
-        {/* Sonido */}
+        {/* Sonido: la voz manda; los efectos pasan por un filtro de cadencia (ninguno a menos de 0,3 s de otro) */}
         {voiceFile ? <Audio src={staticFile(`${video.folder}/voz/${voiceFile}`)} volume={0.9} /> : null}
         <Audio src={staticFile(`${video.folder}/music.wav`)} volume={duck(timings)} />
-        <Sfx at={0} file="impact" vol={0.6} />
-        <Sfx at={Math.max(0, intro - 4)} file="whoosh" vol={0.5} />
-        {scenes.slice(1).map((c) => (
-          <Sfx key={`w${c.id}`} at={c.from - 4} file="whoosh" vol={0.45} />
+        {spaceOut([
+          { at: 0, file: "impact", vol: 0.6 },
+          { at: Math.max(0, intro - 4), file: "whoosh", vol: 0.5 },
+          ...scenes.slice(1).map((c) => ({ at: c.from - 4, file: "whoosh", vol: 0.45 })),
+          ...scenes.flatMap((c) => video.cues(c).map((q) => ({ at: c.from + q.at, file: q.file, vol: (q.vol ?? 1) * 0.65 }))),
+          { at: riserAt, file: "riser", vol: 0.4 },
+          ...[0, 1, 2].map((i) => ({ at: dataAt - Math.round(0.9 * FPS) + i * 6, file: "click", vol: 0.6 })),
+          ...(save ? [{ at: save.from + 4, file: "pop", vol: 0.5 }] : []),
+          { at: total - outroLen, file: "whoosh", vol: 0.4 },
+        ]).map((q, i) => (
+          <Sfx key={`sfx${i}`} at={q.at} file={q.file} vol={q.vol} />
         ))}
-        {scenes.flatMap((c) => video.cues(c).map((q, i) => <Sfx key={`${c.id}${i}`} at={c.from + q.at} file={q.file} vol={(q.vol ?? 1) * 0.65} />))}
-        <Sfx at={riserAt} file="riser" vol={0.4} />
-        {[3, 2, 1].map((n, i) => (
-          <Sfx key={`cd${n}`} at={dataAt - Math.round(0.9 * FPS) + i * 6} file="click" vol={0.7} />
-        ))}
-        {save ? <Sfx at={save.from + 4} file="pop" vol={0.5} /> : null}
-        <Sfx at={total - outroLen} file="whoosh" vol={0.4} />
       </AbsoluteFill>
     );
   };

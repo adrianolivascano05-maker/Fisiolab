@@ -37,7 +37,7 @@ export const Countdown: React.FC<{ at: number }> = ({ at }) => {
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", fontFamily }}>
       {black ? <AbsoluteFill style={{ backgroundColor: "#000" }} /> : null}
       {!black ? (
-        <div style={{ fontWeight: 900, fontSize: 420, lineHeight: 1, color: COLORS.white, textShadow: "0 0 80px rgba(255,255,255,0.5)", scale: String(interpolate(fi, [0, 6], [1.6, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })), opacity: interpolate(fi, [0, 1, 6], [0, 1, 0.9], CLAMP) }}>{n}</div>
+        <div style={{ fontWeight: 900, fontSize: 300, lineHeight: 1, color: COLORS.white, textShadow: "0 0 60px rgba(255,255,255,0.35)", scale: String(interpolate(fi, [0, 6], [1.25, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })), opacity: interpolate(fi, [0, 1, 6], [0, 1, 0.9], CLAMP) }}>{n}</div>
       ) : null}
     </AbsoluteFill>
   );
@@ -67,14 +67,14 @@ export const Camera: React.FC<{ scenes: SceneClock[]; tints?: Record<string, str
   const c = scenes.find((s) => frame >= s.from && frame < s.from + s.dur) ?? scenes[scenes.length - 1];
   const i = scenes.indexOf(c);
   const p = (frame - c.from) / Math.max(1, c.dur);
-  const zoom = 1 + 0.06 * (i % 2 === 0 ? p : 1 - p);
+  const zoom = 1 + 0.035 * (i % 2 === 0 ? p : 1 - p);
   const px = (i % 3) - 1; // deriva horizontal distinta por escena
   const tint = tints[c.id];
   return (
     <AbsoluteFill>
       <AbsoluteFill style={{ scale: String(zoom), translate: `${px * 14 * p}px ${-10 * p}px` }}>{children}</AbsoluteFill>
       {tint ? <AbsoluteFill style={{ background: `radial-gradient(circle at 50% 40%, ${tint}2e 0%, rgba(0,0,0,0) 70%)`, opacity: interpolate(frame, [c.from, c.from + 10], [0, 1], CLAMP) }} /> : null}
-      {tint ? <AbsoluteFill style={{ backgroundColor: tint, opacity: interpolate(frame, [c.from, c.from + 1, c.from + 7], [0, 0.35, 0], CLAMP) }} /> : null}
+      {tint ? <AbsoluteFill style={{ backgroundColor: tint, opacity: interpolate(frame, [c.from, c.from + 1, c.from + 8], [0, 0.18, 0], CLAMP) }} /> : null}
     </AbsoluteFill>
   );
 };
