@@ -18,7 +18,7 @@ const TypedBubble: React.FC<{ s: SentenceClock; words: string[]; color: string; 
         borderRadius: 40,
         borderBottomLeftRadius: 8,
         backgroundColor: struck ? "#FFE3E5" : COLORS.paper,
-        border: `4px solid ${struck ? COLORS.red : color === "rgba(20,24,31,0.5)" ? COLORS.ink : color}`,
+        border: `4px solid ${struck ? COLORS.red : color === "rgba(11,18,32,0.5)" ? COLORS.ink : color}`,
         fontWeight: 800,
         fontSize: 60,
         color: struck ? COLORS.red : COLORS.white,
@@ -68,7 +68,7 @@ export const QueHacer: React.FC<SceneProps> = ({ c }) => {
     <Punch dur={c.dur} shakeAt={[strike, rec]} amount={0.5}>
       <Stage gap={30} justify="flex-start">
         <div style={{ marginTop: 10, fontWeight: 700, fontSize: 44, letterSpacing: 6, color: COLORS.red, opacity: interpolate(frame, [deja, deja + 6], [0, 1], CLAMP) }}>DEJA DE DECIR</div>
-        <TypedBubble s={s0} words={["tienes", "L4-L5", "bloqueada"]} color="rgba(20,24,31,0.5)" strikeAt={strike} at={tienes} />
+        <TypedBubble s={s0} words={["tienes", "L4-L5", "bloqueada"]} color="rgba(11,18,32,0.5)" strikeAt={strike} at={tienes} />
         <div style={{ fontWeight: 700, fontSize: 44, letterSpacing: 6, color: COLORS.green, opacity: interpolate(frame, [di, di + 6], [0, 1], CLAMP), marginTop: 10 }}>DI</div>
         {frame >= di ? <TypedBubble s={s1} words={["zona", "lumbar", "baja"]} color={COLORS.green} at={di} /> : null}
         <div style={{ display: "flex", alignItems: "center", gap: 26, marginTop: 10, opacity: frame >= busca ? 1 : 0 }}>

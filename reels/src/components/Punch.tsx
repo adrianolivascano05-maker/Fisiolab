@@ -1,5 +1,5 @@
 import { AbsoluteFill, Easing, interpolate, random, useCurrentFrame, useVideoConfig } from "remotion";
-import { CLAMP, COLORS } from "../config";
+import { CLAMP } from "../config";
 import { SPRINGS, breathe, exitStyle, springAt } from "../motion";
 
 /** Entrada de escena con «punch» de escala y temblor opcional alrededor de un frame. */
@@ -53,7 +53,7 @@ export const Slam: React.FC<{
         letterSpacing: spacing,
         color,
         textAlign: "center",
-        textShadow: glow ? `4px 4px 0 ${COLORS.amber}` : "none",
+        textShadow: glow ? "none" : "none",
         opacity: Math.min(1, springAt(frame, at, SPRINGS.smooth) * 1.6),
         scale: String(0.6 + 0.4 * springAt(frame, at, SPRINGS.bouncy)),
         translate: `${tremble}px ${tremble * 0.6 + 40 * (1 - springAt(frame, at, SPRINGS.smooth))}px`,

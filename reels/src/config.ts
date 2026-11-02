@@ -8,23 +8,24 @@ export const WIDTH = 1080;
 export const HEIGHT = 1920;
 
 export const COLORS = {
-  // «Clínica clara»: crema, tinta y acentos frescos
-  bgTop: "#FBF8F2",
-  bgBottom: "#F3EEE4",
-  orange: "#FF6B35", // dato fuerte
-  cyan: "#3A86FF", // prueba / radiografía
-  red: "#E63946", // error
-  green: "#2EC4B6", // lo correcto (menta)
-  amber: "#FFC43D", // resaltado
-  white: "#14181F", // texto principal (tinta)
-  muted: "rgba(20,24,31,0.55)",
-  ink: "#14181F",
+  // «Clínico»: blanco-gris frío, tinta azul marino y un solo acento azul
+  bgTop: "#FAFBFC",
+  bgBottom: "#EEF2F6",
+  orange: "#0A58CA", // dato fuerte (azul clínico)
+  cyan: "#0FA3B1", // prueba / radiografía (verde azulado)
+  red: "#D7263D", // error
+  green: "#12A37A", // lo correcto
+  amber: "#FFE066", // marcador fluorescente (subtítulos)
+  white: "#0B1220", // texto principal (tinta)
+  muted: "rgba(11,18,32,0.55)",
+  ink: "#0B1220",
   paper: "#FFFFFF",
+  line: "rgba(11,18,32,0.16)", // bordes finos
 };
 
-/** Sombra dura estilo pegatina. */
-export const STICKER = "6px 6px 0 #14181F";
-export const STICKER_SM = "4px 4px 0 #14181F";
+/** Sombras suaves (sin pegatina). */
+export const STICKER = "0 12px 32px rgba(11,18,32,0.10)";
+export const STICKER_SM = "0 6px 18px rgba(11,18,32,0.10)";
 
 /** Opciones habituales de interpolate(): no extrapolar por ningún lado. */
 export const CLAMP = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;

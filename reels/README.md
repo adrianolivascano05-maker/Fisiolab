@@ -28,8 +28,8 @@ Fuentes: skill `haidrrrry/claude-remotion-skill` (motion-patterns, design-rules,
 - **Sonido**: cada efecto entra 2 frames antes de su visual; máximo uno cada 0,3 s.
 - Ritmo: golpe → pausa → construcción → golpe; algo se mueve en los primeros 15 frames; ningún tramo de más de 3 s sin un elemento nuevo.
 
-## Estética «Clínica clara» (v4)
-Crema y tinta con acentos coral (dato), menta (lo correcto), ámbar (resaltado), azul (prueba) y rojo (error). Fondo con formas orgánicas pastel y confeti (`components/Background.tsx`), tarjetas y pastillas estilo pegatina (papel, borde de tinta y sombra dura `STICKER`), subtítulos con la palabra activa sobre pastilla ámbar, tipografía Nunito. Toda la paleta está en `COLORS` (`src/config.ts`): `white` es el color de texto principal (tinta) y `paper` el blanco de las tarjetas.
+## Estética «Clínico» (v6)
+Blanco-gris frío con papel milimetrado fino, una línea de ECG que avanza al pie y aros finos que giran despacio (`components/Background.tsx`). Texto en azul marino casi negro, un solo acento azul clínico para los datos, verde azulado para la prueba, verde para lo correcto y rojo para el error; el amarillo marcador solo en la palabra activa de los subtítulos. Tarjetas blancas con borde fino gris y sombra suave (`STICKER`, `STICKER_SM`), tintes por escena casi imperceptibles, tipografía Nunito. Toda la paleta está en `COLORS` (`src/config.ts`): `white` es el color de texto principal (tinta) y `paper` el blanco de las tarjetas.
 
 ## Recursos de enganche (v3)
 - **Cold open** de 0,8 s con el dato a pantalla completa antes de la voz (`META.coldOpen`), y el mismo fotograma al final para que el bucle enganche.

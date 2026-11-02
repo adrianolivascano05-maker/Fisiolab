@@ -1,6 +1,6 @@
 import { interpolate, useCurrentFrame } from "remotion";
 import { springAt } from "../motion";
-import { CLAMP, COLORS, FPS, SceneDef, Timings, flatSentences, norm } from "../config";
+import { CLAMP, COLORS, FPS, SceneDef, Timings, flatSentences, norm, STICKER_SM } from "../config";
 import { LAYOUT, SAFE, fontFamily } from "../theme";
 
 type Tok = { text: string; start: number; end: number; key: boolean };
@@ -88,8 +88,8 @@ export const Subtitles: React.FC<{ scenes: SceneDef[]; timings: Timings }> = ({ 
               padding: "0 12px",
               borderRadius: 18,
               backgroundColor: active ? COLORS.amber : "transparent",
-              boxShadow: active ? "4px 4px 0 #14181F" : undefined,
-              color: active ? COLORS.ink : tk.key ? COLORS.orange : said ? COLORS.ink : "rgba(20,24,31,0.35)",
+              boxShadow: active ? STICKER_SM : undefined,
+              color: active ? COLORS.ink : tk.key ? COLORS.orange : said ? COLORS.ink : "rgba(11,18,32,0.35)",
               scale: String(active ? 1 + 0.05 * springAt(frame, tk.start, { damping: 14, stiffness: 160, mass: 0.6 }) : 1),
               translate: `0px ${8 * (1 - springAt(frame, tk.start, { damping: 12, stiffness: 200, mass: 0.8 }))}px`,
               opacity: Math.min(1, interpolate(frame, [c.start - 3, c.start + 3], [0, 1], CLAMP) * (said ? 1 : 0.9)),

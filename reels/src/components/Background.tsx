@@ -1,57 +1,45 @@
-import { AbsoluteFill, random, useCurrentFrame } from "remotion";
+import { AbsoluteFill, useCurrentFrame } from "remotion";
 import { COLORS, HEIGHT, WIDTH } from "../config";
 
-const BLOBS = [
-  { color: "#FFD6C9", x: -200, y: 200, r: 620, sx: 70, sy: 40, ph: 0 },
-  { color: "#CFF3EE", x: 760, y: 900, r: 560, sx: 50, sy: 70, ph: 2 },
-  { color: "#FFF0BF", x: 300, y: 1500, r: 520, sx: 60, sy: 50, ph: 4 },
-  { color: "#DCE8FF", x: 900, y: 150, r: 380, sx: 40, sy: 60, ph: 1 },
-];
+/** Un latido de ECG (P, QRS, T) en 300 px de ancho. */
+const BEAT = "l40 0 l10 -14 l10 14 l30 0 l8 -70 l10 118 l8 -48 l36 0 l14 -22 l14 22 l120 0";
 
-const DOTS = new Array(26).fill(0).map((_, i) => ({
-  x: random(`dx${i}`) * WIDTH,
-  y: random(`dy${i}`) * HEIGHT,
-  r: 5 + random(`dr${i}`) * 9,
-  v: 0.15 + random(`dv${i}`) * 0.4,
-  c: [COLORS.orange, COLORS.green, COLORS.amber, COLORS.cyan][i % 4],
-  ph: random(`dp${i}`) * Math.PI * 2,
-}));
-
-/** «Clínica clara»: crema con formas orgánicas pastel que respiran y confeti de colores. */
+/** «Clínico»: blanco-gris frío, papel milimetrado fino, una línea de ECG discreta y aros finos. */
 export const Background: React.FC = () => {
   const frame = useCurrentFrame();
+  const ecgX = -((frame * 2.2) % 300);
+  let d = `M${ecgX - 300} 1620 `;
+  for (let i = 0; i < 7; i++) d += BEAT + " ";
   return (
     <AbsoluteFill style={{ background: `linear-gradient(180deg, ${COLORS.bgTop} 0%, ${COLORS.bgBottom} 100%)`, overflow: "hidden" }}>
-      {BLOBS.map((b, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: b.x + Math.sin(frame / 140 + b.ph) * b.sx,
-            top: b.y + Math.cos(frame / 160 + b.ph) * b.sy,
-            width: b.r,
-            height: b.r * (0.85 + 0.1 * Math.sin(frame / 90 + b.ph)),
-            borderRadius: "46% 54% 52% 48% / 55% 45% 55% 45%",
-            backgroundColor: b.color,
-            opacity: 0.8,
-            rotate: `${Math.sin(frame / 200 + b.ph) * 12}deg`,
-            filter: "blur(2px)",
-          }}
-        />
-      ))}
-      {DOTS.map((d, i) => {
-        const y = (((d.y - frame * d.v) % HEIGHT) + HEIGHT) % HEIGHT;
-        return <div key={i} style={{ position: "absolute", left: d.x + Math.sin(frame / 40 + d.ph) * 6, top: y, width: d.r, height: d.r, borderRadius: "50%", backgroundColor: d.c, opacity: 0.55 }} />;
-      })}
-      {/* Grano de papel muy sutil */}
-      <svg width={WIDTH} height={HEIGHT} style={{ position: "absolute", inset: 0, opacity: 0.08 }}>
+      <svg width={WIDTH} height={HEIGHT} style={{ position: "absolute", inset: 0 }}>
         <defs>
-          <pattern id="grain" width={6} height={6} patternUnits="userSpaceOnUse">
-            <circle cx={1} cy={1} r={0.6} fill={COLORS.ink} />
-            <circle cx={4} cy={4} r={0.5} fill={COLORS.ink} />
+          <pattern id="mm" width={40} height={40} patternUnits="userSpaceOnUse">
+            <path d="M40 0 H0 V40" fill="none" stroke={COLORS.ink} strokeWidth={0.8} opacity={0.07} />
           </pattern>
+          <pattern id="cm" width={200} height={200} patternUnits="userSpaceOnUse">
+            <path d="M200 0 H0 V200" fill="none" stroke={COLORS.ink} strokeWidth={1.2} opacity={0.1} />
+          </pattern>
+          <linearGradient id="fadeEcg" x1="0" x2="1">
+            <stop offset="0" stopColor={COLORS.cyan} stopOpacity={0} />
+            <stop offset="0.2" stopColor={COLORS.cyan} stopOpacity={1} />
+            <stop offset="0.8" stopColor={COLORS.cyan} stopOpacity={1} />
+            <stop offset="1" stopColor={COLORS.cyan} stopOpacity={0} />
+          </linearGradient>
         </defs>
-        <rect width={WIDTH} height={HEIGHT} fill="url(#grain)" />
+        <rect width={WIDTH} height={HEIGHT} fill="url(#mm)" />
+        <rect width={WIDTH} height={HEIGHT} fill="url(#cm)" />
+        {/* Aros finos que giran muy despacio */}
+        <g style={{ transformOrigin: "880px 300px", rotate: `${frame * 0.15}deg` }}>
+          <circle cx={880} cy={300} r={260} fill="none" stroke={COLORS.orange} strokeWidth={1.5} opacity={0.12} strokeDasharray="40 24" />
+        </g>
+        <circle cx={880} cy={300} r={200} fill="none" stroke={COLORS.ink} strokeWidth={1} opacity={0.08} />
+        <g style={{ transformOrigin: "160px 1500px", rotate: `${-frame * 0.1}deg` }}>
+          <circle cx={160} cy={1500} r={220} fill="none" stroke={COLORS.cyan} strokeWidth={1.5} opacity={0.12} strokeDasharray="6 18" />
+        </g>
+        {/* Línea de ECG que avanza */}
+        <path d={d} fill="none" stroke="url(#fadeEcg)" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" opacity={0.35} />
+        <line x1={0} y1={1620} x2={WIDTH} y2={1620} stroke={COLORS.cyan} strokeWidth={1} opacity={0.12} />
       </svg>
     </AbsoluteFill>
   );

@@ -22,6 +22,6 @@ export const palpacion: VideoDef = {
   sourceScenes: ["estudio", "quehacer"],
   /** Escena en la que la música hace el hueco de silencio antes del dato */
   dataScene: "hallazgo",
-  tints: { prueba: "#4FD1FF", quiz: "#7B61FF", hallazgo: "#FF8A3D", giro: "#FF4D5E", matiz: "#3DDC97", cta: "#4FD1FF" },
+  tints: { prueba: "#0FA3B1", quiz: "#0A58CA", hallazgo: "#0A58CA", giro: "#D7263D", matiz: "#12A37A", cta: "#0FA3B1" },
   saveScene: "quehacer",
 };

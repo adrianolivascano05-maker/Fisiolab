@@ -1,5 +1,5 @@
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
-import { CLAMP, COLORS, FPS, VideoMeta } from "../config";
+import { CLAMP, COLORS, FPS, VideoMeta, STICKER_SM } from "../config";
 import { fontFamily } from "../theme";
 import { SceneClock } from "../timeline";
 
@@ -13,9 +13,9 @@ export const ColdOpen: React.FC<{ meta: VideoMeta; from: number; dur: number; ou
   const big = meta.coldOpen.big;
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", gap: 30, fontFamily, opacity: outro ? interpolate(f, [0, 8], [0, 1], CLAMP) : out, backgroundColor: COLORS.bgTop }}>
-      <div style={{ position: "absolute", left: 90, top: 520, width: 900, height: 820, borderRadius: "46% 54% 52% 48% / 55% 45% 55% 45%", backgroundColor: "#FFD6C9", rotate: `${Math.sin(f / 30) * 4 - 6}deg` }} />
-      <div style={{ position: "absolute", left: 640, top: 1180, width: 360, height: 340, borderRadius: "50% 50% 45% 55% / 55% 45% 55% 45%", backgroundColor: "#FFF0BF" }} />
-      <div style={{ fontWeight: 900, fontSize: big.length > 5 ? 220 : 380, lineHeight: 1, letterSpacing: -10, color: COLORS.orange, textShadow: `8px 8px 0 ${COLORS.ink}`, scale: String(0.6 + 0.4 * inP), whiteSpace: "nowrap" }}>{big}</div>
+      <div style={{ position: "absolute", left: 140, top: 560, width: 800, height: 800, borderRadius: "50%", border: `3px solid ${COLORS.orange}`, opacity: 0.25, rotate: `${f * 0.4}deg`, borderStyle: "dashed" }} />
+      <div style={{ position: "absolute", left: 200, top: 620, width: 680, height: 680, borderRadius: "50%", backgroundColor: COLORS.paper, boxShadow: "0 20px 60px rgba(11,18,32,0.10)" }} />
+      <div style={{ fontWeight: 900, fontSize: big.length > 5 ? 220 : 380, lineHeight: 1, letterSpacing: -10, color: COLORS.orange, textShadow: "none", scale: String(0.6 + 0.4 * inP), whiteSpace: "nowrap" }}>{big}</div>
       <div style={{ fontWeight: 800, fontSize: 56, color: COLORS.white, textAlign: "center", lineHeight: 1.15, maxWidth: 900, opacity: interpolate(f, [4, 10], [0, 1], CLAMP), translate: `0px ${interpolate(f, [4, 12], [30, 0], CLAMP)}px` }}>{meta.coldOpen.small}</div>
       {outro ? (
         <div style={{ position: "absolute", bottom: 420, fontWeight: 700, fontSize: 40, letterSpacing: 6, color: COLORS.muted, opacity: interpolate(f, [6, 12], [0, 1], CLAMP) }}>VUELVE A VERLO</div>
@@ -53,7 +53,7 @@ export const SaveNudge: React.FC<{ at: number }> = ({ at }) => {
   const p = interpolate(f, [0, 8], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.56, 0.64, 1) });
   const bob = Math.sin(f / 3) * 4;
   return (
-    <div style={{ position: "absolute", left: "50%", translate: "-50% 0", top: 196, display: "flex", alignItems: "center", gap: 14, fontFamily, fontWeight: 900, fontSize: 36, color: COLORS.ink, backgroundColor: COLORS.paper, border: `3px solid ${COLORS.ink}`, padding: "12px 22px", borderRadius: 999, boxShadow: "4px 4px 0 #14181F", scale: String(p * interpolate(f, [len - 6, len], [1, 0], CLAMP)), marginTop: bob }}>
+    <div style={{ position: "absolute", left: "50%", translate: "-50% 0", top: 196, display: "flex", alignItems: "center", gap: 14, fontFamily, fontWeight: 900, fontSize: 36, color: COLORS.ink, backgroundColor: COLORS.paper, border: `2px solid ${COLORS.line}`, padding: "12px 22px", borderRadius: 999, boxShadow: STICKER_SM, scale: String(p * interpolate(f, [len - 6, len], [1, 0], CLAMP)), marginTop: bob }}>
       <svg width={34} height={40} viewBox="0 0 34 40">
         <path d="M4 3 H30 V37 L17 27 L4 37 Z" fill={COLORS.orange} stroke={COLORS.ink} strokeWidth={3} strokeLinejoin="round" />
       </svg>
@@ -82,7 +82,7 @@ export const Camera: React.FC<{ scenes: SceneClock[]; tints?: Record<string, str
     <AbsoluteFill>
       <AbsoluteFill style={{ translate: `${whip * 0.3}px 0px`, scale: String(1 + (zoom - 1) * 0.5) }}>{background}</AbsoluteFill>
       <AbsoluteFill style={{ scale: String(zoom), translate: `${whip}px ${-10 * p}px`, filter: blur > 0.3 ? `blur(${blur}px)` : undefined }}>{children}</AbsoluteFill>
-      {tint ? <AbsoluteFill style={{ background: `radial-gradient(circle at 50% 40%, ${tint}2e 0%, rgba(0,0,0,0) 70%)`, opacity: interpolate(frame, [c.from, c.from + 10], [0, 1], CLAMP) }} /> : null}
+      {tint ? <AbsoluteFill style={{ background: `radial-gradient(circle at 50% 40%, ${tint}10 0%, rgba(0,0,0,0) 65%)`, opacity: interpolate(frame, [c.from, c.from + 10], [0, 1], CLAMP) }} /> : null}
     </AbsoluteFill>
   );
 };

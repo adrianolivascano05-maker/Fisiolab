@@ -45,7 +45,7 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
             </div>
             <div style={{ display: "flex", gap: 30, justifyContent: "center", marginTop: 6 }}>
               {[{ t: "CONFIRMA", at: conf }, { t: "DESCARTA", at: desc }].map((x) => (
-                <div key={x.t} style={{ position: "relative", fontWeight: 900, fontSize: 46, color: frame >= x.at ? COLORS.red : "rgba(20,24,31,0.4)", padding: "10px 22px", border: `4px solid ${frame >= x.at ? COLORS.red : "rgba(20,24,31,0.25)"}`, borderRadius: 16 }}>
+                <div key={x.t} style={{ position: "relative", fontWeight: 900, fontSize: 46, color: frame >= x.at ? COLORS.red : "rgba(11,18,32,0.4)", padding: "10px 22px", border: `4px solid ${frame >= x.at ? COLORS.red : "rgba(11,18,32,0.25)"}`, borderRadius: 16 }}>
                   {x.t}
                   {frame >= x.at ? <div style={{ position: "absolute", left: "50%", top: "50%", translate: "-50% -50%" }}><Cross size={110} start={x.at} /></div> : null}
                 </div>

@@ -10,7 +10,7 @@ export const Progress: React.FC<{ scenes: SceneClock[]; frame: number; dataScene
     {scenes.map((c) => {
       const p = interpolate(frame, [c.from, c.from + c.dur], [0, 1], CLAMP);
       return (
-        <div key={c.id} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: "rgba(20,24,31,0.18)", overflow: "hidden" }}>
+        <div key={c.id} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: "rgba(11,18,32,0.18)", overflow: "hidden" }}>
           <div style={{ width: `${p * 100}%`, height: "100%", backgroundColor: c.id === dataScene ? COLORS.orange : COLORS.cyan }} />
         </div>
       );
@@ -36,13 +36,13 @@ export const CommentBox: React.FC<{ at: number; typeAt: number; text: string; wi
           <div style={{ marginLeft: "auto", fontFamily, fontWeight: 700, fontSize: 30, color: COLORS.red }}>♥ 1</div>
         </div>
       ) : null}
-      <div style={{ display: "flex", alignItems: "center", gap: 20, padding: "20px 28px", borderRadius: 999, border: `3px solid ${COLORS.ink}`, backgroundColor: COLORS.paper, boxShadow: STICKER_SM }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 20, padding: "20px 28px", borderRadius: 999, border: `2px solid ${COLORS.line}`, backgroundColor: COLORS.paper, boxShadow: STICKER_SM }}>
         <div style={{ width: 56, height: 56, borderRadius: "50%", background: `linear-gradient(135deg, ${COLORS.cyan}, #7B61FF)`, flexShrink: 0 }} />
-        <div style={{ fontFamily, fontWeight: 700, fontSize: 40, color: typed ? COLORS.white : "rgba(20,24,31,0.4)", flex: 1, textAlign: "left" }}>
+        <div style={{ fontFamily, fontWeight: 700, fontSize: 40, color: typed ? COLORS.white : "rgba(11,18,32,0.4)", flex: 1, textAlign: "left" }}>
           {typed || (frame < typeAt ? "Añade un comentario..." : "")}
           <span style={{ opacity: caret && !sent ? 1 : 0, color: COLORS.orange }}>|</span>
         </div>
-        <div style={{ fontFamily, fontWeight: 900, fontSize: 36, color: n >= text.length ? COLORS.cyan : "rgba(20,24,31,0.3)", scale: String(sent ? 0.9 : 1) }}>Publicar</div>
+        <div style={{ fontFamily, fontWeight: 900, fontSize: 36, color: n >= text.length ? COLORS.cyan : "rgba(11,18,32,0.3)", scale: String(sent ? 0.9 : 1) }}>Publicar</div>
       </div>
     </div>
   );

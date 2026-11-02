@@ -19,6 +19,6 @@ export const kemp: VideoDef = {
   cues: sceneCues,
   sourceScenes: ["prueba", "matiz"],
   dataScene: "datos",
-  tints: { prueba: "#4FD1FF", datos: "#FF8A3D", quiz: "#7B61FF", giro: "#FF4D5E", matiz: "#3DDC97", cta: "#4FD1FF" },
+  tints: { prueba: "#0FA3B1", datos: "#0A58CA", quiz: "#0A58CA", giro: "#D7263D", matiz: "#12A37A", cta: "#0FA3B1" },
   saveScene: "quehacer",
 };

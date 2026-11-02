@@ -22,7 +22,7 @@ export const Spine: React.FC<{
 }> = ({ start, xray = 0, markers = [], skinAt, painAt, glowLevels }) => {
   const frame = useCurrentFrame();
   const sweepY = interpolate(xray, [0, 1], [-60, SPINE_H + 60]);
-  const bone = xray > 0 ? COLORS.cyan : "rgba(20,24,31,0.92)";
+  const bone = xray > 0 ? COLORS.cyan : "rgba(11,18,32,0.92)";
   return (
     <svg width={SPINE_W} height={SPINE_H} viewBox={`0 0 ${SPINE_W} ${SPINE_H}`} style={{ overflow: "visible" }}>
       <defs>
@@ -43,11 +43,11 @@ export const Spine: React.FC<{
         return (
           <g key={lv} style={{ transformOrigin: `150px ${y + 45}px`, scale: String(s) }}>
             {/* Cuerpo vertebral */}
-            <rect x={40} y={y} width={190} height={92} rx={22} fill={lit ? "rgba(58,134,255,0.18)" : "rgba(20,24,31,0.08)"} stroke={lit ? COLORS.cyan : bone} strokeWidth={5} />
+            <rect x={40} y={y} width={190} height={92} rx={22} fill={lit ? "rgba(58,134,255,0.18)" : "rgba(11,18,32,0.08)"} stroke={lit ? COLORS.cyan : bone} strokeWidth={5} />
             {/* Pedículo + espinosa */}
-            <path d={`M230 ${y + 30} L270 ${y + 22} L318 ${y + 36} L318 ${y + 52} L270 ${y + 66} L230 ${y + 60} Z`} fill={lit ? "rgba(58,134,255,0.18)" : "rgba(20,24,31,0.08)"} stroke={lit ? COLORS.cyan : bone} strokeWidth={5} strokeLinejoin="round" />
+            <path d={`M230 ${y + 30} L270 ${y + 22} L318 ${y + 36} L318 ${y + 52} L270 ${y + 66} L230 ${y + 60} Z`} fill={lit ? "rgba(58,134,255,0.18)" : "rgba(11,18,32,0.08)"} stroke={lit ? COLORS.cyan : bone} strokeWidth={5} strokeLinejoin="round" />
             {/* Disco */}
-            {i < 4 ? <rect x={52} y={y + 96} width={166} height={18} rx={9} fill={lit ? "rgba(58,134,255,0.35)" : "rgba(20,24,31,0.22)"} /> : null}
+            {i < 4 ? <rect x={52} y={y + 96} width={166} height={18} rx={9} fill={lit ? "rgba(58,134,255,0.35)" : "rgba(11,18,32,0.22)"} /> : null}
             <text x={135} y={y + 60} textAnchor="middle" fontFamily={fontFamily} fontWeight={800} fontSize={40} fill={lit ? COLORS.cyan : COLORS.ink}>
               {lv}
             </text>
@@ -61,7 +61,7 @@ export const Spine: React.FC<{
         const lit = xray > 0 && sweepY > y + 50 ? 1 : 0;
         return (
           <g style={{ transformOrigin: `150px ${y + 60}px`, scale: String(s) }}>
-            <path d={`M48 ${y} L236 ${y} L300 ${y + 40} L250 ${y + 130} L120 ${y + 130} L60 ${y + 70} Z`} fill={lit ? "rgba(58,134,255,0.18)" : "rgba(20,24,31,0.08)"} stroke={lit ? COLORS.cyan : bone} strokeWidth={5} strokeLinejoin="round" />
+            <path d={`M48 ${y} L236 ${y} L300 ${y + 40} L250 ${y + 130} L120 ${y + 130} L60 ${y + 70} Z`} fill={lit ? "rgba(58,134,255,0.18)" : "rgba(11,18,32,0.08)"} stroke={lit ? COLORS.cyan : bone} strokeWidth={5} strokeLinejoin="round" />
             <text x={160} y={y + 78} textAnchor="middle" fontFamily={fontFamily} fontWeight={800} fontSize={34} fill={lit ? COLORS.cyan : COLORS.ink}>
               SACRO
             </text>

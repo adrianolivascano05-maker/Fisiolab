@@ -38,7 +38,7 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
               <div style={{ fontWeight: 900, fontSize: 52, color: COLORS.white, lineHeight: 1.1 }}>SACROILÍACA</div>
             </div>
             <div style={{ display: "flex", gap: 30, alignItems: "center", justifyContent: "center", marginTop: 4 }}>
-              <div style={{ position: "relative", fontWeight: 900, fontSize: 48, color: frame >= basta ? COLORS.red : COLORS.white, padding: "10px 22px", border: `4px solid ${frame >= basta ? COLORS.red : "rgba(20,24,31,0.4)"}`, borderRadius: 16, opacity: frame >= uno ? 1 : 0 }}>
+              <div style={{ position: "relative", fontWeight: 900, fontSize: 48, color: frame >= basta ? COLORS.red : COLORS.white, padding: "10px 22px", border: `4px solid ${frame >= basta ? COLORS.red : "rgba(11,18,32,0.4)"}`, borderRadius: 16, opacity: frame >= uno ? 1 : 0 }}>
                 1 TEST
                 {frame >= basta ? <div style={{ position: "absolute", left: "50%", top: "50%", translate: "-50% -50%" }}><Cross size={110} start={basta} /></div> : null}
               </div>

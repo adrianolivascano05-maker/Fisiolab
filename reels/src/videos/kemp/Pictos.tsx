@@ -34,7 +34,7 @@ export const KempFigure: React.FC<{ at: number; size?: number; pose?: number; pa
 export const Clipboard: React.FC<{ at: number; width?: number; lines: { text: string; at: number; color?: string; strikeAt?: number }[] }> = ({ at, width = 560, lines }) => {
   const frame = useCurrentFrame();
   return (
-    <div style={{ width, borderRadius: 24, border: `4px solid ${COLORS.ink}`, backgroundColor: COLORS.paper, boxShadow: "6px 6px 0 #14181F", padding: "26px 30px 24px", position: "relative", opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)), fontFamily }}>
+    <div style={{ width, borderRadius: 24, border: `2px solid ${COLORS.line}`, backgroundColor: COLORS.paper, boxShadow: STICKER, padding: "26px 30px 24px", position: "relative", opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)), fontFamily }}>
       <div style={{ position: "absolute", left: "50%", top: -22, translate: "-50% 0", width: 140, height: 34, borderRadius: 10, backgroundColor: COLORS.cyan }} />
       <div style={{ fontWeight: 700, fontSize: 26, letterSpacing: 4, color: COLORS.muted, marginBottom: 10 }}>EXPLORACIÓN</div>
       {lines.map((l, i) => {
@@ -66,7 +66,7 @@ export const RangeBar: React.FC<{ label: string; at: number; min: number; max: n
           <span style={{ opacity: frame >= maxAt ? 1 : 0 }}>{fmt(max)}</span>
         </span>
       </div>
-      <div style={{ position: "relative", height: 54, borderRadius: 27, backgroundColor: "rgba(20,24,31,0.12)" }}>
+      <div style={{ position: "relative", height: 54, borderRadius: 27, backgroundColor: "rgba(11,18,32,0.12)" }}>
         <div style={{ position: "absolute", left: `${lo * 100}%`, width: `${Math.max(0, hi - lo) * 100}%`, top: 0, bottom: 0, borderRadius: 27, background: `linear-gradient(90deg, ${color}88, ${color})`, boxShadow: STICKER }} />
         <div style={{ position: "absolute", left: `calc(${needle * 100}% - 6px)`, top: -10, width: 12, height: 74, borderRadius: 6, backgroundColor: COLORS.white, boxShadow: "none", opacity: frame >= minAt ? 1 : 0 }} />
       </div>
@@ -84,7 +84,7 @@ export const Piece: React.FC<{ at: number; text: string; color: string; index: n
   const glow = glowAt !== undefined && frame >= glowAt;
   const col = index % 2, row = Math.floor(index / 2);
   return (
-    <div style={{ position: "relative", width: 420, height: 170, opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)), rotate: `${interpolate(frame, [at, at + 12], [-10, 0], CLAMP)}deg`, filter: glow ? "drop-shadow(4px 4px 0 rgba(20,24,31,0.3))" : undefined }}>
+    <div style={{ position: "relative", width: 420, height: 170, opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)), rotate: `${interpolate(frame, [at, at + 12], [-10, 0], CLAMP)}deg`, filter: glow ? "drop-shadow(0 8px 14px rgba(11,18,32,0.15))" : undefined }}>
       <svg width={420} height={170} viewBox="0 0 420 170" style={{ position: "absolute", inset: 0 }}>
         <path
           d={`M20 0 H${col === 0 ? 400 : 400} ${col === 0 ? "" : ""} V170 H20 Z`}
@@ -108,7 +108,7 @@ export const Pelvis: React.FC<{ at: number; size?: number; color?: string }> = (
   return (
     <div style={{ width: size, height: size * 0.8, opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)) }}>
       <svg width={size} height={size * 0.8} viewBox="0 0 100 80">
-        <path d="M50 10 L62 34 L56 70 L44 70 L38 34 Z" fill="rgba(20,24,31,0.1)" stroke={COLORS.white} strokeWidth={4} strokeLinejoin="round" />
+        <path d="M50 10 L62 34 L56 70 L44 70 L38 34 Z" fill="rgba(11,18,32,0.1)" stroke={COLORS.white} strokeWidth={4} strokeLinejoin="round" />
         <path d="M38 34 C20 20 6 30 10 48 C14 62 30 66 40 60 M62 34 C80 20 94 30 90 48 C86 62 70 66 60 60" fill="none" stroke={COLORS.white} strokeWidth={4} strokeLinecap="round" />
         <path d="M40 34 L42 60 M60 34 L58 60" stroke={color} strokeWidth={6} strokeLinecap="round" opacity={0.6 + 0.4 * Math.sin((frame - at) / 4)} />
       </svg>

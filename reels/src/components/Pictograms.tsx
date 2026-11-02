@@ -9,7 +9,7 @@ export const pop = (frame: number, at: number) => springAt(frame, at, SPRINGS.sn
 const Wrap: React.FC<{ at: number; size: number; children: React.ReactNode; glow?: string; delay?: number }> = ({ at, size, children, glow, delay = 0 }) => {
   const frame = useCurrentFrame();
   return (
-    <div style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", opacity: frame >= at + delay ? 1 : 0, scale: String(pop(frame, at + delay)), filter: glow ? "drop-shadow(3px 3px 0 rgba(20,24,31,0.22))" : undefined }}>
+    <div style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", opacity: frame >= at + delay ? 1 : 0, scale: String(pop(frame, at + delay)), filter: glow ? "drop-shadow(0 6px 10px rgba(11,18,32,0.15))" : undefined }}>
       {children}
     </div>
   );
@@ -46,7 +46,7 @@ export const Hand: React.FC<{ at: number; size?: number; color?: string; press?:
 export const Vertebra: React.FC<{ at: number; size?: number; color?: string; label?: string }> = ({ at, size = 160, color = COLORS.white, label }) => (
   <Wrap at={at} size={size} glow={color !== COLORS.white ? color : undefined}>
     <svg width={size} height={size} viewBox="0 0 100 100">
-      <ellipse cx={50} cy={40} rx={30} ry={22} fill="rgba(20,24,31,0.1)" stroke={color} strokeWidth={5} />
+      <ellipse cx={50} cy={40} rx={30} ry={22} fill="rgba(11,18,32,0.1)" stroke={color} strokeWidth={5} />
       <path d="M30 56 C26 72 36 78 50 78 C64 78 74 72 70 56" fill="none" stroke={color} strokeWidth={5} />
       <path d="M50 78 L50 96 M44 96 L56 96" stroke={color} strokeWidth={5} strokeLinecap="round" />
       <path d="M26 60 L12 66 M74 60 L88 66" stroke={color} strokeWidth={5} strokeLinecap="round" />
@@ -59,7 +59,7 @@ export const Vertebra: React.FC<{ at: number; size?: number; color?: string; lab
 export const Scale: React.FC<{ at: number; size?: number; color?: string }> = ({ at, size = 120, color = COLORS.white }) => (
   <Wrap at={at} size={size}>
     <svg width={size} height={size} viewBox="0 0 100 100">
-      <rect x={14} y={30} width={72} height={60} rx={10} fill="rgba(20,24,31,0.1)" stroke={color} strokeWidth={5} />
+      <rect x={14} y={30} width={72} height={60} rx={10} fill="rgba(11,18,32,0.1)" stroke={color} strokeWidth={5} />
       <path d="M30 56 A20 20 0 0 1 70 56" fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" />
       <path d="M50 56 L58 44" stroke={color} strokeWidth={5} strokeLinecap="round" />
       <rect x={34} y={14} width={32} height={10} rx={5} fill={color} />
@@ -71,7 +71,7 @@ export const Scale: React.FC<{ at: number; size?: number; color?: string }> = ({
 export const Calendar: React.FC<{ at: number; size?: number; color?: string; text?: string }> = ({ at, size = 120, color = COLORS.white, text = "65" }) => (
   <Wrap at={at} size={size}>
     <svg width={size} height={size} viewBox="0 0 100 100">
-      <rect x={12} y={20} width={76} height={70} rx={10} fill="rgba(20,24,31,0.1)" stroke={color} strokeWidth={5} />
+      <rect x={12} y={20} width={76} height={70} rx={10} fill="rgba(11,18,32,0.1)" stroke={color} strokeWidth={5} />
       <rect x={12} y={20} width={76} height={18} rx={6} fill={color} />
       <rect x={28} y={8} width={8} height={20} rx={4} fill={color} />
       <rect x={64} y={8} width={8} height={20} rx={4} fill={color} />
@@ -109,7 +109,7 @@ export const Marker: React.FC<{ at: number; size?: number; color?: string }> = (
 export const Bubble: React.FC<{ at: number; size?: number; color?: string; text?: string; width?: number }> = ({ at, size = 140, color = COLORS.white, text, width = 100 }) => (
   <Wrap at={at} size={size}>
     <svg width={size * (width / 100)} height={size} viewBox={`0 0 ${width} 100`}>
-      <path d={`M14 14 H${width - 14} a10 10 0 0 1 10 10 V62 a10 10 0 0 1 -10 10 H44 L28 88 L30 72 H14 a10 10 0 0 1 -10 -10 V24 a10 10 0 0 1 10 -10 Z`} fill="rgba(20,24,31,0.1)" stroke={color} strokeWidth={5} strokeLinejoin="round" />
+      <path d={`M14 14 H${width - 14} a10 10 0 0 1 10 10 V62 a10 10 0 0 1 -10 10 H44 L28 88 L30 72 H14 a10 10 0 0 1 -10 -10 V24 a10 10 0 0 1 10 -10 Z`} fill="rgba(11,18,32,0.1)" stroke={color} strokeWidth={5} strokeLinejoin="round" />
       {text ? <text x={width / 2} y={50} textAnchor="middle" fontFamily={fontFamily} fontWeight={900} fontSize={22} fill={color}>{text}</text> : <path d={`M30 42 H${width - 30}`} stroke={color} strokeWidth={5} strokeLinecap="round" strokeDasharray="10 8" />}
     </svg>
   </Wrap>
@@ -134,7 +134,7 @@ export const Target: React.FC<{ at: number; size?: number; color?: string }> = (
 export const Gauge: React.FC<{ at: number; size?: number; needle?: number; color?: string }> = ({ at, size = 220, needle = 0.5, color = COLORS.cyan }) => (
   <Wrap at={at} size={size}>
     <svg width={size} height={size * 0.6} viewBox="0 0 100 60">
-      <path d="M8 56 A42 42 0 0 1 92 56" fill="none" stroke="rgba(20,24,31,0.2)" strokeWidth={10} strokeLinecap="round" />
+      <path d="M8 56 A42 42 0 0 1 92 56" fill="none" stroke="rgba(11,18,32,0.2)" strokeWidth={10} strokeLinecap="round" />
       <path d="M8 56 A42 42 0 0 1 92 56" fill="none" stroke={color} strokeWidth={10} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - needle} />
       <g style={{ transformOrigin: "50px 56px", rotate: `${-90 + needle * 180}deg` }}>
         <path d="M50 56 L50 18" stroke={COLORS.white} strokeWidth={4} strokeLinecap="round" />

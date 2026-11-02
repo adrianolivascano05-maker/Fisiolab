@@ -2,17 +2,17 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { pop } from "../../../components/Pictograms";
 import { Punch, Slam } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS, STICKER } from "../../../config";
+import { CLAMP, COLORS, STICKER, STICKER_SM } from "../../../config";
 import { SceneProps, wordAt } from "../../../timeline";
 
 const Paper: React.FC<{ at: number; dx: number; dy: number; rot: number; label: string }> = ({ at, dx, dy, rot, label }) => {
   const frame = useCurrentFrame();
   const p = interpolate(frame, [at, at + 14], [0, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) });
   return (
-    <div style={{ position: "absolute", left: 0, top: 0, width: 150, height: 190, borderRadius: 14, backgroundColor: COLORS.paper, border: `3px solid ${COLORS.ink}`, boxShadow: "4px 4px 0 #14181F", opacity: frame >= at ? 1 : 0, translate: `${dx * (1 - p)}px ${dy * (1 - p)}px`, rotate: `${rot * (1 - p)}deg`, display: "flex", flexDirection: "column", gap: 8, padding: 16 }}>
+    <div style={{ position: "absolute", left: 0, top: 0, width: 150, height: 190, borderRadius: 14, backgroundColor: COLORS.paper, border: `2px solid ${COLORS.line}`, boxShadow: STICKER_SM, opacity: frame >= at ? 1 : 0, translate: `${dx * (1 - p)}px ${dy * (1 - p)}px`, rotate: `${rot * (1 - p)}deg`, display: "flex", flexDirection: "column", gap: 8, padding: 16 }}>
       <div style={{ fontWeight: 900, fontSize: 22, color: COLORS.ink }}>{label}</div>
       {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(20,24,31,0.2)", width: `${70 + ((i * 37) % 30)}%` }} />
+        <div key={i} style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(11,18,32,0.2)", width: `${70 + ((i * 37) % 30)}%` }} />
       ))}
     </div>
   );
@@ -28,7 +28,7 @@ export const Prueba: React.FC<SceneProps> = ({ c }) => {
   const mid = wordAt(s0, "midieron");
   return (
     <Punch dur={c.dur} shakeAt={[year]} amount={0.6}>
-      <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [0, 1, 10], [0, 0.3, 0], CLAMP) }} />
+      <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [0, 1, 10], [0, 0.12, 0], CLAMP) }} />
       <Stage gap={30} justify="flex-start">
         <div style={{ marginTop: 10 }}>
           <Slam text="NO ES UNA OPINIÓN" at={0} size={70} color={COLORS.white} />
