@@ -23,7 +23,7 @@ export const Giro: React.FC<SceneProps> = ({ c }) => {
   const N = 10;
   const falsePos = [0, 2, 3, 5, 6, 8]; // positivos sin dolor facetario (ilustrativo, no es un dato del estudio)
   return (
-    <Punch shakeAt={[confX, descX, ning]} amount={0.7}>
+    <Punch dur={c.dur} shakeAt={[confX, descX, ning]} amount={0.7}>
       <Stage gap={22} justify="flex-start">
         <div style={{ display: "flex", gap: 12, marginTop: 4, scale: String(0.58), transformOrigin: "top center", height: 70 }}>
           {DATA.quiz.map((o, i) => (

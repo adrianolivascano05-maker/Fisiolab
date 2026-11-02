@@ -19,7 +19,7 @@ export const Datos: React.FC<SceneProps> = ({ c }) => {
   const eMin = wordAt(s1, "dieciséis");
   const eMax = wordAt(s1, "seiscientos");
   return (
-    <Punch shakeAt={[sMax, eMax + 10]} amount={0.7}>
+    <Punch dur={c.dur} shakeAt={[sMax, eMax + 10]} amount={0.7}>
       <Stage gap={40} justify="flex-start">
         <div style={{ marginTop: 10 }}>
           <Slam text="TEST DE KEMP" at={0} size={64} color={COLORS.muted} weight={700} spacing={6} />

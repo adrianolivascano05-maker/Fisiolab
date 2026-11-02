@@ -17,7 +17,7 @@ export const Prueba: React.FC<SceneProps> = ({ c }) => {
   const sweep = interpolate(frame, [rx, rx + 22], [-200, HEIGHT + 200], { ...CLAMP, easing: Easing.bezier(0.4, 0, 0.6, 1) });
   const fade = interpolate(frame, [rx, rx + 6], [1, 0.15], CLAMP);
   return (
-    <Punch shakeAt={[opX, rx]} amount={0.8}>
+    <Punch dur={c.dur} shakeAt={[opX, rx]} amount={0.8}>
       <AbsoluteFill style={{ backgroundColor: COLORS.ink, opacity: interpolate(frame, [0, 1, 10], [0.9, 0.9, 0], CLAMP) }} />
       <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [rx, rx + 1, rx + 10], [0, 0.35, 0], CLAMP) }} />
       <Stage gap={30}>

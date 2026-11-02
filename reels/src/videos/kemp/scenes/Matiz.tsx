@@ -20,7 +20,7 @@ export const Matiz: React.FC<SceneProps> = ({ c }) => {
   const ats = [pieza, ext, rod, neuro];
   const colors = [COLORS.orange, COLORS.cyan, COLORS.green, "#C08BFF"];
   return (
-    <Punch shakeAt={[sirva, normal]} amount={0.6}>
+    <Punch dur={c.dur} shakeAt={[sirva, normal]} amount={0.6}>
       <Stage gap={28} justify="flex-start">
         <div style={{ position: "relative", marginTop: 6, opacity: interpolate(frame, [pieza, pieza + 8], [1, 0.3], CLAMP), scale: String(interpolate(frame, [pieza, pieza + 8], [1, 0.75], CLAMP)), transformOrigin: "top center" }}>
           <Slam text="«NO SIRVE»" at={s0.start} size={84} color={COLORS.white} />

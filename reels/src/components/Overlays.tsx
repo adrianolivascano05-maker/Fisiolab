@@ -62,20 +62,27 @@ export const SaveNudge: React.FC<{ at: number }> = ({ at }) => {
   );
 };
 
-/** Cámara: zoom lento continuo por escena + fogonazo del color de la escena en el corte. */
-export const Camera: React.FC<{ scenes: SceneClock[]; tints?: Record<string, string>; children: React.ReactNode }> = ({ scenes, tints = {}, children }) => {
+/** Cámara: zoom lento por escena (alternando dentro/fuera), barrido corto con desenfoque en cada corte,
+ *  fondo con parallax (se mueve a 0,3) y tinte de color por escena. */
+export const Camera: React.FC<{ scenes: SceneClock[]; tints?: Record<string, string>; background: React.ReactNode; children: React.ReactNode }> = ({ scenes, tints = {}, background, children }) => {
   const frame = useCurrentFrame();
   const c = scenes.find((s) => frame >= s.from && frame < s.from + s.dur) ?? scenes[scenes.length - 1];
   const i = scenes.indexOf(c);
   const p = (frame - c.from) / Math.max(1, c.dur);
   const zoom = 1 + 0.035 * (i % 2 === 0 ? p : 1 - p);
-  const px = (i % 3) - 1; // deriva horizontal distinta por escena
+  const dir = i % 2 === 0 ? 1 : -1;
+  // Barrido: sale hacia un lado en los 4 frames previos al corte y entra desde el contrario en los 5 siguientes
+  const next = scenes[i + 1];
+  const out = next ? interpolate(frame, [next.from - 4, next.from], [0, 1], { ...CLAMP, easing: Easing.bezier(0.7, 0, 0.84, 0) }) : 0;
+  const inn = i > 0 ? interpolate(frame, [c.from, c.from + 5], [1, 0], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }) : 0;
+  const whip = out > 0 ? -dir * 90 * out : dir * 90 * inn;
+  const blur = Math.max(out, inn) * 6;
   const tint = tints[c.id];
   return (
     <AbsoluteFill>
-      <AbsoluteFill style={{ scale: String(zoom), translate: `${px * 14 * p}px ${-10 * p}px` }}>{children}</AbsoluteFill>
+      <AbsoluteFill style={{ translate: `${whip * 0.3}px 0px`, scale: String(1 + (zoom - 1) * 0.5) }}>{background}</AbsoluteFill>
+      <AbsoluteFill style={{ scale: String(zoom), translate: `${whip}px ${-10 * p}px`, filter: blur > 0.3 ? `blur(${blur}px)` : undefined }}>{children}</AbsoluteFill>
       {tint ? <AbsoluteFill style={{ background: `radial-gradient(circle at 50% 40%, ${tint}2e 0%, rgba(0,0,0,0) 70%)`, opacity: interpolate(frame, [c.from, c.from + 10], [0, 1], CLAMP) }} /> : null}
-      {tint ? <AbsoluteFill style={{ backgroundColor: tint, opacity: interpolate(frame, [c.from, c.from + 1, c.from + 8], [0, 0.18, 0], CLAMP) }} /> : null}
     </AbsoluteFill>
   );
 };

@@ -19,7 +19,7 @@ export const Quiz: React.FC<SceneProps> = ({ c }) => {
   const tap = wordEnd(s0, "descarta") + 4;
   const fy = interpolate(frame, [opts + 12, opts + 20, Math.max(opts + 21, tap - 6)], [LAYOUT.headTop + 420, LAYOUT.headTop + 420, LAYOUT.headTop + 400], CLAMP);
   return (
-    <Punch shakeAt={[q]} amount={0.6}>
+    <Punch dur={c.dur} shakeAt={[q]} amount={0.6}>
       <Stage gap={26} justify="flex-start">
         <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 0 }}>
           <KempFigure at={kemp} size={200} pain={1} />

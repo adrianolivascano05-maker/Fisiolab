@@ -18,6 +18,16 @@ Cada vídeo tiene su carpeta en `src/videos/<id>/` (config.ts con el guion y los
 ## Sincronía palabra a palabra
 `public/voz/timings.json` guarda el inicio y el fin de **cada palabra**. Las escenas disparan cada visual con `wordAt(frase, "palabra")` y los subtítulos resaltan la palabra que se está diciendo. Con la voz real, `tools/align.mjs` fija las frases por silencios y `tools/align_words.mjs` (modelo de audio de Gemini, cuota distinta del TTS) reparte las palabras dentro de cada frase; si ese paso falla, se reparten por caracteres.
 
+## Motion (v5): reglas tomadas de los reels de motion graphics hechos con código
+Fuentes: skill `haidrrrry/claude-remotion-skill` (motion-patterns, design-rules, theme) y `Maartenlouis/remotion-ads` (animations, captions, ohneis-style). Instagram y TikTok no son accesibles desde el contenedor; se usaron sus guías publicadas en GitHub.
+- **Muelles en vez de curvas** (`src/motion.ts`): snappy {14,160,0.6} para palabras e iconos, smooth {20,90,1} para bloques, bouncy {11,170,0.7} para sellos e impactos. Nada lineal.
+- **Entrada premium**: aparece + sube 40 px + escala 0,94→1 (bloques) o 0,6→1 (impactos, tipo *popIn*). Escalonado de 2 a 5 frames entre elementos.
+- **Salida rápida** en los últimos 10 frames de cada escena (sube 42 px y desaparece), más corta que la entrada, y **respiración** sutil de lo que lleva más de 2,5 s quieto.
+- **Cortes**: barrido corto (90 px) con desenfoque de 6 px, 4 frames de salida y 5 de entrada, alternando el sentido; el fondo se mueve al 30 % (parallax); zoom lento que alterna dentro/fuera por escena.
+- **Subtítulos**: páginas de 4 palabras como máximo, entrada de página con muelle (30 px), cada palabra sube 8 px al sonar y la activa crece un 5 %.
+- **Sonido**: cada efecto entra 2 frames antes de su visual; máximo uno cada 0,3 s.
+- Ritmo: golpe → pausa → construcción → golpe; algo se mueve en los primeros 15 frames; ningún tramo de más de 3 s sin un elemento nuevo.
+
 ## Estética «Clínica clara» (v4)
 Crema y tinta con acentos coral (dato), menta (lo correcto), ámbar (resaltado), azul (prueba) y rojo (error). Fondo con formas orgánicas pastel y confeti (`components/Background.tsx`), tarjetas y pastillas estilo pegatina (papel, borde de tinta y sombra dura `STICKER`), subtítulos con la palabra activa sobre pastilla ámbar, tipografía Nunito. Toda la paleta está en `COLORS` (`src/config.ts`): `white` es el color de texto principal (tinta) y `paper` el blanco de las tarjetas.
 

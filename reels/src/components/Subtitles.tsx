@@ -1,4 +1,5 @@
-import { Easing, interpolate, useCurrentFrame } from "remotion";
+import { interpolate, useCurrentFrame } from "remotion";
+import { springAt } from "../motion";
 import { CLAMP, COLORS, FPS, SceneDef, Timings, flatSentences, norm } from "../config";
 import { LAYOUT, SAFE, fontFamily } from "../theme";
 
@@ -33,7 +34,11 @@ export const buildChunks = (scenes: SceneDef[], t: Timings): Chunk[] => {
           k++; wi++;
         }
       }
-      out.push({ toks, start: toks[0].start, end: toks[toks.length - 1].end });
+      // Páginas de 4 palabras como máximo (estilo TikTok)
+      for (let a = 0; a < toks.length; a += 4) {
+        const page = toks.slice(a, a + 4);
+        out.push({ toks: page, start: page[0].start, end: page[page.length - 1].end });
+      }
     });
   });
   return out;
@@ -47,6 +52,7 @@ export const Subtitles: React.FC<{ scenes: SceneDef[]; timings: Timings }> = ({ 
   if (i < 0) return null;
   const c = chunks[i];
   const cur = c.toks.findIndex((tk, k) => frame >= tk.start && (k + 1 >= c.toks.length || frame < c.toks[k + 1].start));
+  const pageIn = springAt(frame, c.start - 2, { damping: 15, stiffness: 100 });
   return (
     <div
       style={{
@@ -68,6 +74,7 @@ export const Subtitles: React.FC<{ scenes: SceneDef[]; timings: Timings }> = ({ 
         textAlign: "center",
         color: COLORS.white,
         textShadow: "none",
+        translate: `0px ${30 * (1 - pageIn)}px`,
       }}
     >
       {c.toks.map((tk, k) => {
@@ -83,9 +90,9 @@ export const Subtitles: React.FC<{ scenes: SceneDef[]; timings: Timings }> = ({ 
               backgroundColor: active ? COLORS.amber : "transparent",
               boxShadow: active ? "4px 4px 0 #14181F" : undefined,
               color: active ? COLORS.ink : tk.key ? COLORS.orange : said ? COLORS.ink : "rgba(20,24,31,0.35)",
-              scale: String(active ? interpolate(frame, [tk.start, tk.start + 6], [1.1, 1.06], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }) : 1),
-              translate: "0px 0px",
-              opacity: interpolate(frame, [c.start - 3, c.start + 3], [0, 1], CLAMP),
+              scale: String(active ? 1 + 0.05 * springAt(frame, tk.start, { damping: 14, stiffness: 160, mass: 0.6 }) : 1),
+              translate: `0px ${8 * (1 - springAt(frame, tk.start, { damping: 12, stiffness: 200, mass: 0.8 }))}px`,
+              opacity: Math.min(1, interpolate(frame, [c.start - 3, c.start + 3], [0, 1], CLAMP) * (said ? 1 : 0.9)),
             }}
           >
             {tk.text}

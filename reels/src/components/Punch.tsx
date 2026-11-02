@@ -1,9 +1,13 @@
-import { AbsoluteFill, Easing, interpolate, random, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Easing, interpolate, random, useCurrentFrame, useVideoConfig } from "remotion";
 import { CLAMP, COLORS } from "../config";
+import { SPRINGS, breathe, exitStyle, springAt } from "../motion";
 
 /** Entrada de escena con «punch» de escala y temblor opcional alrededor de un frame. */
-export const Punch: React.FC<{ children: React.ReactNode; shakeAt?: number[]; amount?: number }> = ({ children, shakeAt = [], amount = 1 }) => {
+export const Punch: React.FC<{ children: React.ReactNode; shakeAt?: number[]; amount?: number; dur?: number }> = ({ children, shakeAt = [], amount = 1, dur }) => {
   const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const ex = exitStyle(frame, dur ?? durationInFrames);
+  const br = breathe(frame, 75);
   let sx = 0;
   let sy = 0;
   for (const a of shakeAt) {
@@ -17,8 +21,9 @@ export const Punch: React.FC<{ children: React.ReactNode; shakeAt?: number[]; am
   return (
     <AbsoluteFill
       style={{
-        scale: interpolate(frame, [0, 10], [1.07, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
-        translate: `${sx}px ${sy}px`,
+        scale: String(interpolate(frame, [0, 10], [1.05, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }) * br.scale),
+        translate: `${sx}px ${sy + ex.y + br.y}px`,
+        opacity: ex.opacity,
       }}
     >
       {children}
@@ -49,9 +54,9 @@ export const Slam: React.FC<{
         color,
         textAlign: "center",
         textShadow: glow ? `4px 4px 0 ${COLORS.amber}` : "none",
-        opacity: interpolate(frame, [at, at + 2], [0, 1], CLAMP),
-        scale: interpolate(frame, [at, at + 12], [1.7, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1), output: "perceptual-scale" }),
-        translate: `${tremble}px ${tremble * 0.6}px`,
+        opacity: Math.min(1, springAt(frame, at, SPRINGS.smooth) * 1.6),
+        scale: String(0.6 + 0.4 * springAt(frame, at, SPRINGS.bouncy)),
+        translate: `${tremble}px ${tremble * 0.6 + 40 * (1 - springAt(frame, at, SPRINGS.smooth))}px`,
       }}
     >
       {text}

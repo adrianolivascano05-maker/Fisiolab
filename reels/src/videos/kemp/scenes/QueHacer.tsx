@@ -17,7 +17,7 @@ export const QueHacer: React.FC<SceneProps> = ({ c }) => {
   const anota = wordAt(s1, "anota");
   const piezas = wordAt(s1, "piezas");
   return (
-    <Punch shakeAt={[strike, piezas]} amount={0.5}>
+    <Punch dur={c.dur} shakeAt={[strike, piezas]} amount={0.5}>
       <Stage gap={28} justify="flex-start">
         <div style={{ marginTop: 10 }}>
           <Slam text="NO ESCRIBAS" at={no} size={64} color={COLORS.red} />

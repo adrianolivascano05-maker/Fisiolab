@@ -1,3 +1,4 @@
+import { pop } from "../components/Pictograms";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { CLAMP, COLORS, STICKER_SM, WIDTH } from "../config";
 import { fontFamily } from "../theme";
@@ -68,7 +69,7 @@ export const Option: React.FC<{ label: string; at: number; pressAt?: number; wro
         color: wrong ? COLORS.red : COLORS.white,
         textAlign: "center",
         opacity: wrong ? 0.8 : 1,
-        scale: String(interpolate(frame, [at, at + 12], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.56, 0.64, 1) }) * (pressAt !== undefined ? interpolate(frame, [pressAt, pressAt + 4, pressAt + 10], [1, 0.94, 1], CLAMP) : 1)),
+        scale: String(pop(frame, at) * (pressAt !== undefined ? interpolate(frame, [pressAt, pressAt + 4, pressAt + 10], [1, 0.94, 1], CLAMP) : 1)),
       }}
     >
       {label}

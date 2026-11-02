@@ -24,7 +24,7 @@ export const Estudio: React.FC<SceneProps> = ({ c }) => {
   const xray = interpolate(frame, [xrayAt, xrayAt + 26], [0, 1], { ...CLAMP, easing: Easing.bezier(0.4, 0, 0.6, 1) });
   const n = Math.round(interpolate(frame, [setenta, pacientes], [0, DATA.pacientes], { ...CLAMP, easing: Easing.bezier(0.1, 0.9, 0.2, 1) }));
   return (
-    <Punch shakeAt={[...markers.map((m) => m.at + 9), xrayAt]} amount={0.5}>
+    <Punch dur={c.dur} shakeAt={[...markers.map((m) => m.at + 9), xrayAt]} amount={0.5}>
       {/* Fila superior: fisios + mano + rotulador */}
       <div style={{ position: "absolute", top: LAYOUT.headTop - 10, left: SAFE.side, right: SAFE.side, display: "flex", justifyContent: "center", alignItems: "center", gap: 6 }}>
         {new Array(DATA.fisios).fill(0).map((_, i) => (

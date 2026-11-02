@@ -28,8 +28,8 @@ const spaceOut = (cues: Q[]): Q[] => {
   const kept: Q[] = [];
   for (const file of PRIORITY) {
     for (const q of cues.filter((c) => c.file === file).sort((a, b) => a.at - b.at)) {
-      if (q.at < 0) continue;
-      if (kept.every((k) => Math.abs(k.at - q.at) >= MIN_GAP)) kept.push(q);
+      const at = Math.max(0, q.at - 2); // el sonido llega 2 frames antes de lo visual
+      if (kept.every((k) => Math.abs(k.at - at) >= MIN_GAP)) kept.push({ ...q, at });
     }
   }
   return kept.sort((a, b) => a.at - b.at);
@@ -62,8 +62,7 @@ export const makeReel = (video: VideoDef): React.FC<ReelProps> => {
     const save = video.saveScene ? scenes.find((s) => s.id === video.saveScene) : undefined;
     return (
       <AbsoluteFill style={{ fontFamily }}>
-        <Camera scenes={scenes} tints={video.tints}>
-          <Background />
+        <Camera scenes={scenes} tints={video.tints} background={<Background />}>
           {/* Clips reales (B-roll) por escena, si existen en public/<video>/broll/<escena>.mp4 */}
           {scenes
             .filter((c) => broll.includes(c.id))

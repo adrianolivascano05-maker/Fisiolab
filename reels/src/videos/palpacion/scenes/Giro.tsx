@@ -34,7 +34,7 @@ export const Giro: React.FC<SceneProps> = ({ c }) => {
   const dim = interpolate(frame, [quien, quien + 8], [0, 1], CLAMP);
   const needle = frame < camb ? 0 : 0.5 + 0.45 * Math.sin((frame - camb) / 6);
   return (
-    <Punch shakeAt={[inc, pacX, peso, edad, sexo, palp]} amount={0.8}>
+    <Punch dur={c.dur} shakeAt={[inc, pacX, peso, edad, sexo, palp]} amount={0.8}>
       <Stage gap={24} justify="flex-start">
         <div style={{ marginTop: 10 }}>
           <Slam text="LO MÁS INCÓMODO" at={inc} size={80} color={COLORS.white} />

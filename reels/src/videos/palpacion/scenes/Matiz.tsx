@@ -25,7 +25,7 @@ export const Matiz: React.FC<SceneProps> = ({ c }) => {
   const W = 900;
   const handY = interpolate(frame, [palp, zona], [-60, 40], { ...CLAMP, easing: Easing.bezier(0.4, 0, 0.2, 1) });
   return (
-    <Punch shakeAt={[wordEnd(s0, "nivel"), vert]} amount={0.6}>
+    <Punch dur={c.dur} shakeAt={[wordEnd(s0, "nivel"), vert]} amount={0.6}>
       <Stage gap={26} justify="flex-start">
         <div style={{ marginTop: 6 }}>
           <Slam text="LA BUENA NOTICIA" at={buena} size={74} color={COLORS.green} glow />

@@ -21,7 +21,7 @@ export const Hallazgo: React.FC<SceneProps> = ({ c }) => {
   const size = 600;
   const shrink = interpolate(frame, [hit, hit + 8], [1, 0.55], CLAMP);
   return (
-    <Punch shakeAt={[stop]} amount={1.6}>
+    <Punch dur={c.dur} shakeAt={[stop]} amount={1.6}>
       <Stage gap={18} justify="flex-start">
         {/* Opciones del quiz, tachadas en cuanto llega el dato */}
         <div style={{ display: "flex", gap: 14, marginTop: 10, scale: String(0.62), transformOrigin: "top center", height: 70 }}>

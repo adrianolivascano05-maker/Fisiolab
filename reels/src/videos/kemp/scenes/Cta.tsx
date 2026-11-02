@@ -20,7 +20,7 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
   const tres = wordAt(s1, "tres", 1);
   const end = wordEnd(s1, "tres", 1) + 6;
   return (
-    <Punch shakeAt={[parte, basta]} amount={0.6}>
+    <Punch dur={c.dur} shakeAt={[parte, basta]} amount={0.6}>
       <Stage gap={30} justify="flex-start">
         <div style={{ marginTop: 10, translate: `0px ${interpolate(frame, [parte, parte + 10], [0, -30], CLAMP)}px`, scale: String(interpolate(frame, [parte, parte + 10], [1, 0.8], CLAMP)), transformOrigin: "top center" }}>
           <CommentBox at={com} typeAt={kemp} text="Kemp" />

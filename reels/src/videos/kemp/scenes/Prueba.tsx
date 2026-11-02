@@ -27,7 +27,7 @@ export const Prueba: React.FC<SceneProps> = ({ c }) => {
   const datos = wordAt(s0, "reunió");
   const mid = wordAt(s0, "midieron");
   return (
-    <Punch shakeAt={[year]} amount={0.6}>
+    <Punch dur={c.dur} shakeAt={[year]} amount={0.6}>
       <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [0, 1, 10], [0, 0.3, 0], CLAMP) }} />
       <Stage gap={30} justify="flex-start">
         <div style={{ marginTop: 10 }}>

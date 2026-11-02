@@ -1,3 +1,4 @@
+import { pop } from "../../../components/Pictograms";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { CommentBox } from "../../../components/Engage";
 import { Arrow, Cross } from "../../../components/Icons";
@@ -20,7 +21,7 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
   const end = wordEnd(s1, "descarta") + 6;
   const lift = interpolate(frame, [parte, parte + 10], [0, -40], CLAMP);
   return (
-    <Punch shakeAt={[seg, parte]} amount={0.6}>
+    <Punch dur={c.dur} shakeAt={[seg, parte]} amount={0.6}>
       <Stage gap={30} justify="flex-start">
         <div style={{ marginTop: 10, translate: `0px ${lift}px`, scale: String(interpolate(frame, [parte, parte + 10], [1, 0.8], CLAMP)), transformOrigin: "top center", position: "relative" }}>
           <CommentBox at={com} typeAt={l4} text="L4" />
@@ -39,7 +40,7 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 20, opacity: frame >= test ? 1 : 0 }}>
-              <div style={{ width: 90, height: 90, borderRadius: 20, border: `4px solid ${COLORS.white}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 60, color: COLORS.white, scale: String(interpolate(frame, [test, test + 10], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.56, 0.64, 1) })) }}>?</div>
+              <div style={{ width: 90, height: 90, borderRadius: 20, border: `4px solid ${COLORS.white}`, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: 60, color: COLORS.white, scale: String(pop(frame, test)) }}>?</div>
               <div style={{ fontWeight: 700, fontSize: 40, color: COLORS.white, lineHeight: 1.15 }}>El test que usamos a diario</div>
             </div>
             <div style={{ display: "flex", gap: 30, justifyContent: "center", marginTop: 6 }}>

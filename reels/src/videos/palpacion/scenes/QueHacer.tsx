@@ -1,6 +1,6 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { Check } from "../../../components/Icons";
-import { Person, Target } from "../../../components/Pictograms";
+import { Person, Target, pop } from "../../../components/Pictograms";
 import { Punch } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
 import { CLAMP, COLORS, STICKER } from "../../../config";
@@ -29,7 +29,7 @@ const TypedBubble: React.FC<{ s: SentenceClock; words: string[]; color: string; 
         justifyContent: "center",
         gap: 18,
         flexWrap: "wrap",
-        scale: String(interpolate(frame, [at, at + 12], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.56, 0.64, 1) })),
+        scale: String(pop(frame, at)),
         rotate: `${strikeAt !== undefined ? interpolate(frame, [strikeAt, strikeAt + 8], [0, -4], CLAMP) : 0}deg`,
         boxShadow: struck ? `0 0 50px ${COLORS.red}66` : `0 0 30px ${color}44`,
       }}
@@ -65,7 +65,7 @@ export const QueHacer: React.FC<SceneProps> = ({ c }) => {
   const rec = wordAt(s1, "reconoce");
   const nod = frame >= rec ? Math.sin((frame - rec) / 3) * 6 * Math.max(0, 1 - (frame - rec) / 40) : 0;
   return (
-    <Punch shakeAt={[strike, rec]} amount={0.5}>
+    <Punch dur={c.dur} shakeAt={[strike, rec]} amount={0.5}>
       <Stage gap={30} justify="flex-start">
         <div style={{ marginTop: 10, fontWeight: 700, fontSize: 44, letterSpacing: 6, color: COLORS.red, opacity: interpolate(frame, [deja, deja + 6], [0, 1], CLAMP) }}>DEJA DE DECIR</div>
         <TypedBubble s={s0} words={["tienes", "L4-L5", "bloqueada"]} color="rgba(20,24,31,0.5)" strikeAt={strike} at={tienes} />

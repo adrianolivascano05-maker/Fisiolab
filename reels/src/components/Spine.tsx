@@ -1,3 +1,4 @@
+import { pop } from "../components/Pictograms";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { CLAMP, COLORS } from "../config";
 import { fontFamily } from "../theme";
@@ -36,7 +37,7 @@ export const Spine: React.FC<{
       ) : null}
       {LEVELS.map((lv, i) => {
         const y = 36 + i * VH;
-        const s = interpolate(frame, [start + i * 4, start + i * 4 + 10], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.56, 0.64, 1) });
+        const s = pop(frame, start + i * 4);
         const glow = glowLevels && frame >= glowLevels.at && glowLevels.levels.includes(i);
         const lit = (xray > 0 && sweepY > y + 30) || glow ? 1 : 0;
         return (

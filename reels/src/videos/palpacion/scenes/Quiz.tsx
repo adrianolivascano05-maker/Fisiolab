@@ -17,7 +17,7 @@ export const Quiz: React.FC<SceneProps> = ({ c }) => {
   const tap = wordAt(s0, "acertaron") + 6;
   const fy = interpolate(frame, [opts + 10, opts + 18, Math.max(opts + 19, tap - 6)], [LAYOUT.headTop + 190, LAYOUT.headTop + 190, LAYOUT.headTop + 330], CLAMP);
   return (
-    <Punch shakeAt={[q]} amount={0.6}>
+    <Punch dur={c.dur} shakeAt={[q]} amount={0.6}>
       <Stage gap={34} justify="flex-start">
         <div style={{ marginTop: 20 }}>
           <Slam text="¿CUÁNTOS ACERTARON?" at={q} size={84} color={COLORS.white} spacing={-2} />

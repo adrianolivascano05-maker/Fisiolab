@@ -19,7 +19,7 @@ export const Gancho: React.FC<SceneProps> = ({ c }) => {
   const desc = wordAt(s2, "descarta") - 1;
   const shrink = interpolate(frame, [conf, conf + 8], [1, 0.72], CLAMP);
   return (
-    <Punch shakeAt={[fac, conf, desc]} amount={1.2}>
+    <Punch dur={c.dur} shakeAt={[fac, conf, desc]} amount={1.2}>
       <Stage gap={0} justify="flex-start">
         <div style={{ display: "flex", alignItems: "center", gap: 30, marginTop: 10, scale: String(shrink), transformOrigin: "top center" }}>
           <div style={{ position: "relative" }}>

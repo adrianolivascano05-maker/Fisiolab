@@ -21,7 +21,7 @@ export const Gancho: React.FC<SceneProps> = ({ c }) => {
   const press = frame >= palpando ? 0.5 + 0.5 * Math.sin((frame - palpando) / 5) : 0;
   const wrong = DATA.fisios - Math.floor(DATA.fisios / 2); // «más de la mitad» = 3 de 5
   return (
-    <Punch shakeAt={[mitad, fallo]} amount={1.3}>
+    <Punch dur={c.dur} shakeAt={[mitad, fallo]} amount={1.3}>
       <Stage gap={0} justify="flex-start">
         {/* Fila de fisios */}
         <div style={{ display: "flex", gap: 22, marginTop: 10, alignItems: "flex-end" }}>
