@@ -8,18 +8,22 @@ import { VideoDef } from "./videos/types";
 
 const FALLBACK: Timings = { source: "estimado", voiceDuration: 0, sentences: [], tail: 1.8 };
 
-/** Lee los tiempos de la voz (public/<video>/voz/timings.json) y comprueba si existe la voz. */
+const exists = async (path: string) => {
+  try {
+    return (await fetch(staticFile(path), { method: "HEAD" })).ok;
+  } catch {
+    return false;
+  }
+};
+
+/** Lee los tiempos (public/<video>/voz/timings.json), elige la voz (recortada si existe) y busca clips reales por escena. */
 const loadTimings = async (video: VideoDef): Promise<ReelProps> => {
   const res = await fetch(staticFile(`${video.folder}/voz/timings.json`));
   const timings = (await res.json()) as Timings;
-  let hasVoice = false;
-  try {
-    const v = await fetch(staticFile(`${video.folder}/voz/voz.wav`), { method: "HEAD" });
-    hasVoice = v.ok;
-  } catch {
-    hasVoice = false;
-  }
-  return { timings, hasVoice };
+  const voiceFile = (await exists(`${video.folder}/voz/voz_tight.wav`)) ? "voz_tight.wav" : (await exists(`${video.folder}/voz/voz.wav`)) ? "voz.wav" : null;
+  const broll: string[] = [];
+  for (const s of video.scenes) if (await exists(`${video.folder}/broll/${s.id}.mp4`)) broll.push(s.id);
+  return { timings, voiceFile, broll };
 };
 
 const VideoCompositions: React.FC<{ video: VideoDef }> = ({ video }) => {
@@ -40,11 +44,11 @@ const VideoCompositions: React.FC<{ video: VideoDef }> = ({ video }) => {
     };
   return (
     <Folder name={video.meta.id}>
-      <Composition id={video.meta.id} component={Reel} width={WIDTH} height={HEIGHT} fps={FPS} durationInFrames={300} defaultProps={{ timings: FALLBACK, hasVoice: false }} calculateMetadata={calculateReel} />
+      <Composition id={video.meta.id} component={Reel} width={WIDTH} height={HEIGHT} fps={FPS} durationInFrames={300} defaultProps={{ timings: FALLBACK, voiceFile: null, broll: [] }} calculateMetadata={calculateReel} />
       <Still id={`${video.meta.id}-Portada`} component={Portada} width={WIDTH} height={HEIGHT} defaultProps={{ meta: video.meta }} />
       <Folder name="Escenas">
         {video.scenes.map((s) => (
-          <Composition key={s.id} id={`${video.meta.id}-${s.id}`} component={SceneSolo} width={WIDTH} height={HEIGHT} fps={FPS} durationInFrames={60} defaultProps={{ timings: FALLBACK, hasVoice: false, sceneId: s.id }} calculateMetadata={calculateScene(s.id)} />
+          <Composition key={s.id} id={`${video.meta.id}-${s.id}`} component={SceneSolo} width={WIDTH} height={HEIGHT} fps={FPS} durationInFrames={60} defaultProps={{ timings: FALLBACK, voiceFile: null, broll: [], sceneId: s.id }} calculateMetadata={calculateScene(s.id)} />
         ))}
       </Folder>
     </Folder>

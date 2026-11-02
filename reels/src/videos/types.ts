@@ -13,6 +13,10 @@ export type VideoDef = {
   cues: (c: SceneClock) => Cue[];
   sourceScenes: [string, string];
   dataScene: string;
+  /** Color de «beat» por escena (tinte de fondo y fogonazo en el corte). */
+  tints?: Record<string, string>;
+  /** Escena en la que aparece el aviso de «guárdalo». */
+  saveScene?: string;
 };
 
 export type { SceneProps };

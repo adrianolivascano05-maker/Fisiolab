@@ -18,6 +18,13 @@ Cada vídeo tiene su carpeta en `src/videos/<id>/` (config.ts con el guion y los
 ## Sincronía palabra a palabra
 `public/voz/timings.json` guarda el inicio y el fin de **cada palabra**. Las escenas disparan cada visual con `wordAt(frase, "palabra")` y los subtítulos resaltan la palabra que se está diciendo. Con la voz real, `tools/align.mjs` fija las frases por silencios y `tools/align_words.mjs` (modelo de audio de Gemini, cuota distinta del TTS) reparte las palabras dentro de cada frase; si ese paso falla, se reparten por caracteres.
 
+## Recursos de enganche (v3)
+- **Cold open** de 0,8 s con el dato a pantalla completa antes de la voz (`META.coldOpen`), y el mismo fotograma al final para que el bucle enganche.
+- **Pausas recortadas**: `tools/tighten.mjs` acorta a 0,26 s las pausas entre frases de la toma existente (no regenera la voz; guarda `voz_tight.wav` y `timings.orig.json`). Respeta el silencio dramático antes del dato.
+- **Cámara continua** (zoom y deriva por escena) y **color por escena** (`tints` en el `VideoDef`), con fogonazo en cada corte.
+- **Cuenta atrás 3-2-1 y 0,3 s de negro** justo antes del dato fuerte; **aviso «guárdalo»** en la escena `saveScene`.
+- **Clips reales (B-roll)**: si existe `public/<id>/broll/<escena>.mp4`, se muestra debajo de los rótulos de esa escena (en bucle, sin audio, al 55 %). Graba clips verticales de 3 a 5 s y ponlos ahí.
+
 ## Dónde se cambia todo
 - `src/config.ts`: textos del guion (frase a frase), palabras resaltadas en los subtítulos, datos, colores y metadatos. **Es el único archivo que hay que tocar para otro vídeo** (más las escenas si el visual cambia).
 - `public/voz/timings.json`: tiempos de cada frase (los genera `tools/align.mjs` a partir de la voz, o `tools/estimate.mjs` como estimación mientras no hay voz). `calculateMetadata` lee este archivo y de ahí sale la duración de cada escena y del vídeo.

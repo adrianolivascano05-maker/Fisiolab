@@ -1,802 +1,803 @@
 {
  "source": "voz",
- "voiceDuration": 46.424,
+ "voiceDuration": 45.022,
  "sentences": [
   {
-   "start": 0.5,
-   "end": 1.932,
+   "start": 1.3,
+   "end": 2.732,
    "words": [
     {
      "w": "kemp",
-     "start": 0.5,
-     "end": 0.978
+     "start": 1.3,
+     "end": 1.778
     },
     {
      "w": "positivo",
-     "start": 1.019,
-     "end": 1.859
+     "start": 1.819,
+     "end": 2.659
     }
    ]
   },
   {
-   "start": 2.075,
-   "end": 2.614,
+   "start": 2.875,
+   "end": 3.414,
    "words": [
     {
      "w": "y",
-     "start": 2.075,
-     "end": 2.113
+     "start": 2.875,
+     "end": 2.913
     },
     {
      "w": "anotas",
-     "start": 2.116,
-     "end": 2.283
+     "start": 2.916,
+     "end": 3.083
     },
     {
      "w": "facetario",
-     "start": 2.297,
-     "end": 2.589
+     "start": 3.097,
+     "end": 3.389
     }
    ]
   },
   {
-   "start": 3.328,
-   "end": 5.111,
+   "start": 3.674,
+   "end": 5.457,
    "words": [
     {
      "w": "pues",
-     "start": 3.328,
-     "end": 3.548
+     "start": 3.674,
+     "end": 3.894
     },
     {
      "w": "ese",
-     "start": 3.567,
-     "end": 3.694
+     "start": 3.913,
+     "end": 4.04
     },
     {
      "w": "test",
-     "start": 3.705,
-     "end": 3.865
+     "start": 4.051,
+     "end": 4.211
     },
     {
      "w": "ni",
-     "start": 3.879,
-     "end": 3.989
+     "start": 4.225,
+     "end": 4.335
     },
     {
      "w": "confirma",
-     "start": 3.999,
-     "end": 4.43
+     "start": 4.345,
+     "end": 4.776
     },
     {
      "w": "ni",
-     "start": 4.467,
-     "end": 4.56
+     "start": 4.813,
+     "end": 4.906
     },
     {
      "w": "descarta",
-     "start": 4.569,
-     "end": 5.067
+     "start": 4.915,
+     "end": 5.413
     }
    ]
   },
   {
-   "start": 5.699,
-   "end": 9.39,
+   "start": 5.759,
+   "end": 9.45,
    "words": [
     {
      "w": "lo",
-     "start": 5.699,
-     "end": 5.815
+     "start": 5.759,
+     "end": 5.875
     },
     {
      "w": "dice",
-     "start": 5.825,
-     "end": 5.982
+     "start": 5.885,
+     "end": 6.042
     },
     {
      "w": "una",
-     "start": 5.996,
-     "end": 6.087
+     "start": 6.056,
+     "end": 6.147
     },
     {
      "w": "revisión",
-     "start": 6.095,
-     "end": 6.476
+     "start": 6.155,
+     "end": 6.536
     },
     {
      "w": "de",
-     "start": 6.509,
-     "end": 6.576
+     "start": 6.569,
+     "end": 6.636
     },
     {
      "w": "dos",
-     "start": 6.581,
-     "end": 6.772
+     "start": 6.641,
+     "end": 6.832
     },
     {
      "w": "mil",
-     "start": 6.788,
-     "end": 6.913
+     "start": 6.848,
+     "end": 6.973
     },
     {
      "w": "veinticuatro",
-     "start": 6.923,
-     "end": 7.379
+     "start": 6.983,
+     "end": 7.439
     },
     {
      "w": "que",
-     "start": 7.419,
-     "end": 7.518
+     "start": 7.479,
+     "end": 7.578
     },
     {
      "w": "reunió",
-     "start": 7.527,
-     "end": 7.8
+     "start": 7.587,
+     "end": 7.86
     },
     {
      "w": "los",
-     "start": 7.824,
-     "end": 7.94
+     "start": 7.884,
+     "end": 8
     },
     {
      "w": "datos",
-     "start": 7.95,
-     "end": 8.182
+     "start": 8.01,
+     "end": 8.242
     },
     {
      "w": "de",
-     "start": 8.202,
-     "end": 8.301
+     "start": 8.262,
+     "end": 8.361
     },
     {
      "w": "los",
-     "start": 8.31,
-     "end": 8.409
+     "start": 8.37,
+     "end": 8.469
     },
     {
      "w": "estudios",
-     "start": 8.418,
-     "end": 8.741
+     "start": 8.478,
+     "end": 8.801
     },
     {
      "w": "que",
-     "start": 8.769,
-     "end": 8.877
+     "start": 8.829,
+     "end": 8.937
     },
     {
      "w": "lo",
-     "start": 8.886,
-     "end": 8.961
+     "start": 8.946,
+     "end": 9.021
     },
     {
      "w": "midieron",
-     "start": 8.967,
-     "end": 9.357
+     "start": 9.027,
+     "end": 9.417
     }
    ]
   },
   {
-   "start": 9.984,
-   "end": 12.35,
+   "start": 10.044,
+   "end": 12.41,
    "words": [
     {
      "w": "sensibilidad",
-     "start": 9.984,
-     "end": 10.437
+     "start": 10.044,
+     "end": 10.497
     },
     {
      "w": "de",
-     "start": 10.758,
-     "end": 11.014
+     "start": 10.818,
+     "end": 11.074
     },
     {
      "w": "cero",
-     "start": 11.037,
-     "end": 11.293
+     "start": 11.097,
+     "end": 11.353
     },
     {
      "w": "coma",
-     "start": 11.316,
-     "end": 11.454
+     "start": 11.376,
+     "end": 11.514
     },
     {
      "w": "veintitrés",
-     "start": 11.466,
-     "end": 11.795
+     "start": 11.526,
+     "end": 11.855
     },
     {
      "w": "a",
-     "start": 11.978,
-     "end": 12.07
+     "start": 12.038,
+     "end": 12.13
     },
     {
      "w": "uno",
-     "start": 12.078,
-     "end": 12.329
+     "start": 12.138,
+     "end": 12.389
     }
    ]
   },
   {
-   "start": 12.761,
-   "end": 17.139,
+   "start": 12.821,
+   "end": 17.199,
    "words": [
     {
      "w": "especificidad",
-     "start": 12.761,
-     "end": 13.389
+     "start": 12.821,
+     "end": 13.449
     },
     {
      "w": "de",
-     "start": 13.841,
-     "end": 14.144
+     "start": 13.901,
+     "end": 14.204
     },
     {
      "w": "cero",
-     "start": 14.17,
-     "end": 14.422
+     "start": 14.23,
+     "end": 14.482
     },
     {
      "w": "coma",
-     "start": 14.444,
-     "end": 14.595
+     "start": 14.504,
+     "end": 14.655
     },
     {
      "w": "ciento",
-     "start": 14.609,
-     "end": 14.825
+     "start": 14.669,
+     "end": 14.885
     },
     {
      "w": "dieciséis",
-     "start": 14.843,
-     "end": 15.203
+     "start": 14.903,
+     "end": 15.263
     },
     {
      "w": "a",
-     "start": 15.489,
-     "end": 15.591
+     "start": 15.549,
+     "end": 15.651
     },
     {
      "w": "cero",
-     "start": 15.6,
-     "end": 15.893
+     "start": 15.66,
+     "end": 15.953
     },
     {
      "w": "coma",
-     "start": 15.918,
-     "end": 16.1
+     "start": 15.978,
+     "end": 16.16
     },
     {
      "w": "seiscientos",
-     "start": 16.116,
-     "end": 16.464
+     "start": 16.176,
+     "end": 16.524
     },
     {
      "w": "setenta",
-     "start": 16.494,
-     "end": 16.755
+     "start": 16.554,
+     "end": 16.815
     },
     {
      "w": "y",
-     "start": 16.778,
-     "end": 16.865
+     "start": 16.838,
+     "end": 16.925
     },
     {
      "w": "tres",
-     "start": 16.872,
-     "end": 17.117
+     "start": 16.932,
+     "end": 17.177
     }
    ]
   },
   {
-   "start": 17.849,
-   "end": 20.737,
+   "start": 17.909,
+   "end": 20.797,
    "words": [
     {
      "w": "entonces",
-     "start": 17.849,
-     "end": 18.235
+     "start": 17.909,
+     "end": 18.295
     },
     {
      "w": "un",
-     "start": 18.269,
-     "end": 18.383
+     "start": 18.329,
+     "end": 18.443
     },
     {
      "w": "kemp",
-     "start": 18.393,
-     "end": 18.647
+     "start": 18.453,
+     "end": 18.707
     },
     {
      "w": "positivo",
-     "start": 18.669,
-     "end": 19.449
+     "start": 18.729,
+     "end": 19.509
     },
     {
      "w": "confirma",
-     "start": 19.517,
-     "end": 19.973
+     "start": 19.577,
+     "end": 20.033
     },
     {
      "w": "o",
-     "start": 20.013,
-     "end": 20.135
+     "start": 20.073,
+     "end": 20.195
     },
     {
      "w": "descarta",
-     "start": 20.146,
-     "end": 20.69
+     "start": 20.206,
+     "end": 20.75
     }
    ]
   },
   {
-   "start": 21.488,
-   "end": 24.699,
+   "start": 21.068,
+   "end": 24.279,
    "words": [
     {
      "w": "con",
-     "start": 21.488,
-     "end": 21.64
+     "start": 21.068,
+     "end": 21.22
     },
     {
      "w": "esa",
-     "start": 21.654,
-     "end": 21.758
+     "start": 21.234,
+     "end": 21.338
     },
     {
      "w": "especificidad",
-     "start": 21.767,
-     "end": 22.32
+     "start": 21.347,
+     "end": 21.9
     },
     {
      "w": "sale",
-     "start": 22.495,
-     "end": 22.79
+     "start": 22.075,
+     "end": 22.37
     },
     {
      "w": "positivo",
-     "start": 22.815,
-     "end": 23.236
+     "start": 22.395,
+     "end": 22.816
     },
     {
      "w": "en",
-     "start": 23.273,
-     "end": 23.378
+     "start": 22.853,
+     "end": 22.958
     },
     {
      "w": "mucha",
-     "start": 23.387,
-     "end": 23.671
+     "start": 22.967,
+     "end": 23.251
     },
     {
      "w": "gente",
-     "start": 23.695,
-     "end": 23.937
+     "start": 23.275,
+     "end": 23.517
     },
     {
      "w": "sin",
-     "start": 23.958,
-     "end": 24.147
+     "start": 23.538,
+     "end": 23.727
     },
     {
      "w": "dolor",
-     "start": 24.164,
-     "end": 24.406
+     "start": 23.744,
+     "end": 23.986
     },
     {
      "w": "facetario",
-     "start": 24.607,
-     "end": 24.692
+     "start": 24.187,
+     "end": 24.272
     }
    ]
   },
   {
-   "start": 24.902,
-   "end": 27.772,
+   "start": 24.482,
+   "end": 27.352,
    "words": [
     {
      "w": "y",
-     "start": 24.902,
-     "end": 25.024
+     "start": 24.482,
+     "end": 24.604
     },
     {
      "w": "con",
-     "start": 25.034,
-     "end": 25.164
+     "start": 24.614,
+     "end": 24.744
     },
     {
      "w": "esa",
-     "start": 25.176,
-     "end": 25.33
+     "start": 24.756,
+     "end": 24.91
     },
     {
      "w": "sensibilidad",
-     "start": 25.343,
-     "end": 25.904
+     "start": 24.923,
+     "end": 25.484
     },
     {
      "w": "un",
-     "start": 26.117,
-     "end": 26.245
+     "start": 25.697,
+     "end": 25.825
     },
     {
      "w": "negativo",
-     "start": 26.257,
-     "end": 26.593
+     "start": 25.837,
+     "end": 26.173
     },
     {
      "w": "tampoco",
-     "start": 26.622,
-     "end": 26.951
+     "start": 26.202,
+     "end": 26.531
     },
     {
      "w": "te",
-     "start": 26.98,
-     "end": 27.092
+     "start": 26.56,
+     "end": 26.672
     },
     {
      "w": "deja",
-     "start": 27.102,
-     "end": 27.286
+     "start": 26.682,
+     "end": 26.866
     },
     {
      "w": "tranquilo",
-     "start": 27.302,
-     "end": 27.735
+     "start": 26.882,
+     "end": 27.315
     }
    ]
   },
   {
-   "start": 28.489,
-   "end": 29.761,
+   "start": 27.636,
+   "end": 28.908,
    "words": [
     {
      "w": "la",
-     "start": 28.489,
-     "end": 28.619
+     "start": 27.636,
+     "end": 27.766
     },
     {
      "w": "revisión",
-     "start": 28.63,
-     "end": 28.919
+     "start": 27.777,
+     "end": 28.066
     },
     {
      "w": "no",
-     "start": 28.944,
-     "end": 29.038
+     "start": 28.091,
+     "end": 28.185
     },
     {
      "w": "dice",
-     "start": 29.046,
-     "end": 29.183
+     "start": 28.193,
+     "end": 28.33
     },
     {
      "w": "que",
-     "start": 29.195,
-     "end": 29.267
+     "start": 28.342,
+     "end": 28.414
     },
     {
      "w": "no",
-     "start": 29.274,
-     "end": 29.397
+     "start": 28.421,
+     "end": 28.544
     },
     {
      "w": "sirva",
-     "start": 29.407,
-     "end": 29.732
+     "start": 28.554,
+     "end": 28.879
     }
    ]
   },
   {
-   "start": 30.009,
-   "end": 35.906,
+   "start": 29.156,
+   "end": 35.053,
    "words": [
     {
      "w": "dice",
-     "start": 30.009,
-     "end": 30.207
+     "start": 29.156,
+     "end": 29.354
     },
     {
      "w": "que",
-     "start": 30.224,
-     "end": 30.304
+     "start": 29.371,
+     "end": 29.451
     },
     {
      "w": "es",
-     "start": 30.311,
-     "end": 30.406
+     "start": 29.458,
+     "end": 29.553
     },
     {
      "w": "una",
-     "start": 30.414,
-     "end": 30.524
+     "start": 29.561,
+     "end": 29.671
     },
     {
      "w": "pieza",
-     "start": 30.533,
-     "end": 30.884
+     "start": 29.68,
+     "end": 30.031
     },
     {
      "w": "dolor",
-     "start": 31.298,
-     "end": 31.538
+     "start": 30.445,
+     "end": 30.685
     },
     {
      "w": "que",
-     "start": 31.559,
-     "end": 31.649
+     "start": 30.706,
+     "end": 30.796
     },
     {
      "w": "aumenta",
-     "start": 31.657,
-     "end": 31.934
+     "start": 30.804,
+     "end": 31.081
     },
     {
      "w": "al",
-     "start": 31.958,
-     "end": 32.078
+     "start": 31.105,
+     "end": 31.225
     },
     {
      "w": "extender",
-     "start": 32.089,
-     "end": 32.479
+     "start": 31.236,
+     "end": 31.626
     },
     {
      "w": "que",
-     "start": 32.904,
-     "end": 33.057
+     "start": 32.051,
+     "end": 32.204
     },
     {
      "w": "no",
-     "start": 33.07,
-     "end": 33.167
+     "start": 32.217,
+     "end": 32.314
     },
     {
      "w": "suele",
-     "start": 33.175,
-     "end": 33.369
+     "start": 32.322,
+     "end": 32.516
     },
     {
      "w": "pasar",
-     "start": 33.386,
-     "end": 33.603
+     "start": 32.533,
+     "end": 32.75
     },
     {
      "w": "de",
-     "start": 33.622,
-     "end": 33.711
+     "start": 32.769,
+     "end": 32.858
     },
     {
      "w": "la",
-     "start": 33.718,
-     "end": 33.799
+     "start": 32.865,
+     "end": 32.946
     },
     {
      "w": "rodilla",
-     "start": 33.806,
-     "end": 34.201
+     "start": 32.953,
+     "end": 33.348
     },
     {
      "w": "y",
-     "start": 34.502,
-     "end": 34.625
+     "start": 33.649,
+     "end": 33.772
     },
     {
      "w": "exploración",
-     "start": 34.636,
-     "end": 35.076
+     "start": 33.783,
+     "end": 34.223
     },
     {
      "w": "neurológica",
-     "start": 35.114,
-     "end": 35.485
+     "start": 34.261,
+     "end": 34.632
     },
     {
      "w": "normal",
-     "start": 35.517,
-     "end": 35.875
+     "start": 34.664,
+     "end": 35.022
     }
    ]
   },
   {
-   "start": 36.465,
-   "end": 38.629,
+   "start": 35.612,
+   "end": 37.776,
    "words": [
     {
      "w": "así",
-     "start": 36.465,
-     "end": 36.618
+     "start": 35.612,
+     "end": 35.765
     },
     {
      "w": "que",
-     "start": 36.631,
-     "end": 36.72
+     "start": 35.778,
+     "end": 35.867
     },
     {
      "w": "no",
-     "start": 36.728,
-     "end": 36.824
+     "start": 35.875,
+     "end": 35.971
     },
     {
      "w": "escribas",
-     "start": 36.833,
-     "end": 37.139
+     "start": 35.98,
+     "end": 36.286
     },
     {
      "w": "facetario",
-     "start": 37.166,
-     "end": 37.762
+     "start": 36.313,
+     "end": 36.909
     },
     {
      "w": "solo",
-     "start": 37.814,
-     "end": 38.048
+     "start": 36.961,
+     "end": 37.195
     },
     {
      "w": "por",
-     "start": 38.068,
-     "end": 38.189
+     "start": 37.215,
+     "end": 37.336
     },
     {
      "w": "un",
-     "start": 38.2,
-     "end": 38.305
+     "start": 37.347,
+     "end": 37.452
     },
     {
      "w": "kemp",
-     "start": 38.314,
-     "end": 38.604
+     "start": 37.461,
+     "end": 37.751
     }
    ]
   },
   {
-   "start": 38.882,
-   "end": 39.946,
+   "start": 38.029,
+   "end": 39.093,
    "words": [
     {
      "w": "anota",
-     "start": 38.882,
-     "end": 39.139
+     "start": 38.029,
+     "end": 38.286
     },
     {
      "w": "las",
-     "start": 39.161,
-     "end": 39.273
+     "start": 38.308,
+     "end": 38.42
     },
     {
      "w": "cuatro",
-     "start": 39.283,
-     "end": 39.516
+     "start": 38.43,
+     "end": 38.663
     },
     {
      "w": "piezas",
-     "start": 39.536,
-     "end": 39.913
+     "start": 38.683,
+     "end": 39.06
     }
    ]
   },
   {
-   "start": 40.53,
-   "end": 41.908,
+   "start": 39.401,
+   "end": 40.779,
    "words": [
     {
      "w": "comenta",
-     "start": 40.53,
-     "end": 40.826
+     "start": 39.401,
+     "end": 39.697
     },
     {
      "w": "kemp",
-     "start": 40.852,
-     "end": 41.072
+     "start": 39.723,
+     "end": 39.943
     },
     {
      "w": "si",
-     "start": 41.091,
-     "end": 41.197
+     "start": 39.962,
+     "end": 40.068
     },
     {
      "w": "lo",
-     "start": 41.207,
-     "end": 41.283
+     "start": 40.078,
+     "end": 40.154
     },
     {
      "w": "usas",
-     "start": 41.289,
-     "end": 41.479
+     "start": 40.16,
+     "end": 40.35
     },
     {
      "w": "a",
-     "start": 41.495,
-     "end": 41.587
+     "start": 40.366,
+     "end": 40.458
     },
     {
      "w": "diario",
-     "start": 41.595,
-     "end": 41.883
+     "start": 40.466,
+     "end": 40.754
     }
    ]
   },
   {
-   "start": 42.152,
-   "end": 45.802,
+   "start": 41.023,
+   "end": 44.673,
    "words": [
     {
      "w": "y",
-     "start": 42.152,
-     "end": 42.241
+     "start": 41.023,
+     "end": 41.112
     },
     {
      "w": "en",
-     "start": 42.249,
-     "end": 42.339
+     "start": 41.12,
+     "end": 41.21
     },
     {
      "w": "la",
-     "start": 42.346,
-     "end": 42.427
+     "start": 41.217,
+     "end": 41.298
     },
     {
      "w": "parte",
-     "start": 42.434,
-     "end": 42.649
+     "start": 41.305,
+     "end": 41.52
     },
     {
      "w": "tres",
-     "start": 42.668,
-     "end": 42.9
+     "start": 41.539,
+     "end": 41.771
     },
     {
      "w": "la",
-     "start": 42.921,
-     "end": 43.037
+     "start": 41.792,
+     "end": 41.908
     },
     {
      "w": "sacroilíaca",
-     "start": 43.047,
-     "end": 43.665
+     "start": 41.918,
+     "end": 42.536
     },
     {
      "w": "donde",
-     "start": 43.929,
-     "end": 44.167
+     "start": 42.8,
+     "end": 43.038
     },
     {
      "w": "un",
-     "start": 44.187,
-     "end": 44.318
+     "start": 43.058,
+     "end": 43.189
     },
     {
      "w": "test",
-     "start": 44.329,
-     "end": 44.474
+     "start": 43.2,
+     "end": 43.345
     },
     {
      "w": "no",
-     "start": 44.487,
-     "end": 44.61
+     "start": 43.358,
+     "end": 43.481
     },
     {
      "w": "basta",
-     "start": 44.62,
-     "end": 44.904
+     "start": 43.491,
+     "end": 43.775
     },
     {
      "w": "y",
-     "start": 44.928,
-     "end": 45.005
+     "start": 43.799,
+     "end": 43.876
     },
     {
      "w": "necesitas",
-     "start": 45.011,
-     "end": 45.356
+     "start": 43.882,
+     "end": 44.227
     },
     {
      "w": "tres",
-     "start": 45.386,
-     "end": 45.769
+     "start": 44.257,
+     "end": 44.64
     }
    ]
   }
  ],
- "tail": 1.8
+ "tail": 1,
+ "intro": 0.8
 }

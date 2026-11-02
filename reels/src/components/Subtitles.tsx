@@ -60,10 +60,10 @@ export const Subtitles: React.FC<{ scenes: SceneDef[]; timings: Timings }> = ({ 
         alignContent: "center",
         justifyContent: "center",
         columnGap: 6,
-        rowGap: 6,
+        rowGap: 2,
         fontFamily,
         fontWeight: 900,
-        fontSize: 68,
+        fontSize: 78,
         lineHeight: 1.12,
         textAlign: "center",
         color: COLORS.white,
@@ -78,7 +78,7 @@ export const Subtitles: React.FC<{ scenes: SceneDef[]; timings: Timings }> = ({ 
             key={`${i}-${k}`}
             style={{
               display: "inline-block",
-              padding: "0 14px",
+              padding: "0 12px",
               color: active ? COLORS.orange : tk.key ? COLORS.orange : said ? COLORS.white : "rgba(255,255,255,0.35)",
               textShadow: active || tk.key ? `0 0 30px ${COLORS.orange}aa` : undefined,
               scale: String(active ? interpolate(frame, [tk.start, tk.start + 5], [1.2, 1.12], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) }) : 1),

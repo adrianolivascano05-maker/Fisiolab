@@ -42,9 +42,7 @@ export const Giro: React.FC<SceneProps> = ({ c }) => {
             );
           })}
         </div>
-        <div style={{ fontWeight: 900, fontSize: 50, color: COLORS.white, opacity: interpolate(frame, [sinAt, sinAt + 6], [0, 1], CLAMP) }}>
-          positivos <span style={{ color: COLORS.red }}>sin dolor facetario</span>
-        </div>
+        <div style={{ fontWeight: 900, fontSize: 46, color: COLORS.red, opacity: interpolate(frame, [sinAt, sinAt + 6], [0, 1], CLAMP) }}>SIN DOLOR FACETARIO</div>
         <div style={{ display: "flex", alignItems: "center", gap: 24, marginTop: 10, opacity: frame >= sens ? 1 : 0 }}>
           <Slam text="CON ESA SENSIBILIDAD" at={sens} size={54} color={COLORS.orange} />
         </div>

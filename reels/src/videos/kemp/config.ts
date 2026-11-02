@@ -10,6 +10,7 @@ export const META: VideoMeta = {
   pilar: "Mito vs. evidencia",
   fuente: "Fuente: Stuber et al., J Can Chiropr Assoc 2014 · Custers et al., Life 2024",
   portada: { linea1: "Kemp positivo", dato: "≠ facetario", sub: "NI CONFIRMA NI DESCARTA" },
+  coldOpen: { big: "KEMP +", small: "ni confirma ni descarta el dolor facetario" },
 };
 
 export type SceneId = "gancho" | "prueba" | "datos" | "quiz" | "giro" | "matiz" | "quehacer" | "cta";

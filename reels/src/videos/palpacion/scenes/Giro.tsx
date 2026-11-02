@@ -42,7 +42,6 @@ export const Giro: React.FC<SceneProps> = ({ c }) => {
         <div style={{ opacity: 1 - dim }}>
           <Gauge at={camb} size={300} needle={needle} />
         </div>
-        <div style={{ fontWeight: 700, fontSize: 40, color: COLORS.muted, opacity: interpolate(frame, [camb, camb + 6], [0, 1 - dim], CLAMP), marginTop: -40 }}>lo que más cambiaba el resultado</div>
         <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
           <Item label="PACIENTE" at={pac} crossAt={pacX} dim={dim}><Person at={pac} size={120} /></Item>
           <Item label="PESO" at={peso} crossAt={peso + 4} dim={dim}><Scale at={peso} size={120} /></Item>

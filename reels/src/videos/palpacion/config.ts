@@ -10,6 +10,7 @@ export const META: VideoMeta = {
   pilar: "Mito vs. evidencia",
   fuente: "Fuente: Harlick et al., Man Ther 2007 · Custers et al., Life 2024",
   portada: { linea1: "¿Seguro que es L4?", dato: "47 %", sub: "ACIERTOS DE VÉRTEBRA EXACTA" },
+  coldOpen: { big: "47 %", small: "de fisios expertos acertaron la vértebra" },
 };
 
 

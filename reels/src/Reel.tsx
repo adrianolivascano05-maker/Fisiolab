@@ -1,7 +1,8 @@
-import { Audio } from "@remotion/media";
+import { Audio, Video } from "@remotion/media";
 import { AbsoluteFill, Sequence, staticFile, useCurrentFrame } from "remotion";
 import { Background } from "./components/Background";
 import { Progress } from "./components/Engage";
+import { Camera, ColdOpen, Countdown, SaveNudge } from "./components/Overlays";
 import { SourceTag } from "./components/SourceTag";
 import { Subtitles } from "./components/Subtitles";
 import { FPS, Timings } from "./config";
@@ -9,7 +10,7 @@ import { fontFamily } from "./theme";
 import { buildTimeline } from "./timeline";
 import { VideoDef } from "./videos/types";
 
-export type ReelProps = { timings: Timings; hasVoice: boolean };
+export type ReelProps = { timings: Timings; voiceFile: string | null; broll: string[] };
 
 const Sfx: React.FC<{ at: number; file: string; vol?: number }> = ({ at, file, vol = 1 }) =>
   at < 0 ? null : (
@@ -31,38 +32,67 @@ const duck = (t: Timings) => (f: number) => {
 
 /** Crea la composición de un reel a partir de su definición (escenas, efectos, assets). */
 export const makeReel = (video: VideoDef): React.FC<ReelProps> => {
-  const Reel: React.FC<ReelProps> = ({ timings, hasVoice }) => {
+  const Reel: React.FC<ReelProps> = ({ timings, voiceFile, broll }) => {
     const frame = useCurrentFrame();
     const { scenes, total } = buildTimeline(video.scenes, timings);
+    const intro = Math.round((timings.intro ?? 0) * FPS);
     const data = scenes.find((s) => s.id === video.dataScene)!;
-    const riserAt = data.from + data.s[0].start - Math.round(0.9 * FPS) - Math.round(1.6 * FPS) + Math.round(0.35 * FPS);
+    const dataAt = data.from + data.s[0].start;
+    const riserAt = dataAt - Math.round(0.9 * FPS) - Math.round(1.6 * FPS) + Math.round(0.35 * FPS);
     const dataFrom = scenes.find((s) => s.id === video.sourceScenes[0])!.from;
     const last = scenes.find((s) => s.id === video.sourceScenes[1])!;
     const dataTo = last.from + last.dur;
+    const outroLen = Math.round(0.5 * FPS);
+    const save = video.saveScene ? scenes.find((s) => s.id === video.saveScene) : undefined;
     return (
       <AbsoluteFill style={{ fontFamily }}>
-        <Background />
-        {scenes.map((c) => {
-          const Comp = video.components[c.id];
-          return (
-            <Sequence key={c.id} name={c.id} from={c.from} durationInFrames={c.dur} layout="none">
-              <Comp c={c} />
-            </Sequence>
-          );
-        })}
+        <Camera scenes={scenes} tints={video.tints}>
+          <Background />
+          {/* Clips reales (B-roll) por escena, si existen en public/<video>/broll/<escena>.mp4 */}
+          {scenes
+            .filter((c) => broll.includes(c.id))
+            .map((c) => (
+              <Sequence key={`b${c.id}`} from={c.from} durationInFrames={c.dur} layout="none">
+                <AbsoluteFill style={{ opacity: 0.55 }}>
+                  <Video src={staticFile(`${video.folder}/broll/${c.id}.mp4`)} muted loop objectFit="cover" style={{ width: "100%", height: "100%" }} />
+                  <AbsoluteFill style={{ background: "linear-gradient(180deg, rgba(5,12,26,0.6) 0%, rgba(5,12,26,0.2) 40%, rgba(5,12,26,0.85) 100%)" }} />
+                </AbsoluteFill>
+              </Sequence>
+            ))}
+          {scenes.map((c) => {
+            const Comp = video.components[c.id];
+            return (
+              <Sequence key={c.id} name={c.id} from={c.from} durationInFrames={c.dur} layout="none">
+                <Comp c={c} />
+              </Sequence>
+            );
+          })}
+        </Camera>
         <Subtitles scenes={video.scenes} timings={timings} />
         <Progress scenes={scenes} frame={frame} dataScene={video.dataScene} />
         <SourceTag from={dataFrom} to={dataTo} text={video.meta.fuente} />
-        <SourceTag from={total - Math.round(2.2 * FPS)} to={total} text={video.meta.fuente} />
+        <SourceTag from={total - outroLen - Math.round(1.5 * FPS)} to={total - outroLen} text={video.meta.fuente} />
+        {save ? <SaveNudge at={save.from + 4} /> : null}
+        <Countdown at={dataAt} />
+        {/* Cold open al principio y vuelta al mismo fotograma al final (bucle) */}
+        <ColdOpen meta={video.meta} from={0} dur={intro} />
+        <ColdOpen meta={video.meta} from={total - outroLen} dur={outroLen} outro />
 
         {/* Sonido */}
-        {hasVoice ? <Audio src={staticFile(`${video.folder}/voz/voz.wav`)} volume={0.9} /> : null}
+        {voiceFile ? <Audio src={staticFile(`${video.folder}/voz/${voiceFile}`)} volume={0.9} /> : null}
         <Audio src={staticFile(`${video.folder}/music.wav`)} volume={duck(timings)} />
+        <Sfx at={0} file="impact" vol={0.6} />
+        <Sfx at={Math.max(0, intro - 4)} file="whoosh" vol={0.5} />
         {scenes.slice(1).map((c) => (
           <Sfx key={`w${c.id}`} at={c.from - 4} file="whoosh" vol={0.45} />
         ))}
         {scenes.flatMap((c) => video.cues(c).map((q, i) => <Sfx key={`${c.id}${i}`} at={c.from + q.at} file={q.file} vol={(q.vol ?? 1) * 0.65} />))}
         <Sfx at={riserAt} file="riser" vol={0.4} />
+        {[3, 2, 1].map((n, i) => (
+          <Sfx key={`cd${n}`} at={dataAt - Math.round(0.9 * FPS) + i * 6} file="click" vol={0.7} />
+        ))}
+        {save ? <Sfx at={save.from + 4} file="pop" vol={0.5} /> : null}
+        <Sfx at={total - outroLen} file="whoosh" vol={0.4} />
       </AbsoluteFill>
     );
   };

@@ -17,6 +17,8 @@ if [[ "${2:-}" != "--skip-voice" ]]; then
   # Palabras con tiempos (modelo de audio de Gemini, cuota distinta del TTS); si falla, se reparten por caracteres
   node --no-warnings tools/align_words.mjs "$V/voz/voz.wav" "$V/voz/voz.words.json" || true
   node --no-warnings tools/align.mjs "$V/voz/voz.wav"
+  # Recorta las pausas entre frases (sin regenerar la voz) y añade el hueco del cold open
+  node --no-warnings tools/tighten.mjs
 fi
 node --no-warnings tools/music.mjs
 npx remotion render "$COMP" "out/reel-$VIDEO.raw.mp4" --codec=h264 --crf=18 --audio-codec=aac

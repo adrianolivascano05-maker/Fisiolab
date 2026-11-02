@@ -13,7 +13,7 @@ import { KempFigure } from "../Pictos";
 export const Quiz: React.FC<SceneProps> = ({ c }) => {
   const frame = useCurrentFrame();
   const [s0] = c.s;
-  const kemp = wordAt(s0, "kemp") - 4;
+  const kemp = Math.min(2, wordAt(s0, "kemp") - 4);
   const q = wordAt(s0, "confirma") - 2;
   const opts = wordAt(s0, "confirma");
   const tap = wordEnd(s0, "descarta") + 4;
