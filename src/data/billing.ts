@@ -369,6 +369,28 @@ export function accountLine(a: Account): string | null {
   return parts.length ? parts.join(" · ") : null;
 }
 
+/**
+ * Para la lista de Hoy, de una vez y solo de esos pacientes: el bono que están gastando («quedan 3 de 10») y si hoy es
+ * su primera visita (sin sesiones de antes de `dayStartIso`).
+ */
+export async function dayAccounts(db: Db, patientIds: string[], today: string, dayStartIso: string): Promise<Map<string, { pack: string | null; firstVisit: boolean }>> {
+  const out = new Map<string, { pack: string | null; firstVisit: boolean }>();
+  if (!patientIds.length) return out;
+  const marks = patientIds.map(() => "?").join(",");
+  const [pricing, packs, sessions] = await Promise.all([
+    getPricing(db),
+    db.query<PackRow>(`select * from packs where patient_id in (${marks})`, patientIds),
+    db.query<{ id: string; patient_id: string; performed_at: string }>(`select id, patient_id, performed_at from sessions where patient_id in (${marks})`, patientIds),
+  ]);
+  for (const id of patientIds) {
+    const mine = sessions.filter((x) => x.patient_id === id);
+    const a = allocate(packs.filter((k) => k.patient_id === id).map(toPack), mine.map((x) => ({ id: x.id, performedAt: x.performed_at })), pricing, today);
+    const open = a.packs.find((k) => k.left > 0 && !k.expired);
+    out.set(id, { pack: open ? `Bono: quedan ${open.left} de ${open.sessions}` : null, firstVisit: !mine.some((x) => x.performed_at < dayStartIso) });
+  }
+  return out;
+}
+
 // ---------- La clínica ----------
 
 export type Debtor = { patientId: string; name: string; balanceCents: number; lastPaidOn: string | null };

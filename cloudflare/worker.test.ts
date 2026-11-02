@@ -2,7 +2,7 @@
 // simulada: verifyToken de mentira o, para la comprobación de verdad con Google, fetch sustituido.
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { createD1, type D1Shim, type D1Statement } from "./d1shim";
-import { handle } from "./worker.js";
+import { handle, resetLimitsForTests } from "./worker.js";
 import { EXPECTED_SERVER_VERSION } from "../src/cloud/serverStatus";
 
 const CLIENT_ID = "1234-abc.apps.googleusercontent.com";
@@ -74,6 +74,7 @@ async function count(sql: string, ...params: unknown[]) {
 }
 
 beforeEach(async () => {
+  resetLimitsForTests();
   db = await createD1();
   verifyToken = vi.fn(async (token: string) => {
     const user = USERS[token];
@@ -108,6 +109,26 @@ describe("salud", () => {
     db.db.exec("DROP TABLE clinic_status");
     const body = (await (await call("GET", "/v1/salud")).json()) as { error: string };
     expect(body.error).toContain("schema.sql");
+  });
+});
+
+describe("tope de peticiones por IP", () => {
+  const from = (ip: string) => ({ headers: { "CF-Connecting-IP": ip } });
+  it("lo que se abre sin sesión: 60 por minuto y dirección; otra dirección sigue entrando", async () => {
+    for (let i = 0; i < 60; i++) expect((await call("GET", "/v1/salud", from("203.0.113.1"))).status).toBe(200);
+    const over = await call("GET", "/v1/salud", from("203.0.113.1"));
+    expect(over.status).toBe(429);
+    expect(((await over.json()) as { error: string }).error).toMatch(/Espera un minuto/);
+    expect((await call("GET", "/v1/salud", from("203.0.113.2"))).status).toBe(200);
+  });
+
+  it("sesiones falsas: tras 10 en un minuto deja de preguntar a Google", async () => {
+    for (let i = 0; i < 10; i++) expect((await call("GET", "/v1/copia/info", { token: `falso-${i}`, ...from("198.51.100.7") })).status).toBe(401);
+    const calls = verifyToken.mock.calls.length;
+    expect((await call("GET", "/v1/copia/info", { token: "falso-x", ...from("198.51.100.7") })).status).toBe(429);
+    expect(verifyToken.mock.calls.length).toBe(calls);
+    // Una sesión buena desde otra dirección, sin problema.
+    expect((await call("GET", "/v1/copia/info", { token: "tok-ana", ...from("198.51.100.8") })).status).not.toBe(429);
   });
 });
 

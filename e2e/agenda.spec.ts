@@ -33,6 +33,8 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Hoy" })).toHaveAttribute("aria-pressed", "true");
     const today = page.getByRole("region", { name: "Citas de hoy" });
     await expect(today.getByRole("button", { name: /^\d\d:\d\d · / })).toHaveText([/11:00 · Bruno Falta.*45 min/, /12:30 · Ana Agenda.*45 min/]);
+    // Sin sesiones de antes: es su primera visita.
+    await expect(today.getByRole("button", { name: /^12:30 · Ana Agenda/ })).toContainText("1ª visita");
     await expect(today.getByRole("link", { name: "Atender" })).toHaveCount(2);
     // Desde Hoy se llega a la ficha de cada paciente (antes la agenda era un callejón sin salida).
     await expect(today.getByRole("link", { name: "Ficha de Ana Agenda" })).toHaveAttribute("href", /\/pacientes\/[^/]+$/);
@@ -66,6 +68,9 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByText(/Sesión registrada/)).toBeVisible();
     await expect(today.getByRole("button", { name: /^12:30 · Ana Agenda/ })).toContainText("Atendida");
     await expect(today.getByRole("link", { name: "Atender" })).toHaveCount(0);
+    // Atendida y sin nada que deber (sin precio puesto): «Al día», sin el botón de cobrar.
+    await expect(today.getByText("Al día")).toBeVisible();
+    await expect(today.getByRole("button", { name: "Cobrar a Ana Agenda" })).toHaveCount(0);
     // La ficha, a un toque desde la cita ya atendida.
     await today.getByRole("link", { name: "Ficha de Ana Agenda" }).click();
     await expect(page.getByRole("heading", { name: "Ana Agenda" })).toBeVisible();
@@ -98,7 +103,11 @@ test.describe("Agenda y seguimiento", () => {
     await page.locator("fieldset", { hasText: "Intensidad (EVA 0-10)" }).getByText("7", { exact: true }).click();
     await page.getByLabel("Diagnóstico fisioterapéutico (criterio del profesional)").fill("Lumbalgia mecánica");
     await page.getByLabel("Sesiones previstas (o del bono)").fill("2");
+    await page.getByLabel("Alergias").fill("Látex");
+    await page.getByText("Marcapasos, desfibrilador u otro implante electrónico").click();
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
+    // Las precauciones y alergias que se apuntan, a la vista en la cabecera de la ficha.
+    await expect(page.getByRole("note", { name: "Precauciones" })).toContainText(/Marcapasos.*Alergias: Látex/s);
 
     // Primera sesión.
     await tab(page, "Resumen").click();
@@ -110,9 +119,16 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByText("1 de 2 sesiones previstas")).toBeVisible();
     await expect(page.getByText("Queda 1")).toBeVisible();
 
+    // Ya tiene la siguiente cita dada.
+    await giveAppointment(page, "Diego Alta", "2026-10-30T09:00");
     // Segunda: repite el tratamiento con un toque.
     await page.getByRole("link", { name: "Nueva sesión" }).click();
     await expect(page.getByText("Diego Alta · sesión 2 de 2 previstas")).toBeVisible();
+    // Al apuntarla: las precauciones, la nota anterior y que ya tiene cita (para no darle otra sin querer).
+    await expect(page.getByRole("main").getByRole("note", { name: "Precauciones" })).toBeVisible();
+    await page.getByText(/^Última sesión: /).click();
+    await expect(page.getByText("Puente glúteo 3×10").first()).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: /Ya tiene cita el .*30 oct/ })).toContainText("No hace falta darle otra.");
     await page.getByLabel("Fecha y hora").fill("2026-10-27T10:00");
     await page.getByRole("button", { name: /Repetir el tratamiento de la última sesión/ }).click();
     await expect(page.getByLabel("Tratamiento")).toHaveValue("Movilización lumbar y ejercicio de control motor");

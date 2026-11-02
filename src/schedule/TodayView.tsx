@@ -4,7 +4,7 @@
 // queda sin cobrar y los pacientes de hoy a los que les falta firmar algo; después, las citas de mañana con sus
 // recordatorios y la lista de espera.
 import { unsignedPatients } from "../data/patientSearch";
-import { CalendarCheck, CalendarClock, CalendarX2, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserRound, UserX, Wallet, BellRing, Send } from "lucide-react";
+import { CalendarCheck, CalendarClock, CalendarX2, ChevronDown, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserRound, UserX, Wallet, BellRing, Send } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -18,7 +18,7 @@ import { addDays, todayDay } from "../clinical/pageKit";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
 import { agenda, remindersBetween, STATUS_LABELS, type AgendaItem } from "../data/appointments";
-import { addPayment, euros, getPricing, patientAccount, pendingAccounts } from "../data/billing";
+import { addPayment, dayAccounts, euros, getPricing, patientAccount, pendingAccounts } from "../data/billing";
 import { dueReviews, getAnamnesis, getSession } from "../data/clinical";
 import { listConsents } from "../data/consents";
 import { getDb } from "../data/db";
@@ -66,9 +66,13 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
     const flagged = coming.length ? await unsignedPatients(db) : new Set<string>();
     const unsigned = (await Promise.all(coming.filter((id) => flagged.has(id)).map(async (id) => ({ id, name: day.find((a) => a.patientId === id)!.name, missing: await unsignedOf(id) })))).filter((u) => u.missing.length);
     const owes = new Map(debtors.map((d) => [d.patientId, d.balanceCents]));
-    return { day, reviews, debtors, owes, waiting, unsigned, tomorrow: tomorrowItems };
+    // Bono en curso y primera visita, de los que vienen hoy (una consulta para todos).
+    const accounts = await dayAccounts(db, coming, today, dayStart(today));
+    return { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: tomorrowItems };
   }, [version, today]);
   const [charging, setCharging] = useState<AgendaItem | null>(null);
+  // Lo ya pasado (atendidas, no vino, anuladas) antes de la siguiente cita pendiente se pliega: la lista empieza en lo que toca.
+  const [showEarlier, setShowEarlier] = useState(false);
   // Al volver de atender con la siguiente cita puesta: se ofrece pasarla al calendario (como en Sesiones).
   const [params, setParams] = useSearchParams();
   const autoCalendar = useAutoCalendar();
@@ -88,7 +92,10 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
         <SkeletonList rows={2} />
       </div>
     );
-  const { day, reviews, debtors, owes, waiting, unsigned, tomorrow: next } = data.data;
+  const { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: next } = data.data;
+  const firstPending = day.findIndex((a) => a.status === "scheduled");
+  const foldable = firstPending === -1 ? day.length : firstPending;
+  const folded = foldable >= FOLD_FROM && !showEarlier ? foldable : 0;
   const debt = debtors.reduce((n, d) => n + d.balanceCents, 0);
   const notReminded = next.filter((a) => !a.remindedAt && !a.confirmedAt).length;
   const hasPending = reviews.length > 0 || debtors.length > 0 || unsigned.length > 0;
@@ -97,14 +104,21 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
     <div className="flex flex-col gap-4">
       <section aria-label="Citas de hoy" className="flex flex-col gap-1.5">
         <h2 className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase" style={{ fontFamily: "var(--font-sans)" }}>
-          {day.length === 0 ? "Hoy no hay citas" : day.length === 1 ? "1 cita" : `${day.length} citas`}
+          {dayTitle(day)}
         </h2>
         {day.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border-input px-3 py-4 text-center text-sm text-text-muted">Da una con «Nueva cita», arriba.</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
-            {day.map((a) => (
-              <TodayRow key={a.id} a={a} owes={owes.get(a.patientId) ?? 0} onOpen={() => onOpen(a)} onCharge={() => setCharging(a)} />
+            {folded > 0 && (
+              <li>
+                <button type="button" onClick={() => setShowEarlier(true)} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-semibold text-accent hover:bg-surface">
+                  <ChevronDown aria-hidden="true" className="size-4" /> Ver las {folded} anteriores (ya pasadas)
+                </button>
+              </li>
+            )}
+            {day.slice(folded).map((a) => (
+              <TodayRow key={a.id} a={a} owes={owes.get(a.patientId) ?? 0} account={accounts.get(a.patientId)} onOpen={() => onOpen(a)} onCharge={() => setCharging(a)} />
             ))}
           </ul>
         )}
@@ -177,11 +191,34 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
   );
 }
 
-/** Una cita del día: la fila abre su hoja; a la derecha, Atender (si está pendiente) y Cobrar. */
-function TodayRow({ a, owes, onOpen, onCharge }: { a: AgendaItem; owes: number; onOpen: () => void; onCharge: () => void }) {
+/** «37 citas · 1 anulada»: el mismo número que la franja de Pacientes, que no cuenta las anuladas. */
+function dayTitle(day: AgendaItem[]): string {
+  if (day.length === 0) return "Hoy no hay citas";
+  const cancelled = day.filter((a) => a.status === "cancelled").length;
+  const live = day.length - cancelled;
+  const main = live === 1 ? "1 cita" : `${live} citas`;
+  return cancelled ? `${main} · ${cancelled === 1 ? "1 anulada" : `${cancelled} anuladas`}` : main;
+}
+
+/** Con tantas citas ya pasadas antes de la siguiente pendiente, se pliegan. */
+const FOLD_FROM = 3;
+
+/**
+ * Una cita del día: la fila abre su hoja; debajo, Atender (si está pendiente) y Cobrar. Atendida y sin nada que deber,
+ * no hay nada que cobrar: sale «Al día» en vez del botón (antes salía siempre y se podía cobrar dos veces).
+ */
+function TodayRow({ a, owes, account, onOpen, onCharge }: { a: AgendaItem; owes: number; account?: { pack: string | null; firstVisit: boolean }; onOpen: () => void; onCharge: () => void }) {
   const Icon = a.status === "done" ? CircleCheck : a.status === "no_show" ? UserX : a.status === "cancelled" ? CalendarX2 : CalendarCheck;
   const off = a.status === "no_show" || a.status === "cancelled";
-  const detail = [a.status === "scheduled" ? `${a.minutes} min` : STATUS_LABELS[a.status], owes > 0 && `debe ${euros(owes)}`].filter(Boolean).join(" · ");
+  const settled = a.status === "done" && owes <= 0;
+  const detail = [
+    a.status === "scheduled" ? `${a.minutes} min` : STATUS_LABELS[a.status],
+    !off && account?.firstVisit && "1ª visita",
+    !off && account?.pack,
+    owes > 0 && `debe ${euros(owes)}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return (
     <li className="flex flex-col">
       <button type="button" onClick={onOpen} className="flex min-h-14 min-w-0 items-center gap-3 px-3 pt-2 pb-1 text-left hover:bg-surface">
@@ -203,7 +240,12 @@ function TodayRow({ a, owes, onOpen, onCharge }: { a: AgendaItem; owes: number; 
               <NotebookPen aria-hidden="true" className="size-4" /> Atender
             </Link>
           )}
-          {!off && (
+          {settled && (
+            <span className="inline-flex min-h-11 items-center gap-1 px-1 text-sm font-semibold text-accent">
+              <CircleCheck aria-hidden="true" className="size-4" /> Al día
+            </span>
+          )}
+          {!off && !settled && (
             <button
               type="button"
               onClick={onCharge}

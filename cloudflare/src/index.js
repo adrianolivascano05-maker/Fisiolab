@@ -110,6 +110,7 @@
 // Nunca se escribe en el registro el contenido de una petición ni el token.
 
 import { authenticate, verifyGoogleToken } from "./auth.js";
+import { clientIp, hit, PUBLIC_PER_MINUTE, resetRateLimits } from "./ratelimit.js";
 import { accessRequest, canCreate, clinicOwner, me, normalEmail } from "./clinics.js";
 import { DELETE_GRACE_DAYS } from "./constants.js";
 import { clinicCopy, copyMethod, copyRoute } from "./copy.js";
@@ -132,6 +133,11 @@ export default {
     return handle(request, env);
   },
 };
+
+/** Solo para las pruebas: el tope de peticiones por IP vuelve a cero (cloudflare/src/ratelimit.js). */
+export function resetLimitsForTests() {
+  resetRateLimits();
+}
 
 /**
  * Atiende una petición. Las pruebas pasan `deps` para no llamar a Google.
@@ -179,14 +185,19 @@ async function route(request, env, deps, originAllowed) {
     if (!originAllowed) throw new HttpError(403, "Esta dirección no tiene permiso para usar el servidor (ALLOWED_ORIGINS).");
     return new Response(null, { status: 204 });
   }
-  if (path === "/v1/salud" && method === "GET") return health(env);
+  if (path === "/v1/salud" && method === "GET") {
+    hit("public", clientIp(request), PUBLIC_PER_MINUTE, deps.now());
+    return health(env);
+  }
 
   // Lo que abre el paciente con su enlace: sin sesión (no tiene cuenta), con el id del formulario.
   const pub = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})(\/respuesta)?$/.exec(path);
+  if (pub) hit("public", clientIp(request), PUBLIC_PER_MINUTE, deps.now());
   if (pub) return publicForm(request, database(env), /** @type {string} */ (pub[1]), pub[2] !== undefined, deps.now);
   const pubDoc = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})\/documentos\/([1-9]|10)$/.exec(path);
   if (pubDoc) {
     if (method !== "PUT") throw notFound();
+    hit("public", clientIp(request), PUBLIC_PER_MINUTE, deps.now());
     return publicFormDoc(request, env, /** @type {string} */ (pubDoc[1]), Number(pubDoc[2]), deps.now);
   }
 

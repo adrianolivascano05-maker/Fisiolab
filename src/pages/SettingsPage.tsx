@@ -35,6 +35,7 @@ import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
 import { useInstall } from "../app/pwa";
 import { THEME_LABELS, useTheme, type Theme } from "../app/theme";
+import { getStartPage, START_LABELS, useStartPage } from "../app/startPage";
 import { useAsync } from "../app/useAsync";
 import { ownIdentity, useBrand } from "../brand/brand";
 import { AccountCard } from "../cloud/AccountPages";
@@ -142,7 +143,7 @@ export function SettingsPage() {
       </Group>
 
       <Group title="Mensajes y formularios">
-        <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle="Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre, ejercicios" />
+        <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle={`Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre${SHOW_EXERCISES ? ", ejercicios" : ""}`} />
         <RowLink to="/agenda/envios" icon={Send} title="Envíos pendientes" subtitle="Recordatorios, anamnesis y cuestionarios listos para mandar" />
       </Group>
 
@@ -171,7 +172,7 @@ export function SettingsPage() {
           title="Instalar la app"
           subtitle={install.state === "installed" ? "Instalada en este dispositivo" : "En este y en otros dispositivos"}
         />
-        <RowLink to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} />
+        <RowLink to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={`${theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} · abre en ${START_LABELS[getStartPage()].replace(" (lo de hoy)", "")}`} />
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
         <RowLink to="/ayuda/fallos" icon={LifeBuoy} title="Algo no funciona" subtitle={errorCount(readErrors().length)} />
       </Group>
@@ -509,6 +510,7 @@ export function DataSettingsPage() {
 /** Ajustes → Aspecto: claro, oscuro o como el dispositivo. Vale para este dispositivo. */
 export function AppearancePage() {
   const [theme, setTheme] = useTheme();
+  const [start, setStart] = useStartPage();
   const options: { id: Theme; hint: string }[] = [
     { id: "auto", hint: "Claro u oscuro según el ajuste del teléfono u ordenador" },
     { id: "light", hint: "Siempre claro" },
@@ -525,6 +527,15 @@ export function AppearancePage() {
               <span className="font-semibold">{THEME_LABELS[o.id]}</span>
               <span className="text-sm text-text-muted">{o.hint}</span>
             </span>
+          </label>
+        ))}
+      </fieldset>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 font-semibold">Al abrir la app desde su icono</legend>
+        {(["agenda", "pacientes"] as const).map((id) => (
+          <label key={id} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-border bg-bg px-4 py-2 has-[:checked]:border-accent">
+            <input type="radio" name="inicio" className="size-5 shrink-0 accent-[var(--color-accent)]" checked={start === id} onChange={() => setStart(id)} />
+            <span className="font-semibold">{START_LABELS[id]}</span>
           </label>
         ))}
       </fieldset>

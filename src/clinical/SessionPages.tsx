@@ -7,7 +7,8 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { fmtDate, fmtDateTime, testTitle } from "../app/format";
 import { LoadError, Page } from "../app/Page";
 import { deleteSession, getAnamnesis, getSession, listFindings, listQuestionnaires, listSessions, saveSession, sessionCount, type Finding, type Session } from "../data/clinical";
-import { getAppointment } from "../data/appointments";
+import { getAppointment, nextAppointmentOf } from "../data/appointments";
+import { PrecautionsNote } from "./PrecautionsNote";
 import { getDb } from "../data/db";
 import { getPatient, listTests, listWellness } from "../data/repo";
 import { Alert } from "../ui/Alert";
@@ -301,6 +302,16 @@ export function SessionFormPage() {
     const at = new Date(when);
     return Number.isNaN(at.getTime()) ? null : nextSessionCharge(getDb(), id, at.toISOString(), todayDay());
   }, [id, sid, when]);
+  /**
+   * La cita que ya tiene dada después de esta sesión (sin contar la que se está atendiendo, que es a la hora de la
+   * sesión): para no darle otra sin querer con «Cita en 1 semana».
+   */
+  const already = useAsync(async () => {
+    const at = new Date(when);
+    if (Number.isNaN(at.getTime())) return null;
+    const a = await nextAppointmentOf(getDb(), id, new Date(at.getTime() + 60_000));
+    return a && a.id !== sid ? a : null;
+  }, [id, sid, when]);
   const [payNow, setPayNow] = useState(false);
   const [payMethod, setPayMethod] = useState<Method>(lastMethod);
 
@@ -384,6 +395,32 @@ export function SessionFormPage() {
         {patient?.name}
         {!sid && count.planned !== null && ` · sesión ${count.done + 1} de ${count.planned} previstas`}
       </p>
+      <PrecautionsNote patientId={id} />
+      {previous && (previous.subjective || previous.objective || previous.treatment || previous.plan || previous.pain !== null) && (
+        <details className="rounded-md border border-border px-3">
+          <summary className="flex min-h-11 cursor-pointer items-center font-semibold">
+            Última sesión: {fmtDate(previous.performedAt)}
+            {previous.pain !== null && ` · EVA ${previous.pain}`}
+          </summary>
+          <dl className="flex flex-col gap-2 pb-3 text-sm">
+            {(
+              [
+                ["Qué refería", previous.subjective],
+                ["Qué encontraste", previous.objective],
+                ["Tratamiento", previous.treatment],
+                ["Plan", previous.plan],
+              ] as const
+            )
+              .filter(([, v]) => v.trim())
+              .map(([k, v]) => (
+                <div key={k}>
+                  <dt className="font-semibold text-text-muted">{k}</dt>
+                  <dd className="whitespace-pre-wrap">{v}</dd>
+                </div>
+              ))}
+          </dl>
+        </details>
+      )}
       {!sid && count.planned !== null && count.done >= count.planned && (
         <Alert tone="warning" title={`Ya lleva las ${count.planned} sesiones previstas`}>
           Si sigue, cambia el número en su anamnesis (Objetivos → Sesiones previstas).
@@ -458,6 +495,11 @@ export function SessionFormPage() {
               </Button>
             )}
           </div>
+          {already.data && !sid && (
+            <p role="status" className={cx("rounded-md px-3 py-2 text-sm", nextAt ? "bg-warning-soft" : "bg-surface")}>
+              Ya tiene cita el {fmtVisit(already.data.startsAt)}.{nextAt ? " Si das esta, tendrá las dos." : " No hace falta darle otra."}
+            </p>
+          )}
           <TextField label="Día y hora" type="datetime-local" value={nextAt} onChange={(e) => setNextAt(e.target.value)} />
           {nextAt && (
             <Chips label="Duración" options={["30", "45", "60", "90"]} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => v[0] && setNextMinutes(Number(v[0]))} />

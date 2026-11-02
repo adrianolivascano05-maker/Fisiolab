@@ -14,10 +14,24 @@ test.describe("PWA: instalable y sin conexión", () => {
     const href = await page.locator('link[rel="manifest"]').getAttribute("href");
     const manifest = await (await request.get(href!)).json();
     const base = new URL(baseURL!).pathname;
-    expect(manifest).toMatchObject({ name: "OmniClin", short_name: "OmniClin", display: "standalone", lang: "es", start_url: base, scope: base });
+    expect(manifest).toMatchObject({ name: "OmniClin", short_name: "OmniClin", display: "standalone", lang: "es", start_url: `${base}?inicio`, scope: base });
     for (const icon of manifest.icons) expect((await request.get(icon.src)).status(), icon.src).toBe(200);
     expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === "maskable")).toBe(true);
     expect((await request.get("icons/omniclin-apple-touch-icon.png")).status()).toBe(200);
+  });
+
+  test("PWA-H4 desde el icono abre en la Agenda; en Ajustes › Aspecto se puede elegir Pacientes", async ({ page }) => {
+    await page.goto("./?inicio");
+    await expect(page).toHaveURL(/\/agenda$/);
+    // Una dirección normal sigue abriendo Pacientes.
+    await page.goto("./");
+    await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible();
+    await page.goto("./ajustes/aspecto");
+    await page.getByRole("radio", { name: "Pacientes" }).check();
+    await expectAccessible(page);
+    await page.goto("./?inicio");
+    await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible();
+    await expect(page).not.toHaveURL(/agenda/);
   });
 
   test("PWA-H3 los datos se guardan en el dispositivo: siguen al recargar y al abrir otra dirección en la misma pestaña", async ({ page }) => {

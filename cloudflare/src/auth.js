@@ -2,6 +2,7 @@
 
 import { CACHE_ENTRIES, CACHE_SECONDS } from "./constants.js";
 import { HttpError } from "./util.js";
+import { BAD_TOKENS_PER_MINUTE, blocked, clientIp, hit } from "./ratelimit.js";
 
 /** @typedef {import("./types.js").Env} Env */
 /** @typedef {import("./types.js").Identity} Identity */
@@ -37,17 +38,22 @@ export async function authenticate(request, env, deps) {
   /** @type {number | undefined} segundos que se recuerda un token recién comprobado */
   let expiresIn;
   if (!who) {
+    // Quien manda sesiones falsas sin parar desde una IP: al pasar el tope ya no se pregunta a Google (429).
+    const ip = clientIp(request);
+    if (blocked("token", ip, BAD_TOKENS_PER_MINUTE, now)) hit("token", ip, BAD_TOKENS_PER_MINUTE, now);
+    const bad = () => {
+      hit("token", ip, BAD_TOKENS_PER_MINUTE, now);
+      return new HttpError(401, "La sesión de Google no es válida o ha caducado. Vuelve a entrar con tu cuenta.");
+    };
     /** @type {Identity} */
     let id;
     try {
       id = await deps.verifyToken(token, env);
     } catch (err) {
-      if (err instanceof HttpError) throw err;
-      throw new HttpError(401, "La sesión de Google no es válida o ha caducado. Vuelve a entrar con tu cuenta.");
+      if (err instanceof HttpError && err.status !== 401) throw err;
+      throw bad();
     }
-    if (!id || typeof id.sub !== "string" || !id.sub || typeof id.email !== "string") {
-      throw new HttpError(401, "La sesión de Google no es válida o ha caducado. Vuelve a entrar con tu cuenta.");
-    }
+    if (!id || typeof id.sub !== "string" || !id.sub || typeof id.email !== "string") throw bad();
     expiresIn = Math.min(Number.isFinite(id.expiresIn) ? Number(id.expiresIn) : CACHE_SECONDS, CACHE_SECONDS);
     who = { sub: id.sub, email: id.email, until: now + expiresIn * 1000 };
   }

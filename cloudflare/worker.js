@@ -188,7 +188,7 @@
  * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
-const SERVER_VERSION = "2026-10-30";
+const SERVER_VERSION = "2026-11-02";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 const MAGIC = "Q0VOSVRFTkMx";
@@ -286,6 +286,11 @@ export default {
   },
 };
 
+/** Solo para las pruebas: el tope de peticiones por IP vuelve a cero (cloudflare/src/ratelimit.js). */
+export function resetLimitsForTests() {
+  resetRateLimits();
+}
+
 /**
  * Atiende una petición. Las pruebas pasan `deps` para no llamar a Google.
  * @param {Request} request
@@ -332,14 +337,19 @@ async function route(request, env, deps, originAllowed) {
     if (!originAllowed) throw new HttpError(403, "Esta dirección no tiene permiso para usar el servidor (ALLOWED_ORIGINS).");
     return new Response(null, { status: 204 });
   }
-  if (path === "/v1/salud" && method === "GET") return health(env);
+  if (path === "/v1/salud" && method === "GET") {
+    hit("public", clientIp(request), PUBLIC_PER_MINUTE, deps.now());
+    return health(env);
+  }
 
   // Lo que abre el paciente con su enlace: sin sesión (no tiene cuenta), con el id del formulario.
   const pub = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})(\/respuesta)?$/.exec(path);
+  if (pub) hit("public", clientIp(request), PUBLIC_PER_MINUTE, deps.now());
   if (pub) return publicForm(request, database(env), /** @type {string} */ (pub[1]), pub[2] !== undefined, deps.now);
   const pubDoc = /^\/v1\/formularios\/([A-Za-z0-9_-]{22,64})\/documentos\/([1-9]|10)$/.exec(path);
   if (pubDoc) {
     if (method !== "PUT") throw notFound();
+    hit("public", clientIp(request), PUBLIC_PER_MINUTE, deps.now());
     return publicFormDoc(request, env, /** @type {string} */ (pubDoc[1]), Number(pubDoc[2]), deps.now);
   }
 
@@ -1730,17 +1740,22 @@ async function authenticate(request, env, deps) {
   /** @type {number | undefined} segundos que se recuerda un token recién comprobado */
   let expiresIn;
   if (!who) {
+    // Quien manda sesiones falsas sin parar desde una IP: al pasar el tope ya no se pregunta a Google (429).
+    const ip = clientIp(request);
+    if (blocked("token", ip, BAD_TOKENS_PER_MINUTE, now)) hit("token", ip, BAD_TOKENS_PER_MINUTE, now);
+    const bad = () => {
+      hit("token", ip, BAD_TOKENS_PER_MINUTE, now);
+      return new HttpError(401, "La sesión de Google no es válida o ha caducado. Vuelve a entrar con tu cuenta.");
+    };
     /** @type {Identity} */
     let id;
     try {
       id = await deps.verifyToken(token, env);
     } catch (err) {
-      if (err instanceof HttpError) throw err;
-      throw new HttpError(401, "La sesión de Google no es válida o ha caducado. Vuelve a entrar con tu cuenta.");
+      if (err instanceof HttpError && err.status !== 401) throw err;
+      throw bad();
     }
-    if (!id || typeof id.sub !== "string" || !id.sub || typeof id.email !== "string") {
-      throw new HttpError(401, "La sesión de Google no es válida o ha caducado. Vuelve a entrar con tu cuenta.");
-    }
+    if (!id || typeof id.sub !== "string" || !id.sub || typeof id.email !== "string") throw bad();
     expiresIn = Math.min(Number.isFinite(id.expiresIn) ? Number(id.expiresIn) : CACHE_SECONDS, CACHE_SECONDS);
     who = { sub: id.sub, email: id.email, until: now + expiresIn * 1000 };
   }
@@ -1804,6 +1819,64 @@ async function verifyGoogleToken(token, env) {
 async function sha256Hex(text) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// ---------- Tope de peticiones por dirección IP ----------
+//
+// Lo que se abre sin sesión (los formularios de los pacientes y /v1/salud) y las sesiones de Google que no valen
+// llevan un tope por IP y por minuto. Se cuenta en la memoria de cada copia del servidor que tenga Cloudflare en
+// marcha (no es un contador global): frena a quien repite peticiones sin parar desde una dirección, ahorra las
+// consultas a la base y a Google, y no necesita nada que configurar. Lo que no puede hacer es evitar que esas
+// peticiones cuenten en el límite diario del plan gratuito: para eso hace falta una regla de límite de Cloudflare
+// delante del servidor, con un dominio propio (docs/pasos-pendientes.md).
+
+/** Peticiones sin sesión por IP y minuto. Un paciente que rellena un formulario y sube 10 archivos hace unas 15. */
+const PUBLIC_PER_MINUTE = 60;
+/** Sesiones de Google que no valen, por IP y minuto, antes de dejar de preguntar a Google. */
+const BAD_TOKENS_PER_MINUTE = 10;
+/** Direcciones recordadas como mucho (la memoria de cada copia del servidor es pequeña). */
+const MAX_KEYS = 5000;
+
+/** @type {Map<string, { start: number, n: number }>} */
+const windows = new Map();
+
+/** La IP de quien llama, según Cloudflare. Sin ella (las pruebas), una sola clave. */
+const clientIp = (/** @type {Request} */ request) => request.headers.get("CF-Connecting-IP") ?? "local";
+
+/**
+ * Cuenta una petición de `kind` desde `ip` y lanza 429 si pasa de `limit` en el último minuto.
+ * @param {string} kind
+ * @param {string} ip
+ * @param {number} limit
+ * @param {number} now ms
+ */
+function hit(kind, ip, limit, now) {
+  const key = `${kind}|${ip}`;
+  let w = windows.get(key);
+  if (!w || now - w.start >= 60_000) {
+    if (!w && windows.size >= MAX_KEYS) {
+      for (const [k, v] of windows) if (now - v.start >= 60_000) windows.delete(k);
+      for (const k of windows.keys()) {
+        if (windows.size < MAX_KEYS) break;
+        windows.delete(k);
+      }
+    }
+    w = { start: now, n: 0 };
+    windows.set(key, w);
+  }
+  w.n += 1;
+  if (w.n > limit) throw new HttpError(429, "Demasiadas peticiones seguidas desde esta conexión. Espera un minuto y vuelve a intentarlo.");
+}
+
+/** Sin pasar el tope: ¿ya está bloqueada esta IP para `kind`? (para no gastar otra consulta a Google). */
+function blocked(/** @type {string} */ kind, /** @type {string} */ ip, /** @type {number} */ limit, /** @type {number} */ now) {
+  const w = windows.get(`${kind}|${ip}`);
+  return !!w && now - w.start < 60_000 && w.n >= limit;
+}
+
+/** Solo para las pruebas: empezar de cero. */
+function resetRateLimits() {
+  windows.clear();
 }
 
 // ---------- Utilidades ----------

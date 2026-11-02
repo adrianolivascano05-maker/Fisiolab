@@ -7,7 +7,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 /** El orden de los módulos en worker.js (el de siempre: de las rutas a las utilidades). Cada archivo de src tiene que estar. */
-export const MODULES = ["types", "constants", "index", "copy", "copyStore", "clinics", "provider", "forms", "documents", "health", "auth", "util", "contract"];
+export const MODULES = ["types", "constants", "index", "copy", "copyStore", "clinics", "provider", "forms", "documents", "health", "auth", "ratelimit", "util", "contract"];
 export const ENTRY = "index";
 
 const NOTICE = [

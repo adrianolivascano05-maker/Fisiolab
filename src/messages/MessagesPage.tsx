@@ -20,6 +20,7 @@ import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { dayText, hourText } from "../schedule/reminders";
 import { FIRST_MESSAGE, fillTemplate, loadMessages, MESSAGES, messageSubject, messageText, saveMessages, specOf, type MessageKind, type MessageSettings, type MessageVars } from "./templates";
+import { SHOW_EXERCISES } from "../app/features";
 
 /** Lo que significa cada ficha, para la ayuda. */
 const VAR_HELP: Record<string, string> = {
@@ -134,7 +135,7 @@ function Editor({ saved, clinicName, onSaved }: { saved: MessageSettings; clinic
       )}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-6">
         <ul aria-label="Mensajes" className="flex flex-col gap-1.5">
-          {MESSAGES.map((m) => {
+          {MESSAGES.filter((m) => SHOW_EXERCISES || m.kind !== "ejercicios").map((m) => {
             const changed = !!(s.texts[m.kind]?.text && s.texts[m.kind]?.text !== m.text) || !!(s.texts[m.kind]?.subject && s.texts[m.kind]?.subject !== m.subject);
             return (
               <li key={m.kind}>

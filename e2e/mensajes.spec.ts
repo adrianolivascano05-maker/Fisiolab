@@ -9,7 +9,8 @@ test.describe("Mensajes a pacientes", () => {
     await expect(page.getByRole("heading", { name: "Mensajes a pacientes" })).toBeVisible();
     const list = page.getByRole("list", { name: "Mensajes" });
     // Sin «Documento para firmar por enlace»: la firma por enlace se retiró el 30-10-2026.
-    await expect(list.getByRole("button")).toHaveCount(8);
+    // La hoja de ejercicios está oculta (src/app/features.ts): su mensaje, también.
+    await expect(list.getByRole("button")).toHaveCount(7);
     await expect(list.getByRole("button", { name: /Documento para firmar por enlace/ })).toHaveCount(0);
     await expect(list.getByRole("button", { name: /Recordatorio de cita/ })).toHaveAttribute("aria-pressed", "true");
     await expectAccessible(page);

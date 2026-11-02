@@ -23,6 +23,7 @@ import { AppointmentSheet } from "./AppointmentSheet";
 import { EpisodePicker } from "./EpisodePicker";
 import { PatientPhysios } from "./PatientPhysios";
 import { PatientNav } from "./parts";
+import { PrecautionsNote } from "./PrecautionsNote";
 import { useLeaveWaitlist } from "../schedule/LeaveWaitlist";
 import { waPhone, whatsappUrl } from "../schedule/reminders";
 
@@ -85,6 +86,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
             <h1 className="text-[1.75rem] leading-tight font-bold break-words">{name}</h1>
             {patient && <p className="text-sm text-text-muted">{facts.length ? facts.join(" · ") : "Sin más datos"}</p>}
             {edit.data && <p className="text-xs text-text-muted">Última modificación: {editText(edit.data)}</p>}
+            {patient && <PrecautionsNote patientId={id} className="mt-1" />}
             {admin && patient && (
               <Link to={`/ajustes/equipo/accesos?paciente=${id}`} className="inline-flex min-h-11 items-center self-start text-xs font-semibold text-accent underline underline-offset-2">
                 Quién ha abierto esta ficha

@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
+import { createBrowserRouter, Navigate, RouterProvider, useSearchParams } from "react-router";
+import { getStartPage, START_PARAM } from "./app/startPage";
 import { DbGate } from "./app/DbGate";
 import { CloudGate } from "./cloud/CloudGate"; // Cuenta de Google y copia en Drive (src/cloud/README.md)
 import { UpdateBanner } from "./app/pwa";
@@ -161,7 +162,11 @@ const routes = [
 
 /** El inicio: la lista de pacientes en el móvil; en el ordenador, lo de hoy (la lista ya está al lado). */
 function HomeRoute() {
-  return useDesktop() ? l(<DesktopHome />) : <PatientsPage />;
+  const desktop = useDesktop();
+  const [params] = useSearchParams();
+  // Abierta desde el icono instalado (start_url con «?inicio»): a la Agenda, salvo que se haya elegido Pacientes.
+  if (params.has(START_PARAM)) return <Navigate to={getStartPage() === "agenda" ? "/agenda" : "/"} replace />;
+  return desktop ? l(<DesktopHome />) : <PatientsPage />;
 }
 
 /** Las pantallas de la sección Pacientes (el inicio, las fichas y las mediciones) van dentro del panel del ordenador. */

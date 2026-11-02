@@ -937,3 +937,34 @@ WhatsApp ni correo, ni siquiera su anamnesis antes de la primera cita. Ahora hay
   precontractuales a petición del interesado) ni los textos están revisados por un abogado ni por el delegado de
   protección de datos. Hay que confirmarlo con él antes de usarlo con pacientes reales. Al cambiar los textos, sube
   `INTAKE_TEXT_VERSION`.
+
+## Revisión completa y fase 1 (02-11-2026)
+
+Revisión desde tres puntos de vista (el fisio en el día a día, el dueño que quiere venderla y una clínica que decide
+si la contrata), publicada como página para el usuario. Plan en tres fases: 1, cambios en la app; 2, antes de cobrar al
+primer cliente (empresa, marca y dominio, cuentas con doble factor, revisión legal, plan de pago, iPhone); 3, funciones
+grandes para que una clínica diga que sí (web y demo, rol de recepción, facturación con Verifactu por un proveedor,
+recordatorios automáticos, asistente de puesta en marcha, salas). Decisiones del usuario pendientes: a quién vender
+primero, facturación/reserva/recordatorios como extras de pago, y qué hacer con la hoja de ejercicios oculta.
+
+**Fase 1, hecha:**
+- **Hoy:** atendida y sin nada que deber sale «Al día» y no el botón «Cobrar» (antes se podía cobrar dos veces); cada
+  cita dice «1ª visita» y el bono en curso («Bono: quedan 3 de 10», `dayAccounts` en `src/data/billing.ts`, una consulta
+  para todos); con 3 o más citas ya pasadas antes de la siguiente pendiente, se pliegan («Ver las N anteriores»); el
+  título cuenta como la franja de Pacientes («37 citas · 1 anulada»).
+- **Nota de sesión:** la última sesión, plegada, con su EVA; «Ya tiene cita el …» si ya tiene la siguiente dada (no
+  cuenta la que se está atendiendo).
+- **Precauciones y alergias** de la anamnesis a la vista en la cabecera de la ficha y en la nota de sesión
+  (`src/clinical/PrecautionsNote.tsx`): solo lo que escribió el fisio, sin deducir nada.
+- **Al abrir la app desde su icono**, la Agenda (`start_url` con «?inicio», `src/app/startPage.ts`); en Ajustes ›
+  Aspecto se puede elegir Pacientes. Una dirección normal sigue abriendo Pacientes.
+- **Hoja de ejercicios oculta:** ya no se nombra en Ajustes ni sale su mensaje en Ajustes › Mensajes (la plantilla
+  sigue guardada y vuelve con `SHOW_EXERCISES`).
+- **Servidor `2026-11-02`:** tope por IP (docs/pasos-pendientes.md, 3 bis).
+- Pruebas: AG1, AG3, PWA-H4, MS1, `worker.test` (tope por IP).
+
+**Aplazado: movilidad de rodilla, codo y muñeca.** La tabla `tests` tiene una regla (CHECK) con los tipos de medición
+de la primera versión (`001_init.sql`): `rom_knee` y compañía no caben. Hace falta rehacer esa tabla en una migración
+(copiar, borrar y renombrar, con sus índices y disparadores, y con cuidado de no borrar los resultados por las claves
+ajenas) y, además, que **todos** los dispositivos de una clínica estén actualizados antes de medir una rodilla: uno
+antiguo rechazaría esa medición al sincronizar. La columna lumbar, con un solo móvil, no se separa de la cadera.

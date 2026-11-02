@@ -89,7 +89,8 @@ export default defineConfig({
         short_name: "OmniClin",
         description: "Registro y organización de la actividad de fisioterapia: historia clínica, agenda, cobros y medición del rendimiento físico. No es un producto sanitario: no diagnostica ni propone tratamientos.",
         lang: "es",
-        start_url: base,
+        // «?inicio»: abierta desde el icono, va a la Agenda o a Pacientes según Ajustes › Aspecto (src/app/startPage.ts).
+        start_url: `${base}?inicio`,
         scope: base,
         display: "standalone",
         orientation: "portrait",

@@ -92,6 +92,19 @@ Después, en **cada** dispositivo de la clínica:
 Cuando estén mudados todos los dispositivos, la versión de GitHub puede quedarse como está (sigue funcionando) o
 puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dímelo y lo preparo.
 
+## 3 bis. Cloudflare: pegar el `worker.js` de la versión `2026-11-02` (unos 3 minutos)
+
+Trae un tope de peticiones por dirección IP (`cloudflare/src/ratelimit.js`): lo que se abre sin sesión (formularios de
+los pacientes y `/v1/salud`) admite 60 peticiones por minuto y dirección, y tras 10 sesiones de Google falsas en un minuto
+deja de preguntar a Google. Las tablas no cambian. Solo el paso 3 de abajo: **Workers & Pages** → el servidor → **Edit
+code** → borra todo, pega `cloudflare/worker.js` → **Deploy**, y comprueba que `/v1/salud` dice `"version":"2026-11-02"`.
+Hasta que lo pegues, Ajustes › Proveedor lo recuerda en naranja; la app funciona igual.
+
+Lo que este tope **no** evita: que alguien gaste las 100.000 peticiones diarias del plan gratuito (cada petición
+cuenta aunque se rechace). Para eso hace falta, más adelante, un dominio propio delante del servidor con una regla de
+límite de Cloudflare (Security → WAF → Rate limiting rules; el plan gratuito trae una), o pasar al plan de pago de
+Workers con el primer cliente. Va en la fase 2 de la revisión del 02-11-2026.
+
 ## 3. Cloudflare: pegar el `worker.js` nuevo y borrar las tablas de la reserva (unos 10 minutos)
 
 **Hecho el 27-10-2026** (versión `2026-10-27.2`; tablas de la reserva borradas, no quedaba ninguna sin recoger) **y
