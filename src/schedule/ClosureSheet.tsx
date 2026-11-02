@@ -126,7 +126,7 @@ export function ClosureSheet({
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title={closure ? "Cambiar el cierre" : "Cerrar la agenda"}>
+    <Sheet open={open} onClose={onClose} title={closure ? "Cambiar el bloqueo" : "Bloquear horas o días"}>
       <form
         className="flex flex-col gap-3"
         noValidate
@@ -173,7 +173,7 @@ export function ClosureSheet({
         )}
         {error && <Alert tone="danger" title={error} />}
         <Button type="submit" block loading={busy} icon={<CalendarOff aria-hidden="true" className="size-5" />}>
-          {closure ? "Guardar el cierre" : "Cerrar la agenda"}
+          {closure ? "Guardar el cambio" : "Bloquear sin citas"}
         </Button>
         {closure && (
           <Button

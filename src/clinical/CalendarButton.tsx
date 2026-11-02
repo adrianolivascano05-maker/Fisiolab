@@ -1,7 +1,13 @@
 // «Añadir al calendario»: la siguiente cita de una sesión a Google Calendar (enlace) o al calendario del móvil,
 // del Mac u Outlook (archivo .ics). No conecta ninguna cuenta: el fisioterapeuta confirma en su calendario.
-import { CalendarPlus, Download, ExternalLink } from "lucide-react";
+import { CalendarPlus, Download, ExternalLink, MessageCircle } from "lucide-react";
 import { useState } from "react";
+import { useAsync } from "../app/useAsync";
+import { getDb } from "../data/db";
+import { getClinic, mayMessage } from "../data/privacy";
+import { getPatient } from "../data/repo";
+import { loadMessages } from "../messages/templates";
+import { reminderMessage, waPhone, whatsappUrl } from "../schedule/reminders";
 import { Button, IconButton } from "../ui/Button";
 import { Sheet } from "../ui/Sheet";
 import { fmtVisit, googleCalendarUrl, openIcs, type CalendarEvent } from "./calendar";
@@ -17,6 +23,7 @@ export function CalendarSheet({
   event,
   title = "Añadir al calendario",
   onNever,
+  patientId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -24,12 +31,26 @@ export function CalendarSheet({
   title?: string;
   /** Si se da, un botón «No volver a preguntar» (la hoja que sale sola al guardar una sesión). */
   onNever?: () => void;
+  /** Con el paciente: también «Mandársela por WhatsApp» (con su permiso de contacto firmado y teléfono). */
+  patientId?: string;
 }) {
+  const wa = useAsync(async () => {
+    if (!open || !patientId) return null;
+    const db = getDb();
+    const [patient, clinic, messages] = await Promise.all([getPatient(db, patientId), getClinic(db), loadMessages(db)]);
+    const phone = patient && mayMessage(patient.privacy.consents?.contact) ? waPhone(patient.phone) : null;
+    return phone ? whatsappUrl(phone, reminderMessage(messages, { name: patient!.name, startsAt: event.start, clinic: clinic.name })) : null;
+  }, [open, patientId, event.start]);
   return (
     <Sheet open={open} onClose={onClose} title={title}>
       <p>
         <span className="font-semibold">{fmtVisit(event.start)}</span> · {event.minutes} min
       </p>
+      {wa.data && (
+        <a href={wa.data} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-border bg-bg px-5 font-semibold text-accent hover:bg-surface">
+          <MessageCircle aria-hidden="true" className="size-5" /> Mandársela por WhatsApp
+        </a>
+      )}
       {/* Se cierra después del clic, con el enlace ya seguido: un enlace que sale de la página antes puede no abrirse. */}
       <a href={googleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" className={googleLink} onClick={() => setTimeout(onClose)}>
         <ExternalLink aria-hidden="true" className="size-5" /> Google Calendar

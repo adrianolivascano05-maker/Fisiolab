@@ -180,6 +180,7 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
           open
           onClose={closeOffer}
           event={offer.data}
+          patientId={forPatient ?? undefined}
           title="¿Añadir la cita a tu calendario?"
           onNever={() => {
             setCalendarPromptOff();

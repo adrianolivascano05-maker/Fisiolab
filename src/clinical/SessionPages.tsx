@@ -131,6 +131,7 @@ export function SessionsPage() {
           open
           onClose={() => setParams({}, { replace: true })}
           event={justSavedEvent}
+          patientId={id}
           title="¿Añadir la cita a tu calendario?"
           onNever={() => {
             setCalendarPromptOff();
@@ -279,11 +280,13 @@ export function SessionFormPage() {
       lastMinutes: sessions.find((s) => s.nextMinutes)?.nextMinutes ?? DEFAULT_VISIT_MINUTES,
     };
   });
-  // Desde una cita de la agenda («Atender»), la sesión lleva la hora de la cita, no la de ahora.
+  // Desde una cita de la agenda («Atender»), la sesión lleva la hora de la cita, no la de ahora (se suele apuntar
+  // después). Si se atiende antes de esa hora, la de ahora: si no, el justificante de hoy no la encontraría.
   const [query] = useSearchParams();
   const [when, setWhen] = useState(() => {
     const at = query.get("hora");
-    return localInput(at && !Number.isNaN(Date.parse(at)) ? at : new Date().toISOString());
+    const now = new Date();
+    return localInput(at && !Number.isNaN(Date.parse(at)) && Date.parse(at) <= now.getTime() ? at : now.toISOString());
   });
   const [pain, setPain] = useState<number | null>(null);
   const [subjective, setSubjective] = useState("");
@@ -306,12 +309,16 @@ export function SessionFormPage() {
    * La cita que ya tiene dada después de esta sesión (sin contar la que se está atendiendo, que es a la hora de la
    * sesión): para no darle otra sin querer con «Cita en 1 semana».
    */
+  const attending = query.get("hora");
   const already = useAsync(async () => {
     const at = new Date(when);
     if (Number.isNaN(at.getTime())) return null;
-    const a = await nextAppointmentOf(getDb(), id, new Date(at.getTime() + 60_000));
+    // Después de esta sesión y, si se atiende una cita de la agenda, después de esa cita también (aunque se
+    // atienda antes de su hora, no cuenta como «ya tiene cita»).
+    const from = Math.max(at.getTime(), attending && !Number.isNaN(Date.parse(attending)) ? Date.parse(attending) : 0) + 60_000;
+    const a = await nextAppointmentOf(getDb(), id, new Date(from));
     return a && a.id !== sid ? a : null;
-  }, [id, sid, when]);
+  }, [id, sid, when, attending]);
   const [payNow, setPayNow] = useState(false);
   const [payMethod, setPayMethod] = useState<Method>(lastMethod);
 

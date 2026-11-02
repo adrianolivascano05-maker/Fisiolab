@@ -320,7 +320,7 @@ export function SchedulePage() {
           </Button>
         )}
         <Button variant="secondary" icon={<CalendarOff aria-hidden="true" className="size-5" />} onClick={() => setClosing({ closure: null, day: firstDay })}>
-          Cerrar la agenda
+          Bloquear horas o días
         </Button>
         {team && admin && view === "week" && (
           <Button

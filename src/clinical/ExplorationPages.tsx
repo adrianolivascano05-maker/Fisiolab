@@ -30,7 +30,7 @@ import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { clinicalSummary, regionLabel } from "./anamnesis";
-import { findTest, galleryRegionLabel, galleryTests, galleryUrl, searchTests, testsByRegion, type SpecialTest } from "./galleryLink";
+import { allRegions, findTest, galleryRegionLabel, galleryTests, galleryUrl, searchTests, testsByRegion, testsForRegions, type SpecialTest } from "./galleryLink";
 import { Chips, ResultBadge, resultLabels, TextArea } from "./parts";
 import { PatientShell } from "./PatientShell";
 import { Guard, localInput, useLoad } from "./pageKit";
@@ -220,6 +220,8 @@ const sideFromAnamnesis = (lado: string): FindingSide | null => (lado === "Derec
 /** Elegir el test: buscador, favoritos de la galería y los de la zona de la anamnesis. */
 function TestPicker({ regions, onPick }: { regions: string[]; onPick: (t: SpecialTest) => void }) {
   const [q, setQ] = useState("");
+  /** Sin zona en la anamnesis: la zona elegida aquí, para ver sus tests sin escribir nada. */
+  const [zone, setZone] = useState<string | null>(null);
   const { favorites } = useFavorites();
   const found = useMemo(() => searchTests(q), [q]);
   const favs = favorites.map(findTest).filter((t): t is SpecialTest => !!t);
@@ -258,7 +260,26 @@ function TestPicker({ regions, onPick }: { regions: string[]; onPick: (t: Specia
       {q.trim() ? (found.length ? group("Resultados", found) : <p className="text-sm text-text-muted">Ningún test se llama así.</p>) : null}
       {!q.trim() && zones.map((g) => <Fragment key={g.region}>{group(`Tests de ${regionLabel(g.region)} (${g.tests.length})`, g.tests)}</Fragment>)}
       {!q.trim() && group("Tus favoritos de la Biblioteca", favs)}
-      {!q.trim() && !zones.length && !favs.length && <p className="text-sm text-text-muted">Escribe el nombre del test. Si rellenas la zona en la anamnesis, aquí verás los de esa zona.</p>}
+      {!q.trim() && !zones.length && (
+        <section aria-label="Tests por zona" className="flex flex-col gap-2">
+          <h3 className="text-sm font-semibold tracking-wide text-text-muted uppercase">Por zona</h3>
+          <div className="flex flex-wrap gap-2">
+            {allRegions.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                aria-pressed={zone === r.id}
+                onClick={() => setZone(zone === r.id ? null : r.id)}
+                className={cx("min-h-11 rounded-pill border px-3 text-sm font-semibold", zone === r.id ? "border-accent bg-accent text-on-accent" : "border-border bg-bg hover:bg-surface")}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          {zone && group(`Tests de ${allRegions.find((r) => r.id === zone)!.label.toLowerCase()}`, testsForRegions([zone]))}
+          <p className="text-sm text-text-muted">Si rellenas la zona en la anamnesis, sus tests salen aquí directamente.</p>
+        </section>
+      )}
     </div>
   );
 }

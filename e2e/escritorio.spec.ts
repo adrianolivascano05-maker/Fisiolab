@@ -161,7 +161,7 @@ test.describe("Ordenador", () => {
     await expectAccessible(page);
     // Ajustes: Tu clínica y Dinero en dos columnas.
     await page.goto("./ajustes");
-    const [cl, da] = [(await page.getByRole("region", { name: "Tu clínica" }).boundingBox())!, (await page.getByRole("region", { name: "Dinero" }).boundingBox())!];
+    const [cl, da] = [(await page.getByRole("region", { name: "Tu clínica", exact: true }).boundingBox())!, (await page.getByRole("region", { name: "Dinero" }).boundingBox())!];
     expect(da.x).toBeGreaterThan(cl.x + cl.width - 1);
     expect(Math.abs(da.y - cl.y)).toBeLessThan(2);
     await expectAccessible(page);

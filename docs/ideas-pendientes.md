@@ -972,3 +972,26 @@ en `src/calc/rom.ts`: flexión de rodilla, flexión, pronación y supinación de
 el inclinómetro, sobre foto (salvo prono-supinación) o con el goniómetro. Un dispositivo sin actualizar que reciba una
 de estas mediciones no la mete a medias: pide actualizar la app (cada lote de cambios lleva su versión de la base,
 `engine.ts`). La columna lumbar no: con un solo móvil no se separa de la cadera. Pruebas: `rom.test` y F11-H6.
+
+### Tanda de eficiencia (02-11-2026, después de la fase 1)
+
+- **Buscar pacientes** con las palabras en cualquier orden («Iglesias Carlos» encuentra a «Carlos Iglesias»), en la
+  lista por páginas (`src/data/patientSearch.ts`, el texto se pliega una vez por fila) y en `matchesPatient`.
+- **Atender antes de la hora** de la cita: la sesión se guarda con la hora real (antes, con la de la cita, y el
+  justificante de hoy no la encontraba). El aviso «Ya tiene cita» no cuenta la cita que se está atendiendo.
+- **Mandar la cita nueva por WhatsApp** desde la hoja «¿Añadir la cita a tu calendario?» que sale al guardar la
+  sesión (con su permiso de contacto firmado y teléfono; el texto es el del recordatorio).
+- **Registrar un test sin zona** en la anamnesis: botones por zona y sus tests, sin tener que escribir.
+- **Pon en marcha tu clínica**, arriba de Ajustes (`src/pages/SetupChecklist.tsx`): seis pasos con su enlace y si
+  ya están hechos; se va sola al completarla o con «Ocultar».
+- **Textos:** «Cerrar la agenda» pasa a «Bloquear horas o días»; un motivo sin escribir ya no dice «Primera consulta».
+- El botón de guardar la anamnesis ya estaba fijo abajo en el móvil: no hacía falta tocarlo.
+- Pruebas: `patientSearch.test`, `SetupChecklist.test` y US7.
+
+**Fallo antiguo encontrado, sin arreglar:** F15-H6 (restaurar dos veces seguidas una copia de una versión antigua y
+volver a abrir la app) deja a veces la base dañada («database disk image is malformed» o «index … already exists»)
+cuando el ordenador va cargado: 2 de 10 con este código y 4 de 10 con el de antes de la migración 037, así que no lo
+causa ella. En GitHub pasa. El guardado de SQLite en OPFS sí fuerza la escritura (xSync → flush); hay que
+investigar con calma qué queda a medias al restaurar y recargar en seguida (diario de SQLite, el worker anterior aún
+vivo, la copia de antes de actualizar). Hasta entonces: tras restaurar una copia, esperar a que la app la enseñe antes
+de cerrarla.

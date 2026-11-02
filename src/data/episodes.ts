@@ -56,7 +56,7 @@ export function episodeLabel(e: Episode): string {
   if (e.title) return e.title;
   const r = e.reason?.trim().split("\n")[0];
   if (r) return r.length > 40 ? `${r.slice(0, 39)}…` : r;
-  return e.first ? "Primera consulta" : "Motivo sin nombre";
+  return e.first ? "Motivo sin escribir" : "Motivo sin nombre";
 }
 
 /** El motivo que se está viendo, o ALL. Si el elegido ya no existe (borrado en otro dispositivo), todos. */

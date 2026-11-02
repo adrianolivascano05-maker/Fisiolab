@@ -41,10 +41,13 @@ describe("buscar pacientes en la base", () => {
     await createPatient(db, person("Ángela Gil", { phone: "+34 611-22-33-44" }));
     await saveAnamnesis(db, lucia, { motivo: "Dolor de rodilla derecha", diagnostico_funcional: "Tendinopatía rotuliana" });
     const all = await listPatients(db);
-    for (const q of ["lucia", "LUCÍA", "pérez", "600123456", "600 12", "12345678Z", "rodilla", "rotuliana", "montaña", "MARIO@", "611223344", "angela", "+34 611", "ruiz", "nadie", "6001"]) {
+    for (const q of ["lucia", "LUCÍA", "pérez", "600123456", "600 12", "12345678Z", "rodilla", "rotuliana", "montaña", "MARIO@", "611223344", "angela", "+34 611", "ruiz", "nadie", "6001", "perez lucia", "Ruiz  Mario", "lucia rodilla", "lucia mario"]) {
       const before = all.filter((p) => matchesPatient(p, q)).map((p) => p.name);
       expect(await names({ search: q }), q).toEqual(before);
     }
+    // Varias palabras en cualquier orden.
+    expect(await names({ search: "Pérez Lucía" })).toEqual(["Lucía Pérez"]);
+    expect(await names({ search: "lucia mario" })).toEqual([]);
   });
 
   it("de la A a la Z sin tildes, por páginas y por letras; cuenta el total", async () => {

@@ -48,6 +48,9 @@ export function matchesPatient(p: Pick<PatientSummary, "name" | "searchText">, q
   if (!q) return true;
   const text = fold(`${p.name} ${p.searchText}`);
   if (text.includes(q)) return true;
+  // Varias palabras en cualquier orden: «Iglesias Carlos» encuentra a «Carlos Iglesias».
+  const words = q.split(/\s+/).filter(Boolean);
+  if (words.length > 1 && /\p{L}/u.test(q) && words.every((w) => text.includes(w))) return true;
   const digits = phoneDigits(q);
   return digits !== null && text.replace(/\D/g, "").includes(digits);
 }

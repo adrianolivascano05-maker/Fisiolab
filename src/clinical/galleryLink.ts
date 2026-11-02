@@ -2,7 +2,7 @@
 // interpreta el resultado de un paciente: la evidencia de cada test está en la Biblioteca. Si se quita la galería, solo hay que
 // quitar este archivo y las pantallas que lo usan (los hallazgos guardados llevan su nombre y su región).
 import { tests } from "../gallery/data";
-import { regionOf } from "../gallery/regions";
+import { regionOf, regions as galleryRegions } from "../gallery/regions";
 import type { SpecialTest } from "../gallery/types";
 
 export type { SpecialTest };
@@ -34,4 +34,7 @@ export function testsForRegions(regionIds: string[]): SpecialTest[] {
 export function testsByRegion(regionIds: string[]): { region: string; tests: SpecialTest[] }[] {
   return regionIds.map((region) => ({ region, tests: testsForRegions([region]) })).filter((g) => g.tests.length);
 }
+
+/** Todas las zonas de la Biblioteca, con su nombre: para elegir zona cuando la anamnesis no la tiene. */
+export const allRegions = galleryRegions.map((r) => ({ id: r.id as string, label: r.label }));
 

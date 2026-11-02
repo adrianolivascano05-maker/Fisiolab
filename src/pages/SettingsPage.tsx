@@ -59,6 +59,7 @@ import { clinicComplete, getClinic } from "../data/privacy";
 import { exportCsv, getSetting, setSetting } from "../data/repo";
 import { hasSeed, loadSeed, removeSeed } from "../data/seed";
 import { DemoSection } from "../demo/DemoSection";
+import { SetupChecklist } from "./SetupChecklist";
 import { SignatureSettings } from "../brand/SignatureSettings";
 import { ClinicSettings } from "../privacy/ClinicSettings";
 import { LockSettings } from "../privacy/LockSettings";
@@ -103,6 +104,7 @@ export function SettingsPage() {
     <Page title="Ajustes" tabs>
       {/* En el ordenador, los cuatro grupos en dos columnas: Tu clínica y Dinero arriba; Mensajes y App y datos debajo. */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
+      <SetupChecklist />
       <Group title="Tu clínica">
         <RowLink
           to="/ajustes/clinica"

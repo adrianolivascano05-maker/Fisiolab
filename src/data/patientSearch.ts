@@ -101,7 +101,13 @@ function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "lette
   if (text) {
     const digits = phoneDigits(text);
     const byDigits = digits !== null;
-    if (/\p{L}/u.test(text)) {
+    const words = text.split(/\s+/).filter(Boolean);
+    if (/\p{L}/u.test(text) && words.length > 1) {
+      // Varias palabras, en cualquier orden («Iglesias Carlos» encuentra a «Carlos Iglesias»): cada una tiene que estar.
+      // El texto del paciente se pliega una sola vez por fila.
+      where.push(`(select ${words.map(() => "instr(t, ?) > 0").join(" and ")} from (select fold(${SEARCH_TEXT}) as t))`);
+      bind.push(...words);
+    } else if (/\p{L}/u.test(text)) {
       // Con letras, en todo: también el motivo y el diagnóstico.
       where.push(`instr(fold(${SEARCH_TEXT}), ?) > 0`);
       bind.push(text);

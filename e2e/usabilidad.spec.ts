@@ -217,4 +217,39 @@ test.describe("Comodidad del día a día", () => {
     await expect(diagnosis).toHaveValue(/deficiencia de gravedad sin especificar en dolor en la espalda \(b28013\.8\)/);
     await expect(diagnosis).not.toHaveValue(/según/);
   });
+
+  test("US7 puesta en marcha en Ajustes, buscar con las palabras en otro orden y tests por zona sin anamnesis", async ({ page }) => {
+    // Ajustes: los pasos para empezar, con lo que falta; «Ocultar» la quita en este dispositivo.
+    await page.goto("./ajustes");
+    const setup = page.getByRole("region", { name: /Pon en marcha tu clínica/ });
+    await expect(setup).toContainText("0 de 6");
+    await expect(setup.getByRole("link", { name: /Pon el precio de tus sesiones/ })).toHaveAttribute("href", /\/ajustes\/cobros$/);
+    await expectAccessible(page);
+
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Carlos Iglesias Mora");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Carlos Iglesias Mora" })).toBeVisible();
+    const url = page.url();
+    await page.goto("./ajustes");
+    await expect(setup).toContainText("1 de 6");
+    await setup.getByRole("button", { name: "Ocultar" }).click();
+    await expect(setup).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
+    await expect(setup).toHaveCount(0);
+
+    // Buscar con las palabras en otro orden.
+    await page.goto("./");
+    await page.getByRole("searchbox").first().fill("iglesias carlos");
+    await expect(page.getByRole("link", { name: /Carlos Iglesias Mora/ })).toBeVisible();
+
+    // Registrar un test sin zona en la anamnesis: se elige la zona y salen sus tests.
+    await page.goto(url);
+    await add(page, "Exploración").click();
+    const zones = page.getByRole("region", { name: "Tests por zona" });
+    await zones.getByRole("button", { name: "Hombro" }).click();
+    await expect(zones.getByRole("button", { name: /Neer/ }).first()).toBeVisible();
+    await expectAccessible(page);
+  });
 });
