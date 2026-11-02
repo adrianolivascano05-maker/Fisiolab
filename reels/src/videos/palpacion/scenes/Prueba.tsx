@@ -18,7 +18,7 @@ export const Prueba: React.FC<SceneProps> = ({ c }) => {
   const fade = interpolate(frame, [rx, rx + 6], [1, 0.15], CLAMP);
   return (
     <Punch shakeAt={[opX, rx]} amount={0.8}>
-      <AbsoluteFill style={{ backgroundColor: "white", opacity: interpolate(frame, [0, 1, 10], [1, 1, 0], CLAMP) }} />
+      <AbsoluteFill style={{ backgroundColor: COLORS.ink, opacity: interpolate(frame, [0, 1, 10], [0.9, 0.9, 0], CLAMP) }} />
       <AbsoluteFill style={{ backgroundColor: COLORS.cyan, opacity: interpolate(frame, [rx, rx + 1, rx + 10], [0, 0.35, 0], CLAMP) }} />
       <Stage gap={30}>
         <div style={{ display: "flex", gap: 40, alignItems: "center", opacity: fade, scale: String(0.6 + 0.4 * fade) }}>
@@ -34,7 +34,7 @@ export const Prueba: React.FC<SceneProps> = ({ c }) => {
           <Slam text="RADIOGRAFÍA" at={rx} size={128} color={COLORS.cyan} glow spacing={-3} />
         </div>
       </Stage>
-      <div style={{ position: "absolute", left: 0, width: WIDTH, top: sweep - 90, height: 180, background: `linear-gradient(180deg, rgba(79,209,255,0) 0%, rgba(79,209,255,0.5) 50%, rgba(79,209,255,0) 100%)`, opacity: frame >= rx && frame < rx + 24 ? 1 : 0 }} />
+      <div style={{ position: "absolute", left: 0, width: WIDTH, top: sweep - 90, height: 180, background: `linear-gradient(180deg, rgba(58,134,255,0) 0%, rgba(58,134,255,0.5) 50%, rgba(58,134,255,0) 100%)`, opacity: frame >= rx && frame < rx + 24 ? 1 : 0 }} />
     </Punch>
   );
 };

@@ -1,11 +1,11 @@
 import { loadFont } from "@remotion/fonts";
 import { staticFile } from "remotion";
 
-export const fontFamily = "Montserrat";
+export const fontFamily = "Nunito";
 loadFont({
   family: fontFamily,
-  url: staticFile("fonts/montserrat-latin.woff2"),
-  weight: "100 900",
+  url: staticFile("fonts/nunito-latin.woff2"),
+  weight: "200 1000",
 });
 
 

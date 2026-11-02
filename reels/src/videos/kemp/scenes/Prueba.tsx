@@ -2,17 +2,17 @@ import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { pop } from "../../../components/Pictograms";
 import { Punch, Slam } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { SceneProps, wordAt } from "../../../timeline";
 
 const Paper: React.FC<{ at: number; dx: number; dy: number; rot: number; label: string }> = ({ at, dx, dy, rot, label }) => {
   const frame = useCurrentFrame();
   const p = interpolate(frame, [at, at + 14], [0, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) });
   return (
-    <div style={{ position: "absolute", left: 0, top: 0, width: 150, height: 190, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.92)", boxShadow: "0 10px 30px rgba(0,0,0,0.5)", opacity: frame >= at ? 1 : 0, translate: `${dx * (1 - p)}px ${dy * (1 - p)}px`, rotate: `${rot * (1 - p)}deg`, display: "flex", flexDirection: "column", gap: 8, padding: 16 }}>
+    <div style={{ position: "absolute", left: 0, top: 0, width: 150, height: 190, borderRadius: 14, backgroundColor: COLORS.paper, border: `3px solid ${COLORS.ink}`, boxShadow: "4px 4px 0 #14181F", opacity: frame >= at ? 1 : 0, translate: `${dx * (1 - p)}px ${dy * (1 - p)}px`, rotate: `${rot * (1 - p)}deg`, display: "flex", flexDirection: "column", gap: 8, padding: 16 }}>
       <div style={{ fontWeight: 900, fontSize: 22, color: COLORS.ink }}>{label}</div>
       {[0, 1, 2, 3, 4].map((i) => (
-        <div key={i} style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(6,17,32,0.25)", width: `${70 + ((i * 37) % 30)}%` }} />
+        <div key={i} style={{ height: 8, borderRadius: 4, backgroundColor: "rgba(20,24,31,0.2)", width: `${70 + ((i * 37) % 30)}%` }} />
       ))}
     </div>
   );
@@ -35,7 +35,7 @@ export const Prueba: React.FC<SceneProps> = ({ c }) => {
         </div>
         <div style={{ position: "relative", width: 900, height: 420 }}>
           {/* Tarjeta de la revisión */}
-          <div style={{ position: "absolute", left: 250, top: 40, width: 400, height: 360, borderRadius: 30, border: `5px solid ${COLORS.cyan}`, backgroundColor: "rgba(79,209,255,0.12)", boxShadow: `0 0 60px ${COLORS.cyan}66`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, opacity: frame >= rev ? 1 : 0, scale: String(pop(frame, rev)) }}>
+          <div style={{ position: "absolute", left: 250, top: 40, width: 400, height: 360, borderRadius: 30, border: `5px solid ${COLORS.cyan}`, backgroundColor: "rgba(58,134,255,0.12)", boxShadow: STICKER, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, opacity: frame >= rev ? 1 : 0, scale: String(pop(frame, rev)) }}>
             <div style={{ fontWeight: 700, fontSize: 30, letterSpacing: 6, color: COLORS.muted }}>REVISIÓN</div>
             <div style={{ fontWeight: 900, fontSize: 92, color: COLORS.cyan, lineHeight: 1, opacity: frame >= year ? 1 : 0, scale: String(pop(frame, year)) }}>2024</div>
             <div style={{ fontWeight: 800, fontSize: 36, color: COLORS.white }}>Life · Custers et al.</div>

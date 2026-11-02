@@ -18,6 +18,9 @@ Cada vídeo tiene su carpeta en `src/videos/<id>/` (config.ts con el guion y los
 ## Sincronía palabra a palabra
 `public/voz/timings.json` guarda el inicio y el fin de **cada palabra**. Las escenas disparan cada visual con `wordAt(frase, "palabra")` y los subtítulos resaltan la palabra que se está diciendo. Con la voz real, `tools/align.mjs` fija las frases por silencios y `tools/align_words.mjs` (modelo de audio de Gemini, cuota distinta del TTS) reparte las palabras dentro de cada frase; si ese paso falla, se reparten por caracteres.
 
+## Estética «Clínica clara» (v4)
+Crema y tinta con acentos coral (dato), menta (lo correcto), ámbar (resaltado), azul (prueba) y rojo (error). Fondo con formas orgánicas pastel y confeti (`components/Background.tsx`), tarjetas y pastillas estilo pegatina (papel, borde de tinta y sombra dura `STICKER`), subtítulos con la palabra activa sobre pastilla ámbar, tipografía Nunito. Toda la paleta está en `COLORS` (`src/config.ts`): `white` es el color de texto principal (tinta) y `paper` el blanco de las tarjetas.
+
 ## Recursos de enganche (v3)
 - **Cold open** de 0,8 s con el dato a pantalla completa antes de la voz (`META.coldOpen`), y el mismo fotograma al final para que el bucle enganche.
 - **Pausas recortadas**: `tools/tighten.mjs` acorta a 0,34 s las pausas entre frases de la toma existente (no regenera la voz; guarda `voz_tight.wav` y `timings.orig.json`). Respeta el silencio dramático antes del dato.
@@ -44,7 +47,7 @@ Si no hay voz, `tools/estimate.mjs` crea tiempos estimados y el render sale sin 
 
 ## Entorno (contenedor en la nube)
 - `remotion.config.ts` apunta al Chromium headless preinstalado (remotion.media está bloqueado).
-- Fuente Montserrat local en `public/fonts` (`@remotion/fonts`); nada de `@remotion/google-fonts`.
+- Fuente Nunito variable local en `public/fonts` (`@remotion/fonts`); nada de `@remotion/google-fonts`.
 - Efectos en `public/sfx` generados con ffmpeg; base musical con `tools/make_music.py` (numpy), con hueco de silencio antes del dato fuerte y ducking bajo la voz.
 - Gemini TTS: capa gratuita, 10 peticiones/día con `gemini-3.8-flash-tts`. Una sola toma por vídeo. El prompt de estilo exige castellano de España (zeta /θ/, sin seseo); `tools/check_accent.mjs voz.wav` pide a un modelo de audio que lo verifique.
 

@@ -36,7 +36,7 @@ export const Giro: React.FC<SceneProps> = ({ c }) => {
             const fp = falsePos.includes(i) && frame >= posAt + i * 2;
             return (
               <div key={i} style={{ position: "relative" }}>
-                <Person at={Math.min(gente, posAt)} delay={i * 2} size={88} color={fp ? COLORS.red : "rgba(255,255,255,0.8)"} />
+                <Person at={Math.min(gente, posAt)} delay={i * 2} size={88} color={fp ? COLORS.red : "rgba(20,24,31,0.8)"} />
                 {fp ? <div style={{ position: "absolute", right: -6, top: -6, width: 34, height: 34, borderRadius: "50%", backgroundColor: COLORS.red, color: COLORS.white, fontWeight: 900, fontSize: 28, display: "flex", alignItems: "center", justifyContent: "center", scale: String(pop(frame, posAt + i * 2)) }}>+</div> : null}
               </div>
             );
@@ -49,7 +49,7 @@ export const Giro: React.FC<SceneProps> = ({ c }) => {
         <div style={{ display: "flex", alignItems: "center", gap: 20, opacity: frame >= neg ? 1 : 0 }}>
           <div style={{ position: "relative" }}>
             <Person at={neg} size={100} color={COLORS.white} />
-            <div style={{ position: "absolute", right: -6, top: -6, width: 34, height: 34, borderRadius: "50%", backgroundColor: "rgba(255,255,255,0.25)", border: `3px solid ${COLORS.white}`, color: COLORS.white, fontWeight: 900, fontSize: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>−</div>
+            <div style={{ position: "absolute", right: -6, top: -6, width: 34, height: 34, borderRadius: "50%", backgroundColor: "rgba(20,24,31,0.25)", border: `3px solid ${COLORS.white}`, color: COLORS.white, fontWeight: 900, fontSize: 28, display: "flex", alignItems: "center", justifyContent: "center" }}>−</div>
           </div>
           <div style={{ fontWeight: 900, fontSize: 48, color: COLORS.white }}>
             negativo: <span style={{ color: COLORS.orange, opacity: frame >= descX ? 1 : 0 }}>tampoco descarta</span>

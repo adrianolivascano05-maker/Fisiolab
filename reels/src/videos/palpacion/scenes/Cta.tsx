@@ -3,7 +3,7 @@ import { CommentBox } from "../../../components/Engage";
 import { Arrow, Cross } from "../../../components/Icons";
 import { Punch, Slam } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 
 /** CTA: caja de comentario que teclea «L4», sello de «seguridad», tarjeta Parte 2 y ✗ en confirma/descarta. */
@@ -31,7 +31,7 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
           ) : null}
         </div>
         {frame >= parte ? (
-          <div style={{ width: 900, padding: "34px 44px", borderRadius: 36, border: `4px solid ${COLORS.cyan}`, backgroundColor: "rgba(79,209,255,0.1)", boxShadow: `0 0 ${50 + 25 * Math.sin((frame - parte) / 6)}px ${COLORS.cyan}66`, display: "flex", flexDirection: "column", gap: 16, translate: `${interpolate(frame, [parte, parte + 12], [1100, 0], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })}px 0px` }}>
+          <div style={{ width: 900, padding: "34px 44px", borderRadius: 36, border: `4px solid ${COLORS.cyan}`, backgroundColor: COLORS.paper, boxShadow: STICKER, display: "flex", flexDirection: "column", gap: 16, translate: `${interpolate(frame, [parte, parte + 12], [1100, 0], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })}px 0px` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 24, color: COLORS.cyan, fontWeight: 900, fontSize: 80, lineHeight: 1 }}>
               PARTE 2
               <div style={{ translate: `${Math.max(0, Math.sin((frame - parte) / 4)) * 16}px 0px`, display: "flex" }}>
@@ -44,7 +44,7 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
             </div>
             <div style={{ display: "flex", gap: 30, justifyContent: "center", marginTop: 6 }}>
               {[{ t: "CONFIRMA", at: conf }, { t: "DESCARTA", at: desc }].map((x) => (
-                <div key={x.t} style={{ position: "relative", fontWeight: 900, fontSize: 46, color: frame >= x.at ? COLORS.red : "rgba(255,255,255,0.4)", padding: "10px 22px", border: `4px solid ${frame >= x.at ? COLORS.red : "rgba(255,255,255,0.25)"}`, borderRadius: 16 }}>
+                <div key={x.t} style={{ position: "relative", fontWeight: 900, fontSize: 46, color: frame >= x.at ? COLORS.red : "rgba(20,24,31,0.4)", padding: "10px 22px", border: `4px solid ${frame >= x.at ? COLORS.red : "rgba(20,24,31,0.25)"}`, borderRadius: 16 }}>
                   {x.t}
                   {frame >= x.at ? <div style={{ position: "absolute", left: "50%", top: "50%", translate: "-50% -50%" }}><Cross size={110} start={x.at} /></div> : null}
                 </div>

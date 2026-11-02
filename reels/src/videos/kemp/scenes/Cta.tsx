@@ -3,7 +3,7 @@ import { CommentBox } from "../../../components/Engage";
 import { Arrow, Check, Cross } from "../../../components/Icons";
 import { Punch, Slam } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 import { Pelvis } from "../Pictos";
 
@@ -26,7 +26,7 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
           <CommentBox at={com} typeAt={kemp} text="Kemp" />
         </div>
         {frame >= parte ? (
-          <div style={{ width: 900, padding: "30px 40px", borderRadius: 36, border: `4px solid ${COLORS.cyan}`, backgroundColor: "rgba(79,209,255,0.1)", boxShadow: `0 0 ${50 + 25 * Math.sin((frame - parte) / 6)}px ${COLORS.cyan}66`, display: "flex", flexDirection: "column", gap: 14, translate: `${interpolate(frame, [parte, parte + 12], [1100, 0], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })}px 0px` }}>
+          <div style={{ width: 900, padding: "30px 40px", borderRadius: 36, border: `4px solid ${COLORS.cyan}`, backgroundColor: COLORS.paper, boxShadow: STICKER, display: "flex", flexDirection: "column", gap: 14, translate: `${interpolate(frame, [parte, parte + 12], [1100, 0], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })}px 0px` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 24, color: COLORS.cyan, fontWeight: 900, fontSize: 80, lineHeight: 1 }}>
               PARTE 3
               <div style={{ translate: `${Math.max(0, Math.sin((frame - parte) / 4)) * 16}px 0px`, display: "flex" }}>
@@ -38,13 +38,13 @@ export const Cta: React.FC<SceneProps> = ({ c }) => {
               <div style={{ fontWeight: 900, fontSize: 52, color: COLORS.white, lineHeight: 1.1 }}>SACROILÍACA</div>
             </div>
             <div style={{ display: "flex", gap: 30, alignItems: "center", justifyContent: "center", marginTop: 4 }}>
-              <div style={{ position: "relative", fontWeight: 900, fontSize: 48, color: frame >= basta ? COLORS.red : COLORS.white, padding: "10px 22px", border: `4px solid ${frame >= basta ? COLORS.red : "rgba(255,255,255,0.4)"}`, borderRadius: 16, opacity: frame >= uno ? 1 : 0 }}>
+              <div style={{ position: "relative", fontWeight: 900, fontSize: 48, color: frame >= basta ? COLORS.red : COLORS.white, padding: "10px 22px", border: `4px solid ${frame >= basta ? COLORS.red : "rgba(20,24,31,0.4)"}`, borderRadius: 16, opacity: frame >= uno ? 1 : 0 }}>
                 1 TEST
                 {frame >= basta ? <div style={{ position: "absolute", left: "50%", top: "50%", translate: "-50% -50%" }}><Cross size={110} start={basta} /></div> : null}
               </div>
               <div style={{ display: "flex", gap: 10, opacity: frame >= tres ? 1 : 0 }}>
                 {[0, 1, 2].map((i) => (
-                  <div key={i} style={{ width: 80, height: 80, borderRadius: 20, border: `4px solid ${COLORS.green}`, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(61,220,151,0.15)" }}>
+                  <div key={i} style={{ width: 80, height: 80, borderRadius: 20, border: `4px solid ${COLORS.green}`, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(46,196,182,0.15)" }}>
                     <Check size={60} start={tres + i * 4} />
                   </div>
                 ))}

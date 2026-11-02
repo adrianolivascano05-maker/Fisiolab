@@ -8,7 +8,7 @@ const draw = (frame: number, start: number, len = 10) =>
 export const Check: React.FC<{ size?: number; start: number; color?: string }> = ({ size = 80, start, color = COLORS.green }) => {
   const frame = useCurrentFrame();
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: `drop-shadow(0 0 ${size / 6}px ${color})` }}>
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "none" }}>
       <path
         d="M18 54 L42 76 L84 26"
         fill="none"
@@ -28,7 +28,7 @@ export const Check: React.FC<{ size?: number; start: number; color?: string }> =
 export const Cross: React.FC<{ size?: number; start: number; color?: string }> = ({ size = 80, start, color = COLORS.red }) => {
   const frame = useCurrentFrame();
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: `drop-shadow(0 0 ${size / 6}px ${color})` }}>
+    <svg width={size} height={size} viewBox="0 0 100 100" style={{ filter: "none" }}>
       <path d="M24 24 L76 76" fill="none" stroke={color} strokeWidth={14} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={draw(frame, start, 6)} />
       <path d="M76 24 L24 76" fill="none" stroke={color} strokeWidth={14} strokeLinecap="round" pathLength={1} strokeDasharray={1} strokeDashoffset={draw(frame, start + 4, 6)} />
     </svg>

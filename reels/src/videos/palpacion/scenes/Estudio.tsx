@@ -2,7 +2,7 @@ import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { Hand, Marker, Person, pop } from "../../../components/Pictograms";
 import { Punch } from "../../../components/Punch";
 import { Spine } from "../../../components/Spine";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { DATA } from "../config";
 import { LAYOUT, SAFE } from "../../../theme";
 import { SceneProps, wordAt, wordEnd } from "../../../timeline";
@@ -36,11 +36,11 @@ export const Estudio: React.FC<SceneProps> = ({ c }) => {
       </div>
       {/* Contador de pacientes */}
       <div style={{ position: "absolute", top: LAYOUT.headTop + 110, left: SAFE.side, right: SAFE.side, display: "flex", justifyContent: "center", gap: 20, opacity: frame >= setenta ? 1 : 0, scale: String(pop(frame, setenta)) }}>
-        <div style={{ fontWeight: 900, fontSize: 46, color: COLORS.ink, backgroundColor: COLORS.cyan, padding: "12px 34px", borderRadius: 999, boxShadow: `0 0 40px ${COLORS.cyan}88`, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+        <div style={{ fontWeight: 900, fontSize: 46, color: COLORS.ink, backgroundColor: COLORS.cyan, padding: "12px 34px", borderRadius: 999, boxShadow: STICKER, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
           {n} pacientes
         </div>
         {frame >= lumbalgia ? (
-          <div style={{ fontWeight: 900, fontSize: 46, color: COLORS.white, backgroundColor: COLORS.red, padding: "12px 34px", borderRadius: 999, boxShadow: `0 0 40px ${COLORS.red}88`, scale: String(pop(frame, lumbalgia)), whiteSpace: "nowrap" }}>
+          <div style={{ fontWeight: 900, fontSize: 46, color: COLORS.white, backgroundColor: COLORS.red, padding: "12px 34px", borderRadius: 999, boxShadow: STICKER, scale: String(pop(frame, lumbalgia)), whiteSpace: "nowrap" }}>
             con lumbalgia
           </div>
         ) : null}

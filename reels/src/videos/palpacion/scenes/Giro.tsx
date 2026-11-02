@@ -3,7 +3,7 @@ import { Cross } from "../../../components/Icons";
 import { Calendar, Gauge, Hand, Person, Scale, Sex } from "../../../components/Pictograms";
 import { Punch, Slam } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { SceneProps, wordAt, wordEnd } from "../../../timeline";
 
 const Item: React.FC<{ label: string; at: number; crossAt: number; dim: number; children: React.ReactNode }> = ({ label, at, crossAt, dim, children }) => {
@@ -52,7 +52,7 @@ export const Giro: React.FC<SceneProps> = ({ c }) => {
           <div style={{ display: "flex", alignItems: "center", gap: 30, marginTop: 10, scale: String(interpolate(frame, [quien, quien + 12], [2.6, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1), output: "perceptual-scale" })), opacity: interpolate(frame, [quien, quien + 3], [0, 1], CLAMP) }}>
             <Hand at={quien} size={220} />
             {frame >= palp ? (
-              <div style={{ padding: "28px 44px", borderRadius: 32, backgroundColor: COLORS.orange, color: COLORS.ink, fontWeight: 900, fontSize: 80, lineHeight: 1, boxShadow: `0 0 90px ${COLORS.orange}aa`, scale: String(interpolate(frame, [palp, palp + 10], [1.8, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })), rotate: "-3deg" }}>
+              <div style={{ padding: "28px 44px", borderRadius: 32, backgroundColor: COLORS.orange, color: COLORS.ink, fontWeight: 900, fontSize: 80, lineHeight: 1, boxShadow: STICKER, scale: String(interpolate(frame, [palp, palp + 10], [1.8, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })), rotate: "-3deg" }}>
                 QUIÉN
                 <br />
                 PALPABA

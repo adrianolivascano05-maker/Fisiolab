@@ -1,5 +1,5 @@
 import { Easing, interpolate, useCurrentFrame } from "remotion";
-import { CLAMP, COLORS, WIDTH } from "../config";
+import { CLAMP, COLORS, STICKER_SM, WIDTH } from "../config";
 import { fontFamily } from "../theme";
 import { SceneClock } from "../timeline";
 
@@ -9,7 +9,7 @@ export const Progress: React.FC<{ scenes: SceneClock[]; frame: number; dataScene
     {scenes.map((c) => {
       const p = interpolate(frame, [c.from, c.from + c.dur], [0, 1], CLAMP);
       return (
-        <div key={c.id} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.18)", overflow: "hidden" }}>
+        <div key={c.id} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: "rgba(20,24,31,0.18)", overflow: "hidden" }}>
           <div style={{ width: `${p * 100}%`, height: "100%", backgroundColor: c.id === dataScene ? COLORS.orange : COLORS.cyan }} />
         </div>
       );
@@ -35,13 +35,13 @@ export const CommentBox: React.FC<{ at: number; typeAt: number; text: string; wi
           <div style={{ marginLeft: "auto", fontFamily, fontWeight: 700, fontSize: 30, color: COLORS.red }}>♥ 1</div>
         </div>
       ) : null}
-      <div style={{ display: "flex", alignItems: "center", gap: 20, padding: "20px 28px", borderRadius: 999, border: "3px solid rgba(255,255,255,0.35)", backgroundColor: "rgba(255,255,255,0.08)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 20, padding: "20px 28px", borderRadius: 999, border: `3px solid ${COLORS.ink}`, backgroundColor: COLORS.paper, boxShadow: STICKER_SM }}>
         <div style={{ width: 56, height: 56, borderRadius: "50%", background: `linear-gradient(135deg, ${COLORS.cyan}, #7B61FF)`, flexShrink: 0 }} />
-        <div style={{ fontFamily, fontWeight: 700, fontSize: 40, color: typed ? COLORS.white : "rgba(255,255,255,0.4)", flex: 1, textAlign: "left" }}>
+        <div style={{ fontFamily, fontWeight: 700, fontSize: 40, color: typed ? COLORS.white : "rgba(20,24,31,0.4)", flex: 1, textAlign: "left" }}>
           {typed || (frame < typeAt ? "Añade un comentario..." : "")}
           <span style={{ opacity: caret && !sent ? 1 : 0, color: COLORS.orange }}>|</span>
         </div>
-        <div style={{ fontFamily, fontWeight: 900, fontSize: 36, color: n >= text.length ? COLORS.cyan : "rgba(255,255,255,0.3)", scale: String(sent ? 0.9 : 1) }}>Publicar</div>
+        <div style={{ fontFamily, fontWeight: 900, fontSize: 36, color: n >= text.length ? COLORS.cyan : "rgba(20,24,31,0.3)", scale: String(sent ? 0.9 : 1) }}>Publicar</div>
       </div>
     </div>
   );
@@ -59,8 +59,9 @@ export const Option: React.FC<{ label: string; at: number; pressAt?: number; wro
         width: 560,
         padding: "22px 0",
         borderRadius: 999,
-        border: `4px solid ${wrong ? COLORS.red : pressed ? color : "rgba(255,255,255,0.4)"}`,
-        backgroundColor: wrong ? "rgba(255,77,94,0.15)" : pressed ? `${color}33` : "rgba(255,255,255,0.06)",
+        border: `4px solid ${wrong ? COLORS.red : pressed ? color : COLORS.ink}`,
+        backgroundColor: wrong ? "#FFE3E5" : pressed ? `${color}33` : COLORS.paper,
+        boxShadow: STICKER_SM,
         fontFamily,
         fontWeight: 900,
         fontSize: 60,
@@ -68,7 +69,6 @@ export const Option: React.FC<{ label: string; at: number; pressAt?: number; wro
         textAlign: "center",
         opacity: wrong ? 0.8 : 1,
         scale: String(interpolate(frame, [at, at + 12], [0, 1], { ...CLAMP, easing: Easing.bezier(0.34, 1.56, 0.64, 1) }) * (pressAt !== undefined ? interpolate(frame, [pressAt, pressAt + 4, pressAt + 10], [1, 0.94, 1], CLAMP) : 1)),
-        boxShadow: pressed && !wrong ? `0 0 40px ${color}66` : undefined,
       }}
     >
       {label}

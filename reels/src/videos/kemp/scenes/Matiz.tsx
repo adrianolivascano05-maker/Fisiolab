@@ -2,7 +2,7 @@ import { interpolate, useCurrentFrame } from "remotion";
 import { Check } from "../../../components/Icons";
 import { Punch, Slam } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { SceneProps, wordAt } from "../../../timeline";
 import { DATA } from "../config";
 import { Piece } from "../Pictos";
@@ -24,7 +24,7 @@ export const Matiz: React.FC<SceneProps> = ({ c }) => {
       <Stage gap={28} justify="flex-start">
         <div style={{ position: "relative", marginTop: 6, opacity: interpolate(frame, [pieza, pieza + 8], [1, 0.3], CLAMP), scale: String(interpolate(frame, [pieza, pieza + 8], [1, 0.75], CLAMP)), transformOrigin: "top center" }}>
           <Slam text="«NO SIRVE»" at={s0.start} size={84} color={COLORS.white} />
-          <div style={{ position: "absolute", left: "-4%", width: "108%", height: 14, top: "50%", marginTop: -7, borderRadius: 7, backgroundColor: COLORS.red, boxShadow: `0 0 20px ${COLORS.red}`, rotate: "-6deg", transformOrigin: "left center", scale: `${interpolate(frame, [sirva, sirva + 7], [0, 1], CLAMP)} 1` }} />
+          <div style={{ position: "absolute", left: "-4%", width: "108%", height: 14, top: "50%", marginTop: -7, borderRadius: 7, backgroundColor: COLORS.red, boxShadow: STICKER, rotate: "-6deg", transformOrigin: "left center", scale: `${interpolate(frame, [sirva, sirva + 7], [0, 1], CLAMP)} 1` }} />
         </div>
         {frame >= pieza ? <Slam text="ES UNA PIEZA" at={pieza} size={80} color={COLORS.green} glow /> : null}
         <div style={{ display: "grid", gridTemplateColumns: "420px 420px", gap: 8, marginTop: 6 }}>

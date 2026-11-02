@@ -3,7 +3,7 @@ import { Cross } from "../../../components/Icons";
 import { Hand, Person, Vertebra, pop } from "../../../components/Pictograms";
 import { Punch, Slam } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { DATA } from "../config";
 import { SceneProps, wordAt } from "../../../timeline";
 
@@ -33,7 +33,7 @@ export const Gancho: React.FC<SceneProps> = ({ c }) => {
           ))}
         </div>
         <div style={{ height: 70, marginTop: -28, opacity: frame >= expertos ? 1 : 0, scale: String(pop(frame, expertos)), rotate: `${interpolate(frame, [expertos, expertos + 10], [-12, -4], CLAMP)}deg` }}>
-          <div style={{ fontWeight: 900, fontSize: 40, letterSpacing: 6, color: COLORS.ink, backgroundColor: COLORS.orange, padding: "10px 30px", borderRadius: 12, boxShadow: `0 0 40px ${COLORS.orange}88` }}>EXPERTOS</div>
+          <div style={{ fontWeight: 900, fontSize: 40, letterSpacing: 6, color: COLORS.ink, backgroundColor: COLORS.orange, padding: "10px 30px", borderRadius: 12, boxShadow: STICKER }}>EXPERTOS</div>
         </div>
         {/* Mano que palpa sobre tres vértebras */}
         <div style={{ position: "relative", height: 300, width: 560, marginTop: 14 }}>

@@ -34,16 +34,16 @@ export const Matiz: React.FC<SceneProps> = ({ c }) => {
           {[0, 1, 2].map((i) => (
             <Person key={i} at={tres} delay={i * 2} size={120} color={COLORS.green} />
           ))}
-          <Person at={cuatro} size={120} color="rgba(255,255,255,0.35)" />
+          <Person at={cuatro} size={120} color="rgba(20,24,31,0.35)" />
         </div>
         <div style={{ width: W, display: "flex", flexDirection: "column", gap: 14, opacity: interpolate(frame, [acert - 4, acert + 4], [0, 1], CLAMP) }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontWeight: 800, fontSize: 40, color: COLORS.white }}>
             <span style={{ color: p > 0.02 ? COLORS.green : COLORS.orange }}>{p > 0.02 ? "exacta o a ±1 nivel" : "vértebra exacta"}</span>
             <span style={{ fontSize: 100, fontWeight: 900, color: p > 0.02 ? COLORS.green : COLORS.orange, fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{value} %</span>
           </div>
-          <div style={{ height: 56, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.12)", overflow: "hidden", position: "relative" }}>
+          <div style={{ height: 56, borderRadius: 28, backgroundColor: "rgba(20,24,31,0.12)", overflow: "hidden", position: "relative" }}>
             <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${DATA.exacta + (DATA.unNivel - DATA.exacta) * p}%`, borderRadius: 28, background: `linear-gradient(90deg, ${COLORS.orange} 0%, ${COLORS.orange} ${(DATA.exacta / (DATA.exacta + (DATA.unNivel - DATA.exacta) * p)) * 100}%, ${COLORS.green} 100%)`, boxShadow: `0 0 40px ${p > 0.02 ? COLORS.green : COLORS.orange}88` }} />
-            <div style={{ position: "absolute", left: `${DATA.exacta}%`, top: 0, bottom: 0, width: 4, backgroundColor: "rgba(255,255,255,0.7)" }} />
+            <div style={{ position: "absolute", left: `${DATA.exacta}%`, top: 0, bottom: 0, width: 4, backgroundColor: "rgba(20,24,31,0.7)" }} />
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 30, color: COLORS.muted }}>
             <span>{DATA.exacta} % exacta</span>

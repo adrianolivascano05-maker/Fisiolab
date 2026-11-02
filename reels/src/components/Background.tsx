@@ -1,61 +1,58 @@
 import { AbsoluteFill, random, useCurrentFrame } from "remotion";
 import { COLORS, HEIGHT, WIDTH } from "../config";
 
-const PARTICLES = new Array(70).fill(0).map((_, i) => ({
-  x: random(`px${i}`) * WIDTH,
-  y: random(`py${i}`) * HEIGHT,
-  r: 1.2 + random(`pr${i}`) * 2.4,
-  v: 0.25 + random(`pv${i}`) * 0.9,
-  ph: random(`pp${i}`) * Math.PI * 2,
+const BLOBS = [
+  { color: "#FFD6C9", x: -200, y: 200, r: 620, sx: 70, sy: 40, ph: 0 },
+  { color: "#CFF3EE", x: 760, y: 900, r: 560, sx: 50, sy: 70, ph: 2 },
+  { color: "#FFF0BF", x: 300, y: 1500, r: 520, sx: 60, sy: 50, ph: 4 },
+  { color: "#DCE8FF", x: 900, y: 150, r: 380, sx: 40, sy: 60, ph: 1 },
+];
+
+const DOTS = new Array(26).fill(0).map((_, i) => ({
+  x: random(`dx${i}`) * WIDTH,
+  y: random(`dy${i}`) * HEIGHT,
+  r: 5 + random(`dr${i}`) * 9,
+  v: 0.15 + random(`dv${i}`) * 0.4,
+  c: [COLORS.orange, COLORS.green, COLORS.amber, COLORS.cyan][i % 4],
+  ph: random(`dp${i}`) * Math.PI * 2,
 }));
 
-/** Sala de rayos X: azul marino, rejilla cian que se desplaza, partículas y viñeta. */
-export const Background: React.FC<{ flash?: number }> = ({ flash = 0 }) => {
+/** «Clínica clara»: crema con formas orgánicas pastel que respiran y confeti de colores. */
+export const Background: React.FC = () => {
   const frame = useCurrentFrame();
-  const grid = 120;
-  const dx = (frame * 0.35) % grid;
-  const dy = (frame * 0.55) % grid;
   return (
     <AbsoluteFill style={{ background: `linear-gradient(180deg, ${COLORS.bgTop} 0%, ${COLORS.bgBottom} 100%)`, overflow: "hidden" }}>
-      <svg width={WIDTH} height={HEIGHT} style={{ position: "absolute", inset: 0, opacity: 0.28 }}>
-        <defs>
-          <pattern id="grid" width={grid} height={grid} patternUnits="userSpaceOnUse" x={dx} y={dy}>
-            <path d={`M ${grid} 0 L 0 0 0 ${grid}`} fill="none" stroke={COLORS.cyan} strokeWidth={1} />
-          </pattern>
-          <radialGradient id="gridFade" cx="50%" cy="45%" r="70%">
-            <stop offset="0%" stopColor="white" stopOpacity={1} />
-            <stop offset="100%" stopColor="white" stopOpacity={0} />
-          </radialGradient>
-          <mask id="gridMask">
-            <rect width={WIDTH} height={HEIGHT} fill="url(#gridFade)" />
-          </mask>
-        </defs>
-        <rect width={WIDTH} height={HEIGHT} fill="url(#grid)" mask="url(#gridMask)" />
-      </svg>
-      {PARTICLES.map((p, i) => {
-        const y = (((p.y - frame * p.v) % HEIGHT) + HEIGHT) % HEIGHT;
-        const tw = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(frame / 11 + p.ph));
-        return (
-          <div
-            key={i}
-            style={{
-              position: "absolute",
-              left: p.x,
-              top: y,
-              width: p.r * 2,
-              height: p.r * 2,
-              borderRadius: "50%",
-              backgroundColor: COLORS.cyan,
-              opacity: tw * 0.7,
-              boxShadow: `0 0 ${p.r * 4}px ${COLORS.cyan}`,
-            }}
-          />
-        );
+      {BLOBS.map((b, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: b.x + Math.sin(frame / 140 + b.ph) * b.sx,
+            top: b.y + Math.cos(frame / 160 + b.ph) * b.sy,
+            width: b.r,
+            height: b.r * (0.85 + 0.1 * Math.sin(frame / 90 + b.ph)),
+            borderRadius: "46% 54% 52% 48% / 55% 45% 55% 45%",
+            backgroundColor: b.color,
+            opacity: 0.8,
+            rotate: `${Math.sin(frame / 200 + b.ph) * 12}deg`,
+            filter: "blur(2px)",
+          }}
+        />
+      ))}
+      {DOTS.map((d, i) => {
+        const y = (((d.y - frame * d.v) % HEIGHT) + HEIGHT) % HEIGHT;
+        return <div key={i} style={{ position: "absolute", left: d.x + Math.sin(frame / 40 + d.ph) * 6, top: y, width: d.r, height: d.r, borderRadius: "50%", backgroundColor: d.c, opacity: 0.55 }} />;
       })}
-      {/* Viñeta */}
-      <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 45%, rgba(0,0,0,0.55) 100%)" }} />
-      {/* Fogonazo de rayos X */}
-      {flash > 0 ? <AbsoluteFill style={{ backgroundColor: "white", opacity: flash }} /> : null}
+      {/* Grano de papel muy sutil */}
+      <svg width={WIDTH} height={HEIGHT} style={{ position: "absolute", inset: 0, opacity: 0.08 }}>
+        <defs>
+          <pattern id="grain" width={6} height={6} patternUnits="userSpaceOnUse">
+            <circle cx={1} cy={1} r={0.6} fill={COLORS.ink} />
+            <circle cx={4} cy={4} r={0.5} fill={COLORS.ink} />
+          </pattern>
+        </defs>
+        <rect width={WIDTH} height={HEIGHT} fill="url(#grain)" />
+      </svg>
     </AbsoluteFill>
   );
 };

@@ -3,7 +3,7 @@ import { Check } from "../../../components/Icons";
 import { Person, Target } from "../../../components/Pictograms";
 import { Punch } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { SceneProps, SentenceClock, wordAt, wordEnd } from "../../../timeline";
 
 /** Bocadillo que se escribe palabra a palabra al ritmo de la voz. */
@@ -17,8 +17,8 @@ const TypedBubble: React.FC<{ s: SentenceClock; words: string[]; color: string; 
         padding: "30px 48px",
         borderRadius: 40,
         borderBottomLeftRadius: 8,
-        backgroundColor: struck ? "rgba(255,77,94,0.15)" : `${color}1f`,
-        border: `4px solid ${struck ? COLORS.red : color}`,
+        backgroundColor: struck ? "#FFE3E5" : COLORS.paper,
+        border: `4px solid ${struck ? COLORS.red : color === "rgba(20,24,31,0.5)" ? COLORS.ink : color}`,
         fontWeight: 800,
         fontSize: 60,
         color: struck ? COLORS.red : COLORS.white,
@@ -45,7 +45,7 @@ const TypedBubble: React.FC<{ s: SentenceClock; words: string[]; color: string; 
       })}
       <span style={{ opacity: 0.5 }}>»</span>
       {strikeAt !== undefined ? (
-        <div style={{ position: "absolute", left: "-4%", width: "108%", height: 14, top: "50%", marginTop: -7, borderRadius: 7, backgroundColor: COLORS.red, boxShadow: `0 0 20px ${COLORS.red}`, rotate: "-7deg", transformOrigin: "left center", scale: `${interpolate(frame, [strikeAt, strikeAt + 7], [0, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })} 1` }} />
+        <div style={{ position: "absolute", left: "-4%", width: "108%", height: 14, top: "50%", marginTop: -7, borderRadius: 7, backgroundColor: COLORS.red, boxShadow: STICKER, rotate: "-7deg", transformOrigin: "left center", scale: `${interpolate(frame, [strikeAt, strikeAt + 7], [0, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })} 1` }} />
       ) : null}
     </div>
   );
@@ -68,7 +68,7 @@ export const QueHacer: React.FC<SceneProps> = ({ c }) => {
     <Punch shakeAt={[strike, rec]} amount={0.5}>
       <Stage gap={30} justify="flex-start">
         <div style={{ marginTop: 10, fontWeight: 700, fontSize: 44, letterSpacing: 6, color: COLORS.red, opacity: interpolate(frame, [deja, deja + 6], [0, 1], CLAMP) }}>DEJA DE DECIR</div>
-        <TypedBubble s={s0} words={["tienes", "L4-L5", "bloqueada"]} color="rgba(255,255,255,0.5)" strikeAt={strike} at={tienes} />
+        <TypedBubble s={s0} words={["tienes", "L4-L5", "bloqueada"]} color="rgba(20,24,31,0.5)" strikeAt={strike} at={tienes} />
         <div style={{ fontWeight: 700, fontSize: 44, letterSpacing: 6, color: COLORS.green, opacity: interpolate(frame, [di, di + 6], [0, 1], CLAMP), marginTop: 10 }}>DI</div>
         {frame >= di ? <TypedBubble s={s1} words={["zona", "lumbar", "baja"]} color={COLORS.green} at={di} /> : null}
         <div style={{ display: "flex", alignItems: "center", gap: 26, marginTop: 10, opacity: frame >= busca ? 1 : 0 }}>

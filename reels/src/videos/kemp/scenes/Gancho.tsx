@@ -3,7 +3,7 @@ import { Cross } from "../../../components/Icons";
 import { pop } from "../../../components/Pictograms";
 import { Punch, Slam } from "../../../components/Punch";
 import { Stage } from "../../../components/Stage";
-import { CLAMP, COLORS } from "../../../config";
+import { CLAMP, COLORS, STICKER } from "../../../config";
 import { SceneProps, wordAt } from "../../../timeline";
 import { Clipboard, KempFigure } from "../Pictos";
 
@@ -25,7 +25,7 @@ export const Gancho: React.FC<SceneProps> = ({ c }) => {
           <div style={{ position: "relative" }}>
             <KempFigure at={kemp} size={330} pain={frame >= pos ? 1 : 0} />
             {frame >= pos ? (
-              <div style={{ position: "absolute", left: 210, top: 10, fontWeight: 900, fontSize: 44, color: COLORS.ink, backgroundColor: COLORS.orange, padding: "8px 22px", borderRadius: 999, boxShadow: `0 0 40px ${COLORS.orange}aa`, scale: String(pop(frame, pos)), rotate: "-8deg", whiteSpace: "nowrap" }}>
+              <div style={{ position: "absolute", left: 210, top: 10, fontWeight: 900, fontSize: 44, color: COLORS.ink, backgroundColor: COLORS.orange, padding: "8px 22px", borderRadius: 999, boxShadow: STICKER, scale: String(pop(frame, pos)), rotate: "-8deg", whiteSpace: "nowrap" }}>
                 KEMP +
               </div>
             ) : null}

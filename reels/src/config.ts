@@ -8,16 +8,23 @@ export const WIDTH = 1080;
 export const HEIGHT = 1920;
 
 export const COLORS = {
-  bgTop: "#050C1A",
-  bgBottom: "#0B1B33",
-  orange: "#FF8A3D",
-  cyan: "#4FD1FF",
-  red: "#FF4D5E",
-  green: "#3DDC97",
-  white: "#FFFFFF",
-  muted: "rgba(255,255,255,0.7)",
-  ink: "#061120",
+  // «Clínica clara»: crema, tinta y acentos frescos
+  bgTop: "#FBF8F2",
+  bgBottom: "#F3EEE4",
+  orange: "#FF6B35", // dato fuerte
+  cyan: "#3A86FF", // prueba / radiografía
+  red: "#E63946", // error
+  green: "#2EC4B6", // lo correcto (menta)
+  amber: "#FFC43D", // resaltado
+  white: "#14181F", // texto principal (tinta)
+  muted: "rgba(20,24,31,0.55)",
+  ink: "#14181F",
+  paper: "#FFFFFF",
 };
+
+/** Sombra dura estilo pegatina. */
+export const STICKER = "6px 6px 0 #14181F";
+export const STICKER_SM = "4px 4px 0 #14181F";
 
 /** Opciones habituales de interpolate(): no extrapolar por ningún lado. */
 export const CLAMP = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;

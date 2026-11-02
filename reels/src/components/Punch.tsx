@@ -1,5 +1,5 @@
 import { AbsoluteFill, Easing, interpolate, random, useCurrentFrame } from "remotion";
-import { CLAMP } from "../config";
+import { CLAMP, COLORS } from "../config";
 
 /** Entrada de escena con «punch» de escala y temblor opcional alrededor de un frame. */
 export const Punch: React.FC<{ children: React.ReactNode; shakeAt?: number[]; amount?: number }> = ({ children, shakeAt = [], amount = 1 }) => {
@@ -48,7 +48,7 @@ export const Slam: React.FC<{
         letterSpacing: spacing,
         color,
         textAlign: "center",
-        textShadow: glow ? `0 0 40px ${color}99, 0 6px 30px rgba(0,0,0,0.6)` : "0 6px 30px rgba(0,0,0,0.6)",
+        textShadow: glow ? `4px 4px 0 ${COLORS.amber}` : "none",
         opacity: interpolate(frame, [at, at + 2], [0, 1], CLAMP),
         scale: interpolate(frame, [at, at + 12], [1.7, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1), output: "perceptual-scale" }),
         translate: `${tremble}px ${tremble * 0.6}px`,
