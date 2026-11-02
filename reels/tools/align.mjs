@@ -66,7 +66,9 @@ console.error(`umbral elegido ${best.noise}/${best.min}s · segmentos ${segs.len
 // Palabras del transcriptor (opcional): se reparten entre las frases por orden, casando el número de palabras.
 let refWords = null;
 if (fs.existsSync(wordsFile)) {
-  const raw = JSON.parse(fs.readFileSync(wordsFile, "utf8")).words.map((w) => ({ ...w, w: w.w.toLowerCase().replace(/[^a-záéíóúüñ0-9-]/g, "") }));
+  // Sin tildes ni diéresis para comparar (el transcriptor a veces las omite); las palabras del guion se conservan tal cual.
+  const da = (x) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const raw = JSON.parse(fs.readFileSync(wordsFile, "utf8")).words.map((w) => ({ ...w, w: da(w.w.toLowerCase()).replace(/[^a-zñ0-9-]/g, "") }));
   // El transcriptor dice «L uno» por «L1»: se fusionan letra + número en un token.
   const NUM = { uno: "1", una: "1", dos: "2", tres: "3", cuatro: "4", cinco: "5", seis: "6", siete: "7", ocho: "8", nueve: "9" };
   const merged = [];
@@ -75,16 +77,31 @@ if (fs.existsSync(wordsFile)) {
     if (a.w === "l" && b && NUM[b.w]) { merged.push({ w: a.w + NUM[b.w], start: a.start, end: b.end }); i++; } else merged.push(a);
   }
   // Casar token a token con el guion (permite «l4-l5» = «l4» + «l5»); si algo no cuadra, se descarta el transcriptor.
-  const script = sents.flatMap((s) => wordWeights(s.text).map((x) => x.w));
-  const out = []; let j = 0; let ok = true;
-  for (const tok of script) {
+  const script = sents.flatMap((s) => wordWeights(s.text).map((x) => da(x.w)));
+  // Casado tolerante: parte palabras que el transcriptor pegó, salta palabras de más y admite las que falten.
+  const out = []; let j = 0; let ok = true; let fixes = 0;
+  for (let ti = 0; ti < script.length; ti++) {
+    const tok = script[ti];
     const a = merged[j], b = merged[j + 1];
-    if (a && a.w === tok) { out.push(a); j++; }
-    else if (a && b && a.w + "-" + b.w === tok) { out.push({ w: tok, start: a.start, end: b.end }); j += 2; }
-    else { console.error(`transcriptor: no cuadra «${tok}» con «${a?.w}» (posición ${j})`); ok = false; break; }
+    if (a && a.w === tok) { out.push(a); j++; continue; }
+    if (a && b && a.w + "-" + b.w === tok) { out.push({ w: tok, start: a.start, end: b.end }); j += 2; continue; }
+    if (a && a.w.length > tok.length && a.w.startsWith(tok)) {
+      const cut = a.start + ((a.end - a.start) * tok.length) / a.w.length;
+      out.push({ w: tok, start: a.start, end: cut });
+      merged[j] = { w: a.w.slice(tok.length), start: cut, end: a.end }; fixes++; continue;
+    }
+    if (a && a.w.length > tok.length && a.w.endsWith(tok)) {
+      const cut = a.end - ((a.end - a.start) * tok.length) / a.w.length;
+      out.push({ w: tok, start: cut, end: a.end }); j++; fixes++; continue;
+    }
+    if (a && b && b.w === tok) { out.push(b); j += 2; fixes++; continue; } // palabra de más en el transcriptor
+    if (a && merged[j + 2] && merged[j + 2].w === tok) { out.push(merged[j + 2]); j += 3; fixes++; continue; }
+    if (a && (ti + 1 >= script.length || (b && b.w === script[ti + 1]))) { out.push({ w: tok, start: a.start, end: a.end }); j++; fixes++; continue; } // el transcriptor oyó otra palabra
+    if (a && script.length - out.length > merged.length - j) { out.push({ w: tok, start: a.start, end: a.start }); fixes++; continue; } // falta en el transcriptor
+    console.error(`transcriptor: no cuadra «${tok}» con «${a?.w}» (posición ${j})`); ok = false; break;
   }
-  console.error(`transcriptor: ${merged.length} tokens, guion: ${script.length} palabras, casadas: ${out.length}`);
-  refWords = ok && j === merged.length ? out : null;
+  console.error(`transcriptor: ${merged.length} tokens, guion: ${script.length} palabras, casadas: ${out.length}, arreglos: ${fixes}`);
+  refWords = ok && out.length === script.length && j >= merged.length - 2 ? out : null;
   if (!refWords) console.error("Se usan proporciones por caracteres dentro de cada frase");
 }
 // Dentro de cada frase, las pausas internas (segmentos de voz) sirven de anclas: las palabras se reparten

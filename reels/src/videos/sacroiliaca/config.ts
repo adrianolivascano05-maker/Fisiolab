@@ -1,17 +1,17 @@
 /**
- * VÍDEO 3 · «El 91,4 % del test del 4: leímos el original» (Custers 2024 · reel 6, corregido con Telli 2018).
- * Lectura crítica: la revisión fecha mal el estudio y presenta como «sensibilidad» lo que es
- * el porcentaje de positivos entre pacientes ya diagnosticados con esos mismos tests.
+ * VÍDEO 3 · «Test del 4 positivo: ¿qué mide de verdad el 91,4 %?» (Custers 2024 · reel 6, corregido con Telli 2018).
+ * Hilo: caso clínico → lo que dice la revisión → lo que hizo el estudio → la trampa (analogía del
+ * detector de humo) → lo útil → qué hacer mañana → CTA.
  */
 import type { SceneDef, VideoMeta } from "../../config";
 
 export const META: VideoMeta = {
   id: "Sacroiliaca",
-  titulo: "El 91,4 % del test del 4: leímos el original",
+  titulo: "Test del 4 positivo: ¿qué mide de verdad el 91,4 %?",
   pilar: "Lectura crítica",
   fuente: "Fuente: Telli et al., Pain Physician 2018 · Custers et al., Life 2024",
-  portada: { linea1: "El test del 4 detecta el", dato: "91,4 %", sub: "¿SEGURO? LEÍMOS EL ORIGINAL" },
-  coldOpen: { big: "91,4 %", small: "¿de verdad lo detecta el test del 4?" },
+  portada: { linea1: "Test del 4 positivo:", dato: "91,4 %", sub: "¿QUÉ MIDE DE VERDAD?" },
+  coldOpen: { big: "91,4 %", small: "¿qué mide de verdad el test del 4?" },
 };
 
 export type SceneId = "gancho" | "prueba" | "estudio" | "quiz" | "hallazgo" | "giro" | "matiz" | "quehacer" | "cta";
@@ -21,91 +21,88 @@ export const SCENES: (SceneDef & { id: SceneId })[] = [
   {
     id: "gancho",
     sentences: [
-      {
-        text: "Noventa y uno coma cuatro por ciento.",
-        keys: ["91,4 %"],
-        display: { "noventa y uno coma cuatro por ciento": "91,4 %" },
-      },
-      {
-        text: "Según una revisión de dos mil veinticuatro, eso detecta el test del cuatro.",
-        chunks: ["Según una revisión de dos mil veinticuatro,", "eso detecta el test del cuatro."],
-        keys: ["revisión", "2024", "4"],
-        display: { "dos mil veinticuatro": "2024", cuatro: "4" },
-      },
-      {
-        text: "Fuimos al estudio original: no es lo que parece.",
-        chunks: ["Fuimos al estudio original:", "no es lo que parece."],
-        keys: ["original", "parece"],
-      },
+      { text: "Dolor en la nalga.", keys: ["nalga"] },
+      { text: "Test del cuatro, positivo.", keys: ["4", "positivo"], display: { cuatro: "4" } },
+      { text: "¿Ya es la sacroilíaca?", keys: ["sacroilíaca"] },
     ],
   },
   {
     id: "prueba",
     sentences: [
       {
-        text: "Primer error: la revisión dice dos mil ocho, y es de dos mil dieciocho.",
-        chunks: ["Primer error:", "la revisión dice dos mil ocho,", "y es de dos mil dieciocho."],
-        keys: ["error", "2008", "2018"],
-        display: { "dos mil ocho": "2008", "dos mil dieciocho": "2018" },
+        text: "Una revisión de dos mil veinticuatro dice que este test detecta el noventa y uno coma cuatro por ciento.",
+        chunks: ["Una revisión de dos mil veinticuatro", "dice que este test detecta", "el noventa y uno coma cuatro por ciento."],
+        keys: ["revisión", "2024", "91,4 %"],
+        display: { "dos mil veinticuatro": "2024", "noventa y uno coma cuatro por ciento": "91,4 %" },
       },
+      {
+        text: "Fui al estudio original, de dos mil dieciocho.",
+        chunks: ["Fui al estudio original,", "de dos mil dieciocho."],
+        keys: ["original", "2018"],
+        display: { "dos mil dieciocho": "2018" },
+      },
+      { text: "Y ese número cuenta otra historia.", keys: ["otra", "historia"] },
     ],
   },
   {
     id: "estudio",
     sentences: [
       {
-        text: "Ciento diecisiete pacientes, todos ya diagnosticados de disfunción sacroilíaca.",
-        chunks: ["Ciento diecisiete pacientes,", "todos ya diagnosticados", "de disfunción sacroilíaca."],
+        text: "Ciento diecisiete pacientes, todos ya diagnosticados.",
+        chunks: ["Ciento diecisiete pacientes,", "todos ya diagnosticados."],
         keys: ["117", "todos", "diagnosticados"],
         display: { "ciento diecisiete": "117" },
       },
       {
-        text: "¿Cómo? Con tres de seis tests de provocación positivos.",
-        chunks: ["¿Cómo? Con tres de seis", "tests de provocación positivos."],
-        keys: ["3", "6", "positivos"],
-        display: { tres: "3", seis: "6" },
+        text: "¿Cómo? Con seis tests: tres positivos o más, y era sacroilíaca.",
+        chunks: ["¿Cómo? Con seis tests:", "tres positivos o más,", "y era sacroilíaca."],
+        keys: ["6", "3", "sacroilíaca"],
+        display: { seis: "6", tres: "3" },
+      },
+      {
+        text: "Y el test del cuatro estaba en esa misma batería.",
+        chunks: ["Y el test del cuatro", "estaba en esa misma batería."],
+        keys: ["4", "misma", "batería"],
+        display: { cuatro: "4" },
       },
     ],
   },
   {
     id: "quiz",
-    sentences: [
-      {
-        text: "Entonces, ¿qué mide ese noventa y uno?",
-        keys: ["qué", "mide", "91"],
-        display: { "noventa y uno": "91" },
-      },
-    ],
+    sentences: [{ text: "Entonces, ¿qué mide ese noventa y uno?", keys: ["qué", "mide", "91"], display: { "noventa y uno": "91" } }],
   },
   {
     id: "hallazgo",
     sentences: [
       {
-        text: "En cuántos de esos pacientes salió positivo el test.",
-        chunks: ["En cuántos de esos pacientes", "salió positivo el test."],
-        keys: ["cuántos", "positivo"],
+        text: "Cuántos dieron positivo en un test que ya formaba parte de su diagnóstico.",
+        chunks: ["Cuántos dieron positivo", "en un test que ya formaba parte", "de su diagnóstico."],
+        keys: ["Cuántos", "positivo", "diagnóstico"],
       },
-      { text: "Pacientes diagnosticados con esos mismos tests.", keys: ["mismos", "tests"] },
     ],
   },
   {
     id: "giro",
     sentences: [
       {
-        text: "No se comparó con la infiltración, ni con gente sin el diagnóstico.",
-        chunks: ["No se comparó con la infiltración,", "ni con gente sin el diagnóstico."],
-        keys: ["infiltración", "sin"],
+        text: "Es como probar un detector de humo usando, en parte, ese mismo detector para decidir si había fuego.",
+        chunks: ["Es como probar un detector de humo", "usando, en parte, ese mismo detector", "para decidir si había fuego."],
+        keys: ["detector", "mismo", "fuego"],
       },
-      { text: "No es una sensibilidad de verdad.", keys: ["No", "sensibilidad"] },
+      {
+        text: "Sin compararlo con una infiltración, ni con pacientes sin el problema, no sabemos cuánto acierta.",
+        chunks: ["Sin compararlo con una infiltración,", "ni con pacientes sin el problema,", "no sabemos cuánto acierta."],
+        keys: ["infiltración", "sin", "acierta"],
+      },
     ],
   },
   {
     id: "matiz",
     sentences: [
       {
-        text: "Y según los autores, un test suelto vale poco; la batería, más.",
-        chunks: ["Y según los autores,", "un test suelto vale poco;", "la batería, más."],
-        keys: ["suelto", "poco", "batería", "más"],
+        text: "Lo útil: según los autores, un test suelto vale poco; la batería, más.",
+        chunks: ["Lo útil: según los autores,", "un test suelto vale poco;", "la batería, más."],
+        keys: ["útil", "suelto", "poco", "batería", "más"],
       },
     ],
   },
@@ -113,11 +110,12 @@ export const SCENES: (SceneDef & { id: SceneId })[] = [
     id: "quehacer",
     sentences: [
       {
-        text: "Mañana: no etiquetes sacroilíaca por un test del cuatro; haz la batería y cuenta positivos.",
-        chunks: ["Mañana: no etiquetes", "sacroilíaca por un", "test del cuatro;", "haz la batería", "y cuenta positivos."],
-        keys: ["no", "batería", "positivos"],
+        text: "Mañana: no etiquetes sacroilíaca por un test del cuatro.",
+        chunks: ["Mañana: no etiquetes", "sacroilíaca por un", "test del cuatro."],
+        keys: ["no", "sacroilíaca", "4"],
         display: { cuatro: "4" },
       },
+      { text: "Haz la batería y cuenta positivos.", keys: ["batería", "positivos"] },
     ],
   },
   {
@@ -134,12 +132,13 @@ export const SCENES: (SceneDef & { id: SceneId })[] = [
   },
 ];
 
-/** Datos verificados: Telli H, Telli S, Topal M. Pain Physician 2018;21(4):E367-E376 (PMID 30045603); Custers 2024 apdo. 3.4.3. */
+/** Datos verificados: Telli H, Telli S, Topal M. Pain Physician 2018;21(4):E367-E376 (PMID 30045603, resumen);
+ *  Custers 2024 apdo. 3.4.3 (cita el 91,4 % como «sensibilidad» y fecha el estudio en 2008). */
 export const DATA = {
   pacientes: 117,
   criterio: { pos: 3, de: 6 },
   faber: 91.4,
-  quiz: ["SENSIBILIDAD", "% DE POSITIVOS", "ESPECIFICIDAD"],
+  quiz: ["CUÁNTO ACIERTA", "% DE POSITIVOS", "OTRA COSA"],
   /** Las seis pruebas (en la revisión, FABER + cinco de provocación) */
   tests: ["FABER", "Distracción", "Compresión", "Empuje del muslo", "Gaenslen", "Sacro"],
 };

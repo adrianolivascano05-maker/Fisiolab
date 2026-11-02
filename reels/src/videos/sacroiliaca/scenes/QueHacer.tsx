@@ -10,13 +10,13 @@ import { DATA } from "../config";
 /** Qué hacer: no etiquetes por un solo test del 4; haz la batería y cuenta positivos. */
 export const QueHacer: React.FC<SceneProps> = ({ c }) => {
   const frame = useCurrentFrame();
-  const [s0] = c.s;
+  const [s0, s1] = c.s;
   const no = wordAt(s0, "no");
   const etiq = wordAt(s0, "etiquetes");
   const strike = wordEnd(s0, "cuatro") + 2;
-  const haz = wordAt(s0, "haz");
-  const cuenta = wordAt(s0, "cuenta");
-  const end = wordEnd(s0, "positivos");
+  const haz = wordAt(s1, "haz");
+  const cuenta = wordAt(s1, "cuenta");
+  const end = wordEnd(s1, "positivos");
   const n = Math.round(interpolate(frame, [cuenta, end + 6], [0, DATA.criterio.pos], CLAMP));
   return (
     <Punch dur={c.dur} shakeAt={[strike, end]} amount={0.5}>

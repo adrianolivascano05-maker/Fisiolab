@@ -94,7 +94,7 @@ export const DotGrid: React.FC<{ n: number; cols: number; from: number; to: numb
 };
 
 /** Bucle «TESTS → DIAGNÓSTICO → TESTS» con flechas que giran (razonamiento circular). */
-export const Loop: React.FC<{ at: number; size?: number; labelAt?: number }> = ({ at, size = 520, labelAt }) => {
+export const Loop: React.FC<{ at: number; size?: number; labelAt?: number; top?: string; bottom?: string; label?: string }> = ({ at, size = 520, labelAt, top = "TESTS", bottom = "DIAGNÓSTICO", label = "LOS MISMOS\nTESTS" }) => {
   const frame = useCurrentFrame();
   const p = interpolate(frame, [at, at + 22], [0, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) });
   const spin = frame > at + 22 ? (frame - at - 22) * 0.6 : 0;
@@ -139,13 +139,11 @@ export const Loop: React.FC<{ at: number; size?: number; labelAt?: number }> = (
         <path d={`M ${size / 2 + r} ${size / 2} A ${r} ${r} 0 0 1 ${size / 2 - r * 0.2} ${size / 2 + r * 0.98}`} fill="none" stroke={COLORS.orange} strokeWidth={8} strokeLinecap="round" markerEnd="url(#arr)" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - p} />
         <path d={`M ${size / 2 - r} ${size / 2} A ${r} ${r} 0 0 1 ${size / 2 + r * 0.2} ${size / 2 - r * 0.98}`} fill="none" stroke={COLORS.orange} strokeWidth={8} strokeLinecap="round" markerEnd="url(#arr)" pathLength={1} strokeDasharray={1} strokeDashoffset={1 - p} />
       </svg>
-      {node("TESTS", -90, COLORS.ink, 0)}
-      {node("DIAGNÓSTICO", 90, COLORS.orange, 8)}
+      {node(top, -90, COLORS.ink, 0)}
+      {node(bottom, 90, COLORS.orange, 8)}
       {labelAt !== undefined && frame >= labelAt ? (
-        <div style={{ position: "absolute", left: 0, right: 0, top: size / 2 - 40, textAlign: "center", fontFamily, fontWeight: 900, fontSize: 46, color: COLORS.red, scale: String(pop(frame, labelAt)) }}>
-          LOS MISMOS
-          <br />
-          TESTS
+        <div style={{ position: "absolute", left: 0, right: 0, top: size / 2 - 40, textAlign: "center", fontFamily, fontWeight: 900, fontSize: 42, lineHeight: 1.1, whiteSpace: "pre-line", color: COLORS.red, scale: String(pop(frame, labelAt)) }}>
+          {label}
         </div>
       ) : null}
     </div>
@@ -169,5 +167,59 @@ export const SLR: React.FC<{ at: number; size?: number; flipAt?: number }> = ({ 
         </g>
       </svg>
     </div>
+  );
+};
+
+/** Detector de humo de techo; `alarm` hace parpadear el piloto y salir ondas. */
+export const Detector: React.FC<{ at: number; size?: number; alarm?: number }> = ({ at, size = 200, alarm }) => {
+  const frame = useCurrentFrame();
+  const on = alarm !== undefined && frame >= alarm;
+  const blink = on && Math.floor((frame - alarm) / 5) % 2 === 0;
+  return (
+    <div style={{ width: size, height: size * 0.8, opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)) }}>
+      <svg width={size} height={size * 0.8} viewBox="0 0 100 80">
+        <rect x={10} y={4} width={80} height={6} rx={3} fill={COLORS.line} />
+        <path d="M18 10 H82 L76 34 H24 Z" fill={COLORS.paper} stroke={COLORS.ink} strokeWidth={3} strokeLinejoin="round" />
+        {[34, 44, 54, 64].map((x) => (
+          <path key={x} d={`M${x} 18 V26`} stroke={COLORS.line} strokeWidth={3} strokeLinecap="round" />
+        ))}
+        <circle cx={70} cy={22} r={4} fill={blink ? COLORS.red : "rgba(11,18,32,0.2)"} />
+        {on
+          ? [0, 1, 2].map((i) => {
+              const r = 10 + (((frame - alarm) / 2 + i * 6) % 18);
+              return <path key={i} d={`M${50 - r} ${36 + r * 0.5} Q50 ${36 + r} ${50 + r} ${36 + r * 0.5}`} fill="none" stroke={COLORS.red} strokeWidth={2.5} opacity={1 - r / 28} />;
+            })
+          : null}
+      </svg>
+    </div>
+  );
+};
+
+/** Llama (fuego) con un ligero parpadeo. */
+export const Flame: React.FC<{ at: number; size?: number; question?: boolean }> = ({ at, size = 160, question = false }) => {
+  const frame = useCurrentFrame();
+  const f = Math.sin(frame / 3) * 0.04;
+  return (
+    <div style={{ position: "relative", width: size, height: size, opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)) }}>
+      <svg width={size} height={size} viewBox="0 0 100 100" style={{ scale: `${1 - f} ${1 + f}`, transformOrigin: "50% 100%" }}>
+        <path d="M50 8 C62 30 80 40 78 64 C76 84 62 94 50 94 C38 94 24 84 22 64 C20 46 34 38 38 22 C44 34 48 36 50 8 Z" fill={COLORS.orange} />
+        <path d="M50 46 C56 58 64 62 62 76 C61 86 56 90 50 90 C44 90 39 86 38 76 C37 66 46 60 50 46 Z" fill="#FFB547" />
+      </svg>
+      {question ? <div style={{ position: "absolute", right: -16, top: -10, fontFamily, fontWeight: 900, fontSize: size * 0.4, color: COLORS.ink }}>?</div> : null}
+    </div>
+  );
+};
+
+/** Humo: tres bocanadas que suben. */
+export const Smoke: React.FC<{ at: number; size?: number }> = ({ at, size = 140 }) => {
+  const frame = useCurrentFrame();
+  if (frame < at) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100">
+      {[0, 1, 2].map((i) => {
+        const t = ((frame - at) / 30 + i / 3) % 1;
+        return <circle key={i} cx={50 + Math.sin(t * 6 + i) * 10} cy={90 - t * 80} r={10 + t * 14} fill="rgba(11,18,32,0.18)" opacity={1 - t} />;
+      })}
+    </svg>
   );
 };

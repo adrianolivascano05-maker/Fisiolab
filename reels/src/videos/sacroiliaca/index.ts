@@ -20,6 +20,6 @@ export const sacroiliaca: VideoDef = {
   cues: sceneCues,
   sourceScenes: ["prueba", "matiz"],
   dataScene: "hallazgo",
-  tints: { prueba: "#D7263D", quiz: "#0A58CA", hallazgo: "#0A58CA", giro: "#D7263D", matiz: "#12A37A", cta: "#0FA3B1" },
+  tints: { prueba: "#0FA3B1", quiz: "#0A58CA", hallazgo: "#0A58CA", giro: "#D7263D", matiz: "#12A37A", cta: "#0FA3B1" },
   saveScene: "quehacer",
 };

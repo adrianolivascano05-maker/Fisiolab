@@ -18,11 +18,16 @@ const body = {
   contents: [{ parts: [{ inlineData: { mimeType: "audio/wav", data: audio } }, { text: prompt }] }],
   generationConfig: { temperature: 0, responseMimeType: "application/json" },
 };
-const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-  method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body),
-});
-if (!res.ok) { console.error(res.status, (await res.text()).slice(0, 400)); process.exit(1); }
-const j = await res.json();
+// Prueba varios modelos de audio por si alguno está saturado (503) o sin cuota (429)
+let j = null;
+for (const m of [MODEL, "gemini-3.5-flash", "gemini-3.7-flash", "gemini-2.5-flash"]) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+    method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body),
+  });
+  if (res.ok) { j = await res.json(); console.error(`transcriptor: ${m}`); break; }
+  console.error(m, res.status);
+}
+if (!j) process.exit(1);
 const text = j.candidates[0].content.parts.map((p) => p.text ?? "").join("");
 const parsed = JSON.parse(text);
 fs.writeFileSync(out, JSON.stringify(parsed, null, 1));

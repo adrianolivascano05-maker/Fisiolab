@@ -120,31 +120,39 @@ Limitación obligatoria: revisión narrativa; el criterio «3 o más positivas»
 
 ---
 
-# Reel 3 · «El 91,4 % del test del 4: leímos el original» · entregables
+# Reel 3 · «Test del 4 positivo: ¿qué mide de verdad el 91,4 %?» · entregables
 
-**Pilar:** Lectura crítica · **Público:** fisios clínicos y estudiantes · **Duración:** 52,6 s · Composición `Sacroiliaca` (`src/videos/sacroiliaca/`, assets en `public/sacroiliaca/`).
+**Pilar:** Lectura crítica · **Público:** fisios clínicos y estudiantes · **Duración:** 60,4 s · Composición `Sacroiliaca` (`src/videos/sacroiliaca/`, assets en `public/sacroiliaca/`).
 
-## Por qué este enfoque
-El guion propuesto para la parte 3 (Custers 2024, reel 6) repetía dos cosas de la revisión que no aguantan la lectura del original:
-1. La revisión cita «Telli et al. 2008». El estudio es de **2018** (Pain Physician 21(4):E367-E376; PMID 30045603; así figura también en la propia bibliografía de Custers, ref. 28).
-2. La revisión llama «sensibilidad» al 91,4 % del FABER. En el original es el **porcentaje de positivos entre 117 pacientes ya diagnosticados** de disfunción sacroilíaca, y el diagnóstico se hizo con **3 de 6 tests de provocación positivos**. No hubo comparación con infiltración ni grupo sin el diagnóstico, así que no es una sensibilidad en sentido estricto.
-Por eso el reel pasa de «aplicación clínica» a **lectura crítica**, manteniendo el mensaje práctico (batería de tests, no un test suelto), que sí sostienen los autores.
+## Hilo de la narración (v2)
+1. **Caso clínico:** dolor en la nalga, test del 4 positivo, ¿ya es la sacroilíaca?
+2. **Lo que dice la revisión:** Custers 2024 afirma que el test detecta el 91,4 %.
+3. **Lo que hizo el estudio original** (Telli 2018): 117 pacientes que ya tenían el diagnóstico; el diagnóstico era tener 3 o más de 6 tests de provocación positivos, y el test del 4 estaba en esa batería.
+4. **La trampa:** el 91,4 % solo dice cuántos dieron positivo en un test que ya formaba parte de su diagnóstico. Analogía: probar un detector de humo usando, en parte, ese mismo detector para decidir si había fuego. Sin infiltración de referencia ni pacientes sin el problema, no sabemos cuánto acierta.
+5. **Lo útil:** según los autores, un test suelto vale poco; la batería, más.
+6. **Mañana:** no etiquetes sacroilíaca por un test del 4; haz la batería y cuenta positivos.
+7. **CTA** «original» y teaser de la parte 4 (Lasègue).
+
+El error de fecha de la revisión (dice 2008; el estudio es de 2018) ya no se narra para no romper el hilo: el vídeo dice «estudio original, de 2018» y el error queda en la descripción.
 
 ## Portada
-Línea 1: **El test del 4 detecta el** · Dato: **91,4 %** · Subtítulo: ¿SEGURO? LEÍMOS EL ORIGINAL (`npx remotion still Sacroiliaca-Portada out/portada-sacroiliaca.png`).
+Línea 1: **Test del 4 positivo:** · Dato: **91,4 %** · Subtítulo: ¿QUÉ MIDE DE VERDAD? (`npx remotion still Sacroiliaca-Portada out/portada-sacroiliaca.png`).
 
 ## Guion locutado
-91,4 %. Según una revisión de 2024, eso detecta el test del 4. Fuimos al estudio original: no es lo que parece. / Primer error: la revisión dice 2008, y es de 2018. / 117 pacientes, todos ya diagnosticados de disfunción sacroilíaca. ¿Cómo? Con 3 de 6 tests de provocación positivos. / Entonces, ¿qué mide ese 91? / En cuántos de esos pacientes salió positivo el test. Pacientes diagnosticados con esos mismos tests. / No se comparó con la infiltración, ni con gente sin el diagnóstico. No es una sensibilidad de verdad. / Y según los autores, un test suelto vale poco; la batería, más. / Mañana: no etiquetes sacroilíaca por un test del 4; haz la batería y cuenta positivos. / Comenta «original» si quieres más lecturas así. Y en la parte 4: el Lasègue, que esta revisión interpreta al revés.
+Dolor en la nalga. Test del 4, positivo. ¿Ya es la sacroilíaca? / Una revisión de 2024 dice que este test detecta el 91,4 %. Fui al estudio original, de 2018. Y ese número cuenta otra historia. / 117 pacientes, todos ya diagnosticados. ¿Cómo? Con 6 tests: 3 positivos o más, y era sacroilíaca. Y el test del 4 estaba en esa misma batería. / Entonces, ¿qué mide ese 91? / Cuántos dieron positivo en un test que ya formaba parte de su diagnóstico. / Es como probar un detector de humo usando, en parte, ese mismo detector para decidir si había fuego. Sin compararlo con una infiltración, ni con pacientes sin el problema, no sabemos cuánto acierta. / Lo útil: según los autores, un test suelto vale poco; la batería, más. / Mañana: no etiquetes sacroilíaca por un test del 4. Haz la batería y cuenta positivos. / Comenta «original» si quieres más lecturas así. Y en la parte 4: el Lasègue, que esta revisión interpreta al revés.
 
 ## Descripción del post
-Una revisión de 2024 dice que el test del 4 (FABER) tiene un 91,4 % de sensibilidad para la sacroilíaca. Fuimos al estudio original.
+Test del 4 (FABER) positivo y escribimos «sacroilíaca». Una revisión de 2024 dice que este test detecta el 91,4 % de los casos. Fuimos al estudio original.
 
-- **La fecha está mal:** la revisión dice 2008; el estudio es de 2018.
-- **No es una sensibilidad:** el 91,4 % es cuántos dieron positivo entre 117 pacientes que ya tenían el diagnóstico, y ese diagnóstico se hizo con 3 de 6 tests de provocación, entre ellos el propio FABER.
-- **Faltan las comparaciones:** no hubo infiltración de referencia ni grupo sin el diagnóstico. Los propios autores lo reconocen como limitación.
-- **Lo que sí sostiene el estudio:** cada test por separado tiene fiabilidad y validez limitadas; la batería de tests de provocación es más fiable.
+- **Quiénes:** 117 pacientes que ya tenían el diagnóstico de disfunción sacroilíaca.
+- **Cómo se diagnosticaron:** 3 o más positivos en una batería de 6 tests de provocación, y el test del 4 era uno de ellos.
+- **Qué es el 91,4 %:** cuántos de esos pacientes dieron positivo en el test del 4. Como el test ayudó a decidir el diagnóstico, el dato se infla: es como probar un detector de humo usando ese mismo detector para decidir si había fuego.
+- **Qué faltó:** compararlo con una infiltración y con pacientes sin el problema. Sin eso no sabemos cuánto acierta de verdad.
+- **Lo útil:** según los autores, cada test por separado tiene fiabilidad y validez limitadas; la batería de provocación es más fiable.
 
-Mañana en consulta: no etiquetes «sacroilíaca» por un test del 4 positivo. Haz la batería de provocación y cuenta positivos.
+Mañana en consulta: no etiquetes «sacroilíaca» por un test del 4 positivo. Haz la batería y cuenta positivos.
+
+Detalle extra: la revisión cita el estudio como «Telli 2008», pero es de 2018 (Pain Physician 21(4)).
 
 Aviso: estudio retrospectivo de una sola clínica (117 pacientes), con concordancia solo intraobservador. Tómalo como orientación.
 
@@ -157,12 +165,13 @@ Referencias:
 #fisioterapia #lumbalgia #sacroiliaca #fisioterapeuta #evidenciacientifica #estudiantesdefisio #lecturacritica #dolorlumbar
 
 ## 3 ganchos alternativos (A/B)
-1. «91,4 % de sensibilidad. Spoiler: no es una sensibilidad.»
-2. «La revisión dice 2008. El estudio es de 2018. Y eso es lo de menos.»
-3. «Si citas el test del 4 con este dato, lee esto antes.»
+1. «Test del 4 positivo. ¿Ya es la sacroilíaca? Mira cómo se sacó el 91 %.»
+2. «Un detector de humo que decide si había fuego. Así se calculó este 91,4 %.»
+3. «El 91,4 % del test del 4 tiene trampa. Y está en el método.»
 
 ## Dónde verificarlo
-- Telli 2018, resumen (PubMed 30045603): 117 pacientes ya diagnosticados por evaluación clínica; criterio de 3 de 6 tests positivos; FABER positivo en el 91,4 %, Gaenslen en el 56,4 %; limitaciones: sin concordancia interobservador y sin comparación con infiltración; conclusión: los tests sueltos tienen fiabilidad y validez limitadas y la batería es fiable.
+- Telli 2018, resumen (PubMed 30045603): pacientes «diagnosed with SIJD through clinical evaluation»; «Positivity in 3 out of 6 provocation tests was adopted as the criterion»; «When SI joint provocation tests were analyzed individually, the highest positivity, in 91.4% patients diagnosed with SIJD, was in the FABER test»; limitaciones: sin concordancia interobservador y sin comparación con infiltración; conclusión: los tests sueltos tienen fiabilidad y validez limitadas y la batería es fiable.
+- **Pendiente de comprobar en el texto completo** (no accesible desde aquí): la lista exacta de los 6 tests del criterio. Que el FABER esté entre ellos se deduce del resumen (el 91,4 % sale de analizar «los tests de provocación» uno a uno) y de Custers 2024, que lista FABER + 5 de provocación. Si al leer los Métodos el FABER no estuviera en el criterio, hay que cambiar la frase «el test del 4 estaba en esa misma batería» y la analogía.
 - Custers 2024: apartado 3.4.3 «Specificity and Sensitivity» (dice «Telli et al. from 2008» y «highest sensitivity… FABERE (91.4%)»); bibliografía, ref. 28 (Pain Physician 2018).
 
 ---

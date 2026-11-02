@@ -1,58 +1,59 @@
-import { useCurrentFrame } from "remotion";
-import { Check, Cross } from "../../../components/Icons";
+import { interpolate, useCurrentFrame } from "remotion";
 import { pop } from "../../../components/Pictograms";
 import { Punch, Slam } from "../../../components/Punch";
+import { Ring } from "../../../components/Ring";
 import { Stage } from "../../../components/Stage";
-import { COLORS, STICKER } from "../../../config";
+import { CLAMP, COLORS, STICKER_SM } from "../../../config";
+import { SPRINGS, springAt } from "../../../motion";
 import { SceneProps, wordAt, wordEnd } from "../../../timeline";
+import { DATA } from "../config";
+import { Magnifier } from "../Pictos";
 
-const YearCard: React.FC<{ label: string; year: string; at: number; color: string; children?: React.ReactNode }> = ({ label, year, at, color, children }) => {
+const Card: React.FC<{ at: number; label: string; year: string; sub: string; color: string }> = ({ at, label, year, sub, color }) => {
   const frame = useCurrentFrame();
   return (
-    <div style={{ position: "relative", width: 400, padding: "30px 0", borderRadius: 28, backgroundColor: COLORS.paper, border: `2px solid ${color}`, boxShadow: STICKER, textAlign: "center", opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)) }}>
-      <div style={{ fontWeight: 700, fontSize: 28, letterSpacing: 4, color: COLORS.muted }}>{label}</div>
-      <div style={{ fontWeight: 900, fontSize: 130, lineHeight: 1, color, fontVariantNumeric: "tabular-nums" }}>{year}</div>
-      {children}
+    <div style={{ padding: "18px 30px", borderRadius: 22, backgroundColor: COLORS.paper, border: `2px solid ${color}`, boxShadow: STICKER_SM, textAlign: "center", opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)), minWidth: 330 }}>
+      <div style={{ fontWeight: 700, fontSize: 26, letterSpacing: 5, color: COLORS.muted }}>{label}</div>
+      <div style={{ fontWeight: 900, fontSize: 70, color, lineHeight: 1 }}>{year}</div>
+      <div style={{ fontWeight: 700, fontSize: 26, color: COLORS.ink }}>{sub}</div>
     </div>
   );
 };
 
-/** Prueba: la revisión fecha el estudio en 2008; el original es de 2018. */
+/** Prueba: la revisión le atribuye un 91,4 %; vamos al original y el número «cuenta otra historia». */
 export const Prueba: React.FC<SceneProps> = ({ c }) => {
   const frame = useCurrentFrame();
-  const [s0] = c.s;
-  const err = wordAt(s0, "error");
-  const ocho = wordAt(s0, "dos", 0);
-  const ochoX = wordEnd(s0, "ocho") + 4;
-  const dieci = wordAt(s0, "dos", 1);
-  const ok = wordEnd(s0, "dieciocho");
+  const [s0, s1, s2] = c.s;
+  const rev = wordAt(s0, "revisión");
+  const n0 = wordAt(s0, "noventa");
+  const n1 = wordEnd(s0, "ciento");
+  const orig = wordAt(s1, "original");
+  const dieci = wordAt(s1, "dos");
+  const otra = wordAt(s2, "otra");
+  const doubt = frame >= otra;
+  const p = springAt(frame, n0, SPRINGS.counter);
+  const value = (DATA.faber * interpolate(frame, [n0, n1], [0, 1], CLAMP)).toFixed(1).replace(".", ",");
   return (
-    <Punch dur={c.dur} shakeAt={[ochoX, ok]} amount={0.6}>
-      <Stage gap={40} justify="flex-start">
-        <div style={{ marginTop: 20 }}>
-          <Slam text="PRIMER ERROR" at={err} size={96} color={COLORS.red} />
+    <Punch dur={c.dur} shakeAt={[n1, otra]} amount={0.7}>
+      <Stage gap={26} justify="flex-start">
+        <div style={{ display: "flex", gap: 30, marginTop: 6, height: 170 }}>
+          <Card at={rev} label="LA REVISIÓN" year="2024" sub="Life · Custers" color={COLORS.cyan} />
+          {frame >= orig ? <Card at={orig} label="EL ORIGINAL" year={frame >= dieci ? "2018" : "····"} sub="Pain Physician · Telli" color={COLORS.green} /> : null}
         </div>
-        <div style={{ display: "flex", gap: 40, marginTop: 20 }}>
-          <YearCard label="LA REVISIÓN DICE" year="2008" at={ocho} color={frame >= ochoX ? COLORS.red : COLORS.ink}>
-            {frame >= ochoX ? (
-              <div style={{ position: "absolute", left: 125, top: 40 }}>
-                <Cross size={150} start={ochoX} />
-              </div>
-            ) : null}
-          </YearCard>
-          <YearCard label="EL ORIGINAL" year="2018" at={dieci} color={COLORS.green}>
-            {frame >= ok ? (
-              <div style={{ position: "absolute", right: -30, top: -30 }}>
-                <Check size={110} start={ok} />
-              </div>
-            ) : null}
-          </YearCard>
+        <div style={{ fontWeight: 800, fontSize: 38, color: COLORS.muted, opacity: frame >= rev + 6 ? 1 : 0 }}>«el test del 4 detecta el…»</div>
+        <div style={{ position: "relative", width: 480, height: 480, display: "flex", alignItems: "center", justifyContent: "center", opacity: frame >= n0 ? 1 : 0, scale: String(0.7 + 0.3 * springAt(frame, n0, SPRINGS.smooth)) }}>
+          <Ring size={480} progress={p * (DATA.faber / 100)} color={doubt ? COLORS.red : COLORS.orange} />
+          <div style={{ fontWeight: 900, fontSize: 150, letterSpacing: -6, color: doubt ? COLORS.red : COLORS.orange, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+            {value}
+            <span style={{ fontSize: 76, marginLeft: 6 }}>{doubt ? "%?" : "%"}</span>
+          </div>
+          {frame >= orig ? <Magnifier at={orig} size={210} x={290} y={270} /> : null}
         </div>
-        <div style={{ fontWeight: 800, fontSize: 40, color: COLORS.ink, textAlign: "center", lineHeight: 1.25, opacity: frame >= dieci ? 1 : 0, scale: String(pop(frame, dieci + 6)) }}>
-          Telli, Telli y Topal
-          <br />
-          <span style={{ color: COLORS.muted, fontWeight: 700, fontSize: 34 }}>Pain Physician · retrospectivo · una clínica</span>
-        </div>
+        {doubt ? (
+          <div style={{ marginTop: -20, rotate: "-3deg" }}>
+            <Slam text="OTRA HISTORIA" at={otra} size={70} color={COLORS.red} />
+          </div>
+        ) : null}
       </Stage>
     </Punch>
   );

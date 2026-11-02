@@ -1,0 +1,864 @@
+{
+ "words": [
+  {
+   "w": "dolor",
+   "start": 0,
+   "end": 0.35
+  },
+  {
+   "w": "en",
+   "start": 0.35,
+   "end": 0.43
+  },
+  {
+   "w": "la",
+   "start": 0.43,
+   "end": 0.52
+  },
+  {
+   "w": "nalga",
+   "start": 0.52,
+   "end": 1.04
+  },
+  {
+   "w": "test",
+   "start": 1.12,
+   "end": 1.36
+  },
+  {
+   "w": "del",
+   "start": 1.36,
+   "end": 1.48
+  },
+  {
+   "w": "cuatro",
+   "start": 1.48,
+   "end": 1.74
+  },
+  {
+   "w": "positivo",
+   "start": 1.74,
+   "end": 2.34
+  },
+  {
+   "w": "ya",
+   "start": 2.39,
+   "end": 2.57
+  },
+  {
+   "w": "es",
+   "start": 2.57,
+   "end": 2.71
+  },
+  {
+   "w": "la",
+   "start": 2.71,
+   "end": 2.85
+  },
+  {
+   "w": "sacroilíaca",
+   "start": 2.85,
+   "end": 3.89
+  },
+  {
+   "w": "una",
+   "start": 4.79,
+   "end": 5.04
+  },
+  {
+   "w": "revisión",
+   "start": 5.04,
+   "end": 5.35
+  },
+  {
+   "w": "de",
+   "start": 5.35,
+   "end": 5.44
+  },
+  {
+   "w": "dos",
+   "start": 5.44,
+   "end": 5.65
+  },
+  {
+   "w": "mil",
+   "start": 5.65,
+   "end": 5.8
+  },
+  {
+   "w": "veinticuatro",
+   "start": 5.8,
+   "end": 6.31
+  },
+  {
+   "w": "dice",
+   "start": 6.31,
+   "end": 6.63
+  },
+  {
+   "w": "que",
+   "start": 6.63,
+   "end": 6.76
+  },
+  {
+   "w": "este",
+   "start": 6.76,
+   "end": 6.94
+  },
+  {
+   "w": "test",
+   "start": 6.94,
+   "end": 7.27
+  },
+  {
+   "w": "detecta",
+   "start": 7.27,
+   "end": 7.77
+  },
+  {
+   "w": "el",
+   "start": 7.77,
+   "end": 7.92
+  },
+  {
+   "w": "noventa",
+   "start": 7.92,
+   "end": 8.41
+  },
+  {
+   "w": "y",
+   "start": 8.41,
+   "end": 8.47
+  },
+  {
+   "w": "uno",
+   "start": 8.47,
+   "end": 8.65
+  },
+  {
+   "w": "coma",
+   "start": 8.65,
+   "end": 8.92
+  },
+  {
+   "w": "cuatro",
+   "start": 8.92,
+   "end": 9.23
+  },
+  {
+   "w": "por",
+   "start": 9.23,
+   "end": 9.4
+  },
+  {
+   "w": "ciento",
+   "start": 9.4,
+   "end": 9.96
+  },
+  {
+   "w": "fui",
+   "start": 10.59,
+   "end": 10.87
+  },
+  {
+   "w": "al",
+   "start": 10.87,
+   "end": 10.98
+  },
+  {
+   "w": "estudio",
+   "start": 10.98,
+   "end": 11.33
+  },
+  {
+   "w": "original",
+   "start": 11.33,
+   "end": 11.96
+  },
+  {
+   "w": "de",
+   "start": 11.96,
+   "end": 12.24
+  },
+  {
+   "w": "dos",
+   "start": 12.24,
+   "end": 12.42
+  },
+  {
+   "w": "mil",
+   "start": 12.42,
+   "end": 12.56
+  },
+  {
+   "w": "dieciocho",
+   "start": 12.56,
+   "end": 13.04
+  },
+  {
+   "w": "y",
+   "start": 13.25,
+   "end": 13.56
+  },
+  {
+   "w": "ese",
+   "start": 13.56,
+   "end": 13.78
+  },
+  {
+   "w": "número",
+   "start": 13.78,
+   "end": 14.15
+  },
+  {
+   "w": "cuenta",
+   "start": 14.15,
+   "end": 14.47
+  },
+  {
+   "w": "otra",
+   "start": 14.47,
+   "end": 14.71
+  },
+  {
+   "w": "historia",
+   "start": 14.71,
+   "end": 15.34
+  },
+  {
+   "w": "ciento",
+   "start": 15.93,
+   "end": 16.29
+  },
+  {
+   "w": "diecisiete",
+   "start": 16.29,
+   "end": 16.94
+  },
+  {
+   "w": "pacientes",
+   "start": 16.94,
+   "end": 17.65
+  },
+  {
+   "w": "todos",
+   "start": 17.91,
+   "end": 18.28
+  },
+  {
+   "w": "ya",
+   "start": 18.28,
+   "end": 18.42
+  },
+  {
+   "w": "diagnosticados",
+   "start": 18.42,
+   "end": 19.46
+  },
+  {
+   "w": "cómo",
+   "start": 19.59,
+   "end": 20.12
+  },
+  {
+   "w": "con",
+   "start": 20.25,
+   "end": 20.59
+  },
+  {
+   "w": "seis",
+   "start": 20.59,
+   "end": 21.05
+  },
+  {
+   "w": "tests",
+   "start": 21.05,
+   "end": 21.67
+  },
+  {
+   "w": "tres",
+   "start": 21.73,
+   "end": 22.04
+  },
+  {
+   "w": "positivos",
+   "start": 22.04,
+   "end": 22.56
+  },
+  {
+   "w": "o",
+   "start": 22.56,
+   "end": 22.62
+  },
+  {
+   "w": "más",
+   "start": 22.62,
+   "end": 22.84
+  },
+  {
+   "w": "y",
+   "start": 22.84,
+   "end": 22.95
+  },
+  {
+   "w": "era",
+   "start": 22.95,
+   "end": 23.18
+  },
+  {
+   "w": "sacroilíaca",
+   "start": 23.18,
+   "end": 24.01
+  },
+  {
+   "w": "y",
+   "start": 24.28,
+   "end": 24.49
+  },
+  {
+   "w": "el",
+   "start": 24.49,
+   "end": 24.59
+  },
+  {
+   "w": "test",
+   "start": 24.59,
+   "end": 24.77
+  },
+  {
+   "w": "del",
+   "start": 24.77,
+   "end": 24.89
+  },
+  {
+   "w": "cuatro",
+   "start": 24.89,
+   "end": 25.17
+  },
+  {
+   "w": "estaba",
+   "start": 25.17,
+   "end": 25.56
+  },
+  {
+   "w": "en",
+   "start": 25.56,
+   "end": 25.68
+  },
+  {
+   "w": "esa",
+   "start": 25.68,
+   "end": 25.86
+  },
+  {
+   "w": "misma",
+   "start": 25.86,
+   "end": 26.17
+  },
+  {
+   "w": "batería",
+   "start": 26.17,
+   "end": 26.75
+  },
+  {
+   "w": "entonces",
+   "start": 27.24,
+   "end": 27.87
+  },
+  {
+   "w": "qué",
+   "start": 27.91,
+   "end": 28.16
+  },
+  {
+   "w": "mide",
+   "start": 28.16,
+   "end": 28.37
+  },
+  {
+   "w": "ese",
+   "start": 28.37,
+   "end": 28.59
+  },
+  {
+   "w": "noventa",
+   "start": 28.59,
+   "end": 29.13
+  },
+  {
+   "w": "y",
+   "start": 29.13,
+   "end": 29.21
+  },
+  {
+   "w": "uno",
+   "start": 29.21,
+   "end": 29.62
+  },
+  {
+   "w": "cuántos",
+   "start": 29.98,
+   "end": 30.41
+  },
+  {
+   "w": "dieron",
+   "start": 30.41,
+   "end": 30.65
+  },
+  {
+   "w": "positivo",
+   "start": 30.65,
+   "end": 31.11
+  },
+  {
+   "w": "en",
+   "start": 31.11,
+   "end": 31.25
+  },
+  {
+   "w": "un",
+   "start": 31.25,
+   "end": 31.37
+  },
+  {
+   "w": "test",
+   "start": 31.37,
+   "end": 31.67
+  },
+  {
+   "w": "que",
+   "start": 31.67,
+   "end": 31.78
+  },
+  {
+   "w": "ya",
+   "start": 31.78,
+   "end": 31.95
+  },
+  {
+   "w": "formaba",
+   "start": 31.95,
+   "end": 32.28
+  },
+  {
+   "w": "parte",
+   "start": 32.28,
+   "end": 32.51
+  },
+  {
+   "w": "de",
+   "start": 32.51,
+   "end": 32.61
+  },
+  {
+   "w": "su",
+   "start": 32.61,
+   "end": 32.74
+  },
+  {
+   "w": "diagnóstico",
+   "start": 32.74,
+   "end": 33.48
+  },
+  {
+   "w": "es",
+   "start": 34.05,
+   "end": 34.31
+  },
+  {
+   "w": "como",
+   "start": 34.31,
+   "end": 34.46
+  },
+  {
+   "w": "probar",
+   "start": 34.46,
+   "end": 34.78
+  },
+  {
+   "w": "un",
+   "start": 34.78,
+   "end": 34.88
+  },
+  {
+   "w": "detector",
+   "start": 34.88,
+   "end": 35.29
+  },
+  {
+   "w": "de",
+   "start": 35.29,
+   "end": 35.43
+  },
+  {
+   "w": "humo",
+   "start": 35.43,
+   "end": 35.7
+  },
+  {
+   "w": "usando",
+   "start": 35.7,
+   "end": 36.1
+  },
+  {
+   "w": "en",
+   "start": 36.1,
+   "end": 36.25
+  },
+  {
+   "w": "parte",
+   "start": 36.25,
+   "end": 36.47
+  },
+  {
+   "w": "ese",
+   "start": 36.47,
+   "end": 36.7
+  },
+  {
+   "w": "mismo",
+   "start": 36.7,
+   "end": 36.95
+  },
+  {
+   "w": "detector",
+   "start": 36.95,
+   "end": 37.52
+  },
+  {
+   "w": "para",
+   "start": 37.52,
+   "end": 37.75
+  },
+  {
+   "w": "decidir",
+   "start": 37.75,
+   "end": 38.07
+  },
+  {
+   "w": "si",
+   "start": 38.07,
+   "end": 38.2
+  },
+  {
+   "w": "había",
+   "start": 38.2,
+   "end": 38.45
+  },
+  {
+   "w": "fuego",
+   "start": 38.45,
+   "end": 38.99
+  },
+  {
+   "w": "sin",
+   "start": 39.46,
+   "end": 39.69
+  },
+  {
+   "w": "compararlo",
+   "start": 39.69,
+   "end": 40.16
+  },
+  {
+   "w": "con",
+   "start": 40.16,
+   "end": 40.35
+  },
+  {
+   "w": "una",
+   "start": 40.35,
+   "end": 40.48
+  },
+  {
+   "w": "infiltración",
+   "start": 40.48,
+   "end": 41.16
+  },
+  {
+   "w": "ni",
+   "start": 41.16,
+   "end": 41.34
+  },
+  {
+   "w": "con",
+   "start": 41.34,
+   "end": 41.48
+  },
+  {
+   "w": "pacientes",
+   "start": 41.48,
+   "end": 41.97
+  },
+  {
+   "w": "sin",
+   "start": 41.97,
+   "end": 42.16
+  },
+  {
+   "w": "el",
+   "start": 42.16,
+   "end": 42.27
+  },
+  {
+   "w": "problema",
+   "start": 42.27,
+   "end": 42.84
+  },
+  {
+   "w": "no",
+   "start": 42.9,
+   "end": 43.14
+  },
+  {
+   "w": "sabemos",
+   "start": 43.14,
+   "end": 43.51
+  },
+  {
+   "w": "cuánto",
+   "start": 43.51,
+   "end": 43.83
+  },
+  {
+   "w": "acierta",
+   "start": 43.83,
+   "end": 44.4
+  },
+  {
+   "w": "lo",
+   "start": 44.92,
+   "end": 45.06
+  },
+  {
+   "w": "útil",
+   "start": 45.06,
+   "end": 45.54
+  },
+  {
+   "w": "según",
+   "start": 45.89,
+   "end": 46.22
+  },
+  {
+   "w": "los",
+   "start": 46.22,
+   "end": 46.36
+  },
+  {
+   "w": "autores",
+   "start": 46.36,
+   "end": 46.88
+  },
+  {
+   "w": "un",
+   "start": 46.88,
+   "end": 47.05
+  },
+  {
+   "w": "test",
+   "start": 47.05,
+   "end": 47.38
+  },
+  {
+   "w": "suelto",
+   "start": 47.38,
+   "end": 47.78
+  },
+  {
+   "w": "vale",
+   "start": 47.78,
+   "end": 48.06
+  },
+  {
+   "w": "poco",
+   "start": 48.06,
+   "end": 48.47
+  },
+  {
+   "w": "la",
+   "start": 48.77,
+   "end": 49.02
+  },
+  {
+   "w": "batería",
+   "start": 49.02,
+   "end": 49.56
+  },
+  {
+   "w": "más",
+   "start": 49.56,
+   "end": 50.04
+  },
+  {
+   "w": "mañana",
+   "start": 50.41,
+   "end": 50.91
+  },
+  {
+   "w": "no",
+   "start": 51.04,
+   "end": 51.24
+  },
+  {
+   "w": "etiquetesdesacroilíaca",
+   "start": 51.24,
+   "end": 52.12
+  },
+  {
+   "w": "por",
+   "start": 52.12,
+   "end": 52.27
+  },
+  {
+   "w": "un",
+   "start": 52.27,
+   "end": 52.41
+  },
+  {
+   "w": "test",
+   "start": 52.41,
+   "end": 52.56
+  },
+  {
+   "w": "del",
+   "start": 52.56,
+   "end": 52.69
+  },
+  {
+   "w": "cuatro",
+   "start": 52.69,
+   "end": 53.19
+  },
+  {
+   "w": "haz",
+   "start": 53.33,
+   "end": 53.51
+  },
+  {
+   "w": "la",
+   "start": 53.51,
+   "end": 53.64
+  },
+  {
+   "w": "batería",
+   "start": 53.64,
+   "end": 54.12
+  },
+  {
+   "w": "y",
+   "start": 54.12,
+   "end": 54.21
+  },
+  {
+   "w": "cuenta",
+   "start": 54.21,
+   "end": 54.55
+  },
+  {
+   "w": "positivos",
+   "start": 54.55,
+   "end": 55.33
+  },
+  {
+   "w": "comenta",
+   "start": 55.7,
+   "end": 56.24
+  },
+  {
+   "w": "original",
+   "start": 56.24,
+   "end": 56.88
+  },
+  {
+   "w": "si",
+   "start": 56.88,
+   "end": 57.06
+  },
+  {
+   "w": "quieres",
+   "start": 57.06,
+   "end": 57.34
+  },
+  {
+   "w": "más",
+   "start": 57.34,
+   "end": 57.51
+  },
+  {
+   "w": "lecturas",
+   "start": 57.51,
+   "end": 57.88
+  },
+  {
+   "w": "así",
+   "start": 57.88,
+   "end": 58.26
+  },
+  {
+   "w": "y",
+   "start": 58.33,
+   "end": 58.54
+  },
+  {
+   "w": "en",
+   "start": 58.54,
+   "end": 58.64
+  },
+  {
+   "w": "la",
+   "start": 58.64,
+   "end": 58.74
+  },
+  {
+   "w": "parte",
+   "start": 58.74,
+   "end": 58.98
+  },
+  {
+   "w": "cuatro",
+   "start": 58.98,
+   "end": 59.62
+  },
+  {
+   "w": "el",
+   "start": 59.62,
+   "end": 59.85
+  },
+  {
+   "w": "Lasegue",
+   "start": 59.85,
+   "end": 60.53
+  },
+  {
+   "w": "que",
+   "start": 60.89,
+   "end": 61.08
+  },
+  {
+   "w": "esa",
+   "start": 61.08,
+   "end": 61.27
+  },
+  {
+   "w": "revisión",
+   "start": 61.27,
+   "end": 61.76
+  },
+  {
+   "w": "interpreta",
+   "start": 61.76,
+   "end": 62.46
+  },
+  {
+   "w": "al",
+   "start": 62.46,
+   "end": 62.61
+  },
+  {
+   "w": "revés",
+   "start": 62.61,
+   "end": 63.15
+  }
+ ]
+}
