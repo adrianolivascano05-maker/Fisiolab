@@ -176,19 +176,71 @@ Referencias:
 
 ---
 
-# Propuesta de guion · Parte 4: el Lasègue, interpretado al revés
+# Parte 3 · «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» · entregables
 
-**Pilar:** Lectura crítica · Datos de Custers 2024 (apartado 3.2.5, «Straight Leg Raise» y «Crossed SLR», tabla 5 y «Summary of Specificity and Sensitivity»). Corresponde al reel 2 del doc de guiones de Custers, ya escrito y verificado.
+**Orden de publicación:** 1 palpación · 2 Kemp · **3 Lasègue**. El reel de la sacroilíaca queda aparcado (`src/videos/sacroiliaca/`), no se publica.
+**Pilar:** Lectura crítica · **Público:** estudiantes y fisios clínicos · **Duración:** 64,2 s · Composición `Lasegue` (`src/videos/lasegue/`, assets en `public/lasegue/`).
+
+## Hilo
+1. **Caso:** dolor que baja por la pierna, Lasègue positivo: ¿confirma o descarta?
+2. **Lo que responde la revisión:** confirma. **Pero sus propios números** dicen lo contrario.
+3. **Los números:** sensibilidad hasta 0,98 (casi todos los que tienen el problema dan positivo); especificidad que baja hasta 0,10 (también positivo en mucha gente sin el problema).
+4. **Quiz:** un Lasègue negativo, ¿qué te dice?
+5. **Respuesta:** la tensión de la raíz se vuelve poco probable. Muy sensible y negativo: descarta.
+6. **El cruzado, al revés:** se eleva la pierna sana y duele la otra; especificidad hasta 0,98. Muy específico y positivo: confirma.
+7. **La revisión lo escribe al revés.** Lección: lee los números, no solo la conclusión.
+8. **Mañana:** Lasègue negativo, la raíz baja en tu lista; Lasègue positivo, no pares: añade el cruzado.
+9. **CTA** «cruzado» y teaser de la parte 4: el único ejercicio que no funcionó para el dolor lumbar.
+
+## Portada
+Línea 1: **Lasègue positivo:** · Dato: **¿confirma?** · Subtítulo: LA REVISIÓN LO DICE AL REVÉS (`npx remotion still Lasegue-Portada out/portada-lasegue.png`).
+
+## Descripción del post
+Lasègue positivo. ¿Confirma o descarta? Una revisión de 2024 responde «confirma». Sus propios números dicen lo contrario.
+
+- **Lasègue (elevación de la pierna recta):** sensibilidad de 0,73 a 0,98; especificidad de 0,10 a 1. Muy sensible: si sale **negativo**, la tensión de la raíz (L5-S1) se vuelve poco probable.
+- **Lasègue cruzado** (se eleva la pierna sana y duele la otra): sensibilidad de 0,23 a 0,43; especificidad de 0,88 a 0,98. Muy específico: si sale **positivo**, la hace mucho más probable.
+- **La revisión lo interpreta al revés:** dice que el Lasègue sirve para confirmar y el cruzado para descartar.
+
+Mañana en consulta: Lasègue negativo, la raíz baja en tu lista. Lasègue positivo, no pares ahí: añade el cruzado.
+
+Aviso: revisión narrativa que agrega estudios distintos, por eso los rangos son tan amplios. «Muy sensible y negativo descarta; muy específico y positivo confirma» es la regla clásica de interpretación de esos valores, no una frase de la revisión.
+
+Referencia:
+Custers P, Van de Kelft E, Eeckhaut B, et al. Clinical Examination, Diagnosis, and Conservative Treatment of Chronic Low Back Pain: A Narrative Review. Life (Basel). 2024;14(9):1090. doi:10.3390/life14091090 (valores tomados de Deyo 2016, Vroomen 1999, Devillé 2000, van der Windt 2010 y Braddom, refs. 2 y 21-24).
+
+¿Haces siempre el cruzado? Comenta «cruzado».
+
+#fisioterapia #lumbalgia #lasegue #fisioterapeuta #evidenciacientifica #estudiantesdefisio #lecturacritica #ciatica
+
+## 3 ganchos alternativos (A/B)
+1. «Lasègue positivo no confirma. Y la revisión que lo dice se contradice con sus propios números.»
+2. «Sensibilidad 0,98. ¿Para confirmar o para descartar?»
+3. «El test que todos hacemos para la ciática, explicado al revés en una revisión de 2024.»
+
+## Dónde verificarlo
+Custers 2024, apartado 3.2.5: «Straight Leg Raising» (sensibilidad «consistently above 0.73, reaching up to 0.98»; especificidad «from 0.10 to 1»; «robust tool for ruling in neural tension»), «Crossed Straight Leg Raise» (sensibilidad 0,23-0,43; especificidad 0,88-0,98; «useful for confirming the absence of neural tension») y «Summary of Specificity and Sensitivity» (repite la inversión). Teaser verificado en 4.1.8 «Exercise» (metaanálisis de Fernández et al.: todos los tipos de ejercicio fueron eficaces salvo los estiramientos para el dolor).
+
+## Aviso sobre el vídeo 2 (Kemp)
+Su final dice «en la parte tres: la sacroilíaca». Ahora la parte 3 es el Lasègue. Opciones: (a) regenerar solo la última frase del Kemp con una petición de voz («Y en la parte tres: el Lasègue, que esta revisión interpreta al revés») y re-renderizar; (b) dejarlo y aclararlo en la descripción del post.
+
+---
+
+# Propuesta de guion · Parte 4: estirar, el único ejercicio que no funcionó
+
+**Pilar:** Mito vs. evidencia · **Público:** pacientes, deportistas y fisios · Datos de Custers 2024, apartado 4.1.8 (metaanálisis de Fernández et al., refs. 49-51) y frase sobre el yoga (ref. 61). Corresponde al reel 7 del doc de guiones de Custers, ya verificado.
 
 | Escena | Voz | En pantalla |
 |---|---|---|
-| Gancho | «Lasègue o Lasègue cruzado: ¿cuál confirma y cuál descarta? Esta revisión lo dice al revés.» | Dos camillas a pantalla partida; «AL REVÉS» de golpe |
-| Prueba | «La revisión de la parte 3 otra vez: Life, 2024.» | Tarjeta Life 2024 con lupa |
-| Datos | «Lasègue: sensibilidad de 0,73 a 0,98. El cruzado: especificidad de 0,88 a 0,98.» | Dos barras de rango |
-| Quiz | «¿Cuál te ayuda a descartar si sale negativo?» | Opciones LASÈGUE / CRUZADO |
-| Hallazgo | «Muy sensible y negativo, descarta. Muy específico y positivo, confirma.» | Regla con dos flechas |
-| Giro | «La revisión escribe justo lo contrario.» | Cita de la revisión tachada |
-| Qué hacer | «Si el Lasègue sale positivo, no pares: añade el cruzado.» | Checklist |
-| CTA | «Comenta "cruzado" si lo haces siempre. Y en la parte 5…» | Botón y teaser |
+| Gancho | «Te duele la espalda y lo primero que haces es estirar. Para el dolor, fue lo único que no funcionó.» | Figura estirando con ✗ |
+| Prueba | «Lo recoge la misma revisión de 2024, citando un metanálisis.» | Tarjeta Life 2024 + «metanálisis» |
+| Datos | «Todos los tipos de ejercicio fueron eficaces para el dolor… menos los estiramientos.» | Fila de ejercicios con ✓ y estiramientos ✗ |
+| Quiz | «¿Cuál salió el más eficaz?» | Opciones: FUERZA / PILATES / YOGA |
+| Hallazgo | «Pilates, para el dolor y la discapacidad. Detrás, mente-cuerpo, core y fuerza.» | Podio |
+| Giro | «Y para el yoga, evidencia sólida a corto y largo plazo.» | Barra de evidencia |
+| Matiz | «Ojo: son datos citados, y la revisión admite que cuesta señalar un ejercicio superior.» | Sello «orientación» |
+| Qué hacer | «Mañana: control y carga antes que solo estirar.» | Checklist |
+| CTA | «Comenta "pilates" si lo recomiendas. Y en la parte 5…» | Botón y teaser |
 
-Limitación obligatoria: la regla «sensible y negativo descarta, específico y positivo confirma» es la interpretación estándar de esos valores, no una frase del paper; los rangos proceden de estudios distintos que la revisión agrega.
+---
+

@@ -7,7 +7,8 @@ Reel vertical (1080×1920, 30 fps) con animaciones en código, voz en off de Gem
 |---|---|---|
 | `src/videos/palpacion` | `PalpacionL4` | «Palpamos el nivel correcto la mitad de las veces» (Custers 2024 · reel 1; Harlick 2007) |
 | `src/videos/kemp` | `Kemp` | «El test de Kemp no confirma ni descarta» (Custers 2024 · reel 5; Stuber 2014) |
-| `src/videos/sacroiliaca` | `Sacroiliaca` | «Test del 4 positivo: ¿qué mide de verdad el 91,4 %?» (Custers 2024 · reel 6, corregido con Telli 2018) |
+| `src/videos/lasegue` | `Lasegue` | **Parte 3** · «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» (Custers 2024 · reel 2) |
+| `src/videos/sacroiliaca` | `Sacroiliaca` | (aparcado, no se publica) | «Test del 4 positivo: ¿qué mide de verdad el 91,4 %?» (Custers 2024 · reel 6, corregido con Telli 2018) |
 
 Cada vídeo tiene su carpeta en `src/videos/<id>/` (config.ts con el guion y los datos, scenes/, cues.ts, index.ts) y sus assets en `public/<id>/` (voz/ y music.wav). Se registra en `src/videos/index.ts`. En Studio cada reel aparece con su portada (`<Id>-Portada`) y sus escenas sueltas.
 
