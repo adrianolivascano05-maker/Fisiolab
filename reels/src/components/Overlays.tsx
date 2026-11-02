@@ -36,7 +36,7 @@ export const Countdown: React.FC<{ at: number }> = ({ at }) => {
   const fi = f - step * 6;
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", fontFamily }}>
-      {black ? <AbsoluteFill style={{ backgroundColor: COLORS.ink }} /> : null}
+      {black ? <AbsoluteFill style={{ backgroundColor: COLORS.ink }} /> : <AbsoluteFill style={{ backgroundColor: "rgba(250,251,252,0.88)" }} />}
       {!black ? (
         <div style={{ fontWeight: 900, fontSize: 300, lineHeight: 1, color: COLORS.white, textShadow: "none", scale: String(interpolate(fi, [0, 6], [1.25, 1], { ...CLAMP, easing: Easing.bezier(0.16, 1, 0.3, 1) })), opacity: interpolate(fi, [0, 1, 6], [0, 1, 0.9], CLAMP) }}>{n}</div>
       ) : null}

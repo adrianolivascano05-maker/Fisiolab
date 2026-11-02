@@ -117,3 +117,69 @@ Custers 2024: apartado 3.2.5 «Kemp's Test» (valores y «neither reliably confi
 | CTA | «Comenta "tres" si ya las cuentas. Y en la parte 4: el Lasègue, el test que la propia revisión interpreta al revés.» | Botón «Comenta tres»; tarjeta «PARTE 4 →» |
 
 Limitación obligatoria: revisión narrativa; el criterio «3 o más positivas» y el 91,4 % salen de un único estudio (Telli 2008); «sensible y negativo descarta» es interpretación estándar, no frase del paper. Teaser verificado: Custers invierte la interpretación de SLR y SLR cruzada (reel 2 de Custers).
+
+---
+
+# Reel 3 · «El 91,4 % del test del 4: leímos el original» · entregables
+
+**Pilar:** Lectura crítica · **Público:** fisios clínicos y estudiantes · **Duración:** 52,6 s · Composición `Sacroiliaca` (`src/videos/sacroiliaca/`, assets en `public/sacroiliaca/`).
+
+## Por qué este enfoque
+El guion propuesto para la parte 3 (Custers 2024, reel 6) repetía dos cosas de la revisión que no aguantan la lectura del original:
+1. La revisión cita «Telli et al. 2008». El estudio es de **2018** (Pain Physician 21(4):E367-E376; PMID 30045603; así figura también en la propia bibliografía de Custers, ref. 28).
+2. La revisión llama «sensibilidad» al 91,4 % del FABER. En el original es el **porcentaje de positivos entre 117 pacientes ya diagnosticados** de disfunción sacroilíaca, y el diagnóstico se hizo con **3 de 6 tests de provocación positivos**. No hubo comparación con infiltración ni grupo sin el diagnóstico, así que no es una sensibilidad en sentido estricto.
+Por eso el reel pasa de «aplicación clínica» a **lectura crítica**, manteniendo el mensaje práctico (batería de tests, no un test suelto), que sí sostienen los autores.
+
+## Portada
+Línea 1: **El test del 4 detecta el** · Dato: **91,4 %** · Subtítulo: ¿SEGURO? LEÍMOS EL ORIGINAL (`npx remotion still Sacroiliaca-Portada out/portada-sacroiliaca.png`).
+
+## Guion locutado
+91,4 %. Según una revisión de 2024, eso detecta el test del 4. Fuimos al estudio original: no es lo que parece. / Primer error: la revisión dice 2008, y es de 2018. / 117 pacientes, todos ya diagnosticados de disfunción sacroilíaca. ¿Cómo? Con 3 de 6 tests de provocación positivos. / Entonces, ¿qué mide ese 91? / En cuántos de esos pacientes salió positivo el test. Pacientes diagnosticados con esos mismos tests. / No se comparó con la infiltración, ni con gente sin el diagnóstico. No es una sensibilidad de verdad. / Y según los autores, un test suelto vale poco; la batería, más. / Mañana: no etiquetes sacroilíaca por un test del 4; haz la batería y cuenta positivos. / Comenta «original» si quieres más lecturas así. Y en la parte 4: el Lasègue, que esta revisión interpreta al revés.
+
+## Descripción del post
+Una revisión de 2024 dice que el test del 4 (FABER) tiene un 91,4 % de sensibilidad para la sacroilíaca. Fuimos al estudio original.
+
+- **La fecha está mal:** la revisión dice 2008; el estudio es de 2018.
+- **No es una sensibilidad:** el 91,4 % es cuántos dieron positivo entre 117 pacientes que ya tenían el diagnóstico, y ese diagnóstico se hizo con 3 de 6 tests de provocación, entre ellos el propio FABER.
+- **Faltan las comparaciones:** no hubo infiltración de referencia ni grupo sin el diagnóstico. Los propios autores lo reconocen como limitación.
+- **Lo que sí sostiene el estudio:** cada test por separado tiene fiabilidad y validez limitadas; la batería de tests de provocación es más fiable.
+
+Mañana en consulta: no etiquetes «sacroilíaca» por un test del 4 positivo. Haz la batería de provocación y cuenta positivos.
+
+Aviso: estudio retrospectivo de una sola clínica (117 pacientes), con concordancia solo intraobservador. Tómalo como orientación.
+
+Referencias:
+1. Telli H, Telli S, Topal M. The Validity and Reliability of Provocation Tests in the Diagnosis of Sacroiliac Joint Dysfunction. Pain Physician. 2018;21(4):E367-E376. PMID: 30045603.
+2. Custers P, Van de Kelft E, Eeckhaut B, et al. Clinical Examination, Diagnosis, and Conservative Treatment of Chronic Low Back Pain: A Narrative Review. Life (Basel). 2024;14(9):1090. doi:10.3390/life14091090
+
+¿Lees el original antes de citar una revisión? Comenta «original».
+
+#fisioterapia #lumbalgia #sacroiliaca #fisioterapeuta #evidenciacientifica #estudiantesdefisio #lecturacritica #dolorlumbar
+
+## 3 ganchos alternativos (A/B)
+1. «91,4 % de sensibilidad. Spoiler: no es una sensibilidad.»
+2. «La revisión dice 2008. El estudio es de 2018. Y eso es lo de menos.»
+3. «Si citas el test del 4 con este dato, lee esto antes.»
+
+## Dónde verificarlo
+- Telli 2018, resumen (PubMed 30045603): 117 pacientes ya diagnosticados por evaluación clínica; criterio de 3 de 6 tests positivos; FABER positivo en el 91,4 %, Gaenslen en el 56,4 %; limitaciones: sin concordancia interobservador y sin comparación con infiltración; conclusión: los tests sueltos tienen fiabilidad y validez limitadas y la batería es fiable.
+- Custers 2024: apartado 3.4.3 «Specificity and Sensitivity» (dice «Telli et al. from 2008» y «highest sensitivity… FABERE (91.4%)»); bibliografía, ref. 28 (Pain Physician 2018).
+
+---
+
+# Propuesta de guion · Parte 4: el Lasègue, interpretado al revés
+
+**Pilar:** Lectura crítica · Datos de Custers 2024 (apartado 3.2.5, «Straight Leg Raise» y «Crossed SLR», tabla 5 y «Summary of Specificity and Sensitivity»). Corresponde al reel 2 del doc de guiones de Custers, ya escrito y verificado.
+
+| Escena | Voz | En pantalla |
+|---|---|---|
+| Gancho | «Lasègue o Lasègue cruzado: ¿cuál confirma y cuál descarta? Esta revisión lo dice al revés.» | Dos camillas a pantalla partida; «AL REVÉS» de golpe |
+| Prueba | «La revisión de la parte 3 otra vez: Life, 2024.» | Tarjeta Life 2024 con lupa |
+| Datos | «Lasègue: sensibilidad de 0,73 a 0,98. El cruzado: especificidad de 0,88 a 0,98.» | Dos barras de rango |
+| Quiz | «¿Cuál te ayuda a descartar si sale negativo?» | Opciones LASÈGUE / CRUZADO |
+| Hallazgo | «Muy sensible y negativo, descarta. Muy específico y positivo, confirma.» | Regla con dos flechas |
+| Giro | «La revisión escribe justo lo contrario.» | Cita de la revisión tachada |
+| Qué hacer | «Si el Lasègue sale positivo, no pares: añade el cruzado.» | Checklist |
+| CTA | «Comenta "cruzado" si lo haces siempre. Y en la parte 5…» | Botón y teaser |
+
+Limitación obligatoria: la regla «sensible y negativo descarta, específico y positivo confirma» es la interpretación estándar de esos valores, no una frase del paper; los rangos proceden de estudios distintos que la revisión agrega.
