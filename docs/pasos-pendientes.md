@@ -94,6 +94,8 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 
 ## 3 bis. Cloudflare: pegar el `worker.js` de la versión `2026-11-02` (unos 3 minutos)
 
+**Hecho el 03-11-2026** (pegado por quien administra; `/v1/salud` dice `2026-11-02`).
+
 Trae un tope de peticiones por dirección IP (`cloudflare/src/ratelimit.js`): lo que se abre sin sesión (formularios de
 los pacientes y `/v1/salud`) admite 60 peticiones por minuto y dirección, y tras 10 sesiones de Google falsas en un minuto
 deja de preguntar a Google. Las tablas no cambian. Solo el paso 3 de abajo: **Workers & Pages** → el servidor → **Edit
