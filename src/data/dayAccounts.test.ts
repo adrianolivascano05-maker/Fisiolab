@@ -2,7 +2,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { precautionsOf } from "../clinical/PrecautionsNote";
 import { createAppointment } from "./appointments";
-import { dayAccounts } from "./billing";
+import { addPayment, dayAccounts } from "./billing";
 import { saveSession } from "./clinical";
 import type { Db } from "./db";
 import { createPatient } from "./repo";
@@ -33,6 +33,20 @@ describe("Hoy: primera visita", () => {
     expect(out.get(conSesion)!.firstVisit).toBe(false);
     expect(out.get(importada)!.firstVisit).toBe(false);
     expect(out.get(anulada)!.firstVisit).toBe(true);
+  });
+});
+
+describe("Hoy: visita cubierta", () => {
+  it("con sesión escrita hoy o cobro de hoy está cubierta; atendida sin sesión ni cobro, no (sale Cobrar)", async () => {
+    const sinNada = await patient("Sin nada");
+    const conSesion = await patient("Sesión hoy");
+    const conCobro = await patient("Cobro hoy");
+    await saveSession(db, conSesion, { performedAt: "2026-11-03T09:00:00.000Z", pain: null, subjective: "", objective: "", treatment: "", plan: "", reviewOn: null, nextAt: null, nextMinutes: null });
+    await addPayment(db, conCobro, { amountCents: 4000, method: "efectivo", paidOn: today, concept: "Sesión" });
+    const out = await dayAccounts(db, [sinNada, conSesion, conCobro], today, dayStartIso);
+    expect(out.get(sinNada)!.doneToday).toBe(false);
+    expect(out.get(conSesion)!.doneToday).toBe(true);
+    expect(out.get(conCobro)!.doneToday).toBe(true);
   });
 });
 

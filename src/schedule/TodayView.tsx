@@ -18,7 +18,7 @@ import { addDays, todayDay } from "../clinical/pageKit";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
 import { agenda, remindersBetween, STATUS_LABELS, type AgendaItem } from "../data/appointments";
-import { addPayment, dayAccounts, euros, getPricing, patientAccount, pendingAccounts } from "../data/billing";
+import { addPayment, dayAccounts, euros, getPricing, patientAccount, pendingAccounts, type DayAccount } from "../data/billing";
 import { dueReviews, getAnamnesis, getSession } from "../data/clinical";
 import { listConsents } from "../data/consents";
 import { getDb } from "../data/db";
@@ -208,13 +208,15 @@ function dayTitle(day: AgendaItem[]): string {
 const FOLD_FROM = 3;
 
 /**
- * Una cita del día: la fila abre su hoja; debajo, Atender (si está pendiente) y Cobrar. Atendida y sin nada que deber,
- * no hay nada que cobrar: sale «Al día» en vez del botón (antes salía siempre y se podía cobrar dos veces).
+ * Una cita del día: la fila abre su hoja; debajo, Atender (si está pendiente) y Cobrar. Atendida, sin nada que deber y
+ * con la visita ya cubierta (una sesión escrita hoy, un cobro de hoy o un bono en curso), no hay nada que cobrar: sale
+ * «Al día» en vez del botón (antes salía siempre y se podía cobrar dos veces). Marcada «Atendida» desde su hoja, sin
+ * sesión ni cobro, sigue saliendo Cobrar, con el precio de la sesión.
  */
-function TodayRow({ a, owes, account, onOpen, onCharge }: { a: AgendaItem; owes: number; account?: { pack: string | null; firstVisit: boolean }; onOpen: () => void; onCharge: () => void }) {
+function TodayRow({ a, owes, account, onOpen, onCharge }: { a: AgendaItem; owes: number; account?: DayAccount; onOpen: () => void; onCharge: () => void }) {
   const Icon = a.status === "done" ? CircleCheck : a.status === "no_show" ? UserX : a.status === "cancelled" ? CalendarX2 : CalendarCheck;
   const off = a.status === "no_show" || a.status === "cancelled";
-  const settled = a.status === "done" && owes <= 0;
+  const settled = a.status === "done" && owes <= 0 && (!account || account.doneToday || account.pack !== null);
   // Lo que debe va justo detrás del estado: si la línea no cabe en el móvil, se corta lo menos importante.
   const detail = [
     a.status === "scheduled" ? `${a.minutes} min` : STATUS_LABELS[a.status],

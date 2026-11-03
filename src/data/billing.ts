@@ -369,27 +369,36 @@ export function accountLine(a: Account): string | null {
   return parts.length ? parts.join(" · ") : null;
 }
 
+export type DayAccount = { pack: string | null; firstVisit: boolean; doneToday: boolean };
+
 /**
  * Para la lista de Hoy, de una vez y solo de esos pacientes: el bono que están gastando («quedan 3 de 10») y si hoy es
  * su primera visita (sin sesiones ni citas atendidas o pendientes de antes de `dayStartIso`: un paciente importado puede tener
- * citas atendidas sin sesión escrita).
+ * citas atendidas sin sesión escrita). `doneToday`: ya hay algo que cubre la visita de hoy (una sesión escrita hoy o un
+ * cobro con fecha de hoy); sin eso, una cita marcada «Atendida» desde su hoja sigue ofreciendo Cobrar.
  */
-export async function dayAccounts(db: Db, patientIds: string[], today: string, dayStartIso: string): Promise<Map<string, { pack: string | null; firstVisit: boolean }>> {
-  const out = new Map<string, { pack: string | null; firstVisit: boolean }>();
+export async function dayAccounts(db: Db, patientIds: string[], today: string, dayStartIso: string): Promise<Map<string, DayAccount>> {
+  const out = new Map<string, DayAccount>();
   if (!patientIds.length) return out;
   const marks = patientIds.map(() => "?").join(",");
-  const [pricing, packs, sessions, before] = await Promise.all([
+  const [pricing, packs, sessions, before, paid] = await Promise.all([
     getPricing(db),
     db.query<PackRow>(`select * from packs where patient_id in (${marks})`, patientIds),
     db.query<{ id: string; patient_id: string; performed_at: string }>(`select id, patient_id, performed_at from sessions where patient_id in (${marks})`, patientIds),
     db.query<{ patient_id: string }>(`select distinct patient_id from appointments where patient_id in (${marks}) and status in ('done', 'scheduled') and starts_at < ?`, [...patientIds, dayStartIso]),
+    db.query<{ patient_id: string }>(`select distinct patient_id from payments where patient_id in (${marks}) and paid_on = ?`, [...patientIds, today]),
   ]);
+  const paidToday = new Set(paid.map((r) => r.patient_id));
   const seen = new Set(before.map((r) => r.patient_id));
   for (const id of patientIds) {
     const mine = sessions.filter((x) => x.patient_id === id);
     const a = allocate(packs.filter((k) => k.patient_id === id).map(toPack), mine.map((x) => ({ id: x.id, performedAt: x.performed_at })), pricing, today);
     const open = a.packs.find((k) => k.left > 0 && !k.expired);
-    out.set(id, { pack: open ? `Bono: quedan ${open.left} de ${open.sessions}` : null, firstVisit: !seen.has(id) && !mine.some((x) => x.performed_at < dayStartIso) });
+    out.set(id, {
+      pack: open ? `Bono: quedan ${open.left} de ${open.sessions}` : null,
+      firstVisit: !seen.has(id) && !mine.some((x) => x.performed_at < dayStartIso),
+      doneToday: paidToday.has(id) || mine.some((x) => x.performed_at >= dayStartIso && madridDay(x.performed_at) === today),
+    });
   }
   return out;
 }
