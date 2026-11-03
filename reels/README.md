@@ -10,6 +10,7 @@ Reel vertical (1080×1920, 30 fps) con animaciones en código, voz en off de Gem
 | `src/videos/lasegue` | `Lasegue` | «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» (Custers 2024 · reel 2) |
 | `src/videos/tendon` | `Tendon` | «Tu tendón cambia 2 días después del partido (y vuelve al 4)» (Cook 2016 · reel 7) |
 | `src/videos/carpiano` | `Carpiano` | «Fibromialgia y túnel carpiano: ¿qué va primero?» (Fitzcharles 2026 · reel 13) |
+| `src/videos/isometrico` | `Isometrico` | «Isométrico de cuádriceps: el ángulo que lo frena» (Rice 2010 · reel 7) |
 | `src/videos/sacroiliaca` | `Sacroiliaca` | (aparcado, no se publica) | «Test del 4 positivo: ¿qué mide de verdad el 91,4 %?» (Custers 2024 · reel 6, corregido con Telli 2018) |
 
 Cada vídeo tiene su carpeta en `src/videos/<id>/` (config.ts con el guion y los datos, scenes/, cues.ts, index.ts) y sus assets en `public/<id>/` (voz/ y music.wav). Se registra en `src/videos/index.ts`. En Studio cada reel aparece con su portada (`<Id>-Portada`) y sus escenas sueltas.

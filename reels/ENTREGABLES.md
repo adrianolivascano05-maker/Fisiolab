@@ -345,3 +345,57 @@ Referencias:
 
 ## Dónde verificarlo
 Fitzcharles 2026, sección «Mixed pain in the musculoskeletal context», apartado «Soft-tissue conditions» (ref. 113): «In a case–control study of 9,232 individuals with fibromyalgia, the odds of carpal tunnel syndrome (odds ratio 2.98), trigger finger (odds ratio 1.77), De Quervain's tenosynovitis (odds ratio 1.96), tendinitis (odds ratio 2.16) and hand osteoarthritis (odds ratio 2.99) were all significantly increased (all P < 0.001). Patients with fibromyalgia also had higher healthcare utilization and surgery rates.» La revisión no da IC, número de controles ni discute el orden temporal o el sesgo de detección: eso es lectura crítica nuestra, y el vídeo lo dice («que no da la revisión»).
+
+---
+
+# Vídeo · «Isométrico de cuádriceps: el ángulo que lo frena» · entregables
+
+**Artículo:** Rice DA, McNair PJ. Quadriceps arthrogenic muscle inhibition: neural mechanisms and treatment perspectives. Semin Arthritis Rheum 2010;40:250-266. doi:10.1016/j.semarthrit.2009.10.001 (Rice 2010 · reel 7).
+**Pilar:** Aplicación clínica en 1 minuto · **Público:** fisios clínicos · Composición `Isometrico` (`src/videos/isometrico/`, assets en `public/isometrico/`).
+**Tipo de datos (nuevo):** una relación con forma de curva (presión intraarticular y freno frente al ángulo de flexión, en U), una comparación relativa («más del doble») y una recomendación de ángulo (30-50°). Rodilla, nada lumbar.
+**Tipo de estudio que se dice en el vídeo:** revisión narrativa (2010), y en el matiz, los años de los estudios citados (1983-1996).
+
+## Hilo
+1. **Caso:** rodilla recién operada; isométrico de cuádriceps con la pierna estirada. ¿Y si es el ángulo que más lo frena?
+2. **Quién lo dice:** revisión narrativa de 2010; tras una lesión, la rodilla frena el cuádriceps por reflejo (inhibición muscular artrogénica).
+3. **Los datos:** con derrame, la presión dentro de la rodilla dibuja una U: máxima en los extremos y mínima en el rango medio. El freno sigue el mismo patrón. El gráfico es un esquema cualitativo, sin valores en el eje.
+4. **Quiz:** ¿a qué ángulo lo harías? (0° estirada / 30-50° / 90°).
+5. **El hallazgo:** tras una meniscectomía, incluso sin derrame detectable, el freno con la pierna estirada puede ser más del doble que a 30-40°.
+6. **La recomendación:** en fase aguda, isométricos entre 30 y 50°, donde la presión es mínima (y probablemente se activa mejor).
+7. **Matiz:** muchos de esos estudios son de los ochenta y noventa.
+8. **Mañana:** isométrico con la rodilla doblada; vigila el derrame, porque con más líquido el ángulo probablemente pesa aún más.
+9. **CTA:** comenta «30».
+
+## Portada
+Línea 1: **Isométrico de cuádriceps:** · Dato: **30-50°** · Subtítulo: NO CON LA PIERNA ESTIRADA (`npx remotion still Isometrico-Portada out/portada-isometrico.png`).
+
+## Descripción del post
+Rodilla recién operada e isométrico con la pierna estirada. ¿Y si es justo el ángulo que más frena el cuádriceps?
+
+- Con derrame, la presión dentro de la rodilla dibuja una U: máxima en extensión completa y en flexión al final del rango, y mínima en el rango medio.
+- La inhibición del cuádriceps sigue el mismo patrón: es mayor hacia los extremos.
+- En los primeros días tras una meniscectomía, incluso sin derrame clínicamente detectable, la inhibición en extensión completa puede ser más del doble que a 30-40° de flexión.
+- Por eso, los autores recomiendan en la fase aguda tras una lesión o una cirugía hacer los isométricos de cuádriceps entre 30 y 50° de flexión, donde la presión es más baja.
+
+Mañana en consulta: isométrico con la rodilla doblada (rulo grande o cuña) y vigila el derrame. Cuanto más líquido, más pesa probablemente el ángulo.
+
+Aviso: es una revisión narrativa de 2010, y buena parte de los estudios que cita son de 1983 a 1996, a menudo con rodillas sanas a las que se inyectó líquido.
+
+Referencia: Rice DA, McNair PJ. Quadriceps arthrogenic muscle inhibition: neural mechanisms and treatment perspectives. Semin Arthritis Rheum. 2010;40(3):250-266. doi:10.1016/j.semarthrit.2009.10.001
+
+¿Con qué ángulo haces tú los isométricos tras una cirugía? Comenta «30».
+
+#fisioterapia #rodilla #cuadriceps #rehabilitacion #meniscectomia #ejercicioterapeutico #evidenciacientifica #estudiantesdefisio
+
+## 3 ganchos alternativos (A/B)
+1. «Ese isométrico con la pierna estirada puede ser el peor ángulo.»
+2. «Más del doble de freno solo por estirar la rodilla.»
+3. «Pon un rulo debajo: tu cuádriceps te lo agradecerá.»
+
+## Dónde verificarlo
+Rice y McNair 2010, «Changes in Afferent Discharge Due to Joint Damage» → «Swelling», pp. 253-254:
+- La curva en U: «In the swollen knee, passive movement of the joint produces a characteristic U-shaped curve, with peaks in IAP occurring in full extension and at end range flexion, with a decrease in mid range» (refs. 74, 78, 80, 81).
+- Más inhibición en los extremos: «Greater inhibition occurs toward the extremes of joint motion» (refs. 74, 77, 84-87).
+- Meniscectomía: «Even in the absence of a clinically detectable effusion, patients may exhibit more than double the amount of AMI in full extension when compared with 30 to 40° of knee flexion in the first few days following menisectomy» (refs. 85-86, 1983).
+- Recomendación: «in the acute stages after injury or surgery, isometric quadriceps exercises should be performed in 30 to 50° of knee flexion, where IAP is lowest» (refs. 64, 74, 88).
+- Derrame y ángulo: «the greater the level of effusion, the stronger the relationship between joint angle and inhibition is likely to be».
