@@ -43,7 +43,7 @@ Se añade una frase de quiz antes del dato, para que el espectador apueste: «¿
 
 ---
 
-# Propuesta de guion · Parte 2: el test de Kemp
+# Propuesta de guion (ya producida) · El test de Kemp
 
 **Pilar:** Mito vs. evidencia · **Público:** fisios clínicos · Datos solo de Custers et al., Life 2024 (apartado 3.2.5 «Prueba de Kemp» y «Resumen de especificidad y sensibilidad»; apartado 5.2 «Dolor facetario unilateral»).
 
@@ -70,7 +70,7 @@ Sello final sugerido: «VALOR LIMITADO». Teaser verificado en el reel 6 de Cust
 Línea 1: **Kemp positivo** · Dato: **≠ facetario** · Subtítulo: NI CONFIRMA NI DESCARTA (`npx remotion still Kemp-Portada out/portada-kemp.png`).
 
 ## Guion locutado
-Kemp positivo. Y anotas: facetario. Pues ese test ni confirma ni descarta. / Lo dice una revisión de 2024 que reunió los datos de los estudios que lo midieron. / Sensibilidad: de 0,23… a 1. Especificidad: de 0,116… a 0,673. / Entonces, un Kemp positivo, ¿confirma o descarta? / Con esa especificidad, sale positivo en mucha gente sin dolor facetario. Y con esa sensibilidad, un negativo tampoco te deja tranquilo. / La revisión no dice que no sirva. Dice que es una pieza: dolor que aumenta al extender, que no suele pasar de la rodilla, y exploración neurológica normal. / Así que no escribas «facetario» solo por un Kemp. Anota las cuatro piezas. / Comenta «Kemp» si lo usas a diario. Y en la parte 3: la sacroilíaca, donde un test no basta y necesitas tres.
+Kemp positivo. Y anotas: facetario. Pues ese test ni confirma ni descarta. / Lo dice una revisión de 2024 que reunió los datos de los estudios que lo midieron. / Sensibilidad: de 0,23… a 1. Especificidad: de 0,116… a 0,673. / Entonces, un Kemp positivo, ¿confirma o descarta? / Con esa especificidad, sale positivo en mucha gente sin dolor facetario. Y con esa sensibilidad, un negativo tampoco te deja tranquilo. / La revisión no dice que no sirva. Dice que es una pieza: dolor que aumenta al extender, que no suele pasar de la rodilla, y exploración neurológica normal. / Así que no escribas «facetario» solo por un Kemp. Anota las cuatro piezas. / Comenta «Kemp» si lo usas a diario.
 
 ## Descripción del post
 Extensión con rotación, duele, y escribimos «facetario». Pero el test de Kemp, por sí solo, no lo sostiene.
@@ -101,7 +101,7 @@ Custers 2024: apartado 3.2.5 «Kemp's Test» (valores y «neither reliably confi
 
 ---
 
-# Propuesta de guion · Parte 3: la sacroilíaca, un test no basta
+# Propuesta de guion (descartada) · La sacroilíaca, un test no basta
 
 **Pilar:** Aplicación clínica en 1 minuto · **Público:** fisios clínicos · Datos de Custers 2024, apartados 3.4 (30 % de las lumbalgias atribuidas a la sacroilíaca), 3.4.1 (FABERE), 3.4.2 (provocación) y 3.4.3 (Telli et al. 2008).
 
@@ -176,9 +176,9 @@ Referencias:
 
 ---
 
-# Parte 3 · «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» · entregables
+# Vídeo · «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» · entregables
 
-**Orden de publicación:** 1 palpación · 2 Kemp · **3 Lasègue**. El reel de la sacroilíaca queda aparcado (`src/videos/sacroiliaca/`), no se publica.
+Cada vídeo se entiende solo: ninguno anuncia «la parte siguiente», así que puedes publicarlos en el orden que quieras. El reel de la sacroilíaca queda aparcado (`src/videos/sacroiliaca/`).
 **Pilar:** Lectura crítica · **Público:** estudiantes y fisios clínicos · **Duración:** 64,2 s · Composición `Lasegue` (`src/videos/lasegue/`, assets en `public/lasegue/`).
 
 ## Hilo
@@ -190,7 +190,7 @@ Referencias:
 6. **El cruzado, al revés:** se eleva la pierna sana y duele la otra; especificidad hasta 0,98. Muy específico y positivo: confirma.
 7. **La revisión lo escribe al revés.** Lección: lee los números, no solo la conclusión.
 8. **Mañana:** Lasègue negativo, la raíz baja en tu lista; Lasègue positivo, no pares: añade el cruzado.
-9. **CTA** «cruzado» y teaser de la parte 4: el único ejercicio que no funcionó para el dolor lumbar.
+9. **CTA:** comenta «cruzado».
 
 ## Portada
 Línea 1: **Lasègue positivo:** · Dato: **¿confirma?** · Subtítulo: LA REVISIÓN LO DICE AL REVÉS (`npx remotion still Lasegue-Portada out/portada-lasegue.png`).
@@ -221,12 +221,12 @@ Custers P, Van de Kelft E, Eeckhaut B, et al. Clinical Examination, Diagnosis, a
 ## Dónde verificarlo
 Custers 2024, apartado 3.2.5: «Straight Leg Raising» (sensibilidad «consistently above 0.73, reaching up to 0.98»; especificidad «from 0.10 to 1»; «robust tool for ruling in neural tension»), «Crossed Straight Leg Raise» (sensibilidad 0,23-0,43; especificidad 0,88-0,98; «useful for confirming the absence of neural tension») y «Summary of Specificity and Sensitivity» (repite la inversión). Teaser verificado en 4.1.8 «Exercise» (metaanálisis de Fernández et al.: todos los tipos de ejercicio fueron eficaces salvo los estiramientos para el dolor).
 
-## Aviso sobre el vídeo 2 (Kemp)
-Su final dice «en la parte tres: la sacroilíaca». Ahora la parte 3 es el Lasègue. Opciones: (a) regenerar solo la última frase del Kemp con una petición de voz («Y en la parte tres: el Lasègue, que esta revisión interpreta al revés») y re-renderizar; (b) dejarlo y aclararlo en la descripción del post.
+## Cambio en los cierres (todos los vídeos)
+Se ha quitado la frase final «Y en la parte…» de los tres vídeos (palpación, Kemp y Lasègue) sin regenerar la voz: se recorta de la toma y el cierre pasa a ser el comentario con la palabra clave, «SÍGUEME» y «guárdalo para consulta».
 
 ---
 
-# Propuesta de guion · Parte 4: estirar, el único ejercicio que no funcionó
+# Propuesta de guion (pendiente) · Estirar, el único ejercicio que no funcionó
 
 **Pilar:** Mito vs. evidencia · **Público:** pacientes, deportistas y fisios · Datos de Custers 2024, apartado 4.1.8 (metaanálisis de Fernández et al., refs. 49-51) y frase sobre el yoga (ref. 61). Corresponde al reel 7 del doc de guiones de Custers, ya verificado.
 
@@ -240,7 +240,58 @@ Su final dice «en la parte tres: la sacroilíaca». Ahora la parte 3 es el Las�
 | Giro | «Y para el yoga, evidencia sólida a corto y largo plazo.» | Barra de evidencia |
 | Matiz | «Ojo: son datos citados, y la revisión admite que cuesta señalar un ejercicio superior.» | Sello «orientación» |
 | Qué hacer | «Mañana: control y carga antes que solo estirar.» | Checklist |
-| CTA | «Comenta "pilates" si lo recomiendas. Y en la parte 5…» | Botón y teaser |
+| CTA | «Comenta "pilates" si lo recomiendas.» | Botón y comentario |
 
 ---
 
+
+---
+
+# Vídeo · «Tu tendón cambia 2 días después del partido (y vuelve al 4)» · entregables
+
+**Artículo:** Cook JL, Rio E, Purdam CR, Docking SI. Revisiting the continuum model of tendon pathology: what is its merit in clinical practice and research? Br J Sports Med 2016;50:1187-1191. doi:10.1136/bjsports-2015-095422 (Cook 2016 · reel 7).
+**Pilar:** El dato que nadie te contó · **Público:** fisios clínicos y deportistas · **Duración:** ~51 s · Composición `Tendon` (`src/videos/tendon/`, assets en `public/tendon/`).
+**Tipo de datos (nuevo):** curso temporal en días (0, 2, 4), mecanismo biológico (proteoglicanos que atrapan agua) y una incógnita abierta. Nada de sensibilidad ni especificidad.
+
+## Hilo
+1. **Caso:** partido el domingo; el martes su Aquiles sale distinto en la ecografía. ¿Se está lesionando?
+2. **Quién lo dice:** revisión de 2016 de los creadores del modelo continuo, con futbolistas australianos y caballos de carreras.
+3. **La evolución:** día 0, carga alta; día 2, un cambio claro pero sutil en la imagen; día 4, vuelve a la normalidad.
+4. **Quiz:** ¿qué ha cambiado en esos 2 días? (se ha roto / inflamación / otra cosa).
+5. **El mecanismo probable:** el «relleno»: proteoglicanos, moléculas que atrapan agua, que tardan 2-3 días en fabricarse y romperse: el mismo ritmo.
+6. **El giro:** el colágeno apenas se renueva en el adulto; lo rápido no parecen ser las fibras.
+7. **Lo que no se sabe:** si es adaptación o el comienzo de un problema.
+8. **Mañana:** antes de mirar una ecografía, pregunta cuándo fue la última carga alta; el día 2 y el día 4 no muestran el mismo tendón.
+9. **CTA:** comenta «día 2».
+
+## Portada
+Línea 1: **Día 2 cambia,** · Dato: **día 4 vuelve** · Subtítulo: TU TENDÓN TRAS UN PARTIDO (`npx remotion still Tendon-Portada out/portada-tendon.png`).
+
+## Descripción del post
+Partido el domingo. El martes, la ecografía del Aquiles sale distinta. ¿Se está lesionando? No necesariamente.
+
+- **Día 2:** tras cargas altas, el tendón muestra un cambio claro pero sutil en la imagen (Aquiles de futbolistas australianos y tendón flexor de caballos de carreras).
+- **Día 4:** vuelve a la normalidad.
+- **El porqué probable:** los proteoglicanos, moléculas del «relleno» que atrapan agua, tardan 2-3 días en fabricarse y degradarse; la resonancia también sugiere más proteoglicanos y agua ligada tras cargas altas. El colágeno, en cambio, apenas se renueva en el adulto.
+- **Lo que no se sabe:** si este cambio es adaptativo o el inicio de un problema, ni si deja efecto duradero.
+
+Mañana en consulta: antes de interpretar una ecografía de tendón, pregunta cuándo fue la última carga alta.
+
+Aviso: revisión narrativa de los autores del modelo; los datos de imagen salen de estudios pequeños (futbolistas de élite y caballos) con una técnica específica de ecografía (UTC, caracterización tisular por ultrasonidos).
+
+Referencias:
+1. Cook JL, Rio E, Purdam CR, Docking SI. Revisiting the continuum model of tendon pathology: what is its merit in clinical practice and research? Br J Sports Med. 2016;50(19):1187-1191. doi:10.1136/bjsports-2015-095422
+2. Rosengarten SD, Cook JL, Bryant AL, et al. Australian football players' Achilles tendons respond to game loads within 2 days: an ultrasound tissue characterisation (UTC) study. Br J Sports Med. 2015;49:183-187.
+3. Docking SI, Daffy J, van Schie HT, Cook JL. Tendon structure changes after maximal exercise in the Thoroughbred horse: use of ultrasound tissue characterisation to detect in vivo tendon response. Vet J. 2012;194:338-342.
+
+¿Cuándo haces tú las ecografías de control? Comenta «día 2».
+
+#fisioterapia #tendinopatia #tendon #aquiles #ecografia #fisioterapiadeportiva #evidenciacientifica #estudiantesdefisio
+
+## 3 ganchos alternativos (A/B)
+1. «Su Aquiles salió distinto en la eco. Dos días después, normal.»
+2. «Tu tendón no es el mismo el martes que el jueves.»
+3. «Lo que cambia en tu tendón tras un partido no son las fibras.»
+
+## Dónde verificarlo
+Cook 2016, apartado «Is a response to load part of an adaptive or pathological process?», párrafos primero y segundo: recambio de colágeno mínimo tras la madurez esquelética y proteoglicanos en días (refs. 11-12); respuesta «definite but subtle» en imagen 2 días después de cargas altas que vuelve a la normalidad hacia el día 4 en el Aquiles (ref. 62, Rosengarten 2015) y en el flexor digital superficial del caballo (ref. 63, Docking 2012); 2-3 días para expresar y degradar proteoglicanos grandes como el agrecano (refs. 64-67); respuesta similar en resonancia (ref. 68); «unclear whether these changes are adaptive or pathological».

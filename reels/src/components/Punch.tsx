@@ -53,6 +53,7 @@ export const Slam: React.FC<{
         letterSpacing: spacing,
         color,
         textAlign: "center",
+        whiteSpace: "pre-line",
         textShadow: glow ? "none" : "none",
         opacity: Math.min(1, springAt(frame, at, SPRINGS.smooth) * 1.6),
         scale: String(0.6 + 0.4 * springAt(frame, at, SPRINGS.bouncy)),

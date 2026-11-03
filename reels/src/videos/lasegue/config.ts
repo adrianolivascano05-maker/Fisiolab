@@ -1,5 +1,5 @@
 /**
- * VÍDEO · PARTE 3 · «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» (Custers 2024 · reel 2).
+ * VÍDEO 3 · «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» (Custers 2024 · reel 2).
  * Hilo: caso clínico → lo que responde la revisión → lo que dicen sus propios números → la regla →
  * el cruzado → la inversión → qué hacer mañana → CTA (teaser: el único ejercicio que no funcionó).
  */
@@ -111,12 +111,6 @@ export const SCENES: (SceneDef & { id: SceneId })[] = [
     id: "cta",
     sentences: [
       { text: 'Comenta "cruzado" si lo haces siempre.', chunks: ['Comenta "cruzado"', "si lo haces siempre."], keys: ["Comenta", "cruzado"] },
-      {
-        text: "Y en la parte cuatro: el único ejercicio que no funcionó para el dolor lumbar.",
-        chunks: ["Y en la parte cuatro:", "el único ejercicio", "que no funcionó para el dolor lumbar."],
-        keys: ["parte", "4", "único", "no"],
-        display: { cuatro: "4" },
-      },
     ],
   },
 ];

@@ -64,10 +64,7 @@ export const sceneCues = (c: SceneClock): Cue[] => {
       return [
         { at: wordAt(s[0], "comenta"), file: "pop", vol: 0.8 },
         { at: wordAt(s[0], "cruzado"), file: "click", vol: 0.7 },
-        { at: wordAt(s[1], "parte"), file: "whoosh", vol: 0.8 },
-        { at: wordAt(s[1], "único"), file: "pop", vol: 0.6 },
-        { at: wordAt(s[1], "no"), file: "error", vol: 0.7 },
-        { at: wordEnd(s[1], "lumbar") + 6, file: "ding", vol: 0.6 },
+        { at: wordEnd(s[0], s[0].words[s[0].words.length - 1]?.w ?? "cruzado") + 4, file: "ding", vol: 0.7 },
       ];
     default:
       return [];

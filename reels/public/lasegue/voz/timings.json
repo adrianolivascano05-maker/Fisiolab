@@ -1,6 +1,6 @@
 {
  "source": "voz",
- "voiceDuration": 63.575,
+ "voiceDuration": 58.599,
  "sentences": [
   {
    "start": 1.268,
@@ -916,89 +916,8 @@
      "end": 58.224
     }
    ]
-  },
-  {
-   "start": 58.758,
-   "end": 63.226,
-   "words": [
-    {
-     "w": "y",
-     "start": 58.758,
-     "end": 58.862
-    },
-    {
-     "w": "en",
-     "start": 58.871,
-     "end": 58.957
-    },
-    {
-     "w": "la",
-     "start": 58.965,
-     "end": 59.051
-    },
-    {
-     "w": "parte",
-     "start": 59.059,
-     "end": 59.283
-    },
-    {
-     "w": "cuatro",
-     "start": 59.303,
-     "end": 59.769
-    },
-    {
-     "w": "el",
-     "start": 59.81,
-     "end": 60.086
-    },
-    {
-     "w": "único",
-     "start": 60.11,
-     "end": 60.386
-    },
-    {
-     "w": "ejercicio",
-     "start": 60.41,
-     "end": 60.877
-    },
-    {
-     "w": "que",
-     "start": 60.917,
-     "end": 61.038
-    },
-    {
-     "w": "no",
-     "start": 61.049,
-     "end": 61.273
-    },
-    {
-     "w": "funcionó",
-     "start": 61.293,
-     "end": 61.966
-    },
-    {
-     "w": "para",
-     "start": 62.025,
-     "end": 62.232
-    },
-    {
-     "w": "el",
-     "start": 62.25,
-     "end": 62.336
-    },
-    {
-     "w": "dolor",
-     "start": 62.344,
-     "end": 62.603
-    },
-    {
-     "w": "lumbar",
-     "start": 62.626,
-     "end": 63.178
-    }
-   ]
   }
  ],
- "tail": 1,
+ "tail": 2.6,
  "intro": 0.8
 }

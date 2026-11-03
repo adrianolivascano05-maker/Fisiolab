@@ -108,11 +108,6 @@ export const SCENES: (SceneDef & { id: SceneId })[] = [
     id: "cta",
     sentences: [
       { text: 'Comenta "Kemp" si lo usas a diario.', chunks: ['Comenta "Kemp"', "si lo usas a diario."], keys: ["Comenta", "Kemp"] },
-      {
-        text: "Y en la parte tres: la sacroilíaca, donde un test no basta y necesitas tres.",
-        chunks: ["Y en la parte tres:", "la sacroilíaca,", "donde un test no basta", "y necesitas tres."],
-        keys: ["parte", "sacroilíaca", "tres"],
-      },
     ],
   },
 ];

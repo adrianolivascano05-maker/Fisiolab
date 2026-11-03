@@ -7,7 +7,8 @@ Reel vertical (1080×1920, 30 fps) con animaciones en código, voz en off de Gem
 |---|---|---|
 | `src/videos/palpacion` | `PalpacionL4` | «Palpamos el nivel correcto la mitad de las veces» (Custers 2024 · reel 1; Harlick 2007) |
 | `src/videos/kemp` | `Kemp` | «El test de Kemp no confirma ni descarta» (Custers 2024 · reel 5; Stuber 2014) |
-| `src/videos/lasegue` | `Lasegue` | **Parte 3** · «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» (Custers 2024 · reel 2) |
+| `src/videos/lasegue` | `Lasegue` | «Lasègue: ¿confirma o descarta? La revisión lo dice al revés» (Custers 2024 · reel 2) |
+| `src/videos/tendon` | `Tendon` | «Tu tendón cambia 2 días después del partido (y vuelve al 4)» (Cook 2016 · reel 7) |
 | `src/videos/sacroiliaca` | `Sacroiliaca` | (aparcado, no se publica) | «Test del 4 positivo: ¿qué mide de verdad el 91,4 %?» (Custers 2024 · reel 6, corregido con Telli 2018) |
 
 Cada vídeo tiene su carpeta en `src/videos/<id>/` (config.ts con el guion y los datos, scenes/, cues.ts, index.ts) y sus assets en `public/<id>/` (voz/ y music.wav). Se registra en `src/videos/index.ts`. En Studio cada reel aparece con su portada (`<Id>-Portada`) y sus escenas sueltas.
@@ -32,6 +33,9 @@ Fuentes: skill `haidrrrry/claude-remotion-skill` (motion-patterns, design-rules,
 
 ## Estética «Clínico» (v6)
 Blanco-gris frío con papel milimetrado fino, una línea de ECG que avanza al pie y aros finos que giran despacio (`components/Background.tsx`). Texto en azul marino casi negro, un solo acento azul clínico para los datos, verde azulado para la prueba, verde para lo correcto y rojo para el error; el amarillo marcador solo en la palabra activa de los subtítulos. Tarjetas blancas con borde fino gris y sombra suave (`STICKER`, `STICKER_SM`), tintes por escena casi imperceptibles, tipografía Nunito. Toda la paleta está en `COLORS` (`src/config.ts`): `white` es el color de texto principal (tinta) y `paper` el blanco de las tarjetas.
+
+## Cierres sin «parte X»
+Ningún vídeo anuncia el siguiente: el cierre común (`components/CtaComment.tsx`) es la caja de comentario con la palabra clave, el «me gusta» que sube, «SÍGUEME» y «guárdalo para consulta». Si una toma de voz tiene más frases que el guion (por ejemplo, porque se quitó la frase final), `tools/tighten.mjs` descarta las sobrantes y corta el audio sin regenerar la voz.
 
 ## Recursos de enganche (v3)
 - **Cold open** de 0,8 s con el dato a pantalla completa antes de la voz (`META.coldOpen`), y el mismo fotograma al final para que el bucle enganche.

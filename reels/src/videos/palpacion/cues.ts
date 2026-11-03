@@ -80,15 +80,9 @@ export const sceneCues = (c: SceneClock): Cue[] => {
       ];
     case "cta":
       return [
-        { at: wordAt(s[0], "comenta"), file: "pop", vol: 0.9 },
-        { at: wordAt(s[0], "l4"), file: "click", vol: 0.8 },
-        { at: wordAt(s[0], "l4") + 5, file: "click", vol: 0.8 },
-        { at: wordAt(s[0], "seguridad"), file: "impact", vol: 0.5 },
-        { at: wordAt(s[1], "parte"), file: "whoosh", vol: 0.8 },
-        { at: wordAt(s[1], "test"), file: "pop", vol: 0.6 },
-        { at: wordAt(s[1], "confirma"), file: "error", vol: 0.7 },
-        { at: wordAt(s[1], "descarta"), file: "error", vol: 0.7 },
-        { at: wordEnd(s[1], "descarta") + 6, file: "ding", vol: 0.6 },
+        { at: wordAt(s[0], "comenta"), file: "pop", vol: 0.8 },
+        { at: wordAt(s[0], "l4"), file: "click", vol: 0.7 },
+        { at: wordEnd(s[0], s[0].words[s[0].words.length - 1]?.w ?? "l4") + 4, file: "ding", vol: 0.7 },
       ];
     default:
       return [];

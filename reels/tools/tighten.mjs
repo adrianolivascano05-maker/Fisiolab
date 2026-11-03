@@ -14,6 +14,13 @@ const cfg = await loadConfig();
 const origPath = vpath("voz/timings.orig.json");
 if (!fs.existsSync(origPath)) fs.copyFileSync(vpath("voz/timings.json"), origPath);
 const t = JSON.parse(fs.readFileSync(origPath, "utf8"));
+// Si el guion actual tiene menos frases que la toma (p. ej. se quitó la frase final), se descartan las sobrantes
+// y el audio se corta tras la última frase que queda. La toma original no se toca.
+const nScript = cfg.SCENES.reduce((a, s) => a + s.sentences.length, 0);
+if (t.sentences.length > nScript) {
+  console.log(`la toma tiene ${t.sentences.length} frases y el guion ${nScript}: se cortan las ${t.sentences.length - nScript} últimas`);
+  t.sentences = t.sentences.slice(0, nScript);
+}
 const wav = vpath("voz/voz.wav");
 const total = parseFloat(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", wav], { encoding: "utf8" }));
 
@@ -59,7 +66,7 @@ const out = {
   source: "voz",
   voiceDuration: +newTotal.toFixed(3),
   intro: INTRO,
-  tail: 1.0,
+  tail: +(process.env.TAIL ?? 2.6), // s tras la última palabra: deja ver el cierre (comentario publicado, «SÍGUEME»)
   sentences: t.sentences.map((s) => ({ start: map(s.start), end: map(s.end), words: s.words.map((w) => ({ ...w, start: map(w.start), end: map(w.end) })) })),
 };
 fs.writeFileSync(vpath("voz/timings.json"), JSON.stringify(out, null, 1));

@@ -119,12 +119,6 @@ export const SCENES: (SceneDef & { id: SceneId })[] = [
         chunks: ['Comenta "L4"', "si alguna vez lo has dicho", "con total seguridad."],
         keys: ["Comenta", "L4", "seguridad"],
       },
-      {
-        text: "Y en la parte dos: el test que usamos a diario y que, según esta revisión, ni confirma ni descarta.",
-        chunks: ["Y en la parte dos:", "el test que usamos a diario", "y que, según esta revisión,", "ni confirma ni descarta."],
-        keys: ["parte", "2", "confirma", "descarta"],
-        display: { dos: "2" },
-      },
     ],
   },
 ];
