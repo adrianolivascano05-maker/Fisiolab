@@ -1,0 +1,764 @@
+{
+ "words": [
+  {
+   "w": "Rodilla",
+   "start": 0,
+   "end": 0.4
+  },
+  {
+   "w": "recién",
+   "start": 0.4,
+   "end": 0.82
+  },
+  {
+   "w": "operada",
+   "start": 0.82,
+   "end": 1.48
+  },
+  {
+   "w": "isométrico",
+   "start": 1.6,
+   "end": 2.3
+  },
+  {
+   "w": "de",
+   "start": 2.3,
+   "end": 2.42
+  },
+  {
+   "w": "cuádriceps",
+   "start": 2.42,
+   "end": 2.96
+  },
+  {
+   "w": "con",
+   "start": 2.96,
+   "end": 3.12
+  },
+  {
+   "w": "la",
+   "start": 3.12,
+   "end": 3.22
+  },
+  {
+   "w": "pierna",
+   "start": 3.22,
+   "end": 3.56
+  },
+  {
+   "w": "estirada",
+   "start": 3.56,
+   "end": 4.22
+  },
+  {
+   "w": "Y",
+   "start": 4.5,
+   "end": 4.6
+  },
+  {
+   "w": "si",
+   "start": 4.6,
+   "end": 4.74
+  },
+  {
+   "w": "es",
+   "start": 4.74,
+   "end": 4.88
+  },
+  {
+   "w": "el",
+   "start": 4.88,
+   "end": 5
+  },
+  {
+   "w": "ángulo",
+   "start": 5,
+   "end": 5.34
+  },
+  {
+   "w": "que",
+   "start": 5.34,
+   "end": 5.48
+  },
+  {
+   "w": "más",
+   "start": 5.48,
+   "end": 5.7
+  },
+  {
+   "w": "lo",
+   "start": 5.7,
+   "end": 5.8
+  },
+  {
+   "w": "frena",
+   "start": 5.8,
+   "end": 6.42
+  },
+  {
+   "w": "Lo",
+   "start": 6.66,
+   "end": 6.78
+  },
+  {
+   "w": "explica",
+   "start": 6.78,
+   "end": 7.16
+  },
+  {
+   "w": "una",
+   "start": 7.16,
+   "end": 7.3
+  },
+  {
+   "w": "revisión",
+   "start": 7.3,
+   "end": 7.78
+  },
+  {
+   "w": "narrativa",
+   "start": 7.78,
+   "end": 8.24
+  },
+  {
+   "w": "de",
+   "start": 8.24,
+   "end": 8.36
+  },
+  {
+   "w": "dos",
+   "start": 8.36,
+   "end": 8.54
+  },
+  {
+   "w": "mil",
+   "start": 8.54,
+   "end": 8.74
+  },
+  {
+   "w": "diez",
+   "start": 8.74,
+   "end": 9.24
+  },
+  {
+   "w": "tras",
+   "start": 9.52,
+   "end": 9.74
+  },
+  {
+   "w": "una",
+   "start": 9.74,
+   "end": 9.88
+  },
+  {
+   "w": "lesión",
+   "start": 9.88,
+   "end": 10.36
+  },
+  {
+   "w": "la",
+   "start": 10.42,
+   "end": 10.54
+  },
+  {
+   "w": "rodilla",
+   "start": 10.54,
+   "end": 10.88
+  },
+  {
+   "w": "frena",
+   "start": 10.88,
+   "end": 11.2
+  },
+  {
+   "w": "el",
+   "start": 11.2,
+   "end": 11.32
+  },
+  {
+   "w": "cuádriceps",
+   "start": 11.32,
+   "end": 11.84
+  },
+  {
+   "w": "por",
+   "start": 11.84,
+   "end": 12.02
+  },
+  {
+   "w": "reflejo",
+   "start": 12.02,
+   "end": 12.72
+  },
+  {
+   "w": "Con",
+   "start": 12.86,
+   "end": 13.06
+  },
+  {
+   "w": "derrame",
+   "start": 13.06,
+   "end": 13.62
+  },
+  {
+   "w": "la",
+   "start": 13.78,
+   "end": 13.9
+  },
+  {
+   "w": "presión",
+   "start": 13.9,
+   "end": 14.3
+  },
+  {
+   "w": "en",
+   "start": 14.3,
+   "end": 14.38
+  },
+  {
+   "w": "la",
+   "start": 14.38,
+   "end": 14.48
+  },
+  {
+   "w": "rodilla",
+   "start": 14.48,
+   "end": 14.84
+  },
+  {
+   "w": "dibuja",
+   "start": 14.84,
+   "end": 15.22
+  },
+  {
+   "w": "una",
+   "start": 15.22,
+   "end": 15.38
+  },
+  {
+   "w": "U",
+   "start": 15.38,
+   "end": 15.82
+  },
+  {
+   "w": "máxima",
+   "start": 15.96,
+   "end": 16.34
+  },
+  {
+   "w": "en",
+   "start": 16.34,
+   "end": 16.44
+  },
+  {
+   "w": "los",
+   "start": 16.44,
+   "end": 16.58
+  },
+  {
+   "w": "extremos",
+   "start": 16.58,
+   "end": 17.2
+  },
+  {
+   "w": "mínima",
+   "start": 17.38,
+   "end": 17.74
+  },
+  {
+   "w": "en",
+   "start": 17.74,
+   "end": 17.84
+  },
+  {
+   "w": "el",
+   "start": 17.84,
+   "end": 17.94
+  },
+  {
+   "w": "rango",
+   "start": 17.94,
+   "end": 18.24
+  },
+  {
+   "w": "medio",
+   "start": 18.24,
+   "end": 18.82
+  },
+  {
+   "w": "Y",
+   "start": 18.98,
+   "end": 19.12
+  },
+  {
+   "w": "el",
+   "start": 19.12,
+   "end": 19.22
+  },
+  {
+   "w": "freno",
+   "start": 19.22,
+   "end": 19.54
+  },
+  {
+   "w": "sigue",
+   "start": 19.54,
+   "end": 19.78
+  },
+  {
+   "w": "el",
+   "start": 19.78,
+   "end": 19.88
+  },
+  {
+   "w": "mismo",
+   "start": 19.88,
+   "end": 20.18
+  },
+  {
+   "w": "patrón",
+   "start": 20.18,
+   "end": 20.76
+  },
+  {
+   "w": "A",
+   "start": 21.08,
+   "end": 21.2
+  },
+  {
+   "w": "qué",
+   "start": 21.2,
+   "end": 21.36
+  },
+  {
+   "w": "ángulo",
+   "start": 21.36,
+   "end": 21.72
+  },
+  {
+   "w": "lo",
+   "start": 21.72,
+   "end": 21.84
+  },
+  {
+   "w": "harías",
+   "start": 21.84,
+   "end": 22.42
+  },
+  {
+   "w": "Tras",
+   "start": 22.84,
+   "end": 23.08
+  },
+  {
+   "w": "una",
+   "start": 23.08,
+   "end": 23.2
+  },
+  {
+   "w": "menisectomía",
+   "start": 23.2,
+   "end": 24.12
+  },
+  {
+   "w": "incluso",
+   "start": 24.32,
+   "end": 24.68
+  },
+  {
+   "w": "sin",
+   "start": 24.68,
+   "end": 24.86
+  },
+  {
+   "w": "derrame",
+   "start": 24.86,
+   "end": 25.26
+  },
+  {
+   "w": "detectable",
+   "start": 25.26,
+   "end": 26.04
+  },
+  {
+   "w": "el",
+   "start": 26.24,
+   "end": 26.36
+  },
+  {
+   "w": "freno",
+   "start": 26.36,
+   "end": 26.64
+  },
+  {
+   "w": "con",
+   "start": 26.64,
+   "end": 26.78
+  },
+  {
+   "w": "la",
+   "start": 26.78,
+   "end": 26.88
+  },
+  {
+   "w": "pierna",
+   "start": 26.88,
+   "end": 27.2
+  },
+  {
+   "w": "estirada",
+   "start": 27.2,
+   "end": 27.76
+  },
+  {
+   "w": "puede",
+   "start": 27.76,
+   "end": 27.96
+  },
+  {
+   "w": "ser",
+   "start": 27.96,
+   "end": 28.16
+  },
+  {
+   "w": "más",
+   "start": 28.16,
+   "end": 28.38
+  },
+  {
+   "w": "del",
+   "start": 28.38,
+   "end": 28.52
+  },
+  {
+   "w": "doble",
+   "start": 28.52,
+   "end": 28.92
+  },
+  {
+   "w": "que",
+   "start": 28.92,
+   "end": 29.04
+  },
+  {
+   "w": "a",
+   "start": 29.04,
+   "end": 29.12
+  },
+  {
+   "w": "treinta",
+   "start": 29.12,
+   "end": 29.56
+  },
+  {
+   "w": "o",
+   "start": 29.56,
+   "end": 29.66
+  },
+  {
+   "w": "cuarenta",
+   "start": 29.66,
+   "end": 30.14
+  },
+  {
+   "w": "grados",
+   "start": 30.14,
+   "end": 30.7
+  },
+  {
+   "w": "Por",
+   "start": 30.82,
+   "end": 30.98
+  },
+  {
+   "w": "eso",
+   "start": 30.98,
+   "end": 31.18
+  },
+  {
+   "w": "recomiendan",
+   "start": 31.18,
+   "end": 31.84
+  },
+  {
+   "w": "en",
+   "start": 32.06,
+   "end": 32.22
+  },
+  {
+   "w": "fase",
+   "start": 32.22,
+   "end": 32.54
+  },
+  {
+   "w": "aguda",
+   "start": 32.54,
+   "end": 33.1
+  },
+  {
+   "w": "isométricos",
+   "start": 33.26,
+   "end": 33.98
+  },
+  {
+   "w": "entre",
+   "start": 33.98,
+   "end": 34.22
+  },
+  {
+   "w": "treinta",
+   "start": 34.22,
+   "end": 34.68
+  },
+  {
+   "w": "y",
+   "start": 34.68,
+   "end": 34.8
+  },
+  {
+   "w": "cincuenta",
+   "start": 34.8,
+   "end": 35.34
+  },
+  {
+   "w": "grados",
+   "start": 35.34,
+   "end": 35.84
+  },
+  {
+   "w": "Ahí",
+   "start": 36,
+   "end": 36.2
+  },
+  {
+   "w": "la",
+   "start": 36.2,
+   "end": 36.3
+  },
+  {
+   "w": "presión",
+   "start": 36.3,
+   "end": 36.7
+  },
+  {
+   "w": "es",
+   "start": 36.7,
+   "end": 36.84
+  },
+  {
+   "w": "mínima",
+   "start": 36.84,
+   "end": 37.4
+  },
+  {
+   "w": "Ojo",
+   "start": 37.78,
+   "end": 38.16
+  },
+  {
+   "w": "muchos",
+   "start": 38.36,
+   "end": 38.68
+  },
+  {
+   "w": "de",
+   "start": 38.68,
+   "end": 38.78
+  },
+  {
+   "w": "esos",
+   "start": 38.78,
+   "end": 39.04
+  },
+  {
+   "w": "estudios",
+   "start": 39.04,
+   "end": 39.52
+  },
+  {
+   "w": "son",
+   "start": 39.52,
+   "end": 39.68
+  },
+  {
+   "w": "de",
+   "start": 39.68,
+   "end": 39.78
+  },
+  {
+   "w": "los",
+   "start": 39.78,
+   "end": 39.92
+  },
+  {
+   "w": "ochenta",
+   "start": 39.92,
+   "end": 40.38
+  },
+  {
+   "w": "y",
+   "start": 40.38,
+   "end": 40.48
+  },
+  {
+   "w": "noventa",
+   "start": 40.48,
+   "end": 41.04
+  },
+  {
+   "w": "Mañana",
+   "start": 41.44,
+   "end": 41.76
+  },
+  {
+   "w": "en",
+   "start": 41.76,
+   "end": 41.86
+  },
+  {
+   "w": "consulta",
+   "start": 41.86,
+   "end": 42.48
+  },
+  {
+   "w": "isométrico",
+   "start": 42.84,
+   "end": 43.52
+  },
+  {
+   "w": "con",
+   "start": 43.52,
+   "end": 43.68
+  },
+  {
+   "w": "la",
+   "start": 43.68,
+   "end": 43.78
+  },
+  {
+   "w": "rodilla",
+   "start": 43.78,
+   "end": 44.12
+  },
+  {
+   "w": "doblada",
+   "start": 44.12,
+   "end": 44.78
+  },
+  {
+   "w": "Y",
+   "start": 45.02,
+   "end": 45.14
+  },
+  {
+   "w": "vigila",
+   "start": 45.14,
+   "end": 45.54
+  },
+  {
+   "w": "el",
+   "start": 45.54,
+   "end": 45.64
+  },
+  {
+   "w": "derrame",
+   "start": 45.64,
+   "end": 46.1
+  },
+  {
+   "w": "con",
+   "start": 46.3,
+   "end": 46.46
+  },
+  {
+   "w": "más",
+   "start": 46.46,
+   "end": 46.72
+  },
+  {
+   "w": "líquido",
+   "start": 46.72,
+   "end": 47.16
+  },
+  {
+   "w": "el",
+   "start": 47.26,
+   "end": 47.38
+  },
+  {
+   "w": "ángulo",
+   "start": 47.38,
+   "end": 47.74
+  },
+  {
+   "w": "probablemente",
+   "start": 47.74,
+   "end": 48.44
+  },
+  {
+   "w": "pesa",
+   "start": 48.44,
+   "end": 48.74
+  },
+  {
+   "w": "aún",
+   "start": 48.74,
+   "end": 48.98
+  },
+  {
+   "w": "más",
+   "start": 48.98,
+   "end": 49.38
+  },
+  {
+   "w": "Comenta",
+   "start": 49.62,
+   "end": 50.04
+  },
+  {
+   "w": "treinta",
+   "start": 50.04,
+   "end": 50.56
+  },
+  {
+   "w": "si",
+   "start": 50.68,
+   "end": 50.84
+  },
+  {
+   "w": "ya",
+   "start": 50.84,
+   "end": 50.96
+  },
+  {
+   "w": "lo",
+   "start": 50.96,
+   "end": 51.06
+  },
+  {
+   "w": "hacías",
+   "start": 51.06,
+   "end": 51.4
+  },
+  {
+   "w": "con",
+   "start": 51.4,
+   "end": 51.54
+  },
+  {
+   "w": "la",
+   "start": 51.54,
+   "end": 51.64
+  },
+  {
+   "w": "rodilla",
+   "start": 51.64,
+   "end": 51.98
+  },
+  {
+   "w": "doblada",
+   "start": 51.98,
+   "end": 52.62
+  }
+ ]
+}

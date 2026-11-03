@@ -139,7 +139,7 @@ export const Goniometer: React.FC<{ at: number; angle: number; zone?: number; si
   const frame = useCurrentFrame();
   const R = 180;
   const cx = 260;
-  const cy = 220;
+  const cy = 250;
   // 0° a la izquierda, crece en sentido horario hacia arriba
   const pt = (d: number, r = R) => ({ x: cx - r * Math.cos(rad(d)), y: cy - r * Math.sin(rad(d)) });
   const arc = (a: number, b: number, r: number) => {
@@ -149,8 +149,8 @@ export const Goniometer: React.FC<{ at: number; angle: number; zone?: number; si
   };
   const n = pt(angle, R - 20);
   return (
-    <div style={{ width: size, height: (size * 260) / 520, opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)) }}>
-      <svg width={size} height={(size * 260) / 520} viewBox="0 0 520 260">
+    <div style={{ width: size, height: (size * 280) / 520, opacity: frame >= at ? 1 : 0, scale: String(pop(frame, at)) }}>
+      <svg width={size} height={(size * 280) / 520} viewBox="0 0 520 280">
         <path d={arc(0, 130, R)} fill="none" stroke={COLORS.line} strokeWidth={34} />
         <path d={arc(30, 50, R)} fill="none" stroke={COLORS.green} strokeWidth={34} opacity={zone} />
         <path d={arc(0, 12, R)} fill="none" stroke={COLORS.red} strokeWidth={34} opacity={zone * 0.8} />
