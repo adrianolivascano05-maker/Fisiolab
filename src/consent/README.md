@@ -48,9 +48,15 @@ con el colegio profesional o la asesoría jurídica de la clínica antes de usar
   anamnesis («Consta en la anamnesis»); la app no da veredictos de contraindicación (revisión del 30-10-2026; las
   plantillas pasaron a la versión «4»). Lo que está escrito en el texto libre y no marcado («Sintrom») solo avisa al
   fisioterapeuta: no pasa al documento hasta que se marca.
-- **Versiones**: la «4» es la del 30-10-2026 (textos sin veredicto). La próxima reescritura completa de los
-  consentimientos (pendiente: antes hay que revisar los riesgos de cada técnica con el colegio o el seguro) tendrá que
-  usar la versión «5».
+- **Versiones**: la «4» es la del 30-10-2026 (textos sin veredicto). La «5» (03-11-2026) rehace los riesgos de las
+  cinco plantillas con una revisión de la literatura (PubMed, 45 fuentes comprobadas, solo resúmenes): «frecuente»,
+  «poco frecuente», «raro» o «muy raro» solo donde hay datos; el ictus tras manipular el cuello, como asociación sin
+  causa demostrada (Cassidy 2008); la lesión de la médula en la manipulación dorsal (Heneghan 2020; Puentedura 2015);
+  las frecuencias de la punción seca (Brady 2014; Boyce 2020), con el empeoramiento pasajero; los efectos de las ondas
+  de choque (Roerdink 2017); fuera los riesgos sin fuente (esguince, empeorar un tendón, infección «poco frecuente»
+  en suelo pélvico), y avisos de qué síntomas obligan a llamar al 112. Sigue siendo un modelo de trabajo: **no está
+  validado** por el colegio, el seguro ni un abogado; las reglas del embarazo y la guía canadiense de agentes físicos
+  no se pudieron leer enteras.
 - **Lo firmado no cambia**: se guarda el texto entero y la versión de la plantilla. Un consentimiento firmado no se
   borra (es historia clínica): se retira, con fecha, motivo y, si está, la firma del paciente.
 - **Motivo de consulta**: cada consentimiento va al motivo que se está viendo, como las sesiones.

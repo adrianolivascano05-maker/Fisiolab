@@ -29,14 +29,30 @@ const suggested = (planText: string) => TEMPLATES.filter((t) => t.suggest(ctx({ 
 const texts = (id: string, over: Partial<ConsentContext>) => tpl(id).personal(ctx(over)).map((r) => r.text).join("\n");
 
 describe("plantillas de consentimiento", () => {
+  it("versión 5: los riesgos con frecuencias que tienen fuente y sin las que no", () => {
+    const all = (id: string) => tpl(id).risks.join("\n");
+    // Ictus: asociado, no demostrado como causa.
+    expect(all("manipulacion")).toMatch(/No se sabe si los causa la manipulación/);
+    expect(all("manipulacion")).toMatch(/lesión de la médula/);
+    expect(all("manipulacion")).toMatch(/Más de la mitad/);
+    expect(all("manipulacion")).not.toMatch(/esguince/);
+    expect(all("invasiva")).toMatch(/Poco frecuente: mareo/);
+    expect(all("invasiva")).toMatch(/empeore unos días/);
+    expect(all("electroterapia")).toMatch(/puntitos rojos/);
+    expect(all("electroterapia")).not.toMatch(/empeore un tendón/);
+    expect(all("suelo_pelvico")).not.toMatch(/malestar emocional/);
+    expect(tpl("suelo_pelvico").description.join(" ")).toMatch(/remover emociones/);
+  });
+
   it("las cinco, con ids únicos, versión y textos cortos", () => {
     expect(TEMPLATES.map((t) => t.id)).toEqual(IDS);
     for (const t of TEMPLATES) {
-      expect(t.version, t.id).toBe("4");
+      expect(t.version, t.id).toBe("5");
       expect(t.title.trim(), t.id).not.toBe("");
       expect(t.summary, t.id).toMatch(/, etc\.$/);
       expect(t.description.length, t.id).toBeLessThanOrEqual(2);
-      expect(t.risks.length, t.id).toBeLessThanOrEqual(5);
+      // Versión 5: con frecuencias y avisos de síntomas (revisión de la literatura del 31-10-2026), hasta 7.
+      expect(t.risks.length, t.id).toBeLessThanOrEqual(7);
       expect(t.contraindications.length, t.id).toBeLessThanOrEqual(5);
       expect(t.alternatives, t.id).toHaveLength(1);
       for (const list of [t.description, t.risks, t.contraindications, t.alternatives]) {

@@ -1006,3 +1006,27 @@ pantalla se volviera a pintar y la segunda pisaba a la primera («2468» se qued
 
 **Detalles:** Recordatorios y Lista de espera vuelven a «Hoy» (de donde se llega); «Nórdico» pasa a «Nórdico de
 isquios» en Mediciones y en la Biblioteca; RESUMEN con el número de pruebas y la paleta de ahora.
+
+### Consentimientos versión «5» (03-11-2026)
+
+Los riesgos de las cinco plantillas (`src/consent/templates.ts`), rehechos con la revisión de la literatura del
+31-10-2026 (detalle y fuentes en `src/consent/README.md`, «Versiones»). Lo firmado antes sigue con su texto y su
+versión. Pendiente: que lo revisen el Colegio de Fisioterapeutas, el seguro o un abogado antes de usarlo con pacientes.
+Pruebas: `templates.test` (versión 5 y frases clave), CI1 y CI2.
+
+
+### Pendiente: batería de Luomajoki (pedida el 03-11-2026)
+
+Los 8 tests de control del movimiento lumbar de Luomajoki, para la disfunción lumbar (control motor). Antes de
+añadirlos: buscar en PubMed la descripción de cada test, cómo se puntúa (correcto o incorrecto, y el total de 0 a 8)
+y su fiabilidad, sin inventar nada. Van en la Biblioteca y en «Registrar un test» de la zona lumbar.
+
+### Pendiente: pruebas funcionales del dolor lumbar (pedidas el 03-11-2026)
+
+De una diapositiva que citaba a Denteneer L, Van Daele U, Truijen S, De Hertogh W, Meirte J, Stassijns G.
+«Reliability of physical functioning tests in patients with low back pain: a systematic review». Spine J.
+2018;18(1):190-207. Fiabilidad test-retest (CCI) según esa diapositiva, sin comprobar aún en el artículo:
+extensor endurance test (0,93-0,97), flexor endurance test (0,90-0,97), 5-minute walking test (0,89-0,99), 50-ft
+walking test (0,76-0,96), shuttle walk test (0,92-0,99), sit-to-stand test (0,91-0,99) y loaded forward reach test
+(0,74-0,98). Ninguna está hoy en la app. Antes de añadirlas: comprobar la cita y las cifras en PubMed y buscar cómo se
+hace y se mide cada una. Van con la batería de Luomajoki, después de los consentimientos v5.

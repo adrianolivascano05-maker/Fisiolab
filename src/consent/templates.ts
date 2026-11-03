@@ -1,6 +1,8 @@
 // Plantillas de consentimiento informado (tipos en ./types.ts).
 //
-// AVISO: estos textos son un MODELO DE TRABAJO. No están validados clínica ni legalmente. Antes de usarlos con
+// AVISO: estos textos son un MODELO DE TRABAJO. No están validados clínica ni legalmente. Versión «5» (03-11-2026): los
+// riesgos, con las frecuencias y frases de una revisión de la literatura (PubMed, 45 fuentes; resumen en
+// docs/ideas-pendientes.md): solo se dice «frecuente», «poco frecuente», «raro» o «muy raro» donde hay datos. Antes de usarlos con
 // pacientes hay que revisarlos con el Colegio de Fisioterapeutas y con la asesoría jurídica del centro, y
 // adaptarlos a las técnicas que de verdad se aplican. Al cambiar un texto, sube su `version`.
 //
@@ -40,7 +42,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 1. De base, para cualquier paciente.
   {
     id: "general",
-    version: "4",
+    version: "5",
     title: "Valoración y tratamiento de fisioterapia",
     summary: "Exploración, pruebas físicas, terapia manual, ejercicio, vendajes, calor o frío, etc.",
     written: "recommended",
@@ -57,9 +59,11 @@ export const TEMPLATES: ConsentTemplate[] = [
       "Después le propondremos un tratamiento, que puede incluir terapia manual (masaje, movilizaciones, estiramientos…), ejercicio, consejos, vendajes, calor o frío, etc. Antes de cada técnica le diremos qué vamos a hacer.",
     ],
     risks: [
-      "Aumento pasajero del dolor, rigidez o agujetas después de la sesión o de las pruebas.",
-      "Pequeños moratones, enrojecimiento o picor de la piel por el masaje, el vendaje, el calor o el frío.",
-      "Rara vez: mareo, una lesión muscular o una caída durante el ejercicio o las pruebas, o una quemadura por el calor o el frío.",
+      "Es frecuente notar más dolor, rigidez, cansancio o agujetas durante uno o dos días. Suele pasar solo.",
+      "Puede salir un pequeño moratón, enrojecimiento o picor en la piel por el masaje, el vendaje, el calor o el frío.",
+      "Rara vez: un mareo, una caída o una pequeña lesión de un músculo durante el ejercicio o las pruebas.",
+      "Rara vez: una quemadura por calor o por frío. Avise si nota que quema o que no siente la piel.",
+      "Si nota dolor en el pecho, falta de aire, pérdida de fuerza o de sensibilidad que va a más, o pierde el control de la orina o de las heces, avise o llame al 112.",
     ],
     contraindications: [
       "Síntomas que hagan pensar en un problema que no es de fisioterapia: le pediremos que antes le vea su médico.",
@@ -90,7 +94,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 2. Con aguja: por escrito obligado (procedimiento invasor, Ley 41/2002, art. 8.2).
   {
     id: "invasiva",
-    version: "4",
+    version: "5",
     title: "Tratamientos invasivos",
     summary: "Punción seca, electrólisis percutánea, neuromodulación percutánea, etc.",
     written: "required",
@@ -108,11 +112,13 @@ export const TEMPLATES: ConsentTemplate[] = [
       "Es normal notar el pinchazo, un calambre o un pequeño salto del músculo. Como la aguja atraviesa la piel, la ley pide su consentimiento por escrito.",
     ],
     risks: [
-      "Dolor durante la punción y la zona dolorida, como con agujetas, de uno a tres días.",
-      "Un pequeño moratón o una gota de sangre en el pinchazo.",
-      "Mareo y, rara vez, desmayo.",
-      "Muy rara vez: infección, lesión de un nervio o de un vaso, o una pequeña quemadura por la corriente.",
-      "Muy rara vez, al pinchar en el cuello, la espalda alta o el hombro: neumotórax (entra aire alrededor del pulmón). Si después nota falta de aire o dolor en el pecho al respirar, acuda a urgencias.",
+      "Es frecuente que salga una gota de sangre o un pequeño moratón donde entra la aguja.",
+      "Es frecuente notar dolor durante la técnica y la zona dolorida, como con agujetas, de uno a tres días.",
+      "Poco frecuente: mareo, sueño, dolor de cabeza o ganas de vomitar, que pasan pronto. Si se marea, avise: se hará tumbado.",
+      "Poco frecuente: que su molestia empeore unos días antes de mejorar.",
+      "Rara vez: un moratón grande. Con corriente por la aguja (electrólisis o neuromodulación): una pequeña marca en la piel, o hormigueo o adormecimiento que puede durar unos días.",
+      "Muy rara vez: infección, lesión de un nervio o un sangrado importante.",
+      "Muy rara vez, si se pincha cerca del pulmón (cuello, espalda alta, hombro o pecho): neumotórax, es decir, entra aire alrededor del pulmón. Puede notarse horas o días después. Si nota falta de aire, dolor en el pecho al respirar o tos seca, vaya a urgencias o llame al 112.",
     ],
     contraindications: [
       "Trastornos de la coagulación, o linfedema en ese brazo o pierna.",
@@ -144,7 +150,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 3. Con impulso rápido: por escrito por sus riesgos graves, aunque sean muy raros.
   {
     id: "manipulacion",
-    version: "4",
+    version: "5",
     title: "Manipulaciones articulares",
     summary: "Manipulaciones con impulso rápido del cuello, la espalda u otras articulaciones, etc.",
     written: "required",
@@ -160,9 +166,12 @@ export const TEMPLATES: ConsentTemplate[] = [
       "Antes le exploraremos para descartar los casos en los que no se deben usar. Puede pedir que paremos en cualquier momento, también con la técnica ya preparada.",
     ],
     risks: [
-      "Dolor o rigidez pasajeros, dolor de cabeza leve o mareo, uno o dos días.",
-      "Muy rara vez: empeoramiento de una hernia discal, con dolor u hormigueo que baja por el brazo o la pierna, o una fractura si el hueso es frágil.",
-      "Muy rara vez, al manipular el cuello: lesión de una arteria que puede causar un ictus. Si nota mareo intenso, visión doble, dificultad para hablar o un dolor de cabeza muy fuerte y distinto, llame al 112.",
+      "Más de la mitad de las personas nota después alguna molestia: dolor o rigidez en la zona, dolor de cabeza leve o cansancio. Suele empezar en las primeras horas y casi siempre pasa en un día.",
+      "Poco frecuente: mareo o náuseas que pasan pronto.",
+      "Muy rara vez: empeoramiento de una hernia discal, con dolor u hormigueo que baja por el brazo o la pierna, o una fractura, sobre todo si el hueso es frágil. En otras articulaciones, muy rara vez, una lesión de la articulación.",
+      "En el cuello, muy raro: se han descrito casos de lesión de una arteria del cuello y de ictus después de una manipulación. No se sabe si los causa la manipulación o si la lesión ya estaba empezando; por eso antes le preguntaremos por sus síntomas. Si después nota mareo intenso, visión doble, dificultad para hablar o tragar, adormecimiento de la cara o un dolor de cabeza muy fuerte y distinto del habitual, llame al 112.",
+      "En la espalda alta y las costillas, muy raro: fractura de una costilla, lesión de la médula de la espalda o neumotórax (entra aire alrededor del pulmón). Si nota falta de aire, dolor en el pecho o pérdida de fuerza o de sensibilidad en las piernas, llame al 112.",
+      "En la zona lumbar, muy raro: afectación de los nervios de la parte baja de la espalda. Si pierde el control de la orina o de las heces, o nota adormecida la zona entre las piernas, llame al 112.",
     ],
     contraindications: [
       "Signos de alarma sin descartar (fiebre, pérdida de peso sin explicación, dolor nocturno que no cede, un golpe reciente…).",
@@ -191,7 +200,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 4. Aparatos.
   {
     id: "electroterapia",
-    version: "4",
+    version: "5",
     title: "Electroterapia y otros aparatos",
     summary: "TENS, ultrasonido, tecarterapia, láser, ondas de choque, magnetoterapia, etc.",
     written: "recommended",
@@ -212,9 +221,12 @@ export const TEMPLATES: ConsentTemplate[] = [
       "La intensidad se ajusta a lo que usted nota. Avise si nota quemazón, calor excesivo o dolor fuerte.",
     ],
     risks: [
-      "Hormigueo, enrojecimiento o picor de la piel; con las ondas de choque, dolor durante la aplicación y algún moratón.",
-      "Molestia o cansancio en la zona durante uno o dos días.",
-      "Rara vez: una quemadura de la piel, mareo o, con las ondas de choque, que empeore un tendón muy dañado.",
+      "Hormigueo, calor o enrojecimiento de la piel que pasan en poco tiempo.",
+      "Con las ondas de choque es frecuente que duela durante la aplicación y que la piel quede roja. A veces salen pequeños moratones o puntitos rojos, o la zona se hincha o queda dolorida un día o dos.",
+      "Rara vez: irritación de la piel bajo los electrodos, u hormigueo o adormecimiento pasajero en la zona.",
+      "Rara vez: una quemadura, sobre todo con el calor profundo o si la piel siente poco. Avise si nota que quema.",
+      "Muy rara vez: si tiene un marcapasos u otro aparato implantado, la corriente o los campos magnéticos pueden alterar su funcionamiento. Por eso le preguntamos antes y, si lo tiene, no se aplican.",
+      "Con el láser: no mire el haz y use las gafas que le damos, porque la luz del láser puede dañar los ojos.",
     ],
     contraindications: [
       "Marcapasos, desfibrilador u otros implantes electrónicos.",
@@ -243,7 +255,7 @@ export const TEMPLATES: ConsentTemplate[] = [
   // 5. Suelo pélvico, también por dentro: por escrito (intracavitario e íntimo).
   {
     id: "suelo_pelvico",
-    version: "4",
+    version: "5",
     title: "Suelo pélvico",
     summary: "Exploración y tratamiento del suelo pélvico, también por vía vaginal o anal, con sonda, etc.",
     written: "required",
@@ -257,12 +269,14 @@ export const TEMPLATES: ConsentTemplate[] = [
       mentions(ctx, /suelo pelvico/, /\bintracavit/, /\bperine/) ? "El plan incluye fisioterapia de suelo pélvico" : null,
     description: [
       "Es la exploración y el tratamiento de los músculos que cierran la pelvis por abajo, para problemas como escapes de orina, sensación de peso o dolor pélvico, etc. Muchas veces hay que explorar por dentro, con uno o dos dedos con guante en la vagina o el ano, y se puede usar una sonda (biofeedback o electroestimulación).",
-      "Se le explicará cada paso antes, y puede pedir que paremos en cualquier momento o que esté presente un acompañante. Por ser una exploración íntima, se pide su consentimiento por escrito.",
+      "Se le explicará cada paso antes. Una exploración íntima puede remover emociones o recuerdos desagradables: puede pedir que paremos en cualquier momento, sin explicaciones, o que esté presente un acompañante. Por ser una exploración íntima, se pide su consentimiento por escrito.",
     ],
     risks: [
-      "Molestia o presión durante la exploración y unas horas después.",
-      "Un pequeño sangrado, sobre todo si la mucosa está seca.",
-      "Rara vez: infección de orina, reacción al lubricante, a los guantes o a la sonda, o malestar emocional.",
+      "Es frecuente notar molestia o presión durante la exploración y, a veces, unas horas después.",
+      "Rara vez: un pequeño sangrado, sobre todo si la zona está seca.",
+      "Rara vez: irritación o reacción al lubricante, al guante o a la sonda.",
+      "Rara vez: escozor al orinar o una infección de orina o vaginal. Si lo nota, consulte a su médico.",
+      "Con la sonda con corriente: molestia o calambre en la zona. Los efectos son raros.",
     ],
     contraindications: [
       "Infección de orina o vaginal, o un sangrado sin diagnóstico.",
