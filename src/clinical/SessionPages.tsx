@@ -29,6 +29,7 @@ import { buildTimeline, madridDay, painSeries, type EventKind } from "./timeline
 import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PatientShell } from "./PatientShell";
 import { addDays, dayText, Guard, localInput, primaryLink, todayDay, useLoad } from "./pageKit";
+import { dayOf } from "../app/dates";
 
 // ---------- Sesiones ----------
 
@@ -316,9 +317,14 @@ export function SessionFormPage() {
     if (Number.isNaN(at.getTime())) return null;
     // Después de esta sesión y, si se atiende una cita de la agenda, después de esa cita también (aunque se
     // atienda antes de su hora, no cuenta como «ya tiene cita»).
-    const from = Math.max(at.getTime(), attending && !Number.isNaN(Date.parse(attending)) ? Date.parse(attending) : 0) + 60_000;
-    const a = await nextAppointmentOf(getDb(), id, new Date(from));
-    return a && a.id !== sid ? a : null;
+    let from = Math.max(at.getTime(), attending && !Number.isNaN(Date.parse(attending)) ? Date.parse(attending) : 0) + 60_000;
+    // Las citas pendientes de ese mismo día pasan a atendidas al guardar la sesión (markAttended): no cuentan.
+    for (;;) {
+      const a = await nextAppointmentOf(getDb(), id, new Date(from));
+      if (!a) return null;
+      if (dayOf(a.startsAt) !== dayOf(at)) return a.id !== sid ? a : null;
+      from = Date.parse(a.startsAt) + 60_000;
+    }
   }, [id, sid, when, attending]);
   const [payNow, setPayNow] = useState(false);
   const [payMethod, setPayMethod] = useState<Method>(lastMethod);

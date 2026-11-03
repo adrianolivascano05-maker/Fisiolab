@@ -58,6 +58,14 @@ function bestRow(t: SpecialTest) {
 
 /** Punto de color + texto: la utilidad sin ocupar media fila. */
 function Utility({ t }: { t: SpecialTest }) {
+  // Una prueba que se mide no tiene sensibilidad ni especificidad: no es «sin contrastar».
+  if (t.measure)
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-text-muted">
+        <span aria-hidden="true" className="size-2 rounded-full border border-text-muted" />
+        Se mide en {t.measure.unit}
+      </span>
+    );
   const u = utilityOf(t);
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-text-muted">
@@ -273,13 +281,21 @@ export function GalleryRegion() {
           const items = list.filter((t) => t.group === g);
           if (!items.length) return null;
           const solid = items.filter(verified);
-          const loose = items.filter((t) => !verified(t));
+          const loose = items.filter((t) => !verified(t) && !t.measure);
+          const measured = items.filter((t) => !verified(t) && t.measure);
           return (
             <Disclosure key={g} title={g} meta={items.length} open={open.isOpen(g)} onToggle={(o) => open.set(g, o)}>
               <div className="-mx-4 -mb-4 border-t border-border">
                 {solid.length > 0 && (
                   <ul aria-label={g} className="divide-y divide-border">
                     {solid.map((t) => (
+                      <TestRow key={t.id} t={t} />
+                    ))}
+                  </ul>
+                )}
+                {measured.length > 0 && (
+                  <ul aria-label={`${g}: se miden`} className={cx("divide-y divide-border", solid.length > 0 && "border-t border-border")}>
+                    {measured.map((t) => (
                       <TestRow key={t.id} t={t} />
                     ))}
                   </ul>

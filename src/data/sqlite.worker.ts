@@ -107,9 +107,18 @@ async function restoreJournal(base: string) {
       await write(COPY, bytes);
       await write(READY, new Uint8Array([1]));
     },
-    /** La restauración ha terminado: fuera la copia y la marca (primero la marca). */
+    /**
+     * La restauración ha terminado: fuera la copia y la marca (primero la marca). Si la marca no se deja borrar, se
+     * anula escribiendo un 0: una marca que se quedara volvería a importar esta copia en cada arranque y borraría lo
+     * apuntado después.
+     */
     async end() {
-      await remove(READY);
+      const d = await dir();
+      await d.removeEntry(READY).catch(async (err: unknown) => {
+        if (err instanceof DOMException && err.name === "NotFoundError") return;
+        console.warn("No se pudo borrar la marca de restaurar; se anula:", err);
+        await write(READY, new Uint8Array([0]));
+      });
       await remove(COPY);
     },
     /** La copia de una restauración que se cortó a mitad, o null. Sin marca, se tira. */
@@ -117,7 +126,11 @@ async function restoreJournal(base: string) {
       const d = await dir();
       const has = async (name: string) => d.getFileHandle(name).then(() => true, () => false);
       if (!(await has(COPY))) return null;
-      if (!(await has(READY))) {
+      const ready = await d.getFileHandle(READY).then(
+        async (h) => new Uint8Array(await (await h.getFile()).arrayBuffer())[0] === 1,
+        () => false,
+      );
+      if (!ready) {
         await remove(COPY);
         return null;
       }
@@ -194,7 +207,7 @@ async function start(): Promise<Engine> {
         await importInto(bytes);
       },
       replaced: async () => {
-        await journal?.end().catch(() => {});
+        await journal?.end().catch((err: unknown) => console.warn("No se pudo cerrar la restauración:", err));
       },
       backups: await backupStore(FILE.replace(/^\//, "").replace(/\.sqlite3$/, "")).catch((err: unknown) => {
         console.warn("Sin sitio para las copias de antes de actualizar:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));

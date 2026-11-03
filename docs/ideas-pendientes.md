@@ -1030,3 +1030,28 @@ Comprobado en PubMed (resúmenes y texto completo de PMC); todo con su PMID en `
 - **Sin verificar** (dicho en cada ficha o en sus supuestos): posición exacta del Biering-Sørensen y del test de
   flexores, recorrido y señales del shuttle walk, altura de la silla del sit-to-stand, forma de medir el alcance con
   carga y el SEM/MDC de casi todas. Pendiente: que un fisioterapeuta revise textos y figuras.
+
+### Arreglos pequeños tras revisar los últimos cambios (03-11-2026, tarde)
+
+Hechos:
+
+- **Nota de sesión:** el aviso «Ya tiene cita el…» ya no cuenta una cita del mismo día, que se cierra sola al
+  guardar la sesión (antes decía «No hace falta darle otra» y el paciente se iba sin cita).
+- **Hoy:**
+  - «1ª visita» también mira las citas atendidas o pendientes de antes, no solo las sesiones (pacientes
+    importados).
+  - El «debe» va justo detrás del estado, para que no se corte en el móvil.
+  - Las citas pasadas se pliegan solo hasta la primera de alguien que debe algo o que aún no ha llegado.
+- **Precauciones:** «Ninguno», «Ninguna conocida» o «NAMC» ya no salen como alergia.
+- **Restaurar una copia:** si la marca de «restauración a medias» no se deja borrar, se anula. Antes se habría vuelto
+  a importar la copia en cada arranque.
+- **Exploración y Biblioteca:** con solo pruebas medidas no salen «0 positivos · 0 negativos»; las pruebas que se
+  miden se ven como «Se mide en s/m/cm» y no como «Sin contrastar».
+
+Pendiente, sin tocar:
+
+- `TodayView.tsx`, `SchedulePage.tsx` y `RemindersPage.tsx` calculan la medianoche con la hora del dispositivo y no con
+  la de Madrid. En Canarias, el día de la agenda empieza una hora antes. Hay que arreglarlo con una función común en
+  `src/app/dates.ts` y probarlo con cuidado en la rejilla.
+- Una cita marcada «Atendida» desde su hoja, sin sesión, sale «Al día» en Hoy y no ofrece Cobrar. Hay que decidir si
+  en ese caso debe salir Cobrar.

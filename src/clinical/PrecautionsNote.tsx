@@ -14,8 +14,10 @@ export function precautionsOf(answers: Record<string, unknown>): { precautions: 
   const precautions = Array.isArray(p) ? p.filter((x): x is string => typeof x === "string" && x.trim() !== "") : [];
   const a = answers.alergias;
   const allergies = typeof a === "string" ? a.trim() : "";
-  // «No», «ninguna», «no conocidas»: no es una alergia que haya que ver.
-  return { precautions, allergies: /^(no|ninguna?s?|no conocidas?|nada|-)\.?$/i.test(allergies) ? "" : allergies };
+  // «No», «ninguno», «ninguna conocida», «no conocidas», «NAMC» (no alergias medicamentosas conocidas): no es una
+  // alergia que haya que ver.
+  const none = /^(no|ningun[oa]?s?( conocidas?)?|no (tiene|conocidas?)|namc|nada|-)\.?$/i;
+  return { precautions, allergies: none.test(allergies) ? "" : allergies };
 }
 
 export function PrecautionsNote({ patientId, className }: { patientId: string; className?: string }) {

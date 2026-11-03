@@ -93,8 +93,11 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
       </div>
     );
   const { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: next } = data.data;
-  const firstPending = day.findIndex((a) => a.status === "scheduled");
-  const foldable = firstPending === -1 ? day.length : firstPending;
+  // Se pliegan las primeras ya pasadas: hasta la primera pendiente, la primera que aún no ha llegado o la primera de
+  // alguien que debe algo (su «debe» y su Cobrar no se esconden).
+  const nowIso = new Date().toISOString();
+  const firstOpen = day.findIndex((a) => a.status === "scheduled" || a.startsAt >= nowIso || (owes.get(a.patientId) ?? 0) > 0);
+  const foldable = firstOpen === -1 ? day.length : firstOpen;
   const folded = foldable >= FOLD_FROM && !showEarlier ? foldable : 0;
   const debt = debtors.reduce((n, d) => n + d.balanceCents, 0);
   const notReminded = next.filter((a) => !a.remindedAt && !a.confirmedAt).length;
@@ -212,11 +215,12 @@ function TodayRow({ a, owes, account, onOpen, onCharge }: { a: AgendaItem; owes:
   const Icon = a.status === "done" ? CircleCheck : a.status === "no_show" ? UserX : a.status === "cancelled" ? CalendarX2 : CalendarCheck;
   const off = a.status === "no_show" || a.status === "cancelled";
   const settled = a.status === "done" && owes <= 0;
+  // Lo que debe va justo detrás del estado: si la línea no cabe en el móvil, se corta lo menos importante.
   const detail = [
     a.status === "scheduled" ? `${a.minutes} min` : STATUS_LABELS[a.status],
+    owes > 0 && `debe ${euros(owes)}`,
     !off && account?.firstVisit && "1ª visita",
     !off && account?.pack,
-    owes > 0 && `debe ${euros(owes)}`,
   ]
     .filter(Boolean)
     .join(" · ");

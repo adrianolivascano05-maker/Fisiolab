@@ -56,14 +56,14 @@ function ExplorationSection({ id, findings }: { id: string; findings: Finding[] 
       </Link>
       {current.length > 0 && (
         <p className="nums flex flex-wrap gap-2 text-sm">
-          <ResultBadge result="positive">{plural(count("positive"), "positivo")}</ResultBadge>
-          <ResultBadge result="negative">{plural(count("negative"), "negativo")}</ResultBadge>
+          {(count("positive") > 0 || count("measured") < current.length) && <ResultBadge result="positive">{plural(count("positive"), "positivo")}</ResultBadge>}
+          {(count("negative") > 0 || count("measured") < current.length) && <ResultBadge result="negative">{plural(count("negative"), "negativo")}</ResultBadge>}
           {count("inconclusive") > 0 && <ResultBadge result="inconclusive">{plural(count("inconclusive"), "dudoso")}</ResultBadge>}
           {count("measured") > 0 && <ResultBadge result="measured">{plural(count("measured"), "medido")}</ResultBadge>}
         </p>
       )}
       {current.length === 0 ? (
-        <p className="text-sm text-text-muted">Ningún test registrado. Apunta cada test especial como positivo, negativo o dudoso; los de su zona salen primero.</p>
+        <p className="text-sm text-text-muted">Ningún test registrado. Apunta cada test especial como positivo, negativo o dudoso (y las pruebas funcionales, con su cifra); los de su zona salen primero.</p>
       ) : (
         [...byRegion].map(([region, list]) => (
           <section key={region} aria-labelledby={`ex-${region}`} className="flex flex-col gap-2">
@@ -339,7 +339,7 @@ export function FindingFormPage() {
     e.preventDefault();
     const measured = measure ? Number(value.trim().replace(",", ".")) : null;
     if (measure && (value.trim() === "" || !Number.isFinite(measured) || measured! < 0)) {
-      setError(`Pon ${measure.label.toLowerCase()} en ${measure.unit} (un número).`);
+      setError(`Pon ${measure.label.toLowerCase()}${measure.unit ? ` en ${measure.unit}` : ""} (un número).`);
       return;
     }
     const finalResult: FindingResult | null = measure ? "measured" : result;
@@ -388,7 +388,12 @@ export function FindingFormPage() {
         </span>
         <span className="text-lg font-semibold">{name}</span>
         {test && !measure && <span className="text-sm">Positivo si: {test.positive}</span>}
-        {measure && <span className="text-sm">Se apunta: {measure.label.toLowerCase()} en {measure.unit}.</span>}
+        {measure && (
+          <span className="text-sm">
+            Se apunta: {measure.label.toLowerCase()}
+            {measure.unit ? ` en ${measure.unit}` : ""}.
+          </span>
+        )}
         <span className="flex flex-wrap gap-3">
           {test && (
             <Link to={`${galleryUrl(test)}?paciente=${id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-accent">
@@ -404,7 +409,7 @@ export function FindingFormPage() {
       </Card>
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
         {measure ? (
-          <TextField label={`${measure.label} (${measure.unit})`} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
+          <TextField label={measure.unit ? `${measure.label} (${measure.unit})` : measure.label} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
         ) : (
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-semibold">Resultado</legend>
