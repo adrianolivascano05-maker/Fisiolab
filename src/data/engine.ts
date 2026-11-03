@@ -22,8 +22,13 @@ export type BackupStore = {
 export type Storage = {
   persistent: boolean;
   open: () => DB;
-  /** Sustituye el archivo de la base por `bytes`. Solo con la base cerrada. */
+  /**
+   * Sustituye el archivo de la base por `bytes`. Solo con la base cerrada. Hasta `replaced()`, si la app se cierra,
+   * al volver a abrirla se repite con los mismos bytes (sqlite.worker.ts): la base nunca queda a medias.
+   */
   replace?: (bytes: Uint8Array) => Promise<void>;
+  /** La restauración ha terminado del todo (escrita, actualizada y comprobada). */
+  replaced?: () => Promise<void>;
   /** Las copias de antes de actualizar; sin esto, no se guardan (base en memoria, pruebas). */
   backups?: BackupStore;
 };
@@ -217,6 +222,7 @@ export class Engine {
       const ok = this.db.selectValue("pragma integrity_check");
       const hasPatients = this.db.selectValue("select count(*) from sqlite_master where name = 'patients'");
       if (ok !== "ok" || !hasPatients) throw new Error("La copia está dañada o no es de esta app.");
+      await this.storage.replaced?.();
       // Las facturas que no estaban en la copia, tal cual (y se sincronizan como un cambio de este dispositivo).
       if (invoices.length) {
         const cols = Object.keys(invoices[0]!);
@@ -231,6 +237,7 @@ export class Engine {
       }
       await this.storage.replace(previous);
       this.db = this.openAndMigrate();
+      await this.storage.replaced?.();
       throw err;
     }
     return null;

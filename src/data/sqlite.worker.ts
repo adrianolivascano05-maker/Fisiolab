@@ -81,6 +81,54 @@ async function backupStore(base: string): Promise<BackupStore> {
 }
 
 /**
+ * Restaurar una copia sobrescribe el archivo de la base entero, sin el diario de SQLite. Si la app se cierra a mitad
+ * (la pestaña se cierra, se recarga o se sale de la página: db.ts termina el worker en seco al dejarla), la base
+ * quedaba a medias y dañada («database disk image is malformed»). Antes de sobrescribirla, la copia entera se guarda
+ * aparte («restaurar/<base>/copia.sqlite3») y, cuando está escrita del todo, una marca («lista»). Al arrancar, si hay
+ * copia con marca, la restauración se termina con ella; sin marca, la base no se llegó a tocar y la copia se tira.
+ */
+async function restoreJournal(base: string) {
+  const dir = async () => (await (await navigator.storage.getDirectory()).getDirectoryHandle("restaurar", { create: true })).getDirectoryHandle(base, { create: true });
+  const write = async (name: string, bytes: Uint8Array) => {
+    const handle = await ((await (await dir()).getFileHandle(name, { create: true })) as SyncFileHandle).createSyncAccessHandle();
+    try {
+      handle.truncate(0);
+      handle.write(bytes, { at: 0 });
+      handle.flush();
+    } finally {
+      handle.close();
+    }
+  };
+  const remove = async (name: string) => (await dir()).removeEntry(name).catch(() => {});
+  return {
+    /** Guarda la copia y, con ella entera en el disco, la marca. */
+    async begin(bytes: Uint8Array) {
+      await remove(READY);
+      await write(COPY, bytes);
+      await write(READY, new Uint8Array([1]));
+    },
+    /** La restauración ha terminado: fuera la copia y la marca (primero la marca). */
+    async end() {
+      await remove(READY);
+      await remove(COPY);
+    },
+    /** La copia de una restauración que se cortó a mitad, o null. Sin marca, se tira. */
+    async pending(): Promise<Uint8Array | null> {
+      const d = await dir();
+      const has = async (name: string) => d.getFileHandle(name).then(() => true, () => false);
+      if (!(await has(COPY))) return null;
+      if (!(await has(READY))) {
+        await remove(COPY);
+        return null;
+      }
+      return new Uint8Array(await (await (await d.getFileHandle(COPY)).getFile()).arrayBuffer());
+    },
+  };
+}
+const COPY = "copia.sqlite3";
+const READY = "lista";
+
+/**
  * El almacenamiento privado (OPFS) solo lo puede tener abierto un contexto a la vez. La página anterior lo suelta al
  * morir, pero puede tardar un instante: se insiste unos segundos antes de rendirse y trabajar en memoria (donde se
  * perdería lo que se escriba). Si el navegador no tiene OPFS, no hay nada que esperar.
@@ -100,6 +148,7 @@ async function openPool(sqlite3: Sqlite3) {
 async function start(): Promise<Engine> {
   await acquireTabLock();
   let adoptFrom: { bytes: Uint8Array; member: string; done: () => void } | null = null;
+  let restoredAtStart = false;
   const sqlite3 = await sqlite3InitModule();
   let storage: Storage;
   try {
@@ -117,15 +166,35 @@ async function start(): Promise<Engine> {
     const from = flag("from") && `/${flag("from")}.sqlite3`;
     const member = flag("member");
     if (from && member && !files.includes(FILE) && files.includes(from)) adoptFrom = { bytes: pool.exportFile(from), member, done: () => pool.unlink(from) };
+    // Por trozos (aquí, uno): esa variante vacía el archivo antes de escribir. La directa no lo hace, y si la copia
+    // nueva es más corta que la base de antes quedaban páginas viejas al final y la base salía dañada («invalid
+    // rootpage») al restaurar una copia anterior.
+    const importInto = async (bytes: Uint8Array) => {
+      let sent = false;
+      await pool.importDb(FILE, async () => (sent ? undefined : ((sent = true), bytes)));
+    };
+    const journal = await restoreJournal(FILE.replace(/^\//, "").replace(/\.sqlite3$/, "")).catch((err: unknown) => {
+      console.warn("Sin sitio para restaurar con seguridad:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
+      return null;
+    });
+    // Una restauración que se cortó a mitad (escribiéndola o actualizándola): se vuelve a escribir la copia antes de
+    // abrir la base, y la marca se quita cuando el motor la ha actualizado y comprobado (justo después, al abrirla).
+    const unfinished = await journal?.pending().catch(() => null);
+    if (journal && unfinished) {
+      await importInto(unfinished);
+      restoredAtStart = true;
+    }
     storage = {
       persistent: true,
       open: () => new pool.OpfsSAHPoolDb(FILE),
       replace: async (bytes) => {
-        // Por trozos (aquí, uno): esa variante vacía el archivo antes de escribir. La directa no lo hace, y si la
-        // copia nueva es más corta que la base de antes quedaban páginas viejas al final y la base salía dañada
-        // («invalid rootpage») al restaurar una copia anterior.
-        let sent = false;
-        await pool.importDb(FILE, async () => (sent ? undefined : ((sent = true), bytes)));
+        // Si la copia no se puede guardar aparte (sin sitio), se restaura igual, como antes. La marca se queda hasta
+        // `replaced`: si la app se cierra mientras se actualiza la base restaurada, se repite desde la copia.
+        if (journal) await journal.begin(bytes).catch((err: unknown) => console.warn("Restaurar sin copia aparte:", err));
+        await importInto(bytes);
+      },
+      replaced: async () => {
+        await journal?.end().catch(() => {});
       },
       backups: await backupStore(FILE.replace(/^\//, "").replace(/\.sqlite3$/, "")).catch((err: unknown) => {
         console.warn("Sin sitio para las copias de antes de actualizar:", err instanceof Error ? `${err.name}: ${err.message}` : String(err));
@@ -140,6 +209,8 @@ async function start(): Promise<Engine> {
   const engine = new Engine(sqlite3, storage, migrations);
   // La copia de antes de actualizar, escrita del todo antes de atender nada.
   await engine.backupDone.catch((err: unknown) => console.warn("No se pudo guardar la copia de antes de actualizar:", err instanceof Error ? err.message : err));
+  // La restauración que se terminó al arrancar ya está abierta y actualizada: fuera la copia y su marca.
+  if (restoredAtStart) await storage.replaced?.();
   if (adoptFrom) {
     try {
       await engine.handle({ op: "merge", bytes: adoptFrom.bytes, member: adoptFrom.member });

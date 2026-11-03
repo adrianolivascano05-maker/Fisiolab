@@ -119,12 +119,36 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
     // Se puede descargar y restaurar (restaurarla vuelve a migrarla: sigue habiendo una sola copia, la misma).
     const dl = await downloadFrom(page, backups.getByRole("button", { name: "Descargar" }));
     expect(dl.suggestedFilename()).toMatch(/^OmniClin-antes-de-actualizar-v20-a-v\d+\.sqlite3$/);
+    // Que se vaya el aviso de la primera: si no, el de la segunda no se distingue y se seguiría con ella a medias.
+    await expect(page.getByText("Copia restaurada")).toHaveCount(0);
     await backups.getByRole("button", { name: "Restaurar" }).click();
     await page.getByRole("button", { name: "Sustituir mis datos" }).click();
     await expect(page.getByText("Copia restaurada")).toBeVisible();
     await expect(backups.getByRole("listitem")).toHaveCount(1);
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Paciente de la versión 20/ })).toBeVisible();
+  });
+
+  test("F15-H8 salir de la app a mitad de una restauración no deja la base dañada", async ({ page }) => {
+    test.slow(); // cuatro restauraciones cortadas, cada una con su actualización al volver a abrir
+    // Al dejar la página, la base se corta en seco (src/data/db.ts). La copia se guarda aparte antes de escribirla y,
+    // si se cortó, al volver se termina con ella (src/data/sqlite.worker.ts): nunca queda a medias.
+    await page.goto("./ajustes/datos");
+    await expect(page.getByText("Ninguna todavía.")).toBeVisible();
+    await page.getByLabel("Elegir copia de seguridad").setInputFiles(fileURLToPath(new URL("../src/data/fixtures/v020.sqlite3", import.meta.url)));
+    await page.getByRole("button", { name: "Sustituir mis datos" }).click();
+    for (const wait of [0, 60, 150, 300]) {
+      await page.waitForTimeout(wait);
+      await page.goto("./");
+      await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible();
+      await expect(page.getByRole("link", { name: /Paciente de la versión 20/ }).or(page.getByText("Todavía no hay pacientes"))).toBeVisible();
+      await expect(page.getByText("No se pudieron cargar los datos")).toHaveCount(0);
+      if (wait === 300) break;
+      // Otra vez, cortando en otro momento.
+      await page.goto("./ajustes/datos");
+      await page.getByLabel("Elegir copia de seguridad").setInputFiles(fileURLToPath(new URL("../src/data/fixtures/v020.sqlite3", import.meta.url)));
+      await page.getByRole("button", { name: "Sustituir mis datos" }).click();
+    }
   });
 
   test("F15-N1 un archivo que no es una copia no toca los datos", async ({ page }) => {

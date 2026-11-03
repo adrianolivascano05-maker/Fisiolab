@@ -61,7 +61,7 @@ export function RemindersPage() {
   }
 
   return (
-    <Page title="Recordatorios" backTo="/agenda">
+    <Page title="Recordatorios" backTo="/agenda?vista=hoy" backLabel="Hoy">
       <p className="text-sm text-text-muted">
         Recuerda las citas por WhatsApp o por correo: el mensaje sale listo y lo envías tú con un toque desde este dispositivo. Sin coste por mensaje. Para mandar
         todos los de mañana seguidos (y la anamnesis de los pacientes nuevos), usa la{" "}

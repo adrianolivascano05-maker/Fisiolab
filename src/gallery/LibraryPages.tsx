@@ -191,7 +191,7 @@ export const MEASURES: Measure[] = [
     title: "Movilidad",
     what: "20 movimientos de tobillo (lunge), rodilla, cadera, hombro, codo, muñeca y cuello, con el inclinómetro del móvil, sobre una foto o con goniómetro; resumen por lados y evolución.",
   },
-  { slug: "isquios", icon: Zap, title: "Nórdico", what: "Ángulo de rotura en el vídeo (o escrito a mano) y momento estimado de cada pierna." },
+  { slug: "isquios", icon: Zap, title: "Nórdico de isquios", what: "Ángulo de rotura en el vídeo (o escrito a mano) y momento estimado de cada pierna." },
 ];
 
 export const measureMatches = (m: Measure, q: string) => {

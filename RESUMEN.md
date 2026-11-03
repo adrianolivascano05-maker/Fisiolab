@@ -17,7 +17,7 @@ Fecha: 2026-10-30 (última revisión de este resumen)
 | --- | --- |
 | Funciones imprescindibles | **13 / 13** |
 | Fases | 1 a 4 completas; quedan los «could» (sprint curvo, deceleración, S-MAS) |
-| Pruebas | 100 unitarias (Vitest) + 70 en navegador (Playwright), en los dos modos de alojamiento |
+| Pruebas | Unas 785 unitarias (Vitest, 128 archivos) + unas 205 en navegador (Playwright), en los dos modos de alojamiento (noviembre de 2026) |
 | Fallos | los encontrados en las pruebas, arreglados; ninguno abierto |
 | Prueba real | vídeo de Pixel 7 Pro (120 fps guardado a 30): 30,7 cm; el usuario confirmó que la app publicada funciona en su Android |
 
@@ -93,7 +93,7 @@ Fecha: 2026-10-30 (última revisión de este resumen)
    - `404.html` es la propia app.
    - Cloudflare Workers queda preparado como alternativa (`wrangler.jsonc`, `public/_headers`) para un dominio propio.
 8. **Marca: OmniClin** (antes Impulso y Cénit).
-   - Paleta propia «petróleo y pizarra».
+   - Paleta «papel y bosque» con modo oscuro (la «petróleo y pizarra» del principio ya no se usa).
    - Logo: parábola del salto con un punto en el vértice, sobre el suelo.
    - Voz: precisa, cercana y serena.
    - Las comprobaciones de marca registrada están pendientes; solo harían falta si algún día se vende.

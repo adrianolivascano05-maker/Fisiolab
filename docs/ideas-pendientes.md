@@ -988,10 +988,21 @@ de estas mediciones no la mete a medias: pide actualizar la app (cada lote de ca
 - El botón de guardar la anamnesis ya estaba fijo abajo en el móvil: no hacía falta tocarlo.
 - Pruebas: `patientSearch.test`, `SetupChecklist.test` y US7.
 
-**Fallo antiguo encontrado, sin arreglar:** F15-H6 (restaurar dos veces seguidas una copia de una versión antigua y
-volver a abrir la app) deja a veces la base dañada («database disk image is malformed» o «index … already exists»)
-cuando el ordenador va cargado: 2 de 10 con este código y 4 de 10 con el de antes de la migración 037, así que no lo
-causa ella. En GitHub pasa. El guardado de SQLite en OPFS sí fuerza la escritura (xSync → flush); hay que
-investigar con calma qué queda a medias al restaurar y recargar en seguida (diario de SQLite, el worker anterior aún
-vivo, la copia de antes de actualizar). Hasta entonces: tras restaurar una copia, esperar a que la app la enseñe antes
-de cerrarla.
+**Fallo antiguo encontrado y arreglado (03-11-2026): restaurar y salir enseguida.** Al dejar la página, la base se corta
+en seco (`worker.terminate()` en `src/data/db.ts`, para que Safari no la deje ocupada). Restaurar una copia sobrescribe
+el archivo entero sin el diario de SQLite y luego lo actualiza a la versión de ahora; si se salía de la app en medio
+(cerrar, recargar, otra página), la base quedaba a medias («database disk image is malformed», «trigger … already
+exists»). Se reproducía en el 6-40 % de las veces cortando a propósito. Ahora (`restoreJournal` en
+`src/data/sqlite.worker.ts`, `replaced` en `src/data/engine.ts`): antes de escribir, la copia se guarda aparte
+(«restaurar/<base>/copia.sqlite3») y, entera en el disco, una marca («lista»); la marca se quita cuando la base
+restaurada está actualizada y comprobada. Al arrancar, con marca, la restauración se repite desde esa copia; sin marca
+(se cortó guardándola), la base no se tocó y la copia se tira. Si no hay sitio para la copia aparte, se restaura como
+antes. Comprobado: 40 de 40 sin daños cortando a destiempo (antes, 1 de cada 16 a 4 de cada 10). La prueba F15-H6
+también esperaba mal (seguía con el aviso de la primera restauración en pantalla). Pruebas: F15-H6 y F15-H8 (nueva).
+
+**PIN tecleado deprisa (03-11-2026).** Con el teclado del ordenador, dos cifras seguidas llegaban antes de que la
+pantalla se volviera a pintar y la segunda pisaba a la primera («2468» se quedaba en «28»): `PinPad` en
+`src/privacy/AppLock.tsx` ahora suma cada cifra a lo tecleado al momento. Por eso fallaba a veces PD3 en GitHub.
+
+**Detalles:** Recordatorios y Lista de espera vuelven a «Hoy» (de donde se llega); «Nórdico» pasa a «Nórdico de
+isquios» en Mediciones y en la Biblioteca; RESUMEN con el número de pruebas y la paleta de ahora.

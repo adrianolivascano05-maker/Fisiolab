@@ -206,17 +206,28 @@ function PinPad({
   extra?: ReactNode;
   onEnter?: () => void;
 }) {
-  const press = useCallback((d: string) => !disabled && value.length < 8 && onChange(value + d), [disabled, value, onChange]);
+  // Lo tecleado hasta ahora, al momento: si se teclea deprisa, dos teclas llegan antes de que se vuelva a pintar, y
+  // con el `value` de la última pintada la segunda pisaba a la primera («2468» se quedaba en «28»).
+  const typed = useRef(value);
+  typed.current = value;
+  const set = useCallback(
+    (v: string) => {
+      typed.current = v;
+      onChange(v);
+    },
+    [onChange],
+  );
+  const press = useCallback((d: string) => !disabled && typed.current.length < 8 && set(typed.current + d), [disabled, set]);
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (/^\d$/.test(e.key)) press(e.key);
-      else if (e.key === "Backspace") onChange(value.slice(0, -1));
+      else if (e.key === "Backspace") set(typed.current.slice(0, -1));
       else if (e.key === "Enter") onEnter?.();
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [press, value, onChange, onEnter]);
+  }, [press, set, onEnter]);
   const dots = Math.max(length ?? 0, value.length, 4);
   const key = "flex size-18 items-center justify-center rounded-full bg-surface text-2xl font-semibold transition-colors hover:bg-border active:bg-accent-soft disabled:opacity-40";
   return (
@@ -237,7 +248,7 @@ function PinPad({
         <button type="button" className={key} disabled={disabled} onClick={() => press("0")}>
           0
         </button>
-        <button type="button" aria-label="Borrar la última cifra" className={cx(key, "bg-transparent")} disabled={disabled || !value} onClick={() => onChange(value.slice(0, -1))}>
+        <button type="button" aria-label="Borrar la última cifra" className={cx(key, "bg-transparent")} disabled={disabled || !value} onClick={() => set(typed.current.slice(0, -1))}>
           <Delete aria-hidden="true" className="size-7" />
         </button>
       </div>
