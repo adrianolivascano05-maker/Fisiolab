@@ -62,6 +62,8 @@ export type SpecialTest = {
   figures: FigureSpec[];
   /** Ids de tests relacionados (los de un cluster, alternativas). */
   related?: string[];
+  /** Prueba funcional que da una cifra (no positivo ni negativo): qué se apunta y en qué unidad. */
+  measure?: { label: string; unit: string };
 };
 
 export type Region = { id: RegionId; label: string; groups: string[] };

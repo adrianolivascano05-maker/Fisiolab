@@ -7,6 +7,7 @@ import { codoTests } from "./codo";
 import { dorsalTests } from "./dorsal";
 import { hombroTests } from "./hombro";
 import { lumbarTests } from "./lumbar";
+import { lumbarFuncionTests } from "./lumbar_funcion";
 import { munecaManoTests } from "./muneca_mano";
 import { rodillaTests } from "./rodilla";
 import { sacroiliacaTests } from "./sacroiliaca";
@@ -20,6 +21,7 @@ export const tests: SpecialTest[] = [
   ...munecaManoTests,
   ...dorsalTests,
   ...lumbarTests,
+  ...lumbarFuncionTests,
   ...sacroiliacaTests,
   ...caderaTests,
   ...rodillaTests,

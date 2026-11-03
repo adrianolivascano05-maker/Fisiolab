@@ -1015,18 +1015,18 @@ versión. Pendiente: que lo revisen el Colegio de Fisioterapeutas, el seguro o u
 Pruebas: `templates.test` (versión 5 y frases clave), CI1 y CI2.
 
 
-### Pendiente: batería de Luomajoki (pedida el 03-11-2026)
+### Hecho: batería de Luomajoki y pruebas funcionales lumbares (03-11-2026)
 
-Los 8 tests de control del movimiento lumbar de Luomajoki, para la disfunción lumbar (control motor). Antes de
-añadirlos: buscar en PubMed la descripción de cada test, cómo se puntúa (correcto o incorrecto, y el total de 0 a 8)
-y su fiabilidad, sin inventar nada. Van en la Biblioteca y en «Registrar un test» de la zona lumbar.
+Comprobado en PubMed (resúmenes y texto completo de PMC); todo con su PMID en `src/gallery/data/lumbar_funcion.ts`.
 
-### Pendiente: pruebas funcionales del dolor lumbar (pedidas el 03-11-2026)
-
-De una diapositiva que citaba a Denteneer L, Van Daele U, Truijen S, De Hertogh W, Meirte J, Stassijns G.
-«Reliability of physical functioning tests in patients with low back pain: a systematic review». Spine J.
-2018;18(1):190-207. Fiabilidad test-retest (CCI) según esa diapositiva, sin comprobar aún en el artículo:
-extensor endurance test (0,93-0,97), flexor endurance test (0,90-0,97), 5-minute walking test (0,89-0,99), 50-ft
-walking test (0,76-0,96), shuttle walk test (0,92-0,99), sit-to-stand test (0,91-0,99) y loaded forward reach test
-(0,74-0,98). Ninguna está hoy en la app. Antes de añadirlas: comprobar la cita y las cifras en PubMed y buscar cómo se
-hace y se mide cada una. Van con la batería de Luomajoki, después de los consentimientos v5.
+- **Luomajoki.** No existe una batería publicada de «8 tests puntuada de 0 a 8»: el estudio de fiabilidad de 2007
+  (PMID 17850669) valoró 8 movimientos en 10 ítems (apoyo monopodal por lado; flexión de rodilla en prono, extensión y
+  rotación) y el de 2008 (PMID 19108735), 6 tests de 0 a 6, sin punto de corte. La «basculación pélvica sentado» no
+  aparece en ninguna fuente: el test es de pie. Se añadieron los 8 tests con su kappa de la tabla 2 de 2007 y una ficha
+  de la batería (grupo «Control del movimiento (Luomajoki)»).
+- **Denteneer 2018** (PMID 28882521): los 7 rangos de CCI de la diapositiva coinciden con el resumen. Se añadieron las 7
+  pruebas (grupo «Pruebas funcionales»). Dan una cifra, no positivo o negativo: al registrarlas se apunta el número
+  con su unidad (migración 038: `findings.value`, `findings.unit` y el resultado `measured`).
+- **Sin verificar** (dicho en cada ficha o en sus supuestos): posición exacta del Biering-Sørensen y del test de
+  flexores, recorrido y señales del shuttle walk, altura de la silla del sit-to-stand, forma de medir el alcance con
+  carga y el SEM/MDC de casi todas. Pendiente: que un fisioterapeuta revise textos y figuras.

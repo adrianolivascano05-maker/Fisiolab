@@ -103,13 +103,17 @@ export async function exportCsv(db: Db): Promise<string> {
       where s.pain is not null order by p.name collate nocase, s.performed_at`,
   );
   for (const s of sessions) lines.push([cell(s.patient), s.performed_at, "sesion", "", "", "", "", "", "", "", "dolor_eva", num(s.pain), "0-10"].join(";"));
-  const findings = await db.query<{ patient: string; performed_at: string; test_name: string; side: string | null; result: string }>(
-    `select p.name as patient, f.performed_at, f.test_name, f.side, f.result from findings f join patients p on p.id = f.patient_id
+  const findings = await db.query<{ patient: string; performed_at: string; test_name: string; side: string | null; result: string; value: number | null; unit: string }>(
+    `select p.name as patient, f.performed_at, f.test_name, f.side, f.result, f.value, f.unit from findings f join patients p on p.id = f.patient_id
       order by p.name collate nocase, f.performed_at`,
   );
   const sideText: Record<string, string> = { left: "izquierda", right: "derecha", both: "ambos" };
   const resultText: Record<string, [string, string]> = { positive: ["1", "positivo"], negative: ["0", "negativo"], inconclusive: ["", "dudoso"] };
   for (const f of findings) {
+    if (f.result === "measured") {
+      lines.push([cell(f.patient), f.performed_at, "exploracion", cell(f.test_name), f.side ? sideText[f.side] : "", "", "", "", "", "", "medida", f.value == null ? "" : num(f.value), cell(f.unit)].join(";"));
+      continue;
+    }
     const [value, word] = resultText[f.result]!;
     lines.push([cell(f.patient), f.performed_at, "exploracion", cell(f.test_name), f.side ? sideText[f.side] : "", "", "", "", "", "", "resultado", value, word].join(";"));
   }

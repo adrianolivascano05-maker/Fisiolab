@@ -1,10 +1,10 @@
 // Piezas de la ficha clínica: pestañas del paciente, escala de dolor, chips de opciones, resultado de un test
 // y gráficas pequeñas en SVG (sin librería: la ficha se abre al instante).
-import { CircleHelp, ClipboardList, LayoutDashboard, Minus, NotebookPen, Plus, Stethoscope } from "lucide-react";
+import { CircleHelp, ClipboardList, Gauge, LayoutDashboard, Minus, NotebookPen, Plus, Stethoscope } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router";
 import { fmtDateShort } from "../app/format";
-import type { FindingResult } from "../data/clinical";
+import type { Finding, FindingResult } from "../data/clinical";
 import { cx } from "../ui/cx";
 
 /** Pestañas dentro de la ficha de un paciente: las cuatro, con su nombre entero en el móvil. */
@@ -189,12 +189,20 @@ export function TextArea({ label, hint, value, onChange, rows = 3 }: { label: st
   );
 }
 
-export const resultLabels: Record<FindingResult, string> = { positive: "Positivo", negative: "Negativo", inconclusive: "Dudoso" };
+export const resultLabels: Record<FindingResult, string> = { positive: "Positivo", negative: "Negativo", inconclusive: "Dudoso", measured: "Medido" };
 const resultStyle: Record<FindingResult, { box: string; icon: typeof Plus }> = {
   positive: { box: "bg-danger-soft text-danger", icon: Plus },
   negative: { box: "bg-surface text-text", icon: Minus },
   inconclusive: { box: "bg-warning-soft text-warning", icon: CircleHelp },
+  measured: { box: "bg-accent-soft text-text", icon: Gauge },
 };
+
+/** Cifra con coma decimal y su unidad: «45 s», «12,5 cm». */
+export const fmtMeasure = (value: number, unit: string) => `${value.toLocaleString("es-ES", { maximumFractionDigits: 2 })}${unit ? ` ${unit}` : ""}`;
+
+/** Resultado en palabras: «Positivo»… o la cifra de una prueba funcional. */
+export const findingText = (f: Pick<Finding, "result" | "value" | "unit">) =>
+  f.result === "measured" && typeof f.value === "number" ? fmtMeasure(f.value, f.unit ?? "") : resultLabels[f.result];
 
 /** Resultado de un test: color y signo, nunca solo color. */
 export function ResultBadge({ result, children }: { result: FindingResult; children?: ReactNode }) {

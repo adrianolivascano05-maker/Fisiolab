@@ -127,6 +127,21 @@ describe("exploración", () => {
     await expect(saveFinding(db, pid, lachman({ galleryTest: "" }))).rejects.toThrow("Elige el test");
   });
 
+  it("una prueba funcional guarda su cifra y unidad (migración 038), y el CSV la lleva", async () => {
+    const sorensen = { galleryTest: "lum-sorensen", testName: "Biering-Sørensen", region: "lumbar", performedAt: "2026-10-02T10:00:00.000Z", side: null, notes: "" } as const;
+    await expect(saveFinding(db, pid, { ...sorensen, result: "measured", value: null })).rejects.toThrow("Pon la cifra medida");
+    await expect(saveFinding(db, pid, { ...sorensen, result: "measured", value: -3 })).rejects.toThrow("Pon la cifra medida");
+    const fid = await saveFinding(db, pid, { ...sorensen, result: "measured", value: 87.5, unit: "s" });
+    expect((await listFindings(db, pid))[0]).toMatchObject({ id: fid, result: "measured", value: 87.5, unit: "s" });
+    // Un test normal no guarda cifra aunque llegue una.
+    await saveFinding(db, pid, lachman({ value: 5, unit: "s" }));
+    expect((await listFindings(db, pid)).find((f) => f.galleryTest !== "lum-sorensen")).toMatchObject({ value: null, unit: "" });
+    // La regla de la tabla sigue impidiendo resultados que no existen.
+    await expect(db.transaction([{ sql: "update findings set result = 'otro' where id = ?", bind: [fid] }])).rejects.toThrow();
+    const csv = await exportCsv(db);
+    expect(csv).toContain("Ana;2026-10-02T10:00:00.000Z;exploracion;Biering-Sørensen;;;;;;;medida;87,5;s");
+  });
+
   it("borrar el paciente borra su anamnesis, sesiones y hallazgos", async () => {
     await saveAnamnesis(db, pid, { motivo: "x" });
     await saveSession(db, pid, session());

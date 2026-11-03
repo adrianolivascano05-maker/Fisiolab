@@ -39,7 +39,9 @@ const json = <T>(v: unknown, fallback: T): T => {
 };
 
 const SEX: Record<string, string> = { female: "Mujer", male: "Hombre", other: "Otro" };
-const RESULT: Record<string, string> = { positive: "Positivo", negative: "Negativo", inconclusive: "Dudoso" };
+const RESULT: Record<string, string> = { positive: "Positivo", negative: "Negativo", inconclusive: "Dudoso", measured: "Medido" };
+/** Resultado de un hallazgo: la palabra, o la cifra con su unidad en las pruebas funcionales. */
+const resultCell = (r: R) => (s(r.result) === "measured" && r.value != null ? `${String(r.value).replace(".", ",")}${s(r.unit) ? ` ${s(r.unit)}` : ""}` : (RESULT[s(r.result)] ?? s(r.result)));
 const SIDE: Record<string, string> = { left: "Izquierdo", right: "Derecho", both: "Ambos" };
 
 /** «12/03/2026 10:30» (hora de Madrid); un día suelto (AAAA-MM-DD), «12/03/2026». */
@@ -179,7 +181,7 @@ function buildSheets(c: Collected): Sheet[] {
     {
       name: "Exploración",
       header: ["Paciente", "Fecha", "Test", "Región", "Lado", "Resultado", "Notas"],
-      rows: [...T.findings!].sort(byDate("performed_at")).map((r) => [pn(r), when(r.performed_at), s(r.test_name), s(r.region), SIDE[s(r.side)] ?? "", RESULT[s(r.result)] ?? s(r.result), s(r.notes)]),
+      rows: [...T.findings!].sort(byDate("performed_at")).map((r) => [pn(r), when(r.performed_at), s(r.test_name), s(r.region), SIDE[s(r.side)] ?? "", resultCell(r), s(r.notes)]),
     },
     {
       name: "Mediciones",
@@ -413,7 +415,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
     parts.push(
       `<h2>Exploración</h2>${table(
         ["Fecha", "Test", "Región", "Lado", "Resultado", "Notas"],
-        findings.map((r) => [when(r.performed_at), s(r.test_name), s(r.region), SIDE[s(r.side)] ?? "", RESULT[s(r.result)] ?? s(r.result), s(r.notes)]),
+        findings.map((r) => [when(r.performed_at), s(r.test_name), s(r.region), SIDE[s(r.side)] ?? "", resultCell(r), s(r.notes)]),
       )}`,
     );
 

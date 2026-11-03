@@ -24,7 +24,7 @@ import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent, calendarPromptOff, setCalendarPromptOff } from "./CalendarButton";
 import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
 import { mainValue } from "./measures";
-import { Chips, PainChart, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
+import { Chips, findingText, PainChart, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
 import { buildTimeline, madridDay, painSeries, type EventKind } from "./timeline";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PatientShell } from "./PatientShell";
@@ -216,6 +216,7 @@ function SessionCard({ s, n, id, findings, tests }: { s: Session; n: number; id:
                     <ResultBadge result={f.result}>
                       {f.testName}
                       {f.side ? ` ${sideShort[f.side]}` : ""}
+                      {f.result === "measured" ? `: ${findingText(f)}` : ""}
                     </ResultBadge>
                   </Link>
                 </li>

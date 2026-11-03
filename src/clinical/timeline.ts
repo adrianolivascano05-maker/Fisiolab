@@ -5,7 +5,7 @@ import { testLabel } from "../app/format";
 import { wellnessTotal } from "../calc/wellness";
 import type { Anamnesis, Finding, Questionnaire, Session } from "../data/clinical";
 import type { TestSummary, WellnessEntry } from "../data/repo";
-import { resultLabels, sideShort } from "./parts";
+import { findingText, sideShort } from "./parts";
 import { displayName, kindOf, scoreText, type QDetails } from "./questionnaires";
 
 export type EventKind = "session" | "finding" | "test" | "questionnaire" | "wellness" | "anamnesis";
@@ -32,7 +32,7 @@ export function buildTimeline(
       kind: "finding",
       at: f.performedAt,
       title: f.testName,
-      detail: `${resultLabels[f.result]}${f.side ? ` · ${sideShort[f.side]}` : ""}`,
+      detail: `${findingText(f)}${f.side ? ` · ${sideShort[f.side]}` : ""}`,
       to: `${base}/exploracion/${f.id}`,
       finding: f,
     });

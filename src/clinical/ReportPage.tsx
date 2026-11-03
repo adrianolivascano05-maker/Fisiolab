@@ -24,7 +24,7 @@ import { BodyFigures, BodyMapLegend } from "./BodyMapParts";
 import { marksText, parseMarks } from "./bodyMap";
 import { trends } from "./measures";
 import { questionnaireGroups } from "./outcomeParts";
-import { PainChart, resultLabels } from "./parts";
+import { findingText, PainChart } from "./parts";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { kindOf, scoreText, type QDetails } from "./questionnaires";
 import { symmetryRows } from "./symmetry";
@@ -244,7 +244,7 @@ export function ReportPage() {
                               {f.notes && <span className="block text-xs text-text-muted">{f.notes}</span>}
                             </td>
                             <td className={td}>{f.side ? sideText[f.side] : "—"}</td>
-                            <td className={`${td} font-semibold ${f.result === "positive" ? "text-danger" : ""}`}>{resultLabels[f.result]}</td>
+                            <td className={`${td} font-semibold ${f.result === "positive" ? "text-danger" : ""}`}>{findingText(f)}</td>
                             <td className={`${td} nums`}>{fmtDateShort(f.performedAt)}</td>
                           </tr>
                         );

@@ -31,13 +31,13 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { clinicalSummary, regionLabel } from "./anamnesis";
 import { allRegions, findTest, galleryRegionLabel, galleryTests, galleryUrl, searchTests, testsByRegion, testsForRegions, type SpecialTest } from "./galleryLink";
-import { Chips, ResultBadge, resultLabels, TextArea } from "./parts";
+import { Chips, findingText, fmtMeasure, ResultBadge, resultLabels, TextArea } from "./parts";
 import { PatientShell } from "./PatientShell";
 import { Guard, localInput, useLoad } from "./pageKit";
 
 // ---------- Exploración ----------
 
-const resultOrder: Record<FindingResult, number> = { positive: 0, inconclusive: 1, negative: 2 };
+const resultOrder: Record<FindingResult, number> = { positive: 0, inconclusive: 1, negative: 2, measured: 3 };
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 /** Valoración › Exploración: los tests especiales registrados (los de la zona de la anamnesis encabezan el selector de
@@ -59,6 +59,7 @@ function ExplorationSection({ id, findings }: { id: string; findings: Finding[] 
           <ResultBadge result="positive">{plural(count("positive"), "positivo")}</ResultBadge>
           <ResultBadge result="negative">{plural(count("negative"), "negativo")}</ResultBadge>
           {count("inconclusive") > 0 && <ResultBadge result="inconclusive">{plural(count("inconclusive"), "dudoso")}</ResultBadge>}
+          {count("measured") > 0 && <ResultBadge result="measured">{plural(count("measured"), "medido")}</ResultBadge>}
         </p>
       )}
       {current.length === 0 ? (
@@ -199,7 +200,7 @@ function FindingRow({ f, id }: { f: Finding; id: string }) {
               {f.testName}
               {f.side && <span className="font-normal text-text-muted"> · {f.side === "both" ? "ambos lados" : f.side === "left" ? "izquierdo" : "derecho"}</span>}
             </span>
-            <ResultBadge result={f.result} />
+            <ResultBadge result={f.result}>{findingText(f)}</ResultBadge>
           </span>
           <span className="text-sm text-text-muted">{fmtDate(f.performedAt)}</span>
           {f.notes && <span className="text-sm whitespace-pre-line">{f.notes}</span>}
@@ -298,6 +299,7 @@ export function FindingFormPage() {
   const [side, setSide] = useState<FindingSide | null | undefined>(undefined);
   const [when, setWhen] = useState(() => localInput(new Date().toISOString()));
   const [notes, setNotes] = useState("");
+  const [value, setValue] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -306,6 +308,7 @@ export function FindingFormPage() {
     const f = data.data?.finding;
     if (!f) return;
     setResult(f.result);
+    setValue(typeof f.value === "number" ? String(f.value).replace(".", ",") : "");
     setSide(f.side);
     setWhen(localInput(f.performedAt));
     setNotes(f.notes);
@@ -329,10 +332,18 @@ export function FindingFormPage() {
     );
   }
   const name = test?.name ?? finding?.testName ?? testId;
+  // Prueba funcional: se apunta una cifra (segundos, metros…) en vez de positivo o negativo.
+  const measure = test?.measure ?? (finding?.result === "measured" ? { label: "Resultado", unit: finding.unit ?? "" } : undefined);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!result) {
+    const measured = measure ? Number(value.trim().replace(",", ".")) : null;
+    if (measure && (value.trim() === "" || !Number.isFinite(measured) || measured! < 0)) {
+      setError(`Pon ${measure.label.toLowerCase()} en ${measure.unit} (un número).`);
+      return;
+    }
+    const finalResult: FindingResult | null = measure ? "measured" : result;
+    if (!finalResult) {
       setError("Marca si ha sido positivo, negativo o dudoso.");
       return;
     }
@@ -348,12 +359,14 @@ export function FindingFormPage() {
           region: test?.region ?? finding?.region ?? "",
           performedAt: new Date(when).toISOString(),
           side: chosenSide,
-          result,
+          result: finalResult,
           notes,
+          value: measured,
+          unit: measure?.unit ?? "",
         },
         fid,
       );
-      toast(`${name}: ${resultLabels[result].toLowerCase()}`, "success");
+      toast(`${name}: ${measure ? fmtMeasure(measured!, measure.unit) : resultLabels[finalResult].toLowerCase()}`, "success");
       navigate(back, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -374,7 +387,8 @@ export function FindingFormPage() {
           {patient?.name} · {test ? `${galleryRegionLabel(test)} · ${test.group}` : regionLabel(finding?.region ?? "")}
         </span>
         <span className="text-lg font-semibold">{name}</span>
-        {test && <span className="text-sm">Positivo si: {test.positive}</span>}
+        {test && !measure && <span className="text-sm">Positivo si: {test.positive}</span>}
+        {measure && <span className="text-sm">Se apunta: {measure.label.toLowerCase()} en {measure.unit}.</span>}
         <span className="flex flex-wrap gap-3">
           {test && (
             <Link to={`${galleryUrl(test)}?paciente=${id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-accent">
@@ -389,27 +403,31 @@ export function FindingFormPage() {
         </span>
       </Card>
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-        <fieldset className="flex flex-col gap-2">
-          <legend className="text-sm font-semibold">Resultado</legend>
-          <div className="grid grid-cols-3 gap-2">
-            {(["positive", "negative", "inconclusive"] as const).map((r) => (
-              <label key={r} className="relative">
-                <input type="radio" name="result" checked={result === r} onChange={() => setResult(r)} className="peer sr-only" />
-                <span
-                  className={cx(
-                    "flex h-14 items-center justify-center rounded-md border text-base font-semibold",
-                    "border-border-input bg-bg peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus",
-                    r === "positive" && "peer-checked:border-danger peer-checked:bg-danger peer-checked:text-on-accent",
-                    r === "negative" && "peer-checked:border-text peer-checked:bg-text peer-checked:text-bg",
-                    r === "inconclusive" && "peer-checked:border-warning peer-checked:bg-warning peer-checked:text-on-accent",
-                  )}
-                >
-                  {resultLabels[r]}
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        {measure ? (
+          <TextField label={`${measure.label} (${measure.unit})`} inputMode="decimal" value={value} onChange={(e) => setValue(e.target.value)} />
+        ) : (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="text-sm font-semibold">Resultado</legend>
+            <div className="grid grid-cols-3 gap-2">
+              {(["positive", "negative", "inconclusive"] as const).map((r) => (
+                <label key={r} className="relative">
+                  <input type="radio" name="result" checked={result === r} onChange={() => setResult(r)} className="peer sr-only" />
+                  <span
+                    className={cx(
+                      "flex h-14 items-center justify-center rounded-md border text-base font-semibold",
+                      "border-border-input bg-bg peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus",
+                      r === "positive" && "peer-checked:border-danger peer-checked:bg-danger peer-checked:text-on-accent",
+                      r === "negative" && "peer-checked:border-text peer-checked:bg-text peer-checked:text-bg",
+                      r === "inconclusive" && "peer-checked:border-warning peer-checked:bg-warning peer-checked:text-on-accent",
+                    )}
+                  >
+                    {resultLabels[r]}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <Chips
           label="Lado"
           options={sideOptions.map((o) => o.label)}

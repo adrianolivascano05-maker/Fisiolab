@@ -214,7 +214,8 @@ export async function dueReviews(db: Db, day: string): Promise<{ patientId: stri
 
 // ---------- Exploración: tests especiales ----------
 
-export type FindingResult = "positive" | "negative" | "inconclusive";
+/** «measured»: prueba funcional que da una cifra (value + unit) en vez de positivo o negativo. */
+export type FindingResult = "positive" | "negative" | "inconclusive" | "measured";
 export type FindingSide = "left" | "right" | "both";
 export type FindingInput = {
   galleryTest: string;
@@ -224,6 +225,9 @@ export type FindingInput = {
   side: FindingSide | null;
   result: FindingResult;
   notes: string;
+  /** Cifra de una prueba funcional (solo con result «measured»). */
+  value?: number | null;
+  unit?: string;
 };
 export type Finding = FindingInput & { id: string; patientId: string };
 
@@ -237,6 +241,8 @@ type FindingRow = {
   side: FindingSide | null;
   result: FindingResult;
   notes: string;
+  value: number | null;
+  unit: string | null;
 };
 
 const toFinding = (r: FindingRow): Finding => ({
@@ -249,19 +255,25 @@ const toFinding = (r: FindingRow): Finding => ({
   side: r.side,
   result: r.result,
   notes: r.notes,
+  value: r.value ?? null,
+  unit: r.unit ?? "",
 });
 
-const findingBind = (f: FindingInput) => [f.galleryTest, f.testName, f.region, f.performedAt, f.side, f.result, f.notes.trim()];
+const findingBind = (f: FindingInput) => {
+  const measured = f.result === "measured";
+  return [f.galleryTest, f.testName, f.region, f.performedAt, f.side, f.result, f.notes.trim(), measured ? (f.value ?? null) : null, measured ? (f.unit ?? "").trim() : ""];
+};
 
 /** Crea el hallazgo (sin id) o lo actualiza. Devuelve su id. */
 export async function saveFinding(db: Db, patientId: string, input: FindingInput, id?: string): Promise<string> {
   if (!input.galleryTest || !input.testName.trim()) throw new RangeError("Elige el test.");
   if (Number.isNaN(Date.parse(input.performedAt))) throw new RangeError("Pon la fecha.");
+  if (input.result === "measured" && (typeof input.value !== "number" || !Number.isFinite(input.value) || input.value < 0)) throw new RangeError("Pon la cifra medida.");
   const t = now();
   if (id) {
     await db.transaction([
       {
-        sql: `update findings set gallery_test = ?, test_name = ?, region = ?, performed_at = ?, side = ?, result = ?, notes = ?, updated_at = ?
+        sql: `update findings set gallery_test = ?, test_name = ?, region = ?, performed_at = ?, side = ?, result = ?, notes = ?, value = ?, unit = ?, updated_at = ?
                where id = ? and patient_id = ?`,
         bind: [...findingBind(input), t, id, patientId],
       },
@@ -271,8 +283,8 @@ export async function saveFinding(db: Db, patientId: string, input: FindingInput
   const nid = newId();
   await db.transaction([
     {
-      sql: `insert into findings (gallery_test, test_name, region, performed_at, side, result, notes, id, patient_id, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `insert into findings (gallery_test, test_name, region, performed_at, side, result, notes, value, unit, id, patient_id, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [...findingBind(input), nid, patientId, t, t],
     },
   ]);

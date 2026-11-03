@@ -81,6 +81,29 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByText("Ningún test registrado")).toBeVisible();
   });
 
+  test("F16-H2b prueba funcional: se apunta la cifra con su unidad, no positivo o negativo", async ({ page }) => {
+    await createPatient(page, { name: "Irene Funcional" });
+    await add(page, "Exploración").click();
+    await page.getByRole("searchbox", { name: "Buscar test" }).fill("sørensen");
+    await page.getByRole("button", { name: /Biering-Sørensen/ }).first().click();
+    await expect(page.getByText("Se apunta: tiempo en s.")).toBeVisible();
+    await expect(page.getByText("Positivo", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Guardar resultado" }).click();
+    await expect(page.getByText("Pon tiempo en s (un número).")).toBeVisible();
+    await page.getByLabel("Tiempo (s)").fill("87,5");
+    await expectAccessible(page);
+    await page.getByRole("button", { name: "Guardar resultado" }).click();
+    const row = page.getByRole("link", { name: /Biering-Sørensen.*87,5 s/ });
+    await expect(row).toBeVisible();
+    await expect(page.getByText("1 medido")).toBeVisible();
+    // Editar conserva la cifra.
+    await row.click();
+    await expect(page.getByLabel("Tiempo (s)")).toHaveValue("87,5");
+    await page.getByLabel("Tiempo (s)").fill("92");
+    await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await expect(page.getByRole("link", { name: /Biering-Sørensen.*92 s/ })).toBeVisible();
+  });
+
   test("F16-H3 registrar el resultado desde la galería", async ({ page }) => {
     test.slow(); // la ficha del test carga la figura en 3D: 25-30 s en las pruebas
     const url = await createPatient(page, { name: "Marta Galería" });

@@ -368,7 +368,7 @@ export function GalleryTest() {
           texts={{
             setup: f.text?.setup ?? (f.caption ? `${t.position} ${f.caption}` : t.position),
             move: t.steps.slice(t.steps.length > 2 ? 1 : 0).join(" "),
-            look: f.text?.look ?? `Positivo si: ${t.positive}`,
+            look: f.text?.look ?? (t.measure ? `Se apunta: ${t.positive}` : `Positivo si: ${t.positive}`),
             back: f.text?.setup ?? t.position,
           }}
         />
@@ -417,7 +417,7 @@ export function GalleryTest() {
             ))}
           </ol>
         </Disclosure>
-        <Disclosure title="Positivo si" {...sec("positivo")}>
+        <Disclosure title={t.measure ? "Qué se apunta" : "Positivo si"} {...sec("positivo")}>
           <p>{t.positive}</p>
         </Disclosure>
         <Disclosure title="Qué dice la bibliografía" {...sec("interpretar")}>
@@ -428,7 +428,7 @@ export function GalleryTest() {
             <p className="text-text">{t.cautions}</p>
           </Disclosure>
         )}
-        <Disclosure title="Evidencia y fuentes" meta={verified(t) ? `${t.accuracy.length} ${t.accuracy.length === 1 ? "fuente" : "fuentes"}` : "sin contrastar"} {...sec("evidencia")}>
+        <Disclosure title="Evidencia y fuentes" meta={verified(t) ? `${t.accuracy.length} ${t.accuracy.length === 1 ? "fuente" : "fuentes"}` : t.accuracy.some((x) => x.reliability) ? "solo fiabilidad" : "sin contrastar"} {...sec("evidencia")}>
           <Evidence t={t} />
         </Disclosure>
         {related.length > 0 && (
@@ -450,11 +450,33 @@ export function GalleryTest() {
 function Evidence({ t }: { t: SpecialTest }) {
   const rows = t.accuracy.map((a) => ({ a, lr: likelihoodRatios(a) }));
   if (!verified(t)) {
+    // Sin precisión diagnóstica, pero con fiabilidad publicada (kappa, CCI): se enseña con su fuente.
+    const reliab = t.accuracy.filter((a) => a.reliability);
     return (
-      <p className="text-sm text-text-muted">
-        No se han podido comprobar datos publicados de sensibilidad y especificidad. Úsalo como parte de la exploración, no para confirmar ni
-        descartar por sí solo.
-      </p>
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-text-muted">
+          {t.measure
+            ? "Prueba que se mide (no da positivo ni negativo): no tiene sensibilidad ni especificidad."
+            : "No se han podido comprobar datos publicados de sensibilidad y especificidad. Úsalo como parte de la exploración, no para confirmar ni descartar por sí solo."}
+        </p>
+        {reliab.length > 0 && (
+          <>
+            <ul className="nums flex flex-col gap-2 text-sm">
+              {reliab.map((a, i) => (
+                <li key={i}>
+                  <span className="font-medium">{a.source}</span>: fiabilidad {a.reliability}
+                  {a.context && <span className="block text-xs text-text-muted">{a.context}</span>}
+                </li>
+              ))}
+            </ul>
+            <ul className="flex flex-col gap-1 text-xs text-text-muted">
+              {[...new Set(reliab.map((a) => `${a.citation}${a.doi ? ` doi:${a.doi}` : ""}`))].map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
     );
   }
   return (
