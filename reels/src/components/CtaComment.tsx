@@ -15,7 +15,8 @@ export const CtaComment: React.FC<{ c: SceneClock; word: string; typed: string; 
   const typeAt = wordAt(s0, word);
   const end = wordEnd(s0, s0.words[s0.words.length - 1]?.w ?? word) + 4;
   const stampAt = stamp ? wordAt(s0, stamp.at) : 0;
-  const likes = Math.round(interpolate(frame, [typeAt + typed.length * 5 + 20, end + 30], [1, 47], CLAMP));
+  const likeFrom = typeAt + typed.length * 5 + 20;
+  const likes = Math.round(interpolate(frame, [likeFrom, Math.max(likeFrom + 20, end + 30)], [1, 47], CLAMP));
   return (
     <Punch dur={c.dur} shakeAt={[end]} amount={0.4}>
       <Stage gap={40} justify="flex-start">
