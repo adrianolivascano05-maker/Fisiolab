@@ -295,3 +295,53 @@ Referencias:
 
 ## Dónde verificarlo
 Cook 2016, apartado «Is a response to load part of an adaptive or pathological process?», párrafos primero y segundo: recambio de colágeno mínimo tras la madurez esquelética y proteoglicanos en días (refs. 11-12); respuesta «definite but subtle» en imagen 2 días después de cargas altas que vuelve a la normalidad hacia el día 4 en el Aquiles (ref. 62, Rosengarten 2015) y en el flexor digital superficial del caballo (ref. 63, Docking 2012); 2-3 días para expresar y degradar proteoglicanos grandes como el agrecano (refs. 64-67); respuesta similar en resonancia (ref. 68); «unclear whether these changes are adaptive or pathological».
+
+---
+
+# Vídeo · «Fibromialgia y túnel carpiano: ¿qué va primero?» · entregables
+
+**Artículo:** Fitzcharles M-A, Deamo Assis R, Polly DW, Cohen SP. Mixed pain phenotypes in musculoskeletal disorders: mechanisms and management. Nat Rev Rheumatol 2026. doi:10.1038/s41584-026-01443-w (online anticipada). Estudio original citado: Magen E, et al. Fibromyalgia and hand diseases: a case–control study. J Hand Ther 2025. doi:10.1016/j.jht.2025.07.003 (Fitzcharles 2026 · reel 13).
+**Pilar:** Lectura crítica · **Público:** fisios clínicos · Composición `Carpiano` (`src/videos/carpiano/`, assets en `public/carpiano/`).
+**Tipo de datos (nuevo):** odds ratios de un estudio de casos y controles (gráfico con la línea del 1) y qué no pueden decir: ni el orden ni la causa. No es lumbar ni de sensibilidad/especificidad.
+**Tipos de estudio que se dicen en el vídeo:** revisión narrativa (Fitzcharles) y estudio de casos y controles (Magen).
+
+## Hilo
+1. **Caso:** paciente con fibromialgia y dolor en la muñeca; encaja con un túnel carpiano. ¿Caso cerrado?
+2. **Quién lo dice:** revisión narrativa de 2026 (Nature Reviews Rheumatology); el estudio original es de casos y controles con 9.232 personas con fibromialgia.
+3. **Los datos:** túnel carpiano OR 2,98 (casi el triple); también suben dedo en resorte (1,77), De Quervain (1,96), tendinitis (2,16) y artrosis de mano (2,99).
+4. **Quiz:** ¿qué va primero? (la fibro / la mano / no se sabe).
+5. **El hallazgo:** una odds ratio solo dice que van juntas; no dice cuál llega antes ni cuál causa a cuál.
+6. **El giro:** otro dato de la revisión: usaban más el sistema sanitario y se operaban más. Una explicación posible, **que no da la revisión** y que en pantalla aparece marcada como «hipótesis»: a más consultas, más diagnósticos (sesgo de detección).
+7. **Matiz:** asociación ≠ causa.
+8. **Mañana:** confirma el túnel carpiano con la exploración y mira si el dolor sigue el recorrido del nervio mediano.
+9. **CTA:** comenta «mano» o «fibro».
+
+## Portada
+Línea 1: **Fibro y túnel carpiano:** · Dato: **¿qué va primero?** · Subtítulo: LO QUE NO TE DICE UNA ODDS RATIO (`npx remotion still Carpiano-Portada out/portada-carpiano.png`).
+
+## Descripción del post
+Paciente con fibromialgia y dolor en la muñeca. Encaja con un túnel carpiano… ¿caso cerrado?
+
+- En un estudio de casos y controles con 9.232 personas con fibromialgia, las odds de túnel carpiano eran casi el triple (OR 2,98). También subían las de dedo en resorte (1,77), De Quervain (1,96), tendinitis (2,16) y artrosis de mano (2,99), todas con P < 0,001.
+- Una odds ratio solo dice que dos cosas van juntas. No dice cuál llega antes ni cuál causa a cuál.
+- Las personas con fibromialgia también usaban más el sistema sanitario y se operaban más. Una explicación posible (nuestra, no de la revisión): más consultas, más diagnósticos, es decir, sesgo de detección.
+
+Mañana en consulta: confirma el túnel carpiano con la exploración y mira si el dolor sigue el recorrido del nervio mediano.
+
+Aviso: los datos los resume una revisión narrativa; la revisión no da intervalos de confianza ni detalla los controles de ese estudio. Es una asociación, no una causa.
+
+Referencias:
+1. Fitzcharles M-A, Deamo Assis R, Polly DW, Cohen SP. Mixed pain phenotypes in musculoskeletal disorders: mechanisms and management. Nat Rev Rheumatol. 2026. doi:10.1038/s41584-026-01443-w
+2. Magen E, et al. Fibromyalgia and hand diseases: a case–control study. J Hand Ther. 2025. doi:10.1016/j.jht.2025.07.003
+
+¿Qué crees que va primero? Comenta «mano» o «fibro».
+
+#fisioterapia #fibromialgia #tunelcarpiano #mano #dolorcronico #evidenciacientifica #lecturacritica #estudiantesdefisio
+
+## 3 ganchos alternativos (A/B)
+1. «Casi el triple de túnel carpiano con fibromialgia. ¿Por qué?»
+2. «Una odds ratio de 2,98 y aun así no sabes qué va primero.»
+3. «Fibro y muñeca: el diagnóstico que parece obvio.»
+
+## Dónde verificarlo
+Fitzcharles 2026, sección «Mixed pain in the musculoskeletal context», apartado «Soft-tissue conditions» (ref. 113): «In a case–control study of 9,232 individuals with fibromyalgia, the odds of carpal tunnel syndrome (odds ratio 2.98), trigger finger (odds ratio 1.77), De Quervain's tenosynovitis (odds ratio 1.96), tendinitis (odds ratio 2.16) and hand osteoarthritis (odds ratio 2.99) were all significantly increased (all P < 0.001). Patients with fibromyalgia also had higher healthcare utilization and surgery rates.» La revisión no da IC, número de controles ni discute el orden temporal o el sesgo de detección: eso es lectura crítica nuestra, y el vídeo lo dice («que no da la revisión»).
