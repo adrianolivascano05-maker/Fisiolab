@@ -1053,6 +1053,10 @@ Pendiente, sin tocar:
 - `TodayView.tsx`, `SchedulePage.tsx` y `RemindersPage.tsx` calculan la medianoche con la hora del dispositivo y no con
   la de Madrid. En Canarias, el día de la agenda empieza una hora antes. Hay que arreglarlo con una función común en
   `src/app/dates.ts` y probarlo con cuidado en la rejilla.
+  **Decidido el 04-11-2026: se deja apuntado.** Va junto con un cambio mayor que hará falta si llega una clínica de
+  Canarias: hoy la app enseña todas las horas en hora de Madrid (`TZ` en `dates.ts`), así que una cita a las 9:00 de
+  Canarias sale como 10:00. Habría que añadir un ajuste «zona horaria de la clínica» y que el día empiece a la
+  medianoche de esa zona.
 - ~~Una cita atendida sin sesión salía «Al día» y no ofrecía Cobrar.~~ Hecho el 03-11-2026 (pedido por el usuario).
   Ahora solo sale «Al día» si la visita está cubierta: una sesión escrita hoy, un cobro de hoy o un bono en curso.
   Si no, sale Cobrar con el precio de la sesión. Pasa con las citas importadas como atendidas o cuando se borra la
