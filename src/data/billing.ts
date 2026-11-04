@@ -292,6 +292,17 @@ export async function patientAccount(db: Db, patientId: string, today: string): 
   return { ...a, payments, chargedCents, paidCents, balanceCents: chargedCents - paidCents };
 }
 
+/**
+ * Cuánto proponer al pulsar «Cobrar»: lo que debe; si no debe nada, el precio de una sesión suelta, salvo que tenga un
+ * bono en curso (la sesión la paga el bono: no se propone nada, y `pack` dice cuál para avisarlo).
+ */
+export function suggestedCharge(account: Account, sessionCents: number | null): { cents: number | null; pack: string | null } {
+  if (account.balanceCents > 0) return { cents: account.balanceCents, pack: null };
+  const open = account.packs.find((p) => p.left > 0 && !p.expired);
+  if (open) return { cents: null, pack: `${open.title}: quedan ${open.left} de ${open.sessions}` };
+  return { cents: sessionCents, pack: null };
+}
+
 /** Qué pasa con una sesión nueva en ese instante: la gasta un bono (y cuántas le quedan después), es suelta (y lo que vale) o no cuenta. */
 export type SessionCharge = { kind: "pack"; title: string; leftAfter: number; sessions: number } | { kind: "loose"; cents: number } | { kind: "none" };
 

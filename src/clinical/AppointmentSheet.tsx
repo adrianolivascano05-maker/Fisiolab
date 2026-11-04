@@ -11,7 +11,7 @@ import { madridDay } from "../app/format";
 import { getClinic } from "../data/privacy";
 import { loadMessages, messageSubject } from "../messages/templates";
 import { appointmentVars, reminderMessage, waPhone } from "../schedule/reminders";
-import { deleteAppointment, STATUS_LABELS, updateAppointment, type Appointment, type AppointmentStatus } from "../data/appointments";
+import { clashes, deleteAppointment, STATUS_LABELS, updateAppointment, type Appointment, type AppointmentStatus } from "../data/appointments";
 import { useAsync } from "../app/useAsync";
 import { getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
@@ -25,7 +25,7 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { fmtVisit, visitEvent } from "./calendar";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
-import { todayDay } from "./pageKit";
+import { localInput, todayDay } from "./pageKit";
 import { AppointmentForm, useAppointmentForm } from "./AppointmentForm";
 import { FreedSlotPanel, MissedPanel, PayPanel, ReminderActions, type FreedSlot } from "./appointmentPanels";
 
@@ -175,12 +175,25 @@ export function AppointmentSheet({
       setBusy(false);
     }
   }
-  /** Mover la cita sin escribir: una hora, un día o una semana antes o después. */
-  const nudge = (minutes: number, label: string) => {
-    const d = new Date(appointment!.startsAt);
+  /**
+   * Mover la cita sin escribir: una hora, un día o una semana antes o después. No se lleva al pasado; si a la hora nueva
+   * ya hay otra cita (de esa persona, en una clínica), se abre el formulario con esa hora y el aviso, como al cambiarla
+   * a mano, para darla igualmente o elegir otra.
+   */
+  const nudge = async (minutes: number, label: string) => {
+    const a = appointment!;
+    const d = new Date(a.startsAt);
     if (Math.abs(minutes) >= 24 * 60) d.setDate(d.getDate() + minutes / (24 * 60));
     else d.setMinutes(d.getMinutes() + minutes);
-    return run(() => updateAppointment(getDb(), appointment!.id, { startsAt: d.toISOString() }), `Cita movida ${label}: ${fmtVisit(d.toISOString())}`);
+    if (d.getTime() < Date.now()) return setError(`${fmtVisit(d.toISOString())} ya ha pasado: elige otra hora con «Cambiar el día o la hora».`);
+    const found = await clashes(getDb(), d.toISOString(), a.minutes, staff.length ? (a.assignedTo ?? null) : undefined, a.id);
+    if (found.length) {
+      setEditing(true);
+      form.setWhen(localInput(d.toISOString()));
+      form.setClash(found);
+      return;
+    }
+    return run(() => updateAppointment(getDb(), a.id, { startsAt: d.toISOString() }), `Cita movida ${label}: ${fmtVisit(d.toISOString())}`);
   };
   const name = patientName ?? form.picked?.name ?? "";
 

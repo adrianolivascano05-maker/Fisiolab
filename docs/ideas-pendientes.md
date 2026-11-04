@@ -1082,9 +1082,20 @@ Hechos:
 
 Pendiente, sin tocar:
 
-- Los botones rápidos «1 h / 1 día / 1 semana antes o después» de la hoja de la cita mueven sin mirar si se pisa con
-  otra cita, y «1 semana antes» puede llevarla al pasado. Lo correcto sería comprobarlo y, si se pisa, abrir el
-  formulario con el aviso.
-- El justificante de asistencia se puede sacar de una cita pasada que nadie marcó como atendida ni «No vino». Hay que
-  decidir si se avisa o si solo se ofrece con cita atendida o sesión ese día.
-- Sin comprobar: «Cobrar» en la hoja de la cita propone el precio de una sesión suelta aunque el bono ya la cubra.
+- ~~Botones rápidos «1 h / 1 día / 1 semana antes o después» sin mirar si se pisa con otra cita.~~ Hecho el
+  04-11-2026. Ya no mueven al pasado. Si se pisa con otra cita, se abre el formulario con la hora nueva y el aviso,
+  para guardarla igualmente o elegir otra (e2e AG1b).
+- ~~Justificante de una cita pasada sin marcar.~~ Hecho el 04-11-2026. Avisa «Esta cita no está marcada como
+  atendida», y también si está marcada «No vino» o anulada. Se puede dar igualmente: el fisio decide.
+- ~~«Cobrar» proponía el precio de una sesión suelta aunque un bono en curso la cubriera.~~ Hecho el 04-11-2026, en
+  la hoja de la cita y en Hoy. Ahora no propone nada y avisa: «Tiene un bono en curso (…): la sesión la paga el
+  bono» (`suggestedCharge` en `billing.ts`).
+
+### Fallo raro en GitHub al publicar (04-11-2026)
+
+En la publicación de `fe1aeed` falló una sola prueba en GitHub: F11-H5, en el modo /Fisiolab/. El error fue
+«SyntaxError: The requested module './file-text-….js' does not provide an export named 't'», al abrir la ficha. Las
+otras 206 pasaron, y esa misma prueba pasa en local en los dos modos. En el build local ese trozo sí exporta `t`, y
+`tools/serve-dist.mjs` manda los archivos enteros (`readFile`), así que no sale de un archivo cortado del servidor de
+pruebas. No se ha encontrado la causa. Si vuelve a pasar, hay que descargar el informe `e2e-fallos-*` (desde aquí no
+se puede: la red lo bloquea) y mirar qué recibió el navegador.

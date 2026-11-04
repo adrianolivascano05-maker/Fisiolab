@@ -37,7 +37,9 @@ export function AttendancePage() {
       appointmentId ? getAppointment(db, appointmentId) : null,
       appointmentId ? null : lastVisitOf(db, id),
     ]);
-    return { patient, clinic, appointment: appointment ? { startsAt: appointment.startsAt, minutes: appointment.minutes } : last };
+    // Cómo está marcada la cita: el justificante dice que ha asistido, así que se avisa si no consta.
+    const status = appointment ? appointment.status : last?.appointmentId ? ((await getAppointment(db, last.appointmentId))?.status ?? null) : null;
+    return { patient, clinic, status, appointment: appointment ? { startsAt: appointment.startsAt, minutes: appointment.minutes } : last };
   }, [id, appointmentId]);
   const [when, setWhen] = useState<string | null>(null);
   const [minutes, setMinutes] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function AttendancePage() {
   );
   if (data.error) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={data.error} /></main></>;
   if (!data.data) return <>{bar}<main className="mx-auto max-w-3xl p-4"><Loading /></main></>;
-  const { patient, clinic, appointment } = data.data;
+  const { patient, clinic, appointment, status } = data.data;
   if (!patient) return <>{bar}<main className="mx-auto max-w-3xl p-4"><LoadError error={new Error("Este paciente no existe.")} /></main></>;
   const idDoc = idDocEdit ?? patient.dni;
 
@@ -96,6 +98,16 @@ export function AttendancePage() {
           <TextField label="Para qué es (opcional)" value={purpose} onChange={(e) => setPurpose(e.target.value)} hint="Por ejemplo: «a petición del interesado, para presentar en su empresa»." />
           {!appointment && !when && <Alert tone="info" title="No consta ninguna visita">Pon el día y la hora de la consulta.</Alert>}
           {future && <Alert tone="warning" title="Esa hora aún no ha llegado">El justificante dice que ha asistido: hazlo cuando haya venido.</Alert>}
+          {!future && !when && (status === "no_show" || status === "cancelled") && (
+            <Alert tone="warning" title={status === "no_show" ? "Esta cita está marcada como «No vino»" : "Esta cita está anulada"}>
+              El justificante dice que ha asistido: compruébalo antes de darlo.
+            </Alert>
+          )}
+          {!future && !when && status === "scheduled" && (
+            <Alert tone="warning" title="Esta cita no está marcada como atendida">
+              El justificante dice que ha asistido: comprueba que vino antes de darlo (o apunta su sesión).
+            </Alert>
+          )}
           {!physio && (
             <p className="text-sm text-warning">
               Falta tu nombre y nº de colegiado:{" "}

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
 import { clashes, createAppointment, markConfirmed, markReminded, updateAppointment, type AgendaItem, type Appointment } from "../data/appointments";
-import { accountLine, addPayment, euros, getPricing, patientAccount } from "../data/billing";
+import { accountLine, addPayment, euros, getPricing, patientAccount, suggestedCharge } from "../data/billing";
 import { getDb } from "../data/db";
 import { mayMessage } from "../data/privacy";
 import { ContactNote } from "../privacy/ContactNote";
@@ -93,6 +93,7 @@ export function PayPanel({
 }) {
   const toast = useToast();
   const [paying, setPaying] = useState(false);
+  const suggestion = suggestedCharge(account, pricing.sessionCents);
   return (
     <div className="flex flex-col gap-2 rounded-md bg-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -106,10 +107,15 @@ export function PayPanel({
           </Button>
         )}
       </div>
+      {paying && suggestion.pack && (
+        <p className="text-sm">
+          Tiene un bono en curso ({suggestion.pack}): la sesión la paga el bono. Si cobras algo más, pon la cantidad.
+        </p>
+      )}
       {paying && (
         <PaymentForm
           today={todayDay()}
-          suggested={account.balanceCents > 0 ? account.balanceCents : pricing.sessionCents}
+          suggested={suggestion.cents}
           concept="Sesión de fisioterapia"
           submitLabel="Cobrar"
           onSave={async (input) => {

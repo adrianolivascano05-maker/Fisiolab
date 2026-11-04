@@ -76,6 +76,28 @@ test.describe("Agenda y seguimiento", () => {
     await expect(page.getByRole("heading", { name: "Ana Agenda" })).toBeVisible();
   });
 
+  test("AG1b mover con los botones rápidos: no al pasado y, si se pisa con otra cita, avisa", async ({ page }) => {
+    await createPatient(page, { name: "Otra Hora" });
+    await giveAppointment(page, "Otra Hora", "2026-10-22T11:00");
+    await createPatient(page, { name: "Pepa Mueve" });
+    await giveAppointment(page, "Pepa Mueve", "2026-10-22T10:00");
+    await page.getByRole("button", { name: /Próxima cita/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Cita de Pepa Mueve" });
+    await sheet.getByText("Mover o cambiar la cita").click();
+    const move = sheet.getByRole("group", { name: "Mover la cita" });
+    // Una semana antes ya ha pasado: no se mueve.
+    await move.getByRole("button", { name: "1 semana antes" }).click();
+    await expect(sheet.getByText(/ya ha pasado/)).toBeVisible();
+    // Una hora después se pisa con la de Otra Hora: se abre el formulario con esa hora y el aviso.
+    await move.getByRole("button", { name: "1 h después" }).click();
+    const edit = page.getByRole("dialog", { name: "Cambiar la cita" });
+    await expect(edit.getByText("A esa hora ya hay una cita")).toBeVisible();
+    await expect(edit.getByLabel("Día y hora")).toHaveValue("2026-10-22T11:00");
+    await expectAccessible(page);
+    await edit.getByRole("button", { name: "Guardar igualmente" }).click();
+    await expect(page.getByRole("button", { name: /Próxima cita: .*11:00/ })).toBeVisible();
+  });
+
   test("AG2 cambiar y anular una cita desde la ficha", async ({ page }) => {
     await createPatient(page, { name: "Clara Cambia" });
     await giveAppointment(page, "Clara Cambia", "2026-10-22T09:00");
@@ -309,6 +331,8 @@ test.describe("Agenda y seguimiento", () => {
     await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
     await page.getByRole("button", { name: /^Eva Justifica\s*,\s*09:00/ }).click();
     await page.getByRole("dialog", { name: "Cita de Eva Justifica" }).getByRole("link", { name: "Justificante de asistencia" }).click();
+    // Ya ha pasado, pero nadie la ha marcado como atendida: se avisa (el justificante dice que ha asistido).
+    await expect(page.getByText("Esta cita no está marcada como atendida")).toBeVisible();
     await page.getByLabel("DNI o NIE del paciente (opcional)").fill("12345678Z");
     await page.getByLabel("Para qué es (opcional)").fill("a petición de la interesada, para presentar en su empresa");
     const doc = page.getByRole("article", { name: "Justificante de asistencia" });

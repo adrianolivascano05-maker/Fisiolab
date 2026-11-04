@@ -18,7 +18,7 @@ import { addDays, todayDay } from "../clinical/pageKit";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
 import { agenda, remindersBetween, STATUS_LABELS, type AgendaItem } from "../data/appointments";
-import { addPayment, dayAccounts, euros, getPricing, patientAccount, pendingAccounts, type DayAccount } from "../data/billing";
+import { addPayment, dayAccounts, euros, getPricing, patientAccount, pendingAccounts, suggestedCharge, type DayAccount } from "../data/billing";
 import { dueReviews, getAnamnesis, getSession } from "../data/clinical";
 import { listConsents } from "../data/consents";
 import { getDb } from "../data/db";
@@ -280,10 +280,16 @@ function ChargeSheet({ item, onClose }: { item: AgendaItem; onClose: () => void 
   }, [item.patientId]);
   return (
     <Sheet open onClose={onClose} title={`Cobrar a ${item.name}`}>
+      {info.data && suggestedCharge(info.data.account, info.data.pricing.sessionCents).pack && (
+        <p className="text-sm">
+          Tiene un bono en curso ({suggestedCharge(info.data.account, info.data.pricing.sessionCents).pack}): la sesión la paga el bono. Si cobras algo
+          más, pon la cantidad.
+        </p>
+      )}
       {info.data && (
         <PaymentForm
           today={todayDay()}
-          suggested={info.data.account.balanceCents > 0 ? info.data.account.balanceCents : info.data.pricing.sessionCents}
+          suggested={suggestedCharge(info.data.account, info.data.pricing.sessionCents).cents}
           concept="Sesión de fisioterapia"
           submitLabel="Cobrar"
           onSave={async (input) => {

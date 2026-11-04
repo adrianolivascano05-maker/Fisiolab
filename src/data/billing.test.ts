@@ -19,6 +19,7 @@ import {
   setPackPresets,
   setSessionPrice,
   pricingOf,
+  suggestedCharge,
   type Pack,
 } from "./billing";
 import { saveSession } from "./clinical";
@@ -231,5 +232,18 @@ describe("precios que cambian", () => {
       ["a", 5],
       ["b", 0],
     ]);
+  });
+});
+
+describe("cobrar: cuánto se propone", () => {
+  it("lo que debe; si no debe, el precio de la sesión; con un bono en curso, nada (lo paga el bono)", async () => {
+    await setSessionPrice(db, 4000, "2026-10-01");
+    expect(suggestedCharge(await patientAccount(db, ana, "2026-10-05"), 4000)).toEqual({ cents: 4000, pack: null });
+    await saveSession(db, ana, session("2026-10-02T10:00:00.000Z"));
+    expect(suggestedCharge(await patientAccount(db, ana, "2026-10-05"), 4000)).toEqual({ cents: 4000, pack: null });
+    const beto = await createPatient(db, patient("Beto Bono"));
+    await createPack(db, beto, pack({ sessions: 5 }), "bizum");
+    await saveSession(db, beto, session("2026-10-02T10:00:00.000Z"));
+    expect(suggestedCharge(await patientAccount(db, beto, "2026-10-05"), 4000)).toEqual({ cents: null, pack: "Bono 5 sesiones: quedan 4 de 5" });
   });
 });
