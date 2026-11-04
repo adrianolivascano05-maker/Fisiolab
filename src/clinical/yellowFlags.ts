@@ -71,7 +71,7 @@ export function findYellowFlags(a: Answers, labelOf: (fieldId: string) => string
   const out: YellowHit[] = [];
   for (const f of YELLOW_FLAGS) {
     found: for (const [field, v] of Object.entries(a)) {
-      if (typeof v !== "string" || !v.trim()) continue;
+      if (typeof v !== "string" || !v.trim() || field.startsWith("__")) continue; // las claves internas no son respuestas
       const text = fold(v);
       for (const w of f.words) {
         let at = text.indexOf(w);

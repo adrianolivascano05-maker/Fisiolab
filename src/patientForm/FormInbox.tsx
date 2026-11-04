@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { bumpData } from "../app/dataVersion";
 import { formTitle, PRIVACY_KIND } from "../clinical/patientForms";
-import { useAnamnesisSections } from "../clinical/useAnamnesis";
+import { useAnamnesisTemplate } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
@@ -20,13 +20,14 @@ let running: Promise<number | null> | null = null;
 export function useCollectForms(): () => Promise<number | null> {
   const cloud = useCloud();
   const toast = useToast();
-  const template = useAnamnesisSections();
+  const tpl = useAnamnesisTemplate();
   return useCallback(async () => {
     if (running) return running;
     const clinic = cloud?.clinic;
     const api = cloud?.clinics;
     const token = getToken();
-    if (!clinic || !api || !token || !navigator.onLine) return null;
+    // Sin la plantilla de la clínica cargada aún, no se recoge (las preguntas propias no se reconocerían).
+    if (!clinic || !api || !token || !navigator.onLine || !tpl) return null;
     running = (async () => {
       try {
         // Los enlaces de firma que queden pendientes (de antes del 30-10-2026) se anulan: ya no se recogen.
@@ -34,7 +35,7 @@ export function useCollectForms(): () => Promise<number | null> {
         const got = await collectAnswered(
           getDb(),
           { answered: () => api.forms.answered(token, clinic.id), remove: (id) => api.forms.remove(token, clinic.id, id), keepDoc: (id) => api.docs.keep(token, clinic.id, id) },
-          template,
+          tpl,
         );
         for (const g of got) {
           if (g.files !== undefined) {
@@ -57,7 +58,7 @@ export function useCollectForms(): () => Promise<number | null> {
       }
     })();
     return running;
-  }, [cloud, toast, template]);
+  }, [cloud, toast, tpl]);
 }
 
 export function FormInbox() {

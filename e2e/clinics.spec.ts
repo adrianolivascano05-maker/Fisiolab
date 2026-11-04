@@ -972,14 +972,21 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(notice).toContainText("ni OmniClin, que da el servicio a la clínica");
     await expect(notice).toContainText("Responsable: Fisiolab Centro, datos@aurora.test.");
     await expect(notice).toContainText("Puedes pedir ver, corregir o borrar tus datos escribiendo a la clínica.");
-    expect(await phone.getByRole("button", { name: "Enviar" }).evaluate((el) => getComputedStyle(el).borderRadius)).toBe("0px");
-    // Lo del fisioterapeuta no se le pregunta.
+    expect(await phone.getByRole("button", { name: "Siguiente" }).evaluate((el) => getComputedStyle(el).borderRadius)).toBe("0px");
+    // Lo del fisioterapeuta no se le pregunta. Va por pasos: un apartado por pantalla.
     await expect(phone.getByText("Banderas rojas")).toHaveCount(0);
+    await expect(phone.getByText("Paso 1 de 3")).toBeVisible();
+    await expect(phone.getByText(/^15 preguntas · unos 5 minutos$/)).toBeVisible();
     await phone.getByLabel("¿Por qué vienes? Cuéntanos qué te pasa").fill("Me duele la rodilla al bajar escaleras");
+    await expectAccessible(phone);
+    // Paciente nuevo sin la hoja firmada: antes de seguir, que ha leído la información (src/privacy/intakeText.ts).
+    await phone.getByRole("checkbox", { name: /^He leído esta información/ }).check();
+    await phone.getByRole("button", { name: "Siguiente" }).click();
+    await expect(phone.getByText("Paso 2 de 3")).toBeVisible();
+    await expect(phone.getByRole("heading", { name: "Antecedentes médicos personales" })).toBeFocused();
     await phone.getByLabel("¿Tienes alguna alergia?").fill("Ninguna");
     await expectAccessible(phone);
-    // Paciente nuevo sin la hoja firmada: antes de enviar, que ha leído la información (src/privacy/intakeText.ts).
-    await phone.getByRole("checkbox", { name: /^He leído esta información/ }).check();
+    await phone.getByRole("button", { name: "Siguiente" }).click();
     await phone.getByRole("button", { name: "Enviar" }).click();
     await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
     // Si vuelve a abrir el enlace, ve que ya lo envió.
@@ -1098,10 +1105,12 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await phone.getByLabel("¿Por qué vienes? Cuéntanos qué te pasa").fill("Me duele el hombro");
     await expectAccessible(phone);
     expect(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await phone.getByRole("button", { name: "Enviar" }).click();
+    await phone.getByRole("button", { name: "Siguiente" }).click();
     await expect(phone.getByRole("alert")).toContainText("Marca que has leído la información sobre protección de datos.");
     await phone.getByRole("checkbox", { name: /^He leído esta información/ }).check();
     await contact.check();
+    await phone.getByRole("button", { name: "Siguiente" }).click();
+    await phone.getByRole("button", { name: "Siguiente" }).click();
     await phone.getByRole("button", { name: "Enviar" }).click();
     await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
     await ctx.close();
@@ -1353,5 +1362,84 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     const copy = google.clinicCopy("Fisiolab Centro")!;
     expect(copy.r2).toBeFalsy();
     expect(copy.bytes.subarray(0, 9).toString("latin1")).toBe("CENITENC1");
+  });
+
+  test("CL19 formulario por pasos de un menor: quién contesta, «Prefiero no responder» y «Otro», con la plantilla de la clínica", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Leo Menor");
+    await page.getByLabel("Fecha de nacimiento").fill("2015-05-01");
+    await page.getByLabel("Teléfono").fill("600 123 457");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Leo Menor" })).toBeVisible();
+    const leoUrl = page.url();
+
+    // La plantilla: «tabaco / alcohol» también al paciente y una pregunta propia con «Otro».
+    await page.goto("./ajustes/anamnesis");
+    await page.locator("summary", { hasText: "Hábitos y estilo de vida" }).click();
+    await page.getByRole("button", { name: /^Hábitos: tabaco \/ alcohol/ }).click();
+    const sheet = page.getByRole("dialog", { name: "Pregunta" });
+    await sheet.getByRole("button", { name: "Los dos" }).click();
+    await sheet.getByRole("button", { name: "Listo" }).click();
+    await page.locator("#plantilla-habitos").getByRole("button", { name: "Añadir pregunta" }).click();
+    const add = page.getByRole("dialog", { name: "Nueva pregunta" });
+    await add.getByRole("button", { name: "Opciones" }).click();
+    await add.getByLabel("Pregunta", { exact: true }).fill("¿Qué deporte haces?");
+    for (const o of ["Fútbol", "Natación"]) {
+      await add.getByLabel("Otra opción").fill(o);
+      await add.getByRole("button", { name: "Añadir", exact: true }).first().click();
+    }
+    await add.getByRole("switch", { name: "Permitir «Otro (escribir)»" }).click();
+    await add.locator("form > button[type=submit]").click();
+    await expect(page.getByRole("list", { name: "Preguntas: Hábitos y estilo de vida" })).toContainText("¿Qué deporte haces?");
+
+    // El enlace.
+    await page.goto(`${leoUrl}/formularios`);
+    await page.getByRole("button", { name: "Enviar un formulario" }).click();
+    await page.getByRole("dialog", { name: "Enviar un formulario" }).getByRole("button", { name: "Crear el enlace" }).click();
+    const share = page.getByRole("dialog", { name: "Mandar el enlace" });
+    const text = (await share.locator("pre").textContent())!;
+    const link = /https?:\/\/\S+\/formulario\/[A-Za-z0-9_-]+#[A-Za-z0-9_-]+/.exec(text)![0];
+    await share.getByRole("button", { name: "Cerrar" }).click();
+
+    const { viewport, locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
+    void viewport;
+    await google.install(ctx, () => "carla", { server: true });
+    const phone = await ctx.newPage();
+    await phone.goto(link);
+    await expect(phone.getByRole("heading", { name: "Hola, Leo" })).toBeVisible({ timeout: 15_000 });
+    await expect(phone.getByText("Paso 1 de 4")).toBeVisible();
+    await phone.getByRole("checkbox", { name: /^He leído esta información/ }).check();
+    await phone.getByRole("button", { name: "Siguiente" }).click();
+    await expect(phone.getByRole("alert")).toContainText("Dinos quién contesta.");
+    await phone.getByText("Su madre, padre o tutor").click();
+    await phone.getByLabel("¿Por qué vienes? Cuéntanos qué te pasa").fill("Me duele el tobillo");
+    for (let i = 0; i < 3; i++) await phone.getByRole("button", { name: "Siguiente" }).click();
+    await expect(phone.getByText("Paso 4 de 4")).toBeVisible();
+    await expect(phone.getByRole("heading", { name: "Hábitos y estilo de vida" })).toBeFocused();
+    await phone.getByRole("button", { name: "Prefiero no responder" }).click();
+    await phone.locator("fieldset", { hasText: "¿Qué deporte haces?" }).getByText("Otro", { exact: true }).click();
+    await phone.getByLabel("¿Cuál?").fill("Escalada");
+    expect(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await smallTargets(phone)).toEqual([]);
+    await expectAccessible(phone);
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
+    await ctx.close();
+
+    // En su ficha: las respuestas como texto y quién contestó cada una.
+    await page.getByRole("button", { name: "Buscar respuestas" }).click();
+    await expect(page.getByText("Leo Menor ha rellenado: Anamnesis (su parte)")).toBeVisible();
+    await page.goto(`${leoUrl}/anamnesis`);
+    await page.locator("summary", { hasText: "Hábitos y estilo de vida" }).click();
+    await expect(page.getByRole("definition").filter({ hasText: "Prefiero no responder" })).toBeVisible();
+    await expect(page.getByRole("definition").filter({ hasText: "Otro: Escalada" })).toBeVisible();
+    await expect(page.getByText(/^Lo contestó el paciente, el /).first()).toBeVisible();
   });
 });

@@ -12,8 +12,11 @@ import { cancelSentForm, getSentForm, markImported } from "../data/patientForms"
 import { recordIntake } from "../data/privacy";
 import { addDocument, cleanName, getDocument, MAX_DOC_BYTES } from "../data/documents";
 import { ServerError } from "../cloud/remote";
-import type { Section } from "../clinical/anamnesis";
-import { ANAMNESIS_KIND, cleanFormAnswers, DOCS_KIND, DOCS_PER_LINK, isSignKind, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
+import type { Field, Section } from "../clinical/anamnesis";
+import { RESPONDENT, stampSources, TPL } from "../clinical/answerMeta";
+import { isMetaKey } from "../clinical/anamnesis";
+import { getSnapshot } from "../data/anamnesisTemplates";
+import { ANAMNESIS_KIND, RESPONDENTS, type Respondent, cleanFormAnswers, DOCS_KIND, DOCS_PER_LINK, isSignKind, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
 
 /** Días que se guardan en el servidor unas respuestas de un envío que este dispositivo no conoce. */
 const ORPHAN_DAYS = 7;
@@ -72,7 +75,12 @@ async function episodeFor(db: Db, patientId: string, episodeId: string): Promise
   return row ? episodeId : currentEpisode(db, patientId);
 }
 
-export async function collectAnswered(db: Db, api: FormsApi, template: Section[]): Promise<Collected[]> {
+/** La plantilla de la clínica: sus apartados y, si se tienen, todas las preguntas que conoce (también ocultas). */
+export type CollectTemplate = Section[] | { sections: Section[]; all?: Field[] };
+
+export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplate): Promise<Collected[]> {
+  const template = Array.isArray(tpl) ? tpl : tpl.sections;
+  const all = Array.isArray(tpl) ? [] : (tpl.all ?? []);
   const out: Collected[] = [];
   for (const f of await api.answered()) {
     const sent = await getSentForm(db, f.id);
@@ -144,8 +152,21 @@ export async function collectAnswered(db: Db, api: FormsApi, template: Section[]
     if (sent.kind === ANAMNESIS_KIND) {
       const current = (await getAnamnesisOf(db, sent.patientId, episode))?.answers ?? {};
       // Solo las preguntas que se le mandaron (migración 036); los envíos de antes, con la plantilla de ahora.
-      const m = mergeAnamnesis(current, incoming, template, sent.meta?.fields);
-      if (m.filled.length) await saveAnamnesisOf(db, sent.patientId, episode, m.merged);
+      // Con la plantilla con la que se mandó (su instantánea), aunque la clínica la haya cambiado después; si no está
+      // (un envío de antes, o aún no ha llegado por la sincronización), con la de ahora.
+      const snap = sent.meta?.tpl ? await getSnapshot(db, sent.meta.tpl) : null;
+      const m = mergeAnamnesis(current, incoming, snap?.sections ?? template, sent.meta?.fields, [...all, ...(snap?.all ?? [])]);
+      // Quién rellenó el de un menor: el propio paciente o su madre, padre o tutor.
+      const respondent = sent.meta?.minor && typeof incoming[RESPONDENT] === "string" && incoming[RESPONDENT] in RESPONDENTS ? (incoming[RESPONDENT] as Respondent) : null;
+      if (respondent) m.clean[RESPONDENT] = respondent;
+      if (m.filled.length) {
+        let merged = stampSources(m.merged, m.filled, { by: "patient", at: f.answeredAt, form: f.id });
+        // Una anamnesis que estaba vacía se hace con la plantilla del enlace.
+        const empty = !Object.entries(current).some(([k, v]) => !isMetaKey(k) && v !== null && v !== "" && !(Array.isArray(v) && !v.length));
+        if (empty && sent.meta?.tpl && snap) merged = { ...merged, [TPL]: sent.meta.tpl };
+        if (respondent) merged = { ...merged, [RESPONDENT]: respondent };
+        await saveAnamnesisOf(db, sent.patientId, episode, merged);
+      }
       skipped = m.skipped;
       // Paciente nuevo: el acuse de la información y, si la marcó, la petición de contacto, con la hora del servidor y
       // el texto que mandó la clínica (no el que diga la respuesta). Solo si el envío llevaba esa información.

@@ -1,7 +1,7 @@
 // Campos propios de la clínica en la anamnesis (Ajustes → Anamnesis de la clínica): preguntas que cada clínica añade a
 // los apartados de la ficha (suelo pélvico, deportiva, neurológica…). Se guardan en un ajuste que se sincroniza, así el
 // equipo entero usa la misma ficha. Las respuestas van con las demás de la anamnesis, por el id del campo: quitar un
-// campo no borra lo respondido (sale en «Otros datos guardados»).
+// campo no borra lo respondido (sale en «Respuestas a preguntas que ya no están»).
 import { getSetting, setSetting } from "./repo";
 import type { Db } from "./db";
 

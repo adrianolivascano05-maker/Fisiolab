@@ -1099,3 +1099,12 @@ otras 206 pasaron, y esa misma prueba pasa en local en los dos modos. En el buil
 `tools/serve-dist.mjs` manda los archivos enteros (`readFile`), así que no sale de un archivo cortado del servidor de
 pruebas. No se ha encontrado la causa. Si vuelve a pasar, hay que descargar el informe `e2e-fallos-*` (desde aquí no
 se puede: la red lo bloquea) y mirar qué recibió el navegador.
+
+### Anamnesis adaptable, fase 1 (04-11-2026, sin subir hasta el visto bueno)
+
+Plan, decisiones y lo hecho en `docs/anamnesis-adaptable.md`. Cada clínica ajusta el tronco desde Ajustes ›
+Anamnesis de la clínica (ocultar, renombrar, ordenar, quién contesta, preguntas propias) y el paciente rellena su
+parte por pasos. Lo respondido no se pierde: cada anamnesis apunta a la plantilla con la que se hizo (`__tpl`).
+Pendiente: la fase 2 (módulos de especialidad y varias plantillas) espera al documento «Módulos de especialidad:
+contenido revisado v2»; la fase 3 (cuestionarios propios), después. Cuando todos los móviles tengan esta versión, se
+puede dejar de escribir `anamnesis_custom_fields` (doble escritura).

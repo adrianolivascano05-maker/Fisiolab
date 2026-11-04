@@ -2,6 +2,8 @@
 // se sube al servidor de la clínica y se apunta en su ficha. Lo usan la ficha (SendFormsPage) y la bandeja de envíos.
 import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, isSignKind, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
 import type { Section } from "../clinical/anamnesis";
+import { currentTemplate, markTemplateUsed, type ResolvedTemplate } from "../data/anamnesisTemplates";
+import { ageOn } from "../data/privacy";
 import { currentBrand } from "../brand/brand";
 import { formBrand } from "../brand/form";
 import { getToken } from "../cloud/auth";
@@ -27,7 +29,10 @@ export type FormToCreate = {
   patientName: string;
   kind: string;
   clinicName: string;
-  sections: Section[];
+  /** Ya no se usa para la anamnesis (se manda con la plantilla de la clínica); se queda por compatibilidad. */
+  sections?: Section[];
+  /** La plantilla de la clínica, resuelta: va su huella en el enlace y se guarda su instantánea. */
+  template?: ResolvedTemplate | null;
 };
 
 export async function uploadPatientForm(
@@ -44,23 +49,37 @@ export async function uploadPatientForm(
   const expiresAt = new Date(Date.now() + FORM_DAYS * 86_400_000).toISOString();
   const clinic = await getClinic(db).catch(() => null);
   const brand = await formBrand(currentBrand(), clinic ?? {});
-  const sections = p.kind === ANAMNESIS_KIND ? patientSections(p.sections) : null;
+  const anamnesis = p.kind === ANAMNESIS_KIND;
+  // La plantilla con la que se manda (la de ahora, si no viene): su instantánea queda guardada (y se sincroniza) para
+  // recogerlo con ella aunque la clínica la cambie después.
+  const template = anamnesis ? (p.template ?? (await currentTemplate(db))) : null;
+  const sections = template ? patientSections(template.sections) : null;
+  const tpl = template ? await markTemplateUsed(db, template) : undefined;
   // A un paciente nuevo que aún no ha dicho «Sí» al contacto, la anamnesis empieza con la información de protección de
   // datos, el «He leído» y la casilla opcional de contacto (src/privacy/intakeText.ts).
   const patient = sections ? await getPatient(db, p.patientId) : null;
+  const age = patient ? ageOn(patient.birthDate) : null;
+  const minor = age !== null && age < 18;
   const intake =
     sections && clinic && patient && patient.privacy.consents?.contact !== true && (await isNewPatient(db, p.patientId))
       ? { version: INTAKE_TEXT_VERSION, notice: intakeNotice(clinic, p.clinicName), ackText: INTAKE_ACK_TEXT, contactText: intakeContactText(clinic, p.clinicName) }
       : null;
   const meta: FormMeta | null = sections
-    ? { fields: sections.flatMap((s) => s.fields.map((f) => f.id)), ...(intake ? { intake: { version: intake.version, contactText: intake.contactText } } : {}) }
+    ? {
+        fields: sections.flatMap((s) => s.fields.map((f) => f.id)),
+        ...(intake ? { intake: { version: intake.version, contactText: intake.contactText } } : {}),
+        ...(tpl ? { tpl } : {}),
+        ...(minor ? { minor } : {}),
+      }
     : null;
   const request: FormRequest = {
-    v: 1,
+    v: tpl ? 2 : 1,
     clinic: p.clinicName,
     name: p.patientName.trim().split(/\s+/)[0] ?? "",
     kind: p.kind,
     ...(sections ? { sections } : {}),
+    ...(tpl ? { tpl } : {}),
+    ...(minor ? { minor } : {}),
     ...(intake ? { intake } : {}),
     expiresAt,
     ...(brand ? { brand } : {}),

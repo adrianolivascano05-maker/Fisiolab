@@ -3,13 +3,14 @@
 // respuestas cifradas con la misma clave (src/clinical/patientForms.ts). Lo que va escribiendo se guarda en su móvil
 // hasta que lo envía, por si cierra la página sin querer. Si se le piden sus informes y pruebas, los sube (PDF o fotos,
 // que se pasan a PDF) cifrados con la misma clave, uno a uno, y al enviar se dice cuáles son.
-import { FileText, Lock, Send, Upload, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Lock, Send, Upload, X } from "lucide-react";
+import { RESPONDENT } from "../clinical/answerMeta";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { AnswerValue } from "../data/clinical";
 import { FieldInput } from "../clinical/FieldInput";
 import { FormFill, formResult } from "../clinical/FormFill";
 import { citeOf, formFor, type Answers as FormAnswers } from "../clinical/forms";
-import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, seal, unseal, type FormRequest, type SentDoc } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, RESPONDENTS, seal, unseal, type FormRequest, type Respondent, type SentDoc } from "../clinical/patientForms";
 import { sizeText } from "../data/documents";
 import { sealDoc } from "../documents/docCrypto";
 import { prepareFiles } from "../documents/prepare";
@@ -55,6 +56,9 @@ export function PublicFormPage() {
   /** Paciente nuevo (request.intake): «He leído esta información» (obligatoria) y la casilla opcional de contacto. */
   const [intakeAck, setIntakeAck] = useState(false);
   const [intakeContact, setIntakeContact] = useState(false);
+  /** La anamnesis va por pasos: un apartado por pantalla. */
+  const [step, setStep] = useState(0);
+  const stepTitle = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     document.title = "Formulario · OmniClin";
@@ -106,14 +110,32 @@ export function PublicFormPage() {
   const form = request && request.kind !== ANAMNESIS_KIND && !toSign ? formFor(request.kind) : undefined;
   const result = form ? formResult(form, answers as FormAnswers) : null;
 
+  const steps = request?.kind === ANAMNESIS_KIND ? (request.sections ?? []) : [];
+  const stepped = steps.length > 0;
+  const lastStep = !stepped || step >= steps.length - 1;
+  const questions = steps.reduce((n, s) => n + s.fields.length, 0);
+  /** Pasar de paso: lo de protección de datos y quién contesta, en el primero; el foco, al título del paso. */
+  const go = (to: number) => {
+    setError(null);
+    if (to > step && step === 0) {
+      if (request?.intake && !intakeAck) return setError("Marca que has leído la información sobre protección de datos.");
+      if (request?.minor && !answers[RESPONDENT]) return setError("Dinos quién contesta.");
+    }
+    setStep(Math.max(0, Math.min(steps.length - 1, to)));
+    window.scrollTo({ top: 0 });
+    requestAnimationFrame(() => stepTitle.current?.focus());
+  };
+
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!request) return;
+    if (!lastStep) return go(step + 1);
     setError(null);
-    const given = Object.values(answers).some((v) => v !== null && v !== "" && v !== undefined && !(Array.isArray(v) && !v.length));
+    const given = Object.entries(answers).some(([k, v]) => !k.startsWith("__") && v !== null && v !== "" && v !== undefined && !(Array.isArray(v) && !v.length));
     if (!given) return setError(request.kind === DOCS_KIND ? "Sube al menos un archivo." : "Contesta al menos una pregunta.");
     if (result && "missing" in result) return setError(`${result.missing}. Contéstalas para poder enviarlo.`);
     if (request.intake && !intakeAck) return setError("Marca que has leído la información sobre protección de datos.");
+    if (request.minor && !answers[RESPONDENT]) return setError("Dinos quién contesta.");
     setSending(true);
     try {
       const base = await serverUrl();
@@ -168,6 +190,8 @@ export function PublicFormPage() {
         )}
         {request && !toSign && (
           <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+            {(!stepped || step === 0) && (
+              <>
             <h1 className="text-2xl leading-tight font-bold">{request.name ? `Hola, ${request.name}` : "Hola"}</h1>
             <DataNotice request={request} />
             {request.intake && <IntakeNotice intake={request.intake} ack={intakeAck} contact={intakeContact} onAck={setIntakeAck} onContact={setIntakeContact} />}
@@ -189,6 +213,24 @@ export function PublicFormPage() {
                 centro de salud.
               </p>
             )}
+            {stepped && (
+              <p className="text-sm font-semibold">
+                {questions === 1 ? "1 pregunta" : `${questions} preguntas`} · unos {Math.max(1, Math.ceil(questions / 3))} minutos
+              </p>
+            )}
+            {request.minor && (
+              <fieldset className="flex flex-col gap-2">
+                <legend className="font-semibold">Contesta:</legend>
+                {(Object.keys(RESPONDENTS) as Respondent[]).map((r) => (
+                  <label key={r} className="flex min-h-11 items-center gap-3 rounded-md border border-border-input bg-bg px-3">
+                    <input type="radio" name="respondent" className="size-5 accent-accent" checked={answers[RESPONDENT] === r} onChange={() => setAnswers((a) => ({ ...a, [RESPONDENT]: r }))} />
+                    {RESPONDENTS[r]}
+                  </label>
+                ))}
+              </fieldset>
+            )}
+              </>
+            )}
             {request.kind === DOCS_KIND && (
               <DocsUpload
                 formId={id}
@@ -201,14 +243,25 @@ export function PublicFormPage() {
                 }}
               />
             )}
-            {request.sections?.map((s) => (
-              <Card key={s.id} className="flex flex-col gap-4">
-                <h2 className="text-lg">{s.title}</h2>
-                {s.fields.map((f) => (
-                  <FieldInput key={f.id} field={f} value={answers[f.id] as AnswerValue | undefined} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} />
-                ))}
-              </Card>
-            ))}
+            {stepped && steps[step] && (
+              <div className="flex flex-col gap-2">
+                <p aria-live="polite" className="text-sm font-semibold text-text-muted">
+                  Paso {step + 1} de {steps.length}
+                </p>
+                <div aria-hidden="true" className="h-1 overflow-hidden rounded-pill bg-border">
+                  <div className="h-full bg-accent transition-[width]" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
+                </div>
+                <Card className="flex flex-col gap-4">
+                  <h2 ref={stepTitle} tabIndex={-1} className="text-lg outline-none">
+                    {steps[step].title}
+                  </h2>
+                  {steps[step].fields.map((f) => (
+                    <FieldInput key={f.id} patient field={f} value={answers[f.id] as AnswerValue | undefined} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} />
+                  ))}
+                </Card>
+                <p className="text-sm text-text-muted">Se guarda en tu móvil; puedes seguir luego.</p>
+              </div>
+            )}
             {form && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} />}
             {form && <p className="text-xs text-text-muted">Autores del cuestionario: {citeOf(form)}.</p>}
             {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && (
@@ -217,9 +270,20 @@ export function PublicFormPage() {
               </Alert>
             )}
             {error && <Alert tone="danger" title={error} />}
-            <Button type="submit" size="lg" block loading={sending} icon={<Send aria-hidden="true" className="size-5" />}>
-              Enviar
-            </Button>
+            {lastStep ? (
+              <Button type="submit" size="lg" block loading={sending} icon={<Send aria-hidden="true" className="size-5" />}>
+                Enviar
+              </Button>
+            ) : (
+              <Button type="submit" size="lg" block icon={<ChevronRight aria-hidden="true" className="size-5" />}>
+                Siguiente
+              </Button>
+            )}
+            {stepped && step > 0 && (
+              <button type="button" onClick={() => go(step - 1)} className="inline-flex min-h-11 items-center justify-center gap-1 self-center text-sm font-semibold text-accent">
+                <ChevronLeft aria-hidden="true" className="size-4" /> Atrás
+              </button>
+            )}
             <p className="text-center text-xs text-text-muted">
               El enlace vale hasta el {new Date(request.expiresAt).toLocaleDateString("es-ES", { day: "numeric", month: "long", timeZone: "Europe/Madrid" })}.
             </p>
@@ -402,7 +466,7 @@ function DataNotice({ request }: { request: FormRequest }) {
         {docs ? "Tus archivos van cifrados" : "Tus respuestas van cifradas"} desde tu móvil directamente a la
         historia clínica de {clinic}. Nadie más puede {docs ? "abrirlos" : "leerlas"}: ni OmniClin, que da el servicio a la clínica, ni el servidor por donde{" "}
         {docs ? "pasan, que los guarda" : "pasan, que las guarda"} en
-        la Unión Europea. Responsable: {clinic}
+        la Unión Europea. Para qué: que tu fisioterapeuta prepare tu consulta y lo guarde en tu historia clínica. Responsable: {clinic}
         {email ? `, ${email}` : ""}. Puedes pedir ver, corregir o borrar tus datos escribiendo a la clínica.
       </p>
     </section>

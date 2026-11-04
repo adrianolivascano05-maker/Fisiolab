@@ -264,6 +264,24 @@ describe("cambios sustituidos", () => {
   });
 });
 
+describe("claves internas de la anamnesis", () => {
+  it("«quién contestó» que choca entre dos no sale como cambio sustituido (no es un dato que recuperar)", async () => {
+    const { lostChanges, lostCount } = await import("./conflicts");
+    const pid = await createPatient(a, patient("Bea Meta"));
+    await saveAnamnesis(a, pid, { motivo: "x" });
+    await server.settle([a, b]);
+    await saveAnamnesis(a, pid, { motivo: "x", __src: '{"motivo":{"by":"clinician","at":"1"}}' });
+    await tick();
+    await saveAnamnesis(b, pid, { motivo: "x", __src: '{"motivo":{"by":"patient","at":"2"}}' });
+    await server.round(b);
+    await server.settle([a, b]);
+    expect(await lostChanges(a)).toEqual([]);
+    expect(await lostCount(a)).toBe(0);
+    // Sí se guardó (por si acaso), solo que no se enseña.
+    expect(await a.query("select field from sync_conflicts")).toEqual([{ field: "answers.__src" }]);
+  });
+});
+
 describe("citas dobles", () => {
   it("dos personas dan la misma hora a la misma fisio en dos dispositivos: avisa al sincronizar", async () => {
     const { createAppointment, doubleBookingsFromOthers } = await import("./appointments");

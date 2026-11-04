@@ -11,7 +11,7 @@ import { bumpData, useDataVersion } from "../app/dataVersion";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { answerText } from "../clinical/anamnesis";
+import { answerText, getField, isMetaKey, type Field } from "../clinical/anamnesis";
 import {
   ANAMNESIS_KIND,
   DOCS_KIND,
@@ -381,8 +381,22 @@ function SentRow({
 }) {
   const status = formStatus(f);
   const s = STATUS[status];
-  const fields = f.kind === ANAMNESIS_KIND ? patientSections(sectionsTemplate).flatMap((x) => x.fields) : [];
-  const answered = fields.filter((fl) => answerText(fl, (f.answers?.[fl.id] ?? null) as never) !== "");
+  // Todo lo que contestó, con su pregunta (dicha para él si aún se le pregunta; si no, como esté en la ficha o en la
+  // de OmniClin): también lo de preguntas que ya no se le mandan o que la clínica ha ocultado.
+  const asked = patientSections(sectionsTemplate).flatMap((x) => x.fields);
+  const known = sectionsTemplate.flatMap((x) => x.fields);
+  const order = (id: string) => {
+    const i = known.findIndex((x) => x.id === id);
+    return i === -1 ? known.length : i;
+  };
+  const answered =
+    f.kind === ANAMNESIS_KIND
+      ? Object.keys(f.answers ?? {})
+          .filter((k) => !isMetaKey(k))
+          .sort((x, y) => order(x) - order(y))
+          .map((k): Field => asked.find((x) => x.id === k) ?? known.find((x) => x.id === k) ?? getField(k) ?? { id: k, label: k, type: "text" })
+          .filter((fl) => answerText(fl, (f.answers?.[fl.id] ?? null) as never) !== "")
+      : [];
   return (
     <li>
       <Card className="flex flex-col gap-2">

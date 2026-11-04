@@ -350,12 +350,12 @@ test.describe("Mejoras frente a la competencia", () => {
     await page.getByRole("link", { name: /Anamnesis de la clínica/ }).click();
     await page.getByRole("button", { name: "Suelo pélvico" }).click();
     await expect(page.getByText(/Suelo pélvico: \d preguntas añadidas/)).toBeVisible();
-    await page.getByRole("button", { name: "Añadir una pregunta" }).click();
+    await page.locator("summary", { hasText: "Hábitos y estilo de vida" }).click();
+    await page.locator("#plantilla-habitos").getByRole("button", { name: "Añadir pregunta" }).click();
     const q = page.getByRole("dialog", { name: "Nueva pregunta" });
-    await q.getByLabel("Apartado").selectOption({ label: "6. Hábitos y estilo de vida" });
-    await q.getByLabel("Pregunta").fill("Horas sentado al día");
-    await q.getByRole("button", { name: "Guardar" }).click();
-    await expect(page.getByRole("list", { name: "Preguntas propias: Hábitos y estilo de vida" })).toContainText("Horas sentado al día");
+    await q.getByLabel("Pregunta", { exact: true }).fill("Horas sentado al día");
+    await q.getByRole("button", { name: "Añadir", exact: true }).click();
+    await expect(page.getByRole("list", { name: "Preguntas: Hábitos y estilo de vida" })).toContainText("Horas sentado al día");
     await expectAccessible(page);
 
     await createPatient(page, { name: "Nora Propia" });

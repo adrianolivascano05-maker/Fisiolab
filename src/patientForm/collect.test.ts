@@ -10,7 +10,10 @@ import { listConsents } from "../data/consents";
 import { signPrivacySheet } from "../data/privacy";
 import { createTestDb } from "../data/testDb";
 import { cancelSignLinks, collectAnswered, type FormsApi } from "./collect";
+import { readSources } from "../clinical/answerMeta";
+import { NO_ANSWER } from "../clinical/anamnesis";
 import { uploadPatientForm } from "./createForm";
+import { currentTemplate, getTemplateDoc, markTemplateUsed, saveTemplateDoc } from "../data/anamnesisTemplates";
 
 const patient = (name: string) => ({ name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
 
@@ -44,11 +47,13 @@ describe("formularios para el paciente", () => {
   it("al paciente solo se le pregunta lo suyo, dicho para él, y las preguntas propias de la clínica", () => {
     const custom = withCustom([{ id: "c_horas", section: "habitos", label: "Horas sentado al día", type: "text" }]);
     const sections = patientSections(custom);
-    expect(sections.map((s) => s.title)).toEqual(["Datos personales", "Motivo de consulta", "Antecedentes médicos personales", "Antecedentes médicos familiares", "Tratamientos previos y expectativas", "Hábitos y estilo de vida"]);
+    // Las 15 de siempre (docs/anamnesis-adaptable.md, decisión 8) y la propia de la clínica.
+    expect(sections.map((s) => s.title)).toEqual(["Motivo de consulta", "Antecedentes médicos personales", "Tratamientos previos y expectativas", "Hábitos y estilo de vida"]);
+    expect(sections.flatMap((s) => s.fields)).toHaveLength(16);
     const ids = sections.flatMap((s) => s.fields.map((f) => f.id));
     for (const no of ["regiones", "lado", "banderas_rojas", "precauciones", "ritmo", "diagnostico_funcional", "fecha_valoracion"]) expect(ids).not.toContain(no);
     expect(ids).toContain("c_horas");
-    expect(sections[1]!.fields[0]).toMatchObject({ id: "motivo", label: "¿Por qué vienes? Cuéntanos qué te pasa" });
+    expect(sections[0]!.fields[0]).toMatchObject({ id: "motivo", label: "¿Por qué vienes? Cuéntanos qué te pasa" });
   });
 
   it("lo que contesta rellena lo vacío; lo que ya estaba escrito no se toca", () => {
@@ -63,6 +68,27 @@ describe("formularios para el paciente", () => {
     expect(merged).not.toHaveProperty("medicacion");
     expect(filled.sort()).toEqual(["alergias", "eva"]);
     expect(skipped).toEqual(["motivo"]);
+  });
+
+  it("lo que se le preguntó no se pierde aunque la clínica cambie después la plantilla", () => {
+    // Un enlace de antes (32 preguntas) con «profesion», que ahora es solo del fisio: se acepta porque se le preguntó.
+    const m = mergeAnamnesis({}, { profesion: "Carpintera", regiones: ["lumbar"], c_x: "Otro: natación" }, ANAMNESIS, ["profesion", "c_x"], [
+      { id: "c_x", label: "Deporte", type: "choice", options: ["Correr", "Nadar"], who: "both" },
+    ]);
+    expect(m.merged).toEqual({ profesion: "Carpintera", c_x: "Otro: natación" });
+    // Lo que no se le mandó, no.
+    expect(m.clean).not.toHaveProperty("regiones");
+  });
+
+  it("delicadas: «Prefiero no responder»; Sí/No con detalle", () => {
+    const sections = [{ id: "habitos", title: "Hábitos", fields: [
+      { id: "toxicos", label: "Tabaco", type: "text" as const, sensitive: true, who: "both" as const },
+      { id: "c_op", label: "¿Le operaron?", type: "yesno_detail" as const, who: "both" as const },
+      { id: "c_ch", label: "Elige", type: "choice" as const, options: ["A", "B"], who: "both" as const, sensitive: true },
+    ] }];
+    const m = mergeAnamnesis({}, { toxicos: NO_ANSWER, c_op: "Sí: rodilla", c_ch: NO_ANSWER }, sections);
+    expect(m.merged).toEqual({ toxicos: NO_ANSWER, c_op: "Sí: rodilla", c_ch: NO_ANSWER });
+    expect(mergeAnamnesis({}, { c_op: "Quizá" }, sections).merged).toEqual({});
   });
 
   it("recoge: rellena la anamnesis, guarda el cuestionario con su nota y lo borra del servidor", async () => {
@@ -88,7 +114,10 @@ describe("formularios para el paciente", () => {
       { patientId: pid, name: "Nora Enlace", kind: "gad7", skipped: 0, incomplete: false },
     ]);
     expect(removed.sort()).toEqual([a.id, q.id].sort());
-    expect((await getAnamnesis(db, pid))!.answers).toEqual({ motivo: "Lo escribió el fisio", alergias: "Ninguna" });
+    const saved = (await getAnamnesis(db, pid))!.answers;
+    expect(saved).toMatchObject({ motivo: "Lo escribió el fisio", alergias: "Ninguna" });
+    // Quién contestó lo que se ha puesto: el paciente, con ese enlace y a esa hora; lo del fisio no se toca.
+    expect(readSources(saved)).toEqual({ alergias: { by: "patient", at, form: a.id } });
     const [gad] = await listQuestionnaires(db, pid);
     expect(gad).toMatchObject({ kind: "gad7", score: 9, performedAt: at, notes: "Lo rellenó el paciente desde su móvil." });
     const sent = await getSentForm(db, a.id);
@@ -177,7 +206,9 @@ describe("formularios para el paciente", () => {
     const response = await seal({ v: 1, answers: { motivo: "Me duele", alergias: "Polen" } }, f.key);
     const { api } = server([{ id: f.id, response, answeredAt: new Date().toISOString() }]);
     await collectAnswered(db, api, ANAMNESIS);
-    expect((await getAnamnesis(db, pid))?.answers).toEqual({ alergias: "Polen" });
+    const saved = (await getAnamnesis(db, pid))!.answers;
+    expect(saved).toMatchObject({ alergias: "Polen" });
+    expect(saved).not.toHaveProperty("motivo");
   });
 
   it("paciente nuevo: el acuse y la petición de contacto se apuntan con el texto del envío, sin dar el permiso", async () => {
@@ -315,6 +346,30 @@ describe("formularios para el paciente", () => {
     expect(privacy.sheets).toEqual([sheet]);
     expect(privacy.consents?.contact).toBe(true);
     expect((await getAnamnesis(db, pid))?.answers.motivo).toBe("Dolor de hombro");
+  });
+
+  it("enlace v2: se recoge con la plantilla con la que se mandó aunque la clínica la cambie; quién contesta en un menor", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Leo Menor"));
+    const d = await getTemplateDoc(db);
+    const own = { id: "c_dddddddd", section: "motivo", type: "choice" as const, label: "¿Hace deporte?", who: "both" as const, options: ["Sí", "No"] };
+    await saveTemplateDoc(db, { ...d, delta: { ...d.delta, added: [own] } }, null);
+    const sentTpl = await currentTemplate(db);
+    const ref = await markTemplateUsed(db, sentTpl);
+    const f = { id: newFormId(), key: newFormKey() };
+    const fields = patientSections(sentTpl.sections).flatMap((x) => x.fields.map((y) => y.id));
+    expect(fields).toContain("c_dddddddd");
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: ANAMNESIS_KIND, key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), meta: { fields, tpl: ref, minor: true } });
+    // Después, la clínica retira la pregunta y le quita la opción «No»: el enlace ya enviado no cambia.
+    await saveTemplateDoc(db, { ...d, delta: { ...d.delta, added: [{ ...own, options: ["Sí", "A veces"], removed: true }] } }, null);
+    const at = "2026-11-04T10:00:00.000Z";
+    const response = await seal({ v: 1, answers: { motivo: "Me duele", c_dddddddd: "No", __respondent: "guardian", __tpl: "general@000000000000" } }, f.key);
+    const { api } = server([{ id: f.id, response, answeredAt: at }]);
+    await collectAnswered(db, api, await currentTemplate(db));
+    const saved = (await getAnamnesis(db, pid))!.answers;
+    expect(saved).toMatchObject({ motivo: "Me duele", c_dddddddd: "No", __tpl: ref, __respondent: "guardian" });
+    expect(readSources(saved).c_dddddddd).toEqual({ by: "patient", at, form: f.id });
+    expect((await getSentForm(db, f.id))!.answers).toMatchObject({ c_dddddddd: "No", __respondent: "guardian" });
   });
 
   it("ya no se crea un enlace para firmar", async () => {

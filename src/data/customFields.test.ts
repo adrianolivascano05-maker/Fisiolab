@@ -23,7 +23,7 @@ describe("campos propios de la anamnesis", () => {
     await saveCustomFields(db, [{ id: "c_horas", section: "habitos", label: "Horas sentado al día", type: "text" }]);
     const sections = withCustom(await getCustomFields(db));
     const habitos = sections.find((s) => s.id === "habitos")!;
-    expect(habitos.fields.at(-1)).toEqual({ id: "c_horas", label: "Horas sentado al día", type: "text" });
+    expect(habitos.fields.at(-1)).toEqual({ id: "c_horas", label: "Horas sentado al día", type: "text", who: "both" });
     const answers = { motivo: "Lumbalgia", c_horas: "8" };
     expect(orphanAnswers(answers, sections)).toEqual([]);
     expect(anamnesisRows(answers, sections)).toContainEqual(["6. Hábitos y estilo de vida", "Horas sentado al día", "8"]);

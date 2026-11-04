@@ -3,7 +3,7 @@
 // ordenar los tests de exploración y los cuestionarios), las banderas rojas y las precauciones (salen en los
 // consentimientos); lo demás se escribe. El mapa del dolor es un cuestionario (src/clinical/questionnaires.ts).
 // Las respuestas se guardan por id de campo: si se cambia esta lista, lo ya escrito no se pierde (un
-// campo que se quite se sigue viendo en «Otros datos guardados»). Nombre, fecha de nacimiento y sexo están en
+// campo que se quite se sigue viendo en «Respuestas a preguntas que ya no están»). Nombre, fecha de nacimiento y sexo están en
 // los datos del paciente.
 import { PRECAUTIONS } from "../consent/precautions";
 import type { AnswerValue, Answers } from "../data/clinical";
@@ -15,13 +15,38 @@ import { PATIENT_FLAG_LABELS, RED_FLAG_LABELS } from "./redFlags";
 /** El mapa del dolor estuvo un tiempo en la anamnesis con este id: lo guardado se sigue leyendo. */
 const OLD_MAP = "mapa_dolor";
 
-type Base = { id: string; label: string; hint?: string };
+/** Quién contesta una pregunta: el paciente en su formulario, solo el fisioterapeuta en la ficha, o los dos. */
+export type Who = "patient" | "clinician" | "both";
+/** Condición «mostrar solo si…» (fase 2): sobre una pregunta anterior del mismo apartado. */
+export type ShowIf = { field: string; op: "eq" | "in"; value: string | string[] };
+type Base = {
+  id: string;
+  label: string;
+  hint?: string;
+  /** Cómo se le pregunta al paciente (si no, `label`). */
+  patientLabel?: string;
+  patientHint?: string;
+  /** Quién la contesta (si no, `defaultWho`). */
+  who?: Who;
+  /** Pregunta delicada (tóxicos, salud mental, sexualidad…): lleva «Prefiero no responder» y no puede ser obligatoria. */
+  sensitive?: boolean;
+  /** Opciones: deja contestar «Otro» con un texto corto (se guarda «Otro: …»). */
+  other?: boolean;
+  /** Fase 2 (se leen y se guardan aunque esta versión no los use): obligatoria para el paciente, condición, opciones
+   *  destacadas y módulo del que viene. */
+  required?: boolean;
+  showIf?: ShowIf;
+  highlight?: string[];
+  module?: string;
+};
 export type Field =
   | (Base & { type: "text" | "textarea" | "date"; rows?: number; inputMode?: "tel" | "email" })
   | (Base & { type: "number"; unit: string; min: number; max: number })
   /** Escala 0-10 (EVA). */
   | (Base & { type: "scale" })
   | (Base & { type: "choice" | "multi"; options: string[] })
+  /** Sí / No y, si contesta Sí, un detalle («¿Cuál?»). Se guarda como texto: «No» o «Sí: rodilla izquierda». */
+  | (Base & { type: "yesno_detail"; detail?: string })
   /** Códigos de la CIF con sus calificadores (src/clinical/cif). */
   | (Base & { type: "cif" });
 export type Section = { id: string; title: string; fields: Field[] };
@@ -131,9 +156,9 @@ export const ANAMNESIS: Section[] = [
       { id: "actividad", label: "Actividad física / deporte", type: "text" },
       { id: "frecuencia", label: "Frecuencia", type: "text", hint: "Por ejemplo, 3 veces por semana." },
       { id: "ocupacion", label: "Ocupación laboral / postura habitual", type: "text" },
-      { id: "toxicos", label: "Hábitos: tabaco / alcohol", type: "text" },
-      { id: "sueno", label: "Calidad del sueño", type: "text" },
-      { id: "estres", label: "Nivel de estrés", type: "textarea" },
+      { id: "toxicos", label: "Hábitos: tabaco / alcohol", type: "text", sensitive: true },
+      { id: "sueno", label: "Calidad del sueño", type: "text", sensitive: true },
+      { id: "estres", label: "Nivel de estrés", type: "textarea", sensitive: true },
       { id: "avd", label: "Actividades de la vida diaria afectadas", type: "textarea" },
     ],
   },
@@ -186,6 +211,133 @@ export const ANAMNESIS: Section[] = [
 ];
 
 export const ALL_FIELDS = ANAMNESIS.flatMap((s) => s.fields);
+
+/**
+ * Versión del tronco común (esta plantilla). Se sube cuando OmniClin cambia sus preguntas: las clínicas reciben las
+ * mejoras salvo en lo que ellas cambiaron (src/data/anamnesisTemplates.ts).
+ */
+export const BASE_VERSION = 1;
+
+/**
+ * Preguntas fijas del tronco: la app o la ley las usan. Se pueden renombrar, mover y ocultar (con aviso), pero no
+ * borrar ni cambiar de tipo u opciones: banderas rojas y precauciones se reconocen por el texto de la opción
+ * (redFlags.ts, consent/precautions.ts). Lo que dice cada una es lo que deja de funcionar si se oculta.
+ */
+export const FIXED: Record<string, string> = {
+  motivo: "el nombre del motivo de consulta, el resumen de la ficha y el informe se quedarán sin el motivo",
+  fecha_valoracion: "el informe y el alta no tendrán la fecha de la valoración",
+  regiones: "Exploración no propondrá los tests ni los cuestionarios de la zona",
+  lado: "las mediciones no propondrán el lado",
+  eva: "el resumen no tendrá el dolor de la primera visita",
+  banderas_rojas: "no se podrán apuntar las banderas rojas ni saldrán en los consentimientos",
+  sintomas_paciente: "el paciente no podrá marcar sus síntomas de alarma",
+  precauciones: "los consentimientos no tendrán en cuenta las precauciones",
+  enfermedades: "los consentimientos no tendrán en cuenta sus enfermedades",
+  medicacion: "los consentimientos no tendrán en cuenta su medicación",
+  alergias: "los consentimientos no tendrán en cuenta sus alergias",
+  cirugias: "los consentimientos no tendrán en cuenta sus cirugías",
+  observaciones: "los consentimientos no tendrán en cuenta las observaciones",
+  cif: "no habrá perfil CIF ni el diagnóstico redactado desde él",
+  diagnostico_funcional: "el informe, el alta y los consentimientos no tendrán el diagnóstico",
+  plan: "el informe y los consentimientos no tendrán el plan",
+  objetivos_corto: "los consentimientos no tendrán los objetivos a corto plazo",
+  objetivos_largo: "el resumen y los consentimientos no tendrán los objetivos",
+  alta_recomendaciones: "el informe de alta no tendrá las recomendaciones",
+  sesiones_previstas: "la pestaña Sesiones no contará las previstas",
+  derivado_por: "el informe de alta no dirá quién lo derivó",
+  localizacion: "el resumen no tendrá la localización del dolor",
+  profesion: "la redacción de la CIF no tendrá su profesión",
+  ocupacion: "la redacción de la CIF no tendrá su ocupación",
+  actividad: "la redacción de la CIF no tendrá su actividad física",
+  frecuencia: "la redacción de la CIF no tendrá la frecuencia de su actividad",
+  creencias: "la redacción de la CIF no tendrá lo que cree que le pasa",
+  expectativas: "la redacción de la CIF no tendrá sus expectativas",
+  objetivo_paciente: "la redacción de la CIF no tendrá lo que quiere volver a hacer",
+};
+
+/** Los títulos de los apartados para el paciente (sin número). */
+export const PATIENT_SECTION_TITLES: Record<string, string> = {
+  datos: "Datos personales",
+  motivo: "Motivo de consulta",
+  antecedentes: "Antecedentes médicos personales",
+  familiares: "Antecedentes médicos familiares",
+  tratamientos: "Tratamientos previos y expectativas",
+  habitos: "Hábitos y estilo de vida",
+};
+
+/**
+ * Cómo se le pregunta al paciente cada pregunta del tronco que puede contestar (si la clínica no escribe otra forma).
+ * Lo demás (zona y lado para los tests, banderas rojas, precauciones, exploración, diagnóstico y plan) es del
+ * fisioterapeuta.
+ */
+export const PATIENT_TEXT: Record<string, { label: string; hint?: string }> = {
+  profesion: { label: "¿A qué te dedicas?" },
+  motivo: { label: "¿Por qué vienes? Cuéntanos qué te pasa", hint: "Con tus palabras." },
+  fecha_inicio: { label: "¿Desde cuándo te pasa?", hint: "Una fecha o, por ejemplo, «hace 3 semanas»." },
+  forma_inicio: { label: "¿Cómo empezó?", hint: "De golpe (con un gesto, un golpe…) o poco a poco." },
+  localizacion: { label: "¿Dónde te duele o lo notas?" },
+  tipo_dolor: { label: "¿Cómo es lo que notas?", hint: "Por ejemplo: pinchazo, quemazón, dolor sordo, hormigueo, como una corriente…" },
+  eva: { label: "¿Cuánto te duele ahora?", hint: "0 es nada y 10, el peor dolor que te puedas imaginar." },
+  agravantes: { label: "¿Qué lo empeora?" },
+  atenuantes: { label: "¿Qué lo alivia?" },
+  irradiacion: { label: "¿Se va hacia otra zona?", hint: "Por ejemplo, del cuello al brazo o de la espalda a la pierna." },
+  evolucion: { label: "¿Cómo ha ido desde que empezó?", hint: "Mejor, peor, igual, a temporadas…" },
+  sintomas_paciente: { label: "¿Has notado alguna de estas cosas?", hint: "Marca las que te pasen. Si no te pasa ninguna, déjalo en blanco." },
+  enfermedades: { label: "¿Tienes o has tenido alguna enfermedad importante?" },
+  cirugias: { label: "¿Te han operado de algo?" },
+  traumatismos: { label: "¿Has tenido golpes fuertes, fracturas o esguinces?" },
+  fisio_previa: { label: "¿Has ido antes a fisioterapia? ¿Por qué y cómo te fue?" },
+  otros_tratamientos: { label: "¿Qué otros tratamientos has probado para esto?", hint: "Medicación, infiltraciones, cirugía, osteopatía…" },
+  respuesta_tratamientos: { label: "¿Te ayudaron? ¿Alguno te empeoró?" },
+  creencias: { label: "¿Qué crees que te pasa y por qué?" },
+  expectativas: { label: "¿Qué esperas de la fisioterapia?", hint: "Y en cuánto tiempo te gustaría notarlo." },
+  objetivo_paciente: { label: "¿Qué te gustaría volver a hacer?", hint: "Por ejemplo: correr, dormir sin dolor, coger en brazos a tu hijo…" },
+  medicacion: { label: "¿Qué medicación tomas?" },
+  alergias: { label: "¿Tienes alguna alergia?" },
+  pruebas: { label: "¿Te han hecho pruebas (radiografía, resonancia, ecografía…)? ¿Qué decían?" },
+  familiares: { label: "¿Tus padres o hermanos tienen o han tenido alguna enfermedad importante?", hint: "Por ejemplo: reumáticas, del corazón, cáncer, neurológicas…" },
+  actividad: { label: "¿Haces deporte o actividad física? ¿Cuál?" },
+  frecuencia: { label: "¿Cada cuánto?", hint: "Por ejemplo, 3 veces por semana." },
+  ocupacion: { label: "En tu trabajo, ¿cómo pasas el día?", hint: "Por ejemplo: con el ordenador, de pie, cargando peso…" },
+  toxicos: { label: "¿Fumas o bebes alcohol? ¿Cuánto?" },
+  sueno: { label: "¿Qué tal duermes?" },
+  estres: { label: "¿Cuánto estrés tienes últimamente?" },
+  avd: { label: "¿Qué cosas del día a día te cuestan por esto?" },
+};
+
+/**
+ * Las 15 preguntas que contesta el paciente si la clínica no cambia nada (unos 5 minutos). Las demás de PATIENT_TEXT
+ * son «Solo tú» por defecto: cada clínica las enciende si quiere.
+ */
+export const PATIENT_DEFAULT = new Set([
+  "motivo",
+  "fecha_inicio",
+  "localizacion",
+  "eva",
+  "agravantes",
+  "atenuantes",
+  "evolucion",
+  "sintomas_paciente",
+  "enfermedades",
+  "cirugias",
+  "medicacion",
+  "alergias",
+  "pruebas",
+  "fisio_previa",
+  "objetivo_paciente",
+]);
+
+/** Quién contesta una pregunta del tronco si la clínica no dice otra cosa. */
+export const defaultWho = (id: string): Who => (PATIENT_DEFAULT.has(id) ? "both" : "clinician");
+/** Quién contesta: lo de la pregunta o lo de por defecto. */
+export const whoOf = (f: Field): Who => f.who ?? defaultWho(f.id);
+/** Lo que contesta el paciente («Paciente» o «Los dos»). */
+export const forPatient = (f: Field) => whoOf(f) !== "clinician";
+
+/** Claves internas de las respuestas («__tpl», «__src», «__respondent»…): no son preguntas. */
+export const isMetaKey = (k: string) => k.startsWith("__");
+/** Lo que se guarda si el paciente prefiere no contestar una pregunta delicada. */
+export const NO_ANSWER = "Prefiero no responder";
 const fieldById = new Map(ALL_FIELDS.map((f) => [f.id, f]));
 export const getField = (id: string) => fieldById.get(id);
 
@@ -198,7 +350,7 @@ export function withCustom(custom: CustomField[]): Section[] {
       ...s.fields,
       ...custom
         .filter((c) => c.section === s.id && !fieldById.has(c.id))
-        .map((c): Field => (c.type === "choice" || c.type === "multi" ? { id: c.id, label: c.label, type: c.type, options: c.options ?? [] } : { id: c.id, label: c.label, type: c.type })),
+        .map((c): Field => (c.type === "choice" || c.type === "multi" ? { id: c.id, label: c.label, type: c.type, options: c.options ?? [], who: "both" } : { id: c.id, label: c.label, type: c.type, who: "both" })),
     ],
   }));
 }
@@ -245,14 +397,18 @@ export function answeredCount(a: Answers, fields = ALL_FIELDS): number {
   return fields.filter((f) => answered(a[f.id])).length;
 }
 
-/** Nombre y texto de una respuesta guardada que ya no está en la plantilla. */
-export function orphanText(id: string, v: AnswerValue): { label: string; text: string } {
+/**
+ * Nombre y texto de una respuesta guardada que ya no está en la plantilla. `known`: la pregunta tal como se hizo (de la
+ * instantánea de la anamnesis o de la plantilla, aunque esté oculta o retirada); si no, la del tronco.
+ */
+export function orphanText(id: string, v: AnswerValue, known?: Field): { label: string; text: string } {
   if (id === OLD_MAP) return { label: "Mapa del dolor (ahora está en Cuestionarios)", text: marksText(v) };
-  return { label: id, text: answerText(undefined, v) };
+  const f = known ?? getField(id);
+  return { label: f?.label ?? id, text: answerText(f, v) };
 }
 
 /** Respuestas guardadas de campos que ya no están en la plantilla (no se pierden). */
 export function orphanAnswers(a: Answers, sections: Section[] = ANAMNESIS): [string, AnswerValue][] {
   const ids = new Set(sections.flatMap((s) => s.fields.map((f) => f.id)));
-  return Object.entries(a).filter(([k, v]) => !ids.has(k) && answered(v));
+  return Object.entries(a).filter(([k, v]) => !isMetaKey(k) && !ids.has(k) && answered(v));
 }

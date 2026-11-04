@@ -9,7 +9,7 @@ import type { Db } from "../data/db";
 import type { PrivacySection } from "../data/privacy";
 import { messageText, type MessageSettings } from "../messages/templates";
 import { cachedCloudConfig } from "../cloud/config";
-import { ALL_FIELDS, type Field, type Section } from "./anamnesis";
+import { forPatient, getField, NO_ANSWER, PATIENT_SECTION_TITLES, PATIENT_TEXT, type Field, type Section } from "./anamnesis";
 import { formResult } from "./FormFill";
 import { formFor, type Answers as FormAnswers } from "./forms";
 import { ACTIVE, getKind } from "./questionnaires";
@@ -34,7 +34,8 @@ export const FORM_DAYS = 14;
 
 /** Lo que va cifrado en el enlace: qué preguntar y a quién. */
 export type FormRequest = {
-  v: 1;
+  /** 2: la anamnesis lleva la plantilla con la que se hizo (`tpl`) y en cada pregunta quién la contesta. */
+  v: 1 | 2;
   /** Nombre de la clínica, para que el paciente sepa quién se lo pide. */
   clinic: string;
   /** El nombre de pila del paciente, para saludarle. */
@@ -43,6 +44,10 @@ export type FormRequest = {
   kind: string;
   /** La anamnesis: sus apartados con las preguntas para el paciente. */
   sections?: Section[];
+  /** La plantilla de la clínica con la que se hizo («id@huella», src/data/anamnesisTemplates.ts). */
+  tpl?: string;
+  /** Es menor de edad (por su fecha de nacimiento): al principio se pregunta quién contesta. */
+  minor?: boolean;
   expiresAt: string;
   /** La marca de la clínica para la página del paciente (src/brand/form.ts); sin ella, la de OmniClin. */
   brand?: FormBrand;
@@ -65,73 +70,26 @@ export type FormRequest = {
  * `answers.docs` con lo que ha subido (cada uno en su número, n, del enlace).
  */
 export type FormResponse = { v: 1; answers: Record<string, unknown> };
+/** Quién rellenó el formulario de un menor (`answers.__respondent`). */
+export const RESPONDENTS = { patient: "El propio paciente", guardian: "Su madre, padre o tutor" } as const;
+export type Respondent = keyof typeof RESPONDENTS;
 export type SentDoc = { n: number; name: string; size: number };
 
 // ---------- Qué se le pregunta ----------
 
-/** Los apartados de la anamnesis que rellena el paciente, con un título suyo. */
-const PATIENT_SECTIONS: Record<string, string> = {
-  datos: "Datos personales",
-  motivo: "Motivo de consulta",
-  antecedentes: "Antecedentes médicos personales",
-  familiares: "Antecedentes médicos familiares",
-  tratamientos: "Tratamientos previos y expectativas",
-  habitos: "Hábitos y estilo de vida",
-};
-
 /**
- * Las preguntas de la ficha que puede contestar el paciente, dichas para él. Lo demás (zona y lado para los tests,
- * banderas rojas, precauciones, exploración, diagnóstico y plan) es del fisioterapeuta.
+ * Los apartados de la ficha de la clínica (src/data/anamnesisTemplates.ts) con las preguntas que contesta el paciente
+ * («Paciente» o «Los dos»), dichas para él: con su texto para el paciente si lo tiene y el título del apartado sin número.
  */
-const PATIENT_FIELDS: Record<string, { label: string; hint?: string }> = {
-  profesion: { label: "¿A qué te dedicas?" },
-  motivo: { label: "¿Por qué vienes? Cuéntanos qué te pasa", hint: "Con tus palabras." },
-  fecha_inicio: { label: "¿Desde cuándo te pasa?", hint: "Una fecha o, por ejemplo, «hace 3 semanas»." },
-  forma_inicio: { label: "¿Cómo empezó?", hint: "De golpe (con un gesto, un golpe…) o poco a poco." },
-  localizacion: { label: "¿Dónde te duele o lo notas?" },
-  tipo_dolor: { label: "¿Cómo es lo que notas?", hint: "Por ejemplo: pinchazo, quemazón, dolor sordo, hormigueo, como una corriente…" },
-  eva: { label: "¿Cuánto te duele ahora?", hint: "0 es nada y 10, el peor dolor que te puedas imaginar." },
-  agravantes: { label: "¿Qué lo empeora?" },
-  atenuantes: { label: "¿Qué lo alivia?" },
-  irradiacion: { label: "¿Se va hacia otra zona?", hint: "Por ejemplo, del cuello al brazo o de la espalda a la pierna." },
-  evolucion: { label: "¿Cómo ha ido desde que empezó?", hint: "Mejor, peor, igual, a temporadas…" },
-  sintomas_paciente: { label: "¿Has notado alguna de estas cosas?", hint: "Marca las que te pasen. Si no te pasa ninguna, déjalo en blanco." },
-  enfermedades: { label: "¿Tienes o has tenido alguna enfermedad importante?" },
-  cirugias: { label: "¿Te han operado de algo?" },
-  traumatismos: { label: "¿Has tenido golpes fuertes, fracturas o esguinces?" },
-  fisio_previa: { label: "¿Has ido antes a fisioterapia? ¿Por qué y cómo te fue?" },
-  otros_tratamientos: { label: "¿Qué otros tratamientos has probado para esto?", hint: "Medicación, infiltraciones, cirugía, osteopatía…" },
-  respuesta_tratamientos: { label: "¿Te ayudaron? ¿Alguno te empeoró?" },
-  creencias: { label: "¿Qué crees que te pasa y por qué?" },
-  expectativas: { label: "¿Qué esperas de la fisioterapia?", hint: "Y en cuánto tiempo te gustaría notarlo." },
-  objetivo_paciente: { label: "¿Qué te gustaría volver a hacer?", hint: "Por ejemplo: correr, dormir sin dolor, coger en brazos a tu hijo…" },
-  medicacion: { label: "¿Qué medicación tomas?" },
-  alergias: { label: "¿Tienes alguna alergia?" },
-  pruebas: { label: "¿Te han hecho pruebas (radiografía, resonancia, ecografía…)? ¿Qué decían?" },
-  familiares: { label: "¿Tus padres o hermanos tienen o han tenido alguna enfermedad importante?", hint: "Por ejemplo: reumáticas, del corazón, cáncer, neurológicas…" },
-  actividad: { label: "¿Haces deporte o actividad física? ¿Cuál?" },
-  frecuencia: { label: "¿Cada cuánto?", hint: "Por ejemplo, 3 veces por semana." },
-  ocupacion: { label: "En tu trabajo, ¿cómo pasas el día?", hint: "Por ejemplo: con el ordenador, de pie, cargando peso…" },
-  toxicos: { label: "¿Fumas o bebes alcohol? ¿Cuánto?" },
-  sueno: { label: "¿Qué tal duermes?" },
-  estres: { label: "¿Cuánto estrés tienes últimamente?" },
-  avd: { label: "¿Qué cosas del día a día te cuestan por esto?" },
-};
-const BASE_IDS = new Set(ALL_FIELDS.map((f) => f.id));
-
-/** Los apartados de la ficha de la clínica (con sus campos propios) que contesta el paciente, con sus preguntas. */
 export function patientSections(sections: Section[]): Section[] {
   return sections
-    .filter((s) => s.id in PATIENT_SECTIONS)
     .map((s) => ({
       id: s.id,
-      title: PATIENT_SECTIONS[s.id]!,
-      fields: s.fields.flatMap((f): Field[] => {
-        const own = PATIENT_FIELDS[f.id];
-        if (own) return [{ ...f, label: own.label, hint: own.hint }];
-        // Las preguntas propias de la clínica (Ajustes → Anamnesis de la clínica) van tal cual.
-        return BASE_IDS.has(f.id) ? [] : [f];
-      }),
+      title: PATIENT_SECTION_TITLES[s.id] ?? s.title.replace(/^\d+\.\s*/, ""),
+      fields: s.fields.filter((f) => f.type !== "cif" && forPatient(f)).map((f): Field => {
+          const own = f.patientLabel ? { label: f.patientLabel, hint: f.patientHint } : PATIENT_TEXT[f.id];
+          return { ...f, label: own?.label ?? f.label, hint: own ? own.hint : f.hint };
+        }),
     }))
     .filter((s) => s.fields.length);
 }
@@ -222,17 +180,25 @@ export function formMessage(p: { name: string; clinic: string; kind: string; url
 
 const filled = (v: unknown) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
 
+/** «Otro: natación» (texto corto). Se acepta aunque la clínica haya quitado después el «Otro» de esa pregunta: se lo
+ * preguntó así y su respuesta no se pierde. */
+const otherText = (_f: Field, x: unknown): x is string => typeof x === "string" && /^Otro: \S/.test(x) && x.length <= 210;
+
 /** Una respuesta del paciente limpia para el tipo de su campo, o null si no vale. */
 function cleanValue(f: Field, v: unknown): AnswerValue {
+  // Una pregunta delicada: puede preferir no responder.
+  if (f.sensitive && v === NO_ANSWER) return NO_ANSWER;
   switch (f.type) {
     case "scale":
       return typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 10 ? v : null;
     case "number":
       return typeof v === "number" && Number.isFinite(v) ? v : typeof v === "string" && v.trim() ? v.trim().slice(0, 50) : null;
     case "multi":
-      return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && f.options.includes(x)) : null;
+      return Array.isArray(v) ? v.filter((x): x is string => (typeof x === "string" && f.options.includes(x)) || otherText(f, x)).map((x) => x.trim()) : null;
     case "choice":
-      return typeof v === "string" && f.options.includes(v) ? v : null;
+      return typeof v === "string" && (f.options.includes(v) || otherText(f, v)) ? v.trim() : null;
+    case "yesno_detail":
+      return typeof v === "string" && (v === "No" || v === "Sí" || /^Sí: \S/.test(v)) ? v.trim().slice(0, 600) : null;
     default:
       return typeof v === "string" && v.trim() ? v.trim().slice(0, 5000) : null;
   }
@@ -241,23 +207,33 @@ function cleanValue(f: Field, v: unknown): AnswerValue {
 /**
  * Pone en la anamnesis lo que ha contestado el paciente: solo en los campos que se le preguntan y que estaban vacíos.
  * Lo que ya tenía escrito el fisioterapeuta no se toca: esos campos van en `skipped` (lo que contestó se puede ver).
- * `sentFields`: las preguntas que se le mandaron (migración 036); si viene, solo se aceptan las que estén en las dos
- * (lo enviado y la plantilla de ahora): una pregunta añadida después no la vio y una quitada ya no existe.
+ * `sentFields`: las preguntas que se le mandaron (migración 036); si viene, se aceptan justo esas (una añadida después
+ * no la vio), cada una tal como se conozca: de la plantilla de ahora aunque ya no sea del paciente o esté oculta
+ * (`all`), o del tronco. Nada de lo que contestó a una pregunta que se le hizo se pierde.
  */
 export function mergeAnamnesis(
   current: Answers,
   incoming: Record<string, unknown>,
   sections: Section[],
   sentFields?: string[],
+  all: Field[] = [],
 ): { merged: Answers; filled: string[]; skipped: string[]; clean: Answers } {
-  const sent = sentFields ? new Set(sentFields) : null;
+  const asked = patientSections(sections).flatMap((s) => s.fields);
+  let fields = asked;
+  if (sentFields) {
+    const pool = new Map<string, Field>();
+    for (const f of [...all, ...sections.flatMap((s) => s.fields), ...asked]) pool.set(f.id, f);
+    fields = [...new Set(sentFields)].flatMap((id) => {
+      const f = pool.get(id) ?? getField(id);
+      return f && f.type !== "cif" ? [f] : [];
+    });
+  }
   const merged: Answers = { ...current };
   /** Lo que contestó, solo de lo que se le preguntó y limpio (lo que se guarda para verlo). */
   const clean: Answers = {};
   const done: string[] = [];
   const skipped: string[] = [];
-  for (const f of patientSections(sections).flatMap((s) => s.fields)) {
-    if (sent && !sent.has(f.id)) continue;
+  for (const f of fields) {
     const v = cleanValue(f, incoming[f.id]);
     if (!filled(v)) continue;
     clean[f.id] = v;

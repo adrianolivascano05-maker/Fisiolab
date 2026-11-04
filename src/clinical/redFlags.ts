@@ -104,7 +104,7 @@ export function findFlags(a: Answers, labelOf: (fieldId: string) => string = (id
     if (f && !hits.has(f.id)) hits.set(f.id, { flag: f, from: "paciente" });
   }
   for (const [field, v] of Object.entries(a)) {
-    if (typeof v !== "string" || !v.trim()) continue;
+    if (typeof v !== "string" || !v.trim() || field.startsWith("__")) continue; // las claves internas no son respuestas
     const text = fold(v);
     for (const f of FLAGS) {
       if (hits.has(f.id)) continue;

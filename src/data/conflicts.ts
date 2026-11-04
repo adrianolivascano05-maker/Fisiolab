@@ -1,6 +1,7 @@
 // «Cambios sustituidos» (migración 033): lo que este dispositivo había cambiado y otro ha cambiado a la vez con otro
 // valor. Se quedó lo del otro (el cambio más reciente), pero lo de aquí se guarda tres meses para poder recuperarlo.
 import { answerText, getField } from "../clinical/anamnesis";
+import { changeCount, isTemplateKey, type TemplateDoc } from "./anamnesisTemplates";
 import type { Db } from "./db";
 
 export type LostChange = {
@@ -71,6 +72,19 @@ function valueText(tbl: string, field: string, v: unknown): string {
   return text.length > 160 ? `${text.slice(0, 157)}…` : text;
 }
 
+/** Una versión de la plantilla de anamnesis, en palabras: «3 cambios, de ana@clinica.es». */
+function templateText(v: unknown): string {
+  const doc = (typeof v === "string" ? parse(v) : v) as Partial<TemplateDoc> | undefined;
+  if (!doc || typeof doc !== "object" || !doc.delta) return "(vacío)";
+  try {
+    const d = doc.delta as Partial<TemplateDoc["delta"]>;
+    const n = changeCount({ fields: d.fields ?? {}, order: d.order ?? {}, added: d.added ?? [], sections: d.sections ?? {}, modules: [] });
+    return `${n === 1 ? "1 cambio" : `${n} cambios`}${doc.by ? `, de ${doc.by}` : ""}`;
+  } catch {
+    return "(no se puede leer)";
+  }
+}
+
 /** Qué es el campo, en palabras. */
 function fieldText(tbl: string, field: string): string {
   const dot = field.indexOf(".");
@@ -86,9 +100,13 @@ const KEY: Record<string, string> = { anamnesis: "patient_id", settings: "key", 
 
 type Raw = { id: number; tbl: string; pk: string; field: string; mine: string | null; theirs: string | null; by_device: string; at: string };
 
+/** Las claves internas de las respuestas («answers.__src», «answers.__tpl»…; src/clinical/answerMeta.ts) no son datos que
+ * recuperar: no salen en la lista. */
+const NOT_META = "field not like 'answers.\\_\\_%' escape '\\'";
+
 /** Lo que se ha perdido en este dispositivo, de lo más reciente a lo más antiguo. */
 export async function lostChanges(db: Db): Promise<LostChange[]> {
-  const rows = await db.query<Raw>("select id, tbl, pk, field, mine, theirs, by_device, at from sync_conflicts order by at desc, id desc");
+  const rows = await db.query<Raw>(`select id, tbl, pk, field, mine, theirs, by_device, at from sync_conflicts where ${NOT_META} order by at desc, id desc`);
   const out: LostChange[] = [];
   for (const r of rows) {
     const patientId =
@@ -100,12 +118,14 @@ export async function lostChanges(db: Db): Promise<LostChange[]> {
     const [p] = patientId ? await db.query<{ id: string; name: string }>("select id, name from patients where id = ?", [patientId]) : [];
     const [who] = await db.query<{ name: string }>("select coalesce(st.name, d.name) as name from devices d left join staff st on st.email = d.email where d.device = ?", [r.by_device]);
     const exists = await db.query(`select 1 from ${r.tbl} where ${KEY[r.tbl] ?? "id"} = ?`, [r.pk]).catch(() => []);
+    // La plantilla de anamnesis de la clínica (anamnesis_tpl:…): con su nombre y cuántos cambios tenía cada versión.
+    const tpl = r.tbl === "settings" && isTemplateKey(r.pk);
     out.push({
       id: r.id,
-      what: fieldText(r.tbl, r.field),
+      what: tpl ? "Plantilla de anamnesis de la clínica" : fieldText(r.tbl, r.field),
       patient: p ?? null,
-      mine: valueText(r.tbl, r.field, parse(r.mine)),
-      theirs: valueText(r.tbl, r.field, parse(r.theirs)),
+      mine: tpl ? templateText(parse(r.mine)) : valueText(r.tbl, r.field, parse(r.mine)),
+      theirs: tpl ? templateText(parse(r.theirs)) : valueText(r.tbl, r.field, parse(r.theirs)),
       by: who?.name ?? null,
       at: r.at,
       gone: !exists.length,
@@ -115,7 +135,7 @@ export async function lostChanges(db: Db): Promise<LostChange[]> {
 }
 
 export async function lostCount(db: Db): Promise<number> {
-  const [r] = await db.query<{ n: number }>("select count(*) as n from sync_conflicts");
+  const [r] = await db.query<{ n: number }>(`select count(*) as n from sync_conflicts where ${NOT_META}`);
   return r?.n ?? 0;
 }
 

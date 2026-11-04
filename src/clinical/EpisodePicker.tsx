@@ -16,7 +16,8 @@ import { cx } from "../ui/cx";
 import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { getCustomFields } from "../data/customFields";
+import { getTemplateDoc } from "../data/anamnesisTemplates";
+import { readSources, SRC } from "./answerMeta";
 import { ANAMNESIS } from "./anamnesis";
 
 /** Lo que no cambia de un motivo a otro (datos personales, antecedentes, hábitos): pasa a la anamnesis nueva. */
@@ -76,8 +77,11 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
       const db = getDb();
       const prev = (await getAnamnesis(db, patientId))?.answers ?? {};
       // También las preguntas propias de la clínica de esos mismos apartados.
-      const custom = new Set((await getCustomFields(db)).filter((f) => KEEP_SECTIONS.includes(f.section)).map((f) => f.id));
+      const custom = new Set((await getTemplateDoc(db)).delta.added.filter((f) => KEEP_SECTIONS.includes(f.section)).map((f) => f.id));
       const answers: Answers = Object.fromEntries(Object.entries(prev).filter(([k]) => KEEP.has(k) || custom.has(k)));
+      // Quién contestó lo que se copia (las demás claves internas, como la plantilla, no: el motivo nuevo tendrá la suya).
+      const src = Object.fromEntries(Object.entries(readSources(prev)).filter(([k]) => k in answers));
+      if (Object.keys(src).length) answers[SRC] = JSON.stringify(src);
       answers.fecha_valoracion = day;
       answers.motivo = title.trim();
       const id = await createEpisode(db, patientId, { title, startedAt: new Date(`${day}T12:00:00`).toISOString(), answers });

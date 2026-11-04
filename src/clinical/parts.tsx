@@ -114,6 +114,7 @@ export function Chips({
   multiple,
   render = (o) => o,
   hint,
+  column,
 }: {
   label: string;
   options: string[];
@@ -122,6 +123,8 @@ export function Chips({
   multiple?: boolean;
   render?: (o: string) => string;
   hint?: string;
+  /** Una opción por fila, a lo ancho (el formulario del paciente en el móvil). */
+  column?: boolean;
 }) {
   const name = useId();
   const toggle = (o: string) => onChange(value.includes(o) ? value.filter((x) => x !== o) : multiple ? [...value, o] : [o]);
@@ -129,11 +132,11 @@ export function Chips({
     <fieldset className="flex flex-col gap-2">
       <legend className="text-sm font-semibold">{label}</legend>
       {hint && <p className="-mt-1 text-sm text-text-muted">{hint}</p>}
-      <div className="flex flex-wrap gap-2">
+      <div className={cx("flex gap-2", column ? "flex-col" : "flex-wrap")}>
         {options.map((o) => {
           const on = value.includes(o);
           return (
-            <label key={o} className="relative">
+            <label key={o} className={cx("relative", column && "flex")}>
               <input
                 type={multiple ? "checkbox" : "radio"}
                 name={name}
@@ -150,7 +153,8 @@ export function Chips({
               />
               <span
                 className={cx(
-                  "inline-flex min-h-11 items-center rounded-pill border px-3 text-sm",
+                  "inline-flex min-h-11 items-center border px-3 text-sm",
+                  column ? "w-full rounded-md py-2 text-base" : "rounded-pill",
                   "border-border-input bg-bg text-text peer-checked:border-accent peer-checked:bg-accent-soft peer-checked:font-semibold peer-checked:text-accent",
                   "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus",
                 )}
@@ -165,8 +169,10 @@ export function Chips({
   );
 }
 
-export function TextArea({ label, hint, value, onChange, rows = 3 }: { label: string; hint?: string; value: string; onChange: (v: string) => void; rows?: number }) {
+export function TextArea({ label, hint, value, onChange, rows = 3, maxLength }: { label: string; hint?: string; value: string; onChange: (v: string) => void; rows?: number; maxLength?: number }) {
   const id = useId();
+  /** Con tope: cuántos caracteres quedan, a partir del 90 %. */
+  const near = maxLength && value.length >= Math.floor(maxLength * 0.9);
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-semibold">
@@ -176,6 +182,7 @@ export function TextArea({ label, hint, value, onChange, rows = 3 }: { label: st
         id={id}
         rows={rows}
         value={value}
+        maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
         aria-describedby={hint ? `${id}-hint` : undefined}
         className="w-full rounded-md border border-border-input bg-bg px-3 py-2 text-base"
@@ -183,6 +190,11 @@ export function TextArea({ label, hint, value, onChange, rows = 3 }: { label: st
       {hint && (
         <p id={`${id}-hint`} className="text-sm text-text-muted">
           {hint}
+        </p>
+      )}
+      {near && (
+        <p aria-live="polite" className="text-sm text-text-muted">
+          {value.length} de {maxLength} caracteres
         </p>
       )}
     </div>

@@ -30,7 +30,14 @@ export type SentForm = {
  * Qué se mandó (migración 036): las preguntas de la anamnesis que vio el paciente y, a un paciente nuevo, la versión y
  * el texto de la información y de la casilla de contacto. Los envíos de antes no lo tienen (null).
  */
-export type FormMeta = { fields?: string[]; intake?: { version: string; contactText: string } };
+export type FormMeta = {
+  fields?: string[];
+  intake?: { version: string; contactText: string };
+  /** La plantilla de anamnesis con la que se mandó («id@huella»): se recoge con ella aunque la clínica la cambie. */
+  tpl?: string;
+  /** Se mandó a un menor: al principio, quién contesta. */
+  minor?: boolean;
+};
 
 export type FormStatus = "pending" | "done" | "expired" | "cancelled";
 

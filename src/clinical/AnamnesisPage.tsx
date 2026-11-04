@@ -14,13 +14,19 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { useToast } from "../ui/Toast";
-import { answerText, answeredCount, fieldIn, orphanAnswers, orphanText, type Field, type Section } from "./anamnesis";
+import { answerText, answeredCount, fieldIn, isMetaKey, orphanAnswers, orphanText, type Field, type Section } from "./anamnesis";
+import { listSentForms } from "../data/patientForms";
+import { ANAMNESIS_KIND } from "./patientForms";
 import { RedFlagPanel } from "./RedFlagPanel";
 import { CifPicker } from "./cif/CifPicker";
 import { draftDiagnosis, personalFactors } from "./cif/prose";
 import { evidenceFrom } from "./cif/suggest";
 import { YellowFlagPanel } from "./YellowFlagPanel";
-import { useAnamnesisSections } from "./useAnamnesis";
+import { BASE_SECTIONS, useAnamnesisTemplate, useSnapshot } from "./useAnamnesis";
+import { readSources, sourceText, stampSources, TPL } from "./answerMeta";
+import { knownField, markTemplateUsed } from "../data/anamnesisTemplates";
+import { memberEmail } from "../data/member";
+import { useCloud } from "../cloud/cloudContext";
 import { trends } from "./measures";
 import { FieldInput } from "./FieldInput";
 import { symmetryRows } from "./symmetry";
@@ -64,9 +70,9 @@ const OPEN_FIRST = new Set(["motivo", "antecedentes", "diagnostico", "objetivos"
 const filled = (section: Section, a: Answers) => answeredCount(a, section.fields.filter((f) => f.id !== "fecha_valoracion"));
 
 /** Un apartado de la anamnesis que se pliega: el título, cuántos campos tiene rellenos y el contenido. */
-function Fold({ id, title, count, open, children }: { id: string; title: string; count: string; open: boolean; children: ReactNode }) {
+function Fold({ id, title, count, open, children, onOpen }: { id: string; title: string; count: string; open: boolean; children: ReactNode; onOpen?: () => void }) {
   return (
-    <details id={id} open={open || undefined} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
+    <details id={id} open={open || undefined} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && onOpen?.()} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
         <span className="text-lg font-semibold text-brand-ink">{title.replace(/^\d+\.\s*/, "")}</span>
         <span className="flex items-center gap-2 text-sm text-text-muted">
@@ -111,9 +117,13 @@ export function AnamnesisPage() {
       listSessions(db, id),
       listQuestionnaires(db, id),
     ]);
+    // Lo que contestó el paciente en sus enlaces de este motivo (aunque no se pusiera porque ya había algo escrito).
+    const fromPatient = new Map<string, AnswerValue>();
+    for (const f of (await listSentForms(db, id)).filter((x) => x.kind === ANAMNESIS_KIND && x.importedAt && x.answers && x.episodeId === current).sort((a, b) => (a.answeredAt ?? "").localeCompare(b.answeredAt ?? "")))
+      for (const [k, v] of Object.entries(f.answers!)) if (!isMetaKey(k)) fromPatient.set(k, v as AnswerValue);
     // Viendo todos los motivos, la anamnesis es la del último abierto: se dice cuál.
     const shown = focus === ALL && episodes.length > 1 ? episodes.find((e) => e.id === current) : undefined;
-    return { patient, anamnesis, findings, tests, shown, current, sessions, questionnaires };
+    return { patient, anamnesis, findings, tests, shown, current, sessions, questionnaires, fromPatient };
   });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Answers | null>(null);
@@ -122,7 +132,15 @@ export function AnamnesisPage() {
   const autoStarted = useRef(false);
   /** Lo que había al empezar a editar: al guardar solo se escribe lo que se ha cambiado aquí (lo que llegue mientras tanto, p. ej. del paciente, se queda). */
   const base = useRef<Answers>({});
-  const sections = useAnamnesisSections();
+  const tpl = useAnamnesisTemplate();
+  const cloud = useCloud();
+  /** Quien puede cambiar la plantilla de la clínica (sin clínica en la nube, quien usa el móvil). */
+  const canAdjust = !cloud?.clinic || cloud.clinic.role === "admin";
+  /** El último apartado abierto: el enlace a la plantilla lleva a ese mismo apartado. */
+  const [lastSection, setLastSection] = useState("motivo");
+  const sections = tpl?.sections ?? BASE_SECTIONS;
+  /** La plantilla con la que se hizo esta anamnesis: para leer con su pregunta lo que ya no está en la ficha. */
+  const snap = useSnapshot(data.data?.anamnesis?.answers[TPL]);
   const allFields = sections.flatMap((x) => x.fields);
 
   // Sin anamnesis todavía: se empieza directamente a rellenar, con la fecha de hoy (solo al entrar). Recién creado un
@@ -144,7 +162,7 @@ export function AnamnesisPage() {
   }, [data.data, editEpisode, navigate]);
 
   if (!data.data) return <Guard state={data} title="Anamnesis" back={`/pacientes/${id}`} />;
-  const { patient, anamnesis, findings, tests, shown, sessions, questionnaires } = data.data;
+  const { patient, anamnesis, findings, tests, shown, sessions, questionnaires, fromPatient } = data.data;
   if (!patient) return <Page title="Anamnesis" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const romTrends = trends(tests.filter((t) => t.movement !== null));
 
@@ -166,9 +184,18 @@ export function AnamnesisPage() {
       // paciente, otro dispositivo) no se pisa.
       const db = getDb();
       const now = (await getAnamnesis(db, id))?.answers ?? {};
-      const merged: Answers = { ...now };
+      let merged: Answers = { ...now };
+      const changed: string[] = [];
       for (const k of new Set([...Object.keys(base.current), ...Object.keys(draft)])) {
-        if (JSON.stringify(draft[k] ?? null) !== JSON.stringify(base.current[k] ?? null)) merged[k] = draft[k] ?? null;
+        if (JSON.stringify(draft[k] ?? null) !== JSON.stringify(base.current[k] ?? null)) {
+          merged[k] = draft[k] ?? null;
+          changed.push(k);
+        }
+      }
+      if (changed.length) {
+        // La plantilla con la que se hizo (la primera vez; luego conserva la suya) y quién escribió cada respuesta.
+        if (typeof merged[TPL] !== "string" && tpl) merged[TPL] = await markTemplateUsed(db, tpl);
+        merged = stampSources(merged, changed, { by: "clinician", ...(memberEmail() ? { who: memberEmail()! } : {}), at: new Date().toISOString() });
       }
       await saveAnamnesis(db, id, merged);
       toast("Anamnesis guardada", "success");
@@ -229,6 +256,7 @@ export function AnamnesisPage() {
                 title={section.title}
                 count={n ? `${n} de ${section.fields.length}` : ""}
                 open={OPEN_FIRST.has(section.id) || (n > 0 && !!anamnesis)}
+                onOpen={() => setLastSection(section.id)}
               >
                 <div role="group" aria-label={section.title} className="flex flex-col gap-4 @4xl:grid @4xl:grid-cols-2 @4xl:gap-x-6">
                   {section.id === "datos" && (
@@ -290,6 +318,21 @@ export function AnamnesisPage() {
               </Fold>
             );
           })}
+          {canAdjust && (
+            <Link
+              to={`/ajustes/anamnesis?apartado=${lastSection}`}
+              onClick={(e) => {
+                // Lo escrito aquí aún no está guardado: no se pierde por ir a la plantilla.
+                if (JSON.stringify(draft) !== JSON.stringify(base.current)) {
+                  e.preventDefault();
+                  toast("Guarda antes la anamnesis: lo escrito se perdería", "info");
+                }
+              }}
+              className="inline-flex min-h-11 items-center self-start text-sm text-text-muted underline"
+            >
+              Ajustar la plantilla de la clínica
+            </Link>
+          )}
           {error && <Alert tone="danger" title="No se pudo guardar">{error}</Alert>}
           <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-border bg-bg/95 px-4 py-3 backdrop-blur">
             {anamnesis && (
@@ -312,6 +355,7 @@ export function AnamnesisPage() {
   const done = answeredCount(a, allFields);
   const valued = typeof a.fecha_valoracion === "string" ? a.fecha_valoracion : null;
   const orphans = orphanAnswers(a, sections);
+  const sources = readSources(a);
   return (
     <PatientShell patient={patient} id={id}>
       <div className="flex flex-col">
@@ -347,6 +391,10 @@ export function AnamnesisPage() {
                     <div key={f.id} className={cx("flex flex-col", (wideField(f) || text.length > 60) && "@2xl:col-span-2")}>
                       <dt className="text-sm text-text-muted">{f.label}</dt>
                       <dd className="whitespace-pre-line">{text}</dd>
+                      {sources[f.id]?.by === "patient" && <dd className="text-xs text-text-muted">Lo contestó {sourceText(sources[f.id]!).replace(/^El paciente/, "el paciente")}</dd>}
+                      {fromPatient.has(f.id) && JSON.stringify(fromPatient.get(f.id)) !== JSON.stringify(a[f.id]) && (
+                        <dd className="text-sm whitespace-pre-line text-text-muted">El paciente contestó: {answerText(f, fromPatient.get(f.id) ?? null)}</dd>
+                      )}
                     </div>
                   );
                 })}
@@ -361,11 +409,11 @@ export function AnamnesisPage() {
       {orphans.length > 0 && (
         <section aria-labelledby="an-otros" className="flex flex-col gap-2 rounded-lg border border-dashed border-border-input p-4">
           <h3 id="an-otros" className="text-lg">
-            Otros datos guardados
+            Respuestas a preguntas que ya no están
           </h3>
           <dl className="flex flex-col gap-2">
             {orphans.map(([k, v]) => {
-              const o = orphanText(k, v);
+              const o = orphanText(k, v, knownField(k, snap, tpl));
               return (
                 <div key={k} className="flex flex-col">
                   <dt className="text-sm text-text-muted">{o.label}</dt>

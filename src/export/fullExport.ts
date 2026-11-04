@@ -14,9 +14,10 @@ import { getExercise } from "../calc/strength";
 import { getMovement, movementLabel } from "../calc/rom";
 import { wellnessItems } from "../calc/wellness";
 import { metricLabels, sideLabels, testTitle } from "../app/format";
-import { ANAMNESIS, answerText, orphanAnswers, orphanText, regionLabel, withCustom, type Section } from "../clinical/anamnesis";
+import { ANAMNESIS, answerText, orphanAnswers, orphanText, regionLabel, type Section } from "../clinical/anamnesis";
+import { TPL } from "../clinical/answerMeta";
+import { currentTemplate, knownField, listSnapshots, type Resolved } from "../data/anamnesisTemplates";
 import { marksText } from "../clinical/bodyMap";
-import { getCustomFields } from "../data/customFields";
 import { displayName, kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { Db } from "../data/db";
@@ -64,6 +65,11 @@ export type Collected = {
   tables: Record<string, R[]>;
   /** La ficha de anamnesis de la clínica, con sus campos propios. */
   template?: Section[];
+  /** Las plantillas con las que se hicieron las anamnesis (instantáneas «id@huella») y la de ahora, para leer cada
+   * respuesta con su pregunta, aunque ya no esté en la ficha. */
+  known?: (Resolved & { ref?: string })[];
+  /** Los ajustes de las plantillas (cambios de la clínica e instantáneas), tal cual, para el JSON. */
+  templates?: { key: string; value: unknown }[];
 };
 
 /** Las tablas que se exportan (las de la clínica; no los ajustes del dispositivo ni los de cada persona). */
@@ -83,7 +89,12 @@ export async function collect(db: Db): Promise<Collected> {
   tables.patient_forms = (tables.patient_forms ?? []).map((r) => without(r, "form_key"));
   // Lo mismo con la clave de cada archivo del paciente: los archivos van en el .zip ya abiertos.
   tables.documents = (tables.documents ?? []).map((r) => without(r, "doc_key"));
-  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: withCustom(await getCustomFields(db)) };
+  const now = await currentTemplate(db);
+  const templates = await listSnapshots(db);
+  const snaps = templates
+    .filter((t) => t.key.startsWith("anamnesis_tpl_v:"))
+    .map((t) => ({ ...(t.value as Resolved), ref: t.key.slice("anamnesis_tpl_v:".length).replace(":", "@") }));
+  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: now.sections, known: [now, ...snaps], templates };
 }
 
 // ---------- Lo de cada paciente ----------
@@ -112,7 +123,7 @@ const episodeName = (eps: Episode[], id: unknown) => {
 };
 
 /** Las respuestas de una anamnesis, por apartados y con sus nombres: [apartado, campo, respuesta]. */
-export function anamnesisRows(a: Answers, template: Section[] = ANAMNESIS): [string, string, string][] {
+export function anamnesisRows(a: Answers, template: Section[] = ANAMNESIS, known: (Resolved & { ref?: string })[] = []): [string, string, string][] {
   const out: [string, string, string][] = [];
   for (const section of template)
     for (const f of section.fields) {
@@ -120,8 +131,10 @@ export function anamnesisRows(a: Answers, template: Section[] = ANAMNESIS): [str
       if (text) out.push([section.title, f.label, text]);
     }
   for (const [k, v] of orphanAnswers(a, template)) {
-    const o = orphanText(k, v as AnswerValue);
-    out.push(["Otros datos guardados", o.label, o.text]);
+    // La pregunta tal como se hizo: la de su plantilla («__tpl») y, si no, la de ahora o la del tronco.
+    const own = known.find((t) => t.ref && t.ref === a[TPL]);
+    const o = orphanText(k, v as AnswerValue, knownField(k, own, ...known));
+    out.push(["Respuestas a preguntas que ya no están", o.label, o.text]);
   }
   return out;
 }
@@ -169,7 +182,7 @@ function buildSheets(c: Collected): Sheet[] {
     {
       name: "Anamnesis",
       header: ["Paciente", "Motivo de consulta", "Apartado", "Pregunta", "Respuesta"],
-      rows: T.patients!.flatMap((p) => epsOf(s(p.id)).flatMap((e) => anamnesisRows(e.answers, c.template).map(([sec, label, text]) => [s(p.name), e.title, sec, label, text]))),
+      rows: T.patients!.flatMap((p) => epsOf(s(p.id)).flatMap((e) => anamnesisRows(e.answers, c.template, c.known).map(([sec, label, text]) => [s(p.name), e.title, sec, label, text]))),
     },
     {
       name: "Sesiones",
@@ -374,7 +387,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
     .join("")}</dl>`);
 
   for (const e of eps) {
-    const rows = anamnesisRows(e.answers, c.template);
+    const rows = anamnesisRows(e.answers, c.template, c.known);
     const closed = e.closedAt ? ` · terminado el ${day(e.closedAt)}` : "";
     parts.push(`<h2>${eps.length > 1 ? `Motivo de consulta: ${h(e.title)}` : "Anamnesis"}</h2>${e.startedAt ? `<p class="muted">Desde el ${h(day(e.startedAt))}${h(closed)}</p>` : ""}`);
     if (!rows.length) parts.push(`<p class="muted">Sin anamnesis registrada.</p>`);
@@ -680,7 +693,7 @@ export async function buildPackage(
   zipped.push({ name: "Todos los datos.xlsx", data: await writeXlsx(buildSheets(c)) });
   zipped.push({
     name: "Datos para otro programa (JSON).json",
-    data: JSON.stringify({ formato: "cenit-exportacion", version: 1, esquema: c.schema, exportado: now.toISOString(), clinica: c.clinic, tablas: c.tables }, null, 1),
+    data: JSON.stringify({ formato: "cenit-exportacion", version: 1, esquema: c.schema, exportado: now.toISOString(), clinica: c.clinic, tablas: c.tables, plantillas_anamnesis: c.templates ?? [] }, null, 1),
   });
   zipped.push({ name: "Copia de OmniClin.sqlite3", data: await db.exportBytes() });
   return { bytes: await zip(zipped, now), patients: patients.length, missing };
