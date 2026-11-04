@@ -35,6 +35,10 @@ todas las pruebas y enseñar los cambios.
 14. **Fase 2: la anamnesis general** (sin motivo de consulta) usa la plantilla por defecto; una vez hecha conserva
     la suya (`__tpl`).
 
+15. **Editar solo en Ajustes (04-11-2026).** En la anamnesis del paciente solo se **elige** el tipo de anamnesis
+    (la plantilla, en la fase 2); no hay ningún enlace ni botón para cambiarla desde ahí. Las plantillas se cambian
+    únicamente en Ajustes › Anamnesis de la clínica, para que nadie modifique nada sin querer.
+
 ## Fase 1: hecha (pendiente del visto bueno para subir)
 
 - **Datos** (`src/data/anamnesisTemplates.ts`): plantilla = tronco + cambios; `checkTemplate` con los límites; huella
@@ -45,7 +49,7 @@ todas las pruebas y enseñar los cambios.
   la anamnesis estaba vacía), `__src` (quién y cuándo, por pregunta) y `__respondent` (menores). No salen como
   respuestas, ni en las banderas, ni en «Cambios sustituidos», ni se copian a otro motivo.
 - **Ficha**: «Respuestas a preguntas que ya no están» con el texto de la instantánea; «Lo contestó el paciente, el…»
-  y «El paciente contestó: …» si el fisio había escrito otra cosa; enlace «Ajustar la plantilla de la clínica».
+  y «El paciente contestó: …» si el fisio había escrito otra cosa. Sin enlace para cambiar la plantilla (decisión 15).
 - **Editor** (`src/pages/CustomFieldsPage.tsx`): parece la anamnesis; un interruptor por pregunta; hoja «Pregunta»
   con «Así se ve»; añadir con chips (Texto · Opciones · Sí/No con detalle · Escala), presets y «Otro»; aviso al
   ocultar una fija; «Deshacer» de 6 s; solo administradores (los demás ven quién la cambia).

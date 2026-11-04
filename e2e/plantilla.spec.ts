@@ -66,9 +66,8 @@ test.describe("Anamnesis de la clínica", () => {
     await page.getByRole("button", { name: "Editar anamnesis" }).click();
     await expect(page.getByLabel("¿Qué le trae?")).toBeVisible();
     await expect(page.getByLabel("Profesión")).toHaveCount(0);
-    // El enlace a la plantilla, al pie (sin cambios sin guardar).
-    await page.getByRole("link", { name: "Ajustar la plantilla de la clínica" }).click();
-    await expect(page).toHaveURL(/ajustes\/anamnesis\?apartado=/);
+    // La plantilla no se cambia desde la anamnesis del paciente: solo en Ajustes (para no cambiarla sin querer).
+    await expect(page.getByRole("link", { name: /plantilla/i })).toHaveCount(0);
   });
 
   test("PL2 añadir «Sí/No con detalle», deshacer, quitar y volver a la plantilla de OmniClin", async ({ page }) => {

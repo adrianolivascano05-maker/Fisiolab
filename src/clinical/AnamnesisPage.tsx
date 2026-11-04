@@ -26,7 +26,6 @@ import { BASE_SECTIONS, useAnamnesisTemplate, useSnapshot } from "./useAnamnesis
 import { readSources, sourceText, stampSources, TPL } from "./answerMeta";
 import { knownField, markTemplateUsed } from "../data/anamnesisTemplates";
 import { memberEmail } from "../data/member";
-import { useCloud } from "../cloud/cloudContext";
 import { trends } from "./measures";
 import { FieldInput } from "./FieldInput";
 import { symmetryRows } from "./symmetry";
@@ -70,9 +69,9 @@ const OPEN_FIRST = new Set(["motivo", "antecedentes", "diagnostico", "objetivos"
 const filled = (section: Section, a: Answers) => answeredCount(a, section.fields.filter((f) => f.id !== "fecha_valoracion"));
 
 /** Un apartado de la anamnesis que se pliega: el título, cuántos campos tiene rellenos y el contenido. */
-function Fold({ id, title, count, open, children, onOpen }: { id: string; title: string; count: string; open: boolean; children: ReactNode; onOpen?: () => void }) {
+function Fold({ id, title, count, open, children }: { id: string; title: string; count: string; open: boolean; children: ReactNode }) {
   return (
-    <details id={id} open={open || undefined} onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && onOpen?.()} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
+    <details id={id} open={open || undefined} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
         <span className="text-lg font-semibold text-brand-ink">{title.replace(/^\d+\.\s*/, "")}</span>
         <span className="flex items-center gap-2 text-sm text-text-muted">
@@ -133,11 +132,6 @@ export function AnamnesisPage() {
   /** Lo que había al empezar a editar: al guardar solo se escribe lo que se ha cambiado aquí (lo que llegue mientras tanto, p. ej. del paciente, se queda). */
   const base = useRef<Answers>({});
   const tpl = useAnamnesisTemplate();
-  const cloud = useCloud();
-  /** Quien puede cambiar la plantilla de la clínica (sin clínica en la nube, quien usa el móvil). */
-  const canAdjust = !cloud?.clinic || cloud.clinic.role === "admin";
-  /** El último apartado abierto: el enlace a la plantilla lleva a ese mismo apartado. */
-  const [lastSection, setLastSection] = useState("motivo");
   const sections = tpl?.sections ?? BASE_SECTIONS;
   /** La plantilla con la que se hizo esta anamnesis: para leer con su pregunta lo que ya no está en la ficha. */
   const snap = useSnapshot(data.data?.anamnesis?.answers[TPL]);
@@ -256,7 +250,6 @@ export function AnamnesisPage() {
                 title={section.title}
                 count={n ? `${n} de ${section.fields.length}` : ""}
                 open={OPEN_FIRST.has(section.id) || (n > 0 && !!anamnesis)}
-                onOpen={() => setLastSection(section.id)}
               >
                 <div role="group" aria-label={section.title} className="flex flex-col gap-4 @4xl:grid @4xl:grid-cols-2 @4xl:gap-x-6">
                   {section.id === "datos" && (
@@ -318,21 +311,6 @@ export function AnamnesisPage() {
               </Fold>
             );
           })}
-          {canAdjust && (
-            <Link
-              to={`/ajustes/anamnesis?apartado=${lastSection}`}
-              onClick={(e) => {
-                // Lo escrito aquí aún no está guardado: no se pierde por ir a la plantilla.
-                if (JSON.stringify(draft) !== JSON.stringify(base.current)) {
-                  e.preventDefault();
-                  toast("Guarda antes la anamnesis: lo escrito se perdería", "info");
-                }
-              }}
-              className="inline-flex min-h-11 items-center self-start text-sm text-text-muted underline"
-            >
-              Ajustar la plantilla de la clínica
-            </Link>
-          )}
           {error && <Alert tone="danger" title="No se pudo guardar">{error}</Alert>}
           <div className="sticky bottom-0 -mx-4 flex gap-2 border-t border-border bg-bg/95 px-4 py-3 backdrop-blur">
             {anamnesis && (
