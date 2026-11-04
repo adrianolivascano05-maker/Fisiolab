@@ -143,7 +143,10 @@ export function MissedPanel({ missed, staff, busy, run, onClose }: { missed: App
       </p>
       <div className="flex flex-wrap gap-2" role="group" aria-label="Atajos para la nueva cita">
         {[1, 2, 7, 14].map((d) => (
-          <Button key={d} size="sm" variant={rebookAt === localInput(daysLater(missed.startsAt, d)) ? "primary" : "secondary"} onClick={() => setRebookAt(localInput(daysLater(missed.startsAt, d)))}>
+          <Button key={d} size="sm" variant={rebookAt === localInput(daysLater(missed.startsAt, d)) ? "primary" : "secondary"} onClick={() => {
+              setRebookAt(localInput(daysLater(missed.startsAt, d)));
+              setRebookClash(null);
+            }}>
             {d === 1 ? "Al día siguiente" : d === 2 ? "En 2 días" : d === 7 ? "En 1 semana" : "En 2 semanas"}
           </Button>
         ))}

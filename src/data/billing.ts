@@ -106,10 +106,10 @@ export async function setPackPresets(db: Db, presets: PackPreset[]): Promise<voi
 /** El día en que caduca un bono comprado `day` que dura `months` meses (el día anterior del mismo día del mes). */
 export function expiryOf(day: string, months: number): string {
   const [y, m, d] = day.split("-").map(Number) as [number, number, number];
-  // Sin pasarse de mes: un bono del 31 de enero a un mes caduca el 28 o 29 de febrero.
+  // Sin pasarse de mes: si ese día no existe en el mes de llegada (un bono del 29, 30 o 31 de enero a un mes), caduca
+  // el último día de ese mes (28 o 29 de febrero); si existe, el día anterior.
   const last = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
-  const end = new Date(Date.UTC(y, m - 1 + months, Math.min(d, last)));
-  end.setUTCDate(end.getUTCDate() - 1);
+  const end = d > last ? new Date(Date.UTC(y, m - 1 + months, last)) : new Date(Date.UTC(y, m - 1 + months, d - 1));
   return end.toISOString().slice(0, 10);
 }
 

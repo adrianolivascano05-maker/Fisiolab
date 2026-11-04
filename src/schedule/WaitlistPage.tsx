@@ -25,6 +25,7 @@ import { getClinic, mayMessage } from "../data/privacy";
 import { getPatient } from "../data/repo";
 import type { Staff } from "../data/schedule";
 import {
+  waitingDays,
   activeFilters,
   addToWaitlist,
   filterWaitlist,
@@ -58,7 +59,7 @@ import { appointmentVars, dayText, hourText, mailtoUrl, offerText, waPhone, what
 import { staffName, useStaff } from "./useStaff";
 
 const waiting = (iso: string) => {
-  const days = Math.floor((Date.now() - Date.parse(iso)) / 86_400_000);
+  const days = waitingDays(iso);
   return days < 1 ? "Esperando desde hoy" : days === 1 ? "Esperando desde ayer" : `Esperando desde hace ${days} días`;
 };
 const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
@@ -98,6 +99,8 @@ export function WaitlistPage() {
   const leave = useLeaveWaitlist();
   /** «Tengo un hueco libre»: ponerlo a mano para ver a quién le encaja. */
   const [settingSlot, setSettingSlot] = useState(false);
+  /** «Quitar de la lista», a confirmar: se pierden la nota, las preferencias y desde cuándo espera. */
+  const [removing, setRemoving] = useState<WaitItem | null>(null);
   const staff = useStaff();
   const toast = useToast();
   const navigate = useNavigate();
@@ -351,11 +354,7 @@ export function WaitlistPage() {
                     size="sm"
                     variant="ghost"
                     icon={<Trash aria-hidden="true" className="size-4" />}
-                    onClick={async () => {
-                      await removeFromWaitlist(getDb(), w.id);
-                      bumpData();
-                      toast(`${w.name}: fuera de la lista`, "success");
-                    }}
+                    onClick={() => setRemoving(w)}
                   >
                     Quitar de la lista
                   </Button>
@@ -430,6 +429,25 @@ export function WaitlistPage() {
             }}
           />
         )}
+      </Sheet>
+      <Sheet open={!!removing} onClose={() => setRemoving(null)} title={removing ? `¿Quitar a ${removing.name} de la lista?` : ""}>
+        <p>Se borran su nota, sus preferencias y desde cuándo espera. Si vuelve a la lista, entrará como nuevo, al final.</p>
+        <Button
+          variant="danger"
+          block
+          onClick={async () => {
+            const w = removing!;
+            setRemoving(null);
+            await removeFromWaitlist(getDb(), w.id);
+            bumpData();
+            toast(`${w.name}: fuera de la lista`, "success");
+          }}
+        >
+          Quitar de la lista
+        </Button>
+        <Button variant="secondary" block onClick={() => setRemoving(null)}>
+          Cancelar
+        </Button>
       </Sheet>
       <Sheet open={filtering} onClose={() => setFiltering(false)} title="Filtrar la lista de espera">
         <FilterForm filters={filters} team={team} staff={staff} setView={setView} />

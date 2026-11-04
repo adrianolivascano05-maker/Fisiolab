@@ -151,6 +151,8 @@ export function ReportPage() {
           </Button>
           <SharePdf
             make={async () => {
+              // Guardar o compartir el PDF saca la historia entera, igual que imprimirla: queda en el registro de accesos.
+              void logAccess(getDb(), "imprimir_historia", id).catch(() => {});
               const { reportPdf } = await import("./reportPdf");
               return reportPdf(article.current!);
             }}

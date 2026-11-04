@@ -148,9 +148,16 @@ export function AppointmentForm({
           setClash(null);
         }}
       />
-      <Chips label="Duración" options={DURATIONS} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => v[0] && setMinutes(Number(v[0]))} />
+      <Chips label="Duración" options={DURATIONS} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => {
+          if (!v[0]) return;
+          setMinutes(Number(v[0]));
+          setClash(null);
+        }} />
       {!appointment && (
-        <SelectField label="Repetir" value={repeat} onChange={(e) => setRepeat(Number(e.target.value))}>
+        <SelectField label="Repetir" value={repeat} onChange={(e) => {
+          setRepeat(Number(e.target.value));
+          setClash(null);
+        }}>
           {REPEATS.map((n) => (
             <option key={n} value={n}>
               {n === 1 ? "No se repite" : `Cada semana, ${n} citas`}

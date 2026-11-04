@@ -29,6 +29,13 @@ export function offerText(v: ReminderVars, s?: MessageSettings | null): string {
 export function waPhone(phone: string): string | null {
   const raw = phone.trim();
   if (!raw) return null;
+  // Varios teléfonos en la ficha («912345678 / 612345678», de una importación con dos columnas): el primer móvil
+  // español, o si no el primero que valga.
+  const parts = raw.split(/\s*(?:[/,;|]|\by\b)\s*/).filter(Boolean);
+  if (parts.length > 1) {
+    const valid = parts.map(waPhone).filter((x): x is string => x !== null);
+    return valid.find((x) => /^34[67]\d{8}$/.test(x)) ?? valid[0] ?? null;
+  }
   let digits = raw.replace(/[^\d+]/g, "");
   if (digits.startsWith("+")) digits = digits.slice(1);
   else if (digits.startsWith("00")) digits = digits.slice(2);

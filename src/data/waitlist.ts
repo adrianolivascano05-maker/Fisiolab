@@ -269,7 +269,9 @@ export type WaitFilters = {
 };
 
 /** Días enteros que lleva esperando. */
-export const waitingDays = (createdAt: string, now = new Date()) => Math.max(0, Math.floor((now.getTime() - Date.parse(createdAt)) / 86_400_000));
+/** Días de calendario (en Madrid) desde que entró en la lista: apuntado ayer a las 20:00, hoy a las 9:00 lleva 1 día. */
+export const waitingDays = (createdAt: string, now = new Date()) =>
+  Math.max(0, Math.round((Date.parse(`${dayOf(now)}T12:00:00Z`) - Date.parse(`${dayOf(createdAt)}T12:00:00Z`)) / 86_400_000));
 
 export function filterWaitlist(items: WaitItem[], f: WaitFilters, now = new Date()): WaitItem[] {
   const today = dayOf(now);

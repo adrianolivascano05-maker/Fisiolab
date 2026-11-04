@@ -95,14 +95,16 @@ export function parseCsv(text: string): string[][] {
 const GUESSES: [Field, RegExp][] = [
   ["lastName", /apellido|surname|last ?name/],
   ["birthDate", /nacimiento|f\.? ?nac|fecha de nac|birth|cumple/],
-  ["sex", /^(sexo|genero|sex|gender)$/],
+  ["sex", /^(sexo|genero|sex|gender)\b/],
   ["phone", /tel|movil|celular|phone|mobile|whatsapp/],
   ["email", /e-?mail|correo/],
-  ["dni", /^(dni|nie|nif|d\.?n\.?i\.?|documento|doc\.? identidad|documento de identidad|n\.? ?documento)$/],
+  ["dni", /^(dni|nie|nif|d\.?n\.?i\.?|documento|doc\.? identidad|documento de identidad|n\.? ?documento)\b/],
   ["address", /direcc|domicilio|address|calle|poblacion|localidad|ciudad|provincia|codigo postal|^c\.? ?p\.?$/],
   ["notes", /nota|observ|comentario|antecedente/],
   ["bodyMassKg", /^peso|weight/],
   ["heightCm", /altura|talla|estatura|height/],
+  // «Código paciente», «Nº paciente», «ID cliente»: un número, no el nombre (va a las notas).
+  ["notes", /^(codigo|cod\.?|n[º.o]?|num(ero)?|id|ref(erencia)?)\b/],
   ["name", /nombre|paciente|name|cliente/],
 ];
 
@@ -128,8 +130,9 @@ export function parseDate(value: string, today = new Date(), { future = false } 
   } else if ((match = /^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2}|\d{4})(?: .*)?$/.exec(v))) {
     [d, m, y] = [Number(match[1]), Number(match[2]), Number(match[3])];
     if (match[3]!.length === 2) y += y > today.getFullYear() % 100 ? 1900 : 2000;
-  } else if (/^\d{4,5}(\.\d+)?$/.test(v)) {
-    // Número de serie de Excel (fecha guardada como número).
+  } else if (/^\d{4,5}(\.\d+)?$/.test(v) && Number(v) >= 3653) {
+    // Número de serie de Excel (fecha guardada como número). Por debajo de 3653 (antes de 1910) es más probable un año
+    // suelto («1985»), que no es una fecha completa: no vale y va a las notas.
     const date = new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(v)) * 86_400_000);
     [y, m, d] = [date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()];
   } else return null;

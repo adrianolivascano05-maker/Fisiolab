@@ -5,6 +5,7 @@ import { createPatient, deletePatient } from "./repo";
 import { createTestDb } from "./testDb";
 import {
   activeFilters,
+  waitingDays,
   addToWaitlist,
   bandsOf,
   filterWaitlist,
@@ -162,5 +163,14 @@ describe("lista de espera", () => {
     expect(names(sortWaitlist(items, "cita"))).toEqual(["Álvaro", "Dani", "Bea", "Carla", "Eva"]);
     expect(names(sortWaitlist(items, "ofrecido"))).toEqual(["Carla", "Álvaro", "Dani", "Eva", "Bea"]);
     expect(names(sortWaitlist(items, "nombre"))).toEqual(["Álvaro", "Bea", "Carla", "Dani", "Eva"]);
+  });
+});
+
+describe("días de espera", () => {
+  it("cuenta días de calendario en Madrid, no bloques de 24 horas", () => {
+    // Apuntado ayer a las 20:00 (Madrid), hoy a las 9:00: un día.
+    expect(waitingDays("2026-11-03T19:00:00.000Z", new Date("2026-11-04T08:00:00.000Z"))).toBe(1);
+    expect(waitingDays("2026-11-04T07:00:00.000Z", new Date("2026-11-04T20:00:00.000Z"))).toBe(0);
+    expect(waitingDays("2026-10-20T10:00:00.000Z", new Date("2026-11-04T08:00:00.000Z"))).toBe(15);
   });
 });

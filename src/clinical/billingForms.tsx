@@ -122,7 +122,15 @@ export function PackForm({
           </div>
         </fieldset>
       )}
-      <NumberField label="Sesiones" unit="" value={sessions} inputMode="numeric" onChange={(e) => (setSessions(e.target.value), setPreset(null))} />
+      <NumberField label="Sesiones" unit="" value={sessions} inputMode="numeric" onChange={(e) => {
+          setSessions(e.target.value);
+          // Con un bono de la clínica elegido, su nombre y su precio ya no valen: se vuelven a calcular.
+          if (preset) {
+            setTitle(null);
+            setPrice(null);
+          }
+          setPreset(null);
+        }} />
       <TextField label="Nombre" value={name} onChange={(e) => setTitle(e.target.value)} />
       <NumberField label="Precio" unit="€" value={price} onChange={(e) => setPrice(e.target.value)} hint={sessionCents ? `${euros(sessionCents)} por sesión suelta.` : undefined} />
       <TextField

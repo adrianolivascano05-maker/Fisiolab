@@ -9,6 +9,10 @@ describe("recordatorios", () => {
     expect(waPhone("954 12 34 56")).toBe("34954123456");
     expect(waPhone("123")).toBeNull();
     expect(waPhone("")).toBeNull();
+    // Dos teléfonos en la ficha (importación con dos columnas): el móvil.
+    expect(waPhone("912345678 / 612345678")).toBe("34612345678");
+    expect(waPhone("612345678, 699111222")).toBe("34612345678");
+    expect(waPhone("954 12 34 56 y 123")).toBe("34954123456");
   });
 
   it("los enlaces llevan el texto codificado", () => {

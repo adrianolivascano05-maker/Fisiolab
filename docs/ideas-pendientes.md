@@ -1061,3 +1061,30 @@ Pendiente, sin tocar:
   Ahora solo sale «Al día» si la visita está cubierta: una sesión escrita hoy, un cobro de hoy o un bono en curso.
   Si no, sale Cobrar con el precio de la sesión. Pasa con las citas importadas como atendidas o cuando se borra la
   sesión del día.
+
+### Segunda revisión: lista de espera, recordatorios, cobros, citas e importación (04-11-2026)
+
+Hechos:
+
+- **WhatsApp con dos teléfonos** («912345678 / 612345678», de una importación con dos columnas): se usa el móvil.
+  Antes no salía el botón de WhatsApp.
+- **«No vino» y el formulario de la cita:** al cambiar la hora con un atajo, la duración o «Repetir», el aviso de
+  cita que se pisa se vuelve a comprobar. Antes, «Darla igualmente» guardaba sin mirar.
+- **Importar pacientes:**
+  - Un año suelto («1985») ya no se convierte en 1905: va a las notas.
+  - «DNI paciente», «Sexo paciente» y «Código paciente» ya no se juntan al nombre.
+- **Lista de espera:**
+  - «Quitar de la lista» pide confirmación.
+  - «Esperando desde…» cuenta días de calendario y no bloques de 24 horas.
+- **Informe:** guardar o compartir el PDF queda en el registro de accesos, como imprimir.
+- **Bonos:** un bono del 29, 30 o 31 caduca el último día del mes de llegada (antes perdía días).
+- **Vender un bono:** al cambiar las sesiones de un bono de la clínica, el nombre y el precio se recalculan.
+
+Pendiente, sin tocar:
+
+- Los botones rápidos «1 h / 1 día / 1 semana antes o después» de la hoja de la cita mueven sin mirar si se pisa con
+  otra cita, y «1 semana antes» puede llevarla al pasado. Lo correcto sería comprobarlo y, si se pisa, abrir el
+  formulario con el aviso.
+- El justificante de asistencia se puede sacar de una cita pasada que nadie marcó como atendida ni «No vino». Hay que
+  decidir si se avisa o si solo se ofrece con cita atendida o sesión ese día.
+- Sin comprobar: «Cobrar» en la hoja de la cita propone el precio de una sesión suelta aunque el bono ya la cubra.

@@ -207,3 +207,18 @@ describe("guardar y deshacer", () => {
     expect(await undoLastImport(db)).toBe(0);
   });
 });
+
+describe("importación: casos que se colaban", () => {
+  it("«DNI paciente», «Sexo paciente» o «Código paciente» no van al nombre; un año suelto no es una fecha", () => {
+    expect(guessFields(["Nombre", "DNI paciente", "Sexo paciente", "Código paciente", "Nº historia", "Nombre del paciente"])).toEqual([
+      "name",
+      "dni",
+      "sex",
+      "notes",
+      "notes",
+      "name",
+    ]);
+    expect(parseDate("1985")).toBeNull();
+    expect(parseDate("31050")).toBe("1985-01-03");
+  });
+});

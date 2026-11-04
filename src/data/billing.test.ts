@@ -156,7 +156,11 @@ describe("cobrar en el momento", () => {
     await expect(setPackPresets(db, [{ id: "b", title: "X", sessions: 0, priceCents: null, months: null }])).rejects.toThrow(/1 a 200/);
     expect(expiryOf("2026-10-01", 3)).toBe("2026-12-31");
     expect(expiryOf("2026-10-21", 6)).toBe("2027-04-20");
-    expect(expiryOf("2027-01-31", 1)).toBe("2027-02-27");
+    expect(expiryOf("2027-01-31", 1)).toBe("2027-02-28");
+    expect(expiryOf("2027-01-28", 1)).toBe("2027-02-27");
+    expect(expiryOf("2028-01-30", 1)).toBe("2028-02-29");
+    expect(expiryOf("2027-03-31", 1)).toBe("2027-04-30");
+    expect(expiryOf("2027-03-01", 1)).toBe("2027-03-31");
   });
 
   it("las cantidades en letra, para el recibo", () => {
