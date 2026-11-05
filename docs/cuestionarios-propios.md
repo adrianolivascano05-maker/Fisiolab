@@ -24,7 +24,7 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
    3», «Siguiente», «Atrás»). Sin apartados, todo en una pantalla, como los demás. Los cuestionarios de la app no
    cambian.
 
-## Hecho (05-11-2026, sin subir hasta el visto bueno)
+## Hecho y publicado (05-11-2026, `5317538`)
 
 - **Motor** (`src/clinical/forms/own.ts`): `OwnFormSpec` como datos; `buildForm` lo convierte en un cuestionario de
   la app; nota con suma, media o % del máximo (y subescalas), «No aplica» con block o skip y mínimo de contestadas.

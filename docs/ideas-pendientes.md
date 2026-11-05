@@ -1109,7 +1109,7 @@ Pendiente: la fase 2 (módulos de especialidad y varias plantillas) espera al do
 contenido revisado v2»; la fase 3 (cuestionarios propios), después. Cuando todos los móviles tengan esta versión, se
 puede dejar de escribir `anamnesis_custom_fields` (doble escritura).
 
-### Cuestionarios propios, fase 3 de la anamnesis adaptable (05-11-2026, sin subir hasta el visto bueno)
+### Cuestionarios propios, fase 3 de la anamnesis adaptable (publicada el 05-11-2026, `5317538`)
 
 Plan, decisiones y lo hecho en `docs/cuestionarios-propios.md`. Falta la biblioteca de OmniClin (4 cuestionarios
 ya hechos), que espera al contenido exacto del usuario. Para más adelante (dicho por el usuario): exportar e importar
