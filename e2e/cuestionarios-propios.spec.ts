@@ -86,7 +86,10 @@ test.describe("Cuestionarios propios", () => {
     expect(await smallTargets(page)).toEqual([]);
     await page.getByRole("link", { name: /Control semanal de prueba/ }).click();
     await expect(page.getByLabel("Nombre")).toHaveValue("Control semanal de prueba");
+    // El editor con sus opciones: todo de 44 px y sin desbordes.
+    await expect(page.getByLabel("Opción 4", { exact: true })).toHaveValue("Siempre");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await smallTargets(page)).toEqual([]);
     // Salir con cambios sin guardar avisa.
     await page.getByLabel("Nombre").fill("Control semanal (cambiado)");
     await page.getByRole("link", { name: /Volver/ }).click();

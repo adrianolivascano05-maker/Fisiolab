@@ -83,7 +83,7 @@ const writeDraft = (id: string, d: Draft | null) => {
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /** Un número que se escribe (con coma o punto); se guarda al ser válido. */
-function NumInput({ label, value, onChange, className }: { label: string; value: number; onChange: (n: number) => void; className?: string }) {
+function NumInput({ label, value, onChange }: { label: string; value: number; onChange: (n: number) => void }) {
   const [text, setText] = useState(String(value).replace(".", ","));
   useEffect(() => {
     if (Number(text.replace(",", ".")) !== value) setText(String(value).replace(".", ","));
@@ -93,7 +93,6 @@ function NumInput({ label, value, onChange, className }: { label: string; value:
     <TextField
       label={label}
       inputMode="decimal"
-      className={className}
       value={text}
       onChange={(e) => {
         setText(e.target.value);
@@ -170,8 +169,12 @@ function ItemEditor({ item, n, first, last, onChange, onMove, onRemove }: { item
         <ul className="flex flex-col gap-2">
           {item.options.map((o, i) => (
             <li key={i} className="flex items-end gap-2">
-              <TextField label={`Opción ${i + 1}`} className="min-w-0 flex-1" maxLength={120} value={o.label} onChange={(e) => set({ options: item.options.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
-              <NumInput label="Puntos" className="w-24" value={o.points} onChange={(points) => set({ options: item.options.map((x, j) => (j === i ? { ...x, points } : x)) })} />
+              <div className="min-w-0 flex-1">
+                <TextField label={`Opción ${i + 1}`} maxLength={120} value={o.label} onChange={(e) => set({ options: item.options.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
+              </div>
+              <div className="w-20 shrink-0">
+                <NumInput label="Puntos" value={o.points} onChange={(points) => set({ options: item.options.map((x, j) => (j === i ? { ...x, points } : x)) })} />
+              </div>
               <button type="button" aria-label={`Quitar la opción ${i + 1}`} onClick={() => set({ options: item.options.filter((_, j) => j !== i) })} className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface">
                 <X aria-hidden="true" className="size-5" />
               </button>
