@@ -11,6 +11,8 @@ import { KINDS as MIEMBRO_INFERIOR } from "./catalog/miembroInferior";
 import { KINDS as MIEMBRO_SUPERIOR } from "./catalog/miembroSuperior";
 import { KINDS as PIE_DEPORTE } from "./catalog/pieDeporte";
 import { KINDS as RETIRED } from "./catalog/retired";
+import { isOwnKind, OWN_LABEL } from "./forms/own";
+import { OWN_TOPIC, ownKind, ownKinds } from "./ownCatalog";
 
 export type Better = "higher" | "lower";
 export type QuestionnaireKind = {
@@ -49,6 +51,17 @@ export type QuestionnaireKind = {
   reading?: string;
   /** Referencias: original y validación española (autores, año, DOI). */
   refs?: string;
+  /**
+   * Cuestionario propio de la clínica (src/clinical/ownCatalog.ts): lleva siempre la etiqueta «Cuestionario propio de la
+   * clínica · no validado», que no se puede quitar. Sin rangos ni lecturas: la app solo calcula la nota.
+   */
+  own?: boolean;
+  /** Propio sin nota: se guardan las respuestas, sin puntuación que enseñar ni dibujar. */
+  noScore?: boolean;
+  /** Propio: la nota para el profesional, un texto fijo de la clínica. */
+  note?: string;
+  /** Propio archivado: no se pasa ni se manda, pero lo respondido se sigue viendo. */
+  archived?: boolean;
 };
 
 export const QUESTIONNAIRES: QuestionnaireKind[] = [
@@ -265,16 +278,18 @@ export const QUESTIONNAIRES: QuestionnaireKind[] = [
 
 /** Los que se pueden pasar, mandar o anotar hoy (sin los de pago, que están fuera del servicio). */
 export const ACTIVE = QUESTIONNAIRES.filter((k) => !k.retired);
+/** Los de hoy con los propios de la clínica (sin archivar), estos al final. */
+export const activeKinds = () => [...ACTIVE, ...ownKinds()];
 
 /** Los temas de los generales, en el orden del catálogo. */
 export const TOPICS = [...new Set(QUESTIONNAIRES.map((k) => k.topic).filter((t): t is string => !!t))];
 
 export const OTHER = "otro";
-export const getKind = (id: string) => QUESTIONNAIRES.find((q) => q.id === id);
+export const getKind = (id: string) => (isOwnKind(id) ? ownKind(id) : QUESTIONNAIRES.find((q) => q.id === id));
 
 /** El catálogo (sin los de fuera del servicio) con los de las zonas del paciente primero (el orden de cada grupo no cambia). */
 export function byRegions(regions: string[]): { kind: QuestionnaireKind; forRegion: boolean }[] {
-  const all = ACTIVE.map((kind) => ({
+  const all = activeKinds().map((kind) => ({
     kind,
     forRegion: !!kind.regions?.some((r) => regions.includes(r)),
   }));
@@ -297,10 +312,30 @@ export type QDetails = {
   /** Subescalas (SPADI) y cómo se lee la nota, tal como salieron al guardarlo. */
   subscores?: { name: string; score: number }[];
   text?: string;
+  /** Cuestionario propio: la versión con la que se hizo (su huella) y cómo era (nombre, rango, nota para el profesional). */
+  own?: OwnDetails;
 };
+export type OwnDetails = { id: string; hash: string; name: string; min: number; max: number; better: Better; noScore?: boolean; note?: string };
 
 /** El tipo efectivo de un registro (con «otro», el nombre y el rango que se escribieron). */
 export function kindOf(kind: string, d: QDetails): QuestionnaireKind {
+  // Un propio: tal como era la versión con la que se hizo (aunque después se cambie, se archive o no esté aquí).
+  if (d.own) {
+    const o = d.own;
+    return {
+      id: kind,
+      name: o.name,
+      min: o.min,
+      max: o.max,
+      better: o.better,
+      topic: OWN_TOPIC,
+      own: true,
+      hint: OWN_LABEL,
+      ...(o.noScore ? { noScore: true } : {}),
+      ...(o.note ? { note: o.note } : {}),
+      ...(ownKind(kind)?.archived ? { archived: true } : {}),
+    };
+  }
   const k = getKind(kind);
   const range = d.subscale ? k?.subscaleRange?.[d.subscale] : undefined;
   if (k) return range ? { ...k, ...range } : k;

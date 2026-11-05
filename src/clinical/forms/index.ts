@@ -30,6 +30,8 @@ import { form as sst } from "./sst";
 import { form as tegner } from "./tegner";
 import { form as tmdPainScreener } from "./tmd_pain_screener";
 import type { QuestionForm } from "./types";
+import { isOwnKind } from "./own";
+import { ownFormFor } from "../ownCatalog";
 
 const FORMS: QuestionForm[] = [
   ases,
@@ -62,6 +64,7 @@ const FORMS: QuestionForm[] = [
   tmdPainScreener,
 ];
 
-export const formFor = (kind: string): QuestionForm | undefined => FORMS.find((f) => f.id === kind);
+/** El cuestionario de la app (o el propio de la clínica; con `hash`, el de esa versión). */
+export const formFor = (kind: string, hash?: string): QuestionForm | undefined => (isOwnKind(kind) ? ownFormFor(kind, hash) : FORMS.find((f) => f.id === kind));
 export { citeOf, WORKING_TRANSLATION } from "./types";
 export type { Answers, FormScore, Item, QuestionForm } from "./types";
