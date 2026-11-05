@@ -5,7 +5,7 @@ import { todayDay } from "../app/dates";
 import { Printer } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useParams } from "react-router";
-import { fmtDate, testTitle } from "../app/format";
+import { fmt, fmtDate, testTitle } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { SharePdf } from "./SharePdf";
@@ -24,6 +24,7 @@ import { mainValue } from "./measures";
 import { questionnaireGroups } from "./outcomeParts";
 import { TextArea } from "./parts";
 import { kindOf, scoreText, type QDetails } from "./questionnaires";
+import { ownNoteText } from "./OwnFormNote";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { painSeries } from "./timeline";
 
@@ -104,7 +105,12 @@ export function DischargePage() {
       const last = g.items[0]!;
       const first = g.items.at(-1)!;
       const k = kindOf(last.kind, last.details as QDetails);
-      return { name: g.name, first: scoreText(k, first.score), last: scoreText(k, last.score), n: g.items.length, change: g.items.length > 1 ? verdict(first.score, last.score, k.better) : "—" };
+      // Un propio de la clínica: solo cuánto ha cambiado (la app no dice si es mejor o peor); sin nota, nada.
+      const change =
+        g.items.length < 2 || k.noScore ? "—"
+        : k.own ? (last.score === first.score ? "Igual" : `${last.score > first.score ? "+" : "−"}${fmt(Math.abs(last.score - first.score), Number.isInteger(last.score - first.score) ? 0 : 1)}`)
+        : verdict(first.score, last.score, k.better);
+      return { name: g.name, first: scoreText(k, first.score), last: scoreText(k, last.score), n: g.items.length, change, note: k.own ? ownNoteText(k) : null };
     });
   // Mediciones: la primera y la última de cada una.
   const mGroups = new Map<string, typeof tests>();
@@ -216,7 +222,10 @@ export function DischargePage() {
                     )}
                     {qRows.map((q) => (
                       <tr key={q.name}>
-                        <td className={td}>{q.name}</td>
+                        <td className={td}>
+                          {q.name}
+                          {q.note && <span className="block text-xs whitespace-pre-line text-text-muted">{q.note}</span>}
+                        </td>
                         <td className={`${td} nums`}>{q.first}</td>
                         <td className={`${td} nums`}>{q.n > 1 ? q.last : "—"}</td>
                         <td className={td}>{q.change}</td>

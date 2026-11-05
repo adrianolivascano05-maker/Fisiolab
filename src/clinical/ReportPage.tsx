@@ -27,6 +27,7 @@ import { questionnaireGroups } from "./outcomeParts";
 import { findingText, PainChart } from "./parts";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { kindOf, scoreText, type QDetails } from "./questionnaires";
+import { ownNoteText } from "./OwnFormNote";
 import { symmetryRows } from "./symmetry";
 import { painSeries } from "./timeline";
 
@@ -351,8 +352,9 @@ export function ReportPage() {
                         <tr key={g.key} className="break-inside-avoid">
                           <td className={td}>
                             {g.name}
+                            {k.own && ownNoteText(k) && <span className="block text-xs whitespace-pre-line text-text-muted">{ownNoteText(k)}</span>}
                             <span className="block text-xs text-text-muted">
-                              {k.better === "higher" ? "Más es mejor" : "Menos es mejor"}
+                              {k.noScore ? "Sin nota: respuestas guardadas" : k.better === "higher" ? "Más es mejor" : "Menos es mejor"}
                               {d.activities?.length ? ` · ${d.activities.map((x) => `${x.name} ${x.score}`).join(", ")}` : ""}
                               {d.marks?.length ? ` · ${marksText(d.marks)}` : ""}
                             </span>

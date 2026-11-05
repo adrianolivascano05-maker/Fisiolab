@@ -13,6 +13,10 @@ import { forPatient, getField, NO_ANSWER, PATIENT_SECTION_TITLES, PATIENT_TEXT, 
 import { formResult } from "./FormFill";
 import { formFor, type Answers as FormAnswers } from "./forms";
 import { ACTIVE, getKind } from "./questionnaires";
+import { ownKinds } from "./ownCatalog";
+import { buildForm, type OwnFormSpec } from "./forms/own";
+import type { QuestionForm } from "./forms/types";
+import { kindOfSpec, ownDetails } from "./ownCatalog";
 
 export const ANAMNESIS_KIND = "anamnesis";
 /** Pedirle sus informes y pruebas (archivos en PDF o fotos, src/documents): los sube con el enlace. */
@@ -48,6 +52,8 @@ export type FormRequest = {
   tpl?: string;
   /** Es menor de edad (por su fecha de nacimiento): al principio se pregunta quién contesta. */
   minor?: boolean;
+  /** Un cuestionario propio de la clínica: la versión entera que se manda (src/clinical/forms/own.ts). */
+  form?: OwnFormSpec;
   expiresAt: string;
   /** La marca de la clínica para la página del paciente (src/brand/form.ts); sin ella, la de OmniClin. */
   brand?: FormBrand;
@@ -100,6 +106,8 @@ export const SENDABLE = ACTIVE.filter((k) => {
   // Los que tienen una parte de exploración (DN4) los rellena el fisioterapeuta en la consulta.
   return !!f && !f.sections.some((s) => s.clinician);
 });
+/** Los de la app y los propios de la clínica sin archivar (estos se mandan todos). */
+export const sendableKinds = () => [...SENDABLE, ...ownKinds()];
 
 /** «tu historia clínica» o «el cuestionario «X»», para el mensaje y la ficha. */
 export function formWhat(kind: string): string {
@@ -248,8 +256,8 @@ export function mergeAnamnesis(
 }
 
 /** Las respuestas de un cuestionario, solo las de sus ítems y con valores de sus opciones o rangos. */
-export function cleanFormAnswers(kind: string, incoming: Record<string, unknown>): FormAnswers {
-  const form = formFor(kind);
+export function cleanFormAnswers(kind: string, incoming: Record<string, unknown>, given?: QuestionForm): FormAnswers {
+  const form = given ?? formFor(kind);
   // Contestado antes de que el cuestionario saliera de la app (de pago o de solo nota): las respuestas, tal como
   // llegaron, para que no se pierdan (se guardan con el formulario recogido, aunque ya no den nota).
   if (!form) return Object.fromEntries(Object.entries(incoming).filter(([, v]) => v === null || (typeof v === "number" && Number.isFinite(v)))) as FormAnswers;
@@ -275,15 +283,22 @@ export async function saveAnsweredQuestionnaire(
   answers: FormAnswers,
   performedAt: string,
   formId: string,
+  ownForm?: OwnFormSpec,
 ): Promise<number> {
-  const form = formFor(kind);
-  const k = getKind(kind);
+  // Un cuestionario propio: con la versión que se mandó (su huella), aunque la clínica lo haya cambiado después.
+  const form = ownForm ? buildForm(ownForm) : formFor(kind);
+  const k = ownForm ? kindOfSpec(ownForm) : getKind(kind);
   if (!form || !k) return 0;
   const result = formResult(form, answers);
   if ("missing" in result) return 0;
   const notes = "Lo rellenó el paciente desde su móvil.";
   const rows: { score: number; details: Record<string, unknown> }[] = [];
-  if (k.subscales) {
+  if (ownForm) {
+    // Sin nota: se guardan las respuestas (la nota no se enseña ni se dibuja).
+    const own = ownDetails(ownForm);
+    if (ownForm.scoring && result.ok.score !== null) rows.push({ score: result.ok.score, details: { answers, own, ...(result.ok.subscores ? { subscores: result.ok.subscores } : {}) } });
+    else if (!ownForm.scoring) rows.push({ score: 0, details: { answers, own } });
+  } else if (k.subscales) {
     for (const sub of result.ok.subscores ?? []) rows.push({ score: sub.score, details: { subscale: sub.name, answers, group: formId } });
   } else if (result.ok.score !== null) {
     rows.push({ score: result.ok.score, details: { answers, ...(result.ok.subscores ? { subscores: result.ok.subscores } : {}) } });

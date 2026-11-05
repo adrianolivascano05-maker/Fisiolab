@@ -4,6 +4,9 @@ import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, isSignKi
 import type { Section } from "../clinical/anamnesis";
 import { currentTemplate, markTemplateUsed, type ResolvedTemplate } from "../data/anamnesisTemplates";
 import { ageOn } from "../data/privacy";
+import { isOwnKind } from "../clinical/forms/own";
+import { ownSpec } from "../clinical/ownCatalog";
+import { getOwnForm } from "../data/ownForms";
 import { currentBrand } from "../brand/brand";
 import { formBrand } from "../brand/form";
 import { getToken } from "../cloud/auth";
@@ -64,7 +67,12 @@ export async function uploadPatientForm(
     sections && clinic && patient && patient.privacy.consents?.contact !== true && (await isNewPatient(db, p.patientId))
       ? { version: INTAKE_TEXT_VERSION, notice: intakeNotice(clinic, p.clinicName), ackText: INTAKE_ACK_TEXT, contactText: intakeContactText(clinic, p.clinicName) }
       : null;
-  const meta: FormMeta | null = sections
+  // Un cuestionario propio: va la versión de ahora entera, y su huella se apunta para recogerlo con ella.
+  const ownForm = isOwnKind(p.kind) ? (ownSpec(p.kind) ?? (await getOwnForm(db, p.kind))?.spec) : undefined;
+  if (isOwnKind(p.kind) && !ownForm?.hash) throw new Error("Ese cuestionario de la clínica ya no está.");
+  const meta: FormMeta | null = ownForm
+    ? { hash: ownForm.hash }
+    : sections
     ? {
         fields: sections.flatMap((s) => s.fields.map((f) => f.id)),
         ...(intake ? { intake: { version: intake.version, contactText: intake.contactText } } : {}),
@@ -78,6 +86,7 @@ export async function uploadPatientForm(
     name: p.patientName.trim().split(/\s+/)[0] ?? "",
     kind: p.kind,
     ...(sections ? { sections } : {}),
+    ...(ownForm ? { form: ownForm } : {}),
     ...(tpl ? { tpl } : {}),
     ...(minor ? { minor } : {}),
     ...(intake ? { intake } : {}),

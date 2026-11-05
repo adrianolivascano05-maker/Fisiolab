@@ -12,7 +12,7 @@
 import { mayMessage } from "../data/privacy";
 import type { BookingContact } from "../data/privacy";
 import { madridDay } from "../app/format";
-import { ANAMNESIS_KIND, SENDABLE } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, sendableKinds as sendableList } from "../clinical/patientForms";
 import type { ReminderItem } from "../data/appointments";
 import type { OutboxMark } from "../data/outbox";
 import { dayText, firstName, hourText, messageText, type MessageSettings } from "../messages/templates";
@@ -165,4 +165,4 @@ export function itemWhen(i: OutboxItem): string {
 }
 
 /** Los cuestionarios que se pueden mandar por enlace. */
-export const sendableKinds = () => new Set(SENDABLE.map((k) => k.id));
+export const sendableKinds = () => new Set(sendableList().map((k) => k.id));

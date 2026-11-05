@@ -3,7 +3,7 @@
 // `loadOwnCatalog` (al abrir la app y cada vez que cambian los ajustes) y lo leen getKind, formFor y compañía.
 import { buildForm, OWN_LABEL, scoreRange, type OwnFormSpec } from "./forms/own";
 import type { QuestionForm } from "./forms/types";
-import type { QuestionnaireKind } from "./questionnaires";
+import type { OwnDetails, QuestionnaireKind } from "./questionnaires";
 import type { Db } from "../data/db";
 import { listOwnForms, listOwnSnapshots } from "../data/ownForms";
 
@@ -66,7 +66,7 @@ export function kindOfSpec(spec: OwnFormSpec, archived = false): QuestionnaireKi
     topic: OWN_TOPIC,
     own: true,
     ...(spec.scoring ? {} : { noScore: true }),
-    ...(spec.note ? { note: spec.note } : {}),
+    ...(spec.note ? { note: spec.note, noteClinic: spec.noteClinic, noteAt: spec.noteAt } : {}),
     ...(archived ? { archived: true } : {}),
     hint: OWN_LABEL,
   };
@@ -81,4 +81,19 @@ export function ownKind(id: string): QuestionnaireKind | undefined {
 /** Los que se pueden pasar y mandar hoy (sin los archivados), por nombre. */
 export function ownKinds(): QuestionnaireKind[] {
   return [...current.values()].filter((e) => !e.archived).map((e) => kindOfSpec(e.spec));
+}
+
+/** Lo que se guarda en cada respuesta de un cuestionario propio: la versión (huella) y cómo era. */
+export function ownDetails(spec: OwnFormSpec): OwnDetails {
+  const range = scoreRange(spec);
+  return {
+    id: spec.id,
+    hash: spec.hash ?? "",
+    name: spec.name,
+    min: range.min,
+    max: range.max,
+    better: spec.scoring?.better ?? "higher",
+    ...(spec.scoring ? {} : { noScore: true }),
+    ...(spec.note ? { note: spec.note, ...(spec.noteClinic ? { noteClinic: spec.noteClinic } : {}), ...(spec.noteAt ? { noteAt: spec.noteAt } : {}) } : {}),
+  };
 }

@@ -57,13 +57,21 @@ export async function listOwnSnapshots(db: Db): Promise<OwnFormSpec[]> {
  * Guarda una versión: la comprueba, le pone su huella, escribe la instantánea (si esa versión no estaba) y el puntero
  * con quién y cuándo. Devuelve el puntero nuevo. Lo ya respondido se queda con la versión con la que se hizo.
  */
-export async function saveOwnForm(db: Db, spec: OwnFormSpec, by: string | null, opts: { archived?: boolean } = {}): Promise<OwnFormDoc> {
-  const clean = checkOwnForm({ ...spec, hash: undefined });
+export async function saveOwnForm(db: Db, spec: OwnFormSpec, by: string | null, opts: { archived?: boolean; clinic?: string } = {}): Promise<OwnFormDoc> {
+  const prev = await getSetting<OwnFormDoc>(db, POINTER(uuidOf(spec.id)));
+  // La nota para el profesional lleva el nombre de la clínica y la fecha en que se escribió (o se cambió).
+  const noteSame = !!prev?.spec.note && prev.spec.note === spec.note?.trim();
+  const stamp = spec.note?.trim()
+    ? noteSame
+      ? { noteClinic: prev!.spec.noteClinic, noteAt: prev!.spec.noteAt }
+      : { noteClinic: opts.clinic?.trim() || spec.noteClinic, noteAt: new Date().toISOString().slice(0, 10) }
+    : { noteClinic: undefined, noteAt: undefined };
+  const clean = checkOwnForm({ ...spec, ...stamp, hash: undefined });
   const hash = await ownHash(clean);
   const versioned: OwnFormSpec = { ...clean, hash };
   const uuid = uuidOf(clean.id);
   if (!(await getSetting(db, SNAPSHOT(uuid, hash)))) await setSetting(db, SNAPSHOT(uuid, hash), versioned);
-  const before = await getSetting<OwnFormDoc>(db, POINTER(uuid));
+  const before = prev;
   const now = new Date().toISOString();
   const archived = opts.archived ?? before?.archived;
   const doc: OwnFormDoc = { spec: versioned, ...(archived ? { archived: true } : {}), ...(by ? { by } : {}), at: now, createdAt: before?.createdAt ?? now };

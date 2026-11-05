@@ -14,6 +14,7 @@ import { readSources } from "../clinical/answerMeta";
 import { NO_ANSWER } from "../clinical/anamnesis";
 import { uploadPatientForm } from "./createForm";
 import { currentTemplate, getTemplateDoc, markTemplateUsed, saveTemplateDoc } from "../data/anamnesisTemplates";
+import { archiveOwnForm, newOwnFormId, saveOwnForm } from "../data/ownForms";
 
 const patient = (name: string) => ({ name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
 
@@ -370,6 +371,33 @@ describe("formularios para el paciente", () => {
     expect(saved).toMatchObject({ motivo: "Me duele", c_dddddddd: "No", __tpl: ref, __respondent: "guardian" });
     expect(readSources(saved).c_dddddddd).toEqual({ by: "patient", at, form: f.id });
     expect((await getSentForm(db, f.id))!.answers).toMatchObject({ c_dddddddd: "No", __respondent: "guardian" });
+  });
+
+  it("cuestionario propio: se recoge y puntúa con la versión enviada aunque la clínica lo cambie después", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Paula Propia"));
+    const own = {
+      v: 1 as const,
+      id: newOwnFormId(),
+      name: "Adherencia",
+      note: "Comentar en consulta.",
+      sections: [{ items: [{ id: "q_00000001", type: "options" as const, text: "¿Hizo los ejercicios?", options: [{ label: "Nunca", points: 0 }, { label: "Siempre", points: 3 }] }] }],
+      scoring: { method: "sum" as const, better: "higher" as const, na: "block" as const },
+    };
+    const v1 = await saveOwnForm(db, own, null, { clinic: "Clínica Aurora" });
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: own.id, key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), meta: { hash: v1.spec.hash } });
+    // Después la clínica cambia los puntos («Siempre» pasa a valer 10) y archiva el cuestionario.
+    await saveOwnForm(db, { ...own, sections: [{ items: [{ ...own.sections[0]!.items[0]!, options: [{ label: "Nunca", points: 0 }, { label: "Siempre", points: 10 }] }] }] }, null);
+    await archiveOwnForm(db, own.id, true, null);
+    const at = "2026-11-05T10:00:00.000Z";
+    const { api } = server([{ id: f.id, response: await seal({ v: 1, answers: { q_00000001: 1, otro: 5 } }, f.key), answeredAt: at }]);
+    const got = await collectAnswered(db, api, ANAMNESIS);
+    expect(got).toEqual([{ patientId: pid, name: "Paula Propia", kind: own.id, skipped: 0, incomplete: false }]);
+    const [q] = await listQuestionnaires(db, pid);
+    expect(q).toMatchObject({ kind: own.id, score: 3, performedAt: at });
+    expect(q!.details).toMatchObject({ answers: { q_00000001: 1 }, own: { id: own.id, hash: v1.spec.hash, name: "Adherencia", min: 0, max: 3, note: "Comentar en consulta.", noteClinic: "Clínica Aurora" } });
+    expect(q!.details).not.toHaveProperty("answers.otro");
   });
 
   it("ya no se crea un enlace para firmar", async () => {

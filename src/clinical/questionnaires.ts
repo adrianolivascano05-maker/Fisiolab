@@ -58,8 +58,10 @@ export type QuestionnaireKind = {
   own?: boolean;
   /** Propio sin nota: se guardan las respuestas, sin puntuación que enseñar ni dibujar. */
   noScore?: boolean;
-  /** Propio: la nota para el profesional, un texto fijo de la clínica. */
+  /** Propio: la nota para el profesional, un texto fijo de la clínica, con su nombre y la fecha. */
   note?: string;
+  noteClinic?: string;
+  noteAt?: string;
   /** Propio archivado: no se pasa ni se manda, pero lo respondido se sigue viendo. */
   archived?: boolean;
 };
@@ -315,7 +317,7 @@ export type QDetails = {
   /** Cuestionario propio: la versión con la que se hizo (su huella) y cómo era (nombre, rango, nota para el profesional). */
   own?: OwnDetails;
 };
-export type OwnDetails = { id: string; hash: string; name: string; min: number; max: number; better: Better; noScore?: boolean; note?: string };
+export type OwnDetails = { id: string; hash: string; name: string; min: number; max: number; better: Better; noScore?: boolean; note?: string; noteClinic?: string; noteAt?: string };
 
 /** El tipo efectivo de un registro (con «otro», el nombre y el rango que se escribieron). */
 export function kindOf(kind: string, d: QDetails): QuestionnaireKind {
@@ -332,7 +334,7 @@ export function kindOf(kind: string, d: QDetails): QuestionnaireKind {
       own: true,
       hint: OWN_LABEL,
       ...(o.noScore ? { noScore: true } : {}),
-      ...(o.note ? { note: o.note } : {}),
+      ...(o.note ? { note: o.note, noteClinic: o.noteClinic, noteAt: o.noteAt } : {}),
       ...(ownKind(kind)?.archived ? { archived: true } : {}),
     };
   }
@@ -351,7 +353,8 @@ export function kindOf(kind: string, d: QDetails): QuestionnaireKind {
 /** Nombre para mostrar: con la subescala si la hay, y los de fuera del servicio marcados como registro antiguo. */
 export const displayName = (kind: string, d: QDetails) => {
   const k = kindOf(kind, d);
-  return `${k.name}${d.subscale ? ` · ${d.subscale}` : ""}${k.retired ? " (registro antiguo)" : ""}`;
+  // Los propios llevan siempre su etiqueta (en la ficha, la gráfica, el informe, la carta y la exportación).
+  return `${k.name}${d.subscale ? ` · ${d.subscale}` : ""}${k.retired ? " (registro antiguo)" : ""}${k.own ? ` (${OWN_LABEL})` : ""}`;
 };
 
 /** Mapa del dolor: la intensidad más alta de lo marcado. */
@@ -371,6 +374,8 @@ export function psfsScore(activities: { name: string; score: number }[]): number
 
 /** Texto de una puntuación: «62/100», «4,3/10», «+3». */
 export function scoreText(k: QuestionnaireKind, score: number): string {
+  // Un propio sin nota: solo se guardan las respuestas.
+  if (k.noScore) return "Sin nota";
   const n = Number.isInteger(score) ? String(score) : score.toFixed(1).replace(".", ",");
   if (k.inApp === "groc") return score > 0 ? `+${n}` : n;
   if (k.unit === "%") return `${n} %`;

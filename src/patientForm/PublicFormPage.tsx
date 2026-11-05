@@ -5,7 +5,8 @@
 // que se pasan a PDF) cifrados con la misma clave, uno a uno, y al enviar se dice cuáles son.
 import { ChevronLeft, ChevronRight, FileText, Lock, Send, Upload, X } from "lucide-react";
 import { RESPONDENT } from "../clinical/answerMeta";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { buildForm, isOwnKind, ownLabelFor } from "../clinical/forms/own";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { AnswerValue } from "../data/clinical";
 import { FieldInput } from "../clinical/FieldInput";
 import { FormFill, formResult } from "../clinical/FormFill";
@@ -107,13 +108,19 @@ export function PublicFormPage() {
   // Un enlace para firmar (la hoja de protección de datos o un consentimiento, de antes del 30-10-2026): ya no se
   // firma por enlace; solo se le dice que lo firmará en la clínica.
   const toSign = !!request && isSignKind(request.kind);
-  const form = request && request.kind !== ANAMNESIS_KIND && !toSign ? formFor(request.kind) : undefined;
+  // Un cuestionario propio de la clínica viene entero en el enlace (la versión que se mandó).
+  const own = request?.form && isOwnKind(request.kind) ? request.form : undefined;
+  const ownForm = useMemo(() => (own ? buildForm(own) : undefined), [own]);
+  const form = request && request.kind !== ANAMNESIS_KIND && !toSign ? (ownForm ?? formFor(request.kind)) : undefined;
   const result = form ? formResult(form, answers as FormAnswers) : null;
 
   const steps = request?.kind === ANAMNESIS_KIND ? (request.sections ?? []) : [];
-  const stepped = steps.length > 0;
-  const lastStep = !stepped || step >= steps.length - 1;
-  const questions = steps.reduce((n, s) => n + s.fields.length, 0);
+  // Un propio con apartados va por pasos (un apartado por pantalla); sin apartados, todo junto.
+  const ownSteps = ownForm && ownForm.sections.length > 1 ? ownForm.sections : [];
+  const stepCount = steps.length || ownSteps.length;
+  const stepped = stepCount > 0;
+  const lastStep = !stepped || step >= stepCount - 1;
+  const questions = steps.length ? steps.reduce((n, s) => n + s.fields.length, 0) : ownSteps.reduce((n, s) => n + s.items.length, 0);
   /** Pasar de paso: lo de protección de datos y quién contesta, en el primero; el foco, al título del paso. */
   const go = (to: number) => {
     setError(null);
@@ -121,7 +128,7 @@ export function PublicFormPage() {
       if (request?.intake && !intakeAck) return setError("Marca que has leído la información sobre protección de datos.");
       if (request?.minor && !answers[RESPONDENT]) return setError("Dinos quién contesta.");
     }
-    setStep(Math.max(0, Math.min(steps.length - 1, to)));
+    setStep(Math.max(0, Math.min(stepCount - 1, to)));
     window.scrollTo({ top: 0 });
     requestAnimationFrame(() => stepTitle.current?.focus());
   };
@@ -203,10 +210,11 @@ export function PublicFormPage() {
               </p>
             ) : (
               <p>
-                {request.clinic || "Tu clínica"} te pide que rellenes {formWhat(request.kind)}.{" "}
+                {request.clinic || "Tu clínica"} te pide que rellenes {own ? `el cuestionario «${own.name}»` : formWhat(request.kind)}.{" "}
                 {request.kind === ANAMNESIS_KIND ? "Contesta lo que sepas; lo demás lo hablaréis en la consulta." : form?.instructions}
               </p>
             )}
+            {own && <p className="-mt-2 text-sm font-semibold text-text-muted">{ownLabelFor(request.clinic)}</p>}
             {request.kind === ANAMNESIS_KIND && (
               <p className="text-sm">
                 Tu fisioterapeuta lo leerá antes de la consulta, no al momento. Si te encuentras mal o tienes algo urgente, no esperes: llama al 112 o a tu
@@ -262,8 +270,29 @@ export function PublicFormPage() {
                 <p className="text-sm text-text-muted">Se guarda en tu móvil; puedes seguir luego.</p>
               </div>
             )}
-            {form && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} />}
-            {form && <p className="text-xs text-text-muted">Autores del cuestionario: {citeOf(form)}.</p>}
+            {ownSteps.length > 0 && form && ownSteps[step] && (
+              <div className="flex flex-col gap-2">
+                <p aria-live="polite" className="text-sm font-semibold text-text-muted">
+                  Paso {step + 1} de {ownSteps.length}
+                </p>
+                <div aria-hidden="true" className="h-1 overflow-hidden rounded-pill bg-border">
+                  <div className="h-full bg-accent transition-[width]" style={{ width: `${((step + 1) / ownSteps.length) * 100}%` }} />
+                </div>
+                <h2 ref={stepTitle} tabIndex={-1} className="text-lg outline-none">
+                  {ownSteps[step].title}
+                </h2>
+                <FormFill
+                  form={{ ...form, sections: [{ ...ownSteps[step], title: "" }] }}
+                  answers={answers as FormAnswers}
+                  onChange={(a) => setAnswers(a)}
+                  intro={step === 0}
+                  start={ownSteps.slice(0, step).reduce((n, x) => n + x.items.length, 0)}
+                />
+                <p className="text-sm text-text-muted">Se guarda en tu móvil; puedes seguir luego.</p>
+              </div>
+            )}
+            {form && !ownSteps.length && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} />}
+            {form && !own && <p className="text-xs text-text-muted">Autores del cuestionario: {citeOf(form)}.</p>}
             {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && (
               <Alert tone="info" title="Este cuestionario ya no se rellena por enlace">
                 Tu clínica te lo pasará en la consulta. No hace falta que hagas nada más.

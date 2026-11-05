@@ -71,7 +71,11 @@ function Question({ n, item, value, onChange }: { n: number; item: Item; value: 
   );
 }
 
-export function FormFill({ form, answers, onChange }: { form: QuestionForm; answers: Answers; onChange: (a: Answers) => void }) {
+/**
+ * El cuestionario para rellenar. `start`: cuántas preguntas van antes (por pasos, para seguir la numeración);
+ * `intro`: con las instrucciones arriba (por pasos, solo en el primero).
+ */
+export function FormFill({ form, answers, onChange, start = 0, intro = true }: { form: QuestionForm; answers: Answers; onChange: (a: Answers) => void; start?: number; intro?: boolean }) {
   const all = form.sections.flatMap((s) => s.items);
   const done = all.filter((i) => i.id in answers).length;
   const set = (id: string, v: number | null | undefined) => {
@@ -80,16 +84,18 @@ export function FormFill({ form, answers, onChange }: { form: QuestionForm; answ
     else next[id] = v;
     onChange(next);
   };
-  let n = 0;
+  let n = start;
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-col gap-1">
-        <p>{form.instructions}</p>
-        <p className="text-xs text-text-muted">{form.source}</p>
-      </Card>
-      {form.sections.map((s) => (
-        <section key={s.title} aria-label={s.title} className="flex flex-col gap-3">
-          <h2 className="text-lg">{s.title}</h2>
+      {intro && (
+        <Card className="flex flex-col gap-1">
+          {form.instructions && <p>{form.instructions}</p>}
+          <p className="text-xs text-text-muted">{form.source}</p>
+        </Card>
+      )}
+      {form.sections.map((s, i) => (
+        <section key={`${i}-${s.title}`} aria-label={s.title || undefined} className="flex flex-col gap-3">
+          {s.title && <h2 className="text-lg">{s.title}</h2>}
           {s.intro && <p className="-mt-2 text-sm text-text-muted">{s.intro}</p>}
           {s.items.map((item) => {
             n += 1;

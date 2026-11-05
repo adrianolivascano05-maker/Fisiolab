@@ -47,6 +47,9 @@ export type OwnFormSpec = {
   instructions?: string;
   /** Nota para el profesional: un texto fijo de la clínica, siempre visible junto al cuestionario. */
   note?: string;
+  /** De quién es la nota (el nombre de la clínica) y de cuándo (AAAA-MM-DD): se ponen al guardar. */
+  noteClinic?: string;
+  noteAt?: string;
   sections: OwnSection[];
   scoring: OwnScoring | null;
   /** La huella de esta versión (la pone ownForms.ts al guardar). */
@@ -203,6 +206,8 @@ export function checkOwnForm(spec: OwnFormSpec): OwnFormSpec {
     name,
     instructions: str(spec.instructions, OWN_LIMITS.long, "Instrucciones"),
     note: str(spec.note, OWN_LIMITS.long, "Nota para el profesional"),
+    noteClinic: spec.note ? str(spec.noteClinic, OWN_LIMITS.name, "Nombre de la clínica") : undefined,
+    noteAt: spec.note && typeof spec.noteAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(spec.noteAt) ? spec.noteAt : undefined,
     sections,
     scoring,
     hash: typeof spec.hash === "string" && /^[0-9a-f]{12}$/.test(spec.hash) ? spec.hash : undefined,

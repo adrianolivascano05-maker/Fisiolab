@@ -24,7 +24,7 @@ import {
   isSignKind,
   patientSections,
   PRIVACY_KIND,
-  SENDABLE,
+  sendableKinds,
 } from "../clinical/patientForms";
 import { useAnamnesisSections } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
@@ -204,10 +204,10 @@ export function SendFormsPage() {
 
 function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: string) => Promise<void> }) {
   // Los pendientes del permiso de su titular, solo si la clínica ha marcado que lo tiene.
-  const sendable = SENDABLE;
+  const sendable = sendableKinds();
   // Pedirle archivos, solo si el servidor de la clínica los guarda.
   const docs = useDocsUsage().usage?.enabled === true;
-  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || SENDABLE.some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
+  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || sendableKinds().some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
@@ -230,19 +230,34 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
         <option value={ANAMNESIS_KIND}>Su parte de la anamnesis</option>
         {(docs || kind === DOCS_KIND) && <option value={DOCS_KIND}>Sus informes y pruebas (PDF o fotos)</option>}
         <optgroup label="Cuestionarios">
-          {sendable.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.name}
-            </option>
-          ))}
+          {sendable
+            .filter((k) => !k.own)
+            .map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.name}
+              </option>
+            ))}
         </optgroup>
+        {sendable.some((k) => k.own) && (
+          <optgroup label="De la clínica (no validados)">
+            {sendable
+              .filter((k) => k.own)
+              .map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name}
+                </option>
+              ))}
+          </optgroup>
+        )}
       </SelectField>
       <p className="text-sm text-text-muted">
         {kind === DOCS_KIND
           ? `Sube desde su móvil hasta ${DOCS_PER_LINK} informes o pruebas, en PDF o en foto (las fotos se pasan a PDF), de 5 MB como mucho cada uno. Llegan cifrados a sus archivos.`
           : kind === ANAMNESIS_KIND
             ? "Sus datos, lo que le pasa, su salud, su familia y su día a día, con preguntas dichas para el paciente (y las propias de tu clínica). La zona, el lado, las banderas rojas, las precauciones, la exploración y el plan son tuyos."
-            : "El cuestionario entero, con sus instrucciones. Al recibirlo, se guarda en sus cuestionarios con la nota calculada."}{" "}
+            : sendable.find((k) => k.id === kind)?.own
+              ? "El cuestionario propio de la clínica, con la etiqueta «no validado». Se manda la versión de ahora: si después lo cambias, este enlace se recoge con esta versión. Al recibirlo, se guarda en sus cuestionarios (con la nota, si la tiene)."
+              : "El cuestionario entero, con sus instrucciones. Al recibirlo, se guarda en sus cuestionarios con la nota calculada."}{" "}
         El enlace vale {FORM_DAYS} días.
       </p>
       {error && <Alert tone="danger" title={error} />}

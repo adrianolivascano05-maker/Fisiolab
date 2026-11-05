@@ -16,6 +16,8 @@ import type { Field, Section } from "../clinical/anamnesis";
 import { RESPONDENT, stampSources, TPL } from "../clinical/answerMeta";
 import { isMetaKey } from "../clinical/anamnesis";
 import { getSnapshot } from "../data/anamnesisTemplates";
+import { buildForm, isOwnKind } from "../clinical/forms/own";
+import { getOwnForm, getOwnSnapshot } from "../data/ownForms";
 import { ANAMNESIS_KIND, RESPONDENTS, type Respondent, cleanFormAnswers, DOCS_KIND, DOCS_PER_LINK, isSignKind, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
 
 /** Días que se guardan en el servidor unas respuestas de un envío que este dispositivo no conoce. */
@@ -182,8 +184,10 @@ export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplat
       }
       await markImported(db, f.id, { answeredAt: f.answeredAt, answers: intake ? { ...m.clean, __intake: intake } : m.clean, skipped });
     } else {
-      const answers = cleanFormAnswers(sent.kind, incoming);
-      incomplete = (await saveAnsweredQuestionnaire(db, sent.patientId, episode, sent.kind, answers, f.answeredAt, f.id)) === 0;
+      // Un cuestionario propio se recoge con la versión que se mandó (su huella); si ya no estuviera, con la de ahora.
+      const ownForm = isOwnKind(sent.kind) ? ((sent.meta?.hash ? await getOwnSnapshot(db, sent.kind, sent.meta.hash) : null) ?? (await getOwnForm(db, sent.kind))?.spec) : undefined;
+      const answers = cleanFormAnswers(sent.kind, incoming, ownForm ? buildForm(ownForm) : undefined);
+      incomplete = (await saveAnsweredQuestionnaire(db, sent.patientId, episode, sent.kind, answers, f.answeredAt, f.id, ownForm ?? undefined)) === 0;
       await markImported(db, f.id, { answeredAt: f.answeredAt, answers, skipped: [] });
     }
     await api.remove(f.id);

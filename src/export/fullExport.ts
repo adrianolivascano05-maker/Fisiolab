@@ -16,6 +16,9 @@ import { wellnessItems } from "../calc/wellness";
 import { metricLabels, sideLabels, testTitle } from "../app/format";
 import { ANAMNESIS, answerText, orphanAnswers, orphanText, regionLabel, type Section } from "../clinical/anamnesis";
 import { TPL } from "../clinical/answerMeta";
+import { buildForm, OWN_LABEL, type OwnFormSpec } from "../clinical/forms/own";
+import { ownNoteText } from "../clinical/OwnFormNote";
+import { listOwnForms, listOwnSnapshots, type OwnFormDoc } from "../data/ownForms";
 import { currentTemplate, knownField, listSnapshots, type Resolved } from "../data/anamnesisTemplates";
 import { marksText } from "../clinical/bodyMap";
 import { displayName, kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
@@ -70,6 +73,9 @@ export type Collected = {
   known?: (Resolved & { ref?: string })[];
   /** Los ajustes de las plantillas (cambios de la clínica e instantáneas), tal cual, para el JSON. */
   templates?: { key: string; value: unknown }[];
+  /** Los cuestionarios propios de la clínica: los de ahora (con si están archivados) y todas sus versiones. */
+  ownForms?: OwnFormDoc[];
+  ownSnapshots?: OwnFormSpec[];
 };
 
 /** Las tablas que se exportan (las de la clínica; no los ajustes del dispositivo ni los de cada persona). */
@@ -94,7 +100,8 @@ export async function collect(db: Db): Promise<Collected> {
   const snaps = templates
     .filter((t) => t.key.startsWith("anamnesis_tpl_v:"))
     .map((t) => ({ ...(t.value as Resolved), ref: t.key.slice("anamnesis_tpl_v:".length).replace(":", "@") }));
-  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: now.sections, known: [now, ...snaps], templates };
+  const [ownForms, ownSnapshots] = await Promise.all([listOwnForms(db), listOwnSnapshots(db)]);
+  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: now.sections, known: [now, ...snaps], templates, ownForms, ownSnapshots };
 }
 
 // ---------- Lo de cada paciente ----------
@@ -222,7 +229,7 @@ function buildSheets(c: Collected): Sheet[] {
       rows: [...T.questionnaires!].sort(byDate("performed_at")).map((r) => {
         const d = json<QDetails>(r.details, {} as QDetails);
         const k = kindOf(s(r.kind), d);
-        return [pn(r), when(r.performed_at), displayName(s(r.kind), d), n(r.score), scoreText(k, Number(r.score)), s(r.notes), questionnaireDetail(d)];
+        return [pn(r), when(r.performed_at), displayName(s(r.kind), d), k.noScore ? "" : n(r.score), scoreText(k, Number(r.score)), s(r.notes), questionnaireDetail(d, c.ownSnapshots)];
       }),
     },
     {
@@ -320,9 +327,26 @@ function buildSheets(c: Collected): Sheet[] {
   return sheets;
 }
 
-function questionnaireDetail(d: QDetails): string {
+function questionnaireDetail(d: QDetails, own: OwnFormSpec[] = []): string {
   const parts: string[] = [];
   const any = d as unknown as R;
+  // Un propio de la clínica: cada pregunta con su respuesta, tal como era la versión con la que se hizo.
+  if (d.own) {
+    const spec = own.find((x) => x.id === d.own!.id && x.hash === d.own!.hash);
+    parts.push(`Versión ${d.own.hash}`);
+    if (d.own.note) parts.push(ownNoteText(d.own) ?? "");
+    if (spec && d.answers) {
+      const form = buildForm(spec);
+      const lines = form.sections.flatMap((sec) => sec.items).map((it) => {
+        const v = d.answers![it.id];
+        if (v === undefined) return null;
+        const text = v === null ? "No aplica" : (it.options?.find((o) => o.value === v)?.label ?? `${String(v).replace(".", ",")}${it.input?.unit ? ` ${it.input.unit}` : ""}`);
+        return `${it.text}: ${text}`;
+      });
+      parts.push(lines.filter(Boolean).join("; "));
+      return parts.filter(Boolean).join(" · ");
+    }
+  }
   if (Array.isArray(any.marks)) parts.push(marksText(any.marks));
   if (Array.isArray(any.activities)) parts.push((any.activities as { name: string; score: number }[]).map((a) => `${a.name}: ${a.score}/10`).join("; "));
   if (any.answers && typeof any.answers === "object") parts.push(`Respuestas: ${Object.entries(any.answers as R).map(([k, v]) => `${k}=${s(v)}`).join(", ")}`);
@@ -460,7 +484,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
         ["Fecha", "Cuestionario", "Resultado", "Notas"],
         qs.map((r) => {
           const d = json<QDetails>(r.details, {} as QDetails);
-          return [when(r.performed_at), displayName(s(r.kind), d), [scoreText(kindOf(s(r.kind), d), Number(r.score)), questionnaireDetail(d)].filter(Boolean).join("\n"), s(r.notes)];
+          return [when(r.performed_at), displayName(s(r.kind), d), [scoreText(kindOf(s(r.kind), d), Number(r.score)), questionnaireDetail(d, c.ownSnapshots)].filter(Boolean).join("\n"), s(r.notes)];
         }),
       )}`,
     );
@@ -693,7 +717,7 @@ export async function buildPackage(
   zipped.push({ name: "Todos los datos.xlsx", data: await writeXlsx(buildSheets(c)) });
   zipped.push({
     name: "Datos para otro programa (JSON).json",
-    data: JSON.stringify({ formato: "cenit-exportacion", version: 1, esquema: c.schema, exportado: now.toISOString(), clinica: c.clinic, tablas: c.tables, plantillas_anamnesis: c.templates ?? [] }, null, 1),
+    data: JSON.stringify({ formato: "cenit-exportacion", version: 1, esquema: c.schema, exportado: now.toISOString(), clinica: c.clinic, tablas: c.tables, plantillas_anamnesis: c.templates ?? [], cuestionarios_propios: { aviso: OWN_LABEL, actuales: c.ownForms ?? [], versiones: c.ownSnapshots ?? [] } }, null, 1),
   });
   zipped.push({ name: "Copia de OmniClin.sqlite3", data: await db.exportBytes() });
   return { bytes: await zip(zipped, now), patients: patients.length, missing };

@@ -24,7 +24,10 @@ import { FormCredits } from "./FormCredits";
 import { FormFill, formResult } from "./FormFill";
 import { OfficialLink } from "./OfficialLink";
 import { RangesTable } from "./RangesTable";
-import { SENDABLE } from "./patientForms";
+import { sendableKinds } from "./patientForms";
+import { isOwnKind } from "./forms/own";
+import { OWN_TOPIC, ownDetails, ownSpec } from "./ownCatalog";
+import { OwnLabel, OwnNote } from "./OwnFormNote";
 import { Guard, localInput, useLoad } from "./pageKit";
 
 // ---------- Cuestionarios ----------
@@ -127,6 +130,7 @@ export function QuestionnaireFormPage() {
     const describe = (k: (typeof QUESTIONNAIRES)[number]) => {
       const f = formFor(k.id);
       const n = f?.sections.reduce((acc, sec) => acc + sec.items.length, 0);
+      if (k.own) return `${n === 1 ? "1 pregunta" : `${n} preguntas`} · ${k.noScore ? "sin nota" : `de ${k.min} a ${k.max}`}`;
       const range = k.unit && k.unit !== "%" ? k.unit : `de ${k.min} a ${k.max}, ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`;
       const how = n ? `${n} preguntas` : "Con su hoja oficial: anotas la nota";
       return `${how} · ${range}`;
@@ -137,16 +141,18 @@ export function QuestionnaireFormPage() {
     const ranked = byRegions(regions).filter(({ kind: k }) => !k.inApp && matches(k));
     // De su zona primero; después la evolución que cuenta el paciente, los generales por tema y el resto por zona.
     const groups = [
-      { title: "De su zona", items: ranked.filter((r) => r.forRegion).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k), tag: "Su zona" })) },
+      { title: "De su zona", items: ranked.filter((r) => r.forRegion && !r.kind.own).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k), tag: "Su zona" })) },
       { title: "Cómo lo vive el paciente", items: QUESTIONNAIRES.filter((k) => k.inApp && matches(k)).map((k) => option({ id: k.id, name: k.name, text: k.hint ?? "" })) },
+      // Los propios de la clínica (no validados), con su etiqueta.
+      { title: OWN_TOPIC, items: ranked.filter((r) => r.kind.own).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k), tag: "No validado" })) },
       ...TOPICS.map((topic) => ({
         title: topic,
-        items: ranked.filter((r) => !r.forRegion && r.kind.topic === topic).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k) })),
+        items: ranked.filter((r) => !r.forRegion && !r.kind.own && r.kind.topic === topic).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k) })),
       })),
       {
         title: "Por zona del cuerpo",
         items: [
-          ...ranked.filter((r) => !r.forRegion && !r.kind.topic).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k) })),
+          ...ranked.filter((r) => !r.forRegion && !r.kind.own && !r.kind.topic).map(({ kind: k }) => option({ id: k.id, name: k.name, text: describe(k) })),
           ...(q ? [] : [option({ id: OTHER, name: "Otro cuestionario", text: "Escribe su nombre y su rango." })]),
         ],
       },
@@ -166,20 +172,25 @@ export function QuestionnaireFormPage() {
     );
   }
 
-  const known = getKind(kind);
+  // Un propio de la clínica: el registro se lee con la versión con la que se hizo; uno nuevo, con la de ahora.
+  const own = isOwnKind(kind);
+  const recordOwn = (record?.details as QDetails | undefined)?.own;
+  const ownNow = own && !recordOwn ? ownSpec(kind) : undefined;
+  const known = own && recordOwn ? kindOf(kind, record!.details as QDetails) : getKind(kind);
   // Los de pago están fuera del servicio: no se pasan ni se anotan; lo guardado antes se ve como registro antiguo.
-  const retired = !!known?.retired;
-  const form = retired ? undefined : formFor(kind);
-  const filling = !!form && mode === "fill";
+  // Un propio archivado no se pasa de nuevo, pero lo ya guardado se ve y se puede corregir.
+  const retired = own ? !record && !!known?.archived : !!known?.retired;
+  const form = retired ? undefined : formFor(kind, recordOwn?.hash);
+  const filling = !!form && (mode === "fill" || own);
   const result = filling ? formResult(form, answers) : null;
   const otherMin = parseDecimal(other.min);
   const otherMax = parseDecimal(other.max);
   // Con subescala elegida (FABQ, WOMAC…), su propio rango.
-  const k = kindOf(kind, { name: other.name, min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better, subscale: !filling ? subscale[0] : undefined });
+  const k = own && known ? known : kindOf(kind, { name: other.name, min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better, subscale: !filling ? subscale[0] : undefined });
   const details: QDetails =
     kind === "mapa_dolor" ? { marks }
     : kind === "psfs" ? { activities: activities.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), score: a.score ?? Number.NaN })) }
-    : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}) }
+    : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(own ? { own: recordOwn ?? (ownNow ? ownDetails(ownNow) : undefined) } : {}) }
     : known?.subscales ? { subscale: subscale[0] }
     : kind === OTHER ? { name: other.name.trim(), min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better }
     : {};
@@ -204,6 +215,8 @@ export function QuestionnaireFormPage() {
     }
     if (filling) {
       if (!result || "missing" in result) throw new RangeError(result && "missing" in result ? result.missing : "Contesta el cuestionario.");
+      // Un propio sin nota: se guardan las respuestas (la nota no se enseña ni se dibuja).
+      if (own && k.noScore) return 0;
       if (result.ok.score === null) throw new RangeError("Este cuestionario solo tiene subescalas.");
       return result.ok.score;
     }
@@ -263,8 +276,9 @@ export function QuestionnaireFormPage() {
       <p className="text-text-muted">{patient?.name}</p>
       <Card className="flex flex-col gap-2">
         <span className="text-lg font-semibold">{kind === OTHER ? "Otro cuestionario" : k.name}</span>
-        {known?.hint && <p className="text-sm text-text-muted">{known.hint}</p>}
-        {form && (
+        {k.own ? <OwnLabel className="self-start" /> : known?.hint && <p className="text-sm text-text-muted">{known.hint}</p>}
+        {k.own && <OwnNote kind={k} />}
+        {form && !own && (
           <Chips
             label="Cómo"
             options={["fill", "score"]}
@@ -273,7 +287,12 @@ export function QuestionnaireFormPage() {
             onChange={(v) => v[0] && setMode(v[0] as "fill" | "score")}
           />
         )}
-        {retired && (
+        {retired && own && (
+          <Alert tone="info" title="Archivado">
+            La clínica ha archivado este cuestionario: ya no se pasa ni se manda. Lo respondido antes se sigue viendo en la ficha.
+          </Alert>
+        )}
+        {retired && !own && (
           <Alert tone="info" title={record ? "Registro antiguo" : "Fuera del servicio"}>
             {record
               ? "Este cuestionario es de pago y ya no está en la app: aquí se ve lo que se guardó, pero no se puede cambiar."
@@ -283,7 +302,7 @@ export function QuestionnaireFormPage() {
         {!retired && !known?.inApp && kind !== OTHER && !filling && <p className="text-sm text-text-muted">Pásalo con su hoja oficial y escribe aquí la puntuación total.</p>}
         {known?.reading && <p className="text-sm">{known.reading}</p>}
         {known?.link && <OfficialLink link={known.link} />}
-        {form ? <FormCredits form={form} refs={known?.refs} /> : known?.refs && <p className="text-xs text-text-muted">{known.refs}</p>}
+        {own ? null : form ? <FormCredits form={form} refs={known?.refs} /> : known?.refs && <p className="text-xs text-text-muted">{known.refs}</p>}
         {previous && (
           <p className="text-sm">
             La última vez: <span className="nums font-semibold">{scoreText(k, previous.score)}</span> el {fmtDate(previous.performedAt)}
@@ -301,7 +320,7 @@ export function QuestionnaireFormPage() {
             <Button variant="secondary" size="sm" onClick={() => setParams({}, { replace: true })}>
               Cambiar de cuestionario
             </Button>
-            {!!form && SENDABLE.some((x) => x.id === kind) && (
+            {!!form && sendableKinds().some((x) => x.id === kind) && (
               <Link
                 to={`/pacientes/${id}/formularios?enviar=${kind}`}
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-md border border-border bg-bg px-3 text-sm font-semibold hover:bg-surface"
@@ -346,7 +365,8 @@ export function QuestionnaireFormPage() {
               <p className="text-text-muted">{result.missing}</p>
             ) : (
               <>
-                {result.ok.score !== null && (
+                {k.noScore && <p className="text-text-muted">Sin nota: se guardan las respuestas.</p>}
+                {result.ok.score !== null && !k.noScore && (
                   <p className="nums text-[2rem] leading-tight font-bold" aria-label={`Nota: ${scoreText(k, result.ok.score)}`}>
                     {scoreText(k, result.ok.score)}
                   </p>

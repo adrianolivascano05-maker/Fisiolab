@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { OwnFormsLoader } from "./clinical/OwnFormsLoader";
 import { createBrowserRouter, Navigate, RouterProvider, useSearchParams } from "react-router";
 import { getStartPage, START_PARAM } from "./app/startPage";
 import { DbGate } from "./app/DbGate";
@@ -212,6 +213,7 @@ export function App() {
       <AppLock>
         <CloudGate>
           <DbGate>
+            <OwnFormsLoader />
             <Router />
             <FormInboxGate />
             <DocSync />

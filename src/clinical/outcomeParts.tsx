@@ -8,6 +8,7 @@ import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
 import { Sparkline } from "./parts";
 import { displayName, kindOf, scoreText, type QDetails } from "./questionnaires";
+import { OwnNote } from "./OwnFormNote";
 import type { SymmetryRow } from "./symmetry";
 
 /** Barras de simetría: lado peor / lado mejor. */
@@ -79,11 +80,13 @@ export function QuestionnaireTiles({ patientId, items }: { patientId: string; it
                 </span>
                 <span className="flex items-center justify-between gap-3">
                   <span className="text-sm text-text-muted">
-                    {fmtDate(last.performedAt)} · {k.better === "higher" ? "más es mejor" : "menos es mejor"}
+                    {fmtDate(last.performedAt)}
+                    {!k.noScore && ` · ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`}
                   </span>
-                  <Sparkline values={g.items.slice(0, 8).reverse().map((q) => q.score)} />
+                  {!k.noScore && <Sparkline values={g.items.slice(0, 8).reverse().map((q) => q.score)} />}
                 </span>
-                {diff !== null && (
+                {k.own && <OwnNote kind={k} className="text-xs" />}
+                {diff !== null && !k.noScore && (
                   <span className="nums inline-flex items-center gap-0.5 text-sm text-text-muted">
                     <Arrow aria-hidden="true" className="size-4" />
                     {scoreText(k, first.score)} → {scoreText(k, last.score)} en {g.items.length} pases ({diff > 0 ? "+" : diff < 0 ? "−" : "±"}
