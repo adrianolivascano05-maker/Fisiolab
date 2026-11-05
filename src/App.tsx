@@ -27,6 +27,8 @@ const ClinicSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) =>
 const DataSettingsPage = lazy(() => import("./pages/SettingsPage").then((m) => ({ default: m.DataSettingsPage })));
 const StatsPage = lazy(() => import("./pages/StatsPage").then((m) => ({ default: m.StatsPage })));
 const CustomFieldsPage = lazy(() => import("./pages/CustomFieldsPage").then((m) => ({ default: m.CustomFieldsPage })));
+const OwnFormsPage = lazy(() => import("./pages/OwnFormsPage").then((m) => ({ default: m.OwnFormsPage })));
+const OwnFormEditorPage = lazy(() => import("./pages/OwnFormEditorPage").then((m) => ({ default: m.OwnFormEditorPage })));
 const ExerciseLibraryPage = lazy(() => import("./pages/ExerciseLibraryPage").then((m) => ({ default: m.ExerciseLibraryPage })));
 const ClinicBillingPage = lazy(() => import("./pages/ClinicBillingPage").then((m) => ({ default: m.ClinicBillingPage })));
 const ImportPatientsPage = lazy(() => import("./pages/ImportPatientsPage").then((m) => ({ default: m.ImportPatientsPage })));
@@ -145,6 +147,8 @@ const routes = [
   { path: "/ajustes/cobros", element: l(<ClinicBillingPage />) },
   { path: "/ajustes/ejercicios", element: l(<ExerciseLibraryPage />) },
   { path: "/ajustes/anamnesis", element: l(<CustomFieldsPage />) },
+  { path: "/ajustes/cuestionarios-propios", element: l(<OwnFormsPage />) },
+  { path: "/ajustes/cuestionarios-propios/:id", element: l(<OwnFormEditorPage />) },
   { path: "/ajustes/reservas", element: <Navigate to="/ajustes" replace /> }, // La reserva online ya no existe
   { path: "/facturas", element: l(<ToBillPage />) }, // Para facturar: los cobros en Excel para el programa de facturación de la clínica
   { path: "/facturas/emitidas", element: l(<IssuedInvoicesPage />) }, // Las hechas con la app antes del 24-10-2026, solo lectura

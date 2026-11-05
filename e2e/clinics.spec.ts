@@ -1442,4 +1442,72 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByRole("definition").filter({ hasText: "Otro: Escalada" })).toBeVisible();
     await expect(page.getByText(/^Lo contestó el paciente, el /).first()).toBeVisible();
   });
+
+  test("CL20 cuestionario propio por enlace: por pasos con apartados, con su etiqueta, y se recoge con su nota", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Nora Propia" });
+    const noraUrl = page.url();
+
+    // Un cuestionario con dos apartados: una escala y un Sí/No.
+    await page.goto("./ajustes/cuestionarios-propios/nuevo");
+    await page.getByLabel("Nombre").fill("Control semanal");
+    await page.getByRole("button", { name: "Añadir pregunta" }).click();
+    await page.getByLabel("Pregunta 1", { exact: true }).fill("¿Cuánto le ha dolido esta semana?");
+    await page.getByRole("button", { name: "Añadir apartado" }).click();
+    await page.getByLabel("Título del apartado 1").fill("Dolor");
+    await page.getByLabel("Título del apartado 2").fill("Ejercicios");
+    await page.getByRole("button", { name: "Añadir pregunta al apartado 2" }).click();
+    await page.getByLabel("Pregunta 2", { exact: true }).fill("¿Ha hecho los ejercicios?");
+    await page.getByRole("group", { name: "Editar la pregunta 2" }).getByRole("button", { name: "Sí/No" }).click();
+    await page.getByRole("button", { name: "Guardar", exact: true }).click();
+    await expect(page.getByText("Cuestionario guardado")).toBeVisible();
+
+    // El enlace.
+    await page.goto(`${noraUrl}/formularios`);
+    await page.getByRole("button", { name: "Enviar un formulario" }).click();
+    const choose = page.getByRole("dialog", { name: "Enviar un formulario" });
+    await choose.getByLabel("Qué le mandas").selectOption({ label: "Control semanal" });
+    await expect(choose).toContainText("no validado");
+    await choose.getByRole("button", { name: "Crear el enlace" }).click();
+    const share = page.getByRole("dialog", { name: "Mandar el enlace" });
+    const text = (await share.locator("pre").textContent())!;
+    const link = /https?:\/\/\S+\/formulario\/[A-Za-z0-9_-]+#[A-Za-z0-9_-]+/.exec(text)![0];
+    await share.getByRole("button", { name: "Cerrar" }).click();
+
+    const { locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
+    await google.install(ctx, () => "carla", { server: true });
+    const phone = await ctx.newPage();
+    await phone.goto(link);
+    await expect(phone.getByRole("heading", { name: "Hola, Nora" })).toBeVisible({ timeout: 15_000 });
+    await expect(phone.getByText("Fisiolab Centro te pide que rellenes el cuestionario «Control semanal».")).toBeVisible();
+    await expect(phone.getByText("Cuestionario propio de Fisiolab Centro · no validado")).toBeVisible();
+    await expect(phone.getByText("Paso 1 de 2")).toBeVisible();
+    await expect(phone.getByRole("heading", { name: "Dolor" })).toBeVisible();
+    await phone.getByRole("group", { name: /¿Cuánto le ha dolido/ }).getByText("4", { exact: true }).click();
+    await phone.getByRole("button", { name: "Siguiente" }).click();
+    await expect(phone.getByText("Paso 2 de 2")).toBeVisible();
+    await expect(phone.getByRole("heading", { name: "Ejercicios" })).toBeFocused();
+    await phone.getByRole("group", { name: /¿Ha hecho los ejercicios/ }).getByText("Sí", { exact: true }).click();
+    expect(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await smallTargets(phone)).toEqual([]);
+    await expectAccessible(phone);
+    // La nota no se le enseña al paciente.
+    await expect(phone.getByText(/\/11/)).toHaveCount(0);
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
+    await ctx.close();
+
+    await page.getByRole("button", { name: "Buscar respuestas" }).click();
+    await expect(page.getByText("Nora Propia ha rellenado: Control semanal")).toBeVisible();
+    await page.goto(`${noraUrl}/cuestionarios`);
+    const list = page.getByRole("list", { name: "Cuestionarios" });
+    await expect(list).toContainText("Control semanal (Cuestionario propio de la clínica · no validado)");
+    await expect(list).toContainText("5/11");
+  });
 });

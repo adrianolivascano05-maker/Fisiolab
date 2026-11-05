@@ -11,7 +11,10 @@ import { formFor } from "../clinical/forms";
 import { FormCredits } from "../clinical/FormCredits";
 import { OfficialLink } from "../clinical/OfficialLink";
 import { RangesTable } from "../clinical/RangesTable";
-import { ACTIVE, getKind, TOPICS, type QuestionnaireKind } from "../clinical/questionnaires";
+import { activeKinds, getKind, TOPICS, type QuestionnaireKind } from "../clinical/questionnaires";
+import { OWN_LABEL } from "../clinical/forms/own";
+import { OWN_TOPIC } from "../clinical/ownCatalog";
+import { OwnLabel, OwnNote } from "../clinical/OwnFormNote";
 import { Card } from "../ui/Card";
 import { TextField } from "../ui/Field";
 import { Group, RowButton, RowLink } from "../ui/Grouped";
@@ -33,11 +36,13 @@ export const fold = (s: string) =>
 export function questionnaireHow(k: QuestionnaireKind): string {
   if (k.inApp) return "Se contesta en la app con su propia pantalla";
   const n = formFor(k.id)?.sections.reduce((acc, s) => acc + s.items.length, 0);
+  if (k.own) return `${n === 1 ? "1 pregunta" : `${n} preguntas`} · ${OWN_LABEL}`;
   if (n) return `${n} preguntas en la app, la nota se calcula sola`;
   return "Con su hoja oficial: se anota la nota";
 }
 
 const range = (k: QuestionnaireKind) =>
+  k.noScore ? "Sin nota: se guardan las respuestas" :
   `de ${k.min} a ${k.max}${k.unit && k.unit !== "%" ? ` ${k.unit}` : k.unit === "%" ? " %" : ""}, ${k.better === "higher" ? "más es mejor" : "menos es mejor"}`;
 
 export const questionnaireMatches = (k: QuestionnaireKind, q: string) => {
@@ -49,15 +54,16 @@ export const questionnaireMatches = (k: QuestionnaireKind, q: string) => {
 function shelves(list: QuestionnaireKind[]) {
   return [
     { title: "Cómo lo vive el paciente", items: list.filter((k) => k.inApp) },
-    ...TOPICS.map((topic) => ({ title: topic, items: list.filter((k) => !k.inApp && k.topic === topic) })),
-    { title: "Por zona del cuerpo", items: list.filter((k) => !k.inApp && !k.topic) },
+    { title: OWN_TOPIC, items: list.filter((k) => k.own) },
+    ...TOPICS.map((topic) => ({ title: topic, items: list.filter((k) => !k.inApp && !k.own && k.topic === topic) })),
+    { title: "Por zona del cuerpo", items: list.filter((k) => !k.inApp && !k.own && !k.topic) },
   ].filter((g) => g.items.length);
 }
 
 /** Biblioteca › Cuestionarios: los que se pueden pasar, con buscador. */
 export function QuestionnaireShelf() {
   const [q, setQ] = useState("");
-  const list = ACTIVE.filter((k) => questionnaireMatches(k, q));
+  const list = activeKinds().filter((k) => questionnaireMatches(k, q));
   return (
     <Page title="Cuestionarios" backTo={LIBRARY}>
       <p className="text-text-muted">Qué mide cada uno, sus preguntas o dónde conseguir su hoja oficial, y cómo se puntúa. Desde la ficha de cada uno, «Pasar a un paciente».</p>
@@ -79,10 +85,12 @@ export function QuestionnaireCard() {
   const { id = "" } = useParams();
   const k = getKind(id);
   const [open, setOpen] = useState(false);
-  if (!k || k.retired) {
+  if (!k || k.retired || k.archived) {
     return (
       <Page title="Cuestionario" backTo={QUESTIONNAIRES_URL}>
-        <p className="text-text-muted">{k ? `${k.name} está fuera del servicio: es de pago y ya no está en la app.` : "Este cuestionario no está en la Biblioteca."}</p>
+        <p className="text-text-muted">
+          {k?.archived ? `La clínica ha archivado «${k.name}»: ya no se pasa ni se manda. Lo respondido se sigue viendo en la ficha de cada paciente.` : k ? `${k.name} está fuera del servicio: es de pago y ya no está en la app.` : "Este cuestionario no está en la Biblioteca."}
+        </p>
       </Page>
     );
   }
@@ -91,7 +99,8 @@ export function QuestionnaireCard() {
 
   return (
     <Page title={k.name} backTo={QUESTIONNAIRES_URL} backLabel="Cuestionarios" large>
-      {k.hint && <p>{k.hint}</p>}
+      {k.own ? <OwnLabel className="self-start" /> : k.hint && <p>{k.hint}</p>}
+      {k.own && <OwnNote kind={k} />}
       <Card className="flex flex-col gap-2">
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-sm">
           <dt className="text-text-muted">Puntuación</dt>

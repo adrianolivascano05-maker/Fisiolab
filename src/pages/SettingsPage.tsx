@@ -27,6 +27,7 @@ import {
   UserRound,
   UsersRound,
   Wallet,
+  ListChecks,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -135,6 +136,7 @@ export function SettingsPage() {
           />
         )}
         <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
+        <RowLink to="/ajustes/cuestionarios-propios" icon={ListChecks} title="Cuestionarios propios" subtitle="Satisfacción, control semanal, adherencia… (no validados)" />
         {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
         <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
       </Group>
