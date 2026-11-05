@@ -20,6 +20,9 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
 5. **Archivar no anula los enlaces ya enviados.** Siguen valiendo hasta su fecha límite (14 días, `FORM_DAYS`) y se
    recogen con la versión enviada; después dejan de valer solos. Se pueden anular a mano antes, desde la ficha del
    paciente (Formularios enviados). La hoja de archivar dice cuántos hay sin contestar.
+6. **El paciente rellena por pasos solo si el cuestionario tiene apartados**: un apartado por pantalla («Paso 2 de
+   3», «Siguiente», «Atrás»). Sin apartados, todo en una pantalla, como los demás. Los cuestionarios de la app no
+   cambian.
 
 ## Pendiente
 
