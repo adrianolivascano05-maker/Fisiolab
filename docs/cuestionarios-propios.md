@@ -24,6 +24,30 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
    3», «Siguiente», «Atrás»). Sin apartados, todo en una pantalla, como los demás. Los cuestionarios de la app no
    cambian.
 
+## Hecho (05-11-2026, sin subir hasta el visto bueno)
+
+- **Motor** (`src/clinical/forms/own.ts`): `OwnFormSpec` como datos; `buildForm` lo convierte en un cuestionario de
+  la app; nota con suma, media o % del máximo (y subescalas), «No aplica» con block o skip y mínimo de contestadas.
+  Las opciones y el Sí/No se guardan por su posición (dos opciones con los mismos puntos no se confunden).
+  `checkOwnForm`: ≤ 10 apartados, ≤ 60 preguntas, ≤ 32 KB, textos acotados, ids `q_<8 hex>`, opciones ≥ 2 sin repetir,
+  puntos numéricos, rangos coherentes; las claves que no conoce se quitan (no se puede guardar un umbral).
+- **Versiones** (`src/data/ownForms.ts`): puntero `own_q:<uuid>` y cada versión en `own_q_v:<uuid>:<huella>`;
+  archivar, duplicar, renombrar; aviso de derechos `own_q_notice`. La nota para el profesional lleva el nombre de la
+  clínica y la fecha en que se escribió.
+- **Catálogo** (`src/clinical/ownCatalog.ts` y `OwnFormsLoader.tsx`): los propios entran en `getKind`, `formFor`
+  (con huella, la versión exacta), `activeKinds`, `sendableKinds`, el selector («De la clínica») y la Biblioteca.
+- **Resultados**: `details.own` con la huella, el nombre, el rango, «más/menos es mejor» y la nota para el
+  profesional de esa versión. Sin nota: se guardan las respuestas y se ve «Sin nota». En el alta, solo el cambio
+  («+3», «Igual»), sin «Mejor» ni «Peor».
+- **Etiqueta fija** «Cuestionario propio de la clínica · no validado»: en el formulario del paciente («de [Clínica]»),
+  al pasarlo, en la ficha y las tarjetas con la gráfica, la línea de tiempo, el informe, el alta, la carta de
+  derivación y la exportación.
+- **Enlace**: va la versión entera (`FormRequest.form`) y su huella (`meta.hash`); se recoge y puntúa con ella.
+- **Pantallas**: Ajustes › Cuestionarios propios (lista con «⋯») y el editor con «Guardar», «Así lo verá» y aviso al
+  salir con cambios.
+- **Pruebas**: `own.test.ts`, `ownForms.test.ts`, `questionnaires.test.ts`, `collect.test.ts`; e2e
+  `cuestionarios-propios.spec.ts` (CP1, CP2) y CL20 en `clinics.spec.ts`.
+
 ## Pendiente
 
 - El contenido exacto de los 4 cuestionarios de la biblioteca de OmniClin (`src/data/ownFormsLibrary.ts`): lo pasa el
