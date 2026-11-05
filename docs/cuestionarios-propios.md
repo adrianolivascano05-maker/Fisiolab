@@ -14,6 +14,9 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
    antiguo duplicado). Si alguno tiene problemas, avisará.
 3. **Lista: botón «⋯»** de 44 px al final de cada fila con «Duplicar · Renombrar · Archivar», en vez de «mantener
    pulsado». Tocar la fila abre el cuestionario.
+4. **Editor con botón «Guardar»** (no se guarda solo): cada guardado es una versión con su huella; a medio montar no
+   sale en «Pasar» ni en «Enviar». El borrador se queda en el móvil y, al salir sin guardar, avisa «Tienes cambios sin
+   guardar · Guardar · Descartar». Las comprobaciones salen al guardar, junto a cada campo.
 
 ## Pendiente
 
