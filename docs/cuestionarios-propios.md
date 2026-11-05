@@ -17,6 +17,9 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
 4. **Editor con botón «Guardar»** (no se guarda solo): cada guardado es una versión con su huella; a medio montar no
    sale en «Pasar» ni en «Enviar». El borrador se queda en el móvil y, al salir sin guardar, avisa «Tienes cambios sin
    guardar · Guardar · Descartar». Las comprobaciones salen al guardar, junto a cada campo.
+5. **Archivar no anula los enlaces ya enviados.** Siguen valiendo hasta su fecha límite (14 días, `FORM_DAYS`) y se
+   recogen con la versión enviada; después dejan de valer solos. Se pueden anular a mano antes, desde la ficha del
+   paciente (Formularios enviados). La hoja de archivar dice cuántos hay sin contestar.
 
 ## Pendiente
 
