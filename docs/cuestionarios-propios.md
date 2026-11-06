@@ -23,6 +23,10 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
 6. **El paciente rellena por pasos solo si el cuestionario tiene apartados**: un apartado por pantalla («Paso 2 de
    3», «Siguiente», «Atrás»). Sin apartados, todo en una pantalla, como los demás. Los cuestionarios de la app no
    cambian.
+7. **Biblioteca, «Satisfacción»** (06-11-2026): la frase «Es anónimo para el resto del equipo: solo lo ve tu
+   fisioterapeuta» no es cierta (el equipo con acceso a la ficha lo ve y no es anónimo). Queda: «Lo leerán tu
+   fisioterapeuta y el equipo de la clínica que te atiende.», editable como todo lo demás. Criterio del usuario para
+   lo que quede: práctico y cuanto más personalizable, mejor.
 
 ## Hecho y publicado (05-11-2026, `5317538`)
 
