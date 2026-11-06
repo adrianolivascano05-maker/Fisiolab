@@ -16,7 +16,7 @@ import { wellnessItems } from "../calc/wellness";
 import { metricLabels, sideLabels, testTitle } from "../app/format";
 import { ANAMNESIS, answerText, orphanAnswers, orphanText, regionLabel, type Section } from "../clinical/anamnesis";
 import { TPL } from "../clinical/answerMeta";
-import { buildForm, OWN_LABEL, type OwnFormSpec } from "../clinical/forms/own";
+import { answerText as ownAnswerText, OWN_LABEL, type OwnFormSpec } from "../clinical/forms/own";
 import { ownNoteText } from "../clinical/OwnFormNote";
 import { listOwnForms, listOwnSnapshots, type OwnFormDoc } from "../data/ownForms";
 import { currentTemplate, knownField, listSnapshots, type Resolved } from "../data/anamnesisTemplates";
@@ -336,12 +336,11 @@ function questionnaireDetail(d: QDetails, own: OwnFormSpec[] = []): string {
     parts.push(`Versión ${d.own.hash}`);
     if (d.own.note) parts.push(ownNoteText(d.own) ?? "");
     if (spec && d.answers) {
-      const form = buildForm(spec);
-      const lines = form.sections.flatMap((sec) => sec.items).map((it) => {
+      // La respuesta en texto: la opción, las marcadas (varias), «Sí: …» con lo que escribió, el número con su unidad.
+      const lines = spec.sections.flatMap((sec) => sec.items).map((it) => {
         const v = d.answers![it.id];
         if (v === undefined) return null;
-        const text = v === null ? "No aplica" : (it.options?.find((o) => o.value === v)?.label ?? `${String(v).replace(".", ",")}${it.input?.unit ? ` ${it.input.unit}` : ""}`);
-        return `${it.text}: ${text}`;
+        return `${it.text}: ${ownAnswerText(it, v, d.texts?.[it.id])}`;
       });
       parts.push(lines.filter(Boolean).join("; "));
       return parts.filter(Boolean).join(" · ");

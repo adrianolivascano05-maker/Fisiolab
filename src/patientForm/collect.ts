@@ -18,7 +18,7 @@ import { isMetaKey } from "../clinical/anamnesis";
 import { getSnapshot } from "../data/anamnesisTemplates";
 import { buildForm, isOwnKind } from "../clinical/forms/own";
 import { getOwnForm, getOwnSnapshot } from "../data/ownForms";
-import { ANAMNESIS_KIND, RESPONDENTS, type Respondent, cleanFormAnswers, DOCS_KIND, DOCS_PER_LINK, isSignKind, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, RESPONDENTS, type Respondent, cleanFormAnswers, cleanFormTexts, DOCS_KIND, DOCS_PER_LINK, isSignKind, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
 
 /** Días que se guardan en el servidor unas respuestas de un envío que este dispositivo no conoce. */
 const ORPHAN_DAYS = 7;
@@ -186,9 +186,12 @@ export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplat
     } else {
       // Un cuestionario propio se recoge con la versión que se mandó (su huella); si ya no estuviera, con la de ahora.
       const ownForm = isOwnKind(sent.kind) ? ((sent.meta?.hash ? await getOwnSnapshot(db, sent.kind, sent.meta.hash) : null) ?? (await getOwnForm(db, sent.kind))?.spec) : undefined;
-      const answers = cleanFormAnswers(sent.kind, incoming, ownForm ? buildForm(ownForm) : undefined);
-      incomplete = (await saveAnsweredQuestionnaire(db, sent.patientId, episode, sent.kind, answers, f.answeredAt, f.id, ownForm ?? undefined)) === 0;
-      await markImported(db, f.id, { answeredAt: f.answeredAt, answers, skipped: [] });
+      const form = ownForm ? buildForm(ownForm) : undefined;
+      const answers = cleanFormAnswers(sent.kind, incoming, form);
+      // Lo que escribió en los detalles («Sí: cuéntanos qué»), limpio; no puntúa.
+      const texts = cleanFormTexts(form, answers, incoming.__texts);
+      incomplete = (await saveAnsweredQuestionnaire(db, sent.patientId, episode, sent.kind, answers, f.answeredAt, f.id, ownForm ?? undefined, texts)) === 0;
+      await markImported(db, f.id, { answeredAt: f.answeredAt, answers: Object.keys(texts).length ? { ...answers, __texts: texts } : answers, skipped: [] });
     }
     await api.remove(f.id);
     out.push({ patientId: sent.patientId, name: patient?.name ?? "", kind: sent.kind, skipped: skipped.length, incomplete });

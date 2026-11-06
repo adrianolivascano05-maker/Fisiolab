@@ -16,6 +16,12 @@ export type Item = {
   input?: { min: number; max: number; unit: string };
   /** Se puede marcar «No aplica» (cuenta como sin responder al calcular). */
   na?: boolean;
+  /** El texto de esa casilla, si no es «No aplica» (en las delicadas, «Prefiero no responder»). */
+  naLabel?: string;
+  /** Opciones: se pueden marcar varias (la respuesta es un número con una cifra binaria por opción). */
+  multi?: boolean;
+  /** Con esta respuesta, se le pregunta además algo que escribe (no puntúa). */
+  detail?: { when: number; label: string };
 };
 
 export type Section = {

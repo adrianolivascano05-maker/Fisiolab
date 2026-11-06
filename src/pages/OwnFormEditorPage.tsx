@@ -10,7 +10,7 @@ import { bumpData } from "../app/dataVersion";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
 import { FormFill } from "../clinical/FormFill";
-import { buildForm, checkOwnForm, copyrightName, countedItems, ownLabelFor, type OwnFormSpec, type OwnItem, type OwnItemType, type OwnScoring } from "../clinical/forms/own";
+import { buildForm, checkOwnForm, copyrightName, countedItems, ownLabelFor, type OwnFormSpec, type OwnItem, type OwnItemType, type OwnOption, type OwnScoring } from "../clinical/forms/own";
 import type { Answers } from "../clinical/forms/types";
 import { Chips, TextArea } from "../clinical/parts";
 import { useCloud } from "../cloud/cloudContext";
@@ -31,7 +31,7 @@ type Draft = Omit<OwnFormSpec, "hash">;
 
 const TYPES: { id: OwnItemType; label: string }[] = [
   { id: "scale", label: "Escala" },
-  { id: "options", label: "Opciones con puntos" },
+  { id: "options", label: "Opciones" },
   { id: "yesno", label: "Sí/No" },
   { id: "number", label: "Número" },
 ];
@@ -62,7 +62,17 @@ const newItem = (type: OwnItemType, text = ""): OwnItem => {
   }
 };
 /** Cambia el tipo de una pregunta conservando su id y su texto (en el editor, antes de guardar). */
-const retype = (it: OwnItem, type: OwnItemType): OwnItem => (it.type === type ? it : { ...newItem(type, it.text), id: it.id, ...(it.na ? { na: true } : {}) });
+const retype = (it: OwnItem, type: OwnItemType): OwnItem =>
+  it.type === type
+    ? it
+    : ({
+        ...newItem(type, it.text),
+        id: it.id,
+        ...(it.na ? { na: true } : {}),
+        ...(it.sensitive ? { sensitive: true } : {}),
+        ...(it.track ? { track: it.track } : {}),
+        ...(it.uncounted && type !== "number" ? { uncounted: true } : {}),
+      } as OwnItem);
 const draftKey = (id: string) => `omniclin.cuestionario.${id}`;
 const readDraft = (id: string): Draft | null => {
   try {
@@ -136,9 +146,29 @@ function Pick<T extends string>({ label, options, value, onChange }: { label: st
   );
 }
 
-/** Una pregunta: su texto, su tipo y lo de su tipo. */
+/** Las opciones llevan puntos si la pregunta cuenta en la nota o se ve con su línea (las de varias, nunca). */
+const optionsNeedPoints = (it: Extract<OwnItem, { type: "options" }>) => !it.multiple && (!it.uncounted || !!it.track);
+const fillPoints = (options: OwnOption[]) => options.map((o, i) => (o.points === undefined ? { ...o, points: i } : o));
+const BLANK_CHOICES: { id: "no" | "na" | "sensitive"; label: string }[] = [
+  { id: "no", label: "Ninguna" },
+  { id: "na", label: "«No aplica»" },
+  { id: "sensitive", label: "«Prefiero no responder»" },
+];
+const ARROWS: { id: "higher" | "lower" | "none"; label: string }[] = [
+  { id: "higher", label: "Más es mejor" },
+  { id: "lower", label: "Menos es mejor" },
+  { id: "none", label: "Sin flecha" },
+];
+
+/** Una pregunta: su texto, su tipo, lo de su tipo y cómo se usa (nota, varias, sin responder, su línea). */
 function ItemEditor({ item, n, first, last, onChange, onMove, onRemove }: { item: OwnItem; n: number; first: boolean; last: boolean; onChange: (it: OwnItem) => void; onMove: (by: -1 | 1) => void; onRemove: () => void }) {
-  const set = (patch: Partial<OwnItem>) => onChange({ ...item, ...patch } as OwnItem);
+  const set = (patch: Partial<OwnItem>) => {
+    const next = { ...item, ...patch } as OwnItem;
+    // Si pasa a necesitar puntos (cuenta en la nota o tiene su línea), las opciones sin puntos reciben 0, 1, 2…
+    onChange(next.type === "options" && optionsNeedPoints(next) ? { ...next, options: fillPoints(next.options) } : next);
+  };
+  const multi = item.type === "options" && !!item.multiple;
+  const counts = item.type === "number" ? !!item.counts : !item.uncounted && !multi;
   let body: ReactNode = null;
   if (item.type === "scale") {
     body = (
@@ -154,9 +184,10 @@ function ItemEditor({ item, n, first, last, onChange, onMove, onRemove }: { item
       </>
     );
   } else if (item.type === "options") {
+    const points = optionsNeedPoints(item);
     body = (
       <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-semibold">Opciones y sus puntos</legend>
+        <legend className="text-sm font-semibold">{points ? "Opciones y sus puntos" : "Opciones"}</legend>
         {!item.options.length && (
           <div className="flex flex-wrap gap-2">
             {PRESETS.map((p) => (
@@ -172,38 +203,53 @@ function ItemEditor({ item, n, first, last, onChange, onMove, onRemove }: { item
               <div className="min-w-0 flex-1">
                 <TextField label={`Opción ${i + 1}`} maxLength={120} value={o.label} onChange={(e) => set({ options: item.options.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })} />
               </div>
-              <div className="w-20 shrink-0">
-                <NumInput label="Puntos" value={o.points} onChange={(points) => set({ options: item.options.map((x, j) => (j === i ? { ...x, points } : x)) })} />
-              </div>
+              {points && (
+                <div className="w-20 shrink-0">
+                  <NumInput label="Puntos" value={o.points ?? 0} onChange={(p) => set({ options: item.options.map((x, j) => (j === i ? { ...x, points: p } : x)) })} />
+                </div>
+              )}
               <button type="button" aria-label={`Quitar la opción ${i + 1}`} onClick={() => set({ options: item.options.filter((_, j) => j !== i) })} className="inline-flex size-11 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface">
                 <X aria-hidden="true" className="size-5" />
               </button>
             </li>
           ))}
         </ul>
-        <Button variant="secondary" size="sm" className="self-start" icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => set({ options: [...item.options, { label: "", points: item.options.length }] })}>
+        <Button variant="secondary" size="sm" className="self-start" icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => set({ options: [...item.options, points ? { label: "", points: item.options.length } : { label: "" }] })}>
           Otra opción
         </Button>
-        <p className="text-sm text-text-muted">Los puntos van en cada opción: para una pregunta al revés, pon «4 … 0».</p>
+        {points && <p className="text-sm text-text-muted">Los puntos van en cada opción: para una pregunta al revés, pon «4 … 0».</p>}
+        <Toggle
+          label="Puede marcar varias"
+          hint="Se ve lo que marcó; no cuenta en la nota ni tiene línea en la evolución."
+          on={multi}
+          onChange={(on) => set({ multiple: on || undefined, ...(on ? { track: undefined } : {}) })}
+        />
       </fieldset>
     );
   } else if (item.type === "yesno") {
     body = (
-      <div className="grid grid-cols-2 gap-3">
-        <NumInput label="Puntos de «Sí»" value={item.yes} onChange={(yes) => set({ yes })} />
-        <NumInput label="Puntos de «No»" value={item.no} onChange={(no) => set({ no })} />
-      </div>
+      <>
+        <div className="grid grid-cols-2 gap-3">
+          <NumInput label="Puntos de «Sí»" value={item.yes} onChange={(yes) => set({ yes })} />
+          <NumInput label="Puntos de «No»" value={item.no} onChange={(no) => set({ no })} />
+        </div>
+        <TextField
+          label="Si contesta «Sí», se le pregunta (opcional)"
+          hint="Lo escribe el paciente (hasta 500 letras). No puntúa nunca."
+          placeholder="Por ejemplo: Cuéntanos qué"
+          maxLength={120}
+          value={item.detail ?? ""}
+          onChange={(e) => set({ detail: e.target.value || undefined })}
+        />
+      </>
     );
   } else {
     body = (
-      <>
-        <div className="grid grid-cols-3 gap-3">
-          <TextField label="Unidad" placeholder="min" maxLength={20} value={item.unit} onChange={(e) => set({ unit: e.target.value })} />
-          <NumInput label="Mínimo" value={item.min} onChange={(min) => set({ min })} />
-          <NumInput label="Máximo" value={item.max} onChange={(max) => set({ max })} />
-        </div>
-        <Toggle label="Cuenta en la nota" on={!!item.counts} onChange={(counts) => set({ counts: counts || undefined })} />
-      </>
+      <div className="grid grid-cols-3 gap-3">
+        <TextField label="Unidad" placeholder="min" maxLength={20} value={item.unit} onChange={(e) => set({ unit: e.target.value })} />
+        <NumInput label="Mínimo" value={item.min} onChange={(min) => set({ min })} />
+        <NumInput label="Máximo" value={item.max} onChange={(max) => set({ max })} />
+      </div>
     );
   }
   return (
@@ -211,7 +257,27 @@ function ItemEditor({ item, n, first, last, onChange, onMove, onRemove }: { item
       <TextArea label={`Pregunta ${n}`} value={item.text} rows={2} maxLength={300} onChange={(text) => set({ text })} />
       <Pick label="Tipo" options={TYPES} value={item.type} onChange={(t) => onChange(retype(item, t))} />
       {body}
-      <Toggle label="Se puede marcar «No aplica»" hint="Cuenta como sin responder." on={!!item.na} onChange={(na) => set({ na: na || undefined })} />
+      {!multi && (
+        <Toggle
+          label="Cuenta en la nota"
+          hint={counts ? undefined : "Se guarda y se ve en su ficha, pero no suma."}
+          on={counts}
+          onChange={(on) => (item.type === "number" ? set({ counts: on || undefined }) : set({ uncounted: on ? undefined : true }))}
+        />
+      )}
+      {!multi && (
+        <Toggle label="Verla en la evolución con su línea" hint="Su propia gráfica, sesión a sesión." on={!!item.track} onChange={(on) => set({ track: on ? {} : undefined })} />
+      )}
+      {item.track && !multi && (
+        <Pick label="La flecha de su línea" options={ARROWS} value={item.track.better ?? "none"} onChange={(b) => set({ track: b === "none" ? {} : { better: b } })} />
+      )}
+      <Pick
+        label="Casilla para no contestar"
+        options={BLANK_CHOICES}
+        value={item.sensitive ? "sensitive" : item.na ? "na" : "no"}
+        onChange={(v) => set({ na: v === "na" || undefined, sensitive: v === "sensitive" || undefined })}
+      />
+      <p className="-mt-2 text-sm text-text-muted">Cuenta como sin responder. «Prefiero no responder», para las preguntas delicadas.</p>
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" size="sm" disabled={first} icon={<ArrowUp aria-hidden="true" className="size-4" />} onClick={() => onMove(-1)}>
           Subir
@@ -270,6 +336,7 @@ function Editor({ isNew, saved, initial, fromDraft: startedFromDraft, notice, cl
   const [fromDraft, setFromDraft] = useState(startedFromDraft);
   const [preview, setPreview] = useState(false);
   const [previewAnswers, setPreviewAnswers] = useState<Answers>({});
+  const [previewTexts, setPreviewTexts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const leaving = useRef(false);
@@ -282,7 +349,7 @@ function Editor({ isNew, saved, initial, fromDraft: startedFromDraft, notice, cl
 
   const blocker = useBlocker(() => dirty && !leaving.current);
   const counted = useMemo(() => countedItems(draft), [draft]);
-  const form = useMemo(() => (preview ? buildForm(draft as OwnFormSpec) : null), [draft, preview]);
+  const form = useMemo(() => (preview ? buildForm(draft as OwnFormSpec, clinicName) : null), [draft, preview, clinicName]);
 
   const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
   const setSection = (si: number, patch: Partial<Draft["sections"][number]>) => set({ sections: draft.sections.map((s, i) => (i === si ? { ...s, ...patch } : s)) });
@@ -348,7 +415,7 @@ function Editor({ isNew, saved, initial, fromDraft: startedFromDraft, notice, cl
       <Card className="flex flex-col gap-3">
         <TextField label="Nombre" value={draft.name} maxLength={120} placeholder="Por ejemplo: Satisfacción con el tratamiento" onChange={(e) => set({ name: e.target.value })} />
         {copyright && <Alert tone="warning" title={`Ese nombre es de un cuestionario con derechos de autor (${copyright}). Si no tienes licencia, no lo copies.`} />}
-        <TextArea label="Instrucciones para el paciente (opcional)" value={draft.instructions ?? ""} rows={2} maxLength={1000} onChange={(v) => set({ instructions: v || undefined })} />
+        <TextArea label="Instrucciones para el paciente (opcional)" hint="Si escribes [Clínica], el paciente verá el nombre de tu clínica." value={draft.instructions ?? ""} rows={2} maxLength={1000} onChange={(v) => set({ instructions: v || undefined })} />
         <TextArea label="Nota para el profesional (opcional)" hint="Un texto fijo de tu clínica: sale siempre junto al cuestionario, con el nombre de la clínica y la fecha. La app no lo enseña según el resultado." value={draft.note ?? ""} rows={2} maxLength={1000} onChange={(v) => set({ note: v || undefined })} />
       </Card>
 
@@ -452,6 +519,7 @@ function Editor({ isNew, saved, initial, fromDraft: startedFromDraft, notice, cl
           icon={<Eye aria-hidden="true" className="size-5" />}
           onClick={() => {
             setPreviewAnswers({});
+            setPreviewTexts({});
             setPreview(true);
           }}
         >
@@ -467,7 +535,7 @@ function Editor({ isNew, saved, initial, fromDraft: startedFromDraft, notice, cl
           <div className="flex flex-col gap-3">
             <p className="text-lg font-semibold">{draft.name || "(sin nombre)"}</p>
             <p className="-mt-2 text-sm font-semibold text-text-muted">{ownLabelFor(clinicName)}</p>
-            <FormFill form={form} answers={previewAnswers} onChange={setPreviewAnswers} />
+            <FormFill form={form} answers={previewAnswers} onChange={setPreviewAnswers} texts={previewTexts} onTexts={setPreviewTexts} />
             <p className="text-sm text-text-muted">El paciente no ve la nota: la ves tú en su ficha.</p>
           </div>
         )}

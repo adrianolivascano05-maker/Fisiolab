@@ -309,6 +309,8 @@ export type QDetails = {
   better?: Better;
   /** Rellenado en la app: las respuestas por ítem (null, «No aplica»). */
   answers?: Record<string, number | null>;
+  /** Cuestionario propio: lo escrito en los detalles («Sí: cuéntanos qué»), por pregunta. No puntúa. */
+  texts?: Record<string, string>;
   /** KOOS y HOOS rellenados en la app: las subescalas de una misma vez comparten este id. */
   group?: string;
   /** Subescalas (SPADI) y cómo se lee la nota, tal como salieron al guardarlo. */

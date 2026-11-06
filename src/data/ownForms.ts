@@ -7,6 +7,7 @@
 import { checkOwnForm, OWN_PREFIX, type OwnFormSpec } from "../clinical/forms/own";
 import type { Db } from "./db";
 import { getSetting, setSetting } from "./settings";
+import { libraryForm } from "./ownFormsLibrary";
 
 const POINTER = (uuid: string) => `own_q:${uuid}`;
 const SNAPSHOT = (uuid: string, hash: string) => `own_q_v:${uuid}:${hash}`;
@@ -105,4 +106,18 @@ export type OwnNotice = { by: string | null; at: string };
 export const getOwnNotice = (db: Db) => getSetting<OwnNotice>(db, NOTICE);
 export async function markOwnNotice(db: Db, by: string | null): Promise<void> {
   if (!(await getOwnNotice(db))) await setSetting(db, NOTICE, { by, at: new Date().toISOString() } satisfies OwnNotice);
+}
+
+/**
+ * Añade un cuestionario de la biblioteca de OmniClin: una copia de la clínica (con `from`), que se cambia a gusto.
+ * Se puede añadir más de una vez (por ejemplo, para tener una variante).
+ */
+export async function addLibraryForm(db: Db, lib: string, by: string | null, clinic = ""): Promise<OwnFormDoc> {
+  const entry = libraryForm(lib);
+  if (!entry) throw new Error("Ese cuestionario no está en la biblioteca.");
+  const mine = await listOwnForms(db);
+  const taken = new Set(mine.map((d) => d.spec.name.toLowerCase()));
+  let name = entry.spec.name;
+  for (let n = 2; taken.has(name.toLowerCase()); n++) name = `${entry.spec.name} (${n})`;
+  return saveOwnForm(db, { ...structuredClone(entry.spec), id: newOwnFormId(), name, from: { lib: entry.lib, v: entry.v } }, by, { clinic });
 }

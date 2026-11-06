@@ -28,6 +28,35 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
    fisioterapeuta y el equipo de la clínica que te atiende.», editable como todo lo demás. Criterio del usuario para
    lo que quede: práctico y cuanto más personalizable, mejor.
 
+8. **Biblioteca de OmniClin, añadir = copia de la clínica** (06-11-2026, propuesta 2): «Añadir» guarda una copia
+   entera (`own:<uuid>`) con `from: {lib, v}`; desde ese momento es de la clínica y se cambia a gusto. Se puede añadir
+   más de una vez (sale «(2)» en el nombre) para tener variantes. La biblioteca no se actualiza sola en las copias.
+9. **«Sí/No con detalle»** (06-11-2026, propuesta 3): si contesta «Sí», se le pregunta lo que la clínica escriba
+   («Cuéntanos qué») y escribe hasta 500 letras. No puntúa nunca. Se guarda aparte de las respuestas (`details.texts`
+   en el registro y `__texts` en el enlace), solo si la pregunta tiene detalle y se contestó «Sí»; se ve en la ficha,
+   en la línea de la evolución y en la exportación («Sí: …»).
+10. **Por pregunta, en el editor** (06-11-2026, propuesta 4): «Cuenta en la nota» (`uncounted`), «Puede marcar
+    varias» (`multiple`: se guardan juntas en un número, una cifra binaria por opción; nunca cuentan ni tienen línea),
+    «Casilla para no contestar» (ninguna, «No aplica» o «Prefiero no responder» para las delicadas; las dos cuentan
+    como sin responder) y «Verla en la evolución con su línea» (`track`) con «Más es mejor / Menos es mejor / Sin
+    flecha», que solo orienta. Una pregunta que no cuenta y no tiene línea no necesita puntos en sus opciones. En las
+    instrucciones, «[Clínica]» se cambia por el nombre de la clínica.
+
+## Biblioteca de OmniClin (06-11-2026, sin subir hasta el visto bueno)
+
+- **Contenido** (`src/data/ownFormsLibrary.ts`), tal como lo pasó el usuario: `lib_satisfaccion` (5 escalas 0-10,
+  media, mínimo 3 contestadas), `lib_adherencia` (suma de q1 + q2, 0-7; q3 de varias, q4 con su línea y q5 sin
+  puntos no cuentan), `lib_control_semanal` (sin nota; 5 escalas y un Sí/No con detalle, las 6 con su línea; el
+  ánimo con «Prefiero no responder») y `lib_vuelta_deporte` (8 Sí/No con «No aplica», suma de Sí, mínimo 6). Todos v1,
+  ids de pregunta estables (`q_00000001`…), con la etiqueta fija y sin interpretar nada.
+- **Pantallas**: en Ajustes › Cuestionarios propios, debajo de los de la clínica, «Biblioteca de OmniClin» con
+  «Añadir» en cada fila; al tocar la fila, la nota para el profesional y «Así lo verá el paciente» antes de añadirlo.
+  «Ya lo tienes» si hay una copia. El editor, con los interruptores de la decisión 10.
+- **Evolución**: en la tarjeta del cuestionario, «Pregunta a pregunta» con cada pregunta seguida, su última respuesta
+  en texto, «más/menos es mejor» si la tiene y su línea. Cada pase se lee con su versión (`src/clinical/ownTrack.ts`).
+- **Pruebas**: `ownFormsLibrary.test.ts`, `ownTrack.test.ts`, más casos en `own.test.ts` y `collect.test.ts`; e2e
+  CP3 (`cuestionarios-propios.spec.ts`, en 360 px) y CL21 (`clinics.spec.ts`, por enlace).
+
 ## Hecho y publicado (05-11-2026, `5317538`)
 
 - **Motor** (`src/clinical/forms/own.ts`): `OwnFormSpec` como datos; `buildForm` lo convierte en un cuestionario de
@@ -54,5 +83,6 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
 
 ## Pendiente
 
-- El contenido exacto de los 4 cuestionarios de la biblioteca de OmniClin (`src/data/ownFormsLibrary.ts`): lo pasa el
-  usuario. No se inventa.
+- Subir y publicar la biblioteca cuando el usuario dé el visto bueno.
+- Propuestas sin hacer: instrucciones repetidas en el formulario por enlace; «[Clínica]» con el nombre también al
+  pasarlo en consulta (ver `docs/ideas-pendientes.md`).

@@ -2,7 +2,7 @@
 // nota calculada con su regla (src/clinical/forms). Se puede dejar a medias: la nota sale en cuanto se puede calcular.
 import { useId } from "react";
 import { Card } from "../ui/Card";
-import { NumberField } from "../ui/Field";
+import { NumberField, TextField } from "../ui/Field";
 import { cx } from "../ui/cx";
 import type { Answers, FormScore, Item, QuestionForm } from "./forms";
 import { NumberScale } from "./parts";
@@ -22,13 +22,25 @@ const choiceClass = cx(
   "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus",
 );
 
-function Question({ n, item, value, onChange }: { n: number; item: Item; value: number | null | undefined; onChange: (v: number | null | undefined) => void }) {
+type QuestionProps = {
+  n: number;
+  item: Item;
+  value: number | null | undefined;
+  onChange: (v: number | null | undefined) => void;
+  /** Lo que escribe en el detalle (si la pregunta lo tiene). */
+  text?: string;
+  onText?: (t: string) => void;
+};
+
+function Question({ n, item, value, onChange, text, onText }: QuestionProps) {
   const name = useId();
   const label = `${n}. ${item.text}`;
+  const naText = item.naLabel ?? "No aplica";
+  // En las escalas la casilla queda fuera del grupo de la pregunta: su nombre lleva la pregunta para saber de cuál es.
   const na = item.na && (
     <label className="relative self-start">
-      <input type="checkbox" checked={value === null} onChange={(e) => onChange(e.target.checked ? null : undefined)} className="peer sr-only" />
-      <span className={cx(choiceClass, "min-h-9 text-sm")}>No aplica</span>
+      <input type="checkbox" aria-label={item.scale ? `${naText}: ${label}` : undefined} checked={value === null} onChange={(e) => onChange(e.target.checked ? null : undefined)} className="peer sr-only" />
+      <span className={cx(choiceClass, "text-sm")}>{naText}</span>
     </label>
   );
   // Un número que se escribe (minutos, por ejemplo). Se guarda en cuanto es un número dentro del rango.
@@ -55,6 +67,34 @@ function Question({ n, item, value, onChange }: { n: number; item: Item; value: 
       </div>
     );
   const options = item.options ?? [];
+  // Varias a la vez: un número con una cifra binaria por opción (la 1.ª vale 1, la 2.ª 2, la 3.ª 4…).
+  if (item.multi) {
+    const mask = typeof value === "number" ? value : 0;
+    const on = (i: number) => Math.floor(mask / 2 ** i) % 2 === 1;
+    return (
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 font-semibold">{label}</legend>
+        <p className="-mt-1 text-sm text-text-muted">Puedes marcar varias.</p>
+        <div className="flex flex-col gap-1.5">
+          {options.map((o, i) => (
+            <label key={`${o.value}-${o.label}`} className="relative">
+              <input
+                type="checkbox"
+                checked={on(i)}
+                onChange={(e) => {
+                  const next = e.target.checked ? mask + 2 ** i : mask - 2 ** i;
+                  onChange(next > 0 ? next : undefined);
+                }}
+                className="peer sr-only"
+              />
+              <span className={choiceClass}>{o.label}</span>
+            </label>
+          ))}
+          {na}
+        </div>
+      </fieldset>
+    );
+  }
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="mb-1 font-semibold">{label}</legend>
@@ -67,6 +107,10 @@ function Question({ n, item, value, onChange }: { n: number; item: Item; value: 
         ))}
         {na}
       </div>
+      {/* El detalle («Si es que sí, ¿cuál?»): debajo de su pregunta, sin saltar de pantalla. */}
+      {item.detail && value === item.detail.when && onText && (
+        <TextField label={item.detail.label} maxLength={500} value={text ?? ""} onChange={(e) => onText(e.target.value)} />
+      )}
     </fieldset>
   );
 }
@@ -75,7 +119,24 @@ function Question({ n, item, value, onChange }: { n: number; item: Item; value: 
  * El cuestionario para rellenar. `start`: cuántas preguntas van antes (por pasos, para seguir la numeración);
  * `intro`: con las instrucciones arriba (por pasos, solo en el primero).
  */
-export function FormFill({ form, answers, onChange, start = 0, intro = true }: { form: QuestionForm; answers: Answers; onChange: (a: Answers) => void; start?: number; intro?: boolean }) {
+export function FormFill({
+  form,
+  answers,
+  onChange,
+  start = 0,
+  intro = true,
+  texts,
+  onTexts,
+}: {
+  form: QuestionForm;
+  answers: Answers;
+  onChange: (a: Answers) => void;
+  start?: number;
+  intro?: boolean;
+  /** Lo escrito en los detalles (por id de pregunta), si el cuestionario los tiene. */
+  texts?: Record<string, string>;
+  onTexts?: (t: Record<string, string>) => void;
+}) {
   const all = form.sections.flatMap((s) => s.items);
   const done = all.filter((i) => i.id in answers).length;
   const set = (id: string, v: number | null | undefined) => {
@@ -101,7 +162,14 @@ export function FormFill({ form, answers, onChange, start = 0, intro = true }: {
             n += 1;
             return (
               <Card key={item.id}>
-                <Question n={n} item={item} value={answers[item.id]} onChange={(v) => set(item.id, v)} />
+                <Question
+                  n={n}
+                  item={item}
+                  value={answers[item.id]}
+                  onChange={(v) => set(item.id, v)}
+                  text={texts?.[item.id]}
+                  onText={onTexts ? (t) => onTexts({ ...texts, [item.id]: t }) : undefined}
+                />
               </Card>
             );
           })}

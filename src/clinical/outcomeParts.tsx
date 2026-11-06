@@ -9,6 +9,7 @@ import { cx } from "../ui/cx";
 import { Sparkline } from "./parts";
 import { displayName, kindOf, scoreText, type QDetails } from "./questionnaires";
 import { OwnNote } from "./OwnFormNote";
+import { trackLines, type TrackLine } from "./ownTrack";
 import type { SymmetryRow } from "./symmetry";
 
 /** Barras de simetría: lado peor / lado mejor. */
@@ -43,6 +44,37 @@ export function SymmetryPanel({ rows }: { rows: SymmetryRow[] }) {
 }
 
 type QGroup = { key: string; name: string; items: Questionnaire[] };
+
+const changeArrow = (values: number[]) => {
+  if (values.length < 2) return null;
+  const diff = values.at(-1)! - values[0]!;
+  return diff === 0 ? ArrowRight : diff > 0 ? ArrowUpRight : ArrowDownRight;
+};
+
+/** Un propio: las preguntas que se siguen con su línea, cada una con su última respuesta y su tendencia. */
+function TrackRows({ name, lines }: { name: string; lines: TrackLine[] }) {
+  if (!lines.length) return null;
+  return (
+    <ul aria-label={`Pregunta a pregunta: ${name}`} className="mt-1 flex flex-col gap-2 border-t border-border pt-2">
+      {lines.map((l) => {
+        const Arrow = changeArrow(l.values);
+        return (
+          <li key={l.id} className="flex items-center justify-between gap-3 text-sm">
+            <span className="min-w-0">
+              <span className="block break-words">{l.text}</span>
+              <span className="nums inline-flex items-center gap-0.5 text-text-muted">
+                {Arrow && <Arrow aria-hidden="true" className="size-4" />}
+                {l.last}
+                {l.better && ` · ${l.better === "higher" ? "más es mejor" : "menos es mejor"}`}
+              </span>
+            </span>
+            <Sparkline values={l.values.slice(-8)} />
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /** Registros agrupados por cuestionario (y subescala), el más reciente primero en cada grupo. */
 export function questionnaireGroups(all: Questionnaire[]): QGroup[] {
@@ -85,6 +117,7 @@ export function QuestionnaireTiles({ patientId, items }: { patientId: string; it
                   </span>
                   {!k.noScore && <Sparkline values={g.items.slice(0, 8).reverse().map((q) => q.score)} />}
                 </span>
+                {k.own && <TrackRows name={g.name} lines={trackLines(g.items)} />}
                 {k.own && <OwnNote kind={k} className="text-xs" />}
                 {diff !== null && !k.noScore && (
                   <span className="nums inline-flex items-center gap-0.5 text-sm text-text-muted">

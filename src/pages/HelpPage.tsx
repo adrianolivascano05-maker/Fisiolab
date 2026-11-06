@@ -101,7 +101,8 @@ const steps: { title: string; body: ReactNode }[] = [
         que te dio) y <b>Ejercicios para casa</b> (su hoja, desde la biblioteca de la clínica, para
         imprimir o enviar por WhatsApp). En Valoración › Cuestionarios, el <b>mapa del dolor</b>: toca en el dibujo dónde le duele. Tus propias preguntas en la
         anamnesis, en Ajustes → Anamnesis de la clínica; tus propios cuestionarios (satisfacción, control semanal…), en Ajustes → <b>Cuestionarios propios</b>:
-        salen siempre como «no validados» y la app solo calcula la nota, sin interpretarla. Con el servidor de la clínica, <b>Enviar al móvil</b> (en Cuestionarios) o <b>Mandar su parte al paciente</b>{" "}
+        salen siempre como «no validados» y la app solo calcula la nota, sin interpretarla. Ahí mismo, la <b>Biblioteca de OmniClin</b> trae cuatro ya
+        hechos (satisfacción, adherencia, control semanal y vuelta al deporte): al añadir uno pasa a ser de tu clínica y lo cambias a tu gusto. Con el servidor de la clínica, <b>Enviar al móvil</b> (en Cuestionarios) o <b>Mandar su parte al paciente</b>{" "}
         (en Anamnesis) le manda por WhatsApp un cuestionario o su parte de la anamnesis: lo rellena en su móvil, sin cuenta, y llega solo a su ficha.
       </>
     ),

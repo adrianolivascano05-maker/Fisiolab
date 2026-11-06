@@ -19,12 +19,12 @@ import { BodyMapInput } from "./BodyMapParts";
 import { parseMarks } from "./bodyMap";
 import { Chips, NumberScale, TextArea } from "./parts";
 import { byRegions, displayName, getKind, kindOf, mapScore, OTHER, psfsScore, QUESTIONNAIRES, scoreText, TOPICS, type Better, type QDetails } from "./questionnaires";
-import { formFor, type Answers as FormAnswers } from "./forms";
+import { formFor, type Answers as FormAnswers, type QuestionForm } from "./forms";
 import { FormCredits } from "./FormCredits";
 import { FormFill, formResult } from "./FormFill";
 import { OfficialLink } from "./OfficialLink";
 import { RangesTable } from "./RangesTable";
-import { sendableKinds } from "./patientForms";
+import { cleanFormTexts, sendableKinds } from "./patientForms";
 import { isOwnKind } from "./forms/own";
 import { OWN_TOPIC, ownDetails, ownSpec } from "./ownCatalog";
 import { OwnLabel, OwnNote } from "./OwnFormNote";
@@ -53,6 +53,12 @@ function PainMapScore({ marks, onChange }: { marks: string[]; onChange: (v: stri
 
 type PsfsActivity = { name: string; score: number | null };
 
+/** Lo escrito en los detalles que vale (su pregunta contestada con «Sí»), limpio; vacío si no hay nada. */
+function ownTexts(form: QuestionForm, answers: FormAnswers, texts: Record<string, string>): { texts?: Record<string, string> } {
+  const clean = cleanFormTexts(form, answers, texts);
+  return Object.keys(clean).length ? { texts: clean } : {};
+}
+
 export function QuestionnaireFormPage() {
   const { id = "", qid } = useParams();
   const [params, setParams] = useSearchParams();
@@ -72,6 +78,8 @@ export function QuestionnaireFormPage() {
   const [other, setOther] = useState<{ name: string; min: string; max: string; better: Better }>({ name: "", min: "0", max: "100", better: "higher" });
   const [notes, setNotes] = useState("");
   const [answers, setAnswers] = useState<FormAnswers>({});
+  /** Lo escrito en los detalles de un propio («Sí: cuéntanos qué»). */
+  const [texts, setTexts] = useState<Record<string, string>>({});
   // Los que tienen el cuestionario entero en la app se rellenan aquí; también se puede anotar solo la nota.
   const [mode, setMode] = useState<"fill" | "score">("fill");
   const [search, setSearch] = useState("");
@@ -93,6 +101,7 @@ export function QuestionnaireFormPage() {
     if (d.marks) setMarks(d.marks);
     if (q.kind === OTHER) setOther({ name: d.name ?? "", min: decimalText(d.min ?? 0), max: decimalText(d.max ?? 100), better: d.better ?? "higher" });
     setAnswers(d.answers ?? {});
+    setTexts(d.texts ?? {});
     setMode(d.answers ? "fill" : "score");
     setNotes(q.notes);
   }, [data.data?.record]);
@@ -190,7 +199,7 @@ export function QuestionnaireFormPage() {
   const details: QDetails =
     kind === "mapa_dolor" ? { marks }
     : kind === "psfs" ? { activities: activities.filter((a) => a.name.trim()).map((a) => ({ name: a.name.trim(), score: a.score ?? Number.NaN })) }
-    : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(own ? { own: recordOwn ?? (ownNow ? ownDetails(ownNow) : undefined) } : {}) }
+    : filling ? { answers, ...(result && "ok" in result && result.ok.subscores ? { subscores: result.ok.subscores } : {}), ...(own ? { ...ownTexts(form, answers, texts), own: recordOwn ?? (ownNow ? ownDetails(ownNow) : undefined) } : {}) }
     : known?.subscales ? { subscale: subscale[0] }
     : kind === OTHER ? { name: other.name.trim(), min: otherMin ?? undefined, max: otherMax ?? undefined, better: other.better }
     : {};
@@ -357,7 +366,7 @@ export function QuestionnaireFormPage() {
           </>
         )}
         {known?.subscales && !filling && <Chips label="Subescala" options={known.subscales} value={subscale} onChange={setSubscale} />}
-        {filling && form && <FormFill form={form} answers={answers} onChange={setAnswers} />}
+        {filling && form && <FormFill form={form} answers={answers} onChange={setAnswers} texts={own ? texts : undefined} onTexts={own ? setTexts : undefined} />}
         {filling && result && (
           <Card className="flex flex-col gap-2 border-accent" aria-live="polite">
             <h2 className="text-lg">Resultado</h2>

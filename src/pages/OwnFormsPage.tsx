@@ -1,6 +1,7 @@
 // Ajustes › Cuestionarios propios (docs/cuestionarios-propios.md): la lista de los de la clínica, con «+ Nuevo
-// cuestionario» y, en cada fila, un botón «⋯» con Duplicar · Renombrar · Archivar. Solo quien administra la clínica
-// los crea o los cambia (sin clínica en la nube, quien usa el móvil); el resto del equipo los usa.
+// cuestionario» y, en cada fila, un botón «⋯» con Duplicar · Renombrar · Archivar; debajo, la Biblioteca de OmniClin
+// (ya hechos: al añadirlos pasan a ser de la clínica y se cambian a gusto). Solo quien administra la clínica los crea o
+// los cambia (sin clínica en la nube, quien usa el móvil); el resto del equipo los usa.
 import { Archive, ArchiveRestore, Copy, MoreHorizontal, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -8,11 +9,15 @@ import { bumpData } from "../app/dataVersion";
 import { fmtDate } from "../app/format";
 import { Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { OWN_LABEL } from "../clinical/forms/own";
+import { FormFill } from "../clinical/FormFill";
+import { buildForm, OWN_LABEL, ownLabelFor, type OwnFormSpec } from "../clinical/forms/own";
+import type { Answers } from "../clinical/forms/types";
 import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { memberEmail } from "../data/member";
-import { archiveOwnForm, duplicateOwnForm, listOwnForms, renameOwnForm, type OwnFormDoc } from "../data/ownForms";
+import { addLibraryForm, archiveOwnForm, duplicateOwnForm, listOwnForms, renameOwnForm, type OwnFormDoc } from "../data/ownForms";
+import { OWN_FORMS_LIBRARY, type LibraryForm } from "../data/ownFormsLibrary";
+import { getClinic } from "../data/privacy";
 import { questionnaireUrl } from "../gallery/LibraryPages";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -29,10 +34,11 @@ async function pendingLinks(id: string): Promise<number> {
   return r?.n ?? 0;
 }
 
-function summary(d: OwnFormDoc): string {
-  const n = d.spec.sections.reduce((acc, s) => acc + s.items.length, 0);
-  return `${n === 1 ? "1 pregunta" : `${n} preguntas`} · ${d.spec.scoring ? "con nota" : "sin nota"} · editado el ${fmtDate(d.at)}`;
+function counts(spec: Pick<OwnFormSpec, "sections" | "scoring">): string {
+  const n = spec.sections.reduce((acc, s) => acc + s.items.length, 0);
+  return `${n === 1 ? "1 pregunta" : `${n} preguntas`} · ${spec.scoring ? "con nota" : "sin nota"}`;
 }
+const summary = (d: OwnFormDoc) => `${counts(d.spec)} · editado el ${fmtDate(d.at)}`;
 
 export function OwnFormsPage() {
   const cloud = useCloud();
@@ -40,6 +46,11 @@ export function OwnFormsPage() {
   const navigate = useNavigate();
   const canEdit = !cloud?.clinic || cloud.clinic.role === "admin";
   const list = useAsync(() => listOwnForms(getDb()), [], { tables: ["settings"] });
+  const clinic = useAsync(async () => (await getClinic(getDb())).name || cloud?.clinic?.name || "", []);
+  const clinicName = clinic.data ?? "";
+  const [peek, setPeek] = useState<LibraryForm | null>(null);
+  const [peekAnswers, setPeekAnswers] = useState<Answers>({});
+  const [peekTexts, setPeekTexts] = useState<Record<string, string>>({});
   const [menu, setMenu] = useState<OwnFormDoc | null>(null);
   const [renaming, setRenaming] = useState<OwnFormDoc | null>(null);
   const [name, setName] = useState("");
@@ -61,6 +72,16 @@ export function OwnFormsPage() {
   const docs = list.data ?? [];
   const active = docs.filter((d) => !d.archived);
   const archived = docs.filter((d) => d.archived);
+  const have = (lib: string) => docs.some((d) => d.spec.from?.lib === lib);
+  const add = async (f: LibraryForm) => {
+    setPeek(null);
+    await run(() => addLibraryForm(getDb(), f.lib, memberEmail(), clinicName), `«${f.spec.name}» añadido: ya es de tu clínica`);
+  };
+  const open = (f: LibraryForm) => {
+    setPeekAnswers({});
+    setPeekTexts({});
+    setPeek(f);
+  };
 
   const row = (d: OwnFormDoc) => (
     <li key={d.spec.id} className="flex items-center gap-1">
@@ -88,7 +109,7 @@ export function OwnFormsPage() {
         </Button>
       )}
       {list.data && !docs.length && (
-        <p className="text-text-muted">Todavía no hay cuestionarios propios. Sirven para lo que no está en la Biblioteca: satisfacción, control semanal, adherencia a los ejercicios…</p>
+        <p className="text-text-muted">Todavía no hay cuestionarios propios. Crea uno o añade uno ya hecho de la Biblioteca de OmniClin, aquí debajo.</p>
       )}
       {active.length > 0 && (
         <section aria-label="Cuestionarios de la clínica" className="flex flex-col gap-1.5">
@@ -106,7 +127,46 @@ export function OwnFormsPage() {
           </ul>
         </section>
       )}
+      {canEdit && (
+        <section aria-labelledby="h-own-library" className="flex flex-col gap-1.5">
+          <h2 id="h-own-library" className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase">
+            Biblioteca de OmniClin
+          </h2>
+          <p className="px-1 text-sm text-text-muted">Ya hechos, para no empezar de cero. Al añadir uno pasa a ser de tu clínica: lo cambias a tu gusto (textos, preguntas, nota). No están validados.</p>
+          <ul aria-label="Biblioteca de OmniClin" className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+            {OWN_FORMS_LIBRARY.map((f) => (
+              <li key={f.lib} className="flex items-center gap-2 pr-2">
+                <button type="button" onClick={() => open(f)} className="flex min-h-14 min-w-0 flex-1 flex-col justify-center px-3 py-1 text-left hover:bg-surface">
+                  <span className="font-semibold break-words">{f.spec.name}</span>
+                  <span className="text-sm text-text-muted">
+                    {counts(f.spec)}
+                    {have(f.lib) ? " · ya lo tienes" : ""}
+                  </span>
+                </button>
+                <Button variant="secondary" size="sm" aria-label={`Añadir «${f.spec.name}»`} icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => void add(f)}>
+                  Añadir
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {error && <Alert tone="danger" title={error} />}
+
+      <Sheet open={!!peek} onClose={() => setPeek(null)} title={peek?.spec.name ?? ""}>
+        {peek && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm font-semibold text-text-muted">{ownLabelFor(clinicName)}</p>
+            {peek.spec.note && <p className="rounded-md bg-surface p-3 text-sm">{peek.spec.note}</p>}
+            {have(peek.lib) && <p className="text-sm">Ya lo tienes en tu lista. Si lo añades otra vez, se guarda como otra copia (por ejemplo, para hacer una variante).</p>}
+            <Button block icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => void add(peek)}>
+              {have(peek.lib) ? "Añadir otra copia" : "Añadir a mis cuestionarios"}
+            </Button>
+            <h3 className="mt-2 text-base">Así lo verá el paciente</h3>
+            <FormFill form={buildForm({ ...peek.spec, id: `own:${peek.lib}` } as OwnFormSpec, clinicName)} answers={peekAnswers} onChange={setPeekAnswers} texts={peekTexts} onTexts={setPeekTexts} />
+          </div>
+        )}
+      </Sheet>
 
       <Sheet open={!!menu} onClose={() => setMenu(null)} title={menu?.spec.name ?? ""}>
         {menu && (

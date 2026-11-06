@@ -110,7 +110,11 @@ export function PublicFormPage() {
   const toSign = !!request && isSignKind(request.kind);
   // Un cuestionario propio de la clínica viene entero en el enlace (la versión que se mandó).
   const own = request?.form && isOwnKind(request.kind) ? request.form : undefined;
-  const ownForm = useMemo(() => (own ? buildForm(own) : undefined), [own]);
+  const ownForm = useMemo(() => (own ? buildForm(own, request?.clinic ?? "") : undefined), [own, request?.clinic]);
+  // Lo que escribe en los detalles («Sí: cuéntanos qué») va con las respuestas, en «__texts» (se guarda en el móvil
+  // con el resto hasta que lo envía; al recogerlo se limpia y no puntúa).
+  const texts = (typeof answers.__texts === "object" && answers.__texts !== null ? answers.__texts : {}) as Record<string, string>;
+  const onTexts = (t: Record<string, string>) => setAnswers((a) => ({ ...a, __texts: t }));
   const form = request && request.kind !== ANAMNESIS_KIND && !toSign ? (ownForm ?? formFor(request.kind)) : undefined;
   const result = form ? formResult(form, answers as FormAnswers) : null;
 
@@ -285,13 +289,15 @@ export function PublicFormPage() {
                   form={{ ...form, sections: [{ ...ownSteps[step], title: "" }] }}
                   answers={answers as FormAnswers}
                   onChange={(a) => setAnswers(a)}
+                  texts={texts}
+                  onTexts={onTexts}
                   intro={step === 0}
                   start={ownSteps.slice(0, step).reduce((n, x) => n + x.items.length, 0)}
                 />
                 <p className="text-sm text-text-muted">Se guarda en tu móvil; puedes seguir luego.</p>
               </div>
             )}
-            {form && !ownSteps.length && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} />}
+            {form && !ownSteps.length && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} texts={texts} onTexts={onTexts} />}
             {form && !own && <p className="text-xs text-text-muted">Autores del cuestionario: {citeOf(form)}.</p>}
             {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && (
               <Alert tone="info" title="Este cuestionario ya no se rellena por enlace">

@@ -14,7 +14,7 @@ import { readSources } from "../clinical/answerMeta";
 import { NO_ANSWER } from "../clinical/anamnesis";
 import { uploadPatientForm } from "./createForm";
 import { currentTemplate, getTemplateDoc, markTemplateUsed, saveTemplateDoc } from "../data/anamnesisTemplates";
-import { archiveOwnForm, newOwnFormId, saveOwnForm } from "../data/ownForms";
+import { addLibraryForm, archiveOwnForm, newOwnFormId, saveOwnForm } from "../data/ownForms";
 
 const patient = (name: string) => ({ name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
 
@@ -398,6 +398,47 @@ describe("formularios para el paciente", () => {
     expect(q).toMatchObject({ kind: own.id, score: 3, performedAt: at });
     expect(q!.details).toMatchObject({ answers: { q_00000001: 1 }, own: { id: own.id, hash: v1.spec.hash, name: "Adherencia", min: 0, max: 3, note: "Comentar en consulta.", noteClinic: "Clínica Aurora" } });
     expect(q!.details).not.toHaveProperty("answers.otro");
+  });
+
+  it("biblioteca: «Control semanal» por enlace, sin nota; el «Sí» con lo que escribió y «Prefiero no responder»", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Vera Semanal"));
+    const doc = await addLibraryForm(db, "lib_control_semanal", null, "Clínica Aurora");
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: doc.spec.id, key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), meta: { hash: doc.spec.hash } });
+    const at = "2026-11-06T09:00:00.000Z";
+    const answers = { q_00000001: 4, q_00000002: 7, q_00000003: 6, q_00000004: 8, q_00000005: null, q_00000006: 0 };
+    const texts = { q_00000006: "  Un pinchazo nuevo\u0007 en la rodilla  ", q_00000001: "esto no tiene detalle", q_99999999: "ni existe" };
+    const { api } = server([{ id: f.id, response: await seal({ v: 1, answers: { ...answers, __texts: texts } }, f.key), answeredAt: at }]);
+    const got = await collectAnswered(db, api, ANAMNESIS);
+    expect(got[0]).toMatchObject({ incomplete: false });
+    const [q] = await listQuestionnaires(db, pid);
+    expect(q!.details).toMatchObject({ answers, texts: { q_00000006: "Un pinchazo nuevo en la rodilla" }, own: { noScore: true } });
+    expect((await getSentForm(db, f.id))!.answers).toMatchObject({ __texts: { q_00000006: "Un pinchazo nuevo en la rodilla" } });
+  });
+
+  it("biblioteca: «Adherencia» por enlace; la de varias se guarda junta y no suma; lo escrito sin «Sí» no se guarda", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Adrián Adherente"));
+    const doc = await addLibraryForm(db, "lib_adherencia", null, "Clínica Aurora");
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: doc.spec.id, key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), meta: { hash: doc.spec.hash } });
+    // q3 (varias): «Falta de tiempo» y «No me acordaba» (1 + 4); un 64 no existe con 6 opciones y se tira.
+    const sent = { q_00000001: 3, q_00000002: 2, q_00000003: 5, q_00000004: 7, q_00000005: 1 };
+    const { api } = server([{ id: f.id, response: await seal({ v: 1, answers: { ...sent, __texts: { q_00000003: "no" } } }, f.key), answeredAt: "2026-11-06T09:00:00.000Z" }]);
+    await collectAnswered(db, api, ANAMNESIS);
+    const [q] = await listQuestionnaires(db, pid);
+    expect(q).toMatchObject({ score: 5 });
+    expect(q!.details).toMatchObject({ answers: sent });
+    expect(q!.details).not.toHaveProperty("texts");
+
+    const g = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: g.id, patientId: pid, episodeId: pid, kind: doc.spec.id, key: g.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), meta: { hash: doc.spec.hash } });
+    const { api: api2 } = server([{ id: g.id, response: await seal({ v: 1, answers: { q_00000001: 0, q_00000002: 0, q_00000003: 64 } }, g.key), answeredAt: "2026-11-07T09:00:00.000Z" }]);
+    await collectAnswered(db, api2, ANAMNESIS);
+    const [last] = await listQuestionnaires(db, pid);
+    expect(last!.details).toMatchObject({ answers: { q_00000001: 0, q_00000002: 0 } });
+    expect(last!.details).not.toHaveProperty("answers.q_00000003");
   });
 
   it("ya no se crea un enlace para firmar", async () => {

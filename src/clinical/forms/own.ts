@@ -20,13 +20,24 @@ type BaseItem = {
   text: string;
   /** Se puede marcar «No aplica» (cuenta como sin responder). */
   na?: boolean;
+  /** Pregunta delicada: en vez de «No aplica», «Prefiero no responder» (cuenta como sin responder). */
+  sensitive?: boolean;
+  /** No cuenta en la nota: se registra y se ve, pero no entra en la suma, la media ni el porcentaje. */
+  uncounted?: boolean;
+  /** Se ve en la evolución con su propia línea; `better` solo orienta la flecha (no colorea nada). */
+  track?: { better?: "higher" | "lower" };
 };
-/** Una opción con sus puntos (los puntos se escriben por opción: «4…0» ya es un ítem invertido). */
-export type OwnOption = { label: string; points: number };
+/**
+ * Una opción con sus puntos (los puntos se escriben por opción: «4…0» ya es un ítem invertido). Sin puntos en las
+ * preguntas que no cuentan en la nota.
+ */
+export type OwnOption = { label: string; points?: number };
 export type OwnItem =
   | (BaseItem & { type: "scale"; from: number; to: number; ends?: [string, string] })
-  | (BaseItem & { type: "options"; options: OwnOption[] })
-  | (BaseItem & { type: "yesno"; yes: number; no: number })
+  /** `multiple`: puede marcar varias (no cuenta en la nota); se guardan juntas en un número, una cifra binaria por opción. */
+  | (BaseItem & { type: "options"; options: OwnOption[]; multiple?: boolean })
+  /** `detail`: si contesta «Sí», se le pregunta esto y escribe (no puntúa nunca). */
+  | (BaseItem & { type: "yesno"; yes: number; no: number; detail?: string })
   /** Un número que se escribe; solo cuenta en la nota si `counts`. */
   | (BaseItem & { type: "number"; unit: string; min: number; max: number; counts?: boolean });
 export type OwnItemType = OwnItem["type"];
@@ -54,7 +65,14 @@ export type OwnFormSpec = {
   scoring: OwnScoring | null;
   /** La huella de esta versión (la pone ownForms.ts al guardar). */
   hash?: string;
+  /** Si viene de la biblioteca de OmniClin: de cuál y de qué versión (src/data/ownFormsLibrary.ts). */
+  from?: { lib: string; v: number };
 };
+
+/** «[Clínica]» en los textos, con el nombre de la clínica (si no se sabe, «la clínica»). */
+export const fillClinic = (text: string, clinic: string) => text.replaceAll("[Clínica]", clinic.trim() || "la clínica");
+/** Tope del texto del detalle de un «Sí». */
+export const DETAIL_MAX = 500;
 
 // ---------- Comprobar ----------
 
@@ -86,7 +104,7 @@ export function itemRange(it: OwnItem): [number, number] {
     case "scale":
       return [it.from, it.to];
     case "options": {
-      const p = it.options.map((o) => o.points);
+      const p = it.options.map((o) => o.points ?? 0);
       return [Math.min(...p), Math.max(...p)];
     }
     case "yesno":
@@ -96,13 +114,23 @@ export function itemRange(it: OwnItem): [number, number] {
   }
 }
 /** Las preguntas que cuentan en la nota (todas menos los números que la clínica no marca). */
-export const countedItems = (spec: Pick<OwnFormSpec, "sections">) => spec.sections.flatMap((s) => s.items).filter((it) => it.type !== "number" || it.counts);
+export const countedItems = (spec: Pick<OwnFormSpec, "sections">) =>
+  spec.sections.flatMap((s) => s.items).filter((it) => (it.type === "number" ? !!it.counts : !it.uncounted && !(it.type === "options" && it.multiple)));
 
 function checkItem(it: OwnItem, n: number): OwnItem {
   if (!it || typeof it !== "object") throw new RangeError(`Pregunta ${n}: no es válida.`);
   if (!ITEM_ID.test(it.id ?? "")) throw new RangeError(`Pregunta ${n}: el identificador no es válido.`);
   const text = str(it.text, OWN_LIMITS.text, `Pregunta ${n}`, true)!;
-  const base = { id: it.id, text, na: it.na === true ? true : undefined };
+  const better = it.track?.better === "higher" || it.track?.better === "lower" ? it.track.better : undefined;
+  const base = {
+    id: it.id,
+    text,
+    na: it.na === true && it.sensitive !== true ? true : undefined,
+    sensitive: it.sensitive === true ? true : undefined,
+    // Las de varias opciones no cuentan nunca en la nota; los números, solo si se marca (`counts`).
+    uncounted: it.type !== "number" && (it.uncounted === true || (it.type === "options" && it.multiple === true)) ? true : undefined,
+    track: it.track && !(it.type === "options" && it.multiple) ? tidy({ better }) : undefined,
+  };
   const what = `«${text}»`;
   switch (it.type) {
     case "scale": {
@@ -117,22 +145,30 @@ function checkItem(it: OwnItem, n: number): OwnItem {
     case "options": {
       if (!Array.isArray(it.options)) throw new RangeError(`${what}: faltan las opciones.`);
       if (it.options.length > OWN_LIMITS.options) throw new RangeError(`${what}: como mucho ${OWN_LIMITS.options} opciones.`);
+      // Sin puntos si no cuenta en la nota (y no se dibuja con su línea): solo se registra lo que marca.
+      const withPoints = !base.uncounted || !!base.track;
       const options: OwnOption[] = [];
       for (const o of it.options) {
         const label = str(o?.label, OWN_LIMITS.option, `${what}, opción`, true)!;
         if (options.some((x) => x.label.toLowerCase() === label.toLowerCase())) throw new RangeError(`${what}: la opción «${label}» está repetida.`);
-        options.push({ label, points: num(o?.points, `${what}, puntos de «${label}»`) });
+        options.push(withPoints ? { label, points: num(o?.points, `${what}, puntos de «${label}»`) } : { label });
       }
       if (options.length < 2) throw new RangeError(`${what}: pon al menos dos opciones.`);
-      return { ...base, type: "options", options } as OwnItem;
+      return tidy({ ...base, type: "options" as const, options, multiple: it.multiple === true ? true : undefined }) as OwnItem;
     }
     case "yesno":
-      return tidy({ ...base, type: "yesno" as const, yes: num(it.yes ?? 1, `${what}, puntos de «Sí»`), no: num(it.no ?? 0, `${what}, puntos de «No»`) });
+      return tidy({
+        ...base,
+        type: "yesno" as const,
+        yes: num(it.yes ?? 1, `${what}, puntos de «Sí»`),
+        no: num(it.no ?? 0, `${what}, puntos de «No»`),
+        detail: str(it.detail, OWN_LIMITS.option, `${what}, pregunta del detalle`),
+      });
     case "number": {
       const min = num(it.min, `${what}, mínimo`);
       const max = num(it.max, `${what}, máximo`);
       if (min >= max) throw new RangeError(`${what}: el mínimo tiene que ser menor que el máximo.`);
-      return tidy({ ...base, type: "number" as const, unit: str(it.unit, OWN_LIMITS.unit, `${what}, unidad`) ?? "", min, max, counts: it.counts === true ? true : undefined });
+      return tidy({ ...base, uncounted: undefined, type: "number" as const, unit: str(it.unit, OWN_LIMITS.unit, `${what}, unidad`) ?? "", min, max, counts: it.counts === true ? true : undefined });
     }
     default:
       throw new RangeError(`Pregunta ${n}: el tipo no existe.`);
@@ -208,6 +244,7 @@ export function checkOwnForm(spec: OwnFormSpec): OwnFormSpec {
     note: str(spec.note, OWN_LIMITS.long, "Nota para el profesional"),
     noteClinic: spec.note ? str(spec.noteClinic, OWN_LIMITS.name, "Nombre de la clínica") : undefined,
     noteAt: spec.note && typeof spec.noteAt === "string" && /^\d{4}-\d{2}-\d{2}$/.test(spec.noteAt) ? spec.noteAt : undefined,
+    from: spec.from && typeof spec.from.lib === "string" && /^lib_[a-z0-9_]{1,40}$/.test(spec.from.lib) && Number.isInteger(spec.from.v) ? { lib: spec.from.lib, v: spec.from.v } : undefined,
     sections,
     scoring,
     hash: typeof spec.hash === "string" && /^[0-9a-f]{12}$/.test(spec.hash) ? spec.hash : undefined,
@@ -234,7 +271,8 @@ export function copyrightName(name: string): string | null {
 export function pointsOf(it: OwnItem, v: number): number | null {
   switch (it.type) {
     case "options":
-      return Number.isInteger(v) ? (it.options[v]?.points ?? null) : null;
+      if (it.multiple) return null;
+      return Number.isInteger(v) && it.options[v] ? (it.options[v].points ?? 0) : null;
     case "yesno":
       return v === 0 ? it.yes : v === 1 ? it.no : null;
     case "scale":
@@ -302,17 +340,18 @@ export function scoreOwn(spec: OwnFormSpec, answers: Answers): FormScore {
 }
 
 /** El cuestionario propio como uno de la app: sus apartados, sus preguntas y su nota. */
-export function buildForm(spec: OwnFormSpec): QuestionForm {
+export function buildForm(spec: OwnFormSpec, clinic = ""): QuestionForm {
   const toItem = (it: OwnItem): Item => {
-    const base = { id: it.id, text: it.text, ...(it.na ? { na: true } : {}) };
+    const base = { id: it.id, text: it.text, ...(it.na || it.sensitive ? { na: true } : {}), ...(it.sensitive ? { naLabel: "Prefiero no responder" } : {}) };
     switch (it.type) {
       case "scale":
         return { ...base, scale: { from: it.from, to: it.to, ends: it.ends ?? ["", ""] } };
       case "options":
-        // Por su posición: dos opciones con los mismos puntos no se confunden al leer lo que se contestó.
-        return { ...base, options: it.options.map((o, i) => ({ value: i, label: o.label })) };
+        // Por su posición: dos opciones con los mismos puntos no se confunden al leer lo que se contestó. Varias a la
+        // vez: una cifra binaria por opción (la 1.ª vale 1, la 2.ª vale 2, la 3.ª vale 4…).
+        return { ...base, options: it.options.map((o, i) => ({ value: i, label: o.label })), ...(it.multiple ? { multi: true } : {}) };
       case "yesno":
-        return { ...base, options: [{ value: 0, label: "Sí" }, { value: 1, label: "No" }] };
+        return { ...base, options: [{ value: 0, label: "Sí" }, { value: 1, label: "No" }], ...(it.detail ? { detail: { when: 0, label: it.detail } } : {}) };
       case "number":
         return { ...base, input: { min: it.min, max: it.max, unit: it.unit } };
     }
@@ -320,9 +359,40 @@ export function buildForm(spec: OwnFormSpec): QuestionForm {
   const sections: Section[] = spec.sections.map((s, i) => ({ title: s.title ?? (spec.sections.length > 1 ? `Parte ${i + 1}` : ""), ...(s.intro ? { intro: s.intro } : {}), items: s.items.map(toItem) }));
   return {
     id: spec.id,
-    instructions: spec.instructions ?? "",
+    instructions: fillClinic(spec.instructions ?? "", clinic),
     sections,
     score: (answers) => scoreOwn(spec, answers),
     source: OWN_LABEL,
   };
+}
+
+// ---------- Leer lo contestado ----------
+
+/** Las opciones marcadas en una pregunta de varias (su número, una cifra binaria por opción). */
+export function multiPicked(it: Extract<OwnItem, { type: "options" }>, v: number): string[] {
+  return it.options.filter((_, i) => Math.floor(v / 2 ** i) % 2 === 1).map((o) => o.label);
+}
+
+/** Una respuesta en texto: la opción, «Sí: …», las marcadas, el número con su unidad o «No aplica». */
+export function answerText(it: OwnItem, v: number | null | undefined, detail?: string): string {
+  if (v === undefined) return "";
+  if (v === null) return it.sensitive ? "Prefiero no responder" : "No aplica";
+  switch (it.type) {
+    case "options":
+      return it.multiple ? multiPicked(it, v).join(", ") || "Ninguna" : (it.options[v]?.label ?? String(v));
+    case "yesno":
+      return v === 0 ? `Sí${detail?.trim() ? `: ${detail.trim()}` : ""}` : v === 1 ? "No" : String(v);
+    case "number":
+      return `${String(v).replace(".", ",")}${it.unit ? ` ${it.unit}` : ""}`;
+    case "scale":
+      return String(v);
+  }
+}
+
+/** El valor de una pregunta para su línea en la evolución: la escala o el número tal cual; Sí = 1 y No = 0; la opción, sus puntos. */
+export function trackValue(it: OwnItem, v: number | null | undefined): number | null {
+  if (typeof v !== "number") return null;
+  if (it.type === "yesno") return v === 0 ? 1 : v === 1 ? 0 : null;
+  if (it.type === "options") return it.multiple ? null : (it.options[v]?.points ?? v);
+  return v;
 }

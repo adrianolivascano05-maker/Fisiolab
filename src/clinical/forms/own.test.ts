@@ -1,6 +1,6 @@
 // Cuestionarios propios (own.ts): la nota es aritmética simple y nunca se interpreta; las comprobaciones al guardar.
 import { describe, expect, it } from "vitest";
-import { buildForm, checkOwnForm, copyrightName, OWN_LABEL, scoreOwn, scoreRange, type OwnFormSpec, type OwnItem } from "./own";
+import { answerText, buildForm, checkOwnForm, copyrightName, countedItems, fillClinic, OWN_LABEL, scoreOwn, scoreRange, trackValue, type OwnFormSpec, type OwnItem } from "./own";
 
 const id = "own:0b6f0e1a-1111-4222-8333-444455556666";
 const q = (n: number) => `q_${String(n).padStart(8, "0")}`;
@@ -113,5 +113,63 @@ describe("comprobar al guardar", () => {
     expect(copyrightName("quickdash")).toBe("QuickDASH");
     expect(copyrightName("Satisfacción con el tratamiento")).toBeNull();
     expect(copyrightName("Dashboard semanal")).toBeNull();
+  });
+});
+
+describe("por pregunta: cuenta en la nota, varias, delicadas, detalle del Sí y su línea", () => {
+  it("«no cuenta en la nota»: se guarda pero no suma; las opciones de una así no necesitan puntos", () => {
+    const s = checkOwnForm(spec([scale(1), { ...opts(2, [0, 1]), uncounted: true, options: [{ label: "A" }, { label: "B" }] } as OwnItem]));
+    expect(countedItems(s).map((it) => it.id)).toEqual([q(1)]);
+    expect(s.sections[0]!.items[1]).toEqual({ id: q(2), type: "options", text: "Pregunta 2", uncounted: true, options: [{ label: "A" }, { label: "B" }] });
+    expect(scoreOwn(s, { [q(1)]: 6, [q(2)]: 1 }).score).toBe(6);
+    expect(scoreRange(s)).toEqual({ min: 0, max: 10 });
+    // Con su línea, sí hacen falta (es lo que se dibuja).
+    expect(() => checkOwnForm(spec([scale(1), { ...opts(2, [0, 1]), uncounted: true, track: {}, options: [{ label: "A" }, { label: "B" }] } as OwnItem]))).toThrow(/puntos de «A»/);
+    // Si cuenta en la nota, también.
+    expect(() => checkOwnForm(spec([{ ...opts(1, [0, 1]), options: [{ label: "A" }, { label: "B" }] } as OwnItem]))).toThrow(/puntos de «A»/);
+  });
+
+  it("«puede marcar varias»: nunca cuenta ni tiene línea; se guarda en un número y se lee en texto", () => {
+    const s = checkOwnForm(spec([scale(1), { ...opts(2, [0, 1, 2]), multiple: true, track: { better: "higher" } } as OwnItem]));
+    const multi = s.sections[0]!.items[1]!;
+    expect(multi).toMatchObject({ multiple: true, uncounted: true });
+    expect(multi.track).toBeUndefined();
+    expect(countedItems(s)).toHaveLength(1);
+    expect(buildForm(s).sections[0]!.items[1]).toMatchObject({ multi: true });
+    expect(answerText(multi, 2 + 4)).toBe("Opción 1, Opción 2");
+    expect(trackValue(multi, 6)).toBeNull();
+  });
+
+  it("delicada: «Prefiero no responder» en lugar de «No aplica», y cuenta como sin responder", () => {
+    const s = checkOwnForm(spec([scale(1, 0, 10, { na: true, sensitive: true }), scale(2)], { method: "sum", better: "higher", na: "skip", minAnswered: 1 }));
+    expect(s.sections[0]!.items[0]).toMatchObject({ sensitive: true });
+    expect(s.sections[0]!.items[0]!.na).toBeUndefined();
+    expect(buildForm(s).sections[0]!.items[0]).toMatchObject({ na: true, naLabel: "Prefiero no responder" });
+    expect(scoreOwn(s, { [q(1)]: null, [q(2)]: 4 }).score).toBe(4);
+    expect(answerText(s.sections[0]!.items[0]!, null)).toBe("Prefiero no responder");
+    expect(answerText(s.sections[0]!.items[1]!, null)).toBe("No aplica");
+  });
+
+  it("Sí/No con detalle: solo al contestar «Sí», nunca puntúa; su línea va con Sí = 1 y No = 0", () => {
+    const yn = { id: q(1), type: "yesno", text: "¿Algo nuevo?", yes: 1, no: 0, detail: "Cuéntanos qué", track: {} } as OwnItem;
+    const s = checkOwnForm(spec([yn], null));
+    expect(buildForm(s).sections[0]!.items[0]).toMatchObject({ detail: { when: 0, label: "Cuéntanos qué" } });
+    expect(answerText(s.sections[0]!.items[0]!, 0, " Rodilla ")).toBe("Sí: Rodilla");
+    expect(answerText(s.sections[0]!.items[0]!, 1, "no se guarda")).toBe("No");
+    expect(s.sections[0]!.items[0]!.track).toEqual({});
+  });
+
+  it("su línea: la flecha solo orienta; un número no puede «no contar» por la otra vía", () => {
+    const s = checkOwnForm(spec([scale(1, 0, 10, { track: { better: "lower" } }), { id: q(2), type: "number", text: "Min", unit: "min", min: 0, max: 90, uncounted: true, track: { better: "rojo" } } as unknown as OwnItem]));
+    expect(s.sections[0]!.items[0]!.track).toEqual({ better: "lower" });
+    expect(s.sections[0]!.items[1]).toEqual({ id: q(2), type: "number", text: "Min", unit: "min", min: 0, max: 90, track: {} });
+    expect(trackValue(s.sections[0]!.items[1]!, 30)).toBe(30);
+    expect(answerText(s.sections[0]!.items[1]!, 30.5)).toBe("30,5 min");
+  });
+
+  it("[Clínica] en las instrucciones: el nombre de la clínica, o «la clínica»", () => {
+    expect(fillClinic("Atendido en [Clínica].", "Clínica Aurora")).toBe("Atendido en Clínica Aurora.");
+    expect(fillClinic("Atendido en [Clínica].", " ")).toBe("Atendido en la clínica.");
+    expect(buildForm(spec([scale(1)], null, { instructions: "En [Clínica]" }), "Aurora").instructions).toBe("En Aurora");
   });
 });

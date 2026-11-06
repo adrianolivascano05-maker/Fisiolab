@@ -14,7 +14,7 @@ import { formResult } from "./FormFill";
 import { formFor, type Answers as FormAnswers } from "./forms";
 import { ACTIVE, getKind } from "./questionnaires";
 import { ownKinds } from "./ownCatalog";
-import { buildForm, type OwnFormSpec } from "./forms/own";
+import { buildForm, DETAIL_MAX, type OwnFormSpec } from "./forms/own";
 import type { QuestionForm } from "./forms/types";
 import { kindOfSpec, ownDetails } from "./ownCatalog";
 
@@ -266,7 +266,25 @@ export function cleanFormAnswers(kind: string, incoming: Record<string, unknown>
     const v = incoming[item.id];
     if (v === null && item.na) out[item.id] = null;
     else if (typeof v !== "number" || !Number.isFinite(v)) continue;
-    else if (item.options ? item.options.some((o) => o.value === v) : item.scale ? v >= item.scale.from && v <= item.scale.to : item.input ? v >= item.input.min && v <= item.input.max : false) out[item.id] = v;
+    // Varias a la vez: un número con una cifra binaria por opción (al menos una marcada).
+    else if (item.multi ? Number.isInteger(v) && v >= 1 && v < 2 ** (item.options?.length ?? 0) : item.options ? item.options.some((o) => o.value === v) : item.scale ? v >= item.scale.from && v <= item.scale.to : item.input ? v >= item.input.min && v <= item.input.max : false) out[item.id] = v;
+  }
+  return out;
+}
+
+/**
+ * Lo escrito en los detalles (el «Sí: cuéntanos qué»): solo de las preguntas que lo tienen y se contestaron con esa
+ * respuesta, sin caracteres de control y con su tope. No puntúa nunca.
+ */
+export function cleanFormTexts(form: QuestionForm | undefined, answers: FormAnswers, incoming: unknown): Record<string, string> {
+  if (!form || typeof incoming !== "object" || incoming === null || Array.isArray(incoming)) return {};
+  const out: Record<string, string> = {};
+  for (const item of form.sections.flatMap((s) => s.items)) {
+    const t = (incoming as Record<string, unknown>)[item.id];
+    if (!item.detail || answers[item.id] !== item.detail.when || typeof t !== "string") continue;
+    // eslint-disable-next-line no-control-regex -- quitar los caracteres de control es justo lo que se quiere
+    const clean = t.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").trim().slice(0, DETAIL_MAX);
+    if (clean) out[item.id] = clean;
   }
   return out;
 }
@@ -284,6 +302,7 @@ export async function saveAnsweredQuestionnaire(
   performedAt: string,
   formId: string,
   ownForm?: OwnFormSpec,
+  texts?: Record<string, string>,
 ): Promise<number> {
   // Un cuestionario propio: con la versión que se mandó (su huella), aunque la clínica lo haya cambiado después.
   const form = ownForm ? buildForm(ownForm) : formFor(kind);
@@ -295,9 +314,11 @@ export async function saveAnsweredQuestionnaire(
   const rows: { score: number; details: Record<string, unknown> }[] = [];
   if (ownForm) {
     // Sin nota: se guardan las respuestas (la nota no se enseña ni se dibuja).
+    // Lo escrito en los detalles va aparte de las respuestas (que son siempre números).
     const own = ownDetails(ownForm);
-    if (ownForm.scoring && result.ok.score !== null) rows.push({ score: result.ok.score, details: { answers, own, ...(result.ok.subscores ? { subscores: result.ok.subscores } : {}) } });
-    else if (!ownForm.scoring) rows.push({ score: 0, details: { answers, own } });
+    const extra = texts && Object.keys(texts).length ? { texts } : {};
+    if (ownForm.scoring && result.ok.score !== null) rows.push({ score: result.ok.score, details: { answers, ...extra, own, ...(result.ok.subscores ? { subscores: result.ok.subscores } : {}) } });
+    else if (!ownForm.scoring) rows.push({ score: 0, details: { answers, ...extra, own } });
   } else if (k.subscales) {
     for (const sub of result.ok.subscores ?? []) rows.push({ score: sub.score, details: { subscale: sub.name, answers, group: formId } });
   } else if (result.ok.score !== null) {

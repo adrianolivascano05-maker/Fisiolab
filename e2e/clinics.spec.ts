@@ -1510,4 +1510,60 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(list).toContainText("Control semanal (Cuestionario propio de la clínica · no validado)");
     await expect(list).toContainText("5/11");
   });
+
+  test("CL21 de la Biblioteca de OmniClin por enlace: «[Clínica]», «Prefiero no responder», el detalle del «Sí» y sus líneas", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Lola Semanal" });
+    const lolaUrl = page.url();
+    await page.goto("./ajustes/cuestionarios-propios");
+    await page.getByRole("button", { name: "Añadir «Control semanal»" }).click();
+    await page.getByRole("button", { name: "Añadir «Satisfacción con el tratamiento»" }).click();
+    await expect(page.getByRole("region", { name: "Cuestionarios de la clínica" })).toContainText("Satisfacción con el tratamiento");
+
+    const send = async (what: string) => {
+      await page.goto(`${lolaUrl}/formularios`);
+      await page.getByRole("button", { name: "Enviar un formulario" }).click();
+      const choose = page.getByRole("dialog", { name: "Enviar un formulario" });
+      await choose.getByLabel("Qué le mandas").selectOption({ label: what });
+      await choose.getByRole("button", { name: "Crear el enlace" }).click();
+      const share = page.getByRole("dialog", { name: "Mandar el enlace" });
+      const text = (await share.locator("pre").textContent())!;
+      await share.getByRole("button", { name: "Cerrar" }).click();
+      return /https?:\/\/\S+\/formulario\/[A-Za-z0-9_-]+#[A-Za-z0-9_-]+/.exec(text)![0];
+    };
+    const weekly = await send("Control semanal");
+    const happy = await send("Satisfacción con el tratamiento");
+
+    const { locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
+    await google.install(ctx, () => "carla", { server: true });
+    const phone = await ctx.newPage();
+    await phone.goto(weekly);
+    await expect(phone.getByRole("heading", { name: "Hola, Lola" })).toBeVisible({ timeout: 15_000 });
+    await phone.getByRole("group", { name: /Dolor medio esta semana/ }).getByText("3", { exact: true }).click();
+    await phone.getByText("Prefiero no responder", { exact: true }).click();
+    await phone.getByRole("group", { name: /episodio nuevo/ }).getByText("Sí", { exact: true }).click();
+    await phone.getByLabel("Cuéntanos qué").fill("Me torcí el tobillo bajando una escalera");
+    expect(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await smallTargets(phone)).toEqual([]);
+    await expectAccessible(phone);
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
+    // «[Clínica]» sale con el nombre de la clínica.
+    await phone.goto(happy);
+    await expect(phone.getByText(/has recibido en Fisiolab Centro\. Lo leerán tu fisioterapeuta y el equipo de la clínica que te atiende\./).last()).toBeVisible({ timeout: 15_000 });
+    await ctx.close();
+
+    await page.getByRole("button", { name: "Buscar respuestas" }).click();
+    await expect(page.getByText("Lola Semanal ha rellenado: Control semanal")).toBeVisible();
+    await page.goto(`${lolaUrl}/cuestionarios`);
+    const lines = page.getByRole("list", { name: /Pregunta a pregunta: Control semanal/ });
+    await expect(lines).toContainText("Sí: Me torcí el tobillo bajando una escalera");
+    await expect(lines).toContainText("Prefiero no responder");
+  });
 });
