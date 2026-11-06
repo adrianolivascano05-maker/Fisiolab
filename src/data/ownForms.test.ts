@@ -3,15 +3,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 import type { OwnFormSpec } from "../clinical/forms/own";
 import { activeKinds, getKind, kindOf } from "../clinical/questionnaires";
 import { formFor } from "../clinical/forms";
-import { loadOwnCatalog, ownSpec, setOwnForms } from "../clinical/ownCatalog";
+import { loadOwnCatalog, ownSpec, setOwnClinic, setOwnForms } from "../clinical/ownCatalog";
 import type { Db } from "./db";
 import { archiveOwnForm, duplicateOwnForm, getOwnForm, getOwnNotice, getOwnSnapshot, listOwnForms, listOwnSnapshots, markOwnNotice, newOwnFormId, renameOwnForm, saveOwnForm } from "./ownForms";
+import { emptyClinic, saveClinic } from "./privacy";
 import { createTestDb } from "./testDb";
 
 let db: Db;
 beforeEach(async () => {
   db = await createTestDb();
   setOwnForms([]);
+  setOwnClinic("");
 });
 
 const spec = (id = newOwnFormId()): OwnFormSpec => ({
@@ -49,6 +51,19 @@ describe("guardar y versiones", () => {
     expect(formFor(s.id)!.sections[0]!.items[0]!.text).toBe("¿Volvería?");
     const details = { answers: { q_00000001: 7 }, own: { id: s.id, hash: v1.spec.hash!, name: "Satisfacción", min: 0, max: 10, better: "higher" as const, note: s.note } };
     expect(kindOf(s.id, details)).toMatchObject({ name: "Satisfacción", min: 0, max: 10, own: true, note: "Para comentar en la consulta." });
+  });
+
+  it("«[Clínica]» en las instrucciones: el nombre de Ajustes › Clínica, si no el de la nube, si no «la clínica»", async () => {
+    const s = { ...spec(), instructions: "Piensa en lo que has recibido en [Clínica]." };
+    await saveOwnForm(db, s, null);
+    expect(await loadOwnCatalog(db)).toBe(true);
+    expect(formFor(s.id)!.instructions).toBe("Piensa en lo que has recibido en la clínica.");
+    expect(await loadOwnCatalog(db, "Fisiolab Centro")).toBe(true);
+    expect(formFor(s.id)!.instructions).toBe("Piensa en lo que has recibido en Fisiolab Centro.");
+    await saveClinic(db, { ...emptyClinic, name: "Clínica Aurora" });
+    await loadOwnCatalog(db, "Fisiolab Centro");
+    expect(formFor(s.id)!.instructions).toBe("Piensa en lo que has recibido en Clínica Aurora.");
+    expect(await loadOwnCatalog(db, "Fisiolab Centro")).toBe(false);
   });
 
   it("archivar: fuera de «Pasar» y «Enviar», pero se sigue leyendo; duplicar y renombrar", async () => {

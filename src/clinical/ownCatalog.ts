@@ -6,6 +6,7 @@ import type { QuestionForm } from "./forms/types";
 import type { OwnDetails, QuestionnaireKind } from "./questionnaires";
 import type { Db } from "../data/db";
 import { listOwnForms, listOwnSnapshots } from "../data/ownForms";
+import { getClinic } from "../data/privacy";
 
 /** El grupo con el que salen en el selector y en la Biblioteca. */
 export const OWN_TOPIC = "De la clínica";
@@ -15,6 +16,8 @@ let current = new Map<string, Entry>();
 let versions = new Map<string, OwnFormSpec>();
 const forms = new Map<string, QuestionForm>();
 let stamp = "";
+/** El nombre de la clínica, para «[Clínica]» en las instrucciones (al pasarlo en consulta, como en el enlace). */
+let clinicName = "";
 
 const versionKey = (id: string, hash: string) => `${id}@${hash}`;
 
@@ -30,10 +33,24 @@ export function setOwnForms(docs: { spec: OwnFormSpec; archived?: boolean }[], s
   return true;
 }
 
-/** Lee de la base los cuestionarios propios y sus versiones. Devuelve si ha cambiado algo. */
-export async function loadOwnCatalog(db: Db): Promise<boolean> {
-  const [docs, snapshots] = await Promise.all([listOwnForms(db), listOwnSnapshots(db)]);
-  return setOwnForms(docs, snapshots);
+/** Pone el nombre de la clínica para «[Clínica]». Devuelve si ha cambiado. */
+export function setOwnClinic(name: string): boolean {
+  const next = name.trim();
+  if (next === clinicName) return false;
+  clinicName = next;
+  forms.clear();
+  return true;
+}
+
+/**
+ * Lee de la base los cuestionarios propios, sus versiones y el nombre de la clínica (si no está en Ajustes › Clínica,
+ * `fallback`: el de la clínica en la nube). Devuelve si ha cambiado algo.
+ */
+export async function loadOwnCatalog(db: Db, fallback = ""): Promise<boolean> {
+  const [docs, snapshots, clinic] = await Promise.all([listOwnForms(db), listOwnSnapshots(db), getClinic(db)]);
+  const named = setOwnClinic(clinic.name || fallback);
+  const changed = setOwnForms(docs, snapshots);
+  return changed || named;
 }
 
 /** La versión de un cuestionario propio: con huella, esa; sin ella, la de ahora. */
@@ -48,7 +65,7 @@ export function ownFormFor(id: string, hash?: string): QuestionForm | undefined 
   const key = versionKey(id, spec.hash ?? "");
   let f = forms.get(key);
   if (!f) {
-    f = buildForm(spec);
+    f = buildForm(spec, clinicName);
     forms.set(key, f);
   }
   return f;

@@ -1117,6 +1117,9 @@ y una línea por pregunta en la evolución) están hechos el 06-11-2026, sin sub
 adelante (dicho por el usuario): exportar e importar plantillas y cuestionarios en un archivo, el dibujo del cuerpo
 como tipo de pregunta, texto libre general dentro de los cuestionarios propios (hoy solo el detalle del «Sí») y, si
 hiciera falta, juntar los ajustes por clave con una migración cuando todos los móviles estén actualizados.
-Propuesto, sin hacer: en el formulario por enlace, las instrucciones de cualquier cuestionario salen dos veces (en el
-saludo y en la tarjeta del cuestionario); bastaría con dejarlas en la tarjeta. Cuando se pasa en consulta, «[Clínica]»
-sale como «la clínica» (el nombre solo se pone en el enlace, en «Así lo verá» y en la Biblioteca).
+Hecho a la vez (06-11-2026, propuesto y aceptado): en el formulario por enlace, las instrucciones de un cuestionario
+salen una sola vez (en su tarjeta, no también en el saludo), y «[Clínica]» sale con el nombre de la clínica también al
+pasarlo en consulta (el de Ajustes › Clínica o, si está vacío, el de la clínica en la nube). Arreglado también un
+fallo intermitente de la prueba PL2 (ya pasaba en lo publicado, 1 de cada 6 veces): recargaba la página justo después
+de «Deshacer» y cortaba el guardado de la plantilla. El editor de Ajustes › Anamnesis de la clínica marca ahora la
+lista como ocupada (`aria-busy`) mientras guarda, y las pruebas esperan a que termine antes de recargar.

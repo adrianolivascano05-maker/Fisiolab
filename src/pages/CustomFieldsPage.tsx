@@ -482,6 +482,8 @@ export function CustomFieldsPage() {
   /** Las escrituras, una detrás de otra y en el orden en que se hicieron. */
   const chain = useRef<Promise<void>>(Promise.resolve());
   const seq = useRef(0);
+  /** Cuántas escrituras faltan por terminar: mientras haya alguna, la lista está «ocupada» (aria-busy). */
+  const [pending, setPending] = useState(0);
   /** Guarda la plantilla (se ve al momento) y ofrece deshacerlo unos segundos. */
   function commit(next: TemplateDoc, undoText = "Guardado"): Promise<void> {
     if (!doc || !canEdit) return Promise.resolve();
@@ -491,6 +493,7 @@ export function CustomFieldsPage() {
     if (timer.current) clearTimeout(timer.current);
     setUndo({ text: undoText, prev });
     timer.current = setTimeout(() => setUndo(null), UNDO_MS);
+    setPending((p) => p + 1);
     chain.current = chain.current.then(async () => {
       try {
         const saved = await saveTemplateDoc(getDb(), next, memberEmail());
@@ -503,6 +506,8 @@ export function CustomFieldsPage() {
           setUndo(null);
         }
         toast(e instanceof Error ? e.message : String(e), "danger");
+      } finally {
+        setPending((p) => p - 1);
       }
     });
     return chain.current;
@@ -532,6 +537,7 @@ export function CustomFieldsPage() {
         </p>
       )}
 
+      <div aria-busy={pending > 0} className="flex flex-col gap-4">
       {view.map((s) => {
         const visible = s.items.filter((i) => !i.hidden);
         const toPatient = visible.filter((i) => i.field.type !== "cif" && forPatient(i.field)).length;
@@ -574,6 +580,7 @@ export function CustomFieldsPage() {
           </Fold>
         );
       })}
+      </div>
 
       {canEdit && (
         <section aria-labelledby="h-cf-paquetes" className="flex flex-col gap-2">

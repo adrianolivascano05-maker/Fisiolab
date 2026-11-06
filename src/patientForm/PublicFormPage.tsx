@@ -215,7 +215,8 @@ export function PublicFormPage() {
             ) : (
               <p>
                 {request.clinic || "Tu clínica"} te pide que rellenes {own ? `el cuestionario «${own.name}»` : formWhat(request.kind)}.{" "}
-                {request.kind === ANAMNESIS_KIND ? "Contesta lo que sepas; lo demás lo hablaréis en la consulta." : form?.instructions}
+                {/* Las instrucciones de un cuestionario van en su tarjeta, justo encima de las preguntas (no aquí otra vez). */}
+                {request.kind === ANAMNESIS_KIND && "Contesta lo que sepas; lo demás lo hablaréis en la consulta."}
               </p>
             )}
             {own && <p className="-mt-2 text-sm font-semibold text-text-muted">{ownLabelFor(request.clinic)}</p>}

@@ -10,6 +10,8 @@ const editor = async (page: Page) => {
 };
 const fold = (page: Page, title: string) => page.locator("summary", { hasText: title });
 const row = (page: Page, label: string) => page.getByRole("switch", { name: `Mostrar «${label}»` });
+/** Antes de salir con una recarga entera: que lo último que se hizo en el editor ya esté guardado. */
+const saved = (page: Page) => expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
 
 test.describe("Anamnesis de la clínica", () => {
   test("PL1 ocultar 3 y renombrar 2 en pocos toques; lo respondido se sigue viendo con su texto", async ({ page }) => {
@@ -59,6 +61,7 @@ test.describe("Anamnesis de la clínica", () => {
     await expectAccessible(page);
 
     // En la ficha: los textos nuevos y lo oculto, con su texto, en «Respuestas a preguntas que ya no están».
+    await saved(page);
     await page.goto(patientUrl);
     const otros = page.getByRole("region", { name: "Respuestas a preguntas que ya no están" });
     await expect(otros).toContainText("Profesión");
@@ -94,6 +97,7 @@ test.describe("Anamnesis de la clínica", () => {
     await expect(row(page, "¿Lleva marcapasos?")).toHaveAttribute("aria-checked", "true");
 
     // Contestarla en una ficha.
+    await saved(page);
     await createPatient(page, { name: "Pablo Propia" });
     await tab(page, "Anamnesis").click();
     // «Antecedentes» se abre solo al entrar.
@@ -111,6 +115,7 @@ test.describe("Anamnesis de la clínica", () => {
     await expect(reset).toContainText("Se quitarán tus cambios (1). Lo respondido por los pacientes no cambia.");
     await reset.getByRole("button", { name: "Sí, volver" }).click();
     await expect(page.getByRole("button", { name: "Volver a la plantilla de OmniClin" })).toHaveCount(0);
+    await saved(page);
     await page.goto(patientUrl);
     const otros = page.getByRole("region", { name: "Respuestas a preguntas que ya no están" });
     await expect(otros).toContainText("¿Lleva marcapasos?");

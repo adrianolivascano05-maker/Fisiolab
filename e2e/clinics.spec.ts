@@ -1556,7 +1556,9 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
     // «[Clínica]» sale con el nombre de la clínica.
     await phone.goto(happy);
-    await expect(phone.getByText(/has recibido en Fisiolab Centro\. Lo leerán tu fisioterapeuta y el equipo de la clínica que te atiende\./).last()).toBeVisible({ timeout: 15_000 });
+    // Las instrucciones, una sola vez (en la tarjeta del cuestionario, no también en el saludo).
+    await expect(phone.getByText(/has recibido en Fisiolab Centro\. Lo leerán tu fisioterapeuta y el equipo de la clínica que te atiende\./)).toHaveCount(1, { timeout: 15_000 });
+    await expect(phone.getByText("Fisiolab Centro te pide que rellenes el cuestionario «Satisfacción con el tratamiento».")).toBeVisible();
     await ctx.close();
 
     await page.getByRole("button", { name: "Buscar respuestas" }).click();
@@ -1565,5 +1567,9 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     const lines = page.getByRole("list", { name: /Pregunta a pregunta: Control semanal/ });
     await expect(lines).toContainText("Sí: Me torcí el tobillo bajando una escalera");
     await expect(lines).toContainText("Prefiero no responder");
+    // En consulta, «[Clínica]» también sale con el nombre (aquí, el de la clínica en la nube).
+    await page.goto(`${lolaUrl}/cuestionarios/nuevo`);
+    await page.getByRole("region", { name: "De la clínica" }).getByRole("button", { name: /Satisfacción con el tratamiento/ }).click();
+    await expect(page.getByText(/has recibido en Fisiolab Centro\./)).toBeVisible();
   });
 });

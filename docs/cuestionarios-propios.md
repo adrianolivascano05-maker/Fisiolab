@@ -40,9 +40,12 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
     «Casilla para no contestar» (ninguna, «No aplica» o «Prefiero no responder» para las delicadas; las dos cuentan
     como sin responder) y «Verla en la evolución con su línea» (`track`) con «Más es mejor / Menos es mejor / Sin
     flecha», que solo orienta. Una pregunta que no cuenta y no tiene línea no necesita puntos en sus opciones. En las
-    instrucciones, «[Clínica]» se cambia por el nombre de la clínica.
+    instrucciones, «[Clínica]» se cambia por el nombre de la clínica (en el enlace, en consulta, en «Así lo verá» y en
+    la Biblioteca; en consulta, el de Ajustes › Clínica o, si está vacío, el de la clínica en la nube).
+11. **Instrucciones una sola vez en el enlace** (06-11-2026): en el formulario del paciente, las instrucciones de un
+    cuestionario (de la app o propio) van solo en su tarjeta, encima de las preguntas; el saludo ya no las repite.
 
-## Biblioteca de OmniClin (06-11-2026, sin subir hasta el visto bueno)
+## Biblioteca de OmniClin (06-11-2026)
 
 - **Contenido** (`src/data/ownFormsLibrary.ts`), tal como lo pasó el usuario: `lib_satisfaccion` (5 escalas 0-10,
   media, mínimo 3 contestadas), `lib_adherencia` (suma de q1 + q2, 0-7; q3 de varias, q4 con su línea y q5 sin
@@ -83,6 +86,4 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
 
 ## Pendiente
 
-- Subir y publicar la biblioteca cuando el usuario dé el visto bueno.
-- Propuestas sin hacer: instrucciones repetidas en el formulario por enlace; «[Clínica]» con el nombre también al
-  pasarlo en consulta (ver `docs/ideas-pendientes.md`).
+- Nada de la biblioteca. Lo que queda para más adelante está en `docs/ideas-pendientes.md`.
