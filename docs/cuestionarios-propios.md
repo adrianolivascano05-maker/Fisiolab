@@ -45,7 +45,7 @@ respondido no se pierde nunca ni cambia de significado**. No se sube nada sin el
 11. **Instrucciones una sola vez en el enlace** (06-11-2026): en el formulario del paciente, las instrucciones de un
     cuestionario (de la app o propio) van solo en su tarjeta, encima de las preguntas; el saludo ya no las repite.
 
-## Biblioteca de OmniClin (06-11-2026)
+## Biblioteca de OmniClin (publicada el 06-11-2026, `a9900a0`)
 
 - **Contenido** (`src/data/ownFormsLibrary.ts`), tal como lo pasó el usuario: `lib_satisfaccion` (5 escalas 0-10,
   media, mínimo 3 contestadas), `lib_adherencia` (suma de q1 + q2, 0-7; q3 de varias, q4 con su línea y q5 sin

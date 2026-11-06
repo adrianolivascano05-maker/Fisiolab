@@ -1113,7 +1113,7 @@ puede dejar de escribir `anamnesis_custom_fields` (doble escritura).
 
 Plan, decisiones y lo hecho en `docs/cuestionarios-propios.md`. La biblioteca de OmniClin (4 cuestionarios con el
 texto del usuario) y lo que pedía (varias a la vez, «Prefiero no responder», el detalle del «Sí», «cuenta en la nota»
-y una línea por pregunta en la evolución) están hechos el 06-11-2026, sin subir hasta el visto bueno. Para más
+y una línea por pregunta en la evolución) están publicados el 06-11-2026 (`a9900a0`). Para más
 adelante (dicho por el usuario): exportar e importar plantillas y cuestionarios en un archivo, el dibujo del cuerpo
 como tipo de pregunta, texto libre general dentro de los cuestionarios propios (hoy solo el detalle del «Sí») y, si
 hiciera falta, juntar los ajustes por clave con una migración cuando todos los móviles estén actualizados.
