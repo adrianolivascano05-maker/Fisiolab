@@ -1111,7 +1111,7 @@ puede dejar de escribir `anamnesis_custom_fields` (doble escritura).
 
 ### Anamnesis adaptable, fase 2: plantillas y módulos (09-11-2026)
 
-Hecha (ver `docs/anamnesis-adaptable.md`): varias plantillas, módulos de OmniClin (los 3 paquetes de antes, versión
+Hecha y publicada (`679dd9d`; ver `docs/anamnesis-adaptable.md`): varias plantillas, módulos de OmniClin (los 3 paquetes de antes, versión
 1) y de la clínica, tipos nuevos, «Mostrar solo si…», obligatorias, destacar, apartados nuevos y lo que propone cada
 plantilla en «Valorar». Falta el documento «Módulos de especialidad: contenido revisado v2» para los otros 6 módulos
 y la versión 2 de estos 3. Para más adelante: el dibujo del cuerpo como tipo de pregunta (el encargo lo dejaba fuera

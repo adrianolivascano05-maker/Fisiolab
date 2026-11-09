@@ -65,7 +65,7 @@ Cómo quedan los detalles que el encargo no fijaba:
   llegan los apartados con preguntas suyas.
 - Las preguntas de un módulo se añaden en su apartado; después se pueden mover a uno del tronco desde su hoja.
 
-## Fase 2: hecha (09-11-2026)
+## Fase 2: hecha y publicada (09-11-2026, `679dd9d`)
 
 - **Datos**: `src/data/anamnesisFields.ts` (las preguntas propias: tipos, comprobación, `ownToField`),
   `src/data/anamnesisModules.ts` (módulos de la clínica: `anamnesis_mod:<id>` e instantáneas `anamnesis_mod_v:`; los
@@ -97,7 +97,7 @@ Cómo quedan los detalles que el encargo no fijaba:
 - **Pruebas**: `anamnesisModules.test.ts` (12), `collect.test.ts` (recogida con módulo, condicional, tipos nuevos y
   quién contesta); e2e `modulos.spec.ts` (MD1, MD2) y CL22 (`clinics.spec.ts`).
 
-## Fase 1: hecha (pendiente del visto bueno para subir)
+## Fase 1: hecha y publicada (05-11-2026)
 
 - **Datos** (`src/data/anamnesisTemplates.ts`): plantilla = tronco + cambios; `checkTemplate` con los límites; huella
   sha256 de 12 cifras; puntero `anamnesis_tpl:general` e instantáneas `anamnesis_tpl_v:general:<huella>` al usarse;
