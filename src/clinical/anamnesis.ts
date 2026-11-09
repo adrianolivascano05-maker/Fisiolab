@@ -41,6 +41,10 @@ type Base = {
 };
 export type Field =
   | (Base & { type: "text" | "textarea" | "date"; rows?: number; inputMode?: "tel" | "email" })
+  /** Sí / No (se guarda «Sí» o «No»). */
+  | (Base & { type: "yesno" })
+  /** Zonas del cuerpo con su lado (src/clinical/anamnesis.ts, ZONE_SIDES): «rodilla:derecho», «hombro». */
+  | (Base & { type: "zones" })
   | (Base & { type: "number"; unit: string; min: number; max: number })
   /** Escala 0-10 (EVA). */
   | (Base & { type: "scale" })
@@ -49,7 +53,8 @@ export type Field =
   | (Base & { type: "yesno_detail"; detail?: string })
   /** Códigos de la CIF con sus calificadores (src/clinical/cif). */
   | (Base & { type: "cif" });
-export type Section = { id: string; title: string; fields: Field[] };
+/** Un apartado de la ficha. `module`: el apartado propio de un módulo de especialidad (fase 2). */
+export type Section = { id: string; title: string; fields: Field[]; module?: string };
 
 /** Articulaciones (los mismos ids que la galería de tests, para proponer los tests de la zona). */
 export const BODY_REGIONS: { id: string; label: string }[] = [
@@ -66,6 +71,30 @@ export const BODY_REGIONS: { id: string; label: string }[] = [
   { id: "tobillo_pie", label: "Tobillo y pie" },
 ];
 export const regionLabel = (id: string) => BODY_REGIONS.find((r) => r.id === id)?.label ?? id;
+
+/** El lado de una zona del cuerpo (tipo de pregunta «Zonas del cuerpo»). Sin lado: solo la zona. */
+export const ZONE_SIDES: { id: string; label: string; text: string }[] = [
+  { id: "derecho", label: "Derecho", text: "lado derecho" },
+  { id: "izquierdo", label: "Izquierdo", text: "lado izquierdo" },
+  { id: "ambos", label: "Los dos", text: "los dos lados" },
+];
+/** «rodilla:derecho» → { region: "rodilla", side: "derecho" }; null si no es una zona que se conozca. */
+export function parseZone(v: unknown): { region: string; side?: string } | null {
+  if (typeof v !== "string") return null;
+  const [region = "", side, ...rest] = v.split(":");
+  if (rest.length || !BODY_REGIONS.some((r) => r.id === region)) return null;
+  if (side !== undefined && !ZONE_SIDES.some((x) => x.id === side)) return null;
+  return side ? { region, side } : { region };
+}
+/** «Rodilla (lado derecho)», «Hombro». */
+export function zoneText(v: string): string {
+  const z = parseZone(v);
+  if (!z) return v;
+  const side = ZONE_SIDES.find((x) => x.id === z.side);
+  return `${regionLabel(z.region)}${side ? ` (${side.text})` : ""}`;
+}
+/** Unidades del tipo «Número con unidad». */
+export const NUMBER_UNITS = ["veces", "horas", "semanas", "días", "cm", "mm", "%"];
 
 /** La lista de banderas rojas del fisioterapeuta: síntomas y signos (src/clinical/redFlags.ts). */
 const RED_FLAGS = RED_FLAG_LABELS;
@@ -217,6 +246,12 @@ export const ALL_FIELDS = ANAMNESIS.flatMap((s) => s.fields);
  * mejoras salvo en lo que ellas cambiaron (src/data/anamnesisTemplates.ts).
  */
 export const BASE_VERSION = 1;
+/**
+ * En qué versión del tronco apareció cada pregunta nueva (las de la versión 1 no están). Con esto, el editor avisa a
+ * la clínica de las preguntas nuevas de OmniClin que aún no ha visto («La plantilla de OmniClin tiene 2 preguntas
+ * nuevas · Ver»). Las novedades se aplican solas salvo en lo que la clínica cambió.
+ */
+export const TRUNK_SINCE: Record<string, number> = {};
 
 /**
  * Preguntas fijas del tronco: la app o la ley las usan. Se pueden renombrar, mover y ocultar (con aviso), pero no
@@ -361,7 +396,7 @@ export const fieldIn = (sections: Section[], id: string) => sections.flatMap((s)
 export function answerText(field: Field | undefined, v: AnswerValue): string {
   if (v === null || v === undefined || v === "") return "";
   if (field?.type === "cif" && Array.isArray(v)) return entriesText(v as string[]);
-  if (Array.isArray(v)) return v.map((x) => (field?.id === "regiones" ? regionLabel(x) : x)).join(", ");
+  if (Array.isArray(v)) return v.map((x) => (field?.id === "regiones" ? regionLabel(x) : field?.type === "zones" ? zoneText(x) : x)).join(", ");
   if (typeof v === "boolean") return v ? "Sí" : "No";
   if (field?.type === "number") return `${String(v).replace(".", ",")}${field.unit ? ` ${field.unit}` : ""}`;
   if (field?.type === "scale") return `${v}/10`;
@@ -406,6 +441,64 @@ export function orphanText(id: string, v: AnswerValue, known?: Field): { label: 
   const f = known ?? getField(id);
   return { label: f?.label ?? id, text: answerText(f, v) };
 }
+
+// ---------- «Mostrar solo si…» (fase 2) ----------
+
+/** El valor de una respuesta para comparar en una condición: «Sí: rodilla» cuenta como «Sí». */
+function conditionValue(v: unknown): string | null {
+  if (typeof v !== "string" || !v) return null;
+  return v === "Sí" || v.startsWith("Sí: ") ? "Sí" : v;
+}
+/** ¿Se cumple la condición con estas respuestas? */
+export function conditionMet(c: ShowIf, answers: Record<string, unknown>): boolean {
+  const v = conditionValue(answers[c.field]);
+  if (v === null) return false;
+  return c.op === "in" ? (Array.isArray(c.value) ? c.value : [c.value]).includes(v) : v === c.value;
+}
+/**
+ * Las preguntas que se ven con estas respuestas: las que tienen «Mostrar solo si…» solo si se cumple (y si la pregunta
+ * de la que dependen también se ve). Lo usan la ficha, el formulario del paciente y la recogida: una pregunta oculta
+ * por su condición no es obligatoria y lo que se conteste en ella no se guarda.
+ */
+export function visibleFields<F extends Pick<Field, "id" | "showIf">>(fields: F[], answers: Record<string, unknown>): F[] {
+  const shown = new Set<string>();
+  const out: F[] = [];
+  for (const f of fields) {
+    if (f.showIf && (!shown.has(f.showIf.field) || !conditionMet(f.showIf, answers))) continue;
+    shown.add(f.id);
+    out.push(f);
+  }
+  return out;
+}
+/** ¿Se puede poner una condición sobre esta pregunta? Sí/No y una sola opción. */
+export const conditionTarget = (f: Field) => f.type === "yesno" || f.type === "yesno_detail" || f.type === "choice";
+/** Las respuestas que admite una pregunta en una condición. */
+export const conditionValues = (f: Field): string[] => (f.type === "choice" ? f.options : f.type === "yesno" || f.type === "yesno_detail" ? ["Sí", "No"] : []);
+/** Las respuestas que se pueden destacar: las opciones o Sí/No. */
+export const highlightValues = (f: Field): string[] => (f.type === "choice" || f.type === "multi" ? f.options : f.type === "yesno" || f.type === "yesno_detail" ? ["Sí", "No"] : []);
+/** Una respuesta destacada: la pregunta y las opciones contestadas que la clínica marcó para destacar. */
+export type Highlight = { id: string; label: string; values: string[] };
+/**
+ * Las respuestas que la clínica quiere ver destacadas (por opción, en las preguntas de opciones o Sí/No). Solo el texto
+ * literal de la opción: sin recuentos, sin mezclarse con las banderas rojas y sin interpretar nada.
+ */
+export function highlights(answers: Record<string, unknown>, fields: Field[]): Highlight[] {
+  const out: Highlight[] = [];
+  const seen = new Set<string>();
+  for (const f of fields) {
+    // La primera vez que sale cada pregunta manda (la de la plantilla de ahora), aunque no destaque nada.
+    if (seen.has(f.id)) continue;
+    seen.add(f.id);
+    if (!f.highlight?.length) continue;
+    const v = answers[f.id];
+    const picked = Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : typeof v === "string" ? [conditionValue(v) ?? v] : [];
+    const values = picked.filter((x) => f.highlight!.includes(x));
+    if (values.length) out.push({ id: f.id, label: f.label, values });
+  }
+  return out;
+}
+/** Como mucho, preguntas obligatorias por formulario del paciente. */
+export const MAX_REQUIRED = 5;
 
 /** Respuestas guardadas de campos que ya no están en la plantilla (no se pierden). */
 export function orphanAnswers(a: Answers, sections: Section[] = ANAMNESIS): [string, AnswerValue][] {

@@ -37,6 +37,8 @@ export type FormMeta = {
   tpl?: string;
   /** Se mandó a un menor: al principio, quién contesta. */
   minor?: boolean;
+  /** La plantilla lleva un módulo que contesta un familiar o tutor (se preguntó quién contesta). */
+  guardian?: boolean;
   /** Un cuestionario propio: la huella de la versión mandada (se recoge y puntúa con ella). */
   hash?: string;
 };

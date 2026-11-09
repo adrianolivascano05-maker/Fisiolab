@@ -158,8 +158,8 @@ export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplat
       // (un envío de antes, o aún no ha llegado por la sincronización), con la de ahora.
       const snap = sent.meta?.tpl ? await getSnapshot(db, sent.meta.tpl) : null;
       const m = mergeAnamnesis(current, incoming, snap?.sections ?? template, sent.meta?.fields, [...all, ...(snap?.all ?? [])]);
-      // Quién rellenó el de un menor: el propio paciente o su madre, padre o tutor.
-      const respondent = sent.meta?.minor && typeof incoming[RESPONDENT] === "string" && incoming[RESPONDENT] in RESPONDENTS ? (incoming[RESPONDENT] as Respondent) : null;
+      // Quién rellenó el de un menor (o uno con un módulo que contesta un familiar): el paciente o su madre, padre o tutor.
+      const respondent = (sent.meta?.minor || sent.meta?.guardian) && typeof incoming[RESPONDENT] === "string" && incoming[RESPONDENT] in RESPONDENTS ? (incoming[RESPONDENT] as Respondent) : null;
       if (respondent) m.clean[RESPONDENT] = respondent;
       if (m.filled.length) {
         let merged = stampSources(m.merged, m.filled, { by: "patient", at: f.answeredAt, form: f.id });

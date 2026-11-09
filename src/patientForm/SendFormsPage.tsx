@@ -26,7 +26,7 @@ import {
   PRIVACY_KIND,
   sendableKinds,
 } from "../clinical/patientForms";
-import { useAnamnesisSections } from "../clinical/useAnamnesis";
+import { useAnamnesisSections, useSnapshot } from "../clinical/useAnamnesis";
 import { getToken } from "../cloud/auth";
 import { useCloud } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
@@ -46,7 +46,9 @@ import { SelectField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { useDocsUsage } from "../documents/DocsAutoSync";
-import { createPatientForm } from "./createForm";
+import { createPatientForm, templateForPatient } from "./createForm";
+import { AnamnesisPreview } from "./AnamnesisStep";
+import { listTemplates } from "../data/anamnesisTemplates";
 import { useCollectForms } from "./FormInbox";
 
 const firstName = (p: Patient) => p.name.trim().split(/\s+/)[0] ?? "";
@@ -152,6 +154,7 @@ export function SendFormsPage() {
       <Sheet open={choosing !== null && online} onClose={closeChooser} title="Enviar un formulario">
         {choosing !== null && (
           <ChooseForm
+            patientId={id}
             initial={choosing}
             onCreate={async (kind) => {
               const created = await createPatientForm(getDb(), cloud, {
@@ -202,7 +205,7 @@ export function SendFormsPage() {
   );
 }
 
-function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: string) => Promise<void> }) {
+function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initial: string; onCreate: (kind: string) => Promise<void> }) {
   // Los pendientes del permiso de su titular, solo si la clínica ha marcado que lo tiene.
   const sendable = sendableKinds();
   // Pedirle archivos, solo si el servidor de la clínica los guarda.
@@ -210,7 +213,17 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
   const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || sendableKinds().some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Su parte de la anamnesis va con la plantilla de su motivo de consulta: con más de una, cuál, cuánto es y cómo lo verá.
+  const tpl = useAsync(async () => {
+    const db = getDb();
+    const [t, all] = await Promise.all([templateForPatient(db, patientId), listTemplates(db)]);
+    return { t, several: all.filter((x) => !x.archived).length > 1 };
+  }, [patientId]);
+  const [preview, setPreview] = useState(false);
+  const asked = tpl.data ? patientSections(tpl.data.t.sections) : [];
+  const count = asked.reduce((n, x) => n + x.fields.length, 0);
   return (
+    <>
     <form
       className="flex flex-col gap-3"
       onSubmit={async (e) => {
@@ -250,6 +263,14 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
           </optgroup>
         )}
       </SelectField>
+      {kind === ANAMNESIS_KIND && tpl.data?.several && (
+        <p className="flex flex-wrap items-center gap-x-1 text-sm">
+          <span className="font-semibold">Plantilla {tpl.data.t.name}</span> · {count === 1 ? "1 pregunta" : `${count} preguntas`} · unos {Math.max(1, Math.ceil(count / 3))} minutos ·
+          <button type="button" className="min-h-11 font-semibold text-accent underline" onClick={() => setPreview(true)}>
+            Ver cómo lo verá
+          </button>
+        </p>
+      )}
       <p className="text-sm text-text-muted">
         {kind === DOCS_KIND
           ? `Sube desde su móvil hasta ${DOCS_PER_LINK} informes o pruebas, en PDF o en foto (las fotos se pasan a PDF), de 5 MB como mucho cada uno. Llegan cifrados a sus archivos.`
@@ -265,6 +286,11 @@ function ChooseForm({ initial, onCreate }: { initial: string; onCreate: (kind: s
         Crear el enlace
       </Button>
     </form>
+    {/* Fuera del formulario: un Intro en la vista previa no crea el enlace. */}
+      <Sheet open={preview} onClose={() => setPreview(false)} title="Así lo verá el paciente">
+        {preview && tpl.data && <AnamnesisPreview sections={asked} guardian={tpl.data.t.guardian} />}
+      </Sheet>
+    </>
   );
 }
 
@@ -398,8 +424,10 @@ function SentRow({
   const s = STATUS[status];
   // Todo lo que contestó, con su pregunta (dicha para él si aún se le pregunta; si no, como esté en la ficha o en la
   // de OmniClin): también lo de preguntas que ya no se le mandan o que la clínica ha ocultado.
-  const asked = patientSections(sectionsTemplate).flatMap((x) => x.fields);
-  const known = sectionsTemplate.flatMap((x) => x.fields);
+  // Con la plantilla con la que se le mandó (su instantánea; lleva también sus módulos), si está en este móvil.
+  const snap = useSnapshot(f.kind === ANAMNESIS_KIND ? f.meta?.tpl : undefined);
+  const asked = patientSections(snap?.sections ?? sectionsTemplate).flatMap((x) => x.fields);
+  const known = [...(snap?.sections ?? sectionsTemplate).flatMap((x) => x.fields), ...(snap?.all ?? [])];
   const order = (id: string) => {
     const i = known.findIndex((x) => x.id === id);
     return i === -1 ? known.length : i;

@@ -6,7 +6,10 @@ import { SHOW_EXERCISES } from "../app/features";
 import { fmtDate, testTitle } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { clinicalSummary, regionLabel } from "../clinical/anamnesis";
+import { clinicalSummary, highlights, regionLabel } from "../clinical/anamnesis";
+import { TPL } from "../clinical/answerMeta";
+import { useTemplateFor } from "../clinical/useAnamnesis";
+import { MEASURES, measureLabel, proposedQuestionnaires } from "../clinical/proposals";
 import { useCloud } from "../cloud/cloudContext";
 import { mainValue } from "../clinical/measures";
 import { questionnaireGroups } from "../clinical/outcomeParts";
@@ -56,6 +59,8 @@ export function PatientPage() {
   }, [id]);
   const [assessing, setAssessing] = useState(false);
   const cloud = useCloud();
+  /** La plantilla de su anamnesis: para lo que la clínica quiere ver destacado. */
+  const tpl = useTemplateFor(data.data?.anamnesis?.answers[TPL]);
 
   if (data.error) return <Page title="Paciente" backTo="/"><LoadError error={data.error} /></Page>;
   if (!data.data)
@@ -78,6 +83,9 @@ export function PatientPage() {
 
   const summary = anamnesis ? clinicalSummary(anamnesis.answers) : null;
   const alarms = anamnesis ? redFlagReview(anamnesis.answers) : null;
+  const marked = anamnesis && tpl ? highlights(anamnesis.answers, tpl.all) : [];
+  const proposedQ = proposedQuestionnaires(tpl?.propose?.questionnaires ?? []);
+  const proposedM = (tpl?.propose?.measures ?? []).filter((m) => MEASURES.some((x) => x.id === m));
   const last = sessions[0] ?? null;
   const review = last?.reviewOn ?? null;
   const lastGroup = questionnaireGroups(questionnaires)[0];
@@ -86,7 +94,7 @@ export function PatientPage() {
   const lastValue = lastTest ? mainValue(lastTest) : null;
   const headline = summary?.diagnosis || summary?.reason || "";
   const where = [...(summary?.regions ?? []).map(regionLabel), summary?.side && summary.side !== "No aplica" ? summary.side.toLowerCase() : ""].filter(Boolean).join(" · ");
-  const hasSituation = !!(headline || where || alarms?.hits.length || last || lastQ || lastTest);
+  const hasSituation = !!(headline || where || alarms?.hits.length || marked.length || last || lastQ || lastTest);
   const pending = missing.length > 0 || !privacy.informedAt || (review !== null && review < today);
 
   return (
@@ -138,6 +146,18 @@ export function PatientPage() {
                   {`Banderas rojas: ${alarms.hits.length}`}
                 </span>{" "}
                 ·{" "}
+                <Link to={`/pacientes/${id}/anamnesis`} className="font-semibold underline underline-offset-2">
+                  ver
+                </Link>
+              </span>
+            </p>
+          )}
+          {/* Lo que la clínica marcó para destacar en sus preguntas: el texto de la opción, sin recuentos. */}
+          {marked.length > 0 && (
+            <p className="flex items-start gap-2 text-sm">
+              <ListChecks aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+              <span>
+                <span className="font-semibold">Destacado:</span> {marked.map((h) => `${h.label}: ${h.values.join(", ")}`).join(" · ")} ·{" "}
                 <Link to={`/pacientes/${id}/anamnesis`} className="font-semibold underline underline-offset-2">
                   ver
                 </Link>
@@ -248,6 +268,20 @@ export function PatientPage() {
         </div>
       </div>
       <Sheet open={assessing} onClose={() => setAssessing(false)} title="Valorar">
+        {/* Lo que propone la plantilla de su motivo de consulta: primero, a un toque. */}
+        {proposedQ.length + proposedM.length > 0 && (
+          <section aria-label={`Lo que propone la plantilla «${tpl!.name}»`} className="flex flex-col gap-2">
+            <h3 className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase">Propuestos para «{tpl!.name}»</h3>
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+              {proposedQ.map((k) => (
+                <RowLink key={k.id} to={`/pacientes/${id}/cuestionarios/nuevo?tipo=${encodeURIComponent(k.id)}`} icon={ListChecks} title={k.name} subtitle="Cuestionario" />
+              ))}
+              {proposedM.map((m) => (
+                <RowLink key={m} to={`/pacientes/${id}/test/${m}`} icon={Activity} title={measureLabel(m)} subtitle="Medición" />
+              ))}
+            </ul>
+          </section>
+        )}
         <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
           <RowLink to={`/pacientes/${id}/exploracion/nuevo`} icon={Stethoscope} title="Registrar un test" subtitle="Lachman, Neer, Slump… los de su zona, primero" />
           <RowLink to={`/pacientes/${id}/cuestionarios/nuevo`} icon={ListChecks} title="Pasar un cuestionario" subtitle="Aquí o enviado a su móvil" />

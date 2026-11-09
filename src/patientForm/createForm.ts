@@ -2,7 +2,9 @@
 // se sube al servidor de la clínica y se apunta en su ficha. Lo usan la ficha (SendFormsPage) y la bandeja de envíos.
 import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, isSignKind, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
 import type { Section } from "../clinical/anamnesis";
-import { currentTemplate, markTemplateUsed, type ResolvedTemplate } from "../data/anamnesisTemplates";
+import { markTemplateUsed, templateFor, type ResolvedTemplate } from "../data/anamnesisTemplates";
+import { getAnamnesis } from "../data/clinical";
+import { TPL } from "../clinical/answerMeta";
 import { ageOn } from "../data/privacy";
 import { isOwnKind } from "../clinical/forms/own";
 import { ownSpec } from "../clinical/ownCatalog";
@@ -53,9 +55,9 @@ export async function uploadPatientForm(
   const clinic = await getClinic(db).catch(() => null);
   const brand = await formBrand(currentBrand(), clinic ?? {});
   const anamnesis = p.kind === ANAMNESIS_KIND;
-  // La plantilla con la que se manda (la de ahora, si no viene): su instantánea queda guardada (y se sincroniza) para
-  // recogerlo con ella aunque la clínica la cambie después.
-  const template = anamnesis ? (p.template ?? (await currentTemplate(db))) : null;
+  // La plantilla con la que se manda (la de su motivo de consulta; sin anamnesis aún, la de por defecto): su
+  // instantánea queda guardada (y se sincroniza) para recogerlo con ella aunque la clínica la cambie después.
+  const template = anamnesis ? (p.template ?? (await templateForPatient(db, p.patientId))) : null;
   const sections = template ? patientSections(template.sections) : null;
   const tpl = template ? await markTemplateUsed(db, template) : undefined;
   // A un paciente nuevo que aún no ha dicho «Sí» al contacto, la anamnesis empieza con la información de protección de
@@ -63,6 +65,8 @@ export async function uploadPatientForm(
   const patient = sections ? await getPatient(db, p.patientId) : null;
   const age = patient ? ageOn(patient.birthDate) : null;
   const minor = age !== null && age < 18;
+  // Un módulo que contesta un familiar o tutor: también se le pregunta al principio quién contesta.
+  const guardian = !!template?.guardian && !minor;
   const intake =
     sections && clinic && patient && patient.privacy.consents?.contact !== true && (await isNewPatient(db, p.patientId))
       ? { version: INTAKE_TEXT_VERSION, notice: intakeNotice(clinic, p.clinicName), ackText: INTAKE_ACK_TEXT, contactText: intakeContactText(clinic, p.clinicName) }
@@ -78,6 +82,7 @@ export async function uploadPatientForm(
         ...(intake ? { intake: { version: intake.version, contactText: intake.contactText } } : {}),
         ...(tpl ? { tpl } : {}),
         ...(minor ? { minor } : {}),
+        ...(guardian ? { guardian } : {}),
       }
     : null;
   const request: FormRequest = {
@@ -89,6 +94,7 @@ export async function uploadPatientForm(
     ...(ownForm ? { form: ownForm } : {}),
     ...(tpl ? { tpl } : {}),
     ...(minor ? { minor } : {}),
+    ...(guardian ? { guardian } : {}),
     ...(intake ? { intake } : {}),
     expiresAt,
     ...(brand ? { brand } : {}),
@@ -98,6 +104,12 @@ export async function uploadPatientForm(
   await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt, ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}) });
   const episodeId = await currentEpisode(db, p.patientId);
   return { record: { id, patientId: p.patientId, episodeId, kind: p.kind, key, expiresAt, meta }, url: formLink(id, key) };
+}
+
+/** La plantilla con la que se le manda su parte de la anamnesis: la de su motivo de consulta (la de por defecto si aún
+ *  no tiene anamnesis). */
+export async function templateForPatient(db: Db, patientId: string): Promise<ResolvedTemplate> {
+  return templateFor(db, (await getAnamnesis(db, patientId))?.answers[TPL]);
 }
 
 /** Apunta en la ficha los formularios que se acaban de mandar (para recoger sus respuestas). */

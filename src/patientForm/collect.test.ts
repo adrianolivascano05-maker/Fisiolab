@@ -13,7 +13,8 @@ import { cancelSignLinks, collectAnswered, type FormsApi } from "./collect";
 import { readSources } from "../clinical/answerMeta";
 import { NO_ANSWER } from "../clinical/anamnesis";
 import { uploadPatientForm } from "./createForm";
-import { currentTemplate, getTemplateDoc, markTemplateUsed, saveTemplateDoc } from "../data/anamnesisTemplates";
+import { addModule, currentTemplate, emptyDelta, getTemplateDoc, markTemplateUsed, saveTemplateDoc } from "../data/anamnesisTemplates";
+import { saveModuleDoc, type ModuleDoc } from "../data/anamnesisModules";
 import { addLibraryForm, archiveOwnForm, newOwnFormId, saveOwnForm } from "../data/ownForms";
 
 const patient = (name: string) => ({ name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
@@ -371,6 +372,45 @@ describe("formularios para el paciente", () => {
     expect(saved).toMatchObject({ motivo: "Me duele", c_dddddddd: "No", __tpl: ref, __respondent: "guardian" });
     expect(readSources(saved).c_dddddddd).toEqual({ by: "patient", at, form: f.id });
     expect((await getSentForm(db, f.id))!.answers).toMatchObject({ c_dddddddd: "No", __respondent: "guardian" });
+  });
+
+  it("fase 2: con un módulo; lo de una condicional que no se cumple no se guarda; tipos nuevos; obligatorias nunca al recoger; quién contesta", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Gema Guardián"));
+    const mod: ModuleDoc = {
+      v: 1,
+      id: "md_0000000f",
+      name: "Infancia",
+      guardian: true,
+      fields: {},
+      added: [
+        { id: "c_4000000a", section: "self", type: "yesno", label: "¿Va a la guardería?", who: "both" },
+        { id: "c_4000000b", section: "self", type: "text", label: "¿Cuántas horas?", who: "both", showIf: { field: "c_4000000a", op: "eq", value: "Sí" }, required: true },
+        { id: "c_4000000c", section: "self", type: "date", label: "Última revisión", who: "both" },
+        { id: "c_4000000d", section: "self", type: "zones", label: "¿Dónde le duele?", who: "both" },
+      ],
+    };
+    await saveModuleDoc(db, mod, null);
+    const t = await saveTemplateDoc(db, addModule({ v: 1, id: "t_0000000f", name: "Pediatría", base: 1, delta: emptyDelta() }, mod.id, [mod]), null);
+    const sentTpl = await currentTemplate(db, t.id);
+    expect(sentTpl.guardian).toBe(true);
+    const ref = await markTemplateUsed(db, sentTpl);
+    const fields = patientSections(sentTpl.sections).flatMap((x) => x.fields.map((y) => y.id));
+    expect(fields).toEqual(expect.arrayContaining(["c_4000000a", "c_4000000b", "c_4000000c", "c_4000000d"]));
+    const f = { id: newFormId(), key: newFormKey() };
+    await addSentForm(db, { id: f.id, patientId: pid, episodeId: pid, kind: ANAMNESIS_KIND, key: f.key, expiresAt: new Date(Date.now() + 86_400_000).toISOString(), meta: { fields, tpl: ref, guardian: true } });
+    // Contesta «No» y aun así llegan las horas (no se le enseñaban): no se guardan. La obligatoria sin contestar no
+    // impide recogerlo. Una fecha y unas zonas que no valen, fuera.
+    const response = await seal(
+      { v: 1, answers: { c_4000000a: "No", c_4000000b: "8 horas", c_4000000c: "2026-02-30x", c_4000000d: ["rodilla:derecho", "rodilla:izquierdo", "codo", "pie"], __respondent: "guardian" } },
+      f.key,
+    );
+    const { api } = server([{ id: f.id, response, answeredAt: "2026-11-09T10:00:00.000Z" }]);
+    await collectAnswered(db, api, await currentTemplate(db));
+    const saved = (await getAnamnesis(db, pid))!.answers;
+    expect(saved).toMatchObject({ c_4000000a: "No", c_4000000d: ["rodilla:derecho", "codo"], __respondent: "guardian", __tpl: ref });
+    expect(saved).not.toHaveProperty("c_4000000b");
+    expect(saved).not.toHaveProperty("c_4000000c");
   });
 
   it("cuestionario propio: se recoge y puntúa con la versión enviada aunque la clínica lo cambie después", async () => {

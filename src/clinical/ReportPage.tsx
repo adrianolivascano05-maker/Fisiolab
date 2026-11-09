@@ -19,7 +19,8 @@ import { TextArea } from "./parts";
 import { safeName } from "../app/download";
 import { Button } from "../ui/Button";
 import { answerText } from "./anamnesis";
-import { useAnamnesisSections } from "./useAnamnesis";
+import { BASE_SECTIONS, useTemplateFor } from "./useAnamnesis";
+import { TPL } from "./answerMeta";
 import { BodyFigures, BodyMapLegend } from "./BodyMapParts";
 import { marksText, parseMarks } from "./bodyMap";
 import { trends } from "./measures";
@@ -72,7 +73,8 @@ export function ReportPage() {
     return { patient, anamnesis, findings, sessions, tests, wellness, questionnaires, clinic };
   }, [id]);
   const article = useRef<HTMLElement>(null);
-  const template = useAnamnesisSections();
+  /** La plantilla de su anamnesis (la de su motivo), para los apartados del informe. */
+  const template = useTemplateFor(data.data?.anamnesis?.answers[TPL])?.sections ?? BASE_SECTIONS;
   const [parts, setParts] = useState<Record<Part, boolean>>({ anamnesis: true, exploracion: true, dolor: true, mediciones: true, cuestionarios: true, sesiones: true });
   /** A quién va (su médico, la mutua…) y una nota para él: solo en este informe, no se guardan. */
   const [to, setTo] = useState("");

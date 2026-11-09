@@ -16,8 +16,8 @@ import { cx } from "../ui/cx";
 import { TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { getTemplateDoc } from "../data/anamnesisTemplates";
-import { readSources, SRC } from "./answerMeta";
+import { currentTemplate, getDefaultTemplateId, listTemplates, markTemplateUsed, templateFor } from "../data/anamnesisTemplates";
+import { readSources, SRC, TPL } from "./answerMeta";
 import { ANAMNESIS } from "./anamnesis";
 
 /** Lo que no cambia de un motivo a otro (datos personales, antecedentes, hábitos): pasa a la anamnesis nueva. */
@@ -34,17 +34,26 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
   const navigate = useNavigate();
   const data = useAsync(async () => {
     const db = getDb();
-    const [episodes, focus, counts] = await Promise.all([listEpisodes(db, patientId), getFocus(db, patientId), episodeCounts(db, patientId)]);
-    return { episodes, focus, counts };
+    const [episodes, focus, counts, templates, defaultTemplate] = await Promise.all([
+      listEpisodes(db, patientId),
+      getFocus(db, patientId),
+      episodeCounts(db, patientId),
+      listTemplates(db),
+      getDefaultTemplateId(db),
+    ]);
+    return { episodes, focus, counts, templates: templates.filter((t) => !t.archived), defaultTemplate };
   }, [patientId]);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"list" | "new" | "rename" | "delete">("list");
   const [title, setTitle] = useState("");
   const [day, setDay] = useState(today);
+  /** La plantilla del motivo nuevo (null: la de por defecto). */
+  const [template, setTemplate] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (!data.data) return null;
-  const { episodes, focus, counts } = data.data;
+  const { episodes, focus, counts, templates, defaultTemplate } = data.data;
+  const chosen = template ?? defaultTemplate;
   const several = episodes.length > 1;
   // Con un solo motivo, es ese (aunque no se haya elegido): se puede renombrar o dar por terminado.
   const current = episodes.find((e) => e.id === focus) ?? (several ? undefined : episodes[0]);
@@ -76,14 +85,17 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
     run(async () => {
       const db = getDb();
       const prev = (await getAnamnesis(db, patientId))?.answers ?? {};
-      // También las preguntas propias de la clínica de esos mismos apartados.
-      const custom = new Set((await getTemplateDoc(db)).delta.added.filter((f) => KEEP_SECTIONS.includes(f.section)).map((f) => f.id));
+      // También las preguntas propias de la clínica de esos mismos apartados (de la plantilla del motivo de antes).
+      const before = await templateFor(db, prev[TPL]);
+      const custom = new Set(before.sections.filter((x) => KEEP_SECTIONS.includes(x.id)).flatMap((x) => x.fields.map((f) => f.id)));
       const answers: Answers = Object.fromEntries(Object.entries(prev).filter(([k]) => KEEP.has(k) || custom.has(k)));
       // Quién contestó lo que se copia (las demás claves internas, como la plantilla, no: el motivo nuevo tendrá la suya).
       const src = Object.fromEntries(Object.entries(readSources(prev)).filter(([k]) => k in answers));
       if (Object.keys(src).length) answers[SRC] = JSON.stringify(src);
       answers.fecha_valoracion = day;
       answers.motivo = title.trim();
+      // La plantilla que se elige (o la de por defecto): el motivo la conserva aunque luego se cambie o se archive.
+      answers[TPL] = await markTemplateUsed(db, await currentTemplate(db, chosen));
       const id = await createEpisode(db, patientId, { title, startedAt: new Date(`${day}T12:00:00`).toISOString(), answers });
       close();
       toast("Motivo de consulta creado", "success");
@@ -150,7 +162,7 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
               {episodes.map((e) => option(e.id, episodeLabel(e), `Desde el ${fmtDate(e.startedAt)} · ${records(counts[e.id])}`, !!e.closedAt))}
               {several && option(ALL, "Todos los motivos", "Todo junto, del más reciente al más antiguo")}
             </ul>
-            <Button icon={<Plus aria-hidden="true" className="size-5" />} block onClick={() => { setTitle(""); setDay(today()); setView("new"); }}>
+            <Button icon={<Plus aria-hidden="true" className="size-5" />} block onClick={() => { setTitle(""); setDay(today()); setTemplate(null); setView("new"); }}>
               Nuevo motivo de consulta
             </Button>
             {current && (
@@ -175,6 +187,25 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
             <p className="text-sm text-text-muted">Tendrá su propia anamnesis (se copian los datos personales, los antecedentes y los hábitos) y sus propias sesiones, exploraciones, mediciones y cuestionarios.</p>
             <TextField label="¿Por qué viene ahora?" placeholder="Por ejemplo: dolor lumbar" value={title} onChange={(e) => setTitle(e.target.value)} />
             <TextField label="Fecha" type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+            {/* Con más de una plantilla, cuál lleva su anamnesis (la de por defecto, marcada). */}
+            {templates.length > 1 && (
+              <fieldset className="flex flex-col gap-2">
+                <legend className="text-sm font-semibold">Plantilla de anamnesis</legend>
+                <div className="flex flex-wrap gap-2">
+                  {templates.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      aria-pressed={chosen === t.id}
+                      onClick={() => setTemplate(t.id)}
+                      className={cx("min-h-11 rounded-pill border px-4 text-sm font-semibold", chosen === t.id ? "border-accent bg-accent text-on-accent" : "border-border-input bg-bg hover:bg-surface")}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
             {error && <Alert tone="danger" title={error} />}
             <Button type="submit" block loading={busy}>
               Crear y rellenar su anamnesis

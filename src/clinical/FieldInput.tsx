@@ -2,7 +2,7 @@
 // (src/clinical/AnamnesisPage.tsx) y la página que rellena el paciente desde su móvil (src/patientForm).
 import type { AnswerValue } from "../data/clinical";
 import { NumberField, TextField } from "../ui/Field";
-import { NO_ANSWER, regionLabel, type Field } from "./anamnesis";
+import { BODY_REGIONS, NO_ANSWER, parseZone, regionLabel, ZONE_SIDES, type Field } from "./anamnesis";
 import { CifPicker } from "./cif/CifPicker";
 import { Chips, PainScale, TextArea } from "./parts";
 
@@ -24,7 +24,12 @@ type Props = {
 /** Tope de los textos que escribe el paciente. */
 export const PATIENT_TEXT_MAX = 500;
 
-export function FieldInput({ field, value, onChange, patient }: Props) {
+/** Lo que se le pone al texto de una pregunta obligatoria en el formulario del paciente. */
+export const REQUIRED_MARK = " (necesaria)";
+
+export function FieldInput({ field: given, value, onChange, patient }: Props) {
+  // En el formulario del paciente, las obligatorias llevan «(necesaria)» junto al texto.
+  const field = patient && given.required && !given.sensitive ? { ...given, label: `${given.label}${REQUIRED_MARK}` } : given;
   if (!field.sensitive) return <Input field={field} value={value} onChange={onChange} patient={patient} />;
   const declined = value === NO_ANSWER;
   return (
@@ -90,6 +95,10 @@ function Input({ field, value, onChange, patient }: Props) {
         </div>
       );
     }
+    case "yesno":
+      return <Chips column={patient} label={field.label} hint={field.hint} options={["Sí", "No"]} value={s ? [s] : []} onChange={(v) => onChange(v[0] ?? null)} />;
+    case "zones":
+      return <ZonesInput field={field} value={value} onChange={onChange} patient={patient} />;
     case "yesno_detail": {
       const yes = s === "Sí" || s.startsWith("Sí: ");
       return (
@@ -109,4 +118,36 @@ function Input({ field, value, onChange, patient }: Props) {
       return <TextArea label={f.label} hint={f.hint} value={typeof value === "string" ? value : Array.isArray(value) ? value.join(", ") : value == null ? "" : String(value)} onChange={onChange} />;
     }
   }
+}
+
+/** Zonas del cuerpo con su lado: se marcan las zonas y, en cada una, el lado si se sabe («rodilla:derecho»). */
+function ZonesInput({ field, value, onChange, patient }: Props) {
+  const list = (Array.isArray(value) ? value : []).filter((x) => parseZone(x));
+  const regions = list.map((x) => parseZone(x)!.region);
+  const sideOf = (r: string) => list.map((x) => parseZone(x)!).find((z) => z.region === r)?.side;
+  const put = (next: { region: string; side?: string }[]) => onChange(next.length ? next.map((z) => (z.side ? `${z.region}:${z.side}` : z.region)) : null);
+  return (
+    <div className="flex flex-col gap-3">
+      <Chips
+        label={field.label}
+        hint={field.hint}
+        options={BODY_REGIONS.map((r) => r.id)}
+        render={regionLabel}
+        multiple
+        column={patient}
+        value={regions}
+        onChange={(v) => put(v.map((r) => ({ region: r, side: sideOf(r) })))}
+      />
+      {regions.map((r) => (
+        <Chips
+          key={r}
+          label={`Lado: ${regionLabel(r)}`}
+          options={ZONE_SIDES.map((x) => x.id)}
+          render={(id) => ZONE_SIDES.find((x) => x.id === id)?.label ?? id}
+          value={sideOf(r) ? [sideOf(r)!] : []}
+          onChange={(v) => put(regions.map((x) => ({ region: x, side: x === r ? v[0] : sideOf(x) })))}
+        />
+      ))}
+    </div>
+  );
 }

@@ -39,6 +39,64 @@ todas las pruebas y enseñar los cambios.
     (la plantilla, en la fase 2); no hay ningún enlace ni botón para cambiarla desde ahí. Las plantillas se cambian
     únicamente en Ajustes › Anamnesis de la clínica, para que nadie modifique nada sin querer.
 
+## Decisiones de la fase 2 (07-11-2026 y 09-11-2026)
+
+16. **Botón «⋯» en las plantillas**, en vez de mantener pulsado un chip (como en Cuestionarios propios): «Usar por
+    defecto · Renombrar · Duplicar · Archivar» y, debajo, las archivadas con «Volver a usarla».
+17. **Los 3 paquetes de ejemplo pasan a módulos de OmniClin, versión 1** (`m_deportiva`, `m_suelo_pelvico`,
+    `m_neurologica`), con las mismas preguntas, cada uno en su apartado propio. Sin ocultar preguntas del tronco, sin
+    proponer cuestionarios ni mediciones y sin respuestas destacadas: eso llega con el documento (versión 2). Dos
+    ajustes: «Tono y espasticidad» la contesta solo el fisio (es de la exploración) y «Dolor en las relaciones
+    sexuales» es delicada (con «Prefiero no responder» y nunca obligatoria) en vez de tener «Prefiere no responder»
+    como opción.
+18. **«Unos N minutos» al enviar**: la misma cuenta que el formulario del paciente (unos 20 segundos por pregunta).
+
+Cómo quedan los detalles que el encargo no fijaba:
+
+- Una plantilla nueva lleva el tronco con los cambios de la que sale por defecto (lo que la clínica ya ajustó), más
+  los módulos elegidos. «Duplicar» copia una entera.
+- El apartado propio de un módulo va antes de «Exploración física» (detrás de «Hábitos»); los apartados nuevos de la
+  clínica, también. Se pueden subir y bajar.
+- «Mostrar solo si…» y «Destacar» se ponen en las preguntas propias y en las de los módulos (las del tronco no se
+  condicionan ni se destacan: las banderas rojas son aparte). Una condición que deja de valer (la pregunta de la que
+  depende se oculta o se mueve) se ignora: la pregunta se ve siempre.
+- Lo destacado sigue la configuración de ahora de la clínica (si deja de destacar una opción, deja de salir).
+- Un módulo de la clínica tiene siempre su apartado (aunque esté vacío, para añadirle preguntas); al paciente solo le
+  llegan los apartados con preguntas suyas.
+- Las preguntas de un módulo se añaden en su apartado; después se pueden mover a uno del tronco desde su hoja.
+
+## Fase 2: hecha (09-11-2026)
+
+- **Datos**: `src/data/anamnesisFields.ts` (las preguntas propias: tipos, comprobación, `ownToField`),
+  `src/data/anamnesisModules.ts` (módulos de la clínica: `anamnesis_mod:<id>` e instantáneas `anamnesis_mod_v:`; los
+  de OmniClin con los cambios de la clínica encima, «volver a la versión de OmniClin» y novedades por versión),
+  `src/data/modulesLibrary.ts` (los de OmniClin, versión 1) y `src/data/anamnesisTemplates.ts` (hasta 20 plantillas,
+  la de por defecto en `anamnesis_tpl_default`, archivar, duplicar, renombrar, apartados nuevos `s_<8 hex>`, mover
+  preguntas y apartados, resolución con módulos, obligatorias, condiciones, lo que propone). Sin migración: una
+  plantilla de la fase 1 se resuelve igual que antes (la misma huella; hay una prueba que lo compara).
+- **Tipos nuevos**: Sí/No, número con unidad (veces, horas, semanas, días, cm, mm, %), fecha y zonas del cuerpo con
+  su lado (`rodilla:derecho`). `visibleFields` en `src/clinical/anamnesis.ts` la usan la ficha, el formulario del
+  paciente y la recogida.
+- **Ficha**: cada anamnesis se ve con la plantilla de su motivo (`__tpl`), aunque se archive; al abrir un motivo se
+  elige la plantilla (si hay más de una). «Destacado» en la anamnesis y en el resumen de la ficha, con el pie
+  «Destacado según la configuración de tu clínica». Las banderas rojas solo buscan en las preguntas del tronco. En
+  «Valorar», primero lo que propone la plantilla.
+- **Editor**: chips de plantillas, «+ Nueva», «⋯», aviso de novedades de OmniClin, la hoja de cada pregunta con
+  obligatoria, «Mostrar solo si…», destacar y apartado, «Añadir apartado», «Nombre y orden del apartado», la sección
+  «Módulos» (de esta plantilla, de la clínica y de OmniClin) y «Al abrir un motivo con esta plantilla».
+- **Paciente**: al enviar, la plantilla de su motivo, cuántas preguntas y «Ver cómo lo verá»; en el formulario, los
+  apartados de los módulos como pasos, las condicionales debajo de su pregunta (lo de una que no se ve no se manda ni
+  se guarda), «(necesaria)» con el bloqueo solo al pulsar «Siguiente» o «Enviar» y el foco en la primera que falta, y
+  «¿Quién contesta?» si un módulo lo contesta un familiar. Al recoger nunca se bloquea nada.
+- **Exportación**: cada anamnesis con los apartados de su plantilla; plantillas y módulos en el JSON.
+- **Móviles sin actualizar** (fase 1): les sale el aviso de siempre «Hay una versión nueva de la app» (`pwa.tsx`).
+  Mientras, siguen sincronizando: ven «General» con sus cambios de la fase 1, los tipos nuevos como texto y las
+  respuestas de los módulos en «Respuestas a preguntas que ya no están». Límite conocido: si desde uno de esos móviles
+  se cambia «General» antes de actualizar, se pueden perder de «General» el orden de los apartados, las obligatorias,
+  las preguntas movidas de apartado y lo que propone (son ajustes de la clínica; nunca respuestas de pacientes).
+- **Pruebas**: `anamnesisModules.test.ts` (12), `collect.test.ts` (recogida con módulo, condicional, tipos nuevos y
+  quién contesta); e2e `modulos.spec.ts` (MD1, MD2) y CL22 (`clinics.spec.ts`).
+
 ## Fase 1: hecha (pendiente del visto bueno para subir)
 
 - **Datos** (`src/data/anamnesisTemplates.ts`): plantilla = tronco + cambios; `checkTemplate` con los límites; huella
@@ -64,8 +122,7 @@ todas las pruebas y enseñar los cambios.
 
 ## Pendiente
 
-- El documento «Módulos de especialidad: contenido revisado v2» (los 9 módulos de OmniClin). No se inventa: hasta
-  que llegue, la fase 2 se hace sin contenido de módulos.
-- Los paquetes «Para empezar, por especialidad» siguen en el editor (ahora añaden preguntas a la plantilla); en la
-  fase 2 los sustituyen los módulos.
+- El documento «Módulos de especialidad: contenido revisado v2»: los 6 módulos que faltan (pediátrica, ATM/orofacial,
+  vestibular, geriátrica, oncológica y respiratoria) y la versión 2 de los 3 que hay (con lo que ocultan del tronco,
+  lo que proponen y lo que destacan). No se inventa: van en `src/data/modulesLibrary.ts` cuando llegue.
 - Un móvil sin actualizar ve `__tpl` y `__src` como dos líneas en «Otros datos guardados» (decisión 4).

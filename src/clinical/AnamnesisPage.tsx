@@ -14,7 +14,8 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { useToast } from "../ui/Toast";
-import { answerText, answeredCount, fieldIn, isMetaKey, orphanAnswers, orphanText, type Field, type Section } from "./anamnesis";
+import { answerText, answeredCount, fieldIn, isMetaKey, orphanAnswers, orphanText, visibleFields, type Field, type Section } from "./anamnesis";
+import { HighlightPanel } from "./HighlightPanel";
 import { listSentForms } from "../data/patientForms";
 import { ANAMNESIS_KIND } from "./patientForms";
 import { RedFlagPanel } from "./RedFlagPanel";
@@ -22,7 +23,7 @@ import { CifPicker } from "./cif/CifPicker";
 import { draftDiagnosis, personalFactors } from "./cif/prose";
 import { evidenceFrom } from "./cif/suggest";
 import { YellowFlagPanel } from "./YellowFlagPanel";
-import { BASE_SECTIONS, useAnamnesisTemplate, useSnapshot } from "./useAnamnesis";
+import { BASE_SECTIONS, useSnapshot, useTemplateFor } from "./useAnamnesis";
 import { readSources, sourceText, stampSources, TPL } from "./answerMeta";
 import { knownField, markTemplateUsed } from "../data/anamnesisTemplates";
 import { memberEmail } from "../data/member";
@@ -131,7 +132,8 @@ export function AnamnesisPage() {
   const autoStarted = useRef(false);
   /** Lo que había al empezar a editar: al guardar solo se escribe lo que se ha cambiado aquí (lo que llegue mientras tanto, p. ej. del paciente, se queda). */
   const base = useRef<Answers>({});
-  const tpl = useAnamnesisTemplate();
+  /** La plantilla de esta anamnesis (la de su motivo: `__tpl`; sin ella, la de por defecto), tal como está ahora. */
+  const tpl = useTemplateFor(data.data?.anamnesis?.answers[TPL]);
   const sections = tpl?.sections ?? BASE_SECTIONS;
   /** La plantilla con la que se hizo esta anamnesis: para leer con su pregunta lo que ya no está en la ficha. */
   const snap = useSnapshot(data.data?.anamnesis?.answers[TPL]);
@@ -260,7 +262,8 @@ export function AnamnesisPage() {
                       </Link>
                     </div>
                   )}
-                  {section.fields.map((f) => (
+                  {/* Las preguntas con «Mostrar solo si…» aparecen debajo de la suya cuando se cumple. */}
+                  {visibleFields(section.fields, draft).map((f) => (
                     <div key={f.id} className={cx(wideField(f) && "@4xl:col-span-2")}>
                     {f.type === "cif" ? (
                       <CifPicker
@@ -355,6 +358,8 @@ export function AnamnesisPage() {
       </div>
       <RedFlagPanel answers={a} labelOf={labelOf} />
       <YellowFlagPanel answers={a} labelOf={labelOf} patientId={id} />
+      {/* Según la configuración de ahora de la clínica (su plantilla tal como está). */}
+      <HighlightPanel answers={a} fields={tpl?.all ?? []} />
       {sections.map((section) => {
         const rows = section.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");
         const n = filled(section, a);

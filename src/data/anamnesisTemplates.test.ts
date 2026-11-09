@@ -22,7 +22,7 @@ import type { Db } from "./db";
 import { getSetting, setSetting } from "./settings";
 import { createTestDb } from "./testDb";
 import { anamnesisRows, collect } from "../export/fullExport";
-import { addOwn, addPack, duplicateField, editorView, knownField, moveField, patchField, resetAll, resetField, resetSection, retireOwn, setHidden } from "./anamnesisTemplates";
+import { addOwn, duplicateField, editorView, knownField, moveField, patchField, resetAll, resetField, resetSection, retireOwn, setHidden } from "./anamnesisTemplates";
 
 let db: Db;
 beforeEach(async () => {
@@ -228,13 +228,5 @@ describe("editor: operaciones", () => {
     expect(() => checkTemplate(dup)).not.toThrow();
     const gone = retireOwn(addOwn(doc(), own), own.id);
     expect(ids(gone)).not.toContain(own.id);
-  });
-
-  it("los paquetes de ejemplo se añaden una vez y los contesta el paciente", () => {
-    const pack = [{ section: "habitos", label: "Deporte", type: "text" as const }];
-    const a = addPack(doc(), pack);
-    expect(a.added).toBe(1);
-    expect(a.doc.delta.added[0]).toMatchObject({ label: "Deporte", who: "both" });
-    expect(addPack(a.doc, pack).added).toBe(0);
   });
 });

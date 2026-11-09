@@ -345,11 +345,13 @@ test.describe("Mejoras frente a la competencia", () => {
     await expect(page.getByRole("article", { name: "Hoja de ejercicios" })).toContainText("Sentadilla en pared3 × 30 s");
   });
 
-  test("MJ8 anamnesis de la clínica: preguntas propias y un paquete por especialidad, en la ficha y el informe", async ({ page }) => {
+  test("MJ8 anamnesis de la clínica: preguntas propias y un módulo de especialidad, en la ficha y el informe", async ({ page }) => {
     await page.goto("./ajustes");
     await page.getByRole("link", { name: /Anamnesis de la clínica/ }).click();
-    await page.getByRole("button", { name: "Suelo pélvico" }).click();
-    await expect(page.getByText(/Suelo pélvico: \d preguntas añadidas/)).toBeVisible();
+    // Los paquetes de antes son ahora módulos de OmniClin (fase 2): se añaden a la plantilla desde «Módulos».
+    await page.getByRole("button", { name: "Añadir «Suelo pélvico» a esta plantilla" }).click();
+    await expect(page.getByText("«Suelo pélvico» añadido")).toBeVisible();
+    await expect(page.getByRole("list", { name: "Módulos de esta plantilla" })).toContainText("Suelo pélvico");
     await page.locator("summary", { hasText: "Hábitos y estilo de vida" }).click();
     await page.locator("#plantilla-habitos").getByRole("button", { name: "Añadir pregunta" }).click();
     const q = page.getByRole("dialog", { name: "Nueva pregunta" });
@@ -360,11 +362,16 @@ test.describe("Mejoras frente a la competencia", () => {
 
     await createPatient(page, { name: "Nora Propia" });
     await tab(page, "Anamnesis").click();
-    await page.locator("fieldset", { hasText: "Escapes de orina" }).getByText("Al esfuerzo").click();
+    const modulo = page.locator("#anamnesis-m_suelo_pelvico");
+    await modulo.locator("summary").click();
+    await modulo.getByRole("group", { name: "Escapes de orina" }).getByText("Al esfuerzo", { exact: true }).click();
     await page.locator("summary", { hasText: "Hábitos y estilo de vida" }).click();
     await page.getByLabel("Horas sentado al día").fill("8");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByText("Anamnesis guardada")).toBeVisible();
+    // Ya guardada, el apartado del módulo sale plegado con lo rellenado contado.
+    await expect(page.locator("summary", { hasText: "Suelo pélvico" })).toContainText("1 de 5");
+    await page.locator("summary", { hasText: "Suelo pélvico" }).click();
     await expect(page.getByText("Al esfuerzo")).toBeVisible();
     await tab(page, "Resumen").click();
     await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();

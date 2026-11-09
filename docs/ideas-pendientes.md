@@ -1109,6 +1109,14 @@ Pendiente: la fase 2 (módulos de especialidad y varias plantillas) espera al do
 contenido revisado v2»; la fase 3 (cuestionarios propios), después. Cuando todos los móviles tengan esta versión, se
 puede dejar de escribir `anamnesis_custom_fields` (doble escritura).
 
+### Anamnesis adaptable, fase 2: plantillas y módulos (09-11-2026)
+
+Hecha (ver `docs/anamnesis-adaptable.md`): varias plantillas, módulos de OmniClin (los 3 paquetes de antes, versión
+1) y de la clínica, tipos nuevos, «Mostrar solo si…», obligatorias, destacar, apartados nuevos y lo que propone cada
+plantilla en «Valorar». Falta el documento «Módulos de especialidad: contenido revisado v2» para los otros 6 módulos
+y la versión 2 de estos 3. Para más adelante: el dibujo del cuerpo como tipo de pregunta (el encargo lo dejaba fuera
+de esta fase).
+
 ### Cuestionarios propios, fase 3 de la anamnesis adaptable (publicada el 05-11-2026, `5317538`)
 
 Plan, decisiones y lo hecho en `docs/cuestionarios-propios.md`. La biblioteca de OmniClin (4 cuestionarios con el

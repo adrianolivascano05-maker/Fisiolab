@@ -7,9 +7,8 @@ import { ChevronLeft, ChevronRight, FileText, Lock, Send, Upload, X } from "luci
 import { RESPONDENT } from "../clinical/answerMeta";
 import { buildForm, isOwnKind, ownLabelFor } from "../clinical/forms/own";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import type { AnswerValue } from "../data/clinical";
-import { FieldInput } from "../clinical/FieldInput";
 import { FormFill, formResult } from "../clinical/FormFill";
+import { AnamnesisStep, focusField, missingRequired, withoutHidden } from "./AnamnesisStep";
 import { citeOf, formFor, type Answers as FormAnswers } from "../clinical/forms";
 import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, RESPONDENTS, seal, unseal, type FormRequest, type Respondent, type SentDoc } from "../clinical/patientForms";
 import { sizeText } from "../data/documents";
@@ -126,12 +125,23 @@ export function PublicFormPage() {
   const lastStep = !stepped || step >= stepCount - 1;
   const questions = steps.length ? steps.reduce((n, s) => n + s.fields.length, 0) : ownSteps.reduce((n, s) => n + s.items.length, 0);
   /** Pasar de paso: lo de protección de datos y quién contesta, en el primero; el foco, al título del paso. */
+  /** Quién contesta: a un menor, o si la plantilla lleva un módulo que contesta un familiar o tutor. */
+  const askWho = !!(request?.minor || request?.guardian);
+  /** Las obligatorias de este paso: si falta alguna, no se sigue (solo aquí, al pulsar; nunca al recogerlo). */
+  const blocked = () => {
+    const missing = steps[step] ? missingRequired(steps[step], answers) : [];
+    if (!missing.length) return false;
+    setError(`Contesta «${missing[0]!.label}»: es necesaria.`);
+    requestAnimationFrame(() => focusField(missing[0]!.id));
+    return true;
+  };
   const go = (to: number) => {
     setError(null);
     if (to > step && step === 0) {
       if (request?.intake && !intakeAck) return setError("Marca que has leído la información sobre protección de datos.");
-      if (request?.minor && !answers[RESPONDENT]) return setError("Dinos quién contesta.");
+      if (askWho && !answers[RESPONDENT]) return setError("Dinos quién contesta.");
     }
+    if (to > step && blocked()) return;
     setStep(Math.max(0, Math.min(stepCount - 1, to)));
     window.scrollTo({ top: 0 });
     requestAnimationFrame(() => stepTitle.current?.focus());
@@ -146,11 +156,14 @@ export function PublicFormPage() {
     if (!given) return setError(request.kind === DOCS_KIND ? "Sube al menos un archivo." : "Contesta al menos una pregunta.");
     if (result && "missing" in result) return setError(`${result.missing}. Contéstalas para poder enviarlo.`);
     if (request.intake && !intakeAck) return setError("Marca que has leído la información sobre protección de datos.");
-    if (request.minor && !answers[RESPONDENT]) return setError("Dinos quién contesta.");
+    if (askWho && !answers[RESPONDENT]) return setError("Dinos quién contesta.");
+    if (blocked()) return;
     setSending(true);
     try {
       const base = await serverUrl();
-      const sent = request.intake ? { ...answers, __intake: { ack: true, contact: intakeContact } } : answers;
+      // Lo contestado en preguntas que, por su condición, ya no se ven, no se manda.
+      const shown = steps.length ? withoutHidden(steps, answers) : answers;
+      const sent = request.intake ? { ...shown, __intake: { ack: true, contact: intakeContact } } : shown;
       const res = await fetch(`${base}/v1/formularios/${id}/respuesta`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -231,7 +244,7 @@ export function PublicFormPage() {
                 {questions === 1 ? "1 pregunta" : `${questions} preguntas`} · unos {Math.max(1, Math.ceil(questions / 3))} minutos
               </p>
             )}
-            {request.minor && (
+            {askWho && (
               <fieldset className="flex flex-col gap-2">
                 <legend className="font-semibold">Contesta:</legend>
                 {(Object.keys(RESPONDENTS) as Respondent[]).map((r) => (
@@ -264,14 +277,7 @@ export function PublicFormPage() {
                 <div aria-hidden="true" className="h-1 overflow-hidden rounded-pill bg-border">
                   <div className="h-full bg-accent transition-[width]" style={{ width: `${((step + 1) / steps.length) * 100}%` }} />
                 </div>
-                <Card className="flex flex-col gap-4">
-                  <h2 ref={stepTitle} tabIndex={-1} className="text-lg outline-none">
-                    {steps[step].title}
-                  </h2>
-                  {steps[step].fields.map((f) => (
-                    <FieldInput key={f.id} patient field={f} value={answers[f.id] as AnswerValue | undefined} onChange={(v) => setAnswers((a) => ({ ...a, [f.id]: v }))} />
-                  ))}
-                </Card>
+                <AnamnesisStep section={steps[step]} answers={answers} titleRef={stepTitle} onAnswer={(fid, v) => setAnswers((a) => ({ ...a, [fid]: v }))} />
                 <p className="text-sm text-text-muted">Se guarda en tu móvil; puedes seguir luego.</p>
               </div>
             )}

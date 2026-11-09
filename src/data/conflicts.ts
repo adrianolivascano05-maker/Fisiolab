@@ -2,6 +2,7 @@
 // valor. Se quedó lo del otro (el cambio más reciente), pero lo de aquí se guarda tres meses para poder recuperarlo.
 import { answerText, getField } from "../clinical/anamnesis";
 import { changeCount, isTemplateKey, type TemplateDoc } from "./anamnesisTemplates";
+import { isModuleKey, type ModuleDoc } from "./anamnesisModules";
 import type { Db } from "./db";
 
 export type LostChange = {
@@ -73,6 +74,13 @@ function valueText(tbl: string, field: string, v: unknown): string {
 }
 
 /** Una versión de la plantilla de anamnesis, en palabras: «3 cambios, de ana@clinica.es». */
+function moduleText(v: unknown): string {
+  const doc = (typeof v === "string" ? parse(v) : v) as Partial<ModuleDoc> | undefined;
+  if (!doc || typeof doc !== "object") return "(vacío)";
+  const n = Object.keys(doc.fields ?? {}).length + (doc.added ?? []).filter((f) => !f.removed).length;
+  return `«${doc.name ?? "módulo"}»: ${n === 1 ? "1 pregunta o cambio" : `${n} preguntas o cambios`}${doc.by ? `, de ${doc.by}` : ""}`;
+}
+
 function templateText(v: unknown): string {
   const doc = (typeof v === "string" ? parse(v) : v) as Partial<TemplateDoc> | undefined;
   if (!doc || typeof doc !== "object" || !doc.delta) return "(vacío)";
@@ -120,12 +128,14 @@ export async function lostChanges(db: Db): Promise<LostChange[]> {
     const exists = await db.query(`select 1 from ${r.tbl} where ${KEY[r.tbl] ?? "id"} = ?`, [r.pk]).catch(() => []);
     // La plantilla de anamnesis de la clínica (anamnesis_tpl:…): con su nombre y cuántos cambios tenía cada versión.
     const tpl = r.tbl === "settings" && isTemplateKey(r.pk);
+    // Un módulo de anamnesis de la clínica (anamnesis_mod:…): con su nombre y cuántas preguntas suyas o cambios tenía.
+    const mod = r.tbl === "settings" && isModuleKey(r.pk);
     out.push({
       id: r.id,
-      what: tpl ? "Plantilla de anamnesis de la clínica" : fieldText(r.tbl, r.field),
+      what: tpl ? "Plantilla de anamnesis de la clínica" : mod ? "Módulo de anamnesis de la clínica" : fieldText(r.tbl, r.field),
       patient: p ?? null,
-      mine: tpl ? templateText(parse(r.mine)) : valueText(r.tbl, r.field, parse(r.mine)),
-      theirs: tpl ? templateText(parse(r.theirs)) : valueText(r.tbl, r.field, parse(r.theirs)),
+      mine: tpl ? templateText(parse(r.mine)) : mod ? moduleText(parse(r.mine)) : valueText(r.tbl, r.field, parse(r.mine)),
+      theirs: tpl ? templateText(parse(r.theirs)) : mod ? moduleText(parse(r.theirs)) : valueText(r.tbl, r.field, parse(r.theirs)),
       by: who?.name ?? null,
       at: r.at,
       gone: !exists.length,

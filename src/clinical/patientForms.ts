@@ -9,7 +9,7 @@ import type { Db } from "../data/db";
 import type { PrivacySection } from "../data/privacy";
 import { messageText, type MessageSettings } from "../messages/templates";
 import { cachedCloudConfig } from "../cloud/config";
-import { forPatient, getField, NO_ANSWER, PATIENT_SECTION_TITLES, PATIENT_TEXT, type Field, type Section } from "./anamnesis";
+import { forPatient, getField, NO_ANSWER, parseZone, PATIENT_SECTION_TITLES, PATIENT_TEXT, visibleFields, type Field, type Section } from "./anamnesis";
 import { formResult } from "./FormFill";
 import { formFor, type Answers as FormAnswers } from "./forms";
 import { ACTIVE, getKind } from "./questionnaires";
@@ -52,6 +52,8 @@ export type FormRequest = {
   tpl?: string;
   /** Es menor de edad (por su fecha de nacimiento): al principio se pregunta quién contesta. */
   minor?: boolean;
+  /** La plantilla lleva un módulo que contesta un familiar o tutor: también se pregunta al principio quién contesta. */
+  guardian?: boolean;
   /** Un cuestionario propio de la clínica: la versión entera que se manda (src/clinical/forms/own.ts). */
   form?: OwnFormSpec;
   expiresAt: string;
@@ -207,6 +209,21 @@ function cleanValue(f: Field, v: unknown): AnswerValue {
       return typeof v === "string" && (f.options.includes(v) || otherText(f, v)) ? v.trim() : null;
     case "yesno_detail":
       return typeof v === "string" && (v === "No" || v === "Sí" || /^Sí: \S/.test(v)) ? v.trim().slice(0, 600) : null;
+    case "yesno":
+      return v === "Sí" || v === "No" ? v : null;
+    case "date":
+      return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(`${v}T12:00:00Z`)) ? v : null;
+    case "zones": {
+      // Cada zona una vez (con su lado, si lo dijo).
+      const zones = Array.isArray(v) ? v.filter((x): x is string => !!parseZone(x)) : [];
+      const seen = new Set<string>();
+      return zones.filter((x) => {
+        const r = parseZone(x)!.region;
+        if (seen.has(r)) return false;
+        seen.add(r);
+        return true;
+      });
+    }
     default:
       return typeof v === "string" && v.trim() ? v.trim().slice(0, 5000) : null;
   }
@@ -236,6 +253,9 @@ export function mergeAnamnesis(
       return f && f.type !== "cif" ? [f] : [];
     });
   }
+  // Una pregunta con «Mostrar solo si…» que, con lo que contestó, no se le enseñaba: lo que llegue en ella no se guarda.
+  const shown = new Set(visibleFields(fields, incoming).map((f) => f.id));
+  fields = fields.filter((f) => shown.has(f.id));
   const merged: Answers = { ...current };
   /** Lo que contestó, solo de lo que se le preguntó y limpio (lo que se guarda para verlo). */
   const clean: Answers = {};

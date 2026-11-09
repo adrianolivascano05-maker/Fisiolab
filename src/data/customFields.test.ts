@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { answerText, orphanAnswers, withCustom } from "../clinical/anamnesis";
 import { anamnesisRows } from "../export/fullExport";
-import { addCustomPack, checkCustomField, getCustomFields, saveCustomFields } from "./customFields";
+import { checkCustomField, getCustomFields, saveCustomFields } from "./customFields";
 import { createTestDb } from "./testDb";
 
 describe("campos propios de la anamnesis", () => {
@@ -31,15 +31,5 @@ describe("campos propios de la anamnesis", () => {
     await saveCustomFields(db, []);
     expect(orphanAnswers(answers, withCustom(await getCustomFields(db)))).toEqual([["c_horas", "8"]]);
     expect(answerText(undefined, "8")).toBe("8");
-  });
-
-  it("los paquetes por especialidad se añaden una vez", async () => {
-    const db = await createTestDb();
-    const n = await addCustomPack(db, "suelo_pelvico");
-    expect(n).toBeGreaterThan(2);
-    expect(await addCustomPack(db, "suelo_pelvico")).toBe(0);
-    const fields = await getCustomFields(db);
-    expect(fields.find((f) => f.label === "Escapes de orina")).toMatchObject({ section: "motivo", type: "choice" });
-    expect(new Set(fields.map((f) => f.id)).size).toBe(fields.length);
   });
 });

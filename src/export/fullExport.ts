@@ -19,7 +19,8 @@ import { TPL } from "../clinical/answerMeta";
 import { answerText as ownAnswerText, OWN_LABEL, type OwnFormSpec } from "../clinical/forms/own";
 import { ownNoteText } from "../clinical/OwnFormNote";
 import { listOwnForms, listOwnSnapshots, type OwnFormDoc } from "../data/ownForms";
-import { currentTemplate, knownField, listSnapshots, type Resolved } from "../data/anamnesisTemplates";
+import { currentTemplate, knownField, listSnapshots, listTemplates, resolveTemplate, templateIdOf, type Resolved } from "../data/anamnesisTemplates";
+import { listModuleDocs } from "../data/anamnesisModules";
 import { marksText } from "../clinical/bodyMap";
 import { displayName, kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
 import type { AnswerValue, Answers } from "../data/clinical";
@@ -66,8 +67,10 @@ export type Collected = {
   clinic: ClinicInfo;
   schema: number;
   tables: Record<string, R[]>;
-  /** La ficha de anamnesis de la clínica, con sus campos propios. */
+  /** La ficha de anamnesis de la clínica (la plantilla por defecto), con sus campos propios. */
   template?: Section[];
+  /** Cada plantilla de la clínica, por su id, para exportar cada anamnesis con la suya. */
+  byTemplate?: Record<string, Section[]>;
   /** Las plantillas con las que se hicieron las anamnesis (instantáneas «id@huella») y la de ahora, para leer cada
    * respuesta con su pregunta, aunque ya no esté en la ficha. */
   known?: (Resolved & { ref?: string })[];
@@ -96,12 +99,16 @@ export async function collect(db: Db): Promise<Collected> {
   // Lo mismo con la clave de cada archivo del paciente: los archivos van en el .zip ya abiertos.
   tables.documents = (tables.documents ?? []).map((r) => without(r, "doc_key"));
   const now = await currentTemplate(db);
+  // Cada anamnesis se exporta con los apartados de su plantilla (la de su motivo, tal como está ahora).
+  const mods = await listModuleDocs(db);
+  const byTemplate: Record<string, Section[]> = {};
+  for (const t of await listTemplates(db)) byTemplate[t.id] = resolveTemplate(t, mods).sections;
   const templates = await listSnapshots(db);
   const snaps = templates
     .filter((t) => t.key.startsWith("anamnesis_tpl_v:"))
     .map((t) => ({ ...(t.value as Resolved), ref: t.key.slice("anamnesis_tpl_v:".length).replace(":", "@") }));
   const [ownForms, ownSnapshots] = await Promise.all([listOwnForms(db), listOwnSnapshots(db)]);
-  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: now.sections, known: [now, ...snaps], templates, ownForms, ownSnapshots };
+  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: now.sections, byTemplate, known: [now, ...snaps], templates, ownForms, ownSnapshots };
 }
 
 // ---------- Lo de cada paciente ----------
@@ -130,8 +137,9 @@ const episodeName = (eps: Episode[], id: unknown) => {
 };
 
 /** Las respuestas de una anamnesis, por apartados y con sus nombres: [apartado, campo, respuesta]. */
-export function anamnesisRows(a: Answers, template: Section[] = ANAMNESIS, known: (Resolved & { ref?: string })[] = []): [string, string, string][] {
+export function anamnesisRows(a: Answers, fallback: Section[] = ANAMNESIS, known: (Resolved & { ref?: string })[] = [], byTemplate: Record<string, Section[]> = {}): [string, string, string][] {
   const out: [string, string, string][] = [];
+  const template = byTemplate[templateIdOf(a[TPL]) ?? ""] ?? fallback;
   for (const section of template)
     for (const f of section.fields) {
       const text = answerText(f, a[f.id] as AnswerValue);
@@ -189,7 +197,7 @@ function buildSheets(c: Collected): Sheet[] {
     {
       name: "Anamnesis",
       header: ["Paciente", "Motivo de consulta", "Apartado", "Pregunta", "Respuesta"],
-      rows: T.patients!.flatMap((p) => epsOf(s(p.id)).flatMap((e) => anamnesisRows(e.answers, c.template, c.known).map(([sec, label, text]) => [s(p.name), e.title, sec, label, text]))),
+      rows: T.patients!.flatMap((p) => epsOf(s(p.id)).flatMap((e) => anamnesisRows(e.answers, c.template, c.known, c.byTemplate).map(([sec, label, text]) => [s(p.name), e.title, sec, label, text]))),
     },
     {
       name: "Sesiones",
@@ -410,7 +418,7 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
     .join("")}</dl>`);
 
   for (const e of eps) {
-    const rows = anamnesisRows(e.answers, c.template, c.known);
+    const rows = anamnesisRows(e.answers, c.template, c.known, c.byTemplate);
     const closed = e.closedAt ? ` · terminado el ${day(e.closedAt)}` : "";
     parts.push(`<h2>${eps.length > 1 ? `Motivo de consulta: ${h(e.title)}` : "Anamnesis"}</h2>${e.startedAt ? `<p class="muted">Desde el ${h(day(e.startedAt))}${h(closed)}</p>` : ""}`);
     if (!rows.length) parts.push(`<p class="muted">Sin anamnesis registrada.</p>`);

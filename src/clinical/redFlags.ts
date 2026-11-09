@@ -58,6 +58,9 @@ export const RED_FLAG_LABELS = FLAGS.map((f) => f.label);
 /** La lista del paciente (campo «sintomas_paciente»). */
 export const PATIENT_FLAG_LABELS = FLAGS.map((f) => f.patient);
 
+/** Las respuestas a preguntas propias de la clínica o de un módulo (no son del tronco). */
+const OWN_ANSWER = /^[cm]_/;
+
 /** Sin tildes ni mayúsculas, para buscar palabras. */
 export const fold = (s: string) =>
   s
@@ -104,7 +107,9 @@ export function findFlags(a: Answers, labelOf: (fieldId: string) => string = (id
     if (f && !hits.has(f.id)) hits.set(f.id, { flag: f, from: "paciente" });
   }
   for (const [field, v] of Object.entries(a)) {
-    if (typeof v !== "string" || !v.trim() || field.startsWith("__")) continue; // las claves internas no son respuestas
+    // Las claves internas no son respuestas; y solo se busca en las preguntas del tronco, nunca en las propias de la
+    // clínica ni en las de sus módulos (`c_…`, `m_…`): lo que se quiera resaltar ahí, se destaca por opción.
+    if (typeof v !== "string" || !v.trim() || field.startsWith("__") || OWN_ANSWER.test(field)) continue;
     const text = fold(v);
     for (const f of FLAGS) {
       if (hits.has(f.id)) continue;
