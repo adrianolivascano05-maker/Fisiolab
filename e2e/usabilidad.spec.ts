@@ -1,6 +1,6 @@
 // Comodidad del día a día: el DNI de la ficha llega al justificante y la reevaluación pendiente pasa a la sesión
 // siguiente hasta que se hace.
-import { add, expect, expectAccessible, test } from "./fixtures";
+import { add, ampliada, expect, expectAccessible, test } from "./fixtures";
 
 test.describe("Comodidad del día a día", () => {
   test.beforeEach(async ({ page }) => {
@@ -98,6 +98,7 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("heading", { name: "Pilar Miedo" })).toBeVisible();
     await page.goto(`${page.url()}/anamnesis`);
     await page.getByLabel("Motivo principal").fill("Lumbalgia");
+    await ampliada(page);
     await page.locator("summary", { hasText: "Tratamientos previos y expectativas" }).click();
     await page.getByLabel("Qué cree el paciente que le pasa").fill("Le da miedo agacharse: cree que se le va a romper la espalda y que no va a mejorar");
     await expect(page.getByRole("region", { name: /Banderas amarillas/ })).toContainText("Miedo al movimiento");
@@ -114,6 +115,8 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("heading", { name: "Carlos CIF" })).toBeVisible();
     await page.goto(`${page.url()}/anamnesis`);
     await page.getByRole("group", { name: "Zona", exact: true }).getByText("Lumbar", { exact: true }).click();
+    // El perfil CIF es de la ampliada.
+    await ampliada(page);
     await page.getByRole("button", { name: "Añadir códigos de la CIF" }).click();
     const sheet = page.getByRole("dialog", { name: "Añadir códigos de la CIF" });
     await expect(sheet.getByRole("radio", { name: "Funciones corporales" })).toHaveAttribute("aria-checked", "true");
@@ -199,6 +202,7 @@ test.describe("Comodidad del día a día", () => {
     // Un código desde «Atajos de la zona»: entra sin calificar y con el dato de la ficha, sin «Propuesto».
     await page.goto(`${record}/anamnesis`);
     await page.getByRole("button", { name: "Editar" }).click();
+    await ampliada(page);
     await page.getByRole("button", { name: "Añadir códigos de la CIF" }).click();
     const sheet = page.getByRole("dialog", { name: "Añadir códigos de la CIF" });
     await expect(sheet.getByRole("heading", { name: "Atajos de la zona" })).toBeVisible();

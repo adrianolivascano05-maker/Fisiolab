@@ -99,6 +99,12 @@ import { clean, Fold, Options, Pick, PickMany, Preview, Row, Switch, Toggle, WHO
 /** Cuánto dura el «Deshacer». */
 const UNDO_MS = 6000;
 
+/** Cuántas preguntas lleva la base (o, con `wide`, la ampliada): sin la fecha de la valoración, que se pone sola. */
+const questionCount = (t: { sections: { fields: Field[] }[] }, wide: boolean) => {
+  const n = t.sections.flatMap((x) => x.fields).filter((f) => f.id !== "fecha_valoracion" && (wide || !f.extra)).length;
+  return n === 1 ? "1 pregunta" : `${n} preguntas`;
+};
+
 /** Un cambio del editor: la plantilla, los módulos de la clínica que toca, o los dos (se guardan juntos). */
 type Change = { doc?: TemplateDoc; mods?: ModuleDoc[] };
 
@@ -118,9 +124,11 @@ type QuestionProps = {
   required: number;
   onChange: (c: Change, undo?: string) => void;
   onClose: () => void;
+  /** Ocultar una pregunta que usa el resto de la app: la página avisa antes de qué deja de funcionar. */
+  onAskHide: () => void;
 };
 
-function QuestionSheet({ doc, mods, view, sectionId, item, first, last, required, onChange, onClose }: QuestionProps) {
+function QuestionSheet({ doc, mods, view, sectionId, item, first, last, required, onChange, onClose, onAskHide }: QuestionProps) {
   const f = item.field;
   const modId = item.module;
   const mod = modId ? (mods.find((m) => m.id === modId) ?? blankModule(modId)) : null;
@@ -180,6 +188,27 @@ function QuestionSheet({ doc, mods, view, sectionId, item, first, last, required
   const places = view.filter((s) => (mod ? isTrunkSection(s) || s.id === modId : !s.module)).map((s) => ({ id: s.id === modId ? MODULE_SELF : s.id, label: clean(s.title) }));
   const here = mod ? (sectionId === modId ? MODULE_SELF : sectionId) : sectionId;
   const locked = !!f.showIf || dependents.length > 0;
+  /** Dónde sale: en la base (lo que se ve al abrir la anamnesis), solo en la ampliada, o en ninguna. */
+  const place = (to: "base" | "extra" | "hidden") => {
+    const typed = !!label.trim() && textsChanged;
+    if (to === "hidden") {
+      if (item.hidden) return;
+      settled.current = true;
+      // Una del tronco que usa el resto de la app: la página avisa antes de ocultarla.
+      if (!item.own && !mod && hideWarning(f.id)) {
+        if (typed) apply({});
+        onClose();
+        return onAskHide();
+      }
+      if (mod) onChange({ doc: setHidden(doc, f.id, true, modId), ...(typed ? { mods: [patchModuleField(mod, f.id, texts)] } : {}) }, "Pregunta oculta");
+      else onChange({ doc: setHidden(typed ? patchField(doc, f.id, texts) : doc, f.id, true) }, "Pregunta oculta");
+      return onClose();
+    }
+    const text = to === "base" ? "En la base" : "Solo en la ampliada";
+    const shown = item.hidden ? setHidden(doc, f.id, false, modId) : doc;
+    if (mod) onChange({ ...(item.hidden ? { doc: shown } : {}), mods: [patchModuleField(typed ? patchModuleField(mod, f.id, texts) : mod, f.id, { extra: to === "extra" || undefined })] }, text);
+    else onChange({ doc: patchField(typed ? patchField(shown, f.id, texts) : shown, f.id, { level: to }) }, text);
+  };
   return (
     <div className="flex flex-col gap-4">
       {mod && (
@@ -197,6 +226,17 @@ function QuestionSheet({ doc, mods, view, sectionId, item, first, last, required
         </details>
       )}
       <TextArea label="Ayuda (opcional)" value={hint} rows={2} onChange={(v) => setHint(v.slice(0, LIMITS.hint))} />
+      <Pick
+        label="Sale en"
+        hint="La base es lo que se ve al abrir la anamnesis (y lo que se le manda al paciente si no eliges la ampliada). La ampliada lo lleva todo."
+        options={[
+          { id: "base", label: "Base" },
+          { id: "extra", label: "Ampliada" },
+          { id: "hidden", label: "Oculta" },
+        ]}
+        value={item.hidden ? "hidden" : f.extra ? "extra" : "base"}
+        onChange={(to) => place(to as "base" | "extra" | "hidden")}
+      />
       {f.type !== "cif" && <Pick label="La contesta" options={WHO} value={whoOf(f)} onChange={(w) => apply({ who: w })} />}
       {editableOptions && (
         <>
@@ -610,6 +650,11 @@ export function CustomFieldsPage() {
           {doc.archived ? " · archivada" : ""}
         </p>
       )}
+      {/* Cuánto lleva la base (lo que se ve al abrir la anamnesis) y cuánto la ampliada. */}
+      <p className="rounded-md bg-surface p-3 text-sm">
+        <span className="font-semibold">Base: {questionCount(resolved, false)}</span> · Ampliada: {questionCount(resolved, true)}. La base es lo que sale al abrir la anamnesis; la ampliada, todo.
+        {canEdit && " Toca una pregunta para elegir dónde sale."}
+      </p>
       {doc.by && doc.at && (
         <p className="text-sm text-text-muted">
           Último cambio: {doc.by}, el {new Date(doc.at).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Madrid" })}
@@ -638,6 +683,7 @@ export function CustomFieldsPage() {
         {view.map((s) => {
           const visible = s.items.filter((i) => !i.hidden);
           const toPatient = visible.filter((i) => i.field.type !== "cif" && forPatient(i.field)).length;
+          const inBase = visible.filter((i) => !i.field.extra).length;
           const tag = s.module ? (s.module.startsWith("m_") ? "Módulo de OmniClin" : "Módulo de la clínica") : s.added ? "Apartado de la clínica" : undefined;
           return (
             <Fold
@@ -645,7 +691,7 @@ export function CustomFieldsPage() {
               id={`plantilla-${s.id}`}
               title={clean(s.title)}
               tag={tag}
-              count={`${visible.length} ${visible.length === 1 ? "pregunta" : "preguntas"} · ${toPatient} al paciente`}
+              count={`${visible.length} ${visible.length === 1 ? "pregunta" : "preguntas"} · ${inBase} en la base · ${toPatient} al paciente`}
               open={focus === s.id || s.items.some((i) => news.has(i.field.id))}
             >
               <ul aria-label={`Preguntas: ${clean(s.title)}`} className="flex flex-col divide-y divide-border">
@@ -856,6 +902,7 @@ export function CustomFieldsPage() {
             required={required}
             onChange={(c, text) => void commit(c, text)}
             onClose={() => setOpen(null)}
+            onAskHide={() => setAsking({ id: openItem.field.id, label: openItem.field.label })}
           />
         )}
       </Sheet>

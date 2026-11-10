@@ -73,6 +73,13 @@ async function enter(page: Page) {
   await page.getByRole("button", { name: "Entrar con Google" }).click();
 }
 
+/** En «Enviar un formulario»: la anamnesis ampliada (todo lo que contesta el paciente), no la base que sale marcada. */
+async function sendWide(page: Page) {
+  const full = page.getByRole("dialog", { name: "Enviar un formulario" }).getByRole("group", { name: "Qué anamnesis le mandas" }).getByRole("button", { name: /^Ampliada/ });
+  await full.click();
+  await expect(full).toHaveAttribute("aria-pressed", "true");
+}
+
 /** Da de alta la clínica desde la pantalla de elegirla. */
 async function createClinic(page: Page, name: string) {
   await page.getByLabel("En una clínica con equipo").check();
@@ -948,6 +955,12 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     // Su parte de la anamnesis.
     await page.getByRole("button", { name: "Enviar un formulario" }).click();
     await expect(page.getByRole("dialog", { name: "Enviar un formulario" }).getByLabel("Qué le mandas")).toHaveValue("anamnesis");
+    // Sale la base (10 preguntas); aquí se manda la ampliada: todo lo que contesta el paciente.
+    const level = page.getByRole("dialog", { name: "Enviar un formulario" }).getByRole("group", { name: "Qué anamnesis le mandas" });
+    await expect(level.getByRole("button", { name: /^Base/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(level.getByRole("button", { name: /^Base/ })).toContainText("10 preguntas · 4 min");
+    await level.getByRole("button", { name: /^Ampliada/ }).click();
+    await expect(level.getByRole("button", { name: /^Ampliada/ })).toContainText("15 preguntas · 5 min");
     const anamnesisLink = await createLink();
     await expect(page.getByRole("list", { name: "Formularios enviados" })).toContainText("Esperando respuesta");
 
@@ -1109,8 +1122,10 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(phone.getByRole("alert")).toContainText("Marca que has leído la información sobre protección de datos.");
     await phone.getByRole("checkbox", { name: /^He leído esta información/ }).check();
     await contact.check();
+    // Le llega la base: dos pasos (lo que le pasa y su salud).
+    await expect(phone.getByText("Paso 1 de 2")).toBeVisible();
     await phone.getByRole("button", { name: "Siguiente" }).click();
-    await phone.getByRole("button", { name: "Siguiente" }).click();
+    await expect(phone.getByText("Paso 2 de 2")).toBeVisible();
     await phone.getByRole("button", { name: "Enviar" }).click();
     await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
     await ctx.close();
@@ -1398,9 +1413,10 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await add.locator("form > button[type=submit]").click();
     await expect(page.getByRole("list", { name: "Preguntas: Hábitos y estilo de vida" })).toContainText("¿Qué deporte haces?");
 
-    // El enlace.
+    // El enlace, con la ampliada (lleva «Hábitos» entero: la del tronco que ahora contesta el paciente es de la ampliada).
     await page.goto(`${leoUrl}/formularios`);
     await page.getByRole("button", { name: "Enviar un formulario" }).click();
+    await sendWide(page);
     await page.getByRole("dialog", { name: "Enviar un formulario" }).getByRole("button", { name: "Crear el enlace" }).click();
     const share = page.getByRole("dialog", { name: "Mandar el enlace" });
     const text = (await share.locator("pre").textContent())!;

@@ -1,7 +1,7 @@
 // Ficha › Anamnesis: los datos del paciente, la anamnesis por apartados (con el diagnóstico en CIF), las banderas rojas y
 // amarillas y los accesos a la exploración. Rellenar o cambiar, con su borrador.
 import { ChevronDown, ChevronRight, Pencil, Send } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { bumpData } from "../app/dataVersion";
@@ -14,7 +14,8 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { useToast } from "../ui/Toast";
-import { answerText, answeredCount, fieldIn, isMetaKey, orphanAnswers, orphanText, visibleFields, type Field, type Section } from "./anamnesis";
+import { answerText, answered, answeredCount, baseBlocks, fieldIn, isMetaKey, orphanAnswers, orphanText, visibleFields, type Field, type Section } from "./anamnesis";
+import { LevelSwitch } from "./LevelSwitch";
 import { HighlightPanel } from "./HighlightPanel";
 import { listSentForms } from "../data/patientForms";
 import { ANAMNESIS_KIND } from "./patientForms";
@@ -66,8 +67,11 @@ const wideField = (f: Field) => f.type === "textarea" || f.type === "cif" || f.t
 
 /** Apartados que se ven abiertos al llegar: lo que más se consulta (motivo, precauciones, diagnóstico y plan). */
 const OPEN_FIRST = new Set(["motivo", "antecedentes", "diagnostico", "objetivos"]);
+/** La fecha de la valoración se pone sola: no cuenta como pregunta. */
+const asked = (fields: Field[]) => fields.filter((f) => f.id !== "fecha_valoracion");
 /** Campos con respuesta en un apartado (sin contar la fecha, que se pone sola). */
-const filled = (section: Section, a: Answers) => answeredCount(a, section.fields.filter((f) => f.id !== "fecha_valoracion"));
+const filled = (section: Section, a: Answers) => answeredCount(a, asked(section.fields));
+const questions = (n: number) => (n === 1 ? "1 pregunta" : `${n} preguntas`);
 
 /** Un apartado de la anamnesis que se pliega: el título, cuántos campos tiene rellenos y el contenido. */
 function Fold({ id, title, count, open, children }: { id: string; title: string; count: string; open: boolean; children: ReactNode }) {
@@ -129,6 +133,10 @@ export function AnamnesisPage() {
   const [draft, setDraft] = useState<Answers | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** La anamnesis base (lo mínimo: se abre siempre así) o la ampliada (todas las preguntas). */
+  const [wide, setWide] = useState(false);
+  /** Preguntas de la ampliada que se rellenaron estando en ella: al volver a la base se quedan a la vista. */
+  const [sticky, setSticky] = useState<ReadonlySet<string>>(new Set());
   const autoStarted = useRef(false);
   /** Lo que había al empezar a editar: al guardar solo se escribe lo que se ha cambiado aquí (lo que llegue mientras tanto, p. ej. del paciente, se queda). */
   const base = useRef<Answers>({});
@@ -169,10 +177,12 @@ export function AnamnesisPage() {
     setDraft({ ...anamnesis?.answers });
     setEditing(true);
     setError(null);
+    setWide(false);
+    setSticky(new Set());
   };
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!draft) return;
+  /** Guarda lo cambiado. false si no se pudo (el error queda a la vista). */
+  const persist = async (): Promise<boolean> => {
+    if (!draft) return false;
     setSaving(true);
     setError(null);
     try {
@@ -195,33 +205,116 @@ export function AnamnesisPage() {
       }
       await saveAnamnesis(db, id, merged);
       toast("Anamnesis guardada", "success");
-      setEditing(false);
-      setDraft(null);
       // También la cabecera: el nombre del motivo de consulta sale de la anamnesis.
       bumpData();
-      window.scrollTo({ top: 0 });
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      return false;
     } finally {
       setSaving(false);
     }
   };
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!(await persist())) return;
+    setEditing(false);
+    setDraft(null);
+    window.scrollTo({ top: 0 });
+  };
+  /** «Modificar»: a Ajustes → Anamnesis de la clínica. Lo que se haya escrito aquí se guarda antes: no se pierde. */
+  const modify = async () => {
+    const dirty = !!draft && [...new Set([...Object.keys(base.current), ...Object.keys(draft)])].some((k) => k !== "fecha_valoracion" && JSON.stringify(draft[k] ?? null) !== JSON.stringify(base.current[k] ?? null));
+    if (dirty && !(await persist())) return;
+    navigate("/ajustes/anamnesis");
+  };
 
   if (editing && draft) {
+    /** Las preguntas que se ven: en la base, las de la base y, de la ampliada, las que ya tienen respuesta guardada. */
+    const saved = anamnesis?.answers ?? {};
+    const fieldsOf = (section: Section) => visibleFields(section.fields, draft).filter((f) => wide || !f.extra || answered(saved[f.id]) || sticky.has(f.id));
+    const toggle = (next: boolean) => {
+      // Lo rellenado en la ampliada se queda a la vista al volver a la base.
+      if (!next) setSticky(new Set(allFields.filter((f) => f.extra && answered(draft[f.id])).map((f) => f.id)));
+      setWide(next);
+    };
+    const input = (f: Field) => (
+      <div key={f.id} className={cx(wideField(f) && "@4xl:col-span-2")}>
+        {f.type === "cif" ? (
+          <CifPicker
+            label={f.label}
+            hint={f.hint}
+            value={Array.isArray(draft[f.id]) ? (draft[f.id] as string[]) : []}
+            onChange={set(f.id)}
+            regions={Array.isArray(draft.regiones) ? (draft.regiones as string[]) : []}
+            evidence={evidenceFrom(draft, sessions, questionnaires, symmetryRows(tests))}
+            onDraft={() => {
+              const text = draftDiagnosis(Array.isArray(draft.cif) ? (draft.cif as string[]) : [], {
+                personal: personalFactors(draft, patient.birthDate),
+              });
+              const now = typeof draft.diagnostico_funcional === "string" ? draft.diagnostico_funcional.trim() : "";
+              // Lo redactado se añade debajo de lo que ya hubiera escrito; nunca lo borra.
+              set("diagnostico_funcional")(now ? `${now}\n\n${text}` : text);
+              toast("Perfil CIF pasado a texto: revísalo debajo", "success");
+            }}
+          />
+        ) : (
+          <FieldInput field={f} value={draft[f.id]} onChange={set(f.id)} />
+        )}
+      </div>
+    );
+    /** Lo que cuelga de un apartado: las banderas rojas del motivo, las frases anotadas y los accesos a la exploración. */
+    const extras = (sectionId: string) => (
+      <>
+        {sectionId === "motivo" && (
+          <div className="@4xl:col-span-2">
+            <RedFlagPanel
+              answers={draft}
+              labelOf={labelOf}
+              onMark={(label) => {
+                const now = Array.isArray(draft.banderas_rojas) ? (draft.banderas_rojas as string[]) : [];
+                if (!now.includes(label)) set("banderas_rojas")([...now, label]);
+              }}
+            />
+          </div>
+        )}
+        {sectionId === "tratamientos" && (
+          <div className="@4xl:col-span-2">
+            <YellowFlagPanel answers={draft} labelOf={labelOf} patientId={id} links={false} />
+          </div>
+        )}
+        {sectionId === "exploracion" && (
+          <div className="@4xl:col-span-2">
+            <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />
+          </div>
+        )}
+      </>
+    );
     return (
       <PatientShell patient={patient} id={id} tabs={false}>
         <h2 className="text-xl">{anamnesis ? "Editar anamnesis" : "Anamnesis"}</h2>
         {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
-        <p className="text-sm text-text-muted">Ficha de anamnesis de fisioterapia: historia clínica y valoración inicial. Rellena lo que necesites; todo se puede completar más tarde.</p>
+        {/* La base (lo mínimo), la ampliada (todo) y «Modificar» (qué preguntas salen en cada una). */}
+        <div className="flex items-stretch gap-2">
+          <div className="min-w-0 flex-1">
+            <LevelSwitch wide={wide} onChange={toggle} base={questions(asked(allFields.filter((f) => !f.extra)).length)} full={questions(asked(allFields).length)} />
+          </div>
+          <button type="button" onClick={() => void modify()} className="inline-flex min-h-12 flex-col items-center justify-center rounded-lg border border-border bg-bg px-3 text-sm leading-tight font-semibold text-accent hover:bg-surface">
+            Modificar
+            <span className="text-xs font-normal text-text-muted">preguntas</span>
+          </button>
+        </div>
+        <p className="text-sm text-text-muted">{wide ? "Todas las preguntas. Rellena lo que necesites; todo se puede completar más tarde." : "Lo mínimo para valorar. Lo demás está en la ampliada; todo se puede completar más tarde."}</p>
         {/* Aún sin anamnesis: mandarle su parte al móvil, como en Cuestionarios, sin tener que buscarlo. */}
         {!anamnesis && (
           <Link to={`/pacientes/${id}/formularios?enviar=anamnesis`} className="inline-flex min-h-12 items-center justify-center gap-1.5 self-start rounded-md border border-border bg-bg px-4 text-sm font-semibold text-accent hover:bg-surface">
             <Send aria-hidden="true" className="size-4 shrink-0" /> Enviar al móvil del paciente
           </Link>
         )}
-        {/* En ancho (el ordenador), el índice fijo a la izquierda y los apartados a la derecha; en el móvil, el índice arriba. */}
-        <div className="flex flex-col gap-4 @2xl:grid @2xl:grid-cols-[13rem_minmax(0,1fr)] @2xl:items-start @2xl:gap-x-6">
-        {/* Índice: la ficha es larga; cada apartado a un toque. */}
+        {/* En ancho (el ordenador) y con la ampliada, el índice fijo a la izquierda y los apartados a la derecha; en el móvil, el índice arriba. */}
+        <div className={cx("flex flex-col gap-4", wide && "@2xl:grid @2xl:grid-cols-[13rem_minmax(0,1fr)] @2xl:items-start @2xl:gap-x-6")}>
+        {/* Índice: la ampliada es larga; cada apartado a un toque. La base cabe sin índice. */}
+        {wide && (
         <nav aria-label="Apartados de la anamnesis" className="@2xl:sticky @2xl:top-[calc(var(--layout-header)+1rem)]">
           <ul className="flex flex-wrap gap-2 @2xl:flex-col">
             {sections.map((section) => (
@@ -242,8 +335,28 @@ export function AnamnesisPage() {
             ))}
           </ul>
         </nav>
+        )}
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-          {sections.map((section) => {
+          {/* La base: tres bloques a la vista, sin plegar. */}
+          {!wide &&
+            baseBlocks(sections, fieldsOf).map((block) => (
+              <section key={block.id} id={`anamnesis-${block.id}`} aria-labelledby={`h-anamnesis-${block.id}`} className="flex scroll-mt-20 flex-col gap-4 rounded-lg border border-border bg-bg p-4 shadow-card">
+                <h3 id={`h-anamnesis-${block.id}`} className="text-lg font-semibold text-brand-ink">
+                  {block.title}
+                </h3>
+                <div className="flex flex-col gap-4 @4xl:grid @4xl:grid-cols-2 @4xl:gap-x-6">
+                  {block.parts.map((part) => (
+                    <Fragment key={part.section}>
+                      {part.fields.map(input)}
+                      {extras(part.section)}
+                    </Fragment>
+                  ))}
+                </div>
+              </section>
+            ))}
+          {/* La ampliada: apartado por apartado, como siempre. */}
+          {wide &&
+            sections.map((section) => {
             const n = filled(section, draft);
             return (
               <Fold
@@ -263,53 +376,8 @@ export function AnamnesisPage() {
                     </div>
                   )}
                   {/* Las preguntas con «Mostrar solo si…» aparecen debajo de la suya cuando se cumple. */}
-                  {visibleFields(section.fields, draft).map((f) => (
-                    <div key={f.id} className={cx(wideField(f) && "@4xl:col-span-2")}>
-                    {f.type === "cif" ? (
-                      <CifPicker
-                        label={f.label}
-                        hint={f.hint}
-                        value={Array.isArray(draft[f.id]) ? (draft[f.id] as string[]) : []}
-                        onChange={set(f.id)}
-                        regions={Array.isArray(draft.regiones) ? (draft.regiones as string[]) : []}
-                        evidence={evidenceFrom(draft, sessions, questionnaires, symmetryRows(tests))}
-                        onDraft={() => {
-                          const text = draftDiagnosis(Array.isArray(draft.cif) ? (draft.cif as string[]) : [], {
-                            personal: personalFactors(draft, patient.birthDate),
-                          });
-                          const now = typeof draft.diagnostico_funcional === "string" ? draft.diagnostico_funcional.trim() : "";
-                          // Lo redactado se añade debajo de lo que ya hubiera escrito; nunca lo borra.
-                          set("diagnostico_funcional")(now ? `${now}\n\n${text}` : text);
-                          toast("Perfil CIF pasado a texto: revísalo debajo", "success");
-                        }}
-                      />
-                    ) : (
-                      <FieldInput field={f} value={draft[f.id]} onChange={set(f.id)} />
-                    )}
-                    </div>
-                  ))}
-                  {section.id === "motivo" && (
-                    <div className="@4xl:col-span-2">
-                    <RedFlagPanel
-                      answers={draft}
-                      labelOf={labelOf}
-                      onMark={(label) => {
-                        const now = Array.isArray(draft.banderas_rojas) ? (draft.banderas_rojas as string[]) : [];
-                        if (!now.includes(label)) set("banderas_rojas")([...now, label]);
-                      }}
-                    />
-                    </div>
-                  )}
-                  {section.id === "tratamientos" && (
-                    <div className="@4xl:col-span-2">
-                      <YellowFlagPanel answers={draft} labelOf={labelOf} patientId={id} links={false} />
-                    </div>
-                  )}
-                  {section.id === "exploracion" && (
-                    <div className="@4xl:col-span-2">
-                      <ExplorationLinks id={id} findings={findings} romTrends={romTrends} />
-                    </div>
-                  )}
+                  {fieldsOf(section).map(input)}
+                  {extras(section.id)}
                 </div>
               </Fold>
             );
@@ -333,7 +401,10 @@ export function AnamnesisPage() {
 
   if (!anamnesis) return <PatientShell patient={patient} id={id}><Loading /></PatientShell>;
   const a = anamnesis.answers;
-  const done = answeredCount(a, allFields);
+  // Cuánto hay de la base (lo mínimo) y cuánto más de la ampliada.
+  const baseFields = asked(allFields.filter((f) => !f.extra));
+  const doneBase = answeredCount(a, baseFields);
+  const doneExtra = answeredCount(a, allFields.filter((f) => f.extra));
   const valued = typeof a.fecha_valoracion === "string" ? a.fecha_valoracion : null;
   const orphans = orphanAnswers(a, sections);
   const sources = readSources(a);
@@ -344,7 +415,8 @@ export function AnamnesisPage() {
         {shown && <p className="text-sm font-semibold">Del motivo «{episodeLabel(shown)}»</p>}
         <p className="text-sm text-text-muted">
           {valued ? `Valoración del ${dayText(valued)}` : `Rellenada el ${fmtDate(anamnesis.createdAt)}`}
-          {anamnesis.updatedAt !== anamnesis.createdAt && ` · actualizada el ${fmtDate(anamnesis.updatedAt)}`} · {done} de {allFields.length} campos
+          {anamnesis.updatedAt !== anamnesis.createdAt && ` · actualizada el ${fmtDate(anamnesis.updatedAt)}`} · {doneBase} de {baseFields.length} de la base
+          {doneExtra > 0 && ` · ${doneExtra} de la ampliada`}
         </p>
       </div>
       {/* Las dos acciones, en una fila: editarla aquí o mandarle su parte al móvil. */}
@@ -363,8 +435,12 @@ export function AnamnesisPage() {
       {sections.map((section) => {
         const rows = section.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "");
         const n = filled(section, a);
+        // Lo que toca en este apartado: las preguntas de la base y, de la ampliada, las respondidas. Un apartado solo
+        // de la ampliada y sin nada escrito no sale (está en «Editar» → «Ampliada»).
+        const due = asked(section.fields).filter((f) => !f.extra || answered(a[f.id])).length;
+        if (!due && !rows.length && section.id !== "datos") return null;
         return (
-          <Fold key={section.id} id={`an-${section.id}`} title={section.title} count={n ? `${n} de ${section.fields.length}` : "Sin rellenar"} open={OPEN_FIRST.has(section.id) && n > 0}>
+          <Fold key={section.id} id={`an-${section.id}`} title={section.title} count={n ? `${n} de ${due}` : "Sin rellenar"} open={OPEN_FIRST.has(section.id) && n > 0}>
             {section.id === "datos" && <PatientBasics patient={patient} />}
             {rows.length > 0 ? (
               <dl className="flex flex-col gap-2 @2xl:grid @2xl:grid-cols-2 @2xl:gap-x-6">

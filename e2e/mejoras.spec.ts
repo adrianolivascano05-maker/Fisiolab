@@ -1,7 +1,7 @@
 // Mejoras frente a la competencia (replica/fixes.md): mapa del dolor (cuestionario), bonos y cobros, lista de espera
 // y hoja de ejercicios para casa.
 import type { Page } from "@playwright/test";
-import { add, allowContact, createPatient, expect, expectAccessible, importData, test } from "./fixtures";
+import { add, allowContact, ampliada, createPatient, expect, expectAccessible, importData, test } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
 
@@ -16,6 +16,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await tab(page, "Anamnesis").click();
     // Para escribir: sin mapa ni opciones para elegir, salvo zona, lado, banderas rojas y precauciones.
     await expect(page.getByText("Mapa del dolor")).toHaveCount(0);
+    await ampliada(page);
     await page.getByLabel("Forma de inicio").fill("Progresivo, tras empezar a nadar");
     const zona = page.getByRole("group", { name: "Zona", exact: true });
     await zona.getByText("Hombro", { exact: true }).click();
@@ -362,11 +363,10 @@ test.describe("Mejoras frente a la competencia", () => {
 
     await createPatient(page, { name: "Nora Propia" });
     await tab(page, "Anamnesis").click();
+    // En la base (como se abre): el módulo es un bloque más y la pregunta propia va en «Salud», sin desplegar nada.
     const modulo = page.locator("#anamnesis-m_suelo_pelvico");
-    await modulo.locator("summary").click();
     await modulo.getByRole("group", { name: "Escapes de orina" }).getByText("Al esfuerzo", { exact: true }).click();
-    await page.locator("summary", { hasText: "Hábitos y estilo de vida" }).click();
-    await page.getByLabel("Horas sentado al día").fill("8");
+    await page.getByRole("region", { name: "Salud" }).getByLabel("Horas sentado al día").fill("8");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
     await expect(page.getByText("Anamnesis guardada")).toBeVisible();
     // Ya guardada, el apartado del módulo sale plegado con lo rellenado contado.

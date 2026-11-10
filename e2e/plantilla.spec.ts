@@ -1,7 +1,7 @@
 // Ajustes › Anamnesis de la clínica (docs/anamnesis-adaptable.md): el editor que parece la anamnesis. Ocultar,
 // renombrar, añadir, deshacer y volver al original; lo ya respondido se sigue leyendo; en el móvil, sin desbordes.
 import type { Page } from "@playwright/test";
-import { createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
+import { ampliada, createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
 const editor = async (page: Page) => {
@@ -19,6 +19,7 @@ test.describe("Anamnesis de la clínica", () => {
     // Una anamnesis con «Profesión» respondida, antes de ocultarla.
     await createPatient(page, { name: "Olga Oculta" });
     await tab(page, "Anamnesis").click();
+    await ampliada(page);
     await page.locator("summary", { hasText: "Datos personales" }).click();
     await page.getByLabel("Profesión").fill("Carpintera");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();
@@ -26,7 +27,7 @@ test.describe("Anamnesis de la clínica", () => {
     const patientUrl = page.url();
 
     await editor(page);
-    await expect(fold(page, "Motivo de consulta")).toContainText("15 preguntas · 8 al paciente");
+    await expect(fold(page, "Motivo de consulta")).toContainText("15 preguntas · 8 en la base · 8 al paciente");
     // Ocultar 3: tres interruptores.
     // «Profesión» es fija: avisa de lo que deja de funcionar y se oculta igualmente.
     await fold(page, "Datos personales").click();
@@ -69,8 +70,9 @@ test.describe("Anamnesis de la clínica", () => {
     await page.getByRole("button", { name: "Editar anamnesis" }).click();
     await expect(page.getByLabel("¿Qué le trae?")).toBeVisible();
     await expect(page.getByLabel("Profesión")).toHaveCount(0);
-    // La plantilla no se cambia desde la anamnesis del paciente: solo en Ajustes (para no cambiarla sin querer).
+    // La plantilla no se cambia en la anamnesis del paciente (para no cambiarla sin querer): «Modificar» lleva a Ajustes.
     await expect(page.getByRole("link", { name: /plantilla/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Modificar/ })).toBeVisible();
   });
 
   test("PL2 añadir «Sí/No con detalle», deshacer, quitar y volver a la plantilla de OmniClin", async ({ page }) => {

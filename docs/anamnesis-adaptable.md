@@ -65,6 +65,52 @@ Cómo quedan los detalles que el encargo no fijaba:
   llegan los apartados con preguntas suyas.
 - Las preguntas de un módulo se añaden en su apartado; después se pueden mover a uno del tronco desde su hoja.
 
+## Anamnesis base y ampliada (10-11-2026, pendiente del visto bueno para subir)
+
+El usuario pide lo mínimo para valorar: una **anamnesis base** súper reducida (la que sale siempre), una **ampliada**
+(todo) y **modificar** (el editor). Decisiones:
+
+19. **La base son 16 preguntas del tronco** (más la fecha, que se pone sola), elegidas porque son las que usa el
+    resto de la app (el nombre del motivo, los tests por zona, el resumen, los consentimientos y el informe). No es
+    una lista validada clínicamente: la aprobó el usuario. `CORE` en `src/clinical/anamnesis.ts`:
+    motivo, zona, lado, fecha de inicio, EVA, agravantes, atenuantes, banderas rojas · enfermedades, cirugías,
+    medicación, alergias, precauciones · diagnóstico, plan, observaciones. El tronco entero son 56 (no se quita
+    ninguna): las otras 39 quedan en la ampliada.
+20. **Un selector «Base · Ampliada» dentro de la misma anamnesis**, no dos plantillas: no hay que elegir plantilla y
+    cada plantilla de especialidad tiene su base y su ampliada. Se abre siempre en la base.
+21. **Una sola regla: lo que es base, es base para el fisio y para el paciente.** Al paciente, con la base, le llegan
+    las preguntas de la base que contesta él (10: qué le pasa, desde cuándo, cuánto le duele, qué lo empeora, qué lo
+    alivia, sus síntomas de alarma, enfermedades, operaciones, medicación y alergias; unos 4 minutos). Los síntomas
+    de alarma (`ALWAYS_ASKED`) se le preguntan siempre, aunque en la ficha solo salgan en la ampliada (o cuando marcó
+    alguno).
+22. **Las preguntas propias de la clínica y las de sus módulos van en la base** si no se dice otra cosa (las añadió
+    porque las quiere ver). En el editor, cada pregunta dice dónde sale: «Base · Ampliada · Oculta».
+
+Cómo queda:
+
+- **Datos**: `Field.extra` (solo en la ampliada). En el tronco lo decide `CORE`, y la clínica lo cambia por plantilla
+  (`FieldPatch.level`, `"base" | "extra"`; lo igual que el original no se guarda). En las propias, `OwnField.extra`;
+  en las de un módulo de OmniClin, `ModuleFieldPatch.extra` (es un cambio del módulo: se ve en todas sus
+  plantillas). Sin migración: no cambia ninguna respuesta. La huella de las plantillas cambia una vez (las
+  instantáneas de antes siguen leyéndose igual).
+- **Ficha** (`src/clinical/AnamnesisPage.tsx`): al rellenar, arriba «Base · Ampliada» (`LevelSwitch`) y «Modificar»
+  (lleva a Ajustes → Anamnesis de la clínica; si hay algo escrito, lo guarda antes). La base se ve en tres bloques sin
+  plegar (`baseBlocks`: «Motivo de consulta», «Salud», «Diagnóstico y plan»; los apartados de la clínica y de los
+  módulos, aparte con su nombre); la ampliada, apartado por apartado como siempre. **Lo ya respondido se ve siempre**:
+  una pregunta de la ampliada con respuesta sale también en la base. Al leer, los apartados solo de la ampliada y sin
+  nada escrito no salen, y la cuenta es «8 de 16 de la base · 3 de la ampliada».
+- **Editor**: en la hoja de cada pregunta, «Sale en: Base · Ampliada · Oculta»; en cada fila, «Base» o «Ampliada»;
+  arriba, «Base: 16 preguntas · Ampliada: 55»; en cada apartado, cuántas en la base.
+- **Paciente**: al enviar su parte, «Base · Ampliada» con cuántas preguntas y cuántos minutos (solo si son
+  distintas), y la vista previa de lo elegido. La bandeja de envíos manda la base. Lo que se le preguntó queda
+  apuntado en el envío (`meta.fields`), así que la recogida no cambia.
+- **Límites conocidos**: en la base, el resumen de la ficha no tiene localización ni objetivo salvo que se rellenen
+  en la ampliada. Un móvil sin actualizar lo ve todo como ampliada (no conoce la base) y, si desde él se cambia una
+  plantilla, se pierde dónde salía cada pregunta que la clínica hubiera cambiado (ajustes; nunca respuestas).
+- **Pruebas**: `src/data/anamnesisLevels.test.ts` (10) y e2e `base.spec.ts` (AB1, AB2). Las pruebas de antes que
+  rellenaban preguntas de la ampliada pasan antes a ella (`ampliada()` en `e2e/fixtures.ts`); CL12 manda la ampliada
+  y CL18 comprueba que la base son dos pasos.
+
 ## Fase 2: hecha y publicada (09-11-2026, `679dd9d`)
 
 - **Datos**: `src/data/anamnesisFields.ts` (las preguntas propias: tipos, comprobación, `ownToField`),

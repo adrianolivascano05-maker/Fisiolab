@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { allowContact, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { allowContact, ampliada, expect, expectAccessible, loadSeed, test } from "./fixtures";
 
 // El ordenador (desde 1024 px): el menú principal a la izquierda en vez de la barra de abajo, Pacientes como lista
 // fija + ficha, el inicio con lo de hoy y las hojas centradas. Por debajo de 1024 px la app es la del móvil, que
@@ -118,6 +118,8 @@ test.describe("Ordenador", () => {
     // Anamnesis al rellenar: el índice a la izquierda y los apartados a la derecha; guardada, se lee en dos columnas.
     await page.goBack();
     await tabs.getByRole("link", { name: "Anamnesis" }).click();
+    // El índice es de la ampliada (la base cabe sin él).
+    await ampliada(page);
     const index = page.getByRole("navigation", { name: "Apartados de la anamnesis" });
     await expect(index).toBeVisible();
     await beside(index, page.locator("#anamnesis-datos"));

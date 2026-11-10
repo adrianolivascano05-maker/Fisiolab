@@ -38,6 +38,8 @@ type Base = {
   showIf?: ShowIf;
   highlight?: string[];
   module?: string;
+  /** Solo en la anamnesis ampliada (si no, también en la base: `CORE`). */
+  extra?: boolean;
 };
 export type Field =
   | (Base & { type: "text" | "textarea" | "date"; rows?: number; inputMode?: "tel" | "email" })
@@ -254,6 +256,63 @@ export const BASE_VERSION = 1;
 export const TRUNK_SINCE: Record<string, number> = {};
 
 /**
+ * La anamnesis base: las preguntas del tronco que salen al abrir la ficha, lo mínimo para valorar (son las que usa el
+ * resto de la app: el nombre del motivo, los tests por zona, el resumen, los consentimientos y el informe). Las demás
+ * son de la ampliada, a un toque. Cada clínica pasa cualquier pregunta de una a otra en Ajustes → Anamnesis de la
+ * clínica; las suyas y las de sus módulos van en la base si no dice otra cosa.
+ */
+export const CORE = new Set([
+  "fecha_valoracion",
+  "motivo",
+  "regiones",
+  "lado",
+  "fecha_inicio",
+  "eva",
+  "agravantes",
+  "atenuantes",
+  "banderas_rojas",
+  "enfermedades",
+  "cirugias",
+  "medicacion",
+  "alergias",
+  "precauciones",
+  "diagnostico_funcional",
+  "plan",
+  "observaciones",
+]);
+/** Los síntomas de alarma que marca el paciente: se le preguntan siempre, también con la base. */
+export const ALWAYS_ASKED = "sintomas_paciente";
+/**
+ * En la base, los apartados del tronco se juntan en tres bloques (la ampliada los enseña uno a uno, como siempre). Los
+ * apartados nuevos de la clínica y los de sus módulos van aparte, con su nombre.
+ */
+const BASE_BLOCKS: { title: string; sections: string[] }[] = [
+  { title: "Motivo de consulta", sections: ["datos", "motivo"] },
+  { title: "Salud", sections: ["antecedentes", "familiares", "tratamientos", "habitos"] },
+  { title: "Diagnóstico y plan", sections: ["exploracion", "diagnostico", "objetivos", "observaciones"] },
+];
+/** Un bloque de la base: las preguntas que se ven, con el apartado de cada una (para lo que cuelga de un apartado). */
+export type BaseBlock = { id: string; title: string; parts: { section: string; fields: Field[] }[] };
+/**
+ * La ficha en la base: los apartados juntados en bloques, solo con las preguntas que da `fieldsOf` (las de la base y
+ * las de la ampliada que ya tienen respuesta). Los bloques sin preguntas no salen.
+ */
+export function baseBlocks(sections: Section[], fieldsOf: (s: Section) => Field[]): BaseBlock[] {
+  const out: BaseBlock[] = [];
+  for (const s of sections) {
+    const fields = fieldsOf(s);
+    if (!fields.length) continue;
+    const at = BASE_BLOCKS.findIndex((b) => b.sections.includes(s.id));
+    const id = at === -1 ? s.id : `base-${at}`;
+    const title = at === -1 ? s.title.replace(/^\d+\.\s*/, "") : BASE_BLOCKS[at]!.title;
+    const block = out.find((b) => b.id === id);
+    if (block) block.parts.push({ section: s.id, fields });
+    else out.push({ id, title, parts: [{ section: s.id, fields }] });
+  }
+  return out;
+}
+
+/**
  * Preguntas fijas del tronco: la app o la ley las usan. Se pueden renombrar, mover y ocultar (con aviso), pero no
  * borrar ni cambiar de tipo u opciones: banderas rojas y precauciones se reconocen por el texto de la opción
  * (redFlags.ts, consent/precautions.ts). Lo que dice cada una es lo que deja de funcionar si se oculta.
@@ -425,7 +484,8 @@ export function clinicalSummary(a: Answers) {
   };
 }
 
-const answered = (v: AnswerValue | undefined) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
+/** ¿Tiene respuesta? */
+export const answered = (v: AnswerValue | undefined) => v !== undefined && v !== null && v !== "" && !(Array.isArray(v) && v.length === 0);
 
 /** Cuántos campos de un apartado (o de toda la plantilla) tienen respuesta. */
 export function answeredCount(a: Answers, fields = ALL_FIELDS): number {

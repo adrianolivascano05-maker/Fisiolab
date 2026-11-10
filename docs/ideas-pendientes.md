@@ -1109,6 +1109,21 @@ Pendiente: la fase 2 (módulos de especialidad y varias plantillas) espera al do
 contenido revisado v2»; la fase 3 (cuestionarios propios), después. Cuando todos los móviles tengan esta versión, se
 puede dejar de escribir `anamnesis_custom_fields` (doble escritura).
 
+### Anamnesis base y ampliada (10-11-2026)
+
+Hecha, pendiente del visto bueno para subir (ver `docs/anamnesis-adaptable.md`): la anamnesis se abre en la **base**
+(16 preguntas en tres bloques), con la **ampliada** (las 56 del tronco, más lo de la clínica) a un toque y
+**Modificar** para elegir dónde sale cada pregunta. Al paciente, la base son 10 preguntas. Lo ya respondido se ve
+siempre.
+
+Pendiente, pedido por el usuario el mismo día: **limpiar el resto de la app** para que sea lo más eficiente posible.
+Se hará aparte: primero medir qué pesa y qué tarda y qué pantallas y botones sobran en el día a día; después, una
+lista con números para que apruebe cada recorte. Nada se elimina: lo que se quite de la vista sigue accesible.
+
+Dos mejoras del editor vistas al hacer las capturas de la fase 2, sin hacer (esperan su sí): el botón «⋯» se queda
+solo en una segunda línea cuando hay varias plantillas; y en «Mostrar solo si…», al elegir de qué pregunta depende,
+sale marcada la primera opción (mejor ninguna hasta que se elija).
+
 ### Anamnesis adaptable, fase 2: plantillas y módulos (09-11-2026)
 
 Hecha y publicada (`679dd9d`; ver `docs/anamnesis-adaptable.md`): varias plantillas, módulos de OmniClin (los 3 paquetes de antes, versión

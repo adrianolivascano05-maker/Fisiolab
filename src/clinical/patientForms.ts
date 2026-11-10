@@ -9,7 +9,7 @@ import type { Db } from "../data/db";
 import type { PrivacySection } from "../data/privacy";
 import { messageText, type MessageSettings } from "../messages/templates";
 import { cachedCloudConfig } from "../cloud/config";
-import { forPatient, getField, NO_ANSWER, parseZone, PATIENT_SECTION_TITLES, PATIENT_TEXT, visibleFields, type Field, type Section } from "./anamnesis";
+import { ALWAYS_ASKED, forPatient, getField, NO_ANSWER, parseZone, PATIENT_SECTION_TITLES, PATIENT_TEXT, visibleFields, type Field, type Section } from "./anamnesis";
 import { formResult } from "./FormFill";
 import { formFor, type Answers as FormAnswers } from "./forms";
 import { ACTIVE, getKind } from "./questionnaires";
@@ -88,13 +88,14 @@ export type SentDoc = { n: number; name: string; size: number };
 /**
  * Los apartados de la ficha de la clínica (src/data/anamnesisTemplates.ts) con las preguntas que contesta el paciente
  * («Paciente» o «Los dos»), dichas para él: con su texto para el paciente si lo tiene y el título del apartado sin número.
+ * `wide`: también las de la anamnesis ampliada; sin él, solo las de la base (y los síntomas de alarma, siempre).
  */
-export function patientSections(sections: Section[]): Section[] {
+export function patientSections(sections: Section[], wide = true): Section[] {
   return sections
     .map((s) => ({
       id: s.id,
       title: PATIENT_SECTION_TITLES[s.id] ?? s.title.replace(/^\d+\.\s*/, ""),
-      fields: s.fields.filter((f) => f.type !== "cif" && forPatient(f)).map((f): Field => {
+      fields: s.fields.filter((f) => f.type !== "cif" && forPatient(f) && (wide || !f.extra || f.id === ALWAYS_ASKED)).map((f): Field => {
           const own = f.patientLabel ? { label: f.patientLabel, hint: f.patientHint } : PATIENT_TEXT[f.id];
           return { ...f, label: own?.label ?? f.label, hint: own ? own.hint : f.hint };
         }),

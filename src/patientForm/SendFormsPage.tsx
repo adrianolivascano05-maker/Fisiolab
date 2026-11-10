@@ -48,6 +48,8 @@ import { useToast } from "../ui/Toast";
 import { useDocsUsage } from "../documents/DocsAutoSync";
 import { createPatientForm, templateForPatient } from "./createForm";
 import { AnamnesisPreview } from "./AnamnesisStep";
+import { LevelSwitch } from "../clinical/LevelSwitch";
+import type { Section } from "../clinical/anamnesis";
 import { listTemplates } from "../data/anamnesisTemplates";
 import { useCollectForms } from "./FormInbox";
 
@@ -156,8 +158,9 @@ export function SendFormsPage() {
           <ChooseForm
             patientId={id}
             initial={choosing}
-            onCreate={async (kind) => {
+            onCreate={async (kind, wide) => {
               const created = await createPatientForm(getDb(), cloud, {
+                wide,
                 patientId: id,
                 patientName: patient.name,
                 kind,
@@ -205,7 +208,7 @@ export function SendFormsPage() {
   );
 }
 
-function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initial: string; onCreate: (kind: string) => Promise<void> }) {
+function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initial: string; onCreate: (kind: string, wide: boolean) => Promise<void> }) {
   // Los pendientes del permiso de su titular, solo si la clínica ha marcado que lo tiene.
   const sendable = sendableKinds();
   // Pedirle archivos, solo si el servidor de la clínica los guarda.
@@ -220,8 +223,14 @@ function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initi
     return { t, several: all.filter((x) => !x.archived).length > 1 };
   }, [patientId]);
   const [preview, setPreview] = useState(false);
-  const asked = tpl.data ? patientSections(tpl.data.t.sections) : [];
-  const count = asked.reduce((n, x) => n + x.fields.length, 0);
+  /** La anamnesis base (lo mínimo) o la ampliada (todo lo que contesta el paciente). */
+  const [wide, setWide] = useState(false);
+  const total = (list: Section[]) => list.reduce((n, x) => n + x.fields.length, 0);
+  const short = total(tpl.data ? patientSections(tpl.data.t.sections, false) : []);
+  const full = total(tpl.data ? patientSections(tpl.data.t.sections, true) : []);
+  const asked = tpl.data ? patientSections(tpl.data.t.sections, wide || short === full) : [];
+  const count = total(asked);
+  const size = (n: number) => `${n === 1 ? "1 pregunta" : `${n} preguntas`} · ${Math.max(1, Math.ceil(n / 3))} min`;
   return (
     <>
     <form
@@ -231,7 +240,7 @@ function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initi
         setBusy(true);
         setError(null);
         try {
-          await onCreate(kind);
+          await onCreate(kind, wide || short === full);
         } catch (err) {
           setError(err instanceof Error ? err.message : String(err));
         } finally {
@@ -263,9 +272,11 @@ function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initi
           </optgroup>
         )}
       </SelectField>
-      {kind === ANAMNESIS_KIND && tpl.data?.several && (
+      {/* La base (lo mínimo) o la ampliada; si son iguales, no hay nada que elegir. */}
+      {kind === ANAMNESIS_KIND && tpl.data && short !== full && <LevelSwitch label="Qué anamnesis le mandas" wide={wide} onChange={setWide} base={size(short)} full={size(full)} />}
+      {kind === ANAMNESIS_KIND && tpl.data && (
         <p className="flex flex-wrap items-center gap-x-1 text-sm">
-          <span className="font-semibold">Plantilla {tpl.data.t.name}</span> · {count === 1 ? "1 pregunta" : `${count} preguntas`} · unos {Math.max(1, Math.ceil(count / 3))} minutos ·
+          {tpl.data.several && <span className="font-semibold">Plantilla {tpl.data.t.name} ·</span>} {count === 1 ? "1 pregunta" : `${count} preguntas`} · unos {Math.max(1, Math.ceil(count / 3))} minutos ·
           <button type="button" className="min-h-11 font-semibold text-accent underline" onClick={() => setPreview(true)}>
             Ver cómo lo verá
           </button>
@@ -275,7 +286,9 @@ function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initi
         {kind === DOCS_KIND
           ? `Sube desde su móvil hasta ${DOCS_PER_LINK} informes o pruebas, en PDF o en foto (las fotos se pasan a PDF), de 5 MB como mucho cada uno. Llegan cifrados a sus archivos.`
           : kind === ANAMNESIS_KIND
-            ? "Sus datos, lo que le pasa, su salud, su familia y su día a día, con preguntas dichas para el paciente (y las propias de tu clínica). La zona, el lado, las banderas rojas, las precauciones, la exploración y el plan son tuyos."
+            ? wide || short === full
+              ? "Lo que le pasa, su salud, sus tratamientos y su día a día, con preguntas dichas para el paciente (y las propias de tu clínica). La zona, el lado, las banderas rojas, las precauciones, la exploración y el plan son tuyos."
+              : "Lo mínimo: qué le pasa, sus síntomas de alarma y su salud, con preguntas dichas para el paciente. Lo demás lo ves con él en la consulta."
             : sendable.find((k) => k.id === kind)?.own
               ? "El cuestionario propio de la clínica, con la etiqueta «no validado». Se manda la versión de ahora: si después lo cambias, este enlace se recoge con esta versión. Al recibirlo, se guarda en sus cuestionarios (con la nota, si la tiene)."
               : "El cuestionario entero, con sus instrucciones. Al recibirlo, se guarda en sus cuestionarios con la nota calculada."}{" "}

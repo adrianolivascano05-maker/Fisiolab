@@ -14,7 +14,7 @@
 //   pregunta tal como se hizo (Ley 41/2002, art. 15), y un motivo conserva su plantilla aunque se archive.
 // Un móvil sin actualizar (fase 1) ve la plantilla «General» sin los módulos, enseña como texto los tipos que no
 // conoce y no borra nada.
-import { ANAMNESIS, BASE_VERSION, FIXED, MAX_REQUIRED, PATIENT_TEXT, TRUNK_SINCE, conditionTarget, conditionValues, defaultWho, forPatient, getField, type Field, type Section, type Who } from "../clinical/anamnesis";
+import { ANAMNESIS, BASE_VERSION, CORE, FIXED, MAX_REQUIRED, PATIENT_TEXT, TRUNK_SINCE, conditionTarget, conditionValues, defaultWho, forPatient, getField, type Field, type Section, type Who } from "../clinical/anamnesis";
 import {
   bool,
   checkOwnField,
@@ -53,7 +53,21 @@ export const newTemplateId = () => `t_${crypto.randomUUID().replace(/-/g, "").sl
 export type Proposals = { questionnaires: string[]; measures: string[] };
 /** Cambios de la clínica sobre una pregunta del tronco: texto, texto para el paciente, ayuda, quién contesta, oculta,
  *  otro apartado y obligatoria para el paciente. */
-export type FieldPatch = { label?: string; patientLabel?: string; hint?: string; who?: Who; hidden?: boolean; section?: string; required?: boolean };
+export type FieldPatch = {
+  label?: string;
+  patientLabel?: string;
+  hint?: string;
+  who?: Who;
+  hidden?: boolean;
+  section?: string;
+  required?: boolean;
+  /** En la anamnesis base o solo en la ampliada, si la clínica lo cambia (si no, lo que dice `CORE`). */
+  level?: Level;
+};
+/** Dónde sale una pregunta: en la base (y en la ampliada) o solo en la ampliada. */
+export type Level = "base" | "extra";
+/** Dónde sale una pregunta del tronco si la clínica no dice otra cosa. */
+export const defaultLevel = (id: string): Level => (CORE.has(id) ? "base" : "extra");
 /** Un apartado cambiado, o uno nuevo de la clínica (`s_<8 hex>`); retirado si ya no se usa. */
 export type SectionPatch = { title?: string; hidden?: boolean; removed?: boolean };
 /** Un módulo en la plantilla y las preguntas suyas que esta plantilla oculta. */
@@ -123,6 +137,7 @@ export function checkTemplate(doc: TemplateDoc): TemplateDoc {
       section: typeof p.section === "string" && sectionOk(p.section) && ANAMNESIS.find((s) => s.fields.some((f) => f.id === id))?.id !== p.section ? p.section : undefined,
       // Las delicadas (tóxicos, sueño, estrés) y la CIF nunca son obligatorias.
       required: q.sensitive || q.type === "cif" ? undefined : bool(p.required),
+      level: (p.level === "base" || p.level === "extra") && p.level !== defaultLevel(id) ? p.level : undefined,
     });
     if (Object.keys(patch).length) fields[id] = patch;
   }
@@ -228,6 +243,7 @@ export function resolveTemplate(doc: TemplateDoc, mods: ModuleDoc[] = []): Resol
         patientHint: t?.hint,
         who: p.who ?? f.who ?? defaultWho(f.id),
         required: p.required,
+        extra: (p.level ?? defaultLevel(f.id)) === "extra" || undefined,
       }) as Field;
       items.push({ field, section: p.section ?? s.id, hidden: !!p.hidden, home: s.id });
       all.push(field);
@@ -609,7 +625,11 @@ export function setHidden(doc: TemplateDoc, id: string, hidden: boolean, module?
 /** Cambiar textos, quién contesta, apartado u obligatoria. En una del tronco, lo igual que el original no es cambio. */
 export function patchField(doc: TemplateDoc, id: string, change: FieldPatch & Partial<Pick<OwnField, "options" | "other" | "detail" | "sensitive" | "unit" | "highlight" | "showIf">>): TemplateDoc {
   const own = ownOf(doc.delta, id);
-  if (own) return withDelta(doc, { added: doc.delta.added.map((f) => (f.id === id ? tidy({ ...f, ...change }) : f)) });
+  if (own) {
+    // En una propia, dónde sale se guarda como `extra` (en la base si no se dice).
+    const { level, ...rest } = change;
+    return withDelta(doc, { added: doc.delta.added.map((f) => (f.id === id ? tidy({ ...f, ...rest, ...(level ? { extra: level === "extra" || undefined } : {}) }) : f)) });
+  }
   const base = getField(id);
   if (!base) return doc;
   const next: FieldPatch = { ...doc.delta.fields[id], ...change };
@@ -620,8 +640,9 @@ export function patchField(doc: TemplateDoc, id: string, change: FieldPatch & Pa
   if (next.who === (base.who ?? defaultWho(id))) next.who = undefined;
   if (next.section === ANAMNESIS.find((s) => s.fields.some((f) => f.id === id))?.id) next.section = undefined;
   if (!next.required) next.required = undefined;
+  if (next.level === defaultLevel(id)) next.level = undefined;
   const fields = { ...doc.delta.fields };
-  const p = tidyPatch(tidy({ label: next.label, patientLabel: next.patientLabel, hint: next.hint, who: next.who, hidden: next.hidden, section: next.section, required: next.required }));
+  const p = tidyPatch(tidy({ label: next.label, patientLabel: next.patientLabel, hint: next.hint, who: next.who, hidden: next.hidden, section: next.section, required: next.required, level: next.level }));
   if (p) fields[id] = p;
   else delete fields[id];
   return withDelta(doc, { fields });
@@ -723,6 +744,7 @@ export function asOwn(field: Field, sectionId: string, id = newOwnId()): OwnFiel
     detail: field.type === "yesno_detail" ? field.detail : undefined,
     unit: field.type === "number" && field.unit ? field.unit : undefined,
     sensitive: field.sensitive,
+    extra: field.extra || undefined,
   });
 }
 

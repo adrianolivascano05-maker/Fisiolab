@@ -1,7 +1,7 @@
 // Agenda y seguimiento (src/data/appointments.ts y src/clinical): citas sin sesión, la agenda de hoy en Pacientes
 // (atendida, no vino), repetir el tratamiento de la última sesión, las sesiones previstas (bono) y el informe de alta.
 import type { Locator, Page } from "@playwright/test";
-import { add, createPatient, expect, expectAccessible, test, allowContact } from "./fixtures";
+import { add, ampliada, createPatient, expect, expectAccessible, test, allowContact } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
 
@@ -121,6 +121,8 @@ test.describe("Agenda y seguimiento", () => {
   test("AG3 repetir el tratamiento, sesiones previstas e informe de alta", async ({ page }) => {
     await createPatient(page, { name: "Diego Alta" });
     await tab(page, "Anamnesis").click();
+    // «Sesiones previstas» es de la ampliada.
+    await ampliada(page);
     await page.getByLabel("Motivo principal").fill("Dolor lumbar");
     await page.locator("fieldset", { hasText: "Intensidad (EVA 0-10)" }).getByText("7", { exact: true }).click();
     await page.getByLabel("Diagnóstico fisioterapéutico (criterio del profesional)").fill("Lumbalgia mecánica");

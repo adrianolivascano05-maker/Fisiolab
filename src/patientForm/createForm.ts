@@ -38,6 +38,8 @@ export type FormToCreate = {
   sections?: Section[];
   /** La plantilla de la clínica, resuelta: va su huella en el enlace y se guarda su instantánea. */
   template?: ResolvedTemplate | null;
+  /** La anamnesis ampliada (todas las preguntas que contesta el paciente). Sin esto, la base. */
+  wide?: boolean;
 };
 
 export async function uploadPatientForm(
@@ -58,7 +60,7 @@ export async function uploadPatientForm(
   // La plantilla con la que se manda (la de su motivo de consulta; sin anamnesis aún, la de por defecto): su
   // instantánea queda guardada (y se sincroniza) para recogerlo con ella aunque la clínica la cambie después.
   const template = anamnesis ? (p.template ?? (await templateForPatient(db, p.patientId))) : null;
-  const sections = template ? patientSections(template.sections) : null;
+  const sections = template ? patientSections(template.sections, !!p.wide) : null;
   const tpl = template ? await markTemplateUsed(db, template) : undefined;
   // A un paciente nuevo que aún no ha dicho «Sí» al contacto, la anamnesis empieza con la información de protección de
   // datos, el «He leído» y la casilla opcional de contacto (src/privacy/intakeText.ts).

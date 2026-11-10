@@ -61,8 +61,9 @@ test.describe("Plantillas y módulos de la anamnesis", () => {
     await motivo.getByRole("group", { name: "Plantilla de anamnesis" }).getByRole("button", { name: "Suelo pélvico" }).click();
     await motivo.getByRole("button", { name: "Crear y rellenar su anamnesis" }).click();
     await expect(page.getByLabel("Motivo principal")).toHaveValue("Escapes de orina");
+    // En la base (como se abre), el apartado del módulo es un bloque más, a la vista.
     const apartado = page.locator("#anamnesis-m_suelo_pelvico");
-    await apartado.locator("summary").click();
+    await expect(apartado.getByRole("heading", { name: "Suelo pélvico" })).toBeVisible();
     await expect(page.getByLabel("¿Desde cuándo?")).toHaveCount(0);
     await apartado.getByRole("group", { name: "Escapes de orina" }).getByText("Al esfuerzo", { exact: true }).click();
     await page.getByLabel("¿Desde cuándo?").fill("Dos años, tras el segundo parto");

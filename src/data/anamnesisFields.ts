@@ -38,6 +38,8 @@ export type OwnField = {
   highlight?: string[];
   /** Módulos de OmniClin: en qué versión del módulo apareció (para el aviso de novedades). */
   since?: number;
+  /** Solo en la anamnesis ampliada (si no, en la base). */
+  extra?: boolean;
 };
 
 export const LIMITS = { sections: 40, fields: 300, bytes: 64 * 1024, snapshotBytes: 256 * 1024, label: 200, hint: 500, templates: 20, moduleFields: 100 };
@@ -117,6 +119,7 @@ export function checkOwnField(f: OwnField, sectionOk: (id: string) => boolean): 
     showIf: checkShowIf(f.showIf, f.id),
     highlight: highlight.length ? highlight : undefined,
     since: Number.isInteger(f.since) && f.since! > 1 ? f.since : undefined,
+    extra: bool(f.extra),
   });
 }
 
@@ -137,6 +140,7 @@ export function ownToField(f: OwnField, module?: string): Field {
     showIf: f.showIf,
     highlight: f.highlight,
     module,
+    extra: f.extra || undefined,
   });
   switch (f.type) {
     case "choice":

@@ -229,6 +229,7 @@ export function Row({ item, moduleName, isNew }: { item: EditorItem; moduleName?
         <span className="min-w-0 break-words">{f.label}</span>
       </span>
       <span className="text-sm text-text-muted">
+        {!item.hidden && (f.extra ? "Ampliada · " : <span className="font-semibold text-text">Base · </span>)}
         {TYPE_TEXT[f.type] ?? "Texto"} · {f.type === "cif" ? "Solo tú" : whoText[whoOf(f)]}
         {item.own ? " · propia" : ""}
         {moduleName ? ` · ${moduleName}` : ""}

@@ -106,6 +106,13 @@ export async function createPatient(page: Page, p: NewPatient) {
 }
 
 /** Desde el resumen de la ficha: «Nueva sesión», o «Valorar» y en su hoja un test, un cuestionario o una medición. */
+/** Rellenando la anamnesis: pasa de la base (lo mínimo, como se abre) a la ampliada (todas las preguntas, por apartados). */
+export async function ampliada(page: Page) {
+  const full = page.getByRole("group", { name: "Anamnesis", exact: true }).getByRole("button", { name: /^Ampliada/ });
+  await full.click();
+  await expect(full).toHaveAttribute("aria-pressed", "true");
+}
+
 export function add(page: Page, what: "Sesión" | "Medición" | "Exploración" | "Cuestionario") {
   return {
     click: async () => {

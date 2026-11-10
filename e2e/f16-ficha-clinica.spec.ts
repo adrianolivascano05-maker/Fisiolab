@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { add, createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { add, ampliada, createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
@@ -9,9 +9,9 @@ test.describe("F16 Ficha clínica", () => {
     await createPatient(page, { name: "Lucía Anamnesis" });
     await tab(page, "Anamnesis").click();
     await expect(page.getByRole("heading", { name: "Anamnesis", exact: true })).toBeVisible();
-    // Los apartados, sin números.
-    await expect(page.locator("summary", { hasText: "Datos personales" })).toBeVisible();
-    await expect(page.locator("summary", { hasText: "Observaciones" })).toBeVisible();
+    // Se abre en la base: tres bloques a la vista, sin números ni nada que desplegar.
+    for (const block of ["Motivo de consulta", "Salud", "Diagnóstico y plan"]) await expect(page.getByRole("region", { name: block })).toBeVisible();
+    await expect(page.locator("summary", { hasText: "Datos personales" })).toHaveCount(0);
     await page.getByLabel("Motivo principal").fill("Dolor de rodilla al bajar escaleras");
     await page.getByText("Rodilla", { exact: true }).click();
     await page.getByText("Derecho", { exact: true }).click();
@@ -297,7 +297,8 @@ test.describe("F16 Ficha clínica", () => {
     await createPatient(page, { name: "Elena Motivos" });
     await tab(page, "Anamnesis").click();
     await page.getByLabel("Motivo principal").fill("Esguince de tobillo");
-    // Los datos personales van plegados al empezar.
+    // «Profesión» es de la ampliada; en ella, los datos personales van plegados al empezar.
+    await ampliada(page);
     await page.locator("summary", { hasText: "Datos personales" }).click();
     await page.getByLabel("Profesión").fill("Enfermera");
     await page.getByRole("button", { name: "Guardar anamnesis" }).click();

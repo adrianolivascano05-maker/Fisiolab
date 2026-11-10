@@ -40,6 +40,8 @@ export type ModuleFieldPatch = {
   /** null: sin la condición que traía. */
   showIf?: ShowIf | null;
   detail?: string;
+  /** Solo en la anamnesis ampliada (o, con `false`, en la base aunque OmniClin la traiga en la ampliada). */
+  extra?: boolean;
 };
 
 /** El puntero de un módulo de la clínica (propio, o de OmniClin con sus cambios). */
@@ -117,6 +119,7 @@ export function checkModule(doc: ModuleDoc): ModuleDoc {
         highlight: Array.isArray(p.highlight) ? opts(p.highlight) : undefined,
         showIf: p.showIf === null ? null : checkShowIf(p.showIf, id),
         detail: f.type === "yesno_detail" ? text(p.detail, LIMITS.label, `${what}, detalle`) : undefined,
+        extra: typeof p.extra === "boolean" && p.extra !== !!f.extra ? p.extra : undefined,
       });
       if (patch.addOptions && !patch.addOptions.length) delete patch.addOptions;
       if (patch.removeOptions && !patch.removeOptions.length) delete patch.removeOptions;
@@ -166,6 +169,7 @@ function patchLibField(f: OwnField, p: ModuleFieldPatch | undefined): OwnField {
     highlight: p.highlight ?? f.highlight,
     showIf: p.showIf === null ? undefined : (p.showIf ?? f.showIf),
     detail: p.detail ?? f.detail,
+    extra: (p.extra ?? f.extra) || undefined,
   });
 }
 
@@ -279,6 +283,7 @@ export function patchModuleField(d: ModuleDoc, id: string, change: Omit<Partial<
     highlight: same(want.highlight ?? [], lib.highlight ?? []) ? undefined : (want.highlight ?? []),
     showIf: change.showIf === null ? (lib.showIf ? null : undefined) : same(want.showIf, lib.showIf) ? undefined : want.showIf,
     detail: blank(want.detail) === lib.detail ? undefined : blank(want.detail),
+    extra: !!want.extra === !!lib.extra ? undefined : !!want.extra,
   });
   if (p.addOptions && !p.addOptions.length) delete p.addOptions;
   if (p.removeOptions && !p.removeOptions.length) delete p.removeOptions;
