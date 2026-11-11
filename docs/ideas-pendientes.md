@@ -1111,10 +1111,10 @@ puede dejar de escribir `anamnesis_custom_fields` (doble escritura).
 
 ### Anamnesis base y ampliada (10-11-2026)
 
-Hecha, pendiente del visto bueno para subir (ver `docs/anamnesis-adaptable.md`): la anamnesis se abre en la **base**
+Hecha y publicada el 11-11-2026 (`d772a7c`; ver `docs/anamnesis-adaptable.md`): la anamnesis se abre en la **base**
 (16 preguntas en tres bloques), con la **ampliada** (las 56 del tronco, más lo de la clínica) a un toque y
-**Modificar** para elegir dónde sale cada pregunta. Al paciente, la base son 10 preguntas. Lo ya respondido se ve
-siempre.
+**Modificar** para elegir dónde sale cada pregunta. Al paciente, la base son 10 preguntas (el usuario las deja
+así). Banderas rojas y precauciones se quedan desplegadas (decisión del usuario). Lo ya respondido se ve siempre.
 
 Pendiente, pedido por el usuario el mismo día: **limpiar el resto de la app** para que sea lo más eficiente posible.
 Se hará aparte: primero medir qué pesa y qué tarda y qué pantallas y botones sobran en el día a día; después, una

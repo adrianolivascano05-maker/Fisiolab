@@ -65,7 +65,7 @@ Cómo quedan los detalles que el encargo no fijaba:
   llegan los apartados con preguntas suyas.
 - Las preguntas de un módulo se añaden en su apartado; después se pueden mover a uno del tronco desde su hoja.
 
-## Anamnesis base y ampliada (10-11-2026, pendiente del visto bueno para subir)
+## Anamnesis base y ampliada: hecha y publicada (11-11-2026, `d772a7c`)
 
 El usuario pide lo mínimo para valorar: una **anamnesis base** súper reducida (la que sale siempre), una **ampliada**
 (todo) y **modificar** (el editor). Decisiones:
