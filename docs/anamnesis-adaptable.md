@@ -85,6 +85,10 @@ El usuario pide lo mínimo para valorar: una **anamnesis base** súper reducida 
     alguno).
 22. **Las preguntas propias de la clínica y las de sus módulos van en la base** si no se dice otra cosa (las añadió
     porque las quiere ver). En el editor, cada pregunta dice dónde sale: «Base · Ampliada · Oculta».
+23. **Al paciente, las 10** (11-11-2026): el usuario deja «¿Qué lo empeora?» y «¿Qué lo alivia?» en lo que se le
+    manda con la base.
+24. **Banderas rojas y precauciones, siempre desplegadas** (11-11-2026): en el móvil ocupan más de media pantalla de
+    la base, pero son de seguridad y el usuario no quiere el toque de más para abrirlas.
 
 Cómo queda:
 
