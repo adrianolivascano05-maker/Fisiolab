@@ -15,6 +15,7 @@ import { clashes, deleteAppointment, STATUS_LABELS, updateAppointment, type Appo
 import { useAsync } from "../app/useAsync";
 import { getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
+import { eventsAtVisit, listPatientEvents } from "../data/patientEvents";
 import { getPatient } from "../data/repo";
 import { editText, lastEditOf } from "../data/editors";
 import { listWaitlist } from "../data/waitlist";
@@ -177,8 +178,8 @@ export function AppointmentSheet({
   }
   /**
    * Mover la cita sin escribir: una hora, un día o una semana antes o después. No se lleva al pasado; si a la hora nueva
-   * ya hay otra cita (de esa persona, en una clínica), se abre el formulario con esa hora y el aviso, como al cambiarla
-   * a mano, para darla igualmente o elegir otra.
+   * ya hay otra cita (de esa persona, en una clínica) o el paciente tiene algo ese día en su calendario, se abre el
+   * formulario con esa hora y el aviso, como al cambiarla a mano, para darla igualmente o elegir otra.
    */
   const nudge = async (minutes: number, label: string) => {
     const a = appointment!;
@@ -187,10 +188,13 @@ export function AppointmentSheet({
     else d.setMinutes(d.getMinutes() + minutes);
     if (d.getTime() < Date.now()) return setError(`${fmtVisit(d.toISOString())} ya ha pasado: elige otra hora con «Cambiar el día o la hora».`);
     const found = await clashes(getDb(), d.toISOString(), a.minutes, staff.length ? (a.assignedTo ?? null) : undefined, a.id);
-    if (found.length) {
+    // Y si ese día el paciente tiene algo en su calendario (src/data/patientEvents.ts), también se avisa.
+    const his = eventsAtVisit(await listPatientEvents(getDb(), a.patientId), d.toISOString(), a.minutes);
+    if (found.length || his.length) {
       setEditing(true);
       form.setWhen(localInput(d.toISOString()));
-      form.setClash(found);
+      form.setClash(found.length ? found : null);
+      form.setBusyDay(his.length ? his : null);
       return;
     }
     return run(() => updateAppointment(getDb(), a.id, { startsAt: d.toISOString() }), `Cita movida ${label}: ${fmtVisit(d.toISOString())}`);

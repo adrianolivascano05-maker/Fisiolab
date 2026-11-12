@@ -24,6 +24,8 @@ import { listConsents } from "../data/consents";
 import { countDocuments } from "../data/documents";
 import { getDb } from "../data/db";
 import { listPlans } from "../data/exercises";
+import { eventNotes, listPatientEvents } from "../data/patientEvents";
+import { KIND_ICON } from "../clinical/eventIcons";
 import { CONSENTS } from "../data/privacy";
 import { getPatient, listTests } from "../data/repo";
 import { preferText, waitlistOf } from "../data/waitlist";
@@ -43,7 +45,7 @@ export function PatientPage() {
   const data = useAsync(async () => {
     const db = getDb();
     const today = todayDay();
-    const [patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, waiting, files] = await Promise.all([
+    const [patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, waiting, files, events] = await Promise.all([
       getPatient(db, id),
       getAnamnesis(db, id),
       listSessions(db, id),
@@ -54,8 +56,9 @@ export function PatientPage() {
       listPlans(db, id),
       waitlistOf(db, id),
       countDocuments(db, id),
+      listPatientEvents(db, id),
     ]);
-    return { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting };
+    return { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting, notes: eventNotes(events, today) };
   }, [id]);
   const [assessing, setAssessing] = useState(false);
   const cloud = useCloud();
@@ -71,7 +74,7 @@ export function PatientPage() {
     ) : (
       <Page title="Paciente" backTo="/"><Loading /></Page>
     );
-  const { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting } = data.data;
+  const { patient, anamnesis, sessions, questionnaires, tests, signed, account, plans, today, files, waiting, notes } = data.data;
   if (!patient) return <Page title="Paciente" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
 
   // Consentimientos: los firmados vigentes y los que su anamnesis pide por escrito y faltan.
@@ -94,7 +97,7 @@ export function PatientPage() {
   const lastValue = lastTest ? mainValue(lastTest) : null;
   const headline = summary?.diagnosis || summary?.reason || "";
   const where = [...(summary?.regions ?? []).map(regionLabel), summary?.side && summary.side !== "No aplica" ? summary.side.toLowerCase() : ""].filter(Boolean).join(" · ");
-  const hasSituation = !!(headline || where || alarms?.hits.length || marked.length || last || lastQ || lastTest);
+  const hasSituation = !!(headline || where || alarms?.hits.length || marked.length || last || lastQ || lastTest || notes.length);
   const pending = missing.length > 0 || !privacy.informedAt || (review !== null && review < today);
 
   return (
@@ -187,6 +190,18 @@ export function PatientPage() {
               <CalendarClock aria-hidden="true" className="size-4 shrink-0 text-accent" /> {review === today ? "Reevaluar hoy" : `Reevaluar el ${dayText(review)}`}
             </p>
           )}
+          {/* De su calendario: la última operación (hace cuánto) y lo próximo que importa (un viaje, un partido, una prueba). */}
+          {notes.map((n) => {
+            const Icon = KIND_ICON[n.event.kind];
+            return (
+              <p key={`${n.event.id}-${n.day}`} className="flex items-start gap-2 text-sm">
+                <Icon aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-tingle" />
+                <Link to={`/pacientes/${id}/calendario?mes=${n.day.slice(0, 7)}&dia=${n.day}`} className="underline underline-offset-2">
+                  {n.text}
+                </Link>
+              </p>
+            );
+          })}
         </Card>
       </section>
 

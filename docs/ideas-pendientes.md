@@ -1116,9 +1116,18 @@ Hecha y publicada el 11-11-2026 (`d772a7c`; ver `docs/anamnesis-adaptable.md`): 
 **Modificar** para elegir dónde sale cada pregunta. Al paciente, la base son 10 preguntas (el usuario las deja
 así). Banderas rojas y precauciones se quedan desplegadas (decisión del usuario). Lo ya respondido se ve siempre.
 
-Pendiente, pedido por el usuario el mismo día: **limpiar el resto de la app** para que sea lo más eficiente posible.
-Se hará aparte: primero medir qué pesa y qué tarda y qué pantallas y botones sobran en el día a día; después, una
-lista con números para que apruebe cada recorte. Nada se elimina: lo que se quite de la vista sigue accesible.
+Pedido por el usuario el mismo día: **limpiar el resto de la app** para que sea lo más eficiente posible. Medido el
+12-11-2026 (arranque 1,5 s en frío y 0,3 s en caliente; 0,7 MB la primera carga; solo dos herramientas sin uso) y
+propuestos cuatro recortes de pantalla: el usuario **no quiso ninguno**. En su lugar pidió el calendario de cada
+paciente (abajo).
+
+### Calendario de cada paciente (12-11-2026)
+
+Hecho (ver `docs/calendario-paciente.md`): quinta pestaña «Calendario» en la ficha con sus citas mes a mes (con
+«Citas», solo ellas) y sus eventos (operaciones, consultas y pruebas médicas, entrenamientos que se repiten cada
+semana, competiciones, viajes); aviso al darle cita un día en que tiene algo; la última operación y lo próximo en el
+Resumen; en la exportación. Migración 039 `patient_events`, sincronizada. Ideas sin hacer: que el paciente apunte sus
+eventos desde su enlace, «terminar la serie aquí» y una marca en la agenda de la clínica.
 
 Dos mejoras del editor vistas al hacer las capturas de la fase 2, sin hacer (esperan su sí): el botón «⋯» se queda
 solo en una segunda línea cuando hay varias plantillas; y en «Mostrar solo si…», al elegir de qué pregunta depende,

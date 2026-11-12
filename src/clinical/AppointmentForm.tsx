@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { clashes, createWeekly, updateAppointment, type AgendaItem, type Appointment } from "../data/appointments";
 import { getDb } from "../data/db";
 import { memberEmail } from "../data/member";
+import { eventName, eventsAtVisit, eventTime, listPatientEvents, type Occurrence } from "../data/patientEvents";
 import { staffName, useStaff } from "../schedule/useStaff";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -16,6 +17,8 @@ import { Chips } from "./parts";
 import { PatientPicker, type PickedPatient } from "./PatientPicker";
 
 const DURATIONS = ["30", "45", "60", "90"];
+/** «jue 12 nov». */
+const dayWithWeekday = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 /** Una serie de sesiones: cuántas citas, una por semana. */
 const REPEATS = [1, 2, 3, 4, 5, 6, 8, 10, 12];
 
@@ -52,6 +55,8 @@ export function useAppointmentForm({
   const [repeat, setRepeat] = useState(1);
   /** Citas que ya hay a esa hora: se avisa antes de dar la cita. */
   const [clash, setClash] = useState<AgendaItem[] | null>(null);
+  /** Lo que el paciente tiene ese día en su calendario (una operación, un viaje, un entrenamiento a esa hora): también se avisa. */
+  const [busyDay, setBusyDay] = useState<Occurrence[] | null>(null);
 
   // Cada vez que se abre: con los datos de la cita, o vacía para dar una nueva.
   useEffect(() => {
@@ -62,6 +67,7 @@ export function useAppointmentForm({
     setPicked(null);
     setRepeat(1);
     setClash(null);
+    setBusyDay(null);
   }, [open, appointment, start, person]);
 
   const save = async (anyway = false) => {
@@ -72,16 +78,22 @@ export function useAppointmentForm({
     const who = staff.length ? { assignedTo: assignedTo || null } : {};
     const count = appointment ? 1 : repeat;
     if (!anyway) {
-      // ¿Ya hay algo a esa hora (de esa persona, en una clínica)? Se avisa; se puede dar igualmente.
+      // ¿Ya hay algo a esa hora (de esa persona, en una clínica)? ¿Tiene él algo ese día? Se avisa; se puede dar igualmente.
       const found: AgendaItem[] = [];
+      const his: Occurrence[] = [];
+      const events = await listPatientEvents(getDb(), patientId);
       for (let i = 0; i < count; i++) {
         const d = new Date(when);
         d.setDate(d.getDate() + 7 * i);
         found.push(...(await clashes(getDb(), d.toISOString(), minutes, staff.length ? who.assignedTo : undefined, appointment?.id)));
+        his.push(...eventsAtVisit(events, d.toISOString(), minutes));
       }
-      if (found.length) return setClash(found);
+      setClash(found.length ? found : null);
+      setBusyDay(his.length ? his : null);
+      if (found.length || his.length) return;
     }
     setClash(null);
+    setBusyDay(null);
     const last = new Date(when);
     last.setDate(last.getDate() + 7 * (count - 1));
     return run(
@@ -94,7 +106,12 @@ export function useAppointmentForm({
     );
   };
 
-  return { picked, setPicked, patientId, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, save };
+  /** Al cambiar el día, la hora, la duración o con quién: los avisos ya no valen. */
+  const clearWarnings = () => {
+    setClash(null);
+    setBusyDay(null);
+  };
+  return { picked, setPicked, patientId, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, busyDay, setBusyDay, clearWarnings, save };
 }
 
 export type AppointmentFormState = ReturnType<typeof useAppointmentForm>;
@@ -120,7 +137,8 @@ export function AppointmentForm({
   /** Al cambiar una cita: volver a verla sin guardar. */
   onBack: () => void;
 }) {
-  const { picked, setPicked, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, save } = form;
+  const { picked, setPicked, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, busyDay, clearWarnings, save } = form;
+  const warned = !!clash || !!busyDay;
   return (
     <form
       className="flex flex-col gap-3"
@@ -136,6 +154,7 @@ export function AppointmentForm({
           onPick={(p) => {
             setPicked(p);
             setError(null);
+            clearWarnings();
           }}
         />
       )}
@@ -145,18 +164,18 @@ export function AppointmentForm({
         value={when}
         onChange={(e) => {
           setWhen(e.target.value);
-          setClash(null);
+          clearWarnings();
         }}
       />
       <Chips label="Duración" options={DURATIONS} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => {
           if (!v[0]) return;
           setMinutes(Number(v[0]));
-          setClash(null);
+          clearWarnings();
         }} />
       {!appointment && (
         <SelectField label="Repetir" value={repeat} onChange={(e) => {
           setRepeat(Number(e.target.value));
-          setClash(null);
+          clearWarnings();
         }}>
           {REPEATS.map((n) => (
             <option key={n} value={n}>
@@ -171,7 +190,7 @@ export function AppointmentForm({
           value={assignedTo}
           onChange={(e) => {
             setAssignedTo(e.target.value);
-            setClash(null);
+            clearWarnings();
           }}
         >
           <option value="">Sin asignar</option>
@@ -192,10 +211,19 @@ export function AppointmentForm({
           {clash.length > 3 ? "…" : ""}. Cambia la hora{staff.length ? " o con quién es" : ""}, o dala igualmente.
         </Alert>
       )}
+      {busyDay && (
+        <Alert tone="warning" title={busyDay.length === 1 ? "Ese día tiene algo en su calendario" : `Esos días tiene ${busyDay.length} cosas en su calendario`}>
+          {busyDay
+            .slice(0, 3)
+            .map((o) => `${eventName(o.event)} (${dayWithWeekday(o.day)}, ${eventTime(o.event).toLowerCase()})`)
+            .join(" · ")}
+          {busyDay.length > 3 ? "…" : ""}. Cambia el día o la hora, o dala igualmente.
+        </Alert>
+      )}
       <Button type="submit" block loading={busy}>
         {appointment ? "Guardar el cambio" : repeat > 1 ? `Dar las ${repeat} citas` : "Dar la cita"}
       </Button>
-      {clash && (
+      {warned && (
         <Button variant="secondary" block loading={busy} onClick={() => void save(true)}>
           {appointment ? "Guardar igualmente" : "Darla igualmente"}
         </Button>

@@ -36,6 +36,7 @@ import accessLog035 from "./migrations/035_access_log.sql?raw";
 import formMeta036 from "./migrations/036_form_meta.sql?raw";
 import romJoints037 from "./migrations/037_rom_joints.sql?raw";
 import findingValue038 from "./migrations/038_finding_value.sql?raw";
+import patientEvents039 from "./migrations/039_patient_events.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -77,4 +78,5 @@ export const migrations: Migration[] = [
   { version: 36, sql: formMeta036 },
   { version: 37, sql: romJoints037 },
   { version: 38, sql: findingValue038 },
+  { version: 39, sql: patientEvents039 },
 ];

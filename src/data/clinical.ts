@@ -160,6 +160,18 @@ export async function listSessions(db: Db, patientId: string): Promise<Session[]
   return rows.map(toSession);
 }
 
+/**
+ * Cuándo vino (todas sus sesiones, de cualquier motivo de consulta) y la reevaluación que dejó puesta la última: para su
+ * calendario (src/clinical/CalendarPage.tsx). La más reciente, primero.
+ */
+export async function sessionDays(db: Db, patientId: string): Promise<{ id: string; performedAt: string; reviewOn: string | null }[]> {
+  const rows = await db.query<{ id: string; performed_at: string; review_on: string | null }>(
+    "select id, performed_at, review_on from sessions where patient_id = ? order by performed_at desc",
+    [patientId],
+  );
+  return rows.map((r) => ({ id: r.id, performedAt: r.performed_at, reviewOn: r.review_on }));
+}
+
 export async function getSession(db: Db, id: string): Promise<Session | null> {
   const [row] = await db.query<SessionRow>("select * from sessions where id = ?", [id]);
   return row ? toSession(row) : null;

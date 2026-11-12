@@ -1,4 +1,5 @@
-// Rutas de la ficha clínica (anamnesis, valoración: exploración, cuestionarios y mediciones; sesiones, informe e informe de alta).
+// Rutas de la ficha clínica (anamnesis, valoración: exploración, cuestionarios y mediciones; sesiones, calendario, informe e
+// informe de alta).
 // La ficha del paciente (/pacientes/:id) es el resumen y vive en src/pages/PatientPage.tsx.
 import { lazy, Suspense } from "react";
 import { Navigate, useParams } from "react-router";
@@ -18,6 +19,7 @@ const ExercisesPage = lazy(() => import("./ExercisesPage").then((m) => ({ defaul
 const ReceiptPage = lazy(() => import("./ReceiptPage").then((m) => ({ default: m.ReceiptPage })));
 const BillingPage = lazy(() => import("./BillingPage").then((m) => ({ default: m.BillingPage })));
 const DischargePage = lazy(() => import("./DischargePage").then((m) => ({ default: m.DischargePage })));
+const CalendarPage = lazy(() => import("./CalendarPage").then((m) => ({ default: m.CalendarPage })));
 const PatientPrivacyPage = lazy(() => import("../privacy/PatientPrivacyPage").then((m) => ({ default: m.PatientPrivacyPage })));
 const consents = () => import("../consent/ConsentPages");
 const ConsentListPage = lazy(() => consents().then((m) => ({ default: m.ConsentListPage })));
@@ -48,6 +50,7 @@ export const clinicalRoutes = [
   { path: "/pacientes/:id/cuestionarios", element: <ToAssessment block="cuestionarios" /> },
   { path: "/pacientes/:id/cuestionarios/nuevo", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/cuestionarios/:qid", element: l(<QuestionnaireFormPage />) },
+  { path: "/pacientes/:id/calendario", element: l(<CalendarPage />) },
   { path: "/pacientes/:id/informe", element: l(<ReportPage />) },
   { path: "/pacientes/:id/justificante", element: l(<AttendancePage />) },
   { path: "/pacientes/:id/derivacion", element: l(<ReferralPage />) },

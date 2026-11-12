@@ -196,6 +196,12 @@ export async function upcomingAppointments(db: Db, at = new Date(), by: Worker |
   return rows.map((r) => ({ ...toAppointment(r), name: r.name! }));
 }
 
+/** Todas las citas de un paciente (también las atendidas, las anuladas y las de «No vino»), por orden: su calendario. */
+export async function appointmentsOf(db: Db, patientId: string): Promise<Appointment[]> {
+  const rows = await db.query<Row>("select * from appointments where patient_id = ? order by starts_at", [patientId]);
+  return rows.map(toAppointment);
+}
+
 /** La próxima cita pendiente de un paciente. */
 export async function nextAppointmentOf(db: Db, patientId: string, at = new Date()): Promise<Appointment | null> {
   const [row] = await db.query<Row>("select * from appointments where patient_id = ? and status = 'scheduled' and starts_at > ? order by starts_at limit 1", [

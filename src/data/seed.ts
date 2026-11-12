@@ -1,6 +1,8 @@
 // Datos de ejemplo para probar la app sin pacientes reales. Todos llevan el prefijo «Ejemplo ·»
 // y se pueden borrar de una vez desde Ajustes.
 import type { Db } from "./db";
+import { addDays, todayDay } from "../app/dates";
+import { savePatientEvent, type EventInput } from "./patientEvents";
 import { heightFromProfile } from "../calc/profile";
 import { modelDistance } from "../calc/sprint";
 import { marksFromFrames, type MarkInput } from "../calc/results";
@@ -48,6 +50,7 @@ export async function loadSeed(db: Db): Promise<void> {
       await saveMarksAndCompute(db, tid, marksFromFrames({ contact: 352, takeoff: 400, landing: 400 + p.flights.at(-1)! - 6 }));
     }
     await loadWellness(db, pid, p.name.startsWith("Marcos"));
+    await loadEvents(db, pid, p.name);
     if (p.name.startsWith("Lucía")) await loadSprint(db, pid, 7.6, 1.05);
     if (p.name.startsWith("Marcos")) {
       await loadPhase2(db, pid, p.bodyMassKg!, p.pushOffDistanceCm! / 100);
@@ -58,6 +61,22 @@ export async function loadSeed(db: Db): Promise<void> {
       await loadCodAndRunning(db, pid);
     }
   }
+}
+
+/** Su calendario (src/data/patientEvents.ts): una operación y una revisión, entrenamientos y un partido, un viaje. */
+async function loadEvents(db: Db, pid: string, name: string) {
+  const today = todayDay();
+  const blank: EventInput = { kind: "other", title: "", startsOn: today, endsOn: null, time: null, minutes: null, repeatDays: [], repeatUntil: null, notes: "" };
+  const add = (e: Partial<EventInput>) => savePatientEvent(db, pid, { ...blank, ...e });
+  if (name.startsWith("Lucía")) {
+    await add({ kind: "surgery", title: "Menisco interno, rodilla derecha", startsOn: addDays(today, -40), notes: "Datos de ejemplo" });
+    await add({ kind: "medical", title: "Revisión con el traumatólogo", startsOn: addDays(today, 10), time: "17:30", minutes: 30 });
+  }
+  if (name.startsWith("Marcos")) {
+    await add({ kind: "training", title: "Entrenamiento con su equipo", startsOn: addDays(today, -28), time: "19:00", minutes: 90, repeatDays: [2, 4] });
+    await add({ kind: "competition", title: "Partido de liga", startsOn: addDays(today, 12), time: "11:00", minutes: 90 });
+  }
+  if (name.startsWith("Irene")) await add({ kind: "travel", title: "Vacaciones", startsOn: addDays(today, 20), endsOn: addDays(today, 27) });
 }
 
 /** Fase 2: SJ con cargas (perfil F-V), unipodales (asimetría), un 10/5 y un salto horizontal. */

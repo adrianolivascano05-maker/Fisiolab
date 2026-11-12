@@ -29,6 +29,9 @@ test.describe("Modo oscuro", () => {
     await tabs.getByRole("link", { name: "Sesiones" }).click();
     await expect(page.getByRole("heading", { name: "Sesiones", exact: true })).toBeVisible();
     await expectAccessible(page);
+    await tabs.getByRole("link", { name: "Calendario" }).click();
+    await expect(page.getByRole("heading", { name: "Calendario", exact: true })).toBeVisible();
+    await expectAccessible(page);
 
     // El informe se ve como un papel blanco con texto oscuro.
     await tabs.getByRole("link", { name: "Resumen" }).click();

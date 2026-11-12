@@ -1,13 +1,13 @@
 // Piezas de la ficha clínica: pestañas del paciente, escala de dolor, chips de opciones, resultado de un test
 // y gráficas pequeñas en SVG (sin librería: la ficha se abre al instante).
-import { CircleHelp, ClipboardList, Gauge, LayoutDashboard, Minus, NotebookPen, Plus, Stethoscope } from "lucide-react";
+import { CalendarDays, CircleHelp, ClipboardList, Gauge, LayoutDashboard, Minus, NotebookPen, Plus, Stethoscope } from "lucide-react";
 import { useId, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router";
 import { fmtDateShort } from "../app/format";
 import type { Finding, FindingResult } from "../data/clinical";
 import { cx } from "../ui/cx";
 
-/** Pestañas dentro de la ficha de un paciente: las cuatro, con su nombre entero en el móvil. */
+/** Pestañas dentro de la ficha de un paciente: las cinco, con su nombre entero en el móvil. */
 export function PatientNav({ id }: { id: string }) {
   // Si se llegó desde otra pantalla (la lista de espera), las pestañas lo conservan para volver a ella.
   const { state } = useLocation();
@@ -16,11 +16,12 @@ export function PatientNav({ id }: { id: string }) {
     { to: `/pacientes/${id}/anamnesis`, label: "Anamnesis", icon: ClipboardList },
     { to: `/pacientes/${id}/valoracion`, label: "Valoración", icon: Stethoscope },
     { to: `/pacientes/${id}/sesiones`, label: "Sesiones", icon: NotebookPen },
+    { to: `/pacientes/${id}/calendario`, label: "Calendario", icon: CalendarDays },
   ];
   return (
     // Fijas arriba al bajar: cambiar de pestaña está siempre a un toque.
     <nav aria-label="Ficha del paciente" className="sticky top-[var(--layout-header)] z-10 -mx-4 bg-canvas/95 px-4 py-1.5 backdrop-blur">
-      <ul className="grid grid-cols-4 gap-1 rounded-lg bg-surface p-1">
+      <ul className="grid grid-cols-5 gap-1 rounded-lg bg-surface p-1">
         {tabs.map(({ to, label, icon: Icon, end }) => (
           <li key={to} className="min-w-0">
             <NavLink

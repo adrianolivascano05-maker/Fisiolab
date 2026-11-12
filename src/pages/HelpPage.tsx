@@ -26,9 +26,12 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "La ficha de cada paciente",
     body: (
       <>
-        Arriba, sus datos y una fila con el <b>motivo</b>, su <b>próxima cita</b> y lo que <b>debe</b>. Debajo, cuatro pestañas fijas al bajar:{" "}
+        Arriba, sus datos y una fila con el <b>motivo</b>, su <b>próxima cita</b> y lo que <b>debe</b>. Debajo, cinco pestañas fijas al bajar:{" "}
         <b>Resumen</b> (cómo está, lo pendiente y sus documentos), <b>Anamnesis</b>, <b>Valoración</b> (tests de exploración, cuestionarios y
-        mediciones, en una página) y <b>Sesiones</b> (cada visita, la curva del dolor y su historia). <b>Editar</b>, arriba a la derecha.
+        mediciones, en una página), <b>Sesiones</b> (cada visita, la curva del dolor y su historia) y <b>Calendario</b>: sus citas mes a mes (con
+        «Citas», solo ellas) y lo suyo fuera de la clínica, que apuntas con «Apuntar evento»: una operación, sus entrenamientos (cada semana, los
+        días que sean), un partido, una prueba médica, un viaje. No ocupan la agenda ni se le recuerdan; al darle una cita ese día, la app te
+        avisa. La última operación (hace cuánto) y lo próximo salen en el Resumen. <b>Editar</b>, arriba a la derecha.
       </>
     ),
   },

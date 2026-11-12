@@ -8,7 +8,7 @@
 import { useSyncExternalStore } from "react";
 
 /** Las tablas que se pueden nombrar (las que cambian desde la app; el resto va «sin tablas»). */
-export type DataTable = "patients" | "appointments" | "sessions" | "payments" | "packs" | "consents" | "waitlist" | "members" | "schedule" | "settings" | "forms" | "documents";
+export type DataTable = "patients" | "appointments" | "sessions" | "payments" | "packs" | "consents" | "waitlist" | "members" | "schedule" | "settings" | "forms" | "documents" | "events";
 
 let version = 0;
 /** Cambios sin tablas: los que recargan todo. */

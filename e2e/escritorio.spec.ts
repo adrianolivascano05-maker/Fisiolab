@@ -72,7 +72,7 @@ test.describe("Ordenador", () => {
     await page.goto("./");
     await list(page).getByRole("link", { name: /Marcos Vidal/ }).click();
     const tabs = page.getByRole("navigation", { name: "Ficha del paciente" });
-    for (const tab of ["Anamnesis", "Valoración", "Sesiones", "Resumen"]) {
+    for (const tab of ["Anamnesis", "Valoración", "Sesiones", "Calendario", "Resumen"]) {
       await tabs.getByRole("link", { name: tab }).click();
       await expect(tabs.getByRole("link", { name: tab })).toHaveAttribute("aria-current", "page");
       await page.waitForLoadState("networkidle");

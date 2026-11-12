@@ -95,8 +95,18 @@ describe("exportación completa", () => {
     // El Excel: una pestaña por tipo de dato.
     const xlsx = await readZip(files.get("Todos los datos.xlsx")!);
     const workbook = text(xlsx.get("xl/workbook.xml"));
-    for (const sheet of ["Pacientes", "Motivos de consulta", "Anamnesis", "Sesiones", "Exploración", "Mediciones", "Cuestionarios", "Bienestar", "Consentimientos", "Citas", "Bonos", "Cobros"])
+    for (const sheet of ["Pacientes", "Motivos de consulta", "Anamnesis", "Sesiones", "Exploración", "Mediciones", "Cuestionarios", "Bienestar", "Consentimientos", "Citas", "Calendario del paciente", "Bonos", "Cobros"])
       expect(workbook, sheet).toContain(`name="${sheet}"`);
+    // El calendario de cada paciente (los datos de ejemplo traen una operación, entrenamientos y un viaje): en su
+    // pestaña y en su historia.
+    const shared = text(xlsx.get("xl/sharedStrings.xml") ?? new Uint8Array());
+    const sheetsXml = [...xlsx.entries()].filter(([k]) => k.startsWith("xl/worksheets/")).map(([, v]) => text(v)).join("");
+    expect(shared + sheetsXml).toContain("Menisco interno, rodilla derecha");
+    expect(shared + sheetsXml).toContain("martes y jueves");
+    const seedHtml = [...files.entries()].find(([k]) => k.startsWith("Historias clinicas/") && k.includes("Marcos"));
+    expect(seedHtml, "historia de Marcos").toBeTruthy();
+    expect(text(seedHtml![1])).toContain("Su calendario");
+    expect(text(seedHtml![1])).toContain("Competición: Partido de liga");
     const pacientes = await readTable(files.get("Todos los datos.xlsx")!, "x.xlsx");
     expect(pacientes[0]).toEqual(["Código", "Nombre", "Fecha de nacimiento", "Sexo", "Teléfono", "Correo", "Dirección", "DNI o NIE", "Peso (kg)", "Altura (cm)", "Notas", "Alta en OmniClin", "Última modificación"]);
     expect(pacientes.find((r) => r[1] === "Lucía Pérez")?.slice(1, 5)).toEqual(["Lucía Pérez", "12/03/1985", "Mujer", "612345678"]);

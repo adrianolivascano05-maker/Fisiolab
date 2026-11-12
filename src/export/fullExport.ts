@@ -26,6 +26,7 @@ import { displayName, kindOf, scoreText, type QDetails } from "../clinical/quest
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { Db } from "../data/db";
 import { STATUS_LABELS, type AppointmentStatus } from "../data/appointments";
+import { eventFromRow, eventSpan, eventTime, kindLabel, repeatText } from "../data/patientEvents";
 import { CONSENTS, getClinic, parsePrivacy, type ClinicInfo, type SignedPrivacySheet } from "../data/privacy";
 import { euros, methodLabel } from "../data/billing";
 import { preferText, type PreferTime } from "../data/waitlist";
@@ -260,6 +261,19 @@ function buildSheets(c: Collected): Sheet[] {
         .map((r) => [pn(r), when(r.starts_at), n(r.minutes), STATUS_LABELS[r.status as AppointmentStatus] ?? s(r.status), r.assigned_to ? (staff.get(s(r.assigned_to)) ?? s(r.assigned_to)) : ""]),
     },
   ];
+  // El calendario de cada paciente (src/data/patientEvents.ts): lo suyo fuera de la clínica. Un evento que se repite
+  // cada semana va en una fila, con sus días.
+  if (T.patient_events?.length)
+    sheets.push({
+      name: "Calendario del paciente",
+      header: ["Paciente", "Qué es", "Nombre", "Día", "Último día", "Hora", "Minutos", "Se repite cada", "Hasta", "Nota"],
+      rows: [...T.patient_events]
+        .sort(byDate("starts_on"))
+        .map((r) => {
+          const e = eventFromRow(r);
+          return [pn(r), kindLabel(e.kind), e.title, day(e.startsOn), day(e.endsOn), e.time ?? "", e.minutes, repeatText(e.repeatDays), day(e.repeatUntil), e.notes];
+        }),
+    });
   if (T.packs!.length)
     sheets.push({
       name: "Bonos",
@@ -531,6 +545,17 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
       `<h2>Citas</h2>${table(
         ["Fecha y hora", "Minutos", "Estado", "Con quién"],
         appts.map((r) => [when(r.starts_at), s(r.minutes), STATUS_LABELS[r.status as AppointmentStatus] ?? s(r.status), r.assigned_to ? (staff.get(s(r.assigned_to)) ?? s(r.assigned_to)) : ""]),
+      )}`,
+    );
+
+  const events = mine("patient_events")
+    .map(eventFromRow)
+    .sort((a, b) => a.startsOn.localeCompare(b.startsOn));
+  if (events.length)
+    parts.push(
+      `<h2>Su calendario</h2>${table(
+        ["Qué es", "Cuándo", "Hora", "Nota"],
+        events.map((e) => [e.title ? `${kindLabel(e.kind)}: ${e.title}` : kindLabel(e.kind), eventSpan(e), eventTime(e), e.notes]),
       )}`,
     );
 

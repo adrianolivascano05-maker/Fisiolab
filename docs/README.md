@@ -5,6 +5,7 @@
 | [pasos-pendientes.md](pasos-pendientes.md) | Lo que tiene que hacer el usuario a mano (Google, Cloudflare, probar en un iPhone), paso a paso. |
 | [ideas-pendientes.md](ideas-pendientes.md) | Lista viva de ideas, decisiones y fallos conocidos: qué está hecho y qué falta. |
 | [soporte.md](soporte.md) | Cómo atender a una clínica que tiene un problema. |
+| [calendario-paciente.md](calendario-paciente.md) | El calendario de cada paciente: sus citas y lo suyo fuera de la clínica (operaciones, entrenamientos, viajes). |
 | [cuestionarios.md](cuestionarios.md) | Los cuestionarios de la app: libres, de solo nota (con su hoja oficial) y fuera del servicio, con su cita. Sin preguntas. |
 | [archivo/](archivo/) | Planes ya cumplidos (limpieza de pantallas, versión de ordenador), por si hace falta ver qué se decidió. |
 
