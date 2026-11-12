@@ -174,6 +174,7 @@ function Editor({ saved, clinicName, onSaved }: { saved: MessageSettings; clinic
             {unknown.length > 0 && <Alert tone="warning" title={`${unknown.join(", ")}: esa ficha no existe en este mensaje`}>Saldrá tal cual, con las llaves. Usa las de arriba.</Alert>}
             <TextField label="Asunto del correo" value={subject} maxLength={120} onChange={(e) => setText(current, { subject: e.target.value })} />
             {current === "ejercicios" && <p className="text-sm text-text-muted">Debajo de esta línea va la lista de ejercicios de la hoja, que no se edita aquí.</p>}
+            {current === "citas" && <p className="text-sm text-text-muted">Debajo de esta línea va la lista de sus próximas citas (día y hora), que no se edita aquí.</p>}
             <div className="flex flex-col gap-1 rounded-md bg-surface p-3">
               <span className="text-xs font-semibold text-text-muted uppercase">Así le llega a Ana</span>
               <p className="text-sm font-semibold">{previewSubject}</p>

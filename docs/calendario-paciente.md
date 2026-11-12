@@ -47,6 +47,14 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   Solo cuenta días.
 - **En Agenda › Hoy,** bajo el nombre de cada paciente, la misma línea corta: se ve antes de que entre (una consulta
   para todos los del día).
+- **Series de citas que tienen en cuenta su vida:** al dar «Cada semana, N citas», las semanas en que está de viaje se
+  saltan solas (la serie sigue después hasta tener las N, como mucho medio año más) y la hoja lo dice antes de darlas
+  («La semana del 24 nov (Vacaciones). La última cita, el …»). Bajo «Día y hora», sus entrenamientos de cada semana y
+  los días en que no entrena, para elegir uno libre. Una cita sola en un día de viaje no se mueve: se avisa.
+- **Sus próximas citas, para mandárselas:** en su calendario, «N citas pendientes · la próxima, …» y **Sus próximas
+  citas por WhatsApp** (o por correo): el mensaje «Sus próximas citas» de Ajustes › Mensajes a pacientes con la lista
+  de las siguientes (día y hora, y con quién en una clínica; como mucho diez). Solo con el permiso de contacto firmado;
+  sin él, se dice por qué y se le dicen en la consulta.
 - **En el Resumen** (tarjeta «Situación»): su última operación si fue hace menos de un año («hace 6 semanas y 2
   días»), un viaje en curso («hasta el …») y lo próximo de los dos meses siguientes (operación, consulta o prueba
   médica, competición o viaje; como mucho dos), cada uno con un enlace a ese día del calendario. Son fechas, sin
@@ -71,9 +79,12 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 - El tipo no lleva CHECK: si una versión nueva añade uno, un móvil sin actualizar lo recibe y lo enseña como «Otro».
 - Se borra con el paciente (en cascada).
 - Código: `src/data/patientEvents.ts` (guardar, comprobar, repeticiones, aviso al dar cita, textos),
+  `src/data/seriesPlan.ts` (la serie que se salta sus viajes, sus días de entrenamiento), `src/schedule/upcoming.ts`
+  (la lista de sus próximas citas),
   `src/clinical/patientCalendar.ts` (qué sale cada día y en la lista del mes), `CalendarPage.tsx`, `EventSheet.tsx`.
 - Pruebas: `src/data/patientEvents.test.ts`, `src/clinical/patientCalendar.test.ts`, `e2e/calendario.spec.ts`
-  (CA1 a CA4, a 360 px) y la exportación en `src/export/fullExport.test.ts`.
+  (CA1 a CA5, a 360 px), `src/data/seriesPlan.test.ts`, `src/schedule/upcoming.test.ts` y la exportación en
+  `src/export/fullExport.test.ts`.
 
 ## Ideas para más adelante (sin hacer)
 

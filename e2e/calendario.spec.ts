@@ -1,7 +1,7 @@
 // El calendario de cada paciente (Ficha › Calendario, src/clinical/CalendarPage.tsx): sus citas y lo suyo fuera de la
 // clínica (una operación, sus entrenamientos cada semana, un viaje), el aviso al darle cita ese día y lo que sale en el
 // Resumen. En el móvil (360 px), sin desbordes y con zonas táctiles de 44 px.
-import { createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
+import { allowContact, createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
@@ -276,5 +276,55 @@ test.describe("Calendario del paciente", () => {
     await expect(page.getByText("Cita dada")).toBeVisible();
     await page.goto("./agenda?vista=hoy");
     await expect(page.getByRole("region", { name: "Citas de hoy" }).getByRole("listitem").filter({ hasText: "Olga Operada" })).toContainText("Ligamento cruzado: hace 4 semanas y 2 días · Partido: en 3 días");
+  });
+
+  test("CA5 una serie de citas se salta su viaje y dice qué días entrena; sus próximas citas por WhatsApp", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Tomás Torneo");
+    await page.getByLabel("Teléfono").fill("600 123 456");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Tomás Torneo" })).toBeVisible();
+    const record = page.url();
+    await allowContact(page, "Tomás Torneo");
+    const today = madridDay();
+    const first = plus(today, 1);
+    // Entrena cada semana el día de hoy a las 19:00; de viaje la semana siguiente a la primera cita.
+    await page.goto(`${record}/calendario`);
+    await page.getByRole("button", { name: "Apuntar evento" }).click();
+    let sheet = page.getByRole("dialog", { name: "Apuntar evento" });
+    await sheet.getByText("Entrenamiento", { exact: true }).click();
+    await sheet.getByLabel("Hora (si la tiene)").fill("19:00");
+    await sheet.getByRole("button", { name: "Apuntar" }).click();
+    await expect(page.getByText("Evento apuntado")).toBeVisible();
+    await page.getByRole("button", { name: "Apuntar evento" }).click();
+    sheet = page.getByRole("dialog", { name: "Apuntar evento" });
+    await sheet.getByText("Viaje o vacaciones", { exact: true }).click();
+    await sheet.getByLabel("Primer día").fill(plus(first, 6));
+    await sheet.getByLabel("Último día").fill(plus(first, 8));
+    await sheet.getByRole("button", { name: "Apuntar" }).click();
+    await expect(page.getByText("Evento apuntado").last()).toBeVisible();
+
+    // Cuatro citas, una por semana desde mañana: dice qué días entrena y que se salta la semana del viaje.
+    await page.goto(`${record}/calendario?mes=${first.slice(0, 7)}&dia=${first}`);
+    await page.getByRole("button", { name: "Dar cita a las 10:00" }).click();
+    const visit = page.getByRole("dialog", { name: "Dar cita a Tomás Torneo" });
+    const weekdayName = new Date(`${today}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", timeZone: "UTC" });
+    await expect(visit.getByText(new RegExp(`^Entrena ${weekdayName} a las 19:00\\. No entrena: `))).toBeVisible();
+    await visit.getByLabel("Repetir").selectOption({ label: "Cada semana, 4 citas" });
+    await expect(visit.getByText("Se salta una semana: está de viaje")).toBeVisible();
+    await expect(visit.getByText(/^La semana del .* \(Viaje o vacaciones\)\. La última cita, el /)).toBeVisible();
+    await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+    expect(await smallTargets(page)).toEqual([]);
+    await visit.getByRole("button", { name: "Dar las 4 citas" }).click();
+    await expect(page.getByText(/^4 citas dadas, una por semana hasta el .*; se salta una semana de viaje$/)).toBeVisible();
+
+    // Sus próximas citas, listas para mandárselas (tiene el permiso de contacto firmado).
+    await expect(page.getByText("4 citas pendientes")).toBeVisible();
+    const send = page.getByRole("link", { name: "Sus próximas citas por WhatsApp" });
+    const href = decodeURIComponent((await send.getAttribute("href"))!);
+    expect(href).toContain("Hola, Tomás. Tus próximas citas de fisioterapia en");
+    expect(href.match(/· [a-záéíóúñ]+, \d+ de [a-z]+ a las 10:00/g)).toHaveLength(4);
+    await expectAccessible(page);
   });
 });

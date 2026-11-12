@@ -1134,7 +1134,8 @@ Mejoras pedidas el mismo día, en tres bloques seguidos:
    (migración 040 `skip_days`), un solo «Apuntar evento», «Dar cita» a su hora de siempre, apuntar desde la sesión y
    la anamnesis, la línea de su calendario en la sesión y en Agenda › Hoy, «N semanas tras la operación» en cada
    sesión y lo normal de cada tipo al apuntar.
-2. Series de citas que se saltan sus viajes y dicen qué días entrena; enviarle sus próximas citas por WhatsApp.
+2. **Hecho:** series de citas que se saltan sus viajes y dicen qué días entrena; enviarle sus próximas citas por
+   WhatsApp o correo (mensaje «Sus próximas citas», editable; con el permiso firmado).
 3. Que el paciente apunte lo suyo desde el enlace de sus formularios.
 
 Dos mejoras del editor vistas al hacer las capturas de la fase 2, sin hacer (esperan su sí): el botón «⋯» se queda

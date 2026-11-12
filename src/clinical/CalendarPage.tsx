@@ -3,7 +3,7 @@
 // partido, una prueba médica, un viaje: src/data/patientEvents.ts). Se filtra por «Citas» o «Eventos»; al tocar un día
 // se ve lo de ese día y se le puede dar cita o apuntar algo. El mes, el día y el filtro van en la dirección
 // (?mes=2026-11&dia=2026-11-12&ver=citas): al volver de una sesión, se sigue donde se estaba.
-import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, NotebookPen, Plus, Repeat } from "lucide-react";
+import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, Mail, MessageCircle, NotebookPen, Plus, Repeat } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { todayDay } from "../app/dates";
@@ -13,6 +13,12 @@ import { sessionDays } from "../data/clinical";
 import { getDb } from "../data/db";
 import { dayLong, eventName, eventSpan, eventTime, isDay, kindLabel, listPatientEvents, WEEKDAY_SHORT, weekdayName, type PatientEvent } from "../data/patientEvents";
 import { getPatient } from "../data/repo";
+import { getClinic, mayMessage } from "../data/privacy";
+import { firstName, loadMessages, messageSubject, messageText, withSignature } from "../messages/templates";
+import { ContactNote } from "../privacy/ContactNote";
+import { mailtoUrl, waPhone, whatsappUrl } from "../schedule/reminders";
+import { upcomingLines, upcomingOf } from "../schedule/upcoming";
+import { fmtVisit } from "./calendar";
 import { staffName, useStaff } from "../schedule/useStaff";
 import { useLeaveWaitlist } from "../schedule/LeaveWaitlist";
 import { Button, IconButton } from "../ui/Button";
@@ -45,6 +51,7 @@ import {
 const DOT: Record<Dot, string> = { visit: "bg-accent", event: "bg-tingle", routine: "border border-tingle", review: "bg-warning" };
 const DOT_LABEL: Record<Dot, string> = { visit: "Citas", event: "Eventos", routine: "Cada semana", review: "Reevaluación" };
 const PARAM: Record<CalFilter, string | null> = { all: null, visits: "citas", events: "eventos" };
+const sendLink = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-semibold";
 
 export function CalendarPage() {
   const { id = "" } = useParams();
@@ -65,14 +72,34 @@ export function CalendarPage() {
   const data = useAsync(
     async () => {
       const db = getDb();
-      const [patient, appointments, events, sessions] = await Promise.all([getPatient(db, id), appointmentsOf(db, id), listPatientEvents(db, id), sessionDays(db, id)]);
-      return { patient, appointments, events, sessions, review: sessions[0]?.reviewOn ?? null };
+      const [patient, appointments, events, sessions, clinic, messages] = await Promise.all([
+        getPatient(db, id),
+        appointmentsOf(db, id),
+        listPatientEvents(db, id),
+        sessionDays(db, id),
+        getClinic(db),
+        loadMessages(db),
+      ]);
+      return { patient, appointments, events, sessions, review: sessions[0]?.reviewOn ?? null, clinic, messages };
     },
     [id],
-    { tables: ["patients", "appointments", "sessions", "events"] },
+    { tables: ["patients", "appointments", "sessions", "events", "settings"] },
   );
   if (!data.data) return <Guard state={data} title="Calendario" back={`/pacientes/${id}`} />;
-  const { patient, events } = data.data;
+  const { patient, events, clinic, messages } = data.data;
+  // «Sus próximas citas»: la lista para mandársela (solo con el permiso de contacto firmado, como todo lo demás).
+  const upcoming = upcomingOf(data.data.appointments);
+  const contact = patient?.privacy.consents?.contact;
+  const phone = patient ? waPhone(patient.phone) : null;
+  const sendText = patient
+    ? withSignature(
+        [
+          messageText("citas", messages, { nombre: firstName(patient.name), clinica: clinic.name }, { signature: false }),
+          ...upcomingLines(data.data.appointments, (email) => (staff.length && email ? staffName(staff, email) : null)),
+        ].join("\n"),
+        messages,
+      )
+    : "";
 
   const days = monthDays(month);
   const byDay = calendarItems(data.data, days[0]!, days.at(-1)!, filter);
@@ -224,6 +251,28 @@ export function CalendarPage() {
         </section>
 
         <section aria-labelledby="h-lista" className="flex flex-col gap-3">
+          {filter !== "events" && upcoming.length > 0 && patient && (
+            <div className="flex flex-col gap-2 rounded-md border border-border bg-bg p-3">
+              <p className="text-sm">
+                <span className="font-semibold">{upcoming.length === 1 ? "1 cita pendiente" : `${upcoming.length} citas pendientes`}</span> · la próxima, {fmtVisit(upcoming[0]!.startsAt)}
+              </p>
+              {mayMessage(contact) && (phone || patient.email) && (
+                <div className="flex flex-wrap gap-2">
+                  {phone && (
+                    <a href={whatsappUrl(phone, sendText)} target="_blank" rel="noopener noreferrer" className={cx(sendLink, "bg-accent text-on-accent hover:bg-accent-hover")}>
+                      <MessageCircle aria-hidden="true" className="size-4" /> Sus próximas citas por WhatsApp
+                    </a>
+                  )}
+                  {patient.email && (
+                    <a href={mailtoUrl(patient.email, messageSubject("citas", messages, { clinica: clinic.name }), sendText)} className={cx(sendLink, "border border-border bg-bg hover:bg-surface")}>
+                      <Mail aria-hidden="true" className="size-4" /> Por correo
+                    </a>
+                  )}
+                </div>
+              )}
+              <ContactNote contact={contact} patientId={id} extra="Díselas en la consulta" />
+            </div>
+          )}
           {selected ? (
             <>
               <h3 id="h-lista" className="text-base first-letter:uppercase">

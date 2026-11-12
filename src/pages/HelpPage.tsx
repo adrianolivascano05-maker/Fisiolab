@@ -33,7 +33,9 @@ const steps: { title: string; body: ReactNode }[] = [
         días que sean; un día suelto se quita con «Este día no»), un partido, una prueba médica, un viaje. Lo importante lleva un punto
         relleno; lo de cada semana, uno hueco; un viaje, una franja. Desliza el dedo sobre el mes para cambiarlo. No ocupan la agenda ni se
         le recuerdan; al darle una cita ese día, la app te avisa. La última operación (hace cuánto) y lo próximo salen en el Resumen, al
-        escribir la sesión (con «Apuntar en su calendario») y en Agenda › Hoy, bajo su nombre. <b>Editar</b>, arriba a la derecha.
+        escribir la sesión (con «Apuntar en su calendario») y en Agenda › Hoy, bajo su nombre. Al darle una serie de citas, se saltan las
+        semanas en que está de viaje y ves qué días entrena; desde su calendario le mandas sus próximas citas por WhatsApp o correo (con el
+        permiso de contacto firmado). <b>Editar</b>, arriba a la derecha.
       </>
     ),
   },

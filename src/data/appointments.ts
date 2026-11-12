@@ -178,6 +178,13 @@ export async function createWeekly(db: Db, patientId: string, input: { startsAt:
   return ids;
 }
 
+/** Da una cita en cada uno de esos instantes (una serie ya planeada: src/data/seriesPlan.ts, que se salta sus viajes). */
+export async function createSeries(db: Db, patientId: string, input: { minutes: number; assignedTo?: string | null }, starts: string[]): Promise<string[]> {
+  const ids: string[] = [];
+  for (const startsAt of starts) ids.push(await createAppointment(db, patientId, { ...input, startsAt }));
+  return ids;
+}
+
 /** Una persona de la clínica: su `sub` de Google y su correo. */
 export type Worker = { sub: string; email: string | null };
 
