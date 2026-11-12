@@ -313,11 +313,11 @@ test.describe("Calendario del paciente", () => {
     await expect(visit.getByText(new RegExp(`^Entrena ${weekdayName} a las 19:00\\. No entrena: `))).toBeVisible();
     await visit.getByLabel("Repetir").selectOption({ label: "Cada semana, 4 citas" });
     await expect(visit.getByText("Se salta una semana: está de viaje")).toBeVisible();
-    await expect(visit.getByText(/^La semana del .* \(Viaje o vacaciones\)\. La última cita, el /)).toBeVisible();
+    await expect(visit.getByText(/^La semana del .* \(Viaje o vacaciones\)\. La última cita, el [^,\s]+, \d{1,2} [a-z]+\.$/)).toBeVisible();
     await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
     expect(await smallTargets(page)).toEqual([]);
     await visit.getByRole("button", { name: "Dar las 4 citas" }).click();
-    await expect(page.getByText(/^4 citas dadas, una por semana hasta el .*; se salta una semana de viaje$/)).toBeVisible();
+    await expect(page.getByText(/^4 citas dadas, una por semana hasta el [^,\s]+, \d{1,2} [a-z]+; se salta una semana de viaje$/)).toBeVisible();
 
     // Sus próximas citas, listas para mandárselas (tiene el permiso de contacto firmado).
     await expect(page.getByText("4 citas pendientes")).toBeVisible();

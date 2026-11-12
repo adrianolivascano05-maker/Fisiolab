@@ -239,7 +239,7 @@ test.describe("Agenda y seguimiento", () => {
     await sheet.getByLabel("Repetir").selectOption("3");
     await expectAccessible(page);
     await sheet.getByRole("button", { name: "Dar las 3 citas" }).click();
-    await expect(page.getByText(/3 citas dadas, una por semana hasta el/)).toBeVisible();
+    await expect(page.getByText(/3 citas dadas, una por semana hasta el [^,\s]+, \d{1,2} [a-z]+/)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Nuria Nueva\s*,\s*10:00–10:45/ })).toBeVisible();
     await page.getByLabel("Ir a una fecha").fill("2026-11-10");
     await expect(page.getByRole("button", { name: /^Nuria Nueva\s*,\s*10:00–10:45/ })).toBeVisible();

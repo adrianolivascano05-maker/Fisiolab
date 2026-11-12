@@ -118,7 +118,7 @@ export function useAppointmentForm({
       appointment
         ? "Cita cambiada"
         : n > 1
-          ? `${n} citas dadas, una por semana hasta el ${fmtVisit(last).replace(/,.*$/, "")}${series.skipped.length ? `; ${skippedText(series.skipped.length)}` : ""}`
+          ? `${n} citas dadas, una por semana hasta el ${dayWithWeekday(dayOf(last))}${series.skipped.length ? `; ${skippedText(series.skipped.length)}` : ""}`
           : "Cita dada",
       appointment ? undefined : () => onCreated?.(patientId),
     );
@@ -213,7 +213,7 @@ export function AppointmentForm({
       {plan && plan.skipped.length > 0 && (
         <Alert tone="info" title={plan.skipped.length === 1 ? "Se salta una semana: está de viaje" : `Se saltan ${plan.skipped.length} semanas: está de viaje`}>
           {plan.skipped.map((x) => `${weekOf(x.startsAt)} (${eventName(x.event)})`).join(" · ")}.{" "}
-          {plan.starts.length ? `La última cita, el ${fmtVisit(plan.starts.at(-1)!).replace(/,.*$/, "")}.` : "Elige otro día."}
+          {plan.starts.length ? `La última cita, el ${dayWithWeekday(dayOf(plan.starts.at(-1)!))}.` : "Elige otro día."}
         </Alert>
       )}
       {staff.length > 0 && (
