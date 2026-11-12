@@ -9,6 +9,8 @@ import { LoadError, Page } from "../app/Page";
 import { deleteSession, getAnamnesis, getSession, listFindings, listQuestionnaires, listSessions, saveSession, sessionCount, type Finding, type Session } from "../data/clinical";
 import { getAppointment, nextAppointmentOf } from "../data/appointments";
 import { PrecautionsNote } from "./PrecautionsNote";
+import { CalendarNote } from "./CalendarNote";
+import { afterSurgeryText, listPatientEvents, sinceSurgery } from "../data/patientEvents";
 import { getDb } from "../data/db";
 import { getPatient, listTests, listWellness } from "../data/repo";
 import { Alert } from "../ui/Alert";
@@ -40,7 +42,7 @@ export function SessionsPage() {
   const autoCalendar = useAutoCalendar();
   const data = useLoad(id, async () => {
     const db = getDb();
-    const [patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis] = await Promise.all([
+    const [patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis, events] = await Promise.all([
       getPatient(db, id),
       listSessions(db, id),
       listFindings(db, id),
@@ -49,11 +51,17 @@ export function SessionsPage() {
       listQuestionnaires(db, id),
       listWellness(db, id),
       getAnamnesis(db, id),
+      listPatientEvents(db, id),
     ]);
-    return { patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis };
+    return { patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis, events };
   });
   if (!data.data) return <Guard state={data} title="Sesiones" back={`/pacientes/${id}`} />;
-  const { patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis } = data.data;
+  const { patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis, events } = data.data;
+  /** Cuánto había pasado de su operación (de su calendario) el día de cada sesión: solo días y semanas. */
+  const afterOp = (at: string) => {
+    const op = sinceSurgery(events, madridDay(at));
+    return op ? afterSurgeryText(op.days) : null;
+  };
   // La evolución: la curva del dolor arriba y, al final, la historia de todo lo que se ha hecho.
   const pain = painSeries({ sessions, wellness, anamnesis });
   const timeline = buildTimeline(id, { sessions, findings, tests, questionnaires, wellness, anamnesis }).slice(0, 12);
@@ -97,7 +105,7 @@ export function SessionsPage() {
       ) : (
         <ol aria-label="Sesiones" className="flex flex-col gap-3">
           {sessions.map((s, i) => (
-            <SessionCard key={s.id} s={s} n={sessions.length - i} id={id} findings={findings.filter((f) => madridDay(f.performedAt) === madridDay(s.performedAt))} tests={tests.filter((t) => madridDay(t.performedAt) === madridDay(s.performedAt))} />
+            <SessionCard key={s.id} s={s} n={sessions.length - i} id={id} afterOp={afterOp(s.performedAt)} findings={findings.filter((f) => madridDay(f.performedAt) === madridDay(s.performedAt))} tests={tests.filter((t) => madridDay(t.performedAt) === madridDay(s.performedAt))} />
           ))}
         </ol>
       )}
@@ -173,7 +181,22 @@ function SessionMeter({ done, planned }: { done: number; planned: number }) {
   );
 }
 
-function SessionCard({ s, n, id, findings, tests }: { s: Session; n: number; id: string; findings: Finding[]; tests: Awaited<ReturnType<typeof listTests>> }) {
+function SessionCard({
+  s,
+  n,
+  id,
+  afterOp,
+  findings,
+  tests,
+}: {
+  s: Session;
+  n: number;
+  id: string;
+  /** «4 semanas y 2 días tras la operación» (de su calendario), si la hubo en el año anterior. */
+  afterOp: string | null;
+  findings: Finding[];
+  tests: Awaited<ReturnType<typeof listTests>>;
+}) {
   const rows: [string, string][] = [
     ["Refiere", s.subjective],
     ["Encuentras", s.objective],
@@ -187,6 +210,7 @@ function SessionCard({ s, n, id, findings, tests }: { s: Session; n: number; id:
           <div className="flex flex-col">
             <span className="font-semibold">Sesión {n}</span>
             <span className="text-sm text-text-muted">{fmtDateTime(s.performedAt)}</span>
+            {afterOp && <span className="text-sm text-text-muted first-letter:uppercase">{afterOp}</span>}
           </div>
           <div className="flex items-center gap-2">
             {s.pain !== null && <span className="nums rounded-pill bg-danger-soft px-2.5 py-0.5 text-sm font-semibold text-danger">Dolor {s.pain}/10</span>}
@@ -410,6 +434,8 @@ export function SessionFormPage() {
         {!sid && count.planned !== null && ` · sesión ${count.done + 1} de ${count.planned} previstas`}
       </p>
       <PrecautionsNote patientId={id} />
+      {/* Su calendario, contado desde el día de la sesión, y apuntar en él lo que cuente sin salir de aquí. */}
+      <CalendarNote patientId={id} day={base} />
       {previous && (previous.subjective || previous.objective || previous.treatment || previous.plan || previous.pain !== null) && (
         <details className="rounded-md border border-border px-3">
           <summary className="flex min-h-11 cursor-pointer items-center font-semibold">

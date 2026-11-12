@@ -9,17 +9,25 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 (`/pacientes/:id/calendario`, `src/clinical/CalendarPage.tsx`).
 
 - **El mes**, con un punto por clase de cosa en cada día: verde, sus citas (y las sesiones apuntadas sin cita);
-  azul, sus eventos; ocre, la reevaluación prevista. Hoy va marcado. «‹ ›» cambian de mes y «Hoy» vuelve al día de
-  hoy.
+  azul relleno, lo importante (operación, consulta o prueba médica, competición, otro); azul hueco, lo que se repite
+  cada semana (sus entrenamientos), para que no tape lo importante; ocre, la reevaluación prevista. Lo de varios días
+  (un viaje) va como una franja que pasa de un día al siguiente. La leyenda solo dice lo que hay ese mes. Hoy va
+  marcado. «‹ ›» (o deslizar el dedo sobre el mes) cambian de mes y «Hoy» vuelve al día de hoy.
 - **Debajo, la lista del mes.** Lo que se repite cada semana sale una vez, arriba («Cada semana»), y un viaje de
-  varios días sale una vez, con sus días. Al tocar un día se ve solo lo de ese día, con **Dar cita** (si no ha
-  pasado) y **Apuntar evento** para ese día.
+  varios días sale una vez, con sus días. Al tocar un día se ve solo lo de ese día, con **Dar cita a las …** (si no
+  ha pasado; propone la hora de su última cita o, si no tiene, las 10:00). **Apuntar evento**, arriba, apunta en el
+  día elegido.
 - **Todo · Citas · Eventos.** «Citas» enseña solo lo de la clínica: sus citas (pendientes, atendidas, «No vino» y
   anuladas, tachadas), las sesiones sin cita y la reevaluación. «Eventos», solo lo suyo.
 - **Apuntar evento:** qué es (operación, consulta médica, prueba médica, entrenamiento, competición, viaje o
   vacaciones, otro), un nombre si se quiere, cuándo (un día, varios días seguidos o cada semana unos días, hasta una
-  fecha o sin fin), una hora si la tiene (si no, es de todo el día) con su duración, y una nota. Se cambia y se borra
-  tocándolo; borrar uno que se repite borra la serie entera, y se pregunta antes.
+  fecha o sin fin), una hora si la tiene (si no, es de todo el día) con su duración, y una nota. Cada tipo propone lo
+  normal mientras no se toque «Cuándo»: un entrenamiento, cada semana (el día de la semana del día puesto); un viaje,
+  varios días; lo demás, un día. Se cambia y se borra tocándolo; borrar uno que se repite borra la serie entera, y se
+  pregunta antes.
+- **Lo de cada semana, día a día:** al tocarlo en un día, **Este día no** (ese día no sale, por ejemplo, un jueves que
+  no entrena) y **Desde este día ya no** (la serie acaba el día antes). Los días quitados salen en su hoja, cada uno
+  con **volver a poner**.
 - Tocar una cita abre su hoja de siempre (cambiarla, anularla, cobrar, recordar…); tocar una sesión, la sesión.
 - El mes, el día y el filtro van en la dirección (`?mes=2026-11&dia=2026-11-12&ver=citas`): al volver de una sesión
   se sigue donde se estaba.
@@ -31,6 +39,14 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 - **Al dar o mover una cita** (desde la ficha, el calendario o la agenda) se avisa si ese día el paciente tiene algo:
   lo de todo el día (una operación, un viaje, una prueba…) o lo que se pisa con la hora de la cita. Los
   entrenamientos sin hora no avisan (serían casi todos los días). El aviso no impide nada: «Darla igualmente».
+- **Desde la sesión y la anamnesis:** al escribir la sesión, arriba, lo de su calendario contado desde el día de la
+  sesión («Ligamento cruzado: hace 4 semanas y 2 días · Partido: en 3 días») y **Apuntar en su calendario**; en la
+  anamnesis, junto a «Cirugías previas», **Apuntar una operación en su calendario** (la hoja viene con «Operación»).
+  Se apunta sin salir de lo que se está escribiendo.
+- **En cada sesión de la lista,** si hubo una operación en el año anterior: «4 semanas y 2 días tras la operación».
+  Solo cuenta días.
+- **En Agenda › Hoy,** bajo el nombre de cada paciente, la misma línea corta: se ve antes de que entre (una consulta
+  para todos los del día).
 - **En el Resumen** (tarjeta «Situación»): su última operación si fue hace menos de un año («hace 6 semanas y 2
   días»), un viaje en curso («hasta el …») y lo próximo de los dos meses siguientes (operación, consulta o prueba
   médica, competición o viaje; como mucho dos), cada uno con un enlace a ese día del calendario. Son fechas, sin
@@ -48,6 +64,7 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 
 ## Por dentro
 
+- Migración 040: `skip_days` (los días quitados de una serie, «AAAA-MM-DD,…»), sincronizado campo a campo.
 - Migración 039, tabla `patient_events` (una fila por evento; sincronizada como las demás: disparadores de cambios y
   de campos, en `SYNC_TABLES`). Los días van como `AAAA-MM-DD` de Madrid y la hora como `HH:MM`: un cambio de hora no
   los mueve. Lo que se repite no se guarda semana a semana: se calcula para los días que se ven (`occurrencesIn`).
@@ -56,10 +73,10 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 - Código: `src/data/patientEvents.ts` (guardar, comprobar, repeticiones, aviso al dar cita, textos),
   `src/clinical/patientCalendar.ts` (qué sale cada día y en la lista del mes), `CalendarPage.tsx`, `EventSheet.tsx`.
 - Pruebas: `src/data/patientEvents.test.ts`, `src/clinical/patientCalendar.test.ts`, `e2e/calendario.spec.ts`
-  (CA1 y CA2, a 360 px) y la exportación en `src/export/fullExport.test.ts`.
+  (CA1 a CA4, a 360 px) y la exportación en `src/export/fullExport.test.ts`.
 
 ## Ideas para más adelante (sin hacer)
 
-- Que el paciente apunte sus eventos desde el enlace de sus formularios.
-- «Terminar la serie aquí» con un toque (ahora se cambia «Hasta»).
-- Una marca discreta en la agenda de la clínica los días en que el paciente tiene una operación o un viaje.
+- Que el paciente apunte sus eventos desde el enlace de sus formularios (bloque 3, en marcha).
+- Una marca discreta en la rejilla de la agenda los días en que el paciente tiene una operación o un viaje (en Hoy ya
+  sale su línea).

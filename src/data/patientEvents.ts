@@ -42,13 +42,17 @@ export type PatientEvent = {
   repeatDays: number[];
   /** El último día de la repetición (incluido). Sin él, sin fin. */
   repeatUntil: string | null;
+  /** Días sueltos en que no toca, aunque se repita («este jueves no entrena»; migración 040). */
+  skipDays: string[];
   notes: string;
   createdAt: string;
   updatedAt: string;
 };
-export type EventInput = Pick<PatientEvent, "kind" | "title" | "startsOn" | "endsOn" | "time" | "minutes" | "repeatDays" | "repeatUntil" | "notes">;
+export type EventInput = Pick<PatientEvent, "kind" | "title" | "startsOn" | "endsOn" | "time" | "minutes" | "repeatDays" | "repeatUntil" | "notes"> & {
+  skipDays?: string[];
+};
 
-export const EVENT_LIMITS = { title: 120, notes: 2000, spanDays: 366, minutes: [5, 1440] as const };
+export const EVENT_LIMITS = { title: 120, notes: 2000, spanDays: 366, minutes: [5, 1440] as const, skipDays: 400 };
 /** Cuánto dura un evento con hora si no se dice. */
 export const DEFAULT_EVENT_MINUTES = 60;
 
@@ -62,7 +66,7 @@ export const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b
 export const weekdayOf = (day: string) => new Date(`${day}T12:00:00Z`).getUTCDay() || 7;
 
 /** Comprueba y deja limpio lo que se va a guardar. Los mensajes son para quien rellena la hoja. */
-export function checkEvent(input: EventInput): EventInput {
+export function checkEvent(input: EventInput): EventInput & { skipDays: string[] } {
   if (!KINDS.has(input.kind)) throw new RangeError("Elige qué es.");
   if (!isDay(input.startsOn)) throw new RangeError("Pon el día.");
   const title = (input.title ?? "").trim();
@@ -90,7 +94,10 @@ export function checkEvent(input: EventInput): EventInput {
     minutes = input.minutes ?? DEFAULT_EVENT_MINUTES;
     if (!(Number.isInteger(minutes) && minutes >= EVENT_LIMITS.minutes[0] && minutes <= EVENT_LIMITS.minutes[1])) throw new RangeError("Revisa cuánto dura.");
   }
-  return { kind: input.kind, title, startsOn: input.startsOn, endsOn, time, minutes, repeatDays, repeatUntil, notes };
+  // Los días que no, solo en lo que se repite: días de verdad, sin repetir y en orden.
+  const skipDays = repeatDays.length ? [...new Set((input.skipDays ?? []).filter(isDay))].sort() : [];
+  if (skipDays.length > EVENT_LIMITS.skipDays) throw new RangeError("Demasiados días sueltos: mejor cambia la serie.");
+  return { kind: input.kind, title, startsOn: input.startsOn, endsOn, time, minutes, repeatDays, repeatUntil, notes, skipDays };
 }
 
 // ---------- Guardar y leer ----------
@@ -107,6 +114,7 @@ type Row = {
   repeat_days: string;
   repeat_until: string | null;
   notes: string;
+  skip_days?: string;
   created_at: string;
   updated_at: string;
 };
@@ -125,6 +133,7 @@ const toEvent = (r: Row): PatientEvent => ({
     .map(Number)
     .filter((d) => Number.isInteger(d) && d >= 1 && d <= 7),
   repeatUntil: r.repeat_until ?? null,
+  skipDays: (r.skip_days ?? "").split(",").filter(isDay),
   notes: r.notes ?? "",
   createdAt: r.created_at,
   updatedAt: r.updated_at,
@@ -144,12 +153,12 @@ export async function getPatientEvent(db: Db, id: string): Promise<PatientEvent 
 export async function savePatientEvent(db: Db, patientId: string, input: EventInput, id?: string): Promise<string> {
   const e = checkEvent(input);
   const t = new Date().toISOString();
-  const values = [e.kind, e.title, e.startsOn, e.endsOn, e.time, e.minutes, e.repeatDays.join(","), e.repeatUntil, e.notes];
+  const values = [e.kind, e.title, e.startsOn, e.endsOn, e.time, e.minutes, e.repeatDays.join(","), e.repeatUntil, e.notes, e.skipDays.join(",")];
   if (id) {
     if (!(await getPatientEvent(db, id))) throw new RangeError("Este evento ya no existe.");
     await db.transaction([
       {
-        sql: "update patient_events set kind = ?, title = ?, starts_on = ?, ends_on = ?, time = ?, minutes = ?, repeat_days = ?, repeat_until = ?, notes = ?, updated_at = ? where id = ?",
+        sql: "update patient_events set kind = ?, title = ?, starts_on = ?, ends_on = ?, time = ?, minutes = ?, repeat_days = ?, repeat_until = ?, notes = ?, skip_days = ?, updated_at = ? where id = ?",
         bind: [...values, t, id],
       },
     ]);
@@ -158,12 +167,52 @@ export async function savePatientEvent(db: Db, patientId: string, input: EventIn
   const newId = crypto.randomUUID();
   await db.transaction([
     {
-      sql: `insert into patient_events (id, patient_id, kind, title, starts_on, ends_on, time, minutes, repeat_days, repeat_until, notes, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `insert into patient_events (id, patient_id, kind, title, starts_on, ends_on, time, minutes, repeat_days, repeat_until, notes, skip_days, created_at, updated_at)
+            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       bind: [newId, patientId, ...values, t, t],
     },
   ]);
   return newId;
+}
+
+/** Los eventos de varios pacientes de una vez (la lista de hoy de la agenda): por paciente. */
+export async function eventsOfPatients(db: Db, patientIds: string[]): Promise<Map<string, PatientEvent[]>> {
+  const out = new Map<string, PatientEvent[]>();
+  if (!patientIds.length) return out;
+  const rows = await db.query<Row>("select * from patient_events where patient_id in (select value from json_each(?)) order by starts_on, coalesce(time, ''), created_at", [
+    JSON.stringify(patientIds),
+  ]);
+  for (const r of rows) {
+    const e = toEvent(r);
+    const list = out.get(e.patientId);
+    if (list) list.push(e);
+    else out.set(e.patientId, [e]);
+  }
+  return out;
+}
+
+/** Lo que se guarda para cambiarlo (todo lo que se escribe en la hoja). */
+export const inputOf = (e: PatientEvent): EventInput => ({
+  kind: e.kind,
+  title: e.title,
+  startsOn: e.startsOn,
+  endsOn: e.endsOn,
+  time: e.time,
+  minutes: e.minutes,
+  repeatDays: e.repeatDays,
+  repeatUntil: e.repeatUntil,
+  notes: e.notes,
+  skipDays: e.skipDays,
+});
+/** La serie sin ese día («este jueves no»). */
+export const withoutDay = (e: PatientEvent, day: string): EventInput => ({ ...inputOf(e), skipDays: [...e.skipDays, day] });
+/** La serie con ese día otra vez. */
+export const withDay = (e: PatientEvent, day: string): EventInput => ({ ...inputOf(e), skipDays: e.skipDays.filter((d) => d !== day) });
+/** La serie hasta el día antes de `day` («desde este día ya no»). Null si ese día es el primero: no quedaría nada. */
+export function endedBefore(e: PatientEvent, day: string): EventInput | null {
+  const until = addDays(day, -1);
+  if (until < e.startsOn) return null;
+  return { ...inputOf(e), repeatUntil: e.repeatUntil && e.repeatUntil < until ? e.repeatUntil : until, skipDays: e.skipDays.filter((d) => d <= until) };
 }
 
 export async function deletePatientEvent(db: Db, id: string): Promise<void> {
@@ -187,7 +236,7 @@ export function occurrencesIn(events: PatientEvent[], from: string, to: string):
     if (event.repeatDays.length) {
       const last = event.repeatUntil && event.repeatUntil < end ? event.repeatUntil : end;
       for (let d = event.startsOn > from ? event.startsOn : from; d <= last; d = addDays(d, 1))
-        if (event.repeatDays.includes(weekdayOf(d))) out.push({ event, day: d, first: true, last: true });
+        if (event.repeatDays.includes(weekdayOf(d)) && !event.skipDays.includes(d)) out.push({ event, day: d, first: true, last: true });
       continue;
     }
     const lastDay = event.endsOn ?? event.startsOn;
@@ -277,12 +326,14 @@ const AHEAD: EventKind[] = ["surgery", "competition", "medical", "test", "travel
  * Para el resumen de la ficha: cuánto hace de su última operación y lo próximo (operación, competición, consulta o
  * prueba médica, viaje) en los dos meses que vienen, como mucho dos. Solo días y semanas: la app no interpreta nada.
  */
-export function eventNotes(events: PatientEvent[], today: string): EventNote[] {
+export function eventNotes(events: PatientEvent[], today: string, opts: { brief?: boolean } = {}): EventNote[] {
   const out: EventNote[] = [];
+  // Corto (la lista de hoy, la sesión): sin la fecha entre paréntesis.
+  const on = (day: string) => (opts.brief ? "" : ` (${dayShort(day)})`);
   const past = events
     .filter((e) => e.kind === "surgery" && !e.repeatDays.length && e.startsOn <= today && daysBetween(e.startsOn, today) <= RECENT)
     .sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0];
-  if (past) out.push({ event: past, day: past.startsOn, text: `${eventName(past)}: ${agoText(daysBetween(past.startsOn, today))} (${dayShort(past.startsOn)})` });
+  if (past) out.push({ event: past, day: past.startsOn, text: `${eventName(past)}: ${agoText(daysBetween(past.startsOn, today))}${on(past.startsOn)}` });
   // Un viaje en curso: hasta cuándo.
   const away = events.find((e) => e.kind === "travel" && e.endsOn && e.startsOn <= today && e.endsOn >= today);
   if (away) out.push({ event: away, day: today, text: `${eventName(away)}: hasta el ${dayShort(away.endsOn!)}` });
@@ -292,6 +343,25 @@ export function eventNotes(events: PatientEvent[], today: string): EventNote[] {
     today,
     addDays(today, SOON),
   ).filter((o, i, all) => o.first && all.findIndex((x) => x.event.id === o.event.id) === i);
-  for (const o of next.slice(0, 2)) out.push({ event: o.event, day: o.day, text: `${eventName(o.event)}: ${inText(daysBetween(today, o.day))} (${dayShort(o.day)})` });
+  for (const o of next.slice(0, 2)) out.push({ event: o.event, day: o.day, text: `${eventName(o.event)}: ${inText(daysBetween(today, o.day))}${on(o.day)}` });
   return out;
+}
+
+/**
+ * Cuánto había pasado de su última operación (de menos de un año) el día `day`: para cada sesión. Solo cuenta días;
+ * no dice en qué fase está ni qué toca.
+ */
+export function sinceSurgery(events: PatientEvent[], day: string): { event: PatientEvent; days: number } | null {
+  const op = events
+    .filter((e) => e.kind === "surgery" && !e.repeatDays.length && e.startsOn <= day && daysBetween(e.startsOn, day) <= RECENT)
+    .sort((a, b) => b.startsOn.localeCompare(a.startsOn))[0];
+  return op ? { event: op, days: daysBetween(op.startsOn, day) } : null;
+}
+/** «el día de la operación», «3 días tras la operación», «4 semanas y 2 días tras la operación». */
+export function afterSurgeryText(days: number): string {
+  if (days === 0) return "el día de la operación";
+  if (days < 14) return `${days === 1 ? "1 día" : `${days} días`} tras la operación`;
+  const w = Math.floor(days / 7);
+  const r = days % 7;
+  return `${w} semanas${r ? ` y ${r === 1 ? "1 día" : `${r} días`}` : ""} tras la operación`;
 }

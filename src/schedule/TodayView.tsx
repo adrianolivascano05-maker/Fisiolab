@@ -4,7 +4,7 @@
 // queda sin cobrar y los pacientes de hoy a los que les falta firmar algo; después, las citas de mañana con sus
 // recordatorios y la lista de espera.
 import { unsignedPatients } from "../data/patientSearch";
-import { CalendarCheck, CalendarClock, CalendarX2, ChevronDown, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserRound, UserX, Wallet, BellRing, Send } from "lucide-react";
+import { CalendarCheck, CalendarDays, CalendarClock, CalendarX2, ChevronDown, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserRound, UserX, Wallet, BellRing, Send } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -30,6 +30,7 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { cx } from "../ui/cx";
 import { useOutboxCount } from "./useOutboxCount";
+import { eventNotes, eventsOfPatients } from "../data/patientEvents";
 
 /** «10:00», en la hora de Madrid. */
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
@@ -68,7 +69,14 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
     const owes = new Map(debtors.map((d) => [d.patientId, d.balanceCents]));
     // Bono en curso y primera visita, de los que vienen hoy (una consulta para todos).
     const accounts = await dayAccounts(db, coming, today, dayStart(today));
-    return { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: tomorrowItems };
+    // De su calendario (una consulta para todos): cuánto hace de la operación y lo próximo, en una línea.
+    const events = await eventsOfPatients(db, coming);
+    const calendar = new Map(
+      coming
+        .map((pid) => [pid, eventNotes(events.get(pid) ?? [], today, { brief: true }).map((n) => n.text).join(" · ")] as const)
+        .filter(([, text]) => text),
+    );
+    return { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: tomorrowItems, calendar };
   }, [version, today]);
   const [charging, setCharging] = useState<AgendaItem | null>(null);
   // Lo ya pasado (atendidas, no vino, anuladas) antes de la siguiente cita pendiente se pliega: la lista empieza en lo que toca.
@@ -92,7 +100,7 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
         <SkeletonList rows={2} />
       </div>
     );
-  const { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: next } = data.data;
+  const { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: next, calendar } = data.data;
   // Se pliegan las primeras ya pasadas: hasta la primera pendiente, la primera que aún no ha llegado o la primera de
   // alguien que debe algo (su «debe» y su Cobrar no se esconden).
   const nowIso = new Date().toISOString();
@@ -121,7 +129,15 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
               </li>
             )}
             {day.slice(folded).map((a) => (
-              <TodayRow key={a.id} a={a} owes={owes.get(a.patientId) ?? 0} account={accounts.get(a.patientId)} onOpen={() => onOpen(a)} onCharge={() => setCharging(a)} />
+              <TodayRow
+                key={a.id}
+                a={a}
+                owes={owes.get(a.patientId) ?? 0}
+                account={accounts.get(a.patientId)}
+                calendar={a.status === "cancelled" ? undefined : calendar.get(a.patientId)}
+                onOpen={() => onOpen(a)}
+                onCharge={() => setCharging(a)}
+              />
             ))}
           </ul>
         )}
@@ -213,7 +229,22 @@ const FOLD_FROM = 3;
  * «Al día» en vez del botón (antes salía siempre y se podía cobrar dos veces). Marcada «Atendida» desde su hoja, sin
  * sesión ni cobro, sigue saliendo Cobrar, con el precio de la sesión.
  */
-function TodayRow({ a, owes, account, onOpen, onCharge }: { a: AgendaItem; owes: number; account?: DayAccount; onOpen: () => void; onCharge: () => void }) {
+function TodayRow({
+  a,
+  owes,
+  account,
+  calendar,
+  onOpen,
+  onCharge,
+}: {
+  a: AgendaItem;
+  owes: number;
+  account?: DayAccount;
+  /** Lo de su calendario que conviene saber antes de que entre («Ligamento cruzado: hace 4 semanas · Partido: en 3 días»). */
+  calendar?: string;
+  onOpen: () => void;
+  onCharge: () => void;
+}) {
   const Icon = a.status === "done" ? CircleCheck : a.status === "no_show" ? UserX : a.status === "cancelled" ? CalendarX2 : CalendarCheck;
   const off = a.status === "no_show" || a.status === "cancelled";
   const settled = a.status === "done" && owes <= 0 && (!account || account.doneToday || account.pack !== null);
@@ -235,6 +266,12 @@ function TodayRow({ a, owes, account, onOpen, onCharge }: { a: AgendaItem; owes:
             <span className="nums">{hourOf(a.startsAt)}</span> · {a.name}
           </span>
           <span className="truncate text-sm text-text-muted">{detail}</span>
+          {calendar && (
+            <span className="flex min-w-0 items-center gap-1 text-sm text-text-muted">
+              <CalendarDays aria-hidden="true" className="size-3.5 shrink-0 text-tingle" />
+              <span className="truncate">{calendar}</span>
+            </span>
+          )}
         </span>
       </button>
       {/* Las acciones del día, debajo del nombre: en el móvil el nombre se lee entero. */}

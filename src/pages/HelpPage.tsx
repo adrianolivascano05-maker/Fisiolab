@@ -30,8 +30,10 @@ const steps: { title: string; body: ReactNode }[] = [
         <b>Resumen</b> (cómo está, lo pendiente y sus documentos), <b>Anamnesis</b>, <b>Valoración</b> (tests de exploración, cuestionarios y
         mediciones, en una página), <b>Sesiones</b> (cada visita, la curva del dolor y su historia) y <b>Calendario</b>: sus citas mes a mes (con
         «Citas», solo ellas) y lo suyo fuera de la clínica, que apuntas con «Apuntar evento»: una operación, sus entrenamientos (cada semana, los
-        días que sean), un partido, una prueba médica, un viaje. No ocupan la agenda ni se le recuerdan; al darle una cita ese día, la app te
-        avisa. La última operación (hace cuánto) y lo próximo salen en el Resumen. <b>Editar</b>, arriba a la derecha.
+        días que sean; un día suelto se quita con «Este día no»), un partido, una prueba médica, un viaje. Lo importante lleva un punto
+        relleno; lo de cada semana, uno hueco; un viaje, una franja. Desliza el dedo sobre el mes para cambiarlo. No ocupan la agenda ni se
+        le recuerdan; al darle una cita ese día, la app te avisa. La última operación (hace cuánto) y lo próximo salen en el Resumen, al
+        escribir la sesión (con «Apuntar en su calendario») y en Agenda › Hoy, bajo su nombre. <b>Editar</b>, arriba a la derecha.
       </>
     ),
   },

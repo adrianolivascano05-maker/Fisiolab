@@ -175,4 +175,106 @@ test.describe("Calendario del paciente", () => {
     await tab(page, "Resumen").click();
     await expect(page.getByRole("link", { name: /^Viaje o vacaciones: en 30 días \(/ })).toBeVisible();
   });
+
+  test("CA3 lo de cada semana: valores del tipo, «este día no», «volver a poner», «desde este día ya no»; deslizar de mes", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    const record = await createPatient(page, { name: "Sergio Serie" });
+    const today = madridDay();
+    await tab(page, "Calendario").click();
+    await page.getByRole("button", { name: "Apuntar evento" }).click();
+    let sheet = page.getByRole("dialog", { name: "Apuntar evento" });
+    // Entrenamiento: «Cada semana», con el día de hoy, sin tocar «Cuándo».
+    await sheet.getByText("Entrenamiento", { exact: true }).click();
+    await expect(sheet.getByRole("radio", { name: "Cada semana" })).toBeChecked();
+    await expect(sheet.getByRole("group", { name: "Qué días" }).getByRole("checkbox", { name: WEEK[weekday(today)]! })).toBeChecked();
+    // Un viaje: «Varios días».
+    await sheet.getByText("Viaje o vacaciones", { exact: true }).click();
+    await expect(sheet.getByRole("radio", { name: "Varios días" })).toBeChecked();
+    await sheet.getByText("Entrenamiento", { exact: true }).click();
+    await sheet.getByLabel("Nombre (si quieres)").fill("Pádel");
+    await sheet.getByRole("button", { name: "Apuntar" }).click();
+    await expect(page.getByText("Evento apuntado")).toBeVisible();
+    // En el mes, lo de cada semana lleva su leyenda (punto hueco).
+    await expect(page.getByRole("list", { name: "Leyenda" })).toContainText("Cada semana");
+
+    // Hoy no: se toca en el día y «Este día no».
+    await page.getByRole("button", { name: "Hoy", exact: true }).click();
+    await page.getByRole("button", { name: /Pádel/ }).click();
+    sheet = page.getByRole("dialog", { name: "Cambiar evento" });
+    await expect(sheet.getByRole("group", { name: /^Solo el / })).toBeVisible();
+    await fits(page);
+    expect(await smallTargets(page)).toEqual([]);
+    await sheet.getByRole("button", { name: "Este día no" }).click();
+    await expect(page.getByText(/ya no sale$/)).toBeVisible();
+    await expect(dayButton(page, today, "nada")).toBeVisible();
+    // Vuelve con «volver a poner», desde la serie.
+    await page.getByRole("button", { name: /^Ver todo / }).click();
+    await page.getByRole("button", { name: /Pádel/ }).click();
+    sheet = page.getByRole("dialog", { name: "Cambiar evento" });
+    await sheet.getByRole("button", { name: /^Volver a poner el / }).click();
+    await expect(page.getByText(/vuelve a salir$/)).toBeVisible();
+    await expect(dayButton(page, today, "1 evento")).toBeVisible();
+
+    // Dentro de una semana: «Desde este día ya no».
+    const next = plus(today, 7);
+    await page.goto(`${record}/calendario?mes=${next.slice(0, 7)}&dia=${next}`);
+    await page.getByRole("button", { name: /Pádel/ }).click();
+    await page.getByRole("dialog", { name: "Cambiar evento" }).getByRole("button", { name: "Desde este día ya no" }).click();
+    await expect(page.getByText(/^Hasta el /)).toBeVisible();
+    await expect(dayButton(page, next, "nada")).toBeVisible();
+    await page.goto(`${record}/calendario?mes=${today.slice(0, 7)}&dia=${today}`);
+    await expect(dayButton(page, today, "1 evento")).toBeVisible();
+
+    // Deslizar el dedo a la izquierda sobre el mes: el siguiente.
+    const [y, m] = today.slice(0, 7).split("-").map(Number) as [number, number];
+    const following = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
+    await page.locator("table").evaluate((el) => {
+      const touch = (x: number) => new Touch({ identifier: 1, target: el, clientX: x, clientY: 300 });
+      el.dispatchEvent(new TouchEvent("touchstart", { bubbles: true, touches: [touch(300)], changedTouches: [touch(300)] }));
+      el.dispatchEvent(new TouchEvent("touchend", { bubbles: true, touches: [], changedTouches: [touch(120)] }));
+    });
+    await expect(page).toHaveURL(new RegExp(`mes=${following}`));
+    await expectAccessible(page);
+  });
+
+  test("CA4 apuntar desde la sesión y la anamnesis; las semanas tras la operación en cada sesión; la línea en Agenda › Hoy", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    const record = await createPatient(page, { name: "Olga Operada" });
+    const today = madridDay();
+    // Desde la anamnesis, junto a «Cirugías previas»: la hoja ya viene con «Operación».
+    await tab(page, "Anamnesis").click();
+    await page.getByRole("button", { name: "Apuntar una operación en su calendario" }).click();
+    let sheet = page.getByRole("dialog", { name: "Apuntar evento" });
+    await expect(sheet.getByRole("radio", { name: "Operación" })).toBeChecked();
+    await sheet.getByLabel("Nombre (si quieres)").fill("Ligamento cruzado");
+    await sheet.getByLabel("Día", { exact: true }).fill(plus(today, -30));
+    await sheet.getByRole("button", { name: "Apuntar" }).click();
+    await expect(page.getByText("Evento apuntado")).toBeVisible();
+    // La anamnesis sigue abierta para escribir.
+    await expect(page.getByRole("button", { name: "Guardar anamnesis" })).toBeVisible();
+
+    // En la sesión: cuánto hace, y apuntar sin salir.
+    await page.goto(`${record}/sesiones/nueva`);
+    await expect(page.getByRole("link", { name: "Ligamento cruzado: hace 4 semanas y 2 días" })).toBeVisible();
+    await page.getByRole("button", { name: "Apuntar en su calendario" }).click();
+    sheet = page.getByRole("dialog", { name: "Apuntar evento" });
+    await sheet.getByText("Competición", { exact: true }).click();
+    await sheet.getByLabel("Nombre (si quieres)").fill("Partido");
+    await sheet.getByLabel("Día", { exact: true }).fill(plus(today, 3));
+    await sheet.getByRole("button", { name: "Apuntar" }).click();
+    await expect(page.getByRole("link", { name: "Ligamento cruzado: hace 4 semanas y 2 días · Partido: en 3 días" })).toBeVisible();
+    await fits(page);
+    await page.getByLabel("Tratamiento", { exact: true }).fill("Movilidad y fuerza");
+    await page.getByRole("button", { name: "Guardar sesión" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "Sesión 1" })).toContainText("4 semanas y 2 días tras la operación");
+
+    // Agenda › Hoy: bajo su nombre, lo de su calendario.
+    await page.goto(`${record}/calendario?dia=${today}`);
+    await page.getByRole("button", { name: /^Dar cita a las / }).click();
+    const visit = page.getByRole("dialog", { name: "Dar cita a Olga Operada" });
+    await visit.getByRole("button", { name: "Dar la cita" }).click();
+    await expect(page.getByText("Cita dada")).toBeVisible();
+    await page.goto("./agenda?vista=hoy");
+    await expect(page.getByRole("region", { name: "Citas de hoy" }).getByRole("listitem").filter({ hasText: "Olga Operada" })).toContainText("Ligamento cruzado: hace 4 semanas y 2 días · Partido: en 3 días");
+  });
 });

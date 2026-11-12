@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { Appointment } from "../data/appointments";
 import type { PatientEvent } from "../data/patientEvents";
-import { addMonths, calendarItems, countText, dotsOf, isMonth, leadingBlanks, monthAgenda, monthDays, monthTitle, seriesIn, spanStep, type CalSource } from "./patientCalendar";
+import { addMonths, barOf, calendarItems, countText, dotsOf, isMonth, leadingBlanks, monthAgenda, monthDays, monthTitle, seriesIn, spanStep, type CalSource } from "./patientCalendar";
 
 const visit = (id: string, startsAt: string, status: Appointment["status"] = "scheduled"): Appointment => ({ id, patientId: "p", startsAt, minutes: 45, status, assignedTo: null });
 const ev = (over: Partial<PatientEvent>): PatientEvent => ({
@@ -17,6 +17,7 @@ const ev = (over: Partial<PatientEvent>): PatientEvent => ({
   minutes: null,
   repeatDays: [],
   repeatUntil: null,
+  skipDays: [],
   notes: "",
   createdAt: "2026-01-01",
   updatedAt: "2026-01-01",
@@ -61,7 +62,7 @@ describe("lo de cada día", () => {
 
   it("los puntos del mes (uno por clase) y lo que oye el lector de pantalla", () => {
     const m = calendarItems(s, "2026-11-01", "2026-11-30");
-    expect(dotsOf(m.get("2026-11-19"))).toEqual(["visit", "event", "review"]);
+    expect(dotsOf(m.get("2026-11-19"))).toEqual(["visit", "event", "routine", "review"]);
     expect(dotsOf(m.get("2026-11-13"))).toEqual(["visit"]);
     expect(dotsOf(undefined)).toEqual([]);
     expect(countText(m.get("2026-11-19"))).toBe("1 cita, 2 eventos y 1 reevaluación");
@@ -97,5 +98,25 @@ describe("el mes", () => {
     // En el día: cuál de sus días es.
     const o = m.get("2026-11-02")!.find((i) => i.type === "event" && i.occurrence.event.id === "trip");
     expect(o?.type === "event" && spanStep(o.occurrence)).toBe("Día 4 de 5");
+  });
+});
+
+describe("el mes, de un vistazo", () => {
+  it("lo importante, punto relleno; lo de cada semana, punto hueco; un viaje, franja (que corta al acabar la semana)", () => {
+    const op = ev({ id: "op", kind: "surgery", startsOn: "2026-11-12" });
+    const training = ev({ id: "tr", kind: "training", startsOn: "2026-11-02", repeatDays: [4] });
+    const trip = ev({ id: "trip", kind: "travel", startsOn: "2026-11-14", endsOn: "2026-11-17" });
+    const m = calendarItems(src({ events: [op, training, trip] }), "2026-11-01", "2026-11-30");
+    expect(dotsOf(m.get("2026-11-12"))).toEqual(["event", "routine"]);
+    expect(dotsOf(m.get("2026-11-19"))).toEqual(["routine"]);
+    expect(dotsOf(m.get("2026-11-15"))).toEqual([]);
+    expect(barOf(m.get("2026-11-12"), "2026-11-12", "2026-11")).toBeNull();
+    // Del sábado 14 al martes 17: empieza el 14, corta el domingo 15 y sigue el lunes 16 hasta el 17.
+    expect(["2026-11-14", "2026-11-15", "2026-11-16", "2026-11-17"].map((d) => barOf(m.get(d), d, "2026-11"))).toEqual([
+      { start: true, end: false },
+      { start: false, end: true },
+      { start: true, end: false },
+      { start: false, end: true },
+    ]);
   });
 });

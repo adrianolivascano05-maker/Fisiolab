@@ -266,12 +266,12 @@ function buildSheets(c: Collected): Sheet[] {
   if (T.patient_events?.length)
     sheets.push({
       name: "Calendario del paciente",
-      header: ["Paciente", "Qué es", "Nombre", "Día", "Último día", "Hora", "Minutos", "Se repite cada", "Hasta", "Nota"],
+      header: ["Paciente", "Qué es", "Nombre", "Día", "Último día", "Hora", "Minutos", "Se repite cada", "Hasta", "Días que no", "Nota"],
       rows: [...T.patient_events]
         .sort(byDate("starts_on"))
         .map((r) => {
           const e = eventFromRow(r);
-          return [pn(r), kindLabel(e.kind), e.title, day(e.startsOn), day(e.endsOn), e.time ?? "", e.minutes, repeatText(e.repeatDays), day(e.repeatUntil), e.notes];
+          return [pn(r), kindLabel(e.kind), e.title, day(e.startsOn), day(e.endsOn), e.time ?? "", e.minutes, repeatText(e.repeatDays), day(e.repeatUntil), e.skipDays.map(day).join(", "), e.notes];
         }),
     });
   if (T.packs!.length)
@@ -555,7 +555,12 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
     parts.push(
       `<h2>Su calendario</h2>${table(
         ["Qué es", "Cuándo", "Hora", "Nota"],
-        events.map((e) => [e.title ? `${kindLabel(e.kind)}: ${e.title}` : kindLabel(e.kind), eventSpan(e), eventTime(e), e.notes]),
+        events.map((e) => [
+          e.title ? `${kindLabel(e.kind)}: ${e.title}` : kindLabel(e.kind),
+          `${eventSpan(e)}${e.skipDays.length ? `; no: ${e.skipDays.map(day).join(", ")}` : ""}`,
+          eventTime(e),
+          e.notes,
+        ]),
       )}`,
     );
 

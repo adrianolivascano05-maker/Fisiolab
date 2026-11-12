@@ -1,6 +1,6 @@
 // Ficha › Anamnesis: los datos del paciente, la anamnesis por apartados (con el diagnóstico en CIF), las banderas rojas y
 // amarillas y los accesos a la exploración. Rellenar o cambiar, con su borrador.
-import { ChevronDown, ChevronRight, Pencil, Send } from "lucide-react";
+import { CalendarPlus, ChevronDown, ChevronRight, Pencil, Send } from "lucide-react";
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { fmtDate } from "../app/format";
@@ -32,6 +32,7 @@ import { trends } from "./measures";
 import { FieldInput } from "./FieldInput";
 import { symmetryRows } from "./symmetry";
 import { PatientShell } from "./PatientShell";
+import { EventSheet } from "./EventSheet";
 import { dayText, Guard, sexLabels, todayDay, useLoad } from "./pageKit";
 import { ageOn } from "../data/privacy";
 
@@ -130,6 +131,8 @@ export function AnamnesisPage() {
     return { patient, anamnesis, findings, tests, shown, current, sessions, questionnaires, fromPatient };
   });
   const [editing, setEditing] = useState(false);
+  /** «Apuntar una operación en su calendario», junto a «Cirugías previas». */
+  const [surgery, setSurgery] = useState(false);
   const [draft, setDraft] = useState<Answers | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -260,6 +263,12 @@ export function AnamnesisPage() {
           />
         ) : (
           <FieldInput field={f} value={draft[f.id]} onChange={set(f.id)} />
+        )}
+        {/* Una operación con fecha (pasada o que viene): a su calendario, sin salir de la anamnesis. */}
+        {f.id === "cirugias" && (
+          <Button variant="ghost" size="sm" className="mt-1" icon={<CalendarPlus aria-hidden="true" className="size-4" />} onClick={() => setSurgery(true)}>
+            Apuntar una operación en su calendario
+          </Button>
         )}
       </div>
     );
@@ -395,6 +404,8 @@ export function AnamnesisPage() {
           </div>
         </form>
         </div>
+        {/* Fuera del formulario de la anamnesis: la hoja lleva el suyo. */}
+        <EventSheet open={surgery} onClose={() => setSurgery(false)} patientId={id} event={null} day={null} preset={{ kind: "surgery" }} />
       </PatientShell>
     );
   }

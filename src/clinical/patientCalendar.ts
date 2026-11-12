@@ -58,11 +58,36 @@ export function calendarItems(src: CalSource, from: string, to: string, filter: 
   return byDay;
 }
 
-/** Los puntos de un día en el mes: uno por cada clase de cosa que tiene (no uno por cosa). */
-export type Dot = "visit" | "event" | "review";
+/**
+ * Los puntos de un día en el mes: uno por cada clase de cosa que tiene (no uno por cosa). Lo de cada semana (sus
+ * entrenamientos) lleva un punto suave, para que lo importante (una operación, un partido, una prueba) destaque; lo de
+ * varios días (un viaje) no lleva punto: va como una franja (`barOf`).
+ */
+export type Dot = "visit" | "event" | "routine" | "review";
 export function dotsOf(items: CalItem[] = []): Dot[] {
   const has = (t: CalItem["type"][]) => items.some((i) => t.includes(i.type));
-  return [has(["visit", "session"]) && "visit", has(["event"]) && "event", has(["review"]) && "review"].filter((d): d is Dot => !!d);
+  const events = items.filter((i): i is Extract<CalItem, { type: "event" }> => i.type === "event").map((i) => i.occurrence.event);
+  return [
+    has(["visit", "session"]) && "visit",
+    events.some((e) => !e.repeatDays.length && !e.endsOn) && "event",
+    events.some((e) => e.repeatDays.length > 0) && "routine",
+    has(["review"]) && "review",
+  ].filter((d): d is Dot => !!d);
+}
+
+/**
+ * La franja de un día en el mes, si está dentro de algo de varios días (un viaje): si empieza o acaba ahí (también al
+ * empezar o acabar la semana o el mes, para que la franja no se salga de la fila). Null si no hay.
+ */
+export function barOf(items: CalItem[] = [], day: string, month: string): { start: boolean; end: boolean } | null {
+  const spans = items.filter((i): i is Extract<CalItem, { type: "event" }> => i.type === "event" && !!i.occurrence.event.endsOn);
+  if (!spans.length) return null;
+  const days = monthDays(month);
+  const wd = weekdayOf(day);
+  return {
+    start: spans.some((i) => i.occurrence.first) || wd === 1 || day === days[0],
+    end: spans.some((i) => i.occurrence.last) || wd === 7 || day === days.at(-1),
+  };
 }
 
 /** Cuántas cosas tiene un día, en palabras (para el lector de pantalla del día en el mes): «1 cita y 2 eventos». */

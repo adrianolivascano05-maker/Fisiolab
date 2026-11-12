@@ -4,7 +4,7 @@
 // se ve lo de ese día y se le puede dar cita o apuntar algo. El mes, el día y el filtro van en la dirección
 // (?mes=2026-11&dia=2026-11-12&ver=citas): al volver de una sesión, se sigue donde se estaba.
 import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, NotebookPen, Plus, Repeat } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { todayDay } from "../app/dates";
 import { useAsync } from "../app/useAsync";
@@ -20,10 +20,11 @@ import { cx } from "../ui/cx";
 import { AppointmentSheet } from "./AppointmentSheet";
 import { KIND_ICON } from "./eventIcons";
 import { EventSheet } from "./EventSheet";
-import { Guard } from "./pageKit";
+import { Guard, localInput } from "./pageKit";
 import { PatientShell } from "./PatientShell";
 import {
   addMonths,
+  barOf,
   calendarItems,
   countText,
   dotsOf,
@@ -40,8 +41,9 @@ import {
   type Dot,
 } from "./patientCalendar";
 
-const DOT: Record<Dot, string> = { visit: "bg-accent", event: "bg-tingle", review: "bg-warning" };
-const DOT_LABEL: Record<Dot, string> = { visit: "Citas", event: "Eventos", review: "Reevaluación" };
+// Lo de cada semana, un punto hueco (suave): lo importante, relleno, destaca. Lo de varios días, una franja.
+const DOT: Record<Dot, string> = { visit: "bg-accent", event: "bg-tingle", routine: "border border-tingle", review: "bg-warning" };
+const DOT_LABEL: Record<Dot, string> = { visit: "Citas", event: "Eventos", routine: "Cada semana", review: "Reevaluación" };
 const PARAM: Record<CalFilter, string | null> = { all: null, visits: "citas", events: "eventos" };
 
 export function CalendarPage() {
@@ -57,6 +59,8 @@ export function CalendarPage() {
   /** La hoja abierta: una cita (la que se toca o una nueva para un día) o un evento (el que se toca o uno nuevo). */
   const [visit, setVisit] = useState<{ appointment: Appointment | null; start?: string } | null>(null);
   const [event, setEvent] = useState<{ event: PatientEvent | null; day: string | null } | null>(null);
+  /** Deslizar el dedo sobre el mes: a la izquierda, el siguiente; a la derecha, el anterior. */
+  const touch = useRef<{ x: number; y: number } | null>(null);
 
   const data = useAsync(
     async () => {
@@ -88,12 +92,41 @@ export function CalendarPage() {
   const weeks: (string | null)[][] = [];
   const cells = [...Array<null>(leadingBlanks(month)).fill(null), ...days];
   for (let i = 0; i < cells.length; i += 7) weeks.push([...cells.slice(i, i + 7), ...Array<null>(Math.max(0, i + 7 - cells.length)).fill(null)]);
-  const legend: Dot[] = filter === "visits" ? ["visit", "review"] : filter === "events" ? ["event"] : ["visit", "event", "review"];
+  // La leyenda, solo de lo que hay este mes.
+  const present = new Set([...byDay.values()].flatMap((items) => dotsOf(items)));
+  const legend = (["visit", "event", "routine", "review"] as Dot[]).filter((d) => present.has(d));
+  const hasBars = [...byDay.entries()].some(([day, items]) => barOf(items, day, month));
+  // «Dar cita» propone su hora de siempre: la de su última cita (si no, las 10:00).
+  const lastVisit = [...data.data.appointments].reverse().find((a) => a.status !== "cancelled");
+  const usualTime = lastVisit ? localInput(lastVisit.startsAt).slice(11, 16) : "10:00";
+  const swipe = {
+    onTouchStart: (e: React.TouchEvent) => {
+      const t = e.touches[0];
+      touch.current = t ? { x: t.clientX, y: t.clientY } : null;
+    },
+    onTouchEnd: (e: React.TouchEvent) => {
+      const t = e.changedTouches[0];
+      const from = touch.current;
+      touch.current = null;
+      if (!t || !from) return;
+      const dx = t.clientX - from.x;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(t.clientY - from.y)) go({ mes: addMonths(month, dx < 0 ? 1 : -1), dia: null });
+    },
+  };
   // En la lista del mes, lo que se repite cada semana va una vez, arriba; día a día solo lo demás.
   const series = filter === "visits" ? [] : seriesIn(events, month);
   const monthList = monthAgenda(byDay);
+  // Tocar un evento de un día: su hoja sabe qué día es (para «este día no» en lo que se repite).
   const row = (item: CalItem, i: number, whole = false) => (
-    <ItemRow key={i} item={item} whole={whole} patientId={id} staff={staff} onVisit={(a) => setVisit({ appointment: a })} onEvent={(e) => setEvent({ event: e, day: null })} />
+    <ItemRow
+      key={i}
+      item={item}
+      whole={whole}
+      patientId={id}
+      staff={staff}
+      onVisit={(a) => setVisit({ appointment: a })}
+      onEvent={(e) => setEvent({ event: e, day: whole ? null : item.day })}
+    />
   );
 
   return (
@@ -137,9 +170,9 @@ export function CalendarPage() {
               Hoy
             </Button>
           </div>
-          <table className="w-full table-fixed border-separate border-spacing-[2px]">
+          <table className="w-full table-fixed border-separate border-spacing-[2px]" {...swipe}>
             <caption className="sr-only">
-              {monthTitle(month)}. Toca un día para ver lo que tiene.
+              {monthTitle(month)}. Toca un día para ver lo que tiene. Desliza el dedo para cambiar de mes.
             </caption>
             <thead>
               <tr>
@@ -162,6 +195,7 @@ export function CalendarPage() {
                           selected={day === selected}
                           past={day < today}
                           items={byDay.get(day)}
+                          bar={barOf(byDay.get(day), day, month)}
                           onClick={() => go({ dia: day === selected ? null : day })}
                         />
                       )}
@@ -171,14 +205,22 @@ export function CalendarPage() {
               ))}
             </tbody>
           </table>
-          <ul aria-label="Leyenda" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
-            {legend.map((d) => (
-              <li key={d} className="inline-flex items-center gap-1.5">
-                <span aria-hidden="true" className={cx("size-2 rounded-full", DOT[d])} />
-                {DOT_LABEL[d]}
-              </li>
-            ))}
-          </ul>
+          {(legend.length > 0 || hasBars) && (
+            <ul aria-label="Leyenda" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
+              {legend.map((d) => (
+                <li key={d} className="inline-flex items-center gap-1.5">
+                  <span aria-hidden="true" className={cx("size-2 rounded-full", DOT[d])} />
+                  {DOT_LABEL[d]}
+                </li>
+              ))}
+              {hasBars && (
+                <li className="inline-flex items-center gap-1.5">
+                  <span aria-hidden="true" className="h-1 w-4 rounded-pill bg-tingle/60" />
+                  Varios días
+                </li>
+              )}
+            </ul>
+          )}
         </section>
 
         <section aria-labelledby="h-lista" className="flex flex-col gap-3">
@@ -193,16 +235,16 @@ export function CalendarPage() {
               ) : (
                 <ul className="flex flex-col gap-2">{byDay.get(selected)!.map((it, i) => <li key={i}>{row(it, i)}</li>)}</ul>
               )}
-              <div className="grid grid-cols-2 gap-2">
-                {selected >= today && (
-                  <Button variant="secondary" icon={<CalendarPlus aria-hidden="true" className="size-5" />} onClick={() => setVisit({ appointment: null, start: new Date(`${selected}T10:00`).toISOString() })}>
-                    Dar cita
-                  </Button>
-                )}
-                <Button variant="secondary" icon={<Plus aria-hidden="true" className="size-5" />} className={selected < today ? "col-span-2" : undefined} onClick={() => setEvent({ event: null, day: selected })}>
-                  Apuntar evento
+              {/* Apuntar algo ese día: con «Apuntar evento», arriba (ya usa el día elegido). Aquí, la cita. */}
+              {selected >= today && (
+                <Button
+                  variant="secondary"
+                  icon={<CalendarPlus aria-hidden="true" className="size-5" />}
+                  onClick={() => setVisit({ appointment: null, start: new Date(`${selected}T${usualTime}`).toISOString() })}
+                >
+                  Dar cita a las {usualTime}
                 </Button>
-              </div>
+              )}
               <Button variant="ghost" onClick={() => go({ dia: null })}>
                 Ver todo {monthTitle(month).replace(/ de \d+$/, "").toLowerCase()}
               </Button>
@@ -260,7 +302,23 @@ export function CalendarPage() {
   );
 }
 
-function DayButton({ day, today, selected, past, items, onClick }: { day: string; today: boolean; selected: boolean; past: boolean; items?: CalItem[]; onClick: () => void }) {
+function DayButton({
+  day,
+  today,
+  selected,
+  past,
+  items,
+  bar,
+  onClick,
+}: {
+  day: string;
+  today: boolean;
+  selected: boolean;
+  past: boolean;
+  items?: CalItem[];
+  bar: { start: boolean; end: boolean } | null;
+  onClick: () => void;
+}) {
   const dots = dotsOf(items);
   return (
     <button
@@ -270,7 +328,7 @@ function DayButton({ day, today, selected, past, items, onClick }: { day: string
       aria-label={`${dayLong(day)}${today ? ", hoy" : ""}: ${countText(items)}`}
       onClick={onClick}
       className={cx(
-        "flex h-12 w-full min-w-0 flex-col items-center justify-start gap-1 rounded-md pt-1.5 text-sm",
+        "relative flex h-12 w-full min-w-0 flex-col items-center justify-start gap-1 rounded-md pt-1.5 text-sm",
         selected ? "bg-accent text-on-accent" : today ? "bg-accent-soft font-bold text-accent" : "hover:bg-surface",
         !selected && !today && past && "text-text-muted",
       )}
@@ -280,9 +338,21 @@ function DayButton({ day, today, selected, past, items, onClick }: { day: string
       </span>
       <span aria-hidden="true" className="flex h-1.5 gap-0.5">
         {dots.map((d) => (
-          <span key={d} className={cx("size-1.5 rounded-full", selected ? "bg-on-accent" : DOT[d])} />
+          <span key={d} className={cx("size-1.5 rounded-full", selected ? (d === "routine" ? "border border-on-accent" : "bg-on-accent") : DOT[d])} />
         ))}
       </span>
+      {/* Varios días (un viaje): una franja abajo que pasa de un día al siguiente. */}
+      {bar && (
+        <span
+          aria-hidden="true"
+          className={cx(
+            "absolute bottom-1 h-1",
+            selected ? "bg-on-accent/70" : "bg-tingle/60",
+            bar.start ? "left-1.5 rounded-l-pill" : "-left-px",
+            bar.end ? "right-1.5 rounded-r-pill" : "-right-px",
+          )}
+        />
+      )}
     </button>
   );
 }

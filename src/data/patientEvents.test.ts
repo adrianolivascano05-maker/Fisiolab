@@ -3,8 +3,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "./db";
 import {
+  afterSurgeryText,
   agoText,
   checkEvent,
+  endedBefore,
+  eventsOfPatients,
+  sinceSurgery,
+  withDay,
+  withoutDay,
   deletePatientEvent,
   eventNotes,
   eventSpan,
@@ -21,7 +27,7 @@ import { createTestDb } from "./testDb";
 
 const patient = { name: "Ana", birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" };
 const input = (over: Partial<EventInput> = {}): EventInput => ({ kind: "surgery", title: "", startsOn: "2026-11-10", endsOn: null, time: null, minutes: null, repeatDays: [], repeatUntil: null, notes: "", ...over });
-const ev = (over: Partial<PatientEvent> = {}): PatientEvent => ({ id: "e1", patientId: "p", createdAt: "2026-01-01", updatedAt: "2026-01-01", ...input(), ...over }) as PatientEvent;
+const ev = (over: Partial<PatientEvent> = {}): PatientEvent => ({ id: "e1", patientId: "p", createdAt: "2026-01-01", updatedAt: "2026-01-01", skipDays: [], ...input(), ...over }) as PatientEvent;
 const days = (o: { day: string }[]) => o.map((x) => x.day);
 
 let db: Db;
@@ -155,5 +161,66 @@ describe("en palabras y en su ficha", () => {
       "Resonancia: en 20 días (2 dic 2026)",
     ]);
     expect(eventNotes([ev({ id: "old", startsOn: "2025-01-10" })], today)).toEqual([]);
+  });
+});
+
+describe("lo de cada semana: un día que no, o hasta aquí", () => {
+  const training = ev({ kind: "training", startsOn: "2026-11-03", repeatDays: [2, 4] });
+  it("«este día no» lo quita solo ese día; «volver a poner» lo devuelve; se guarda limpio", () => {
+    const skip = withoutDay(training, "2026-11-12");
+    expect(skip.skipDays).toEqual(["2026-11-12"]);
+    const skipped = { ...training, ...checkEvent(skip) };
+    expect(days(occurrencesIn([skipped], "2026-11-01", "2026-11-15"))).toEqual(["2026-11-03", "2026-11-05", "2026-11-10"]);
+    expect(withDay(skipped, "2026-11-12").skipDays).toEqual([]);
+    // Días de verdad, sin repetir y en orden; en lo que no se repite no se guardan.
+    expect(checkEvent({ ...skip, skipDays: ["2026-11-19", "x", "2026-11-12", "2026-11-19"] }).skipDays).toEqual(["2026-11-12", "2026-11-19"]);
+    expect(checkEvent(input({ skipDays: ["2026-11-12"] })).skipDays).toEqual([]);
+    // No avisa al dar cita ese día.
+    expect(eventsAtVisit([{ ...training, time: "10:00", minutes: 60 }], "2026-11-12T09:00:00.000Z", 45)).toHaveLength(1);
+    expect(eventsAtVisit([{ ...skipped, time: "10:00", minutes: 60 }], "2026-11-12T09:00:00.000Z", 45)).toHaveLength(0);
+  });
+
+  it("«desde este día ya no»: la serie acaba el día antes (y se olvidan los días sueltos de después); el primer día, no se puede", () => {
+    const withSkips = { ...training, skipDays: ["2026-11-05", "2026-11-19"] };
+    const ended = endedBefore(withSkips, "2026-11-12")!;
+    expect(ended).toMatchObject({ repeatUntil: "2026-11-11", skipDays: ["2026-11-05"] });
+    expect(endedBefore(training, "2026-11-03")).toBeNull();
+    // Si ya acababa antes, se queda como estaba.
+    expect(endedBefore({ ...training, repeatUntil: "2026-11-06" }, "2026-11-12")!.repeatUntil).toBe("2026-11-06");
+  });
+
+  it("se guarda y se sincroniza (migración 040)", async () => {
+    const id = await savePatientEvent(db, pid, input({ kind: "training", startsOn: "2026-11-03", repeatDays: [2, 4] }));
+    const saved = (await listPatientEvents(db, pid))[0]!;
+    await savePatientEvent(db, pid, withoutDay(saved, "2026-11-12"), id);
+    expect((await listPatientEvents(db, pid))[0]!.skipDays).toEqual(["2026-11-12"]);
+    expect(await db.query("select field from sync_fields where tbl = 'patient_events' and pk = ?", [id])).toEqual([{ field: "skip_days" }]);
+  });
+});
+
+describe("tras la operación y en la lista de hoy", () => {
+  it("cuánto había pasado de la última operación (de menos de un año) el día de cada sesión", () => {
+    const events = [ev({ id: "a", startsOn: "2025-02-01" }), ev({ id: "b", startsOn: "2026-10-01" }), ev({ id: "t", kind: "training", startsOn: "2026-10-20" })];
+    expect(sinceSurgery(events, "2026-09-30")).toBeNull(); // la de 2025 ya pasó del año
+    expect(sinceSurgery(events, "2026-11-12")).toMatchObject({ event: { id: "b" }, days: 42 });
+    expect([0, 1, 9, 42, 44].map(afterSurgeryText)).toEqual([
+      "el día de la operación",
+      "1 día tras la operación",
+      "9 días tras la operación",
+      "6 semanas tras la operación",
+      "6 semanas y 2 días tras la operación",
+    ]);
+  });
+
+  it("corto, sin la fecha; de varios pacientes en una consulta", async () => {
+    const events = [ev({ id: "op", startsOn: "2026-10-01", title: "Cruzado" }), ev({ id: "race", kind: "competition", startsOn: "2026-11-15", title: "Partido" })];
+    expect(eventNotes(events, "2026-11-12", { brief: true }).map((n) => n.text)).toEqual(["Cruzado: hace 6 semanas", "Partido: en 3 días"]);
+    const other = await createPatient(db, { ...patient, name: "Berta" });
+    await savePatientEvent(db, pid, input({ title: "Cruzado" }));
+    await savePatientEvent(db, other, input({ kind: "travel", startsOn: "2026-12-01", endsOn: "2026-12-05" }));
+    const map = await eventsOfPatients(db, [pid, other, "nadie"]);
+    expect([...map.keys()].sort()).toEqual([pid, other].sort());
+    expect(map.get(other)![0]!.kind).toBe("travel");
+    expect((await eventsOfPatients(db, [])).size).toBe(0);
   });
 });

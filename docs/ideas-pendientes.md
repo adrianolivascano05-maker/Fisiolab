@@ -1126,8 +1126,16 @@ paciente (abajo).
 Hecho (ver `docs/calendario-paciente.md`): quinta pestaña «Calendario» en la ficha con sus citas mes a mes (con
 «Citas», solo ellas) y sus eventos (operaciones, consultas y pruebas médicas, entrenamientos que se repiten cada
 semana, competiciones, viajes); aviso al darle cita un día en que tiene algo; la última operación y lo próximo en el
-Resumen; en la exportación. Migración 039 `patient_events`, sincronizada. Ideas sin hacer: que el paciente apunte sus
-eventos desde su enlace, «terminar la serie aquí» y una marca en la agenda de la clínica.
+Resumen; en la exportación. Migración 039 `patient_events`, sincronizada.
+
+Mejoras pedidas el mismo día, en tres bloques seguidos:
+1. **Hecho:** el mes de un vistazo (lo de cada semana con punto hueco, un viaje como franja, leyenda de lo que hay),
+   deslizar para cambiar de mes, «Este día no» / «Desde este día ya no» / «volver a poner» en lo que se repite
+   (migración 040 `skip_days`), un solo «Apuntar evento», «Dar cita» a su hora de siempre, apuntar desde la sesión y
+   la anamnesis, la línea de su calendario en la sesión y en Agenda › Hoy, «N semanas tras la operación» en cada
+   sesión y lo normal de cada tipo al apuntar.
+2. Series de citas que se saltan sus viajes y dicen qué días entrena; enviarle sus próximas citas por WhatsApp.
+3. Que el paciente apunte lo suyo desde el enlace de sus formularios.
 
 Dos mejoras del editor vistas al hacer las capturas de la fase 2, sin hacer (esperan su sí): el botón «⋯» se queda
 solo en una segunda línea cuando hay varias plantillas; y en «Mostrar solo si…», al elegir de qué pregunta depende,
