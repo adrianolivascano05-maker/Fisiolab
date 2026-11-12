@@ -165,14 +165,26 @@ export async function savePatientEvent(db: Db, patientId: string, input: EventIn
     return id;
   }
   const newId = crypto.randomUUID();
-  await db.transaction([
-    {
-      sql: `insert into patient_events (id, patient_id, kind, title, starts_on, ends_on, time, minutes, repeat_days, repeat_until, notes, skip_days, created_at, updated_at)
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      bind: [newId, patientId, ...values, t, t],
-    },
-  ]);
+  await db.transaction([insertSql(newId, patientId, e, t)]);
   return newId;
+}
+
+const insertSql = (id: string, patientId: string, e: ReturnType<typeof checkEvent>, t: string) => ({
+  sql: `insert or ignore into patient_events (id, patient_id, kind, title, starts_on, ends_on, time, minutes, repeat_days, repeat_until, notes, skip_days, created_at, updated_at)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  bind: [id, patientId, e.kind, e.title, e.startsOn, e.endsOn, e.time, e.minutes, e.repeatDays.join(","), e.repeatUntil, e.notes, e.skipDays.join(","), t, t],
+});
+
+/**
+ * Apunta un evento con su id si aún no está (lo que manda el paciente por enlace, src/patientForm/calendarForm.ts:
+ * si una recogida se corta y se repite, no sale dos veces). Devuelve si lo ha apuntado.
+ */
+export async function addPatientEventOnce(db: Db, patientId: string, input: EventInput, id: string): Promise<boolean> {
+  const e = checkEvent(input);
+  const [{ n }] = (await db.query<{ n: number }>("select count(*) as n from patient_events where id = ?", [id])) as [{ n: number }];
+  if (n) return false;
+  await db.transaction([insertSql(id, patientId, e, new Date().toISOString())]);
+  return true;
 }
 
 /** Los eventos de varios pacientes de una vez (la lista de hoy de la agenda): por paciente. */

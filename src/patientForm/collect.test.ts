@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ANAMNESIS, withCustom } from "../clinical/anamnesis";
-import { ANAMNESIS_KIND, CONSENT_PREFIX, DOCS_KIND, formLink, PRIVACY_KIND, formMessage, mergeAnamnesis, newFormId, newFormKey, patientSections, seal, unseal } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, CALENDAR_KIND, CONSENT_PREFIX, DOCS_KIND, formLink, PRIVACY_KIND, formMessage, mergeAnamnesis, newFormId, newFormKey, patientSections, seal, unseal } from "../clinical/patientForms";
 import { ServerError } from "../cloud/remote";
 import { listDocuments } from "../data/documents";
 import { getAnamnesis, listQuestionnaires, saveAnamnesis } from "../data/clinical";
@@ -16,6 +16,8 @@ import { uploadPatientForm } from "./createForm";
 import { addModule, currentTemplate, emptyDelta, getTemplateDoc, markTemplateUsed, saveTemplateDoc } from "../data/anamnesisTemplates";
 import { saveModuleDoc, type ModuleDoc } from "../data/anamnesisModules";
 import { addLibraryForm, archiveOwnForm, newOwnFormId, saveOwnForm } from "../data/ownForms";
+import { listPatientEvents } from "../data/patientEvents";
+import { FROM_PATIENT } from "./calendarForm";
 
 const patient = (name: string) => ({ name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
 
@@ -269,6 +271,34 @@ describe("formularios para el paciente", () => {
     expect((await getSentForm(db, id))?.answers).toEqual({ docs: [{ n: 1, name: "Resonancia rodilla", size: 120_000 }, { n: 2, name: "Analítica", size: 50_000 }] });
     // El mensaje para pedírselos.
     expect(formMessage({ name: "Nora", clinic: "Fisiolab", kind: DOCS_KIND, url: "https://x/formulario/a#b", expiresAt: at })).toMatch(/^Hola Nora: desde Fisiolab te pedimos que nos envíes tus informes o pruebas \(en PDF o en foto\)/);
+  });
+
+  it("«Tu calendario»: lo que apunta llega a su calendario, con la marca de que lo apuntó él; lo que no vale, fuera; sin repetirse", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Nora Enlace"));
+    const id = newFormId();
+    const key = newFormKey();
+    await addSentForm(db, { id, patientId: pid, episodeId: pid, kind: CALENDAR_KIND, key, expiresAt: new Date(Date.now() + 86_400_000).toISOString() });
+    const at = new Date().toISOString();
+    const events = [
+      { kind: "training", title: "Pádel", startsOn: "2026-11-17", repeatDays: [2, 4], time: "19:00", minutes: 90 },
+      { kind: "travel", startsOn: "2026-12-20", endsOn: "2027-01-06", notes: "Al pueblo" },
+      { kind: "surgery", startsOn: "no es un día" },
+    ];
+    const { api, removed } = server([{ id, response: await seal({ v: 1, answers: { events } }, key), answeredAt: at }]);
+    const got = await collectAnswered(db, api, ANAMNESIS);
+    expect(got).toEqual([{ patientId: pid, name: "Nora Enlace", kind: CALENDAR_KIND, skipped: 0, incomplete: true, events: 2 }]);
+    expect(removed).toEqual([id]);
+    const saved = await listPatientEvents(db, pid);
+    expect(saved.map((e) => [e.id, e.kind, e.title, e.notes])).toEqual([
+      [`${id}.0`, "training", "Pádel", FROM_PATIENT],
+      [`${id}.1`, "travel", "", `Al pueblo\n${FROM_PATIENT}`],
+    ]);
+    expect((await getSentForm(db, id))?.answers).toEqual({ events: 2, dropped: 1 });
+    // El mensaje para pedírselo.
+    expect(formMessage({ name: "Nora", clinic: "Fisiolab", kind: CALENDAR_KIND, url: "https://x/formulario/a#b", expiresAt: at })).toMatch(
+      /^Hola Nora: desde Fisiolab te pedimos que rellenes tu calendario \(entrenamientos, partidos, una operación, una prueba médica o un viaje\)/,
+    );
   });
 
   it("una firma que llega por un enlace (la hoja o un consentimiento) ya no se guarda: el envío queda anulado y se avisa", async () => {

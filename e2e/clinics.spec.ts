@@ -1686,4 +1686,81 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(page.getByText("¿Cuántas horas al día?")).toBeVisible();
     await expect(page.getByText("Seis")).toBeVisible();
   });
+
+  test("CL23 «Su calendario» por enlace: el paciente apunta sus entrenamientos y un viaje en su móvil y llegan a su calendario", async ({ page, browser }) => {
+    test.slow();
+    const google = new FakeGoogle(users);
+    await google.install(page.context(), () => "ana", { server: true });
+    await enter(page);
+    await createClinic(page, "Fisiolab Centro");
+    await patients(page);
+    await createPatient(page, { name: "Pablo Pádel" });
+    const pabloUrl = page.url();
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+    const plus = (day: string, n: number) => {
+      const d = new Date(`${day}T12:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    };
+
+    // Desde su calendario: «Que lo apunte él desde su móvil» abre el envío con «Su calendario» elegido.
+    await page.goto(`${pabloUrl}/calendario`);
+    await page.getByRole("link", { name: "Que lo apunte él desde su móvil" }).click();
+    const choose = page.getByRole("dialog", { name: "Enviar un formulario" });
+    await expect(choose.getByLabel("Qué le mandas")).toHaveValue("calendario");
+    await expect(choose).toContainText("Llega a su calendario en la ficha");
+    await choose.getByRole("button", { name: "Crear el enlace" }).click();
+    const share = page.getByRole("dialog", { name: "Mandar el enlace" });
+    await expect(share.getByText(/^Hola Pablo: desde Fisiolab Centro te pedimos que rellenes tu calendario \(entrenamientos/)).toBeVisible();
+    const text = (await share.locator("pre").textContent())!;
+    const link = /https?:\/\/\S+\/formulario\/[A-Za-z0-9_-]+#[A-Za-z0-9_-]+/.exec(text)![0];
+    await share.getByRole("button", { name: "Cerrar" }).click();
+
+    // En su móvil (360 px), sin cuenta: apunta, ve la lista, quita lo que no, y lo envía.
+    const { locale, timezoneId, isMobile, hasTouch } = test.info().project.use;
+    const ctx = await browser.newContext({ viewport: { width: 360, height: 780 }, locale, timezoneId, isMobile, hasTouch, serviceWorkers: "block" });
+    await google.install(ctx, () => "carla", { server: true });
+    const phone = await ctx.newPage();
+    await phone.goto(link);
+    await expect(phone.getByRole("heading", { name: "Hola, Pablo" })).toBeVisible({ timeout: 15_000 });
+    await expect(phone.getByText(/te pide que rellenes tu calendario \(entrenamientos, partidos, una operación, una prueba médica o un viaje\)/)).toBeVisible();
+    await expect(phone.getByRole("region", { name: "Tus datos", exact: true })).toBeVisible();
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByRole("alert")).toContainText("Apunta al menos una cosa con «Añadir a mi calendario».");
+    const add = phone.getByRole("group", { name: "Añadir" });
+    await add.getByText("Entrenamiento", { exact: true }).click();
+    await expect(add.getByRole("radio", { name: "Cada semana" })).toBeChecked();
+    await add.getByLabel("Nombre (si quieres)").fill("Pádel");
+    await add.getByLabel("Hora (si la tiene)").fill("19:00");
+    await add.getByRole("button", { name: "Añadir a mi calendario" }).click();
+    await expect(phone.getByRole("heading", { name: "Lo que has apuntado (1)" })).toBeVisible();
+    const more = phone.getByRole("group", { name: "Añadir otra cosa" });
+    await more.getByText("Viaje o vacaciones", { exact: true }).click();
+    await more.getByLabel("Primer día").fill(plus(today, 10));
+    await more.getByLabel("Último día").fill(plus(today, 14));
+    await more.getByRole("button", { name: "Añadir a mi calendario" }).click();
+    await more.getByText("Competición", { exact: true }).click();
+    await more.getByRole("button", { name: "Añadir a mi calendario" }).click();
+    await expect(phone.getByRole("heading", { name: "Lo que has apuntado (3)" })).toBeVisible();
+    await phone.getByRole("button", { name: "Quitar «Competición»" }).click();
+    await expect(phone.getByRole("heading", { name: "Lo que has apuntado (2)" })).toBeVisible();
+    expect(await phone.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    expect(await smallTargets(phone)).toEqual([]);
+    await expectAccessible(phone);
+    await phone.getByRole("button", { name: "Enviar" }).click();
+    await expect(phone.getByText("¡Gracias! Ya lo tiene tu fisioterapeuta")).toBeVisible();
+    await phone.reload();
+    await expect(phone.getByText("Este formulario ya se envió")).toBeVisible();
+    await ctx.close();
+
+    // En la clínica: se recoge y está en su calendario, con la marca de que lo apuntó él.
+    await page.goto(`${pabloUrl}/formularios`);
+    await page.getByRole("button", { name: "Buscar respuestas" }).click();
+    await expect(page.getByText("Pablo Pádel ha apuntado 2 cosas en su calendario")).toBeVisible();
+    await page.getByRole("link", { name: "Apuntó 2 cosas: ver su calendario" }).click();
+    await expect(page.getByRole("heading", { name: "Cada semana" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Pádel/ })).toContainText("Lo apuntó el paciente.");
+    await page.goto(`${pabloUrl}/calendario?mes=${plus(today, 11).slice(0, 7)}&dia=${plus(today, 11)}`);
+    await expect(page.getByRole("button", { name: /Viaje o vacaciones/ })).toContainText("Día 2 de 5");
+  });
 });

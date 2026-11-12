@@ -14,6 +14,7 @@ import { useAsync } from "../app/useAsync";
 import { answerText, getField, isMetaKey, type Field } from "../clinical/anamnesis";
 import {
   ANAMNESIS_KIND,
+  CALENDAR_KIND,
   DOCS_KIND,
   DOCS_PER_LINK,
   FORM_DAYS,
@@ -213,7 +214,7 @@ function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initi
   const sendable = sendableKinds();
   // Pedirle archivos, solo si el servidor de la clínica los guarda.
   const docs = useDocsUsage().usage?.enabled === true;
-  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || sendableKinds().some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
+  const [kind, setKind] = useState(initial === ANAMNESIS_KIND || initial === DOCS_KIND || initial === CALENDAR_KIND || sendableKinds().some((k) => k.id === initial) ? initial : ANAMNESIS_KIND);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Su parte de la anamnesis va con la plantilla de su motivo de consulta: con más de una, cuál, cuánto es y cómo lo verá.
@@ -251,6 +252,7 @@ function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initi
       <SelectField label="Qué le mandas" value={kind} onChange={(e) => setKind(e.target.value)}>
         <option value={ANAMNESIS_KIND}>Su parte de la anamnesis</option>
         {(docs || kind === DOCS_KIND) && <option value={DOCS_KIND}>Sus informes y pruebas (PDF o fotos)</option>}
+        <option value={CALENDAR_KIND}>Su calendario: entrenamientos, partidos, viajes…</option>
         <optgroup label="Cuestionarios">
           {sendable
             .filter((k) => !k.own)
@@ -283,7 +285,9 @@ function ChooseForm({ patientId, initial, onCreate }: { patientId: string; initi
         </p>
       )}
       <p className="text-sm text-text-muted">
-        {kind === DOCS_KIND
+        {kind === CALENDAR_KIND
+          ? "Apunta desde su móvil lo suyo que conviene que sepas: sus entrenamientos de cada semana, partidos o competiciones, una operación, una prueba o consulta médica, un viaje. Llega a su calendario en la ficha, con la nota «Lo apuntó el paciente»."
+          : kind === DOCS_KIND
           ? `Sube desde su móvil hasta ${DOCS_PER_LINK} informes o pruebas, en PDF o en foto (las fotos se pasan a PDF), de 5 MB como mucho cada uno. Llegan cifrados a sus archivos.`
           : kind === ANAMNESIS_KIND
             ? wide || short === full
@@ -487,7 +491,12 @@ function SentRow({
             {f.kind === PRIVACY_KIND ? "Ver la hoja firmada" : "Ver sus consentimientos"}
           </Link>
         )}
-        {status === "done" && f.kind !== ANAMNESIS_KIND && f.kind !== DOCS_KIND && !isSignKind(f.kind) && (
+        {status === "done" && f.kind === CALENDAR_KIND && (
+          <Link to={`/pacientes/${patientId}/calendario`} className="self-start text-sm font-semibold text-accent">
+            {typeof f.answers?.events === "number" ? `Apuntó ${f.answers.events === 1 ? "1 cosa" : `${f.answers.events} cosas`}: ver su calendario` : "Ver su calendario"}
+          </Link>
+        )}
+        {status === "done" && f.kind !== ANAMNESIS_KIND && f.kind !== DOCS_KIND && f.kind !== CALENDAR_KIND && !isSignKind(f.kind) && (
           <Link to={`/pacientes/${patientId}/cuestionarios`} className="self-start text-sm font-semibold text-accent">
             Ver en sus cuestionarios
           </Link>

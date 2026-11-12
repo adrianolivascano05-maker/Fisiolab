@@ -1136,7 +1136,9 @@ Mejoras pedidas el mismo día, en tres bloques seguidos:
    sesión y lo normal de cada tipo al apuntar.
 2. **Hecho:** series de citas que se saltan sus viajes y dicen qué días entrena; enviarle sus próximas citas por
    WhatsApp o correo (mensaje «Sus próximas citas», editable; con el permiso firmado).
-3. Que el paciente apunte lo suyo desde el enlace de sus formularios.
+3. **Hecho:** que el paciente apunte lo suyo desde el enlace de sus formularios («Su calendario»: llega con la nota
+   «Lo apuntó el paciente.»). Migración 041 (sin tablas nuevas): un dispositivo sin actualizar deja de sincronizar y
+   así no recoge (ni pierde) un «Su calendario».
 
 Dos mejoras del editor vistas al hacer las capturas de la fase 2, sin hacer (esperan su sí): el botón «⋯» se queda
 solo en una segunda línea cuando hay varias plantillas; y en «Mostrar solo si…», al elegir de qué pregunta depende,

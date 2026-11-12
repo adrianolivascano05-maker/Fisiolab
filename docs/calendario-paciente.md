@@ -55,6 +55,13 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   citas por WhatsApp** (o por correo): el mensaje «Sus próximas citas» de Ajustes › Mensajes a pacientes con la lista
   de las siguientes (día y hora, y con quién en una clínica; como mucho diez). Solo con el permiso de contacto firmado;
   sin él, se dice por qué y se le dicen en la consulta.
+- **Que lo apunte él:** «Que lo apunte él desde su móvil» (en su calendario, o en Formularios › «Su calendario») crea
+  un enlace como los de la anamnesis: cifrado de extremo a extremo, sin cuenta, 14 días. En su móvil ve los mismos
+  campos que en la clínica (con lo normal de cada tipo), la lista de lo que lleva apuntado (y «Quitar») y lo manda
+  todo con «Enviar»; se guarda en su móvil hasta que lo envía. Como mucho 30 cosas de una vez. Al recogerlo, cada cosa
+  se comprueba con las mismas reglas que en la clínica (lo que no vale se deja fuera), llega a su calendario con la
+  nota «Lo apuntó el paciente.» y con un id fijo por envío (una recogida repetida no la duplica). En Formularios:
+  «Apuntó N cosas: ver su calendario».
 - **En el Resumen** (tarjeta «Situación»): su última operación si fue hace menos de un año («hace 6 semanas y 2
   días»), un viaje en curso («hasta el …») y lo próximo de los dos meses siguientes (operación, consulta o prueba
   médica, competición o viaje; como mucho dos), cada uno con un enlace a ese día del calendario. Son fechas, sin
@@ -69,9 +76,14 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 - No ocupa la agenda de la clínica, no se le recuerda por WhatsApp y no cuenta para los cobros ni las estadísticas:
   es lo suyo, para tenerlo a la vista.
 - No calcula plazos ni fases de recuperación: solo cuenta los días que han pasado o que faltan.
+- Un dispositivo con una versión anterior de la app no sabe recoger «Su calendario» (perdería lo que mandó el
+  paciente). Para que no pase, la migración 041 sube la versión de la base: un dispositivo sin actualizar deja de
+  recibir cambios hasta que se actualiza, así que no conoce el envío ni lo recoge. La app se actualiza sola al abrirla.
 
 ## Por dentro
 
+- Migración 041: no cambia ninguna tabla; sube la versión de la base (ver arriba, «Su calendario» y versiones
+  anteriores).
 - Migración 040: `skip_days` (los días quitados de una serie, «AAAA-MM-DD,…»), sincronizado campo a campo.
 - Migración 039, tabla `patient_events` (una fila por evento; sincronizada como las demás: disparadores de cambios y
   de campos, en `SYNC_TABLES`). Los días van como `AAAA-MM-DD` de Madrid y la hora como `HH:MM`: un cambio de hora no
@@ -80,14 +92,15 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 - Se borra con el paciente (en cascada).
 - Código: `src/data/patientEvents.ts` (guardar, comprobar, repeticiones, aviso al dar cita, textos),
   `src/data/seriesPlan.ts` (la serie que se salta sus viajes, sus días de entrenamiento), `src/schedule/upcoming.ts`
-  (la lista de sus próximas citas),
+  (la lista de sus próximas citas), `src/clinical/EventFields.tsx` (los campos, para la clínica y para el paciente),
+  `src/patientForm/calendarForm.ts` y `CalendarFill.tsx` («Tu calendario» por enlace; la recogida, en `collect.ts`),
   `src/clinical/patientCalendar.ts` (qué sale cada día y en la lista del mes), `CalendarPage.tsx`, `EventSheet.tsx`.
 - Pruebas: `src/data/patientEvents.test.ts`, `src/clinical/patientCalendar.test.ts`, `e2e/calendario.spec.ts`
-  (CA1 a CA5, a 360 px), `src/data/seriesPlan.test.ts`, `src/schedule/upcoming.test.ts` y la exportación en
+  (CA1 a CA5, a 360 px), CL23 en `e2e/clinics.spec.ts` (el enlace, en un móvil de 360 px), `src/data/seriesPlan.test.ts`,
+  `src/schedule/upcoming.test.ts`, `src/patientForm/calendarForm.test.ts`, `collect.test.ts` y la exportación en
   `src/export/fullExport.test.ts`.
 
 ## Ideas para más adelante (sin hacer)
 
-- Que el paciente apunte sus eventos desde el enlace de sus formularios (bloque 3, en marcha).
 - Una marca discreta en la rejilla de la agenda los días en que el paciente tiene una operación o un viaje (en Hoy ya
   sale su línea).

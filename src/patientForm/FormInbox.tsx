@@ -42,6 +42,10 @@ export function useCollectForms(): () => Promise<number | null> {
             toast(`${g.name || "Un paciente"} ha enviado ${g.files === 1 ? "1 archivo" : `${g.files} archivos`}: está${g.files === 1 ? "" : "n"} en sus archivos`, "success");
             continue;
           }
+          if (g.events !== undefined) {
+            toast(`${g.name || "Un paciente"} ha apuntado ${g.events === 1 ? "1 cosa" : `${g.events} cosas`} en su calendario`, "success");
+            continue;
+          }
           if (g.refused) {
             toast(`${g.name || "Un paciente"} firmó en su móvil ${g.kind === PRIVACY_KIND ? "la hoja de protección de datos" : "un consentimiento"}, pero ya no se recogen firmas por enlace: fírmalo en la clínica`, "danger");
             continue;

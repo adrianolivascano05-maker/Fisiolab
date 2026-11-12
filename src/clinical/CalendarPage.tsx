@@ -3,7 +3,7 @@
 // partido, una prueba médica, un viaje: src/data/patientEvents.ts). Se filtra por «Citas» o «Eventos»; al tocar un día
 // se ve lo de ese día y se le puede dar cita o apuntar algo. El mes, el día y el filtro van en la dirección
 // (?mes=2026-11&dia=2026-11-12&ver=citas): al volver de una sesión, se sigue donde se estaba.
-import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, Mail, MessageCircle, NotebookPen, Plus, Repeat } from "lucide-react";
+import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, Mail, MessageCircle, NotebookPen, Plus, Repeat, Send } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { todayDay } from "../app/dates";
@@ -232,6 +232,13 @@ export function CalendarPage() {
               ))}
             </tbody>
           </table>
+          {/* Que lo apunte él desde su móvil (Formularios › «Su calendario»). */}
+          <Link
+            to={`/pacientes/${id}/formularios?enviar=calendario`}
+            className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-accent underline underline-offset-2"
+          >
+            <Send aria-hidden="true" className="size-4" /> Que lo apunte él desde su móvil
+          </Link>
           {(legend.length > 0 || hasBars) && (
             <ul aria-label="Leyenda" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
               {legend.map((d) => (

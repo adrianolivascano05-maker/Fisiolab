@@ -10,7 +10,9 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { FormFill, formResult } from "../clinical/FormFill";
 import { AnamnesisStep, focusField, missingRequired, withoutHidden } from "./AnamnesisStep";
 import { citeOf, formFor, type Answers as FormAnswers } from "../clinical/forms";
-import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, RESPONDENTS, seal, unseal, type FormRequest, type Respondent, type SentDoc } from "../clinical/patientForms";
+import { CalendarFill } from "./CalendarFill";
+import type { EventInput } from "../data/patientEvents";
+import { ANAMNESIS_KIND, CALENDAR_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, RESPONDENTS, seal, unseal, type FormRequest, type Respondent, type SentDoc } from "../clinical/patientForms";
 import { sizeText } from "../data/documents";
 import { sealDoc } from "../documents/docCrypto";
 import { prepareFiles } from "../documents/prepare";
@@ -114,7 +116,9 @@ export function PublicFormPage() {
   // con el resto hasta que lo envía; al recogerlo se limpia y no puntúa).
   const texts = (typeof answers.__texts === "object" && answers.__texts !== null ? answers.__texts : {}) as Record<string, string>;
   const onTexts = (t: Record<string, string>) => setAnswers((a) => ({ ...a, __texts: t }));
-  const form = request && request.kind !== ANAMNESIS_KIND && !toSign ? (ownForm ?? formFor(request.kind)) : undefined;
+  // «Tu calendario» (src/patientForm/calendarForm.ts): apunta lo suyo; no es un cuestionario.
+  const calendar = request?.kind === CALENDAR_KIND;
+  const form = request && request.kind !== ANAMNESIS_KIND && !calendar && !toSign ? (ownForm ?? formFor(request.kind)) : undefined;
   const result = form ? formResult(form, answers as FormAnswers) : null;
 
   const steps = request?.kind === ANAMNESIS_KIND ? (request.sections ?? []) : [];
@@ -153,7 +157,7 @@ export function PublicFormPage() {
     if (!lastStep) return go(step + 1);
     setError(null);
     const given = Object.entries(answers).some(([k, v]) => !k.startsWith("__") && v !== null && v !== "" && v !== undefined && !(Array.isArray(v) && !v.length));
-    if (!given) return setError(request.kind === DOCS_KIND ? "Sube al menos un archivo." : "Contesta al menos una pregunta.");
+    if (!given) return setError(request.kind === DOCS_KIND ? "Sube al menos un archivo." : calendar ? "Apunta al menos una cosa con «Añadir a mi calendario»." : "Contesta al menos una pregunta.");
     if (result && "missing" in result) return setError(`${result.missing}. Contéstalas para poder enviarlo.`);
     if (request.intake && !intakeAck) return setError("Marca que has leído la información sobre protección de datos.");
     if (askWho && !answers[RESPONDENT]) return setError("Dinos quién contesta.");
@@ -230,6 +234,7 @@ export function PublicFormPage() {
                 {request.clinic || "Tu clínica"} te pide que rellenes {own ? `el cuestionario «${own.name}»` : formWhat(request.kind)}.{" "}
                 {/* Las instrucciones de un cuestionario van en su tarjeta, justo encima de las preguntas (no aquí otra vez). */}
                 {request.kind === ANAMNESIS_KIND && "Contesta lo que sepas; lo demás lo hablaréis en la consulta."}
+                {calendar && "Apunta cada cosa con «Añadir a mi calendario» y, cuando estén todas, pulsa «Enviar»."}
               </p>
             )}
             {own && <p className="-mt-2 text-sm font-semibold text-text-muted">{ownLabelFor(request.clinic)}</p>}
@@ -306,7 +311,16 @@ export function PublicFormPage() {
             )}
             {form && !ownSteps.length && <FormFill form={form} answers={answers as FormAnswers} onChange={(a) => setAnswers(a)} texts={texts} onTexts={onTexts} />}
             {form && !own && <p className="text-xs text-text-muted">Autores del cuestionario: {citeOf(form)}.</p>}
-            {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !form && (
+            {calendar && (
+              <CalendarFill
+                events={Array.isArray(answers.events) ? (answers.events as EventInput[]) : []}
+                onChange={(events) => {
+                  setError(null);
+                  setAnswers((a) => ({ ...a, events }));
+                }}
+              />
+            )}
+            {request.kind !== ANAMNESIS_KIND && request.kind !== DOCS_KIND && !calendar && !form && (
               <Alert tone="info" title="Este cuestionario ya no se rellena por enlace">
                 Tu clínica te lo pasará en la consulta. No hace falta que hagas nada más.
               </Alert>

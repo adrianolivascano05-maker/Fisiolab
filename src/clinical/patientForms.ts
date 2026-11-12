@@ -23,6 +23,9 @@ export const ANAMNESIS_KIND = "anamnesis";
 export const DOCS_KIND = "documentos";
 /** Archivos que puede subir con un enlace. */
 export const DOCS_PER_LINK = 5;
+/** «Tu calendario»: el paciente apunta lo suyo (entrenamientos, partidos, una operación, un viaje) y llega a su
+ *  calendario en la ficha (src/patientForm/calendarForm.ts). */
+export const CALENDAR_KIND = "calendario";
 /**
  * Firmar por enlace se retiró el 30-10-2026: la hoja de protección de datos («proteccion-datos») y los consentimientos
  * («consentimiento:<plantilla>») se firman en la clínica. Estos tipos quedan solo para leer lo firmado antes de esa
@@ -115,6 +118,7 @@ export const sendableKinds = () => [...SENDABLE, ...ownKinds()];
 /** «tu historia clínica» o «el cuestionario «X»», para el mensaje y la ficha. */
 export function formWhat(kind: string): string {
   if (kind === DOCS_KIND) return "tus informes o pruebas";
+  if (kind === CALENDAR_KIND) return "tu calendario (entrenamientos, partidos, una operación, una prueba médica o un viaje)";
   if (kind === PRIVACY_KIND) return "la hoja de protección de datos";
   if (isConsentKind(kind)) return "el consentimiento informado";
   return kind === ANAMNESIS_KIND ? "unas preguntas sobre tu salud para tu historia clínica" : `el cuestionario «${getKind(kind)?.name ?? kind}»`;
@@ -123,7 +127,9 @@ export function formWhat(kind: string): string {
 export const formTitle = (kind: string) =>
   kind === DOCS_KIND
     ? "Sus informes y pruebas"
-    : kind === ANAMNESIS_KIND
+    : kind === CALENDAR_KIND
+      ? "Su calendario (lo apunta él)"
+      : kind === ANAMNESIS_KIND
       ? "Anamnesis (su parte)"
       : kind === PRIVACY_KIND
         ? "Hoja de protección de datos (para firmar)"

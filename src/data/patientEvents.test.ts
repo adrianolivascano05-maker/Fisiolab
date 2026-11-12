@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Db } from "./db";
 import {
+  addPatientEventOnce,
   afterSurgeryText,
   agoText,
   checkEvent,
@@ -222,5 +223,15 @@ describe("tras la operación y en la lista de hoy", () => {
     expect([...map.keys()].sort()).toEqual([pid, other].sort());
     expect(map.get(other)![0]!.kind).toBe("travel");
     expect((await eventsOfPatients(db, [])).size).toBe(0);
+  });
+});
+
+describe("lo que manda el paciente por enlace", () => {
+  it("se apunta con su id una sola vez (una recogida repetida no lo duplica) y se sincroniza", async () => {
+    expect(await addPatientEventOnce(db, pid, input({ kind: "competition", title: "Partido" }), "form1.0")).toBe(true);
+    expect(await addPatientEventOnce(db, pid, input({ kind: "competition", title: "Partido" }), "form1.0")).toBe(false);
+    expect((await listPatientEvents(db, pid)).map((e) => e.id)).toEqual(["form1.0"]);
+    expect(await db.query("select op from sync_changes where tbl = 'patient_events' and pk = 'form1.0'")).toEqual([{ op: "upsert" }]);
+    await expect(addPatientEventOnce(db, pid, input({ startsOn: "x" }), "form1.1")).rejects.toThrow("Pon el día.");
   });
 });

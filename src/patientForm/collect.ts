@@ -18,7 +18,9 @@ import { isMetaKey } from "../clinical/anamnesis";
 import { getSnapshot } from "../data/anamnesisTemplates";
 import { buildForm, isOwnKind } from "../clinical/forms/own";
 import { getOwnForm, getOwnSnapshot } from "../data/ownForms";
-import { ANAMNESIS_KIND, RESPONDENTS, type Respondent, cleanFormAnswers, cleanFormTexts, DOCS_KIND, DOCS_PER_LINK, isSignKind, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
+import { cleanPatientEvents } from "./calendarForm";
+import { addPatientEventOnce } from "../data/patientEvents";
+import { ANAMNESIS_KIND, CALENDAR_KIND, RESPONDENTS, type Respondent, cleanFormAnswers, cleanFormTexts, DOCS_KIND, DOCS_PER_LINK, isSignKind, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
 
 /** Días que se guardan en el servidor unas respuestas de un envío que este dispositivo no conoce. */
 const ORPHAN_DAYS = 7;
@@ -32,7 +34,7 @@ export type FormsApi = {
 
 /** Lo que se ha puesto en la ficha: de quién, qué y cuántas respuestas no se pusieron porque ya había algo. `files`:
  * archivos que ha enviado. `refused`: firmó por un enlace de los que ya no se recogen; no se ha guardado nada. */
-export type Collected = { patientId: string; name: string; kind: string; skipped: number; incomplete: boolean; files?: number; refused?: boolean };
+export type Collected = { patientId: string; name: string; kind: string; skipped: number; incomplete: boolean; files?: number; refused?: boolean; events?: number };
 
 /**
  * Anula los enlaces de firma que sigan pendientes (ya no se recogen): en la ficha y, si hay conexión, en el servidor.
@@ -141,6 +143,17 @@ export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplat
       await markImported(db, f.id, { answeredAt: f.answeredAt, answers: { docs: kept }, skipped: [] });
       await api.remove(f.id);
       out.push({ patientId: sent.patientId, name: patient?.name ?? "", kind: sent.kind, skipped: 0, incomplete: false, files: kept.length });
+      continue;
+    }
+    if (sent.kind === CALENDAR_KIND) {
+      // «Tu calendario»: cada cosa que apuntó, limpia (como en la clínica) y con la marca de que la apuntó él; con un id
+      // fijo por envío, así una recogida repetida no la duplica. Lo que no vale se deja fuera.
+      const { events, dropped } = cleanPatientEvents(incoming);
+      let added = 0;
+      for (const [i, e] of events.entries()) if (await addPatientEventOnce(db, sent.patientId, e, `${f.id}.${i}`)) added++;
+      await markImported(db, f.id, { answeredAt: f.answeredAt, answers: { events: events.length, dropped }, skipped: [] });
+      await api.remove(f.id);
+      out.push({ patientId: sent.patientId, name: patient?.name ?? "", kind: sent.kind, skipped: 0, incomplete: dropped > 0, events: added });
       continue;
     }
     if (isSignKind(sent.kind)) {

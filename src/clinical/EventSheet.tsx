@@ -1,24 +1,18 @@
 // La hoja para apuntar o cambiar un evento del calendario del paciente (src/data/patientEvents.ts): qué es, cuándo (un
-// día, varios seguidos o cada semana unos días), a qué hora si la tiene y una nota. Al cambiar uno que se repite se
-// cambia la serie entera (es una sola cosa: «entrena martes y jueves»).
+// día, varios seguidos o cada semana unos días), a qué hora si la tiene y una nota (los campos, en EventFields.tsx).
+// Al cambiar uno que se repite se cambia la serie entera (es una sola cosa: «entrena martes y jueves»).
 import { Trash } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { bumpData } from "../app/dataVersion";
-import { todayDay } from "../app/dates";
 import { getDb } from "../data/db";
 import {
   dayLong,
   dayShort,
-  DEFAULT_EVENT_MINUTES,
   deletePatientEvent,
   endedBefore,
-  EVENT_KINDS,
-  EVENT_LIMITS,
   eventName,
   repeatText,
   savePatientEvent,
-  weekdayName,
-  weekdayOf,
   withDay,
   withoutDay,
   type EventInput,
@@ -27,23 +21,9 @@ import {
 } from "../data/patientEvents";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
-import { TextAreaField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
-import { Chips } from "./parts";
-
-type Span = "one" | "several" | "weekly";
-const SPANS: { id: Span; label: string }[] = [
-  { id: "one", label: "Un día" },
-  { id: "several", label: "Varios días" },
-  { id: "weekly", label: "Cada semana" },
-];
-const DURATIONS = [30, 60, 90, 120];
-const WEEK = [1, 2, 3, 4, 5, 6, 7];
-const short = (d: number) => weekdayName(d).slice(0, 3).replace(/^./, (c) => c.toUpperCase());
-
-/** Lo normal de cada tipo: un entrenamiento se repite cada semana; un viaje dura varios días; lo demás, un día. */
-const spanFor = (kind: EventKind | ""): Span => (kind === "training" ? "weekly" : kind === "travel" ? "several" : "one");
+import { draftError, draftInput, draftOf, EventFields, type EventDraft } from "./EventFields";
 
 export function EventSheet({
   open,
@@ -85,19 +65,7 @@ function EventForm({
   onDone: () => void;
 }) {
   const toast = useToast();
-  const startKind: EventKind | "" = event?.kind ?? preset?.kind ?? "";
-  const [kind, setKind] = useState<EventKind | "">(startKind);
-  const [title, setTitle] = useState(event?.title ?? "");
-  const [span, setSpan] = useState<Span>(event ? (event.repeatDays.length ? "weekly" : event.endsOn ? "several" : "one") : spanFor(startKind));
-  /** Si ya se ha elegido «Cuándo» a mano: entonces cambiar el tipo no lo toca. */
-  const [spanTouched, setSpanTouched] = useState(!!event);
-  const [startsOn, setStartsOn] = useState(event?.startsOn ?? day ?? todayDay());
-  const [endsOn, setEndsOn] = useState(event?.endsOn ?? "");
-  const [repeatDays, setRepeatDays] = useState<number[]>(event?.repeatDays ?? (spanFor(startKind) === "weekly" ? [weekdayOf(event?.startsOn ?? day ?? todayDay())] : []));
-  const [repeatUntil, setRepeatUntil] = useState(event?.repeatUntil ?? "");
-  const [time, setTime] = useState(event?.time ?? "");
-  const [minutes, setMinutes] = useState(event?.minutes ?? DEFAULT_EVENT_MINUTES);
-  const [notes, setNotes] = useState(event?.notes ?? "");
+  const [draft, setDraft] = useState<EventDraft>(() => draftOf(event, day, preset?.kind));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -106,34 +74,14 @@ function EventForm({
     if (confirming) confirmRef.current?.focus();
   }, [confirming]);
 
-  const hint = EVENT_KINDS.find((k) => k.id === kind)?.hint;
-  const durations = DURATIONS.includes(minutes) ? DURATIONS : [...DURATIONS, minutes].sort((a, b) => a - b);
-
   const save = async (e: FormEvent) => {
     e.preventDefault();
-    if (!kind) return setError("Elige qué es.");
-    if (span === "several" && !endsOn) return setError("Pon el último día.");
-    if (span === "weekly" && repeatDays.length === 0) return setError("Elige qué días de la semana.");
+    const missing = draftError(draft);
+    if (missing) return setError(missing);
     setBusy(true);
     setError(null);
     try {
-      await savePatientEvent(
-        getDb(),
-        patientId,
-        {
-          kind,
-          title,
-          startsOn,
-          endsOn: span === "several" ? endsOn : null,
-          time: time || null,
-          minutes: time ? minutes : null,
-          repeatDays: span === "weekly" ? repeatDays : [],
-          repeatUntil: span === "weekly" ? repeatUntil || null : null,
-          notes,
-          skipDays: event?.skipDays ?? [],
-        },
-        event?.id,
-      );
+      await savePatientEvent(getDb(), patientId, draftInput(draft, event?.skipDays ?? []), event?.id);
       bumpData("events");
       toast(event ? "Evento cambiado" : "Evento apuntado", "success");
       onDone();
@@ -209,75 +157,13 @@ function EventForm({
           </ul>
         </div>
       )}
-      <Chips
-        label="Qué es"
-        options={EVENT_KINDS.map((k) => k.id)}
-        render={(o) => EVENT_KINDS.find((k) => k.id === o)!.label}
-        value={kind ? [kind] : []}
-        onChange={(v) => {
-          const next = (v[0] as EventKind | undefined) ?? "";
-          setKind(next);
-          // Lo normal de cada tipo, mientras no se haya elegido «Cuándo» a mano.
-          if (!spanTouched) {
-            setSpan(spanFor(next));
-            if (spanFor(next) === "weekly" && repeatDays.length === 0 && startsOn) setRepeatDays([weekdayOf(startsOn)]);
-          }
+      <EventFields
+        value={draft}
+        onChange={(d) => {
+          setDraft(d);
           setError(null);
         }}
       />
-      <TextField label="Nombre (si quieres)" hint={hint} value={title} maxLength={EVENT_LIMITS.title} onChange={(e) => setTitle(e.target.value)} />
-      <Chips
-        label="Cuándo"
-        options={SPANS.map((s) => s.id)}
-        render={(o) => SPANS.find((s) => s.id === o)!.label}
-        value={[span]}
-        onChange={(v) => {
-          if (!v[0]) return;
-          const next = v[0] as Span;
-          setSpan(next);
-          setSpanTouched(true);
-          // Cada semana: de entrada, el día de la semana del día puesto.
-          if (next === "weekly" && repeatDays.length === 0 && startsOn) setRepeatDays([weekdayOf(startsOn)]);
-          setError(null);
-        }}
-      />
-      <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
-        <TextField
-          label={span === "one" ? "Día" : span === "several" ? "Primer día" : "Desde"}
-          type="date"
-          value={startsOn}
-          required
-          onChange={(e) => setStartsOn(e.target.value)}
-        />
-        {span === "several" && <TextField label="Último día" type="date" value={endsOn} min={startsOn} onChange={(e) => setEndsOn(e.target.value)} />}
-        {span === "weekly" && (
-          <TextField label="Hasta (si acaba)" type="date" value={repeatUntil} min={startsOn} hint="Sin fecha, sigue." onChange={(e) => setRepeatUntil(e.target.value)} />
-        )}
-      </div>
-      {span === "weekly" && (
-        <Chips
-          label="Qué días"
-          multiple
-          options={WEEK.map(String)}
-          render={(o) => short(Number(o))}
-          value={repeatDays.map(String)}
-          onChange={(v) => {
-            setRepeatDays(v.map(Number).sort((a, b) => a - b));
-            setError(null);
-          }}
-        />
-      )}
-      <TextField label="Hora (si la tiene)" type="time" value={time} hint="Sin hora, es de todo el día." onChange={(e) => setTime(e.target.value)} />
-      {time && (
-        <Chips
-          label="Cuánto dura"
-          options={durations.map(String)}
-          render={(o) => `${o} min`}
-          value={[String(minutes)]}
-          onChange={(v) => v[0] && setMinutes(Number(v[0]))}
-        />
-      )}
-      <TextAreaField label="Nota (si quieres)" rows={2} value={notes} maxLength={EVENT_LIMITS.notes} onChange={(e) => setNotes(e.target.value)} />
       {error && <Alert tone="danger" title={error} />}
       <Button type="submit" block loading={busy}>
         {event ? "Guardar el cambio" : "Apuntar"}
