@@ -1703,9 +1703,9 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
       return d.toISOString().slice(0, 10);
     };
 
-    // Desde su calendario: «Que lo apunte él desde su móvil» abre el envío con «Su calendario» elegido.
+    // Desde su calendario: «Que lo apunte desde su móvil» abre el envío con «Su calendario» elegido.
     await page.goto(`${pabloUrl}/calendario`);
-    await page.getByRole("link", { name: "Que lo apunte él desde su móvil" }).click();
+    await page.getByRole("link", { name: "Que lo apunte desde su móvil" }).click();
     const choose = page.getByRole("dialog", { name: "Enviar un formulario" });
     await expect(choose.getByLabel("Qué le mandas")).toHaveValue("calendario");
     await expect(choose).toContainText("Llega a su calendario en la ficha");

@@ -55,7 +55,7 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   citas por WhatsApp** (o por correo): el mensaje «Sus próximas citas» de Ajustes › Mensajes a pacientes con la lista
   de las siguientes (día y hora, y con quién en una clínica; como mucho diez). Solo con el permiso de contacto firmado;
   sin él, se dice por qué y se le dicen en la consulta.
-- **Que lo apunte él:** «Que lo apunte él desde su móvil» (en su calendario, o en Formularios › «Su calendario») crea
+- **Que lo apunte el paciente:** «Que lo apunte desde su móvil» (en su calendario, o en Formularios › «Su calendario») crea
   un enlace como los de la anamnesis: cifrado de extremo a extremo, sin cuenta, 14 días. En su móvil ve los mismos
   campos que en la clínica (con lo normal de cada tipo), la lista de lo que lleva apuntado (y «Quitar») y lo manda
   todo con «Enviar»; se guarda en su móvil hasta que lo envía. Como mucho 30 cosas de una vez. Al recogerlo, cada cosa

@@ -232,12 +232,12 @@ export function CalendarPage() {
               ))}
             </tbody>
           </table>
-          {/* Que lo apunte él desde su móvil (Formularios › «Su calendario»). */}
+          {/* Que lo apunte desde su móvil (Formularios › «Su calendario»). */}
           <Link
             to={`/pacientes/${id}/formularios?enviar=calendario`}
             className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-accent underline underline-offset-2"
           >
-            <Send aria-hidden="true" className="size-4" /> Que lo apunte él desde su móvil
+            <Send aria-hidden="true" className="size-4" /> Que lo apunte desde su móvil
           </Link>
           {(legend.length > 0 || hasBars) && (
             <ul aria-label="Leyenda" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
