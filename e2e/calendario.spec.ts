@@ -483,6 +483,11 @@ test.describe("Calendario del paciente", () => {
       await expect(list.getByRole("link", { name: /Olga Operada/ })).toBeVisible();
       await expect(page.getByRole("list", { name: "Filtros puestos" })).toContainText(option);
     }
+    // «Vuelven de viaje en los próximos 7 días»: Víctor (ha vuelto hoy) y Olga (vuelve dentro de 4 días).
+    await page.getByRole("button", { name: /^Filtros/ }).click();
+    await page.getByRole("dialog", { name: "Filtros" }).getByLabel("En su calendario").selectOption({ label: "Vuelven de viaje en los próximos 7 días" });
+    await page.getByRole("dialog", { name: "Filtros" }).getByRole("button", { name: "Ver 2 pacientes" }).click();
+    await expect(page.getByRole("list", { name: "Pacientes" }).getByRole("link")).toHaveCount(2);
     await fits(page);
 
     // Con una cita, Víctor deja de salir en Hoy.
@@ -496,5 +501,74 @@ test.describe("Calendario del paciente", () => {
     await page.goto("./agenda?vista=hoy");
     await expect(page.getByRole("region", { name: "Citas de hoy" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Sin cita al volver de viaje/ })).toHaveCount(0);
+  });
+
+  test("CA8 al arrastrar una cita en la Agenda a un rato cerrado y a un día con algo suyo, el aviso de «Deshacer» lo dice; «Se operan en los próximos 30 días»", async ({ page }) => {
+    const tomorrow = plus(madridDay(), 1);
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Dora Arrastre");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Dora Arrastre" })).toBeVisible();
+    const record = page.url();
+    const note = async (kind: string, day: string, title: string) => {
+      await page.goto(`${record}/calendario`);
+      await page.getByRole("button", { name: "Apuntar evento" }).click();
+      const sheet = page.getByRole("dialog", { name: "Apuntar evento" });
+      await sheet.getByText(kind, { exact: true }).click();
+      await sheet.getByLabel("Nombre (si quieres)").fill(title);
+      await sheet.getByLabel("Día", { exact: true }).fill(day);
+      await sheet.getByRole("button", { name: "Apuntar" }).click();
+      await expect(sheet).toBeHidden();
+    };
+    // Mañana tiene una resonancia (todo el día) y se opera dentro de 10 días.
+    await note("Prueba médica", tomorrow, "Resonancia de rodilla");
+    await note("Operación", plus(madridDay(), 10), "Menisco");
+    await page.goto(`${record}/calendario?mes=${tomorrow.slice(0, 7)}&dia=${tomorrow}`);
+    await page.getByRole("button", { name: "Dar cita a las 10:00" }).click();
+    const visit = page.getByRole("dialog", { name: "Dar cita a Dora Arrastre" });
+    await visit.getByRole("button", { name: "Dar la cita" }).click();
+    await visit.getByRole("button", { name: "Darla igualmente" }).click();
+    await expect(page.getByText("Cita dada")).toBeVisible();
+
+    // La agenda, cerrada mañana de 11:00 a 12:00 por formación.
+    await page.goto("./agenda");
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    await page.getByLabel("Ir a una fecha").fill(tomorrow);
+    await page.getByRole("button", { name: "Bloquear horas o días" }).click();
+    const block = page.getByRole("dialog", { name: "Bloquear horas o días" });
+    await block.getByLabel("Cuánto").selectOption("hours");
+    await block.getByLabel("Día", { exact: true }).fill(tomorrow);
+    await block.getByLabel("Desde", { exact: true }).fill("11:00");
+    await block.getByLabel("Hasta", { exact: true }).fill("12:00");
+    await block.getByLabel("Motivo").fill("Formación");
+    await block.getByRole("button", { name: "Bloquear sin citas" }).click();
+    await expect(block).toBeHidden();
+
+    // Arrastrar la cita una hora hacia abajo (56 px por hora): se mueve, y el aviso dice las dos cosas.
+    const event = page.getByRole("button", { name: /^Dora Arrastre\s*,\s*10:00–10:45/ });
+    await expect(event).toBeVisible();
+    await event.scrollIntoViewIfNeeded();
+    const box = (await event.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + 8);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2, box.y + 30, { steps: 4 });
+    await page.mouse.move(box.x + box.width / 2, box.y + 8 + 56, { steps: 6 });
+    await page.mouse.up();
+    await expect(page.getByRole("button", { name: /^Dora Arrastre\s*,\s*11:00–11:45/ })).toBeVisible();
+    const moved = page.getByRole("status").filter({ hasText: "Movida" });
+    await expect(moved).toContainText("Ese día tiene en su calendario: Resonancia de rodilla · La agenda está cerrada (Formación)");
+    await fits(page);
+    // «Deshacer», de 44 px aunque el aviso ocupe varias líneas.
+    expect((await moved.getByRole("button", { name: "Deshacer" }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await moved.getByRole("button", { name: "Deshacer" }).click();
+    await expect(page.getByRole("button", { name: /^Dora Arrastre\s*,\s*10:00–10:45/ })).toBeVisible();
+
+    // Pacientes › Filtros › «Se operan en los próximos 30 días»: sale Dora.
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Pacientes" }).click();
+    await page.getByRole("button", { name: /^Filtros/ }).click();
+    const filters = page.getByRole("dialog", { name: "Filtros" });
+    await filters.getByLabel("En su calendario").selectOption({ label: "Se operan en los próximos 30 días" });
+    await filters.getByRole("button", { name: "Ver 1 paciente" }).click();
+    await expect(page.getByRole("list", { name: "Pacientes" }).getByRole("link", { name: /Dora Arrastre/ })).toBeVisible();
   });
 });

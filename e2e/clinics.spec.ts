@@ -538,8 +538,19 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await give.getByLabel("Con quién").selectOption({ label: "bruno" });
     await give.getByRole("button", { name: "Dar la cita" }).click();
     await expect(give).toBeHidden();
+    // A las 16:00 Bruno ya no tiene turno: avisa antes de darla (y se puede dar igualmente).
+    await page.getByRole("button", { name: "Dar cita" }).click();
+    await give.getByLabel("Día y hora").fill(`${today}T16:00`);
+    await give.getByLabel("Con quién").selectOption({ label: "bruno" });
+    await give.getByRole("button", { name: "Dar la cita" }).click();
+    await expect(give.getByText("Ese rato bruno no tiene turno")).toBeVisible();
+    await expect(give.getByText(/16:00\. Cambia el día, la hora o con quién es, o dala igualmente\.$/)).toBeVisible();
+    await expect(give.getByRole("button", { name: "Darla igualmente" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(give).toBeHidden();
     await nav.getByRole("link", { name: "Agenda" }).click();
     await expect(page.getByRole("button", { name: /^Paciente Horario\s*,\s*10:00–10:45\s*,\s*con bruno/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Paciente Horario\s*,\s*16:00/ })).toHaveCount(0);
 
     // Bruno entra en su móvil: ve su turno y su cita, con su nombre de Google; sus turnos solo los pone él.
     const bruno = await device(browser, google, "bruno", errors);

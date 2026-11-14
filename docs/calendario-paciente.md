@@ -56,6 +56,15 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   entrena, para elegir uno libre. Una cita sola (o al cambiarla) en un día de viaje o en un rato con la agenda cerrada
   no se mueve: se avisa («Ese rato la agenda está cerrada: Festivo, el …») y se puede dar igualmente. Lo mismo al
   moverla a un toque (una hora, un día, una semana) y al darle otra después de «No vino».
+- **Fuera del turno de su fisio (en una clínica con turnos):** al dar una cita o una serie con alguien que tiene
+  turnos puestos esa semana, si alguna cae fuera de ellos se avisa antes de darlas («Ese rato Bruno no tiene turno» o
+  «En 2 de esas citas Bruno no tiene turno», con los días) y se pueden dar igualmente o cambiar la hora o con quién es.
+  Una semana sin ningún turno suyo no avisa (no se sabe su horario). Código: `outsideShifts` en
+  `src/data/seriesPlan.ts`.
+- **Al arrastrar una cita en la Agenda:** si a donde se lleva ese día tiene algo en su calendario (lo mismo que avisa al
+  dar cita) o la agenda está cerrada a esa hora, la cita se mueve igual y el aviso de «Movida · … · Deshacer» lo dice
+  en una segunda línea («Ese día tiene en su calendario: Resonancia de rodilla · La agenda está cerrada (Formación)»);
+  ese aviso dura 20 segundos en vez de 10 para leerlo y deshacer.
 - **Citas que caen en algo apuntado después:** al guardar un evento (un viaje, una operación, un partido a la hora de
   la cita…) que pisa citas pendientes que ya tenía, la hoja no se cierra: «Ya tiene 2 citas esos días», cada una a un
   toque para abrir su hoja (cambiarla o anularla), o «Dejarlas así». En su calendario, la fila de esa cita dice «Cae
@@ -91,8 +100,10 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   vuelve, en la bandeja de envíos con el mensaje «Al volver de un viaje» (editable en Ajustes › Mensajes a
   pacientes; solo con el permiso de contacto firmado; se puede apagar en la bandeja, «Qué se prepara»). En cuanto
   tiene una cita, deja de salir.
-- **En Pacientes, el filtro «En su calendario»:** «De viaje ahora», «Operados en el último año» (hasta hoy) y
-  «Compiten en los próximos 7 días» (cuenta lo de cada semana y los días quitados).
+- **En Pacientes, el filtro «En su calendario»:** «De viaje ahora», «Vuelven de viaje en los próximos 7 días» (el día
+  que vuelve es el siguiente al último del viaje: hoy o en los 6 días siguientes; los que ya volvieron hoy, también),
+  «Operados en el último año» (hasta hoy), «Se operan en los próximos 30 días» (desde mañana) y «Compiten en los
+  próximos 7 días» (cuenta lo de cada semana y los días quitados).
 - **En el Resumen** (tarjeta «Situación»): su última operación si fue hace menos de un año («hace 6 semanas y 2
   días»), un viaje en curso («hasta el …») y lo próximo de los dos meses siguientes (operación, consulta o prueba
   médica, competición o viaje; como mucho dos), cada uno con un enlace a ese día del calendario. Son fechas, sin
@@ -100,7 +111,9 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 - **Exportación:** pestaña «Calendario del paciente» en el Excel, sección «Su calendario» en la historia de cada
   paciente y la tabla tal cual en el JSON.
 - **Datos de ejemplo:** Lucía (una operación y una revisión), Marcos (entrenamientos martes y jueves y un partido) e
-  Irene (unas vacaciones).
+  Irene (unas vacaciones). La clínica de prueba (Ajustes › Clínica de prueba, `src/demo/README.md`) también trae
+  calendario: la operación del cruzado, entrenos y partidos de los deportistas, alguna operación en el próximo mes,
+  viajes y alguna prueba o consulta médica.
 
 ## Lo que no hace (a propósito)
 

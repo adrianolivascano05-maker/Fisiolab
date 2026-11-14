@@ -17,7 +17,8 @@ const steps: { title: string; body: ReactNode }[] = [
       <>
         Pulsa <b>+</b> arriba a la derecha para añadir uno (con el nombre basta). Arriba salen sus <b>próximas citas</b> y las reevaluaciones
         pendientes; debajo, todos por orden alfabético, de 50 en 50. Búscalos por nombre, teléfono o DNI, y con <b>Filtros</b> por edad, sexo,
-        fisio, si tienen cita, cuándo vinieron por última vez o si tienen algo pendiente de cobrar o de firmar. En una clínica con equipo,
+        fisio, si tienen cita, cuándo vinieron por última vez, si tienen algo pendiente de cobrar o de firmar, o por lo de su calendario (de
+        viaje ahora o volviendo esta semana, operados en el último año o que se operan este mes, con una competición cerca). En una clínica con equipo,
         el botón <b>Asignar fisio</b> de la cabecera de la ficha dice qué fisios lo llevan (uno o varios).
       </>
     ),
@@ -34,7 +35,8 @@ const steps: { title: string; body: ReactNode }[] = [
         relleno; lo de cada semana, uno hueco; un viaje, una franja. Desliza el dedo sobre el mes para cambiarlo. No ocupan la agenda ni se
         le recuerdan; al darle una cita ese día, la app te avisa. La última operación (hace cuánto) y lo próximo salen en el Resumen, al
         escribir la sesión (con «Apuntar en su calendario») y en Agenda › Hoy, bajo su nombre. Al darle una serie de citas, se saltan las
-        semanas en que está de viaje o la agenda está cerrada, y ves qué días entrena; si apuntas un viaje cuando ya tiene citas esos días,
+        semanas en que está de viaje o la agenda está cerrada, y ves qué días entrena (en una clínica, también te avisa si alguna cae fuera del
+        turno de su fisio); si apuntas un viaje cuando ya tiene citas esos días,
         la app te las enseña para cambiarlas o anularlas. Desde su calendario le mandas sus próximas citas por WhatsApp o correo (con el
         permiso de contacto firmado). Con «Que lo apunte desde su móvil», el paciente añade lo suyo por enlace (y ve sus próximas citas y lo
         que ya tiene apuntado) y llega a su calendario con la nota «Lo apuntó el paciente» (lo que ya estaba no se repite). <b>Editar</b>, arriba a la derecha.
@@ -123,7 +125,8 @@ const steps: { title: string; body: ReactNode }[] = [
         <b>Hoy</b> es el día en una lista: cada cita con <b>Atender</b> (apunta la sesión y vuelve aquí) y <b>Cobrar</b>; debajo, lo pendiente
         (reevaluaciones, lo que queda sin cobrar, quién tiene que firmar algo y quién vuelve de un viaje sin cita). <b>Día</b> y <b>Semana</b> son
         la rejilla: toca un hueco para dar una cita; una cita con <b>un calendario pequeño</b> junto al nombre es de alguien que está de viaje,
-        recién operado o con un partido cerca (lo dice al abrir la cita o al pasar el ratón). <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya
+        recién operado o con un partido cerca (lo dice al abrir la cita o al pasar el ratón). Si arrastras una cita a un día en que tiene algo
+        o a un rato con la agenda cerrada, se mueve igual y el aviso de «Deshacer» te lo dice. <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya
         escrito: los recordatorios de mañana, un mensaje para darle cita a quien vuelve de un viaje sin cita y, con el servidor de la clínica, la
         anamnesis 48 horas antes de la primera cita y los cuestionarios antes de reevaluar. Pulsa «Enviar uno tras otro» y manda cada WhatsApp con un
         toque. Lo que dice cada mensaje (y su firma) lo cambias en Ajustes → <b>Mensajes a pacientes</b>. Si alguien quiere venir antes, apúntalo en la <b>Lista de espera</b> con cuándo le viene bien (mañanas, tardes o unas horas, qué días, desde qué día puede y si es preferente): al anular una cita, la app te ofrece su hueco, y la lista se ordena y se filtra por todo eso a la vez. Desde cada paciente de la lista le escribes por WhatsApp, le das cita o entras en su ficha; con <b>«Tengo un hueco libre»</b> ves a quién le encaja un hueco que pongas tú. Para

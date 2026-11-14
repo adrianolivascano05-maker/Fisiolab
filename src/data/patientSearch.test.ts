@@ -202,5 +202,10 @@ describe("filtro por su calendario", () => {
     expect([...(await calendarPatients(db, "operados", NOW))]).toEqual([operado]);
     expect([...(await calendarPatients(db, "compiten", NOW))]).toEqual([liga]);
     expect(await names({ filters: only({ calendar: "viaje" }) })).toEqual(["Vera Viaje"]);
+    // Vera vuelve el 31 (dentro de 4 días); quien se opera dentro de 3 semanas, sí; el de hace un mes, no.
+    expect([...(await calendarPatients(db, "vuelven", NOW))]).toEqual([viaje]);
+    const pronto = await createPatient(db, person("Pablo Pronto"));
+    await savePatientEvent(db, pronto, ev({ kind: "surgery", startsOn: "2026-11-17" }));
+    expect([...(await calendarPatients(db, "seOperan", NOW))]).toEqual([pronto]);
   });
 });

@@ -33,6 +33,11 @@ volumen y ver cómo responde, y los borra de una vez.
   confirmadas.
 - La lista de espera, variada para ordenarla y filtrarla: días distintos esperando, algunos preferentes, con horas
   concretas o que aún no pueden venir.
+- Su calendario (pestaña Calendario de la ficha): la operación del cruzado unas semanas antes de empezar, los
+  entrenos de los deportistas (dos o tres tardes por semana) y, en algunos, un partido o una carrera; alguna
+  operación de hombro o de túnel carpiano en el próximo mes, viajes (de alguien que está fuera, que vuelve pronto o
+  que se va) y alguna prueba o consulta médica. Sale de otra serie de números al azar (`re`): con la misma semilla,
+  el resto de la clínica no cambia.
 
 ## Cuidados
 
@@ -49,5 +54,5 @@ volumen y ver cómo responde, y los borra de una vez.
   Google Calendar).
   Lo que se haya añadido a mano se queda. Si la carga falla a medias, se borra lo que ya estaba escrito.
 
-Pruebas: `generate.test.ts` (reparto, solapes, turnos, notas de los cuestionarios, CIF, banderas rojas, borrado
-completo) y `e2e/prueba.spec.ts` (cargar y borrar, 360 px y 44 px, tiempos con 500 pacientes, en el servidor).
+Pruebas: `generate.test.ts` (reparto, solapes, turnos, notas de los cuestionarios, CIF, banderas rojas, calendario,
+borrado completo) y `e2e/prueba.spec.ts` (cargar y borrar, 360 px y 44 px, tiempos con 500 pacientes, en el servidor).

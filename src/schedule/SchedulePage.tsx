@@ -4,7 +4,7 @@
 // equipo, solo sus citas) que a una clínica con mucha gente (filtro por persona). En una clínica va en la base
 // compartida: cada compañero ve los cambios de los demás en su dispositivo, solo.
 import { useTeamMode } from "../cloud/teamMode";
-import { CalendarClock, CalendarOff, ChevronLeft, ChevronRight, CopyPlus, Plus, Undo2 } from "lucide-react";
+import { CalendarClock, CalendarOff, ChevronLeft, ChevronRight, CopyPlus, Plus, TriangleAlert, Undo2 } from "lucide-react";
 import { useSearchParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { bumpData } from "../app/dataVersion";
@@ -17,7 +17,8 @@ import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { agenda, updateAppointment, type AgendaItem } from "../data/appointments";
 import { closuresBetween, type Closure } from "../data/closures";
 import { dayOf } from "../app/dates";
-import { dayNotes, eventsOfPatients } from "../data/patientEvents";
+import { dayNotes, eventName, eventsAtVisit, eventsOfPatients, listPatientEvents } from "../data/patientEvents";
+import { closedAt } from "../clinical/AppointmentForm";
 import { getDb } from "../data/db";
 import { copyWeekForward, shiftsBetween, staffColor, type Shift } from "../data/schedule";
 import { Button, IconButton } from "../ui/Button";
@@ -116,7 +117,8 @@ export function SchedulePage() {
   /** El cierre que se pone (con su día y, desde la columna de una persona, de quién) o el que se cambia. */
   const [closing, setClosing] = useState<{ closure: Closure | null; day: string; person?: string | null } | null>(null);
   const [managing, setManaging] = useState<AgendaItem | null>(null);
-  const [undo, setUndo] = useState<{ text: string; back: () => Promise<void> } | null>(null);
+  /** «Movida · …» con «Deshacer»; `warn`: si a donde se ha llevado cae en algo suyo o con la agenda cerrada. */
+  const [undo, setUndo] = useState<{ text: string; warn?: string; back: () => Promise<void> } | null>(null);
   const [copying, setCopying] = useState(false);
 
   const span = VIEWS.find((v) => v.id === view)!.days;
@@ -164,7 +166,8 @@ export function SchedulePage() {
   // El aviso de «Deshacer» se va solo.
   useEffect(() => {
     if (!undo) return;
-    const t = setTimeout(() => setUndo(null), 10_000);
+    // Con un aviso, más tiempo para leerlo.
+    const t = setTimeout(() => setUndo(null), undo.warn ? 20_000 : 10_000);
     return () => clearTimeout(t);
   }, [undo]);
 
@@ -205,8 +208,17 @@ export function SchedulePage() {
       await updateAppointment(getDb(), item.id, { startsAt, ...person });
       bumpData("appointments");
       const withWhom = "assignedTo" in person ? `, con ${staffName(staff, column.person ?? null)}` : "";
+      // Lo que se dice al dar o cambiar la cita en su hoja, aquí en el aviso de «Deshacer»: si ese día tiene algo en su
+      // calendario (un viaje, una prueba…) o la agenda está cerrada a esa hora.
+      const assigned = "assignedTo" in person ? (person.assignedTo ?? null) : (item.assignedTo ?? null);
+      const [evs, shut] = await Promise.all([listPatientEvents(getDb(), item.patientId), closedAt(startsAt, item.minutes, staff.length > 0, assigned)]);
+      const hits = [...new Set(eventsAtVisit(evs, startsAt, item.minutes).map((o) => eventName(o.event)))];
+      const warn = [hits.length ? `Ese día tiene en su calendario: ${hits.join(", ")}` : "", shut ? `La agenda está cerrada${shut.note ? ` (${shut.note})` : ""}` : ""]
+        .filter(Boolean)
+        .join(" · ");
       setUndo({
         text: `${item.name}: ${fmtVisit(startsAt)}${withWhom}`,
+        warn: warn || undefined,
         back: async () => {
           await updateAppointment(getDb(), item.id, before);
           bumpData("appointments");
@@ -360,7 +372,14 @@ export function SchedulePage() {
 
       {undo && (
         <div role="status" className="flex items-center justify-between gap-2 rounded-md bg-text px-3 py-2 text-sm text-bg">
-          <span className="min-w-0 truncate">Movida · {undo.text}</span>
+          <span className="flex min-w-0 flex-col">
+            <span className="min-w-0 truncate">Movida · {undo.text}</span>
+            {undo.warn && (
+              <span className="flex items-start gap-1 font-semibold">
+                <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" /> {undo.warn}
+              </span>
+            )}
+          </span>
           <button
             type="button"
             className="tap inline-flex shrink-0 items-center gap-1 rounded px-2 font-semibold underline-offset-2 hover:underline"

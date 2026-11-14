@@ -2,7 +2,9 @@
 // cerrada (src/data/closures.ts): las semanas en que está de viaje o la agenda está cerrada a esa hora (un festivo, unas
 // vacaciones de la clínica o de su fisio) se saltan, y la serie sigue después hasta tener las que se pidieron. Se dice
 // también qué días entrena, para elegir uno en que no. Sin base de datos: se prueba solo (seriesPlan.test.ts).
+import { addDays, dayOf } from "../app/dates";
 import type { Closure } from "./closures";
+import type { Shift } from "./schedule";
 import { eventsAtVisit, repeatText, weekdayName, type PatientEvent } from "./patientEvents";
 
 /** Lo más que se alarga una serie por los viajes: medio año de semanas más. */
@@ -31,6 +33,22 @@ const plusWeeks = (iso: string, weeks: number) => {
   d.setDate(d.getDate() + 7 * weeks);
   return d.toISOString();
 };
+
+/** El lunes de la semana de un día (AAAA-MM-DD). */
+const mondayOf = (day: string) => addDays(day, -((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7));
+
+/**
+ * Si una cita de `minutes` minutos a las `startsAt` con `email` cae fuera de sus turnos (src/data/schedule.ts). Solo en
+ * las semanas en que esa persona tiene algún turno puesto: una semana sin ninguno aún no está organizada y no se avisa.
+ */
+export function outsideShifts(shifts: readonly Pick<Shift, "staffEmail" | "startsAt" | "endsAt">[], email: string, startsAt: string, minutes: number): boolean {
+  const week = mondayOf(dayOf(startsAt));
+  const mine = shifts.filter((s) => s.staffEmail === email && mondayOf(dayOf(s.startsAt)) === week);
+  if (!mine.length) return false;
+  const start = Date.parse(startsAt);
+  const end = start + minutes * 60_000;
+  return !mine.some((s) => Date.parse(s.startsAt) <= start && Date.parse(s.endsAt) >= end);
+}
 
 /** Hasta dónde puede llegar una serie de `count` citas (para pedir los cierres de esas semanas). */
 export const seriesReach = (startsAt: string, count: number, minutes: number) => new Date(Date.parse(plusWeeks(startsAt, count + EXTRA_WEEKS)) + minutes * 60_000).toISOString();

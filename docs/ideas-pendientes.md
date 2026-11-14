@@ -1159,6 +1159,15 @@ cambios cuando los tengas»):
 - **No se hace, a propósito:** plazos o fases de recuperación tras una operación (sería una interpretación clínica) y
   recordatorios de sus entrenamientos (no es cosa de la clínica).
 
+Segunda propuesta del 14-11-2026 (otra vez «¿Qué más mejorarías del calendario?»; el usuario: «empieza y publica los
+cambios cuando los tengas»):
+- **Bloque 1, hecho:** (1) al arrastrar una cita en la Agenda a un día con algo suyo o a un rato con la agenda cerrada,
+  el aviso de «Deshacer» lo dice; (2) una cita o una serie fuera del turno de su fisio avisa antes de darla (en una
+  clínica con turnos); (3) dos filtros más en Pacientes: «Se operan en los próximos 30 días» y «Vuelven de viaje en
+  los próximos 7 días»; (4) la clínica de prueba trae eventos de calendario.
+- **Bloque 2, pendiente:** (6) hoja imprimible «Tus próximas citas» para dársela en papel.
+- **Solo si el usuario lo pide:** (5) que el paciente marque desde su enlace algo apuntado como «esto ya no».
+
 Dos mejoras del editor vistas al hacer las capturas de la fase 2, sin hacer (esperan su sí): el botón «⋯» se queda
 solo en una segunda línea cuando hay varias plantillas; y en «Mostrar solo si…», al elegir de qué pregunta depende,
 sale marcada la primera opción (mejor ninguna hasta que se elija).

@@ -16,6 +16,7 @@ import { addPayment, createPack, expiryOf, getPackPresets, getPricing, setPackPr
 import { saveAnamnesisOf, saveFinding, saveQuestionnaire, saveSession, type Answers } from "../data/clinical";
 import { saveSignedConsent } from "../data/consents";
 import { createClosure } from "../data/closures";
+import { savePatientEvent, type EventInput } from "../data/patientEvents";
 import type { Db } from "../data/db";
 import { createEpisode, updateEpisode } from "../data/episodes";
 import { memberKey } from "../data/member";
@@ -191,7 +192,10 @@ export async function generateDemo(
   if (state.patients > 0)
     throw new RangeError(`Esta clínica ya tiene ${state.patients === 1 ? "1 paciente" : `${state.patients} pacientes`}. Los datos de prueba solo se cargan en una clínica vacía, para no mezclarlos con pacientes de verdad.`);
 
-  const r = rng(opts.seed ?? Date.now());
+  const seed = opts.seed ?? Date.now();
+  const r = rng(seed);
+  // Lo de su calendario sale de otra serie de números: así, con la misma semilla, el resto de la clínica no cambia.
+  const re = rng(seed ^ 0x2545f491);
   const now = opts.now ?? new Date();
   const today = dayOfDate(now);
   // Historia: dos meses atrás; en el modo estrés, seis (más citas, sesiones y cobros que cargar).
@@ -571,6 +575,24 @@ export async function generateDemo(
         summary.sessions++;
       }
       if (k.sport && done.length) sportsPatients.push({ id: pid, sessions: [first.startsAt, ...(review ? [review.startsAt] : [])] });
+
+      // Su calendario: la operación del cruzado, entrenos y partidos de los deportistas, algún viaje, pruebas y consultas.
+      const events: (Pick<EventInput, "kind" | "title" | "startsOn"> & Partial<EventInput>)[] = [];
+      if (k.id === "lca") events.push({ kind: "surgery", title: `Ligamento cruzado, rodilla ${lado(true)}`, startsOn: addDays(startDay, -re.int(14, 42)) });
+      if (k.sport) {
+        events.push({ kind: "training", title: "Entrenamiento con su equipo", startsOn: from, time: re.pick(["19:00", "19:30", "20:00"]), minutes: 90, repeatDays: re.pick([[1, 3], [2, 4], [1, 3, 5]]) });
+        if (re.chance(0.6))
+          events.push({ kind: "competition", title: re.pick(["Partido de liga", "Carrera popular de 10 km", "Torneo de pádel"]), startsOn: addDays(today, re.int(0, 20)), time: "11:00", minutes: 120 });
+      }
+      if ((k.id === "hombro" || k.id === "tunel") && re.chance(0.15))
+        events.push({ kind: "surgery", title: k.id === "hombro" ? `Artroscopia de hombro ${lado()}` : `Túnel carpiano, mano ${lado(true)}`, startsOn: addDays(today, re.int(3, 30)) });
+      if (re.chance(0.08)) {
+        const start = addDays(today, re.int(-8, 25));
+        events.push({ kind: "travel", title: re.pick(["Vacaciones en el pueblo", "Viaje de trabajo", "Puente con la familia", ""]), startsOn: start, endsOn: addDays(start, re.int(2, 9)) });
+      }
+      if (re.chance(0.05)) events.push({ kind: "test", title: re.pick(["Resonancia magnética", "Ecografía", "Radiografía"]), startsOn: addDays(today, re.int(1, 30)), time: "09:30", minutes: 30 });
+      if (re.chance(0.04)) events.push({ kind: "medical", title: "Revisión con el traumatólogo", startsOn: addDays(today, re.int(2, 40)), time: "17:00", minutes: 20 });
+      for (const e of events) await savePatientEvent(db, pid, { endsOn: null, time: null, minutes: null, repeatDays: [], repeatUntil: null, notes: "", ...e });
 
       // Cobros: un bono al empezar o sesiones sueltas (algunas, sin cobrar todavía).
       const method = (): Method => r.pick(["tarjeta", "tarjeta", "bizum", "bizum", "efectivo", "efectivo", "transferencia"] as Method[]);

@@ -33,10 +33,12 @@ export const PENDINGS: { id: Pending; label: string }[] = [
 ];
 
 /** Por lo de su calendario (src/data/patientEvents.ts). */
-export type CalendarFilter = "viaje" | "operados" | "compiten";
+export type CalendarFilter = "viaje" | "vuelven" | "operados" | "seOperan" | "compiten";
 export const CALENDAR_FILTERS: { id: CalendarFilter; label: string }[] = [
   { id: "viaje", label: "De viaje ahora" },
+  { id: "vuelven", label: "Vuelven de viaje en los próximos 7 días" },
   { id: "operados", label: "Operados en el último año" },
+  { id: "seOperan", label: "Se operan en los próximos 30 días" },
   { id: "compiten", label: "Compiten en los próximos 7 días" },
 ];
 
@@ -218,15 +220,28 @@ export async function findPatients(db: Db, query: PatientQuery = {}): Promise<{ 
 }
 
 /**
- * Por lo de su calendario: de viaje hoy, operados en el último año (hasta hoy) o con una competición hoy o en los 6 días
- * siguientes. Cuenta lo que se repite y los días quitados, como su calendario.
+ * Por lo de su calendario: de viaje hoy; los que vuelven de un viaje (el día siguiente al último) hoy o en los 6 días
+ * siguientes; operados en el último año (hasta hoy); los que se operan en los próximos 30 días (desde mañana); o con
+ * una competición hoy o en los 6 días siguientes. Cuenta lo que se repite y los días quitados, como su calendario.
  */
 export async function calendarPatients(db: Db, what: CalendarFilter, now = new Date()): Promise<Set<string>> {
   const today = madridDay(now);
-  const kind = what === "viaje" ? "travel" : what === "operados" ? "surgery" : "competition";
-  const [from, to] = what === "viaje" ? [today, today] : what === "operados" ? [addDays(today, -365), today] : [today, addDays(today, 6)];
+  const kind = what === "viaje" || what === "vuelven" ? "travel" : what === "operados" || what === "seOperan" ? "surgery" : "competition";
   const rows = await db.query<Record<string, unknown>>("select * from patient_events where kind = ?", [kind]);
-  return new Set(occurrencesIn(rows.map(eventFromRow), from, to).map((o) => o.event.patientId));
+  const events = rows.map(eventFromRow);
+  if (what === "vuelven") {
+    // Lo de varios días que no se repite: el día que vuelve es el siguiente al último.
+    const last = addDays(today, 6);
+    return new Set(events.filter((e) => !e.repeatDays.length && addDays(e.endsOn ?? e.startsOn, 1) >= today && addDays(e.endsOn ?? e.startsOn, 1) <= last).map((e) => e.patientId));
+  }
+  const ranges: Record<Exclude<CalendarFilter, "vuelven">, [string, string]> = {
+    viaje: [today, today],
+    operados: [addDays(today, -365), today],
+    seOperan: [addDays(today, 1), addDays(today, 30)],
+    compiten: [today, addDays(today, 6)],
+  };
+  const [from, to] = ranges[what];
+  return new Set(occurrencesIn(events, from, to).map((o) => o.event.patientId));
 }
 
 /** Los que tienen algo pendiente de cobrar, de firmar o de cualquiera de las dos cosas. */

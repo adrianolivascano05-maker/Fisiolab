@@ -107,13 +107,17 @@ describe("clínica de prueba", () => {
     expect(await count(db, "select count(*) as n from payments")).toBeGreaterThan(100);
     expect(await count(db, "select count(*) as n from tests where category = 'rom'")).toBeGreaterThan(10);
     expect(await count(db, "select count(*) as n from episodes")).toBeGreaterThan(0);
+    // Su calendario: operaciones, entrenos de los deportistas, viajes…
+    expect(await count(db, "select count(*) as n from patient_events where kind = 'training' and repeat_days != ''")).toBeGreaterThan(0);
+    expect(await count(db, "select count(*) as n from patient_events where kind = 'surgery'")).toBeGreaterThan(0);
+    expect(await count(db, "select count(*) as n from patient_events where kind = 'travel'")).toBeGreaterThan(0);
     expect((await listPatients(db)).length).toBe(100);
 
     // No se carga dos veces, ni en una clínica con pacientes.
     await expect(generateDemo(db, { mode: "normal", now: NOW })).rejects.toThrow(/ya tiene los datos de prueba/);
 
     expect(await removeDemo(db)).toBe(100);
-    for (const t of ["patients", "appointments", "sessions", "findings", "questionnaires", "tests", "consents", "payments", "packs", "waitlist", "episodes", "shifts", "closures"])
+    for (const t of ["patients", "appointments", "sessions", "findings", "questionnaires", "tests", "consents", "payments", "packs", "waitlist", "episodes", "patient_events", "shifts", "closures"])
       expect(await count(db, `select count(*) as n from ${t}`), t).toBe(0);
     expect((await db.query<{ email: string }>("select email from staff")).map((x) => x.email)).toEqual([ME.email]);
     expect(await getPricing(db)).toEqual(before);

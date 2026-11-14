@@ -1,7 +1,7 @@
 // Una serie de citas que tiene en cuenta su calendario (seriesPlan.ts): se salta sus viajes y dice qué días entrena.
 import { describe, expect, it } from "vitest";
 import type { PatientEvent } from "./patientEvents";
-import { closureAt, planSeries, seriesReach, trainingWeek } from "./seriesPlan";
+import { closureAt, outsideShifts, planSeries, seriesReach, trainingWeek } from "./seriesPlan";
 
 const ev = (over: Partial<PatientEvent>): PatientEvent => ({
   id: "e",
@@ -64,6 +64,18 @@ describe("una serie de citas", () => {
     const plan = planSeries(start, 4, 45, [away]);
     expect(plan.starts).toEqual([]);
     expect(plan.skipped.length).toBe(30);
+  });
+});
+
+describe("los turnos de su fisio", () => {
+  // Martes 17 de noviembre de 2026 (Madrid): turno de mañana de 8:30 a 14:30.
+  const morning = { staffEmail: "laura@clinica.test", startsAt: "2026-11-17T07:30:00.000Z", endsAt: "2026-11-17T13:30:00.000Z" };
+  it("dentro del turno, no; fuera (otra hora u otro día de esa semana), sí; una semana sin turnos puestos, no se sabe", () => {
+    expect(outsideShifts([morning], "laura@clinica.test", start, 45)).toBe(false); // martes 10:00
+    expect(outsideShifts([morning], "laura@clinica.test", "2026-11-17T13:00:00.000Z", 45)).toBe(true); // se sale a las 14:45
+    expect(outsideShifts([morning], "laura@clinica.test", "2026-11-19T09:00:00.000Z", 45)).toBe(true); // jueves, sin turno
+    expect(outsideShifts([morning], "laura@clinica.test", "2026-11-24T09:00:00.000Z", 45)).toBe(false); // otra semana
+    expect(outsideShifts([morning], "bruno@clinica.test", "2026-11-19T09:00:00.000Z", 45)).toBe(false); // otra persona
   });
 });
 
