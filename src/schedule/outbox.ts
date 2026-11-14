@@ -9,6 +9,8 @@
 //   (o en cuanto se da la cita, si queda menos). Hace falta el servidor de la clínica.
 // - Seguimiento: antes de una reevaluación, los cuestionarios que rellenó al empezar, para ver cómo va. Hace falta el
 //   servidor de la clínica.
+// - Vuelta: el día que vuelve de un viaje apuntado en su calendario (y la semana siguiente), si estaba en tratamiento y
+//   no tiene cita (src/schedule/backFromTrip.ts): un mensaje para darle cita.
 import { mayMessage } from "../data/privacy";
 import type { BookingContact } from "../data/privacy";
 import { madridDay } from "../app/format";
@@ -16,19 +18,21 @@ import { ANAMNESIS_KIND, sendableKinds as sendableList } from "../clinical/patie
 import type { ReminderItem } from "../data/appointments";
 import type { OutboxMark } from "../data/outbox";
 import { dayText, firstName, hourText, messageText, type MessageSettings } from "../messages/templates";
+import { backText } from "./backFromTrip";
 
-export type OutboxRule = "recordatorio" | "anamnesis" | "seguimiento";
+export type OutboxRule = "recordatorio" | "anamnesis" | "seguimiento" | "vuelta";
 
 export const RULE_LABELS: Record<OutboxRule, { title: string; when: string }> = {
   recordatorio: { title: "Recordatorios de cita", when: "el día antes" },
   anamnesis: { title: "Anamnesis antes de la primera cita", when: "48 horas antes" },
   seguimiento: { title: "Cuestionarios antes de reevaluar", when: "antes de la reevaluación" },
+  vuelta: { title: "Vuelve de viaje sin cita", when: "al volver" },
 };
 
 /** Ajuste sincronizado: qué reglas están encendidas y con cuánta antelación. */
 export const OUTBOX_SETTINGS_KEY = "outbox_settings";
-export type OutboxSettings = { reminders: boolean; anamnesis: boolean; anamnesisHours: number; followUp: boolean; followUpDays: number };
-export const DEFAULT_OUTBOX: OutboxSettings = { reminders: true, anamnesis: true, anamnesisHours: 48, followUp: true, followUpDays: 2 };
+export type OutboxSettings = { reminders: boolean; anamnesis: boolean; anamnesisHours: number; followUp: boolean; followUpDays: number; backFromTrip: boolean };
+export const DEFAULT_OUTBOX: OutboxSettings = { reminders: true, anamnesis: true, anamnesisHours: 48, followUp: true, followUpDays: 2, backFromTrip: true };
 export const outboxSettings = (s: Partial<OutboxSettings> | null | undefined): OutboxSettings => ({ ...DEFAULT_OUTBOX, ...s });
 
 /** Un paciente, con lo que hace falta para escribirle. */
@@ -45,6 +49,8 @@ export type OutboxItem = Contact & {
   reviewOn?: string;
   /** Los cuestionarios que se mandan (seguimiento). */
   kinds?: string[];
+  /** El día que vuelve de viaje (vuelta). */
+  backOn?: string;
   /** Hace falta crear enlaces en el servidor de la clínica antes de mandarlo. */
   needsForms: boolean;
 };
@@ -68,6 +74,8 @@ export type OutboxInput = {
   /** Cuestionarios que la clínica puede mandar (los de licencia libre y los que tiene permiso). */
   sendable: Set<string>;
   marks: OutboxMark[];
+  /** Los que vuelven de un viaje sin cita (backFromTrip.ts), con su contacto; el id es el del viaje. */
+  backFromTrip?: (Contact & { eventId: string; back: string })[];
 };
 
 const DAY = 86_400_000;
@@ -136,14 +144,28 @@ export function buildOutbox(input: OutboxInput): OutboxItem[] {
     }
   }
 
-  const order: Record<OutboxRule, number> = { recordatorio: 0, anamnesis: 1, seguimiento: 2 };
-  const when = (i: OutboxItem) => i.appointment?.startsAt ?? `${i.reviewOn}T09:00:00`;
+  if (settings.backFromTrip) {
+    // Desde el día que vuelve (no antes: aún está fuera), una vez por viaje.
+    for (const b of input.backFromTrip ?? []) {
+      const id = `vuelta:${b.eventId}`;
+      if (b.back > today || done.has(id) || !mayMessage(b.contact)) continue;
+      out.push({ patientId: b.patientId, name: b.name, phone: b.phone, email: b.email, contact: b.contact, id, rule: "vuelta", backOn: b.back, needsForms: false });
+    }
+  }
+
+  const order: Record<OutboxRule, number> = { recordatorio: 0, anamnesis: 1, seguimiento: 2, vuelta: 3 };
+  const when = (i: OutboxItem) => i.appointment?.startsAt ?? `${i.reviewOn ?? i.backOn}T09:00:00`;
   return out.sort((a, b) => order[a.rule] - order[b.rule] || when(a).localeCompare(when(b)) || a.name.localeCompare(b.name, "es"));
 }
 
 /** El mensaje con el enlace de su anamnesis, antes de la primera cita. */
 export function anamnesisText(p: { name: string; clinic: string; startsAt: string; url: string }, s?: MessageSettings | null): string {
   return messageText("anamnesis", s, { nombre: firstName(p.name), dia: dayText(p.startsAt), hora: hourText(p.startsAt), clinica: p.clinic, enlace: p.url });
+}
+
+/** El mensaje al volver de un viaje sin cita. */
+export function backMessage(p: { name: string; clinic: string }, s?: MessageSettings | null): string {
+  return messageText("vuelta", s, { nombre: firstName(p.name), clinica: p.clinic });
 }
 
 /** El mensaje con los cuestionarios antes de reevaluar. */
@@ -157,10 +179,11 @@ export function followUpText(p: { name: string; clinic: string; reviewOn: string
   });
 }
 
-/** Lo que se cuenta de cada envío en la lista: a quién, de qué y cuándo. */
-export function itemWhen(i: OutboxItem): string {
+/** Lo que se cuenta de cada envío en la lista: a quién, de qué y cuándo (`today`: hoy en Madrid, para la vuelta). */
+export function itemWhen(i: OutboxItem, today = madridDay(new Date().toISOString())): string {
   if (i.appointment) return `${i.rule === "anamnesis" ? "Primera cita" : "Cita"}: ${dayText(i.appointment.startsAt)}, ${hourText(i.appointment.startsAt)}`;
   if (i.reviewOn) return `Reevaluación: ${new Date(`${i.reviewOn}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/Madrid" })}`;
+  if (i.backOn) return backText(i.backOn, today);
   return "";
 }
 

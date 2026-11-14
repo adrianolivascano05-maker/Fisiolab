@@ -6,6 +6,7 @@
 // se cambia la vista: juntándolos se ven más días; separándolos, menos, centrando el día que queda entre los dedos.
 // Tocar el nombre de un día lo abre solo; deslizar la fila de los días a un lado pasa a la semana (o los días)
 // siguiente o anterior.
+import { CalendarDays } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TouchList } from "react";
 import type { AgendaItem } from "../data/appointments";
 import type { Closure } from "../data/closures";
@@ -37,6 +38,7 @@ export function AgendaGrid({
   columns,
   header,
   appointments,
+  notes,
   shifts,
   closures = [],
   staff,
@@ -56,6 +58,8 @@ export function AgendaGrid({
   /** Lo que sale arriba de cada columna. */
   header: (c: Column) => { title: string; subtitle?: string; color?: string; today?: boolean };
   appointments: AgendaItem[];
+  /** Lo de su calendario (por cita): un viaje, una operación reciente, un partido cerca. Una marca en el bloque. */
+  notes?: Map<string, string>;
   shifts: Shift[];
   /** Ratos con la agenda cerrada: de toda la clínica en todas las columnas; de una persona, en la suya. */
   closures?: Closure[];
@@ -383,6 +387,7 @@ export function AgendaGrid({
                 <EventBlock
                   key={p.item.id}
                   item={p.item}
+                  note={notes?.get(p.item.id)}
                   staff={staff}
                   showPerson={showPerson}
                   moving={ghost?.id === p.item.id}
@@ -402,6 +407,7 @@ export function AgendaGrid({
               {dragged && ghost && (
                 <EventBlock
                   item={dragged}
+                  note={notes?.get(dragged.id)}
                   staff={staff}
                   showPerson={showPerson}
                   ghostTime={`${clock(ghost.minutes)}–${clock(ghost.minutes + dragged.minutes)}`}
@@ -423,6 +429,7 @@ export function AgendaGrid({
 
 function EventBlock({
   item,
+  note,
   staff,
   showPerson,
   ghostTime,
@@ -435,6 +442,8 @@ function EventBlock({
   onClick,
 }: {
   item: AgendaItem;
+  /** Lo de su calendario ese día («Viaje o vacaciones: hasta el 23 nov»). */
+  note?: string;
   staff: Staff[];
   showPerson: boolean;
   ghostTime?: string;
@@ -453,7 +462,7 @@ function EventBlock({
   const time = ghostTime ?? `${clock(startM)}–${clock(startM + item.minutes)}`;
   const off = item.status === "cancelled" || item.status === "no_show";
   const who = staff.length ? (item.assignedTo ? (person?.name ?? item.assignedTo) : "Sin asignar") : null;
-  const label = `${item.name}, ${time}${who ? `, con ${who}` : ""}, ${STATUS_LABELS[item.status]}`;
+  const label = `${item.name}, ${time}${who ? `, con ${who}` : ""}, ${STATUS_LABELS[item.status]}${note ? `. Su calendario: ${note}` : ""}`;
   return (
     <button
       type="button"
@@ -472,6 +481,7 @@ function EventBlock({
     >
       {/* En columnas estrechas (la semana en el móvil), el nombre corto: «Ana R.» en vez de «An…». */}
       <span className={cx("truncate font-semibold", off && "line-through")}>
+        {note && <CalendarDays aria-hidden="true" className="mr-0.5 inline size-3 align-[-2px] text-tingle" />}
         <span aria-hidden="true" className="@min-[6.5rem]:hidden">{shortName(item.name)} </span>
         <span className="sr-only @min-[6.5rem]:not-sr-only">{item.name}</span>
       </span>
@@ -481,6 +491,7 @@ function EventBlock({
       </span>
       {who && (showPerson ? <span className="truncate text-text-muted">, con {who}</span> : <span className="sr-only">, con {who}</span>)}
       <span className="sr-only">, {STATUS_LABELS[item.status]}</span>
+      {note && <span className="sr-only">. Su calendario: {note}</span>}
     </button>
   );
 }

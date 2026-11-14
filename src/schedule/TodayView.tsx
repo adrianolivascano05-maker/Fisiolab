@@ -1,10 +1,10 @@
 // Agenda › Hoy: el día de la consulta en una lista. Cada cita con su estado y, a la vista, «Atender» (apunta la
 // sesión y vuelve aquí) y «Cobrar»; tocar la cita abre su hoja de siempre (no vino, mover, anular, justificante,
 // WhatsApp, llamar). Debajo, lo pendiente de la clínica (solo si hay algo): reevaluaciones de hoy o atrasadas, lo que
-// queda sin cobrar y los pacientes de hoy a los que les falta firmar algo; después, las citas de mañana con sus
-// recordatorios y la lista de espera.
+// queda sin cobrar, los pacientes de hoy a los que les falta firmar algo y los que vuelven de un viaje sin cita
+// (backFromTrip.ts); después, las citas de mañana con sus recordatorios y la lista de espera.
 import { unsignedPatients } from "../data/patientSearch";
-import { CalendarCheck, CalendarDays, CalendarClock, CalendarX2, ChevronDown, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, UserRound, UserX, Wallet, BellRing, Send } from "lucide-react";
+import { CalendarCheck, CalendarDays, CalendarClock, CalendarX2, ChevronDown, ChevronRight, CircleCheck, FilePen, Hourglass, NotebookPen, Plane, UserRound, UserX, Wallet, BellRing, Send } from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -30,6 +30,7 @@ import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
 import { cx } from "../ui/cx";
 import { useOutboxCount } from "./useOutboxCount";
+import { backFromTrip, backText } from "./backFromTrip";
 import { eventNotes, eventsOfPatients } from "../data/patientEvents";
 
 /** «10:00», en la hora de Madrid. */
@@ -54,12 +55,13 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
   const tomorrow = addDays(today, 1);
   const data = useAsync(async () => {
     const db = getDb();
-    const [items, reviews, debtors, waiting, tomorrowItems] = await Promise.all([
+    const [items, reviews, debtors, waiting, tomorrowItems, back] = await Promise.all([
       agenda(db, dayStart(today), dayStart(tomorrow)),
       dueReviews(db, today),
       pendingAccounts(db, today),
       waitlistCount(db),
       remindersBetween(db, dayStart(tomorrow), dayStart(addDays(tomorrow, 1))),
+      backFromTrip(db, today),
     ]);
     const day = items.filter((a) => madridDay(a.startsAt) === today).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
     // Una sola consulta dice a quién le falta algo por firmar; el detalle (qué le falta) se mira solo de esos.
@@ -76,7 +78,7 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
         .map((pid) => [pid, eventNotes(events.get(pid) ?? [], today, { brief: true }).map((n) => n.text).join(" · ")] as const)
         .filter(([, text]) => text),
     );
-    return { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: tomorrowItems, calendar };
+    return { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: tomorrowItems, calendar, back };
   }, [version, today]);
   const [charging, setCharging] = useState<AgendaItem | null>(null);
   // Lo ya pasado (atendidas, no vino, anuladas) antes de la siguiente cita pendiente se pliega: la lista empieza en lo que toca.
@@ -100,7 +102,7 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
         <SkeletonList rows={2} />
       </div>
     );
-  const { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: next, calendar } = data.data;
+  const { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: next, calendar, back } = data.data;
   // Se pliegan las primeras ya pasadas: hasta la primera pendiente, la primera que aún no ha llegado o la primera de
   // alguien que debe algo (su «debe» y su Cobrar no se esconden).
   const nowIso = new Date().toISOString();
@@ -109,7 +111,7 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
   const folded = foldable >= FOLD_FROM && !showEarlier ? foldable : 0;
   const debt = debtors.reduce((n, d) => n + d.balanceCents, 0);
   const notReminded = next.filter((a) => !a.remindedAt && !a.confirmedAt).length;
-  const hasPending = reviews.length > 0 || debtors.length > 0 || unsigned.length > 0;
+  const hasPending = reviews.length > 0 || debtors.length > 0 || unsigned.length > 0 || back.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -168,6 +170,20 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
               subtitle={u.missing.join(" · ")}
             />
           ))}
+          {/* Vuelve de un viaje apuntado en su calendario y no tiene cita: a su calendario, el día que vuelve (o hoy). */}
+          {back.map((b) => {
+            const day = b.back > today ? b.back : today;
+            return (
+              <RowLink
+                key={b.patientId}
+                to={`/pacientes/${b.patientId}/calendario?mes=${day.slice(0, 7)}&dia=${day}`}
+                icon={Plane}
+                tone="warning"
+                title={`Vuelve de viaje sin cita: ${b.name}`}
+                subtitle={backText(b.back, today)}
+              />
+            );
+          })}
         </Group>
       )}
 

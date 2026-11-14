@@ -11,7 +11,7 @@ test.describe("Mensajes a pacientes", () => {
     // Sin «Documento para firmar por enlace»: la firma por enlace se retiró el 30-10-2026.
     // La hoja de ejercicios está oculta (src/app/features.ts): su mensaje, también.
     // Desde el 12-11-2026, también «Sus próximas citas» (Ficha › Calendario).
-    await expect(list.getByRole("button")).toHaveCount(8);
+    await expect(list.getByRole("button")).toHaveCount(9);
     await expect(list.getByRole("button", { name: /Sus próximas citas/ })).toHaveCount(1);
     await expect(list.getByRole("button", { name: /Documento para firmar por enlace/ })).toHaveCount(0);
     await expect(list.getByRole("button", { name: /Recordatorio de cita/ })).toHaveAttribute("aria-pressed", "true");

@@ -394,5 +394,106 @@ test.describe("Calendario del paciente", () => {
     await expect(page.getByText("Cae en: Viaje o vacaciones")).toBeVisible();
     await fits(page);
   });
-});
 
+  test("CA7 vuelve de viaje sin cita (Hoy y bandeja), la marca en la Agenda y los filtros de Pacientes", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    const today = madridDay();
+    const tomorrow = plus(today, 1);
+    const create = async (name: string) => {
+      await page.goto("./pacientes/nuevo");
+      await page.getByLabel("Nombre").fill(name);
+      await page.getByLabel("Teléfono").fill("600 111 222");
+      await page.getByRole("button", { name: "Crear paciente" }).click();
+      await expect(page.getByRole("heading", { name })).toBeVisible();
+      return page.url();
+    };
+    const note = async (record: string, kind: string, first: string, last?: string) => {
+      await page.goto(`${record}/calendario`);
+      await page.getByRole("button", { name: "Apuntar evento" }).click();
+      const sheet = page.getByRole("dialog", { name: "Apuntar evento" });
+      await sheet.getByText(kind, { exact: true }).click();
+      if (last) {
+        await sheet.getByLabel("Primer día").fill(first);
+        await sheet.getByLabel("Último día").fill(last);
+      } else await sheet.getByLabel("Día", { exact: true }).fill(first);
+      await sheet.getByRole("button", { name: "Apuntar" }).click();
+      await expect(sheet).toBeHidden();
+    };
+
+    // Víctor vino hace 12 días (una sesión) y se fue de viaje; vuelve hoy y no tiene cita.
+    const victor = await create("Víctor Vuelta");
+    await allowContact(page, "Víctor Vuelta");
+    await page.goto(`${victor}/sesiones/nueva`);
+    await page.getByLabel("Fecha y hora").fill(`${plus(today, -12)}T10:00`);
+    await page.getByLabel("Tratamiento", { exact: true }).fill("Movilidad");
+    await page.getByRole("button", { name: "Guardar sesión" }).click();
+    await expect(page.getByRole("listitem").filter({ hasText: "Sesión 1" })).toBeVisible();
+    await note(victor, "Viaje o vacaciones", plus(today, -6), plus(today, -1));
+
+    // Olga: operada hace 20 días, se va hoy de viaje y tiene cita mañana (dada igualmente).
+    const olga = await create("Olga Operada");
+    await note(olga, "Operación", plus(today, -20));
+    await note(olga, "Viaje o vacaciones", today, plus(today, 3));
+    await page.goto(`${olga}/calendario?mes=${tomorrow.slice(0, 7)}&dia=${tomorrow}`);
+    await page.getByRole("button", { name: "Dar cita a las 10:00" }).click();
+    const visit = page.getByRole("dialog", { name: "Dar cita a Olga Operada" });
+    await visit.getByRole("button", { name: "Dar la cita" }).click();
+    await visit.getByRole("button", { name: "Darla igualmente" }).click();
+    await expect(page.getByText("Cita dada")).toBeVisible();
+
+    // Agenda › Hoy › Pendiente: Víctor vuelve hoy sin cita; Olga, no (tiene cita).
+    await page.goto("./agenda?vista=hoy");
+    const back = page.getByRole("link", { name: /Vuelve de viaje sin cita: Víctor Vuelta/ });
+    await expect(back).toContainText("Vuelve hoy");
+    await expect(page.getByRole("link", { name: /Vuelve de viaje sin cita: Olga/ })).toHaveCount(0);
+    await fits(page);
+    expect(await smallTargets(page)).toEqual([]);
+
+    // La bandeja: el mensaje para darle cita (tiene el permiso de contacto firmado).
+    await page.goto("./agenda/envios");
+    await expect(page.getByText(/Vuelve de viaje sin cita · 1/)).toBeVisible();
+    await page.getByRole("button", { name: "Enviar", exact: true }).click();
+    await expect(page.getByLabel("Mensaje")).toContainText("Hola, Víctor. ¿Qué tal el viaje? Cuando quieras, te damos cita");
+    await page.keyboard.press("Escape");
+
+    // La Agenda, mañana: la cita de Olga lleva la marca de su calendario.
+    await page.goto("./agenda");
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    await page.getByLabel("Ir a una fecha").fill(tomorrow);
+    const block = page.getByRole("button", { name: /^Olga Operada\s*,.*\. Su calendario: .+/ });
+    await expect(block).toBeVisible();
+    await fits(page);
+    // En el móvil, al tocarla: en su hoja, bajo el día y la hora.
+    await block.click();
+    const sheet = page.getByRole("dialog", { name: "Cita de Olga Operada" });
+    await expect(sheet).toContainText(/Su calendario: .+/);
+    await page.keyboard.press("Escape");
+    await expect(sheet).toBeHidden();
+
+    // Pacientes: «De viaje ahora» y «Operados en el último año» sacan a Olga; Víctor ya ha vuelto.
+    await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Pacientes" }).click();
+    for (const option of ["De viaje ahora", "Operados en el último año"]) {
+      await page.getByRole("button", { name: /^Filtros/ }).click();
+      const filters = page.getByRole("dialog", { name: "Filtros" });
+      await filters.getByLabel("En su calendario").selectOption({ label: option });
+      await filters.getByRole("button", { name: "Ver 1 paciente" }).click();
+      const list = page.getByRole("list", { name: "Pacientes" });
+      await expect(list.getByRole("link")).toHaveCount(1);
+      await expect(list.getByRole("link", { name: /Olga Operada/ })).toBeVisible();
+      await expect(page.getByRole("list", { name: "Filtros puestos" })).toContainText(option);
+    }
+    await fits(page);
+
+    // Con una cita, Víctor deja de salir en Hoy.
+    await page.goto(`${victor}/calendario?mes=${tomorrow.slice(0, 7)}&dia=${tomorrow}`);
+    await page.getByRole("button", { name: "Dar cita a las 10:00" }).click();
+    // (A esa hora ya está la de Olga: la app avisa y se da igualmente.)
+    const victorVisit = page.getByRole("dialog", { name: "Dar cita a Víctor Vuelta" });
+    await victorVisit.getByRole("button", { name: "Dar la cita" }).click();
+    await victorVisit.getByRole("button", { name: "Darla igualmente" }).click();
+    await expect(page.getByText("Cita dada")).toBeVisible();
+    await page.goto("./agenda?vista=hoy");
+    await expect(page.getByRole("region", { name: "Citas de hoy" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Vuelve de viaje sin cita/ })).toHaveCount(0);
+  });
+});

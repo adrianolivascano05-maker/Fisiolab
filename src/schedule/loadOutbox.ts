@@ -4,6 +4,7 @@ import { remindersBetween } from "../data/appointments";
 import type { Db } from "../data/db";
 import { listOutboxMarks } from "../data/outbox";
 import { getSetting } from "../data/repo";
+import { backFromTrip } from "./backFromTrip";
 import { buildOutbox, OUTBOX_SETTINGS_KEY, outboxSettings, sendableKinds, type Contact, type OutboxItem, type OutboxSettings } from "./outbox";
 
 const contactOf = (privacy: string | null): boolean | null => {
@@ -27,7 +28,7 @@ export async function loadOutbox(db: Db, now = new Date()): Promise<{ items: Out
   // Lo más lejano que mira una regla: la anamnesis (hasta 72 horas antes); los recordatorios, mañana.
   const until = new Date(now.getTime() + Math.max(settings.anamnesisHours, 48) * 3_600_000).toISOString();
   const today = madridDay(iso);
-  const [upcoming, seen, withAnamnesis, forms, reviews, questionnaires, marks] = await Promise.all([
+  const [upcoming, seen, withAnamnesis, forms, reviews, questionnaires, marks, back] = await Promise.all([
     remindersBetween(db, iso, until),
     db.query<{ id: string }>(
       `select patient_id as id from sessions union select patient_id as id from appointments where status != 'cancelled' and starts_at < ?`,
@@ -44,6 +45,7 @@ export async function loadOutbox(db: Db, now = new Date()): Promise<{ items: Out
     ),
     db.query<{ patientId: string; kind: string; performedAt: string }>("select patient_id as patientId, kind, performed_at as performedAt from questionnaires"),
     listOutboxMarks(db, new Date(now.getTime() - 60 * 86_400_000).toISOString()),
+    settings.backFromTrip ? backFromTrip(db, today) : [],
   ]);
   const items = buildOutbox({
     now: iso,
@@ -56,6 +58,7 @@ export async function loadOutbox(db: Db, now = new Date()): Promise<{ items: Out
     questionnaires,
     sendable: sendableKinds(),
     marks,
+    backFromTrip: back.map((b) => ({ patientId: b.patientId, name: b.name, phone: b.phone, email: b.email, contact: contactOf(b.privacy), eventId: b.eventId, back: b.back })),
   });
   return { items, settings };
 }

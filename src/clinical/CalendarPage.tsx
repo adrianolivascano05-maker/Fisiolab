@@ -291,12 +291,12 @@ export function CalendarPage() {
 
         <section aria-labelledby="h-lista" className="flex flex-col gap-3">
           {filter !== "events" && away.length > 0 && (
-            <Alert tone="warning" title={awayTitle(away)}>
-              <div className="flex flex-col gap-2">
-                <p>{away.length === 1 ? "Tócala para cambiarla o anularla." : "Toca cada una para cambiarla o anularla."}</p>
-                <VisitList appointments={away.map((x) => x.appointment)} detail={(a) => hitNames(hitsOf.get(a.id) ?? [])} onVisit={(a) => setVisit({ appointment: a })} />
-              </div>
-            </Alert>
+            <div className="flex flex-col gap-2">
+              <Alert tone="warning" title={awayTitle(away)}>
+                {away.length === 1 ? "Tócala para cambiarla o anularla." : "Toca cada una para cambiarla o anularla."}
+              </Alert>
+              <VisitList appointments={away.map((x) => x.appointment)} detail={(a) => hitNames(hitsOf.get(a.id) ?? [])} onVisit={(a) => setVisit({ appointment: a })} />
+            </div>
           )}
           {filter !== "events" && upcoming.length > 0 && patient && (
             <div className="flex flex-col gap-2 rounded-md border border-border bg-bg p-3">

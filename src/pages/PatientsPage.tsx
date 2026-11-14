@@ -12,7 +12,20 @@ import { fmtVisit } from "../clinical/calendar";
 import { useDataVersion } from "../app/dataVersion";
 import { sexLabels } from "../clinical/pageKit";
 import { getDb } from "../data/db";
-import { activeFilters, findPatients, hasOwnPatients, LAST_VISITS, NO_FILTERS, PAGE_SIZE, pendingPatients, PENDINGS, type PatientFilters, type PatientHit } from "../data/patientSearch";
+import {
+  activeFilters,
+  CALENDAR_FILTERS,
+  calendarPatients,
+  findPatients,
+  hasOwnPatients,
+  LAST_VISITS,
+  NO_FILTERS,
+  PAGE_SIZE,
+  pendingPatients,
+  PENDINGS,
+  type PatientFilters,
+  type PatientHit,
+} from "../data/patientSearch";
 import { getSetting, QUICK_PATIENT, type Sex } from "../data/repo";
 import { agenda, type AgendaItem } from "../data/appointments";
 import { SEED_PREFIX } from "../data/seed";
@@ -76,11 +89,26 @@ function usePatientList() {
   }, [state.search]);
   // Lo pendiente de cobrar o de firmar se calcula una vez (y al cambiar los datos), no en cada página.
   const pending = useAsync(async () => (state.filters.pending ? pendingPatients(getDb(), state.filters.pending) : null), [state.filters.pending]);
-  const waiting = !!state.filters.pending && !pending.data;
+  // Lo mismo con el filtro de su calendario (de viaje, operados, compiten).
+  const calendar = useAsync(
+    async () => (state.filters.calendar ? { what: state.filters.calendar, ids: await calendarPatients(getDb(), state.filters.calendar) } : null),
+    [state.filters.calendar],
+  );
+  const calendarIds = calendar.data && calendar.data.what === state.filters.calendar ? calendar.data.ids : null;
+  const waiting = (!!state.filters.pending && !pending.data) || (!!state.filters.calendar && !calendarIds);
   const found = useAsync(
     async () =>
-      waiting ? undefined : findPatients(getDb(), { search: query, filters: state.filters, letter: state.letter, offset: state.page * PAGE_SIZE, pending: pending.data ?? undefined }),
-    [query, state.filters, state.letter, state.page, pending.data, waiting],
+      waiting
+        ? undefined
+        : findPatients(getDb(), {
+            search: query,
+            filters: state.filters,
+            letter: state.letter,
+            offset: state.page * PAGE_SIZE,
+            pending: pending.data ?? undefined,
+            calendar: calendarIds ?? undefined,
+          }),
+    [query, state.filters, state.letter, state.page, pending.data, calendarIds, waiting],
   );
   // Una página que se ha quedado vacía (se han borrado pacientes): a la primera.
   const empty = !!found.data && found.data.rows.length === 0 && state.page > 0;
@@ -159,6 +187,7 @@ function FilterChips({ list }: { list: PatientList }) {
   if (f.upcoming) chips.push({ label: "Con cita próxima", clear: { upcoming: false } });
   if (f.lastVisit) chips.push({ label: `Vino: ${LAST_VISITS.find((v) => v.id === f.lastVisit)!.label.toLowerCase()}`, clear: { lastVisit: null } });
   if (f.pending) chips.push({ label: `Pendiente ${PENDINGS.find((v) => v.id === f.pending)!.label.toLowerCase()}`, clear: { pending: null } });
+  if (f.calendar) chips.push({ label: CALENDAR_FILTERS.find((v) => v.id === f.calendar)!.label, clear: { calendar: null } });
   if (!chips.length) return null;
   return (
     <ul aria-label="Filtros puestos" className="flex flex-wrap gap-2">
@@ -221,6 +250,14 @@ function FiltersSheet({ open, onClose, list }: { open: boolean; onClose: () => v
       <SelectField label="Con algo pendiente" value={f.pending ?? ""} onChange={(e) => set({ pending: (e.target.value || null) as PatientFilters["pending"] })}>
         <option value="">No mirar</option>
         {PENDINGS.map((v) => (
+          <option key={v.id} value={v.id}>
+            {v.label}
+          </option>
+        ))}
+      </SelectField>
+      <SelectField label="En su calendario" value={f.calendar ?? ""} onChange={(e) => set({ calendar: (e.target.value || null) as PatientFilters["calendar"] })}>
+        <option value="">No mirar</option>
+        {CALENDAR_FILTERS.map((v) => (
           <option key={v.id} value={v.id}>
             {v.label}
           </option>

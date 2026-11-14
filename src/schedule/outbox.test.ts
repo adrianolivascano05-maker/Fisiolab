@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ReminderItem } from "../data/appointments";
-import { anamnesisText, buildOutbox, DEFAULT_OUTBOX, followUpText, type OutboxInput } from "./outbox";
+import { anamnesisText, backMessage, buildOutbox, DEFAULT_OUTBOX, followUpText, itemWhen, type OutboxInput } from "./outbox";
 
 // Martes 20 de octubre de 2026, 10:00 en Madrid.
 const NOW = "2026-10-20T08:00:00.000Z";
@@ -139,5 +139,21 @@ describe("bandeja: mensajes", () => {
     expect(t).toContain("Antes, rellena estos cuestionarios:");
     expect(t).toContain("NDI: https://x/1");
     expect(t).toContain("Oswestry: https://x/2");
+  });
+});
+
+describe("bandeja: vuelve de viaje sin cita", () => {
+  const back = (patientId: string, day: string, contact: boolean | null = true) => ({ patientId, name: `Paciente ${patientId}`, phone: "600111222", email: "", contact, eventId: `viaje-${patientId}`, back: day });
+  it("desde el día que vuelve, con el permiso firmado, una vez por viaje; se puede apagar", () => {
+    const list = [back("hoy", "2026-10-20"), back("antes", "2026-10-17"), back("manana", "2026-10-21"), back("sin-permiso", "2026-10-20", null)];
+    expect(ids(input({ backFromTrip: list }))).toEqual(["vuelta:viaje-antes", "vuelta:viaje-hoy"]);
+    expect(ids(input({ backFromTrip: list, marks: [{ id: "vuelta:viaje-hoy", patientId: "hoy", rule: "vuelta", status: "sent", at: NOW, by: "" }] }))).toEqual(["vuelta:viaje-antes"]);
+    expect(ids(input({ backFromTrip: list, settings: { ...DEFAULT_OUTBOX, backFromTrip: false } }))).toEqual([]);
+    const [item] = buildOutbox(input({ backFromTrip: [back("hoy", "2026-10-20")] }));
+    expect(itemWhen(item!, "2026-10-20")).toBe("Vuelve hoy");
+    expect(itemWhen(item!, "2026-10-22")).toBe("Volvió el martes, 20 de octubre");
+  });
+  it("el mensaje, con su nombre y la clínica", () => {
+    expect(backMessage({ name: "Ana Ruiz", clinic: "Fisiolab" })).toBe("Hola, Ana. ¿Qué tal el viaje? Cuando quieras, te damos cita para seguir con tu fisioterapia en Fisiolab.");
   });
 });

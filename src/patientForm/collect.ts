@@ -164,7 +164,11 @@ export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplat
       // fijo por envío, así una recogida repetida no la duplica. Lo que no vale se deja fuera, y lo que ya estaba
       // apuntado igual (en la clínica, en otro envío o dos veces en este) no se repite.
       const { events, dropped } = cleanPatientEvents(incoming);
-      const seen = new Set((await listPatientEvents(db, sent.patientId)).map(eventKey));
+      // Lo que ya está de este mismo envío (una recogida que se cortó y se repite) no cuenta como «ya estaba».
+      const mine = (id: string) => id.startsWith(`${f.id}.`);
+      const had = await listPatientEvents(db, sent.patientId);
+      const seen = new Set(had.filter((e) => !mine(e.id)).map(eventKey));
+      const already = new Set(had.filter((e) => mine(e.id)).map((e) => e.id));
       const addedIds = new Set<string>();
       let same = 0;
       for (const [i, e] of events.entries()) {
@@ -174,7 +178,8 @@ export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplat
           continue;
         }
         seen.add(key);
-        if (await addPatientEventOnce(db, sent.patientId, e, `${f.id}.${i}`)) addedIds.add(`${f.id}.${i}`);
+        const id = `${f.id}.${i}`;
+        if (already.has(id) || (await addPatientEventOnce(db, sent.patientId, e, id))) addedIds.add(id);
       }
       // Sus citas pendientes que caen en lo que acaba de apuntar (unas vacaciones): se avisa al recogerlo.
       const added = (await listPatientEvents(db, sent.patientId)).filter((e) => addedIds.has(e.id));

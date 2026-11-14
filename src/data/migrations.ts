@@ -39,6 +39,7 @@ import findingValue038 from "./migrations/038_finding_value.sql?raw";
 import patientEvents039 from "./migrations/039_patient_events.sql?raw";
 import eventSkipDays040 from "./migrations/040_event_skip_days.sql?raw";
 import calendarFormGate041 from "./migrations/041_calendar_form_gate.sql?raw";
+import backMessageGate042 from "./migrations/042_back_message_gate.sql?raw";
 import type { Migration } from "./engine";
 
 export const migrations: Migration[] = [
@@ -83,4 +84,5 @@ export const migrations: Migration[] = [
   { version: 39, sql: patientEvents039 },
   { version: 40, sql: eventSkipDays040 },
   { version: 41, sql: calendarFormGate041 },
+  { version: 42, sql: backMessageGate042 },
 ];

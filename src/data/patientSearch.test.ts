@@ -4,7 +4,8 @@ import { addPayment, setSessionPrice } from "./billing";
 import { getAnamnesis, saveAnamnesis, saveSession } from "./clinical";
 import { listConsents } from "./consents";
 import type { Db } from "./db";
-import { findPatients, hasOwnPatients, NO_FILTERS, unsignedPatients, type PatientFilters } from "./patientSearch";
+import { calendarPatients, findPatients, hasOwnPatients, NO_FILTERS, unsignedPatients, type PatientFilters } from "./patientSearch";
+import { savePatientEvent, type EventInput } from "./patientEvents";
 import { appointmentsByPhysio, patientPhysios, setPatientPhysios } from "./patientStaff";
 import { savePatientPrivacy } from "./privacy";
 import { createPatient, getPatient, listPatients, matchesPatient, QUICK_PATIENT, type PatientInput } from "./repo";
@@ -180,5 +181,26 @@ describe("buscar pacientes en la base", () => {
     expect(await hasOwnPatients(db, SEED_PREFIX, QUICK_PATIENT)).toBe(false);
     await createPatient(db, person("Lucía Pérez"));
     expect(await hasOwnPatients(db, SEED_PREFIX, QUICK_PATIENT)).toBe(true);
+  });
+});
+
+describe("filtro por su calendario", () => {
+  const ev = (over: Partial<EventInput>): EventInput => ({ kind: "other", title: "", startsOn: "2026-10-27", endsOn: null, time: null, minutes: null, repeatDays: [], repeatUntil: null, notes: "", ...over });
+  it("de viaje hoy, operados en el último año y los que compiten en los próximos 7 días (también lo de cada semana)", async () => {
+    const viaje = await createPatient(db, person("Vera Viaje"));
+    await savePatientEvent(db, viaje, ev({ kind: "travel", startsOn: "2026-10-25", endsOn: "2026-10-30" }));
+    const vuelto = await createPatient(db, person("Vuelto Ya"));
+    await savePatientEvent(db, vuelto, ev({ kind: "travel", startsOn: "2026-10-10", endsOn: "2026-10-20" }));
+    const operado = await createPatient(db, person("Óscar Operado"));
+    await savePatientEvent(db, operado, ev({ kind: "surgery", startsOn: "2026-03-01" }));
+    const antiguo = await createPatient(db, person("Operado Hace Mucho"));
+    await savePatientEvent(db, antiguo, ev({ kind: "surgery", startsOn: "2025-09-01" }));
+    const liga = await createPatient(db, person("Lola Liga"));
+    // Cada domingo; hoy es martes 27: el domingo 1 de noviembre cae en los próximos 7 días.
+    await savePatientEvent(db, liga, ev({ kind: "competition", startsOn: "2026-09-06", repeatDays: [7] }));
+    expect([...(await calendarPatients(db, "viaje", NOW))]).toEqual([viaje]);
+    expect([...(await calendarPatients(db, "operados", NOW))]).toEqual([operado]);
+    expect([...(await calendarPatients(db, "compiten", NOW))]).toEqual([liga]);
+    expect(await names({ filters: only({ calendar: "viaje" }) })).toEqual(["Vera Viaje"]);
   });
 });

@@ -1,6 +1,6 @@
 // Los mensajes que la app prepara para WhatsApp y correo (recordatorio, hueco libre, lista de espera, anamnesis,
-// cuestionarios antes de revisar, formulario por enlace, petición de informes y pruebas, hoja de ejercicios y sus
-// próximas citas). Cada clínica puede cambiar su texto y su asunto en
+// cuestionarios antes de revisar, formulario por enlace, petición de informes y pruebas, hoja de ejercicios, sus
+// próximas citas y al volver de un viaje). Cada clínica puede cambiar su texto y su asunto en
 // Ajustes › Mensajes a pacientes, y poner una firma común al final de todos. Las fichas como {nombre} o {dia} se
 // sustituyen al preparar cada mensaje. El ajuste va en la base de la clínica (cifrada y sincronizada). Nada se
 // envía solo: el mensaje se abre en el WhatsApp o el correo del dispositivo y lo manda la persona.
@@ -9,7 +9,7 @@ import { getSetting, setSetting } from "../data/repo";
 
 // «firma» (documento para firmar por enlace) se retiró el 30-10-2026; lo que una clínica guardó con ese nombre se
 // ignora y desaparece al volver a guardar (saveMessages solo recorre MESSAGES).
-export type MessageKind = "recordatorio" | "hueco" | "espera" | "anamnesis" | "seguimiento" | "formulario" | "archivos" | "ejercicios" | "citas";
+export type MessageKind = "recordatorio" | "hueco" | "espera" | "anamnesis" | "seguimiento" | "formulario" | "archivos" | "ejercicios" | "citas" | "vuelta";
 
 export type MessageSpec = {
   kind: MessageKind;
@@ -92,6 +92,14 @@ export const MESSAGES: MessageSpec[] = [
     where: "Ficha › Calendario, «Sus próximas citas» (debajo va la lista de sus citas, que no se edita)",
     text: "Hola, {nombre}. Tus próximas citas de fisioterapia en {clinica}:",
     subject: "Tus próximas citas en {clinica}",
+    vars: ["{nombre}", "{clinica}"],
+  },
+  {
+    kind: "vuelta",
+    label: "Al volver de un viaje",
+    where: "Bandeja de envíos, cuando vuelve de un viaje apuntado en su calendario y no tiene cita",
+    text: "Hola, {nombre}. ¿Qué tal el viaje? Cuando quieras, te damos cita para seguir con tu fisioterapia en {clinica}.",
+    subject: "Tu fisioterapia en {clinica}",
     vars: ["{nombre}", "{clinica}"],
   },
 ];

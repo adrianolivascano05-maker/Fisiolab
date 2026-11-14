@@ -2,7 +2,7 @@
 // email, notas, motivo y diagnóstico), con filtros (edad, sexo, fisio, cita próxima, cuándo vino por última vez, algo
 // pendiente de cobrar o de firmar) y por páginas. Con 10.000 pacientes, la lista trae solo los 50 que se ven.
 // Busca igual que matchesPatient (repo.ts): sin tildes ni mayúsculas, y un teléfono con o sin espacios.
-import { dayOf as madridDay } from "../app/dates";
+import { addDays, dayOf as madridDay } from "../app/dates";
 import { fold, phoneDigits } from "../app/format";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
@@ -11,6 +11,7 @@ import type { Answers } from "./clinical";
 import type { Db } from "./db";
 import { ALL } from "./episodes";
 import type { Patient, PatientSummary, Sex } from "./repo";
+import { eventFromRow, occurrencesIn } from "./patientEvents";
 
 /** Cuándo vino por última vez: en los últimos N días, hace más de N días o nunca. */
 export type LastVisit = "7" | "30" | "90" | "mas90" | "mas180" | "mas365" | "nunca";
@@ -31,6 +32,14 @@ export const PENDINGS: { id: Pending; label: string }[] = [
   { id: "firmar", label: "De firmar" },
 ];
 
+/** Por lo de su calendario (src/data/patientEvents.ts). */
+export type CalendarFilter = "viaje" | "operados" | "compiten";
+export const CALENDAR_FILTERS: { id: CalendarFilter; label: string }[] = [
+  { id: "viaje", label: "De viaje ahora" },
+  { id: "operados", label: "Operados en el último año" },
+  { id: "compiten", label: "Compiten en los próximos 7 días" },
+];
+
 export type PatientFilters = {
   ageFrom: number | null;
   ageTo: number | null;
@@ -44,12 +53,13 @@ export type PatientFilters = {
   upcoming: boolean;
   lastVisit: LastVisit | null;
   pending: Pending | null;
+  calendar: CalendarFilter | null;
 };
-export const NO_FILTERS: PatientFilters = { ageFrom: null, ageTo: null, sex: null, physio: null, upcoming: false, lastVisit: null, pending: null };
+export const NO_FILTERS: PatientFilters = { ageFrom: null, ageTo: null, sex: null, physio: null, upcoming: false, lastVisit: null, pending: null, calendar: null };
 
 /** Cuántos filtros hay puestos (para el botón «Filtros»). */
 export const activeFilters = (f: PatientFilters) =>
-  [f.ageFrom !== null || f.ageTo !== null, f.sex, f.physio, f.upcoming, f.lastVisit, f.pending].filter(Boolean).length;
+  [f.ageFrom !== null || f.ageTo !== null, f.sex, f.physio, f.upcoming, f.lastVisit, f.pending, f.calendar].filter(Boolean).length;
 
 /** Pacientes por página. */
 export const PAGE_SIZE = 50;
@@ -70,6 +80,8 @@ export type PatientQuery = {
    * calcularlo en cada página. Si no se dan, se calculan aquí.
    */
   pending?: Set<string>;
+  /** Igual, con el filtro de su calendario (calendarPatients). */
+  calendar?: Set<string>;
 };
 
 type Bind = string | number | null;
@@ -93,8 +105,11 @@ const SEARCH_TEXT = `concat_ws(' ', ${ROW_TEXT},
 /** AAAA-MM-DD de un instante en la hora de Madrid. */
 const daysAgo = (now: Date, n: number) => new Date(now.getTime() - n * 86_400_000).toISOString();
 
-/** Las condiciones de la búsqueda y los filtros, con sus valores. `pendingIds`: los que tienen algo pendiente. */
-function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "letter">>, now: Date, pendingIds: string[] | null) {
+/**
+ * Las condiciones de la búsqueda y los filtros, con sus valores. `pendingIds`: los que tienen algo pendiente;
+ * `calendarIds`: los que cumplen el filtro de su calendario.
+ */
+function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "letter">>, now: Date, pendingIds: string[] | null, calendarIds: string[] | null) {
   const where: string[] = [];
   const bind: Bind[] = [];
   const text = fold(q.search.trim());
@@ -163,6 +178,10 @@ function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "lette
     where.push("p.id in (select value from json_each(?))");
     bind.push(JSON.stringify(pendingIds));
   }
+  if (calendarIds) {
+    where.push("p.id in (select value from json_each(?))");
+    bind.push(JSON.stringify(calendarIds));
+  }
   return { sql: where.length ? `where ${where.join(" and ")}` : "", bind };
 }
 
@@ -171,7 +190,8 @@ export async function findPatients(db: Db, query: PatientQuery = {}): Promise<{ 
   const now = query.now ?? new Date();
   const filters = query.filters ?? NO_FILTERS;
   const pendingIds = filters.pending ? [...(query.pending ?? (await pendingPatients(db, filters.pending, now)))] : null;
-  const { sql, bind } = conditions({ search: query.search ?? "", filters, letter: query.letter ?? null }, now, pendingIds);
+  const calendarIds = filters.calendar ? [...(query.calendar ?? (await calendarPatients(db, filters.calendar, now)))] : null;
+  const { sql, bind } = conditions({ search: query.search ?? "", filters, letter: query.letter ?? null }, now, pendingIds, calendarIds);
   const limit = query.limit ?? PAGE_SIZE;
   const offset = query.offset ?? 0;
   // Una sola pasada: la página y, con ella, cuántos hay en total. Lo que cuesta (cuándo vino y su próxima cita), solo
@@ -195,6 +215,18 @@ export async function findPatients(db: Db, query: PatientQuery = {}): Promise<{ 
     }),
     total,
   };
+}
+
+/**
+ * Por lo de su calendario: de viaje hoy, operados en el último año (hasta hoy) o con una competición hoy o en los 6 días
+ * siguientes. Cuenta lo que se repite y los días quitados, como su calendario.
+ */
+export async function calendarPatients(db: Db, what: CalendarFilter, now = new Date()): Promise<Set<string>> {
+  const today = madridDay(now);
+  const kind = what === "viaje" ? "travel" : what === "operados" ? "surgery" : "competition";
+  const [from, to] = what === "viaje" ? [today, today] : what === "operados" ? [addDays(today, -365), today] : [today, addDays(today, 6)];
+  const rows = await db.query<Record<string, unknown>>("select * from patient_events where kind = ?", [kind]);
+  return new Set(occurrencesIn(rows.map(eventFromRow), from, to).map((o) => o.event.patientId));
 }
 
 /** Los que tienen algo pendiente de cobrar, de firmar o de cualquiera de las dos cosas. */

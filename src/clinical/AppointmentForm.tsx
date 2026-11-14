@@ -33,6 +33,12 @@ const skippedTitle = (s: Skipped[]) => `${s.length === 1 ? "Se salta una semana"
 const skippedLabel = (x: Skipped) => (x.event ? eventName(x.event) : `agenda cerrada${x.closure.note ? `: ${x.closure.note}` : ""}`);
 /** Los cierres que cuentan para una cita: los de toda la clínica y, en una clínica, los de con quién es. */
 const closuresFor = (all: Closure[], team: boolean, assignedTo: string) => all.filter((c) => closesFor(c, team ? assignedTo || null : null));
+
+/** Si una cita a esa hora cae en un rato con la agenda cerrada (de toda la clínica o de con quién es): el cierre. */
+export async function closedAt(startsAt: string, minutes: number, team: boolean, assignedTo: string | null): Promise<Closure | null> {
+  const end = new Date(Date.parse(startsAt) + minutes * 60_000).toISOString();
+  return closureAt(closuresFor(await closuresBetween(getDb(), startsAt, end), team, assignedTo ?? ""), startsAt, minutes);
+}
 /** «jue 12 nov». */
 const dayWithWeekday = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 /** Una serie de sesiones: cuántas citas, una por semana. */
@@ -154,7 +160,7 @@ export function useAppointmentForm({
     setBusyDay(null);
     setClosed(null);
   };
-  return { picked, setPicked, patientId, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, busyDay, setBusyDay, closed, clearWarnings, plan, training, save };
+  return { picked, setPicked, patientId, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, busyDay, setBusyDay, closed, setClosed, clearWarnings, plan, training, save };
 }
 
 export type AppointmentFormState = ReturnType<typeof useAppointmentForm>;
@@ -271,7 +277,7 @@ export function AppointmentForm({
       {closed && (
         <Alert tone="warning" title="Ese rato la agenda está cerrada">
           {closed.note || "Cerrada"}
-          {closed.staffEmail ? ` (${staffName(staff, closed.staffEmail)})` : ""}, {closureSpan(closed)}. Cambia el día o la hora{staff.length ? " o con quién es" : ""}, o dala igualmente.
+          {closed.staffEmail ? ` (${staffName(staff, closed.staffEmail)})` : ""}, {closureSpan(closed)}. Cambia el día o la hora{closed.staffEmail ? " o con quién es" : ""}, o dala igualmente.
         </Alert>
       )}
       {busyDay && (

@@ -18,6 +18,7 @@ import {
   eventsAtVisit,
   eventKey,
   eventTime,
+  dayNotes,
   visitsInEvents,
   listPatientEvents,
   occurrencesIn,
@@ -135,6 +136,12 @@ describe("al dar una cita", () => {
     expect(eventsAtVisit([training], "2026-11-12T11:00:00.000Z", 45)).toHaveLength(0);
     expect(eventsAtVisit([training], "2026-11-12T12:00:00.000Z", 45)).toHaveLength(0);
   });
+  it("un viaje de varios días con la hora de salida ocupa los días enteros", () => {
+    const trip = ev({ kind: "travel", startsOn: "2026-11-11", endsOn: "2026-11-14", time: "07:00", minutes: 60 });
+    expect(eventsAtVisit([trip], at10, 45)).toHaveLength(1);
+    // Un día con hora, solo si se pisa.
+    expect(eventsAtVisit([ev({ kind: "medical", startsOn: "2026-11-12", time: "07:00", minutes: 60 })], at10, 45)).toHaveLength(0);
+  });
 });
 
 describe("citas que ya tenía y caen en algo nuevo", () => {
@@ -153,6 +160,15 @@ describe("citas que ya tenía y caen en algo nuevo", () => {
       now,
     );
     expect(got.map((x) => [x.appointment.id, x.hits.map((h) => h.event.title)])).toEqual([["dentro", ["Roma"]]]);
+  });
+});
+
+describe("su línea el día de una cita", () => {
+  it("si la cita no es hoy, se dice que se cuenta desde el día de la cita", () => {
+    const match = ev({ kind: "competition", title: "Partido", startsOn: "2026-11-25" });
+    expect(dayNotes([match], "2026-11-24", "2026-11-24")).toBe("Partido: mañana");
+    expect(dayNotes([match], "2026-11-24", "2026-11-14")).toBe("El día de la cita: Partido: mañana");
+    expect(dayNotes([], "2026-11-24", "2026-11-14")).toBe("");
   });
 });
 

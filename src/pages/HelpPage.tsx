@@ -121,8 +121,10 @@ const steps: { title: string; body: ReactNode }[] = [
     body: (
       <>
         <b>Hoy</b> es el día en una lista: cada cita con <b>Atender</b> (apunta la sesión y vuelve aquí) y <b>Cobrar</b>; debajo, lo pendiente
-        (reevaluaciones, lo que queda sin cobrar y quién tiene que firmar algo). <b>Día</b> y <b>Semana</b> son la rejilla: toca un hueco para dar
-        una cita. <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya escrito: los recordatorios de mañana y, con el servidor de la clínica, la
+        (reevaluaciones, lo que queda sin cobrar, quién tiene que firmar algo y quién vuelve de un viaje sin cita). <b>Día</b> y <b>Semana</b> son
+        la rejilla: toca un hueco para dar una cita; una cita con <b>un calendario pequeño</b> junto al nombre es de alguien que está de viaje,
+        recién operado o con un partido cerca (lo dice al abrir la cita o al pasar el ratón). <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya
+        escrito: los recordatorios de mañana, un mensaje para darle cita a quien vuelve de un viaje sin cita y, con el servidor de la clínica, la
         anamnesis 48 horas antes de la primera cita y los cuestionarios antes de reevaluar. Pulsa «Enviar uno tras otro» y manda cada WhatsApp con un
         toque. Lo que dice cada mensaje (y su firma) lo cambias en Ajustes → <b>Mensajes a pacientes</b>. Si alguien quiere venir antes, apúntalo en la <b>Lista de espera</b> con cuándo le viene bien (mañanas, tardes o unas horas, qué días, desde qué día puede y si es preferente): al anular una cita, la app te ofrece su hueco, y la lista se ordena y se filtra por todo eso a la vez. Desde cada paciente de la lista le escribes por WhatsApp, le das cita o entras en su ficha; con <b>«Tengo un hueco libre»</b> ves a quién le encaja un hueco que pongas tú. Para
         marcar una tarde, un día o unas vacaciones sin citas, <b>Bloquear horas o días</b> (en la Agenda): sale rayado en la rejilla. Cada fisio

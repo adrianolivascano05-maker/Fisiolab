@@ -3,7 +3,7 @@
 // Google, el calendario se pone al día solo). En una clínica, también con quién es (el horario, src/schedule).
 // El formulario está en AppointmentForm.tsx y los paneles (recordar, cobrar, «No vino», hueco libre) en
 // appointmentPanels.tsx; aquí, el estado de la hoja y la vista de la cita.
-import { CalendarX2, ChevronDown, FileCheck, NotebookPen, Pencil, RotateCcw, Trash, UserRound, UserX, ChevronRight } from "lucide-react";
+import { CalendarDays, CalendarX2, ChevronDown, FileCheck, NotebookPen, Pencil, RotateCcw, Trash, UserRound, UserX, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { bumpData } from "../app/dataVersion";
@@ -15,7 +15,7 @@ import { clashes, deleteAppointment, STATUS_LABELS, updateAppointment, type Appo
 import { useAsync } from "../app/useAsync";
 import { getPricing, patientAccount } from "../data/billing";
 import { getDb } from "../data/db";
-import { eventsAtVisit, listPatientEvents } from "../data/patientEvents";
+import { dayNotes, eventsAtVisit, listPatientEvents } from "../data/patientEvents";
 import { getPatient } from "../data/repo";
 import { editText, lastEditOf } from "../data/editors";
 import { listWaitlist } from "../data/waitlist";
@@ -27,7 +27,7 @@ import { useToast } from "../ui/Toast";
 import { fmtVisit, visitEvent } from "./calendar";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { localInput, todayDay } from "./pageKit";
-import { AppointmentForm, useAppointmentForm } from "./AppointmentForm";
+import { AppointmentForm, closedAt, useAppointmentForm } from "./AppointmentForm";
 import { FreedSlotPanel, MissedPanel, PayPanel, ReminderActions, type FreedSlot } from "./appointmentPanels";
 
 export function AppointmentSheet({
@@ -71,12 +71,13 @@ export function AppointmentSheet({
   const extra = useAsync(async () => {
     if (!open || !appointment) return null;
     const db = getDb();
-    const [a, pricing, patient, clinic, messages] = await Promise.all([
+    const [a, pricing, patient, clinic, messages, events] = await Promise.all([
       patientAccount(db, appointment.patientId, todayDay()),
       getPricing(db),
       getPatient(db, appointment.patientId),
       getClinic(db),
       loadMessages(db),
+      listPatientEvents(db, appointment.patientId),
     ]);
     const vars = {
       name: patient?.name ?? "",
@@ -94,6 +95,11 @@ export function AppointmentSheet({
       event: patient ? visitEvent({ id: appointment.id, nextAt: appointment.startsAt, nextMinutes: appointment.minutes }, patient) : null,
       reminder: reminderMessage(messages, vars),
       subject: messageSubject("recordatorio", messages, appointmentVars(vars)),
+      /**
+       * Lo de su calendario el día de la cita (un viaje, una operación reciente, un partido cerca), como en Hoy. Si la
+       * cita no es hoy, «mañana» o «hace 3 semanas» se cuentan desde el día de la cita, y se dice.
+       */
+      calendar: dayNotes(events, madridDay(appointment.startsAt), todayDay()),
     };
   }, [open, appointment?.id, appointment?.startsAt]);
   /** Anular o borrar: primero se pregunta. */
@@ -190,11 +196,14 @@ export function AppointmentSheet({
     const found = await clashes(getDb(), d.toISOString(), a.minutes, staff.length ? (a.assignedTo ?? null) : undefined, a.id);
     // Y si ese día el paciente tiene algo en su calendario (src/data/patientEvents.ts), también se avisa.
     const his = eventsAtVisit(await listPatientEvents(getDb(), a.patientId), d.toISOString(), a.minutes);
-    if (found.length || his.length) {
+    // Y si a esa hora la agenda está cerrada (un festivo, unas vacaciones).
+    const shut = await closedAt(d.toISOString(), a.minutes, staff.length > 0, a.assignedTo ?? null);
+    if (found.length || his.length || shut) {
       setEditing(true);
       form.setWhen(localInput(d.toISOString()));
       form.setClash(found.length ? found : null);
       form.setBusyDay(his.length ? his : null);
+      form.setClosed(shut);
       return;
     }
     return run(() => updateAppointment(getDb(), a.id, { startsAt: d.toISOString() }), `Cita movida ${label}: ${fmtVisit(d.toISOString())}`);
@@ -221,6 +230,15 @@ export function AppointmentSheet({
               ) : (
                 <span className="rounded-full bg-accent-soft px-2 py-0.5">Recordada el {fmtVisit(appointment.remindedAt!)}</span>
               )}
+            </p>
+          )}
+          {extra.data?.calendar && (
+            <p className="flex items-start gap-2 text-sm">
+              <CalendarDays aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-tingle" />
+              <span>
+                <span className="sr-only">Su calendario: </span>
+                {extra.data.calendar}
+              </span>
             </p>
           )}
           {lastEdit && <p className="text-xs text-text-muted">Última modificación: {editText(lastEdit)}</p>}

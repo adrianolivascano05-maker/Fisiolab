@@ -37,7 +37,8 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 ## Con el resto de la app
 
 - **Al dar o mover una cita** (desde la ficha, el calendario o la agenda) se avisa si ese día el paciente tiene algo:
-  lo de todo el día (una operación, un viaje, una prueba…) o lo que se pisa con la hora de la cita. Los
+  lo de todo el día (una operación, un viaje, una prueba…) o lo que se pisa con la hora de la cita. Lo de varios días
+  seguidos (un viaje) ocupa los días enteros aunque lleve una hora (la de salida). Los
   entrenamientos sin hora no avisan (serían casi todos los días). El aviso no impide nada: «Darla igualmente».
 - **Desde la sesión y la anamnesis:** al escribir la sesión, arriba, lo de su calendario contado desde el día de la
   sesión («Ligamento cruzado: hace 4 semanas y 2 días · Partido: en 3 días») y **Apuntar en su calendario**; en la
@@ -53,7 +54,8 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   año más) y la hoja lo dice antes de darlas («La semana del 24 nov (Vacaciones) · La semana del 8 dic (agenda
   cerrada: Festivo). La última cita, el …»). Bajo «Día y hora», sus entrenamientos de cada semana y los días en que no
   entrena, para elegir uno libre. Una cita sola (o al cambiarla) en un día de viaje o en un rato con la agenda cerrada
-  no se mueve: se avisa («Ese rato la agenda está cerrada: Festivo, el …») y se puede dar igualmente.
+  no se mueve: se avisa («Ese rato la agenda está cerrada: Festivo, el …») y se puede dar igualmente. Lo mismo al
+  moverla a un toque (una hora, un día, una semana) y al darle otra después de «No vino».
 - **Citas que caen en algo apuntado después:** al guardar un evento (un viaje, una operación, un partido a la hora de
   la cita…) que pisa citas pendientes que ya tenía, la hoja no se cierra: «Ya tiene 2 citas esos días», cada una a un
   toque para abrir su hoja (cambiarla o anularla), o «Dejarlas así». En su calendario, la fila de esa cita dice «Cae
@@ -73,6 +75,20 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   clínica, en otro envío o dos veces en este, no se repite. El aviso al recogerlo lo dice («Nora ha apuntado 1 cosa en
   su calendario (1 ya estaba). Una de sus citas cae ahí: míralo en su calendario»). En Formularios: «Apuntó N cosas
   (M ya estaban): ver su calendario».
+- **En la Agenda (Día y Semana):** la cita de alguien que ese día está de viaje, se operó hace poco o tiene algo cerca
+  (lo mismo que su línea en Hoy) lleva un calendario pequeño junto al nombre; el texto sale al abrir la cita (en su
+  hoja, bajo el día y la hora), al pasar el ratón y lo lee el lector de pantalla («Su calendario: …»). Si la cita no es
+  hoy, «mañana» o «hace 3 semanas» se cuentan desde el día de la cita, y lo dice: «El día de la cita: Partido: mañana».
+- **Vuelve de viaje sin cita** (`src/schedule/backFromTrip.ts`): quien estaba en tratamiento (vino, con cita o sesión,
+  en los 60 días antes de irse, y no tiene todos sus motivos de consulta dados de alta) y vuelve de un viaje apuntado
+  en su calendario sin haber venido desde que se fue (una cita atendida o una sesión) ni tener una cita pendiente desde
+  el día que vuelve. Las citas que se quedaron dentro del viaje («No vino» o pendientes sin tocar) no cuentan. Sale en Agenda › Hoy › Pendiente desde dos días antes de volver hasta una semana después («Vuelve hoy»,
+  «Volvió el lunes, 16 de noviembre»), con el enlace a su calendario ese día para darle cita; y, desde el día que
+  vuelve, en la bandeja de envíos con el mensaje «Al volver de un viaje» (editable en Ajustes › Mensajes a
+  pacientes; solo con el permiso de contacto firmado; se puede apagar en la bandeja, «Qué se prepara»). En cuanto
+  tiene una cita, deja de salir.
+- **En Pacientes, el filtro «En su calendario»:** «De viaje ahora», «Operados en el último año» (hasta hoy) y
+  «Compiten en los próximos 7 días» (cuenta lo de cada semana y los días quitados).
 - **En el Resumen** (tarjeta «Situación»): su última operación si fue hace menos de un año («hace 6 semanas y 2
   días»), un viaje en curso («hasta el …») y lo próximo de los dos meses siguientes (operación, consulta o prueba
   médica, competición o viaje; como mucho dos), cada uno con un enlace a ese día del calendario. Son fechas, sin
@@ -93,6 +109,8 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 
 ## Por dentro
 
+- Migración 042: tampoco cambia ninguna tabla; sube la versión de la base porque hay un mensaje nuevo («Al volver de
+  un viaje»): una versión anterior, al guardar sus mensajes, borraría el texto que la clínica le hubiera puesto.
 - Migración 041: no cambia ninguna tabla; sube la versión de la base (ver arriba, «Su calendario» y versiones
   anteriores).
 - Migración 040: `skip_days` (los días quitados de una serie, «AAAA-MM-DD,…»), sincronizado campo a campo.
@@ -109,11 +127,11 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   `src/patientForm/calendarForm.ts` y `CalendarFill.tsx` («Tu calendario» por enlace; la recogida, en `collect.ts`),
   `src/clinical/patientCalendar.ts` (qué sale cada día y en la lista del mes), `CalendarPage.tsx`, `EventSheet.tsx`.
 - Pruebas: `src/data/patientEvents.test.ts`, `src/clinical/patientCalendar.test.ts`, `e2e/calendario.spec.ts`
-  (CA1 a CA6, a 360 px), `src/data/closures.test.ts`, CL23 en `e2e/clinics.spec.ts` (el enlace, en un móvil de 360 px), `src/data/seriesPlan.test.ts`,
+  (CA1 a CA7, a 360 px), `src/data/closures.test.ts`, `src/schedule/backFromTrip.test.ts`, `src/schedule/outbox.test.ts`,
+  `src/data/patientSearch.test.ts`, CL23 en `e2e/clinics.spec.ts` (el enlace, en un móvil de 360 px), `src/data/seriesPlan.test.ts`,
   `src/schedule/upcoming.test.ts`, `src/patientForm/calendarForm.test.ts`, `collect.test.ts` y la exportación en
   `src/export/fullExport.test.ts`.
 
 ## Ideas para más adelante (sin hacer)
 
-- Una marca discreta en la rejilla de la agenda los días en que el paciente tiene una operación o un viaje (en Hoy ya
-  sale su línea).
+- Que el paciente vea en su enlace lo que ya tiene apuntado (en curso).

@@ -265,7 +265,8 @@ const minutesOf = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.
 
 /**
  * Los eventos de un paciente que coinciden con una cita (`startsAt`, `minutes`): los de ese día sin hora y los que se
- * pisan con ella. Los entrenamientos sin hora no avisan (serían casi todos los días); con hora, solo si se pisan.
+ * pisan con ella. Los entrenamientos sin hora no avisan (serían casi todos los días); con hora, solo si se pisan. Lo de
+ * varios días seguidos (un viaje, aunque lleve la hora de salida) ocupa los días enteros.
  */
 export function eventsAtVisit(events: PatientEvent[], startsAt: string, minutes: number): Occurrence[] {
   const day = dayOf(startsAt);
@@ -273,9 +274,21 @@ export function eventsAtVisit(events: PatientEvent[], startsAt: string, minutes:
   const end = start + minutes;
   return occurrencesIn(events, day, day).filter(({ event }) => {
     if (event.time === null) return event.kind !== "training";
+    if (event.endsOn && event.endsOn !== event.startsOn) return true;
     const s = minutesOf(event.time);
     return s < end && s + (event.minutes ?? DEFAULT_EVENT_MINUTES) > start;
   });
+}
+
+/**
+ * Lo de su calendario el día de una cita, en una línea corta («Menisco: hace 4 semanas · Partido: mañana»). Si la cita
+ * no es hoy, lo relativo se cuenta desde ese día: se dice al principio («El día de la cita: …»). Vacío si no hay nada.
+ */
+export function dayNotes(events: PatientEvent[], day: string, today: string): string {
+  const text = eventNotes(events, day, { brief: true })
+    .map((n) => n.text)
+    .join(" · ");
+  return text && day !== today ? `El día de la cita: ${text}` : text;
 }
 
 /** Lo que hace que no pueda venir: un viaje o una operación (de una cita en esos días se avisa siempre, a la vista). */

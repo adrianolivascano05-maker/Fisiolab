@@ -16,6 +16,8 @@ import { addDays, localInput, todayDay } from "../clinical/pageKit";
 import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { agenda, updateAppointment, type AgendaItem } from "../data/appointments";
 import { closuresBetween, type Closure } from "../data/closures";
+import { dayOf } from "../app/dates";
+import { dayNotes, eventsOfPatients } from "../data/patientEvents";
 import { getDb } from "../data/db";
 import { copyWeekForward, shiftsBetween, staffColor, type Shift } from "../data/schedule";
 import { Button, IconButton } from "../ui/Button";
@@ -125,10 +127,20 @@ export function SchedulePage() {
   const data = useAsync(
     async () => {
       const [shifts, appointments, closures] = await Promise.all([shiftsBetween(getDb(), from, to), agenda(getDb(), from, to), closuresBetween(getDb(), from, to)]);
-      return { shifts, appointments, closures };
+      // Lo de su calendario el día de cada cita (una consulta para todos): un viaje, una operación reciente, un partido
+      // cerca. En el bloque de la cita, una marca; en su nombre para el lector de pantalla y al pasar el ratón, el texto.
+      const events = await eventsOfPatients(getDb(), [...new Set(appointments.map((a) => a.patientId))]);
+      const notes = new Map<string, string>();
+      const today = todayDay();
+      for (const a of appointments) {
+        if (a.status === "cancelled") continue;
+        const text = dayNotes(events.get(a.patientId) ?? [], dayOf(a.startsAt), today);
+        if (text) notes.set(a.id, text);
+      }
+      return { shifts, appointments, closures, notes };
     },
     [from, to],
-    { tables: ["appointments", "patients", "schedule", "sessions", "waitlist"] },
+    { tables: ["appointments", "patients", "schedule", "sessions", "waitlist", "events"] },
   );
 
   useEffect(() => {
@@ -367,6 +379,7 @@ export function SchedulePage() {
         columns={columns}
         header={header}
         appointments={appointments}
+        notes={data.data?.notes}
         shifts={team ? shifts : []}
         closures={closures}
         canEditClosure={canEditClosure}

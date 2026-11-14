@@ -19,7 +19,8 @@ import { PaymentForm } from "./billingForms";
 import { fmtVisit, visitEvent } from "./calendar";
 import { CalendarButton } from "./CalendarButton";
 import { localInput, todayDay } from "./pageKit";
-import type { RunAction, Staff } from "./AppointmentForm";
+import { closedAt, type RunAction, type Staff } from "./AppointmentForm";
+import { closureSpan, type Closure } from "../data/closures";
 
 /** Cómo recordarle la cita al paciente: teléfono, correo, permiso de contacto, mensaje y la cita para su calendario. */
 export type ReminderInfo = {
@@ -142,6 +143,8 @@ const daysLater = (iso: string, days: number) => {
 export function MissedPanel({ missed, staff, busy, run, onClose }: { missed: Appointment; staff: Staff; busy: boolean; run: RunAction; onClose: () => void }) {
   const [rebookAt, setRebookAt] = useState(() => localInput(daysLater(missed.startsAt, 7)));
   const [rebookClash, setRebookClash] = useState<AgendaItem[] | null>(null);
+  /** La nueva hora cae en un rato con la agenda cerrada: se avisa, como en el formulario. */
+  const [rebookClosed, setRebookClosed] = useState<Closure | null>(null);
   return (
     <div className="flex flex-col gap-3">
       <p>
@@ -152,6 +155,7 @@ export function MissedPanel({ missed, staff, busy, run, onClose }: { missed: App
           <Button key={d} size="sm" variant={rebookAt === localInput(daysLater(missed.startsAt, d)) ? "primary" : "secondary"} onClick={() => {
               setRebookAt(localInput(daysLater(missed.startsAt, d)));
               setRebookClash(null);
+              setRebookClosed(null);
             }}>
             {d === 1 ? "Al día siguiente" : d === 2 ? "En 2 días" : d === 7 ? "En 1 semana" : "En 2 semanas"}
           </Button>
@@ -164,12 +168,18 @@ export function MissedPanel({ missed, staff, busy, run, onClose }: { missed: App
         onChange={(e) => {
           setRebookAt(e.target.value);
           setRebookClash(null);
+          setRebookClosed(null);
         }}
         hint="A la misma hora; cambia el día o la hora como quieras."
       />
       {rebookClash && rebookClash.length > 0 && (
         <Alert tone="warning" title={rebookClash.length === 1 ? "A esa hora ya hay otra cita" : `A esa hora ya hay ${rebookClash.length} citas`}>
           {rebookClash.map((c) => `${c.name} (${fmtVisit(c.startsAt)})`).join(" · ")}. Puedes darla igualmente o elegir otra hora.
+        </Alert>
+      )}
+      {rebookClosed && (
+        <Alert tone="warning" title="Ese rato la agenda está cerrada">
+          {rebookClosed.note || "Cerrada"}, {closureSpan(rebookClosed)}. Puedes darla igualmente o elegir otra hora.
         </Alert>
       )}
       <Button
@@ -180,7 +190,11 @@ export function MissedPanel({ missed, staff, busy, run, onClose }: { missed: App
           const startsAt = new Date(rebookAt).toISOString();
           if (!rebookClash) {
             const found = await clashes(getDb(), startsAt, missed.minutes, staff.length ? (missed.assignedTo ?? null) : undefined);
-            if (found.length) return setRebookClash(found);
+            const shut = await closedAt(startsAt, missed.minutes, staff.length > 0, missed.assignedTo ?? null);
+            if (found.length || shut) {
+              setRebookClosed(shut);
+              return setRebookClash(found);
+            }
           }
           void run(
             () => createAppointment(getDb(), missed.patientId, { startsAt, minutes: missed.minutes, assignedTo: missed.assignedTo ?? null }),
@@ -188,7 +202,7 @@ export function MissedPanel({ missed, staff, busy, run, onClose }: { missed: App
           );
         }}
       >
-        {rebookClash?.length ? "Darle la cita igualmente" : "Darle esta cita"}
+        {rebookClash?.length || rebookClosed ? "Darle la cita igualmente" : "Darle esta cita"}
       </Button>
       <Button variant="secondary" loading={busy} icon={<RotateCcw aria-hidden="true" className="size-5" />} onClick={() => void run(() => updateAppointment(getDb(), missed.id, { status: "scheduled" }), "Deshecho: la cita vuelve a estar pendiente")}>
         Deshacer «No vino»

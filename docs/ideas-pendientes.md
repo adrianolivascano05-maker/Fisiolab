@@ -1147,9 +1147,12 @@ cambios cuando los tengas»):
   apuntada después de darle citas dice al guardarla qué citas caen ahí, cada una a un toque para cambiarla o anularla,
   y en su calendario se ve en la fila de la cita («Cae en: …») y arriba si es un viaje o una operación; al recoger
   «Su calendario» también se avisa; (3) lo que manda el paciente y ya estaba apuntado igual no se repite.
-- **Bloque B, en curso:** (4) una marca en la Agenda junto a la cita si ese paciente está de viaje, recién operado o
-  compite; (5) «vuelve de viaje y no tiene cita» en la bandeja; (6) filtros en Pacientes: «De viaje ahora»,
-  «Operados en el último año», «Compiten esta semana».
+- **Bloque B, hecho:** (4) en la rejilla de la Agenda, un calendario pequeño junto al nombre si ese día está de viaje,
+  recién operado o tiene algo cerca (el texto, en la hoja de la cita, al pasar el ratón y para el lector de pantalla); (5) «Vuelve
+  de viaje sin cita» en Agenda › Hoy › Pendiente (todos) y en la bandeja de envíos (con el permiso firmado; mensaje
+  nuevo «Al volver de un viaje», editable; migración 042 para que un dispositivo sin actualizar no borre su texto);
+  (6) en Pacientes, el filtro «En su calendario»: «De viaje ahora», «Operados en el último año» y «Compiten en los
+  próximos 7 días».
 - **Sin hacer (lo último, si se pide):** (7) que el paciente vea en su enlace lo que ya tiene apuntado, solo para ver.
 - **No se hace, a propósito:** plazos o fases de recuperación tras una operación (sería una interpretación clínica) y
   recordatorios de sus entrenamientos (no es cosa de la clínica).

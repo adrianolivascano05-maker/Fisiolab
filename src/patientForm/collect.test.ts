@@ -16,7 +16,7 @@ import { uploadPatientForm } from "./createForm";
 import { addModule, currentTemplate, emptyDelta, getTemplateDoc, markTemplateUsed, saveTemplateDoc } from "../data/anamnesisTemplates";
 import { saveModuleDoc, type ModuleDoc } from "../data/anamnesisModules";
 import { addLibraryForm, archiveOwnForm, newOwnFormId, saveOwnForm } from "../data/ownForms";
-import { listPatientEvents, savePatientEvent } from "../data/patientEvents";
+import { addPatientEventOnce, listPatientEvents, savePatientEvent } from "../data/patientEvents";
 import { createAppointment } from "../data/appointments";
 import { FROM_PATIENT } from "./calendarForm";
 
@@ -327,6 +327,24 @@ describe("formularios para el paciente", () => {
       ["Viaje", FROM_PATIENT],
     ]);
     expect((await getSentForm(db, id))?.answers).toEqual({ events: 1, same: 2, dropped: 0 });
+  });
+
+  it("«Tu calendario»: si una recogida se cortó y se repite, lo que ya entró de ese envío cuenta como apuntado", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Nora Enlace"));
+    const id = newFormId();
+    const key = newFormKey();
+    await addSentForm(db, { id, patientId: pid, episodeId: pid, kind: CALENDAR_KIND, key, expiresAt: new Date(Date.now() + 86_400_000).toISOString() });
+    const events = [
+      { kind: "training", title: "Pádel", startsOn: "2026-11-17", repeatDays: [2, 4], time: "19:00", minutes: 90 },
+      { kind: "competition", title: "Liga", startsOn: "2026-11-29" },
+    ];
+    // El primer intento llegó a apuntar el pádel y se cortó.
+    await addPatientEventOnce(db, pid, { kind: "training", title: "Pádel", startsOn: "2026-11-17", endsOn: null, time: "19:00", minutes: 90, repeatDays: [2, 4], repeatUntil: null, notes: FROM_PATIENT }, `${id}.0`);
+    const { api } = server([{ id, response: await seal({ v: 1, answers: { events } }, key), answeredAt: new Date().toISOString() }]);
+    const got = await collectAnswered(db, api, ANAMNESIS);
+    expect(got).toEqual([{ patientId: pid, name: "Nora Enlace", kind: CALENDAR_KIND, skipped: 0, incomplete: false, events: 2, same: 0, clashes: 0 }]);
+    expect((await listPatientEvents(db, pid)).map((e) => e.title)).toEqual(["Pádel", "Liga"]);
   });
 
   it("una firma que llega por un enlace (la hoja o un consentimiento) ya no se guarda: el envío queda anulado y se avisa", async () => {

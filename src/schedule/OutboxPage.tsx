@@ -29,6 +29,7 @@ import { useToast } from "../ui/Toast";
 import { loadOutbox } from "./loadOutbox";
 import {
   anamnesisText,
+  backMessage,
   followUpText,
   itemWhen,
   OUTBOX_SETTINGS_KEY,
@@ -44,7 +45,7 @@ import { staffName, useStaff } from "./useStaff";
 import { plural } from "../app/format";
 
 /** El mensaje de cada regla de la bandeja (Ajustes › Mensajes a pacientes). */
-const KIND: Record<OutboxRule, MessageKind> = { recordatorio: "recordatorio", anamnesis: "anamnesis", seguimiento: "seguimiento" };
+const KIND: Record<OutboxRule, MessageKind> = { recordatorio: "recordatorio", anamnesis: "anamnesis", seguimiento: "seguimiento", vuelta: "vuelta" };
 
 /** El mensaje de cada envío, ya con sus enlaces (y los formularios que lleva, que se apuntan al enviarlo). */
 type Prepared = { text: string; forms?: UploadedForm[] } | { error: string };
@@ -79,6 +80,7 @@ export function OutboxPage() {
     const a = i.appointment;
     const professional = team && a?.assignedTo ? staffName(staff, a.assignedTo) : null;
     if (i.rule === "recordatorio") return { text: reminderMessage(messages, { name: i.name, startsAt: a!.startsAt, clinic: clinicName, professional }) };
+    if (i.rule === "vuelta") return { text: backMessage({ name: i.name, clinic: clinicName }, messages) };
     try {
       if (i.rule === "anamnesis") {
         const f = await uploadPatientForm(db, cloud, { patientId: i.patientId, patientName: i.name, kind: ANAMNESIS_KIND, clinicName, sections });
@@ -359,6 +361,10 @@ function OutboxSettingsCard({ settings: saved }: { settings: OutboxSettings }) {
           <option value="3">3 días antes</option>
         </SelectField>
       )}
+      <label className={check}>
+        <input type="checkbox" className="size-5 accent-accent" checked={settings.backFromTrip} onChange={(e) => void save({ backFromTrip: e.target.checked })} />
+        Al volver de un viaje sin cita (el apuntado en su calendario)
+      </label>
       <p className="text-sm text-text-muted">
         Si una cita se da con menos antelación, su anamnesis sale en cuanto entra en la bandeja. El texto del recordatorio se cambia en{" "}
         <Link to="/agenda/recordatorios" className="py-3 font-semibold text-accent underline underline-offset-2">
