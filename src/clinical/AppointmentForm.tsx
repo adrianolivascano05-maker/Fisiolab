@@ -4,7 +4,8 @@
 import { CalendarClock, Dumbbell } from "lucide-react";
 import { useEffect, useState } from "react";
 import { clashes, createSeries, updateAppointment, type AgendaItem, type Appointment } from "../data/appointments";
-import { planSeries, trainingWeek } from "../data/seriesPlan";
+import { closesFor, closureSpan, closuresBetween, type Closure } from "../data/closures";
+import { closureAt, planSeries, seriesReach, trainingWeek, type Skipped } from "../data/seriesPlan";
 import { useAsync } from "../app/useAsync";
 import { dayOf } from "../app/dates";
 import { getDb } from "../data/db";
@@ -22,7 +23,16 @@ import { PatientPicker, type PickedPatient } from "./PatientPicker";
 const DURATIONS = ["30", "45", "60", "90"];
 /** «la semana del 24 nov». */
 const weekOf = (iso: string) => `La semana del ${new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" })}`;
-const skippedText = (n: number) => (n === 1 ? "se salta una semana de viaje" : `se saltan ${n} semanas de viaje`);
+/** Por qué se saltan esas semanas: «de viaje», «con la agenda cerrada» o las dos cosas. */
+const skippedWhy = (s: Skipped[], trip: string, closed: string) => {
+  const trips = s.filter((x) => x.event).length;
+  return trips === s.length ? trip : trips === 0 ? closed : `${trip} o ${closed}`;
+};
+const skippedText = (s: Skipped[]) => `${s.length === 1 ? "se salta una semana" : `se saltan ${s.length} semanas`} ${skippedWhy(s, "de viaje", "con la agenda cerrada")}`;
+const skippedTitle = (s: Skipped[]) => `${s.length === 1 ? "Se salta una semana" : `Se saltan ${s.length} semanas`}: ${skippedWhy(s, "está de viaje", "la agenda está cerrada")}`;
+const skippedLabel = (x: Skipped) => (x.event ? eventName(x.event) : `agenda cerrada${x.closure.note ? `: ${x.closure.note}` : ""}`);
+/** Los cierres que cuentan para una cita: los de toda la clínica y, en una clínica, los de con quién es. */
+const closuresFor = (all: Closure[], team: boolean, assignedTo: string) => all.filter((c) => closesFor(c, team ? assignedTo || null : null));
 /** «jue 12 nov». */
 const dayWithWeekday = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 /** Una serie de sesiones: cuántas citas, una por semana. */
@@ -63,11 +73,19 @@ export function useAppointmentForm({
   const [clash, setClash] = useState<AgendaItem[] | null>(null);
   /** Lo que el paciente tiene ese día en su calendario (una operación, un viaje, un entrenamiento a esa hora): también se avisa. */
   const [busyDay, setBusyDay] = useState<Occurrence[] | null>(null);
+  /** Una cita sola (o al cambiarla) en un rato en que la agenda está cerrada (un festivo, unas vacaciones): se avisa. */
+  const [closed, setClosed] = useState<Closure | null>(null);
   /** Su calendario (src/data/patientEvents.ts): para la serie (se salta sus viajes) y para decir qué días entrena. */
   const events = useAsync(async () => (open && patientId ? listPatientEvents(getDb(), patientId) : []), [open, patientId], { tables: ["events"] });
   const whenIso = when && !Number.isNaN(Date.parse(when)) ? new Date(when).toISOString() : null;
-  /** Una serie (cita nueva, «Cada semana»): las semanas que se salta por sus viajes, para verlo antes de darla. */
-  const plan = whenIso && !appointment && repeat > 1 ? planSeries(whenIso, repeat, minutes, events.data ?? []) : null;
+  /** La agenda cerrada en las semanas que puede ocupar la serie (src/data/closures.ts). */
+  const closures = useAsync(
+    async () => (open && whenIso ? closuresBetween(getDb(), whenIso, seriesReach(whenIso, appointment ? 1 : repeat, minutes)) : []),
+    [open, whenIso, repeat, minutes, appointment],
+    { tables: ["schedule"] },
+  );
+  /** Una serie (cita nueva, «Cada semana»): las semanas que se salta por sus viajes o la agenda cerrada, para verlo antes de darla. */
+  const plan = whenIso && !appointment && repeat > 1 ? planSeries(whenIso, repeat, minutes, events.data ?? [], closuresFor(closures.data ?? [], staff.length > 0, assignedTo)) : null;
   /** Sus entrenamientos de cada semana y los días en que no entrena, para elegir uno libre. */
   const training = whenIso ? trainingWeek(events.data ?? [], dayOf(whenIso)) : null;
 
@@ -81,6 +99,7 @@ export function useAppointmentForm({
     setRepeat(1);
     setClash(null);
     setBusyDay(null);
+    setClosed(null);
   }, [open, appointment, start, person]);
 
   const save = async (anyway = false) => {
@@ -91,9 +110,11 @@ export function useAppointmentForm({
     const who = staff.length ? { assignedTo: assignedTo || null } : {};
     const count = appointment ? 1 : repeat;
     const evs = await listPatientEvents(getDb(), patientId);
-    // Una serie se salta las semanas en que está de viaje (y sigue después); una cita sola, no: de esa se avisa.
-    const series = count > 1 ? planSeries(startsAt, count, minutes, evs) : { starts: [startsAt], skipped: [] };
-    if (!series.starts.length) return setError("Todas esas semanas está de viaje: elige otro día.");
+    const shut = closuresFor(await closuresBetween(getDb(), startsAt, seriesReach(startsAt, count, minutes)), staff.length > 0, assignedTo);
+    // Una serie se salta las semanas en que está de viaje o la agenda está cerrada (y sigue después); una cita sola,
+    // no: de esa se avisa.
+    const series = count > 1 ? planSeries(startsAt, count, minutes, evs, shut) : { starts: [startsAt], skipped: [] as Skipped[] };
+    if (!series.starts.length) return setError("Todas esas semanas está de viaje o la agenda está cerrada: elige otro día.");
     if (!anyway) {
       // ¿Ya hay algo a esa hora (de esa persona, en una clínica)? ¿Tiene él algo ese día? Se avisa; se puede dar igualmente.
       const found: AgendaItem[] = [];
@@ -102,12 +123,15 @@ export function useAppointmentForm({
         found.push(...(await clashes(getDb(), at, minutes, staff.length ? who.assignedTo : undefined, appointment?.id)));
         his.push(...eventsAtVisit(evs, at, minutes));
       }
+      const closedAt = count > 1 ? null : closureAt(shut, startsAt, minutes);
       setClash(found.length ? found : null);
       setBusyDay(his.length ? his : null);
-      if (found.length || his.length) return;
+      setClosed(closedAt);
+      if (found.length || his.length || closedAt) return;
     }
     setClash(null);
     setBusyDay(null);
+    setClosed(null);
     const last = series.starts.at(-1)!;
     const n = series.starts.length;
     return run(
@@ -118,7 +142,7 @@ export function useAppointmentForm({
       appointment
         ? "Cita cambiada"
         : n > 1
-          ? `${n} citas dadas, una por semana hasta el ${dayWithWeekday(dayOf(last))}${series.skipped.length ? `; ${skippedText(series.skipped.length)}` : ""}`
+          ? `${n} citas dadas, una por semana hasta el ${dayWithWeekday(dayOf(last))}${series.skipped.length ? `; ${skippedText(series.skipped)}` : ""}`
           : "Cita dada",
       appointment ? undefined : () => onCreated?.(patientId),
     );
@@ -128,8 +152,9 @@ export function useAppointmentForm({
   const clearWarnings = () => {
     setClash(null);
     setBusyDay(null);
+    setClosed(null);
   };
-  return { picked, setPicked, patientId, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, busyDay, setBusyDay, clearWarnings, plan, training, save };
+  return { picked, setPicked, patientId, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, busyDay, setBusyDay, closed, clearWarnings, plan, training, save };
 }
 
 export type AppointmentFormState = ReturnType<typeof useAppointmentForm>;
@@ -155,8 +180,8 @@ export function AppointmentForm({
   /** Al cambiar una cita: volver a verla sin guardar. */
   onBack: () => void;
 }) {
-  const { picked, setPicked, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, busyDay, clearWarnings, plan, training, save } = form;
-  const warned = !!clash || !!busyDay;
+  const { picked, setPicked, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, busyDay, closed, clearWarnings, plan, training, save } = form;
+  const warned = !!clash || !!busyDay || !!closed;
   return (
     <form
       className="flex flex-col gap-3"
@@ -211,8 +236,8 @@ export function AppointmentForm({
         </SelectField>
       )}
       {plan && plan.skipped.length > 0 && (
-        <Alert tone="info" title={plan.skipped.length === 1 ? "Se salta una semana: está de viaje" : `Se saltan ${plan.skipped.length} semanas: está de viaje`}>
-          {plan.skipped.map((x) => `${weekOf(x.startsAt)} (${eventName(x.event)})`).join(" · ")}.{" "}
+        <Alert tone="info" title={skippedTitle(plan.skipped)}>
+          {plan.skipped.map((x) => `${weekOf(x.startsAt)} (${skippedLabel(x)})`).join(" · ")}.{" "}
           {plan.starts.length ? `La última cita, el ${dayWithWeekday(dayOf(plan.starts.at(-1)!))}.` : "Elige otro día."}
         </Alert>
       )}
@@ -241,6 +266,12 @@ export function AppointmentForm({
             .map((c) => `${c.name}, ${fmtVisit(c.startsAt)}${staff.length && c.assignedTo ? ` (con ${staffName(staff, c.assignedTo)})` : ""}`)
             .join(" · ")}
           {clash.length > 3 ? "…" : ""}. Cambia la hora{staff.length ? " o con quién es" : ""}, o dala igualmente.
+        </Alert>
+      )}
+      {closed && (
+        <Alert tone="warning" title="Ese rato la agenda está cerrada">
+          {closed.note || "Cerrada"}
+          {closed.staffEmail ? ` (${staffName(staff, closed.staffEmail)})` : ""}, {closureSpan(closed)}. Cambia el día o la hora{staff.length ? " o con quién es" : ""}, o dala igualmente.
         </Alert>
       )}
       {busyDay && (

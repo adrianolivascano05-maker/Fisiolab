@@ -1140,6 +1140,20 @@ Mejoras pedidas el mismo día, en tres bloques seguidos:
    «Lo apuntó el paciente.»). Migración 041 (sin tablas nuevas): un dispositivo sin actualizar deja de sincronizar y
    así no recoge (ni pierde) un «Su calendario».
 
+Más mejoras, propuestas el 14-11-2026 («¿Qué más mejorarías del calendario?»; el usuario: «empieza y publica los
+cambios cuando los tengas»):
+- **Bloque A, hecho:** (1) la serie de citas se salta también los días con la agenda cerrada (de toda la clínica o de
+  con quién es la cita) y una cita sola en un rato cerrado avisa, con «Darla igualmente»; (2) un viaje u otra cosa
+  apuntada después de darle citas dice al guardarla qué citas caen ahí, cada una a un toque para cambiarla o anularla,
+  y en su calendario se ve en la fila de la cita («Cae en: …») y arriba si es un viaje o una operación; al recoger
+  «Su calendario» también se avisa; (3) lo que manda el paciente y ya estaba apuntado igual no se repite.
+- **Bloque B, en curso:** (4) una marca en la Agenda junto a la cita si ese paciente está de viaje, recién operado o
+  compite; (5) «vuelve de viaje y no tiene cita» en la bandeja; (6) filtros en Pacientes: «De viaje ahora»,
+  «Operados en el último año», «Compiten esta semana».
+- **Sin hacer (lo último, si se pide):** (7) que el paciente vea en su enlace lo que ya tiene apuntado, solo para ver.
+- **No se hace, a propósito:** plazos o fases de recuperación tras una operación (sería una interpretación clínica) y
+  recordatorios de sus entrenamientos (no es cosa de la clínica).
+
 Dos mejoras del editor vistas al hacer las capturas de la fase 2, sin hacer (esperan su sí): el botón «⋯» se queda
 solo en una segunda línea cuando hay varias plantillas; y en «Mostrar solo si…», al elegir de qué pregunta depende,
 sale marcada la primera opción (mejor ninguna hasta que se elija).

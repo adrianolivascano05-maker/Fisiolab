@@ -53,6 +53,21 @@ export async function deleteClosure(db: Db, id: string): Promise<void> {
   await db.transaction([{ sql: "delete from closures where id = ?", bind: [id] }]);
 }
 
+const TZ = "Europe/Madrid";
+const clock = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+const dayOfIso = (iso: string | number) => new Date(iso).toLocaleDateString("sv-SE", { timeZone: TZ });
+const dayText = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+
+/** Cuándo está cerrada: «el vie, 25 dic», «del jue, 24 dic al sáb, 26 dic» o «el vie, 25 dic de 15:00 a 21:00». */
+export function closureSpan(c: Pick<Closure, "startsAt" | "endsAt">): string {
+  const d0 = dayOfIso(c.startsAt);
+  const wholeDays = clock(c.startsAt) === "00:00" && clock(c.endsAt) === "00:00";
+  const d1 = dayOfIso(wholeDays ? Date.parse(c.endsAt) - 60_000 : c.endsAt);
+  if (wholeDays) return d0 === d1 ? `el ${dayText(d0)}` : `del ${dayText(d0)} al ${dayText(d1)}`;
+  if (d0 === d1) return `el ${dayText(d0)} de ${clock(c.startsAt)} a ${clock(c.endsAt)}`;
+  return `del ${dayText(d0)}, ${clock(c.startsAt)}, al ${dayText(d1)}, ${clock(c.endsAt)}`;
+}
+
 /** Si un cierre afecta a una persona: el suyo o el de toda la clínica. */
 export const closesFor = (c: Pick<Closure, "staffEmail">, email: string | null) => c.staffEmail === "" || (!!email && c.staffEmail === clean(email));
 

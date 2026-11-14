@@ -19,7 +19,8 @@ import { getSnapshot } from "../data/anamnesisTemplates";
 import { buildForm, isOwnKind } from "../clinical/forms/own";
 import { getOwnForm, getOwnSnapshot } from "../data/ownForms";
 import { cleanPatientEvents } from "./calendarForm";
-import { addPatientEventOnce } from "../data/patientEvents";
+import { addPatientEventOnce, eventKey, listPatientEvents, visitsInEvents } from "../data/patientEvents";
+import { appointmentsOf } from "../data/appointments";
 import { ANAMNESIS_KIND, CALENDAR_KIND, RESPONDENTS, type Respondent, cleanFormAnswers, cleanFormTexts, DOCS_KIND, DOCS_PER_LINK, isSignKind, mergeAnamnesis, saveAnsweredQuestionnaire, unseal, type FormResponse, type SentDoc } from "../clinical/patientForms";
 
 /** Días que se guardan en el servidor unas respuestas de un envío que este dispositivo no conoce. */
@@ -33,8 +34,21 @@ export type FormsApi = {
 };
 
 /** Lo que se ha puesto en la ficha: de quién, qué y cuántas respuestas no se pusieron porque ya había algo. `files`:
- * archivos que ha enviado. `refused`: firmó por un enlace de los que ya no se recogen; no se ha guardado nada. */
-export type Collected = { patientId: string; name: string; kind: string; skipped: number; incomplete: boolean; files?: number; refused?: boolean; events?: number };
+ * archivos que ha enviado. `refused`: firmó por un enlace de los que ya no se recogen; no se ha guardado nada.
+ * «Su calendario»: `events`, las cosas apuntadas; `same`, las que ya estaban (no se repiten); `clashes`, sus citas
+ * pendientes que caen en lo apuntado. */
+export type Collected = {
+  patientId: string;
+  name: string;
+  kind: string;
+  skipped: number;
+  incomplete: boolean;
+  files?: number;
+  refused?: boolean;
+  events?: number;
+  same?: number;
+  clashes?: number;
+};
 
 /**
  * Anula los enlaces de firma que sigan pendientes (ya no se recogen): en la ficha y, si hay conexión, en el servidor.
@@ -147,13 +161,27 @@ export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplat
     }
     if (sent.kind === CALENDAR_KIND) {
       // «Tu calendario»: cada cosa que apuntó, limpia (como en la clínica) y con la marca de que la apuntó él; con un id
-      // fijo por envío, así una recogida repetida no la duplica. Lo que no vale se deja fuera.
+      // fijo por envío, así una recogida repetida no la duplica. Lo que no vale se deja fuera, y lo que ya estaba
+      // apuntado igual (en la clínica, en otro envío o dos veces en este) no se repite.
       const { events, dropped } = cleanPatientEvents(incoming);
-      let added = 0;
-      for (const [i, e] of events.entries()) if (await addPatientEventOnce(db, sent.patientId, e, `${f.id}.${i}`)) added++;
-      await markImported(db, f.id, { answeredAt: f.answeredAt, answers: { events: events.length, dropped }, skipped: [] });
+      const seen = new Set((await listPatientEvents(db, sent.patientId)).map(eventKey));
+      const addedIds = new Set<string>();
+      let same = 0;
+      for (const [i, e] of events.entries()) {
+        const key = eventKey(e);
+        if (seen.has(key)) {
+          same++;
+          continue;
+        }
+        seen.add(key);
+        if (await addPatientEventOnce(db, sent.patientId, e, `${f.id}.${i}`)) addedIds.add(`${f.id}.${i}`);
+      }
+      // Sus citas pendientes que caen en lo que acaba de apuntar (unas vacaciones): se avisa al recogerlo.
+      const added = (await listPatientEvents(db, sent.patientId)).filter((e) => addedIds.has(e.id));
+      const clashes = added.length ? visitsInEvents(await appointmentsOf(db, sent.patientId), added).length : 0;
+      await markImported(db, f.id, { answeredAt: f.answeredAt, answers: { events: addedIds.size, same, dropped }, skipped: [] });
       await api.remove(f.id);
-      out.push({ patientId: sent.patientId, name: patient?.name ?? "", kind: sent.kind, skipped: 0, incomplete: dropped > 0, events: added });
+      out.push({ patientId: sent.patientId, name: patient?.name ?? "", kind: sent.kind, skipped: 0, incomplete: dropped > 0, events: addedIds.size, same, clashes });
       continue;
     }
     if (isSignKind(sent.kind)) {

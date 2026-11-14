@@ -16,7 +16,8 @@ import { uploadPatientForm } from "./createForm";
 import { addModule, currentTemplate, emptyDelta, getTemplateDoc, markTemplateUsed, saveTemplateDoc } from "../data/anamnesisTemplates";
 import { saveModuleDoc, type ModuleDoc } from "../data/anamnesisModules";
 import { addLibraryForm, archiveOwnForm, newOwnFormId, saveOwnForm } from "../data/ownForms";
-import { listPatientEvents } from "../data/patientEvents";
+import { listPatientEvents, savePatientEvent } from "../data/patientEvents";
+import { createAppointment } from "../data/appointments";
 import { FROM_PATIENT } from "./calendarForm";
 
 const patient = (name: string) => ({ name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
@@ -287,18 +288,45 @@ describe("formularios para el paciente", () => {
     ];
     const { api, removed } = server([{ id, response: await seal({ v: 1, answers: { events } }, key), answeredAt: at }]);
     const got = await collectAnswered(db, api, ANAMNESIS);
-    expect(got).toEqual([{ patientId: pid, name: "Nora Enlace", kind: CALENDAR_KIND, skipped: 0, incomplete: true, events: 2 }]);
+    expect(got).toEqual([{ patientId: pid, name: "Nora Enlace", kind: CALENDAR_KIND, skipped: 0, incomplete: true, events: 2, same: 0, clashes: 0 }]);
     expect(removed).toEqual([id]);
     const saved = await listPatientEvents(db, pid);
     expect(saved.map((e) => [e.id, e.kind, e.title, e.notes])).toEqual([
       [`${id}.0`, "training", "Pádel", FROM_PATIENT],
       [`${id}.1`, "travel", "", `Al pueblo\n${FROM_PATIENT}`],
     ]);
-    expect((await getSentForm(db, id))?.answers).toEqual({ events: 2, dropped: 1 });
+    expect((await getSentForm(db, id))?.answers).toEqual({ events: 2, same: 0, dropped: 1 });
     // El mensaje para pedírselo.
     expect(formMessage({ name: "Nora", clinic: "Fisiolab", kind: CALENDAR_KIND, url: "https://x/formulario/a#b", expiresAt: at })).toMatch(
       /^Hola Nora: desde Fisiolab te pedimos que rellenes tu calendario \(entrenamientos, partidos, una operación, una prueba médica o un viaje\)/,
     );
+  });
+
+  it("«Tu calendario»: lo que ya estaba apuntado no se repite, y se cuentan las citas suyas que caen en lo nuevo", async () => {
+    const db = await createTestDb();
+    const pid = await createPatient(db, patient("Nora Enlace"));
+    const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
+    // En la clínica ya tenían apuntado su pádel (con otra nota), y le habían dado una cita dentro de su viaje y otra después.
+    await savePatientEvent(db, pid, { kind: "training", title: "Pádel", startsOn: "2026-11-17", endsOn: null, time: "19:00", minutes: 90, repeatDays: [2, 4], repeatUntil: null, notes: "Con su club" });
+    await createAppointment(db, pid, { startsAt: `${day(12)}T09:00:00.000Z`, minutes: 45 });
+    await createAppointment(db, pid, { startsAt: `${day(30)}T09:00:00.000Z`, minutes: 45 });
+    const id = newFormId();
+    const key = newFormKey();
+    await addSentForm(db, { id, patientId: pid, episodeId: pid, kind: CALENDAR_KIND, key, expiresAt: new Date(Date.now() + 86_400_000).toISOString() });
+    const events = [
+      // El mismo pádel (otras mayúsculas, otro orden de días, otra nota) y el viaje dos veces.
+      { kind: "training", title: " pádel ", startsOn: "2026-11-17", repeatDays: [4, 2], time: "19:00", minutes: 90, notes: "El de siempre" },
+      { kind: "travel", title: "Viaje", startsOn: day(10), endsOn: day(20) },
+      { kind: "travel", title: "viaje", startsOn: day(10), endsOn: day(20), notes: "Otra vez" },
+    ];
+    const { api } = server([{ id, response: await seal({ v: 1, answers: { events } }, key), answeredAt: new Date().toISOString() }]);
+    const got = await collectAnswered(db, api, ANAMNESIS);
+    expect(got).toEqual([{ patientId: pid, name: "Nora Enlace", kind: CALENDAR_KIND, skipped: 0, incomplete: false, events: 1, same: 2, clashes: 1 }]);
+    expect((await listPatientEvents(db, pid)).map((e) => [e.title, e.notes])).toEqual([
+      ["Pádel", "Con su club"],
+      ["Viaje", FROM_PATIENT],
+    ]);
+    expect((await getSentForm(db, id))?.answers).toEqual({ events: 1, same: 2, dropped: 0 });
   });
 
   it("una firma que llega por un enlace (la hoja o un consentimiento) ya no se guarda: el envío queda anulado y se avisa", async () => {

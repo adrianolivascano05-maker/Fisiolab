@@ -62,6 +62,15 @@ const STATUS: Record<ReturnType<typeof formStatus>, { label: string; tone: strin
   cancelled: { label: "Anulado", tone: "bg-surface text-text-muted" },
 };
 
+
+/** Lo que apuntó en «Su calendario» («Apuntó 2 cosas (1 ya estaba)»), con el enlace a verlo. */
+function calendarDone(answers: Record<string, unknown> | null | undefined): string {
+  const n = typeof answers?.events === "number" ? answers.events : null;
+  const same = typeof answers?.same === "number" ? answers.same : 0;
+  if (n === null) return "Ver su calendario";
+  if (n === 0 && same > 0) return "Ya estaba todo apuntado: ver su calendario";
+  return `Apuntó ${n === 1 ? "1 cosa" : `${n} cosas`}${same ? ` (${same === 1 ? "1 ya estaba" : `${same} ya estaban`})` : ""}: ver su calendario`;
+}
 export function SendFormsPage() {
   const { id = "" } = useParams();
   const [params, setParams] = useSearchParams();
@@ -493,7 +502,7 @@ function SentRow({
         )}
         {status === "done" && f.kind === CALENDAR_KIND && (
           <Link to={`/pacientes/${patientId}/calendario`} className="self-start text-sm font-semibold text-accent">
-            {typeof f.answers?.events === "number" ? `Apuntó ${f.answers.events === 1 ? "1 cosa" : `${f.answers.events} cosas`}: ver su calendario` : "Ver su calendario"}
+            {calendarDone(f.answers)}
           </Link>
         )}
         {status === "done" && f.kind !== ANAMNESIS_KIND && f.kind !== DOCS_KIND && f.kind !== CALENDAR_KIND && !isSignKind(f.kind) && (

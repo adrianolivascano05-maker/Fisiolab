@@ -1,7 +1,7 @@
 // Una serie de citas que tiene en cuenta su calendario (seriesPlan.ts): se salta sus viajes y dice qué días entrena.
 import { describe, expect, it } from "vitest";
 import type { PatientEvent } from "./patientEvents";
-import { planSeries, trainingWeek } from "./seriesPlan";
+import { closureAt, planSeries, seriesReach, trainingWeek } from "./seriesPlan";
 
 const ev = (over: Partial<PatientEvent>): PatientEvent => ({
   id: "e",
@@ -35,7 +35,28 @@ describe("una serie de citas", () => {
     const race = ev({ id: "race", kind: "competition", startsOn: "2026-12-01" });
     const plan = planSeries(start, 3, 45, [trip, race]);
     expect(days(plan.starts)).toEqual(["2026-11-17", "2026-12-01", "2026-12-08"]);
-    expect(plan.skipped.map((s) => [s.startsAt.slice(0, 10), s.event.id])).toEqual([["2026-11-24", "trip"]]);
+    expect(plan.skipped.map((s) => [s.startsAt.slice(0, 10), s.event?.id])).toEqual([["2026-11-24", "trip"]]);
+  });
+
+  it("se salta las semanas en que la agenda está cerrada a esa hora (un festivo, unas vacaciones de la clínica)", () => {
+    // Cerrada todo el martes 24 (en Madrid, de 00:00 a 00:00) y la tarde del martes 1: la cita de las 10:00 del 1 sí cabe.
+    const holiday = { startsAt: "2026-11-23T23:00:00.000Z", endsAt: "2026-11-24T23:00:00.000Z", note: "Festivo" };
+    const afternoon = { startsAt: "2026-12-01T14:00:00.000Z", endsAt: "2026-12-01T20:00:00.000Z", note: "" };
+    const plan = planSeries(start, 3, 45, [], [holiday, afternoon]);
+    expect(days(plan.starts)).toEqual(["2026-11-17", "2026-12-01", "2026-12-08"]);
+    expect(plan.skipped.map((s) => [s.startsAt.slice(0, 10), s.closure?.note])).toEqual([["2026-11-24", "Festivo"]]);
+    // Un cierre que empieza a mitad de la cita también la tapa; uno que acaba justo cuando empieza, no.
+    expect(closureAt([{ startsAt: "2026-11-17T09:30:00.000Z", endsAt: "2026-11-17T12:00:00.000Z" }], start, 45)).not.toBeNull();
+    expect(closureAt([{ startsAt: "2026-11-17T07:00:00.000Z", endsAt: start }], start, 45)).toBeNull();
+    // Con viaje y cierre la misma semana, cuenta el viaje (es lo que se le dice).
+    const trip = ev({ id: "trip", kind: "travel", startsOn: "2026-11-23", endsOn: "2026-11-25" });
+    expect(planSeries(start, 2, 45, [trip], [holiday]).skipped.map((s) => s.event?.id ?? "cierre")).toEqual(["trip"]);
+  });
+
+  it("hasta dónde puede llegar: hasta el final de la última semana que puede probar (las pedidas y medio año más)", () => {
+    const away = ev({ kind: "travel", startsOn: "2026-11-01", endsOn: "2027-10-31" });
+    const last = planSeries(start, 4, 45, [away]).skipped.at(-1)!.startsAt;
+    expect(Date.parse(seriesReach(start, 4, 45))).toBeGreaterThanOrEqual(Date.parse(last) + 45 * 60_000);
   });
 
   it("un viaje sin fin a la vista no la alarga para siempre", () => {

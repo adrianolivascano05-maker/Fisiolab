@@ -23,7 +23,7 @@ export function Alert({ tone = "info", title, children }: { tone?: Tone; title: 
   return (
     <div role={tone === "danger" ? "alert" : "status"} className={cx("flex gap-3 rounded-md p-3", box)}>
       <Icon aria-hidden="true" className={cx("mt-0.5 size-5 shrink-0", iconColor[tone])} />
-      <div className="flex flex-col gap-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="font-semibold">{title}</p>
         {children && <div className="text-sm">{children}</div>}
       </div>

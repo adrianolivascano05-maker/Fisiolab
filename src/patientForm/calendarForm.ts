@@ -49,3 +49,21 @@ export function cleanPatientEvents(incoming: Record<string, unknown>): { events:
   }
   return { events, dropped };
 }
+
+/**
+ * El aviso al recoger su calendario: cuántas cosas ha apuntado, cuántas ya estaban (no se repiten) y, si alguna de sus
+ * citas pendientes cae en lo apuntado (unas vacaciones), que se mire.
+ */
+export function calendarToast(g: { name: string; events?: number; same?: number; clashes?: number }): string {
+  const who = g.name || "Un paciente";
+  const n = g.events ?? 0;
+  const same = g.same ?? 0;
+  const head =
+    n > 0
+      ? `${who} ha apuntado ${n === 1 ? "1 cosa" : `${n} cosas`} en su calendario${same ? ` (${same === 1 ? "1 ya estaba" : `${same} ya estaban`})` : ""}`
+      : same > 0
+        ? `${who} ha mandado su calendario: ya estaba todo apuntado`
+        : `${who} ha mandado su calendario, pero no había nada que apuntar`;
+  const clashes = g.clashes ?? 0;
+  return clashes ? `${head}. ${clashes === 1 ? "Una de sus citas cae" : `${clashes} de sus citas caen`} ahí: míralo en su calendario` : head;
+}

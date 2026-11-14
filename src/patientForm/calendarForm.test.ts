@@ -1,6 +1,6 @@
 // Lo que se acepta de lo que el paciente apunta en su calendario desde el enlace (calendarForm.ts).
 import { describe, expect, it } from "vitest";
-import { CALENDAR_MAX, cleanPatientEvents, FROM_PATIENT } from "./calendarForm";
+import { CALENDAR_MAX, calendarToast, cleanPatientEvents, FROM_PATIENT } from "./calendarForm";
 
 describe("tu calendario, por enlace", () => {
   it("se queda lo que vale, limpio y con la marca de que lo apuntó él; lo demás se cuenta como dejado fuera", () => {
@@ -31,5 +31,16 @@ describe("tu calendario, por enlace", () => {
     const long = cleanPatientEvents({ events: [{ kind: "other", startsOn: "2026-11-21", notes: "x".repeat(2000) }] }).events[0]!;
     expect(long.notes.length).toBeLessThanOrEqual(2000);
     expect(long.notes.endsWith(FROM_PATIENT)).toBe(true);
+  });
+});
+
+describe("el aviso al recogerlo", () => {
+  it("cuántas cosas, cuántas ya estaban y si alguna de sus citas cae ahí", () => {
+    expect(calendarToast({ name: "Nora", events: 2 })).toBe("Nora ha apuntado 2 cosas en su calendario");
+    expect(calendarToast({ name: "Nora", events: 1, same: 1 })).toBe("Nora ha apuntado 1 cosa en su calendario (1 ya estaba)");
+    expect(calendarToast({ name: "Nora", events: 0, same: 3 })).toBe("Nora ha mandado su calendario: ya estaba todo apuntado");
+    expect(calendarToast({ name: "", events: 0 })).toBe("Un paciente ha mandado su calendario, pero no había nada que apuntar");
+    expect(calendarToast({ name: "Nora", events: 1, clashes: 2 })).toBe("Nora ha apuntado 1 cosa en su calendario. 2 de sus citas caen ahí: míralo en su calendario");
+    expect(calendarToast({ name: "Nora", events: 1, clashes: 1 })).toMatch(/\. Una de sus citas cae ahí: míralo en su calendario$/);
   });
 });

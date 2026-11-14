@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { createAppointment } from "./appointments";
-import { appointmentsInside, checkClosure, closesFor, closuresBetween, createClosure, deleteClosure, updateClosure } from "./closures";
+import { appointmentsInside, checkClosure, closesFor, closureSpan, closuresBetween, createClosure, deleteClosure, updateClosure } from "./closures";
 import type { Db } from "./db";
 import { createPatient } from "./repo";
 import { createTestDb } from "./testDb";
@@ -42,5 +42,15 @@ describe("agenda cerrada", () => {
     const day = { startsAt: "2026-11-03T00:00:00.000Z", endsAt: "2026-11-04T00:00:00.000Z", note: "" };
     expect(await appointmentsInside(db, { ...day, staffEmail: "laura@clinica.test" })).toBe(2);
     expect(await appointmentsInside(db, { ...day, staffEmail: "" })).toBe(3);
+  });
+});
+
+describe("cuándo está cerrada, en palabras", () => {
+  it("días enteros, un rato de un día o de un día a otro (hora de Madrid)", () => {
+    // Medianoche de Madrid en invierno es las 23:00 UTC del día anterior.
+    expect(closureSpan({ startsAt: "2026-12-24T23:00:00.000Z", endsAt: "2026-12-25T23:00:00.000Z" })).toBe("el vie, 25 dic");
+    expect(closureSpan({ startsAt: "2026-12-23T23:00:00.000Z", endsAt: "2026-12-26T23:00:00.000Z" })).toBe("del jue, 24 dic al sáb, 26 dic");
+    expect(closureSpan({ startsAt: "2026-12-18T14:00:00.000Z", endsAt: "2026-12-18T20:00:00.000Z" })).toBe("el vie, 18 dic de 15:00 a 21:00");
+    expect(closureSpan({ startsAt: "2026-12-18T14:00:00.000Z", endsAt: "2026-12-19T12:00:00.000Z" })).toBe("del vie, 18 dic, 15:00, al sáb, 19 dic, 13:00");
   });
 });

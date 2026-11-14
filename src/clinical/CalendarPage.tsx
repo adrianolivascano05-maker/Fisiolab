@@ -11,7 +11,21 @@ import { useAsync } from "../app/useAsync";
 import { appointmentsOf, STATUS_LABELS, type Appointment } from "../data/appointments";
 import { sessionDays } from "../data/clinical";
 import { getDb } from "../data/db";
-import { dayLong, eventName, eventSpan, eventTime, isDay, kindLabel, listPatientEvents, WEEKDAY_SHORT, weekdayName, type PatientEvent } from "../data/patientEvents";
+import {
+  AWAY_KINDS,
+  dayLong,
+  eventName,
+  eventSpan,
+  eventTime,
+  isDay,
+  kindLabel,
+  listPatientEvents,
+  visitsInEvents,
+  WEEKDAY_SHORT,
+  weekdayName,
+  type Occurrence,
+  type PatientEvent,
+} from "../data/patientEvents";
 import { getPatient } from "../data/repo";
 import { getClinic, mayMessage } from "../data/privacy";
 import { firstName, loadMessages, messageSubject, messageText, withSignature } from "../messages/templates";
@@ -21,11 +35,12 @@ import { upcomingLines, upcomingOf } from "../schedule/upcoming";
 import { fmtVisit } from "./calendar";
 import { staffName, useStaff } from "../schedule/useStaff";
 import { useLeaveWaitlist } from "../schedule/LeaveWaitlist";
+import { Alert } from "../ui/Alert";
 import { Button, IconButton } from "../ui/Button";
 import { cx } from "../ui/cx";
 import { AppointmentSheet } from "./AppointmentSheet";
 import { KIND_ICON } from "./eventIcons";
-import { EventSheet } from "./EventSheet";
+import { EventSheet, VisitList } from "./EventSheet";
 import { Guard, localInput } from "./pageKit";
 import { PatientShell } from "./PatientShell";
 import {
@@ -52,6 +67,17 @@ const DOT: Record<Dot, string> = { visit: "bg-accent", event: "bg-tingle", routi
 const DOT_LABEL: Record<Dot, string> = { visit: "Citas", event: "Eventos", routine: "Cada semana", review: "Reevaluación" };
 const PARAM: Record<CalFilter, string | null> = { all: null, visits: "citas", events: "eventos" };
 const sendLink = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-semibold";
+/** «Una cita cae durante su viaje», «2 citas caen el día de su operación»… */
+const awayTitle = (away: { hits: Occurrence[] }[]) => {
+  const kinds = new Set(away.flatMap((x) => x.hits.map((h) => h.event.kind)));
+  const when = kinds.has("travel") && kinds.has("surgery") ? "durante un viaje o el día de su operación" : kinds.has("travel") ? "durante su viaje" : "el día de su operación";
+  return `${away.length === 1 ? "Una cita cae" : `${away.length} citas caen`} ${when}`;
+};
+/** «Viaje a Roma» o «Viaje a Roma y Operación» (lo que pisa una cita, sin repetir). */
+const hitNames = (hits: Occurrence[]) => {
+  const names = [...new Set(hits.map((h) => eventName(h.event)))];
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} y ${names.at(-1)}`;
+};
 
 export function CalendarPage() {
   const { id = "" } = useParams();
@@ -101,6 +127,11 @@ export function CalendarPage() {
       )
     : "";
 
+  // Sus citas pendientes que caen en algo suyo (apuntado después de darlas, o por él desde su móvil): cada una lo dice
+  // en su fila, y las de un viaje o una operación (no podrá venir), además, arriba, a un toque para cambiarlas.
+  const inside = visitsInEvents(data.data.appointments, events);
+  const hitsOf = new Map(inside.map((x) => [x.appointment.id, x.hits]));
+  const away = inside.filter((x) => x.hits.some((h) => AWAY_KINDS.includes(h.event.kind)));
   const days = monthDays(month);
   const byDay = calendarItems(data.data, days[0]!, days.at(-1)!, filter);
   const go = (next: { mes?: string; dia?: string | null; ver?: CalFilter }) => {
@@ -151,6 +182,7 @@ export function CalendarPage() {
       whole={whole}
       patientId={id}
       staff={staff}
+      hits={item.type === "visit" ? hitsOf.get(item.appointment.id) : undefined}
       onVisit={(a) => setVisit({ appointment: a })}
       onEvent={(e) => setEvent({ event: e, day: whole ? null : item.day })}
     />
@@ -258,6 +290,14 @@ export function CalendarPage() {
         </section>
 
         <section aria-labelledby="h-lista" className="flex flex-col gap-3">
+          {filter !== "events" && away.length > 0 && (
+            <Alert tone="warning" title={awayTitle(away)}>
+              <div className="flex flex-col gap-2">
+                <p>{away.length === 1 ? "Tócala para cambiarla o anularla." : "Toca cada una para cambiarla o anularla."}</p>
+                <VisitList appointments={away.map((x) => x.appointment)} detail={(a) => hitNames(hitsOf.get(a.id) ?? [])} onVisit={(a) => setVisit({ appointment: a })} />
+              </div>
+            </Alert>
+          )}
           {filter !== "events" && upcoming.length > 0 && patient && (
             <div className="flex flex-col gap-2 rounded-md border border-border bg-bg p-3">
               <p className="text-sm">
@@ -443,6 +483,7 @@ function ItemRow({
   whole,
   patientId,
   staff,
+  hits,
   onVisit,
   onEvent,
 }: {
@@ -451,6 +492,8 @@ function ItemRow({
   whole?: boolean;
   patientId: string;
   staff: ReturnType<typeof useStaff>;
+  /** Una cita pendiente que cae en algo suyo: lo que pisa. */
+  hits?: Occurrence[];
   onVisit: (a: Appointment) => void;
   onEvent: (e: PatientEvent) => void;
 }) {
@@ -473,6 +516,7 @@ function ItemRow({
           <span className="text-sm text-text-muted">
             {a.minutes} min · {STATUS_LABELS[a.status]}
           </span>
+          {hits && hits.length > 0 && <span className="text-sm font-semibold text-warning">Cae en: {hitNames(hits)}</span>}
         </span>
       </button>
     );

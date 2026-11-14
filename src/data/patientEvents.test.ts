@@ -16,7 +16,9 @@ import {
   eventNotes,
   eventSpan,
   eventsAtVisit,
+  eventKey,
   eventTime,
+  visitsInEvents,
   listPatientEvents,
   occurrencesIn,
   savePatientEvent,
@@ -132,6 +134,35 @@ describe("al dar una cita", () => {
     expect(eventsAtVisit([training], "2026-11-12T10:00:00.000Z", 45)).toHaveLength(1);
     expect(eventsAtVisit([training], "2026-11-12T11:00:00.000Z", 45)).toHaveLength(0);
     expect(eventsAtVisit([training], "2026-11-12T12:00:00.000Z", 45)).toHaveLength(0);
+  });
+});
+
+describe("citas que ya tenía y caen en algo nuevo", () => {
+  const now = new Date("2026-11-12T08:00:00.000Z");
+  const visit = (id: string, startsAt: string, status = "scheduled") => ({ id, startsAt, minutes: 45, status });
+  it("solo las pendientes de ahora en adelante, con lo que pisan", () => {
+    const trip = ev({ kind: "travel", title: "Roma", startsOn: "2026-11-20", endsOn: "2026-11-23" });
+    const got = visitsInEvents(
+      [
+        visit("antes", "2026-11-10T09:00:00.000Z"), // ya pasó
+        visit("dentro", "2026-11-20T09:00:00.000Z"),
+        visit("anulada", "2026-11-21T09:00:00.000Z", "cancelled"),
+        visit("despues", "2026-11-27T09:00:00.000Z"),
+      ],
+      [trip],
+      now,
+    );
+    expect(got.map((x) => [x.appointment.id, x.hits.map((h) => h.event.title)])).toEqual([["dentro", ["Roma"]]]);
+  });
+});
+
+describe("el mismo evento", () => {
+  it("igual aunque cambien la nota, las mayúsculas, los espacios o el orden de los días; distinto si cambia un día o la hora", () => {
+    const padel = input({ kind: "training", title: "Pádel", startsOn: "2026-11-17", time: "19:00", minutes: 90, repeatDays: [2, 4] });
+    expect(eventKey({ ...padel, title: "  pádel ", repeatDays: [4, 2], notes: "otra" })).toBe(eventKey(padel));
+    expect(eventKey({ ...padel, time: "20:00" })).not.toBe(eventKey(padel));
+    expect(eventKey({ ...padel, repeatDays: [2] })).not.toBe(eventKey(padel));
+    expect(eventKey({ ...padel, kind: "competition" })).not.toBe(eventKey(padel));
   });
 });
 

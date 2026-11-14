@@ -11,6 +11,7 @@ import { useCloud, useSyncState } from "../cloud/cloudContext";
 import { getDb } from "../data/db";
 import { useAppLock } from "../privacy/AppLock";
 import { useToast } from "../ui/Toast";
+import { calendarToast } from "./calendarForm";
 import { cancelSignLinks, collectAnswered } from "./collect";
 
 /** Una búsqueda cada vez (dos pantallas a la vez no recogen lo mismo dos veces). */
@@ -43,7 +44,7 @@ export function useCollectForms(): () => Promise<number | null> {
             continue;
           }
           if (g.events !== undefined) {
-            toast(`${g.name || "Un paciente"} ha apuntado ${g.events === 1 ? "1 cosa" : `${g.events} cosas`} en su calendario`, "success");
+            toast(calendarToast(g), g.clashes ? "info" : "success");
             continue;
           }
           if (g.refused) {

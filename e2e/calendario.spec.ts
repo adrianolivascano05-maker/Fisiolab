@@ -80,17 +80,17 @@ test.describe("Calendario del paciente", () => {
     await expect(page.getByText("Evento apuntado")).toBeVisible();
     // En la lista del mes, una vez, arriba («Cada semana»), y no día a día.
     await expect(page.getByRole("heading", { name: "Cada semana" })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Fútbol con su equipo/ })).toHaveCount(1);
-    await expect(page.getByRole("button", { name: /Fútbol con su equipo/ })).toContainText(/Cada .* y .* desde el .*, sin fecha de fin · 19:00 · 90 min/);
+    await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toHaveCount(1);
+    await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toContainText(/Cada .* y .* desde el .*, sin fecha de fin · 19:00 · 90 min/);
 
     // Los filtros: solo sus citas (ninguna aún) o solo sus eventos.
     const filter = page.getByRole("group", { name: "Qué se ve" });
     await filter.getByRole("button", { name: "Citas" }).click();
     await expect(page.getByText(/^Ninguna cita este mes\./)).toBeVisible();
-    await expect(page.getByRole("button", { name: /Fútbol con su equipo/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toHaveCount(0);
     await expect(page).toHaveURL(/ver=citas/);
     await filter.getByRole("button", { name: "Eventos" }).click();
-    await expect(page.getByRole("button", { name: /Fútbol con su equipo/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toBeVisible();
     await filter.getByRole("button", { name: "Todo" }).click();
 
     // Hoy: el entrenamiento a su hora. Darle cita a las 19:30 avisa de que se pisa; se da igualmente.
@@ -113,18 +113,18 @@ test.describe("Calendario del paciente", () => {
     // Con «Citas», solo la cita.
     await filter.getByRole("button", { name: "Citas" }).click();
     await expect(page.getByRole("button", { name: /^Cita a las 19:30/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Fútbol con su equipo/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toHaveCount(0);
     await filter.getByRole("button", { name: "Todo" }).click();
 
     // Borrar la serie: se pregunta antes y se van todas las semanas.
-    await page.getByRole("button", { name: /Fútbol con su equipo/ }).click();
+    await page.getByRole("button", { name: /^Fútbol con su equipo/ }).click();
     sheet = page.getByRole("dialog", { name: "Cambiar evento" });
     await expect(sheet.getByLabel("Hora (si la tiene)")).toHaveValue("19:00");
     await sheet.getByRole("button", { name: "Borrar el evento" }).click();
     await expect(sheet.getByText(/Se borran todas las semanas/)).toBeVisible();
     await sheet.getByRole("button", { name: "Borrar", exact: true }).click();
     await expect(page.getByText("Evento borrado")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Fútbol con su equipo/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toHaveCount(0);
     await expect(dayButton(page, today, "1 cita")).toBeVisible();
     // Al volver a entrar, todo sigue donde estaba.
     await page.goto(`${record}/calendario?mes=${op.slice(0, 7)}`);
@@ -327,4 +327,72 @@ test.describe("Calendario del paciente", () => {
     expect(href.match(/· [a-záéíóúñ]+, \d+ de [a-z]+ a las 10:00/g)).toHaveLength(4);
     await expectAccessible(page);
   });
+
+  test("CA6 la serie se salta un día con la agenda cerrada; un viaje apuntado después avisa de la cita que cae en él", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Celia Cierre");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Celia Cierre" })).toBeVisible();
+    const record = page.url();
+    const first = plus(madridDay(), 1);
+    const closed = plus(first, 7);
+
+    // Un festivo en la agenda, justo la segunda semana de la serie.
+    await page.goto("./agenda");
+    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    await page.getByRole("button", { name: "Bloquear horas o días" }).click();
+    let sheet = page.getByRole("dialog", { name: "Bloquear horas o días" });
+    await sheet.getByLabel("Día", { exact: true }).fill(closed);
+    await sheet.getByLabel("Motivo").fill("Festivo local");
+    await sheet.getByRole("button", { name: "Bloquear sin citas" }).click();
+    await expect(sheet).toBeHidden();
+
+    // Tres citas desde mañana: se salta la semana del festivo y lo dice antes de darlas.
+    await page.goto(`${record}/calendario?mes=${first.slice(0, 7)}&dia=${first}`);
+    await page.getByRole("button", { name: "Dar cita a las 10:00" }).click();
+    let visit = page.getByRole("dialog", { name: "Dar cita a Celia Cierre" });
+    await visit.getByLabel("Repetir").selectOption({ label: "Cada semana, 3 citas" });
+    await expect(visit.getByText("Se salta una semana: la agenda está cerrada")).toBeVisible();
+    await expect(visit.getByText(/^La semana del .* \(agenda cerrada: Festivo local\)\. La última cita, el /)).toBeVisible();
+    await visit.getByRole("button", { name: "Dar las 3 citas" }).click();
+    await expect(page.getByText(/^3 citas dadas, una por semana hasta el [^,\s]+, \d{1,2} [a-z]+; se salta una semana con la agenda cerrada$/)).toBeVisible();
+
+    // Una cita sola en el festivo: avisa (y se puede dar igualmente).
+    await page.goto(`${record}/calendario?mes=${closed.slice(0, 7)}&dia=${closed}`);
+    await page.getByRole("button", { name: "Dar cita a las 10:00" }).click();
+    visit = page.getByRole("dialog", { name: "Dar cita a Celia Cierre" });
+    await visit.getByRole("button", { name: "Dar la cita" }).click();
+    await expect(visit.getByText("Ese rato la agenda está cerrada")).toBeVisible();
+    await expect(visit.getByText(/^Festivo local, el [^,\s]+, \d{1,2} [a-z]+\. Cambia el día o la hora, o dala igualmente\.$/)).toBeVisible();
+    await expect(visit.getByRole("button", { name: "Darla igualmente" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(visit).toBeHidden();
+
+    // Unas vacaciones apuntadas después, que tapan la segunda cita: la hoja lo dice y la abre a un toque.
+    const second = plus(first, 14);
+    await page.getByRole("button", { name: "Apuntar evento" }).click();
+    sheet = page.getByRole("dialog", { name: "Apuntar evento" });
+    await sheet.getByText("Viaje o vacaciones", { exact: true }).click();
+    await sheet.getByLabel("Primer día").fill(plus(second, -1));
+    await sheet.getByLabel("Último día").fill(plus(second, 1));
+    await sheet.getByRole("button", { name: "Apuntar" }).click();
+    await expect(sheet.getByText("Ya tiene una cita esos días")).toBeVisible();
+    await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+    expect(await smallTargets(page)).toEqual([]);
+    await expectAccessible(page);
+    await sheet.getByRole("button", { name: /10:00$/ }).click();
+    await expect(sheet).toBeHidden();
+    const opened = page.getByRole("dialog", { name: "Cita de Celia Cierre" });
+    await expect(opened).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(opened).toBeHidden();
+
+    // Y en su calendario se ve, arriba y en la fila de la cita, hasta que se cambie.
+    await page.goto(`${record}/calendario?mes=${second.slice(0, 7)}&dia=${second}`);
+    await expect(page.getByText("Una cita cae durante su viaje")).toBeVisible();
+    await expect(page.getByText("Cae en: Viaje o vacaciones")).toBeVisible();
+    await fits(page);
+  });
 });
+

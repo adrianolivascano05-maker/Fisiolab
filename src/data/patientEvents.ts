@@ -278,6 +278,35 @@ export function eventsAtVisit(events: PatientEvent[], startsAt: string, minutes:
   });
 }
 
+/** Lo que hace que no pueda venir: un viaje o una operación (de una cita en esos días se avisa siempre, a la vista). */
+export const AWAY_KINDS: readonly EventKind[] = ["travel", "surgery"];
+
+/**
+ * Sus citas pendientes de `now` en adelante que caen en algo de `events` (con lo mismo que avisa al dar cita), con lo
+ * que pisan: al apuntar un viaje después de darle citas, o al recoger lo que manda él.
+ */
+export function visitsInEvents<A extends { startsAt: string; minutes: number; status: string }>(
+  appointments: readonly A[],
+  events: PatientEvent[],
+  now: Date = new Date(),
+): { appointment: A; hits: Occurrence[] }[] {
+  const from = now.getTime();
+  const out: { appointment: A; hits: Occurrence[] }[] = [];
+  for (const a of appointments) {
+    if (a.status !== "scheduled" || Date.parse(a.startsAt) < from) continue;
+    const hits = eventsAtVisit(events, a.startsAt, a.minutes);
+    if (hits.length) out.push({ appointment: a, hits });
+  }
+  return out;
+}
+
+/**
+ * Lo que hace que dos eventos sean el mismo, sin la nota: el tipo, el nombre (sin mayúsculas ni espacios de más), los
+ * días, la hora y cómo se repite. Para no apuntar dos veces lo que manda el paciente si ya estaba.
+ */
+export const eventKey = (e: EventInput) =>
+  JSON.stringify([e.kind, (e.title ?? "").trim().replace(/\s+/g, " ").toLowerCase(), e.startsOn, e.endsOn ?? null, e.time ?? null, e.time ? (e.minutes ?? null) : null, [...e.repeatDays].sort((a, b) => a - b), e.repeatUntil ?? null]);
+
 // ---------- En palabras ----------
 
 const WEEKDAYS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"];
