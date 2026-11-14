@@ -1703,6 +1703,20 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
       return d.toISOString().slice(0, 10);
     };
 
+    // En la clínica ya tiene un partido apuntado y una cita: en su enlace los verá.
+    await page.goto(`${pabloUrl}/calendario`);
+    await page.getByRole("button", { name: "Apuntar evento" }).click();
+    const event = page.getByRole("dialog", { name: "Apuntar evento" });
+    await event.getByText("Competición", { exact: true }).click();
+    await event.getByLabel("Nombre (si quieres)").fill("Partido de liga");
+    await event.getByLabel("Día", { exact: true }).fill(plus(today, 5));
+    await event.getByRole("button", { name: "Apuntar" }).click();
+    await expect(event).toBeHidden();
+    await page.goto(`${pabloUrl}/calendario?mes=${plus(today, 2).slice(0, 7)}&dia=${plus(today, 2)}`);
+    await page.getByRole("button", { name: /^Dar cita a las / }).click();
+    await page.getByRole("dialog", { name: "Dar cita a Pablo Pádel" }).getByRole("button", { name: "Dar la cita" }).click();
+    await expect(page.getByText("Cita dada")).toBeVisible();
+
     // Desde su calendario: «Que lo apunte desde su móvil» abre el envío con «Su calendario» elegido.
     await page.goto(`${pabloUrl}/calendario`);
     await page.getByRole("link", { name: "Que lo apunte desde su móvil" }).click();
@@ -1725,9 +1739,20 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(phone.getByRole("heading", { name: "Hola, Pablo" })).toBeVisible({ timeout: 15_000 });
     await expect(phone.getByText(/te pide que rellenes tu calendario \(entrenamientos, partidos, una operación, una prueba médica o un viaje\)/)).toBeVisible();
     await expect(phone.getByRole("region", { name: "Tus datos", exact: true })).toBeVisible();
+    const already = phone.getByRole("region", { name: "Ya apuntado en la clínica" });
+    await expect(already).toContainText("Partido de liga");
+    await expect(already).toContainText(/Cita · [A-Za-záéíóú]+, \d+ de [a-z]+, 10:00/);
     await phone.getByRole("button", { name: "Enviar" }).click();
     await expect(phone.getByRole("alert")).toContainText("Apunta al menos una cosa con «Añadir a mi calendario».");
     const add = phone.getByRole("group", { name: "Añadir" });
+    // Lo mismo que ya tenía no se añade otra vez.
+    await add.getByText("Competición", { exact: true }).click();
+    await add.getByLabel("Nombre (si quieres)").fill("partido de liga");
+    await add.getByLabel("Día", { exact: true }).fill(plus(today, 5));
+    await add.getByRole("button", { name: "Añadir a mi calendario" }).click();
+    await expect(phone.getByRole("alert").filter({ hasText: "Eso ya está apuntado en la clínica." })).toBeVisible();
+    await add.getByLabel("Nombre (si quieres)").fill("");
+    await add.getByLabel("Día", { exact: true }).fill(today);
     await add.getByText("Entrenamiento", { exact: true }).click();
     await expect(add.getByRole("radio", { name: "Cada semana" })).toBeChecked();
     await add.getByLabel("Nombre (si quieres)").fill("Pádel");

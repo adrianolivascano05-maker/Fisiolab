@@ -36,8 +36,8 @@ const steps: { title: string; body: ReactNode }[] = [
         escribir la sesión (con «Apuntar en su calendario») y en Agenda › Hoy, bajo su nombre. Al darle una serie de citas, se saltan las
         semanas en que está de viaje o la agenda está cerrada, y ves qué días entrena; si apuntas un viaje cuando ya tiene citas esos días,
         la app te las enseña para cambiarlas o anularlas. Desde su calendario le mandas sus próximas citas por WhatsApp o correo (con el
-        permiso de contacto firmado). Con «Que lo apunte desde su móvil», el paciente añade lo suyo por enlace y llega a su calendario
-        con la nota «Lo apuntó el paciente» (lo que ya estaba no se repite). <b>Editar</b>, arriba a la derecha.
+        permiso de contacto firmado). Con «Que lo apunte desde su móvil», el paciente añade lo suyo por enlace (y ve sus próximas citas y lo
+        que ya tiene apuntado) y llega a su calendario con la nota «Lo apuntó el paciente» (lo que ya estaba no se repite). <b>Editar</b>, arriba a la derecha.
       </>
     ),
   },

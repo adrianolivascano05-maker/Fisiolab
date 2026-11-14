@@ -66,7 +66,10 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   de las siguientes (día y hora, y con quién en una clínica; como mucho diez). Solo con el permiso de contacto firmado;
   sin él, se dice por qué y se le dicen en la consulta.
 - **Que lo apunte el paciente:** «Que lo apunte desde su móvil» (en su calendario, o en Formularios › «Su calendario») crea
-  un enlace como los de la anamnesis: cifrado de extremo a extremo, sin cuenta, 14 días. En su móvil ve los mismos
+  un enlace como los de la anamnesis: cifrado de extremo a extremo, sin cuenta, 14 días. Arriba, «Ya apuntado en la
+  clínica»: sus próximas citas (como mucho diez) y lo que ya tiene en su calendario de hoy en adelante (como mucho 30,
+  sin las notas, que escribe la clínica), tal como estaba al crear el enlace, solo para verlo; si intenta añadir lo
+  mismo, se le dice («Eso ya está apuntado en la clínica»). Debajo, los mismos
   campos que en la clínica (con lo normal de cada tipo), la lista de lo que lleva apuntado (y «Quitar») y lo manda
   todo con «Enviar»; se guarda en su móvil hasta que lo envía. Como mucho 30 cosas de una vez. Al recogerlo, cada cosa
   se comprueba con las mismas reglas que en la clínica (lo que no vale se deja fuera), llega a su calendario con la
@@ -129,9 +132,10 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 - Pruebas: `src/data/patientEvents.test.ts`, `src/clinical/patientCalendar.test.ts`, `e2e/calendario.spec.ts`
   (CA1 a CA7, a 360 px), `src/data/closures.test.ts`, `src/schedule/backFromTrip.test.ts`, `src/schedule/outbox.test.ts`,
   `src/data/patientSearch.test.ts`, CL23 en `e2e/clinics.spec.ts` (el enlace, en un móvil de 360 px), `src/data/seriesPlan.test.ts`,
-  `src/schedule/upcoming.test.ts`, `src/patientForm/calendarForm.test.ts`, `collect.test.ts` y la exportación en
+  `src/schedule/upcoming.test.ts`, `src/patientForm/calendarForm.test.ts`, `src/patientForm/createForm.test.ts` (lo que lleva el
+  enlace), `collect.test.ts` y la exportación en
   `src/export/fullExport.test.ts`.
 
 ## Ideas para más adelante (sin hacer)
 
-- Que el paciente vea en su enlace lo que ya tiene apuntado (en curso).
+- Nada pendiente de lo propuesto el 14-11-2026 (ver `docs/ideas-pendientes.md`).

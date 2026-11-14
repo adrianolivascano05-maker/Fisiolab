@@ -3,6 +3,7 @@
 // lo abre sin cuenta (src/patientForm/PublicFormPage.tsx) y sus respuestas vuelven cifradas con la misma clave. Al
 // recogerlas (src/patientForm/FormInbox.tsx), se rellena lo que estaba vacío en la anamnesis o se guarda el
 // cuestionario con su nota. El servidor (cloudflare/worker.js) solo ve bytes ilegibles.
+import type { EventInput } from "../data/patientEvents";
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { FormBrand } from "../brand/form";
 import type { Db } from "../data/db";
@@ -75,6 +76,13 @@ export type FormRequest = {
    * lleva `answers.__intake = { ack, contact }`.
    */
   intake?: { version: string; notice: PrivacySection[]; ackText: string; contactText: string };
+  /**
+   * «Su calendario»: lo que ya tiene apuntado de hoy en adelante (sin las notas de la clínica) y sus próximas citas (el
+   * instante de cada una), tal como estaban al crear el enlace: solo para que lo vea y no lo apunte otra vez. Los
+   * enlaces creados antes no lo llevan.
+   */
+  events?: EventInput[];
+  visits?: string[];
 };
 /**
  * Lo que vuelve cifrado: las respuestas por id de campo (anamnesis) o de ítem (cuestionario); si se le pidieron archivos,

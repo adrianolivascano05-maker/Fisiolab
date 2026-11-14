@@ -313,6 +313,8 @@ export function PublicFormPage() {
             {form && !own && <p className="text-xs text-text-muted">Autores del cuestionario: {citeOf(form)}.</p>}
             {calendar && (
               <CalendarFill
+                known={Array.isArray(request.events) ? request.events : []}
+                visits={Array.isArray(request.visits) ? request.visits : []}
                 events={Array.isArray(answers.events) ? (answers.events as EventInput[]) : []}
                 onChange={(events) => {
                   setError(null);

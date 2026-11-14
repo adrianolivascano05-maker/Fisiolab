@@ -1153,7 +1153,9 @@ cambios cuando los tengas»):
   nuevo «Al volver de un viaje», editable; migración 042 para que un dispositivo sin actualizar no borre su texto);
   (6) en Pacientes, el filtro «En su calendario»: «De viaje ahora», «Operados en el último año» y «Compiten en los
   próximos 7 días».
-- **Sin hacer (lo último, si se pide):** (7) que el paciente vea en su enlace lo que ya tiene apuntado, solo para ver.
+- **Hecho después («Cuando acabes sigue con los siguientes puntos y mejóralo también»):** (7) en el enlace «Su
+  calendario», arriba, «Ya apuntado en la clínica»: sus próximas citas y lo que ya tiene apuntado de hoy en adelante
+  (sin las notas), solo para verlo; lo mismo no se puede añadir otra vez.
 - **No se hace, a propósito:** plazos o fases de recuperación tras una operación (sería una interpretación clínica) y
   recordatorios de sus entrenamientos (no es cosa de la clínica).
 

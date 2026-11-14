@@ -1,6 +1,11 @@
 // Crear un formulario para el paciente (su parte de la anamnesis o un cuestionario): se cifra con una clave nueva,
 // se sube al servidor de la clínica y se apunta en su ficha. Lo usan la ficha (SendFormsPage) y la bandeja de envíos.
-import { ANAMNESIS_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, isSignKind, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, CALENDAR_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, isSignKind, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
+import { addDays, dayOf } from "../app/dates";
+import { appointmentsOf } from "../data/appointments";
+import { listPatientEvents, occurrencesIn } from "../data/patientEvents";
+import { UPCOMING_MAX, upcomingOf } from "../schedule/upcoming";
+import { CALENDAR_MAX } from "./calendarForm";
 import type { Section } from "../clinical/anamnesis";
 import { markTemplateUsed, templateFor, type ResolvedTemplate } from "../data/anamnesisTemplates";
 import { getAnamnesis } from "../data/clinical";
@@ -41,6 +46,24 @@ export type FormToCreate = {
   /** La anamnesis ampliada (todas las preguntas que contesta el paciente). Sin esto, la base. */
   wide?: boolean;
 };
+
+/**
+ * «Su calendario»: lo que ya tiene apuntado de hoy en adelante (como mucho {@link CALENDAR_MAX}, sin las notas, que
+ * escribe la clínica) y sus próximas citas, para enseñárselo en su enlace.
+ */
+export async function calendarSnapshot(db: Db, patientId: string, now = new Date()): Promise<Required<Pick<FormRequest, "events" | "visits">>> {
+  const today = dayOf(now);
+  const events = await listPatientEvents(db, patientId);
+  const live = new Set(occurrencesIn(events, today, addDays(today, 365)).map((o) => o.event.id));
+  const kept = events
+    .filter((e) => live.has(e.id))
+    .slice(0, CALENDAR_MAX)
+    .map((e) => ({ kind: e.kind, title: e.title, startsOn: e.startsOn, endsOn: e.endsOn, time: e.time, minutes: e.minutes, repeatDays: e.repeatDays, repeatUntil: e.repeatUntil, skipDays: e.skipDays, notes: "" }));
+  const visits = upcomingOf(await appointmentsOf(db, patientId), now)
+    .slice(0, UPCOMING_MAX)
+    .map((a) => a.startsAt);
+  return { events: kept, visits };
+}
 
 export async function uploadPatientForm(
   db: Db,
@@ -87,6 +110,7 @@ export async function uploadPatientForm(
         ...(guardian ? { guardian } : {}),
       }
     : null;
+  const calendarNow = p.kind === CALENDAR_KIND ? await calendarSnapshot(db, p.patientId) : null;
   const request: FormRequest = {
     v: tpl ? 2 : 1,
     clinic: p.clinicName,
@@ -102,6 +126,7 @@ export async function uploadPatientForm(
     ...(brand ? { brand } : {}),
     ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}),
     controller: { name: clinic?.name || p.clinicName, email: clinic?.email ?? "" },
+    ...calendarNow,
   };
   await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt, ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}) });
   const episodeId = await currentEpisode(db, p.patientId);
