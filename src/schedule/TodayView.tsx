@@ -179,8 +179,8 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
                 to={`/pacientes/${b.patientId}/calendario?mes=${day.slice(0, 7)}&dia=${day}`}
                 icon={Plane}
                 tone="warning"
-                title={`Vuelve de viaje sin cita: ${b.name}`}
-                subtitle={backText(b.back, today)}
+                title={b.name}
+                subtitle={`Sin cita al volver de viaje · ${backText(b.back, today)}`}
               />
             );
           })}

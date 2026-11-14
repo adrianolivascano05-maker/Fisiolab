@@ -85,8 +85,9 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
 - **Vuelve de viaje sin cita** (`src/schedule/backFromTrip.ts`): quien estaba en tratamiento (vino, con cita o sesión,
   en los 60 días antes de irse, y no tiene todos sus motivos de consulta dados de alta) y vuelve de un viaje apuntado
   en su calendario sin haber venido desde que se fue (una cita atendida o una sesión) ni tener una cita pendiente desde
-  el día que vuelve. Las citas que se quedaron dentro del viaje («No vino» o pendientes sin tocar) no cuentan. Sale en Agenda › Hoy › Pendiente desde dos días antes de volver hasta una semana después («Vuelve hoy»,
-  «Volvió el lunes, 16 de noviembre»), con el enlace a su calendario ese día para darle cita; y, desde el día que
+  el día que vuelve. Las citas que se quedaron dentro del viaje («No vino» o pendientes sin tocar) no cuentan. Sale en
+  Agenda › Hoy › Pendiente desde dos días antes de volver hasta una semana después (su nombre y, debajo, «Sin cita al
+  volver de viaje · Vuelve hoy» o «· Volvió el lunes, 16 de noviembre»), con el enlace a su calendario ese día para darle cita; y, desde el día que
   vuelve, en la bandeja de envíos con el mensaje «Al volver de un viaje» (editable en Ajustes › Mensajes a
   pacientes; solo con el permiso de contacto firmado; se puede apagar en la bandeja, «Qué se prepara»). En cuanto
   tiene una cita, deja de salir.

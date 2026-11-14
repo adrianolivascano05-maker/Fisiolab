@@ -443,9 +443,10 @@ test.describe("Calendario del paciente", () => {
 
     // Agenda › Hoy › Pendiente: Víctor vuelve hoy sin cita; Olga, no (tiene cita).
     await page.goto("./agenda?vista=hoy");
-    const back = page.getByRole("link", { name: /Vuelve de viaje sin cita: Víctor Vuelta/ });
-    await expect(back).toContainText("Vuelve hoy");
-    await expect(page.getByRole("link", { name: /Vuelve de viaje sin cita: Olga/ })).toHaveCount(0);
+    // El nombre arriba, entero también en el móvil; debajo, por qué sale.
+    const back = page.getByRole("link", { name: /Víctor Vuelta.*Sin cita al volver de viaje/ });
+    await expect(back).toContainText("Sin cita al volver de viaje · Vuelve hoy");
+    await expect(page.getByRole("link", { name: /Olga Operada.*Sin cita al volver de viaje/ })).toHaveCount(0);
     await fits(page);
     expect(await smallTargets(page)).toEqual([]);
 
@@ -494,6 +495,6 @@ test.describe("Calendario del paciente", () => {
     await expect(page.getByText("Cita dada")).toBeVisible();
     await page.goto("./agenda?vista=hoy");
     await expect(page.getByRole("region", { name: "Citas de hoy" })).toBeVisible();
-    await expect(page.getByRole("link", { name: /Vuelve de viaje sin cita/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Sin cita al volver de viaje/ })).toHaveCount(0);
   });
 });
