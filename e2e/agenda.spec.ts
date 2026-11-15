@@ -183,6 +183,8 @@ test.describe("Agenda y seguimiento", () => {
     await giveAppointment(page, "Eva Mueve", "2026-10-20T12:00");
     await page.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Agenda" }).click();
     await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    // En el móvil el día se ve en lista: la rejilla (para arrastrar y tocar huecos) está a un toque.
+    await page.getByRole("button", { name: "Ver el día en rejilla" }).click();
     await expect(page.getByRole("heading", { name: "Martes, 20 de octubre" })).toBeVisible();
     const event = page.getByRole("button", { name: /^Eva Mueve\s*,\s*12:00–12:45/ });
     await expect(event).toBeVisible();
@@ -226,6 +228,8 @@ test.describe("Agenda y seguimiento", () => {
   test("AG5 más sencilla: ir a una fecha, tocar un hueco, crear el paciente ahí mismo, una serie semanal y aviso si se pisa", async ({ page }) => {
     await page.goto("./agenda");
     await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    // En el móvil el día se ve en lista: la rejilla (para arrastrar y tocar huecos) está a un toque.
+    await page.getByRole("button", { name: "Ver el día en rejilla" }).click();
     await page.getByLabel("Ir a una fecha").fill("2026-10-27");
     await expect(page.getByRole("heading", { name: "Martes, 27 de octubre" })).toBeVisible();
 
@@ -399,6 +403,8 @@ test.describe("Agenda y seguimiento", () => {
     test.skip(({ browserName }) => browserName === "webkit", "El WebKit de pruebas no deja simular toques con varios dedos.");
 
     test("AG10 pellizco: se centra en el día que queda entre los dedos (el viernes, no hoy)", async ({ page }) => {
+      // El pellizco es de la rejilla: en este móvil, el día también en rejilla.
+      await page.addInitScript(() => localStorage.setItem("fisiolab.agenda.dayGrid", "1"));
       await createPatient(page, { name: "Pablo Pellizco" });
       await giveAppointment(page, "Pablo Pellizco", "2026-10-23T10:00");
       await page.goto("./agenda");

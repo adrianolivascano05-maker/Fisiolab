@@ -97,4 +97,5 @@ Decisiones que el usuario no contestó de forma expresa y se toman con lo recome
 | 0 Colores | hecho, sin publicar |
 | 1 Cabecera de la ficha | hecho, sin publicar |
 | 2 Calendario con color | hecho (móvil; el mes grande en ancho, con el bloque 11), sin publicar |
-| 3–14 | pendientes |
+| 3 Agenda en el móvil | hecho, sin publicar: tira de la semana y el día en lista (`src/schedule/DayList.tsx`, `dayRows.ts`), huecos libres con «N en espera encajan», lo cerrado, línea de ahora, «Atender» en la que toca, «Ver el día en rejilla» (se recuerda). **Falta de este bloque:** juntar «Hoy» y «Día» con «Pendiente N», el chip por fisio y «Cobrar» junto a «Atender» |
+| 4–14 | pendientes |

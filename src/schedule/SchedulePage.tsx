@@ -27,6 +27,10 @@ import { SelectField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { AgendaGrid, type Move } from "./AgendaGrid";
 import { TodayView } from "./TodayView";
+import { DayList, WeekStrip } from "./DayList";
+import { countByDay, dayRows } from "./dayRows";
+import { listWaitlist } from "../data/waitlist";
+import { LayoutGrid, List } from "lucide-react";
 import { atMinutes, dayColumns, personColumns, type Column } from "./layout";
 import { ShiftSheet } from "./ShiftSheet";
 import { ClosureSheet } from "./ClosureSheet";
@@ -65,6 +69,8 @@ function savedView(): View {
 
 type Creating = { kind: "appointment" | "shift"; start: string; person?: string | null };
 
+/** En el móvil, el día se ve en lista; quien prefiera la rejilla (para arrastrar), lo deja dicho aquí. */
+const DAY_GRID_KEY = "fisiolab.agenda.dayGrid";
 const HELP_KEY = "fisiolab.agendaHelp.seen";
 function markHelpSeen() {
   try {
@@ -120,6 +126,13 @@ export function SchedulePage() {
   /** «Movida · …» con «Deshacer»; `warn`: si a donde se ha llevado cae en algo suyo o con la agenda cerrada. */
   const [undo, setUndo] = useState<{ text: string; warn?: string; back: () => Promise<void> } | null>(null);
   const [copying, setCopying] = useState(false);
+  const [dayGrid, setDayGrid] = useState(() => {
+    try {
+      return localStorage.getItem(DAY_GRID_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
 
   const span = VIEWS.find((v) => v.id === view)!.days;
   const first = view === "week" ? mondayOf(anchor) : anchor;
@@ -171,6 +184,20 @@ export function SchedulePage() {
     return () => clearTimeout(t);
   }, [undo]);
 
+  // En el móvil, el día: la tira de la semana arriba y, debajo, la lista (o la rejilla, si se prefiere).
+  const phoneDay = narrow && view === "day";
+  const monday = mondayOf(anchor);
+  const week = useAsync(
+    async () => {
+      if (!phoneDay) return null;
+      const a = new Date(`${monday}T00:00:00`).toISOString();
+      const b = new Date(`${addDays(monday, 7)}T00:00:00`).toISOString();
+      const [items, shut, waiting] = await Promise.all([agenda(getDb(), a, b), closuresBetween(getDb(), a, b), listWaitlist(getDb())]);
+      return { items, shut, waiting };
+    },
+    [phoneDay, monday],
+    { tables: ["appointments", "patients", "schedule", "waitlist"] },
+  );
   const filter = who === "-" ? null : who || undefined;
   const shifts = useMemo(() => (data.data?.shifts ?? []).filter((s) => filter === undefined || s.staffEmail === filter), [data.data, filter]);
   const appointments = useMemo(() => (data.data?.appointments ?? []).filter((a) => filter === undefined || a.assignedTo === filter), [data.data, filter]);
@@ -297,7 +324,7 @@ export function SchedulePage() {
         <IconButton label={`${noun} anterior${view === "3days" ? "es" : ""}`} onClick={() => step(-1)}>
           <ChevronLeft aria-hidden="true" className="size-6" />
         </IconButton>
-        <div className="relative min-w-0 flex-1">
+        <div className="relative flex min-h-11 min-w-0 flex-1 items-center justify-center">
           <h2 className="text-center text-sm leading-tight font-semibold sm:text-base" aria-live="polite">
             {title}
           </h2>
@@ -343,9 +370,31 @@ export function SchedulePage() {
             Añadir turno
           </Button>
         )}
-        <Button variant="secondary" icon={<CalendarOff aria-hidden="true" className="size-5" />} onClick={() => setClosing({ closure: null, day: firstDay })}>
-          Bloquear horas o días
-        </Button>
+        {phoneDay ? (
+          <>
+            <IconButton label="Bloquear horas o días" onClick={() => setClosing({ closure: null, day: firstDay })}>
+              <CalendarOff aria-hidden="true" className="size-5" />
+            </IconButton>
+            <IconButton
+              label={dayGrid ? "Ver el día en lista" : "Ver el día en rejilla"}
+              onClick={() => {
+                const next = !dayGrid;
+                setDayGrid(next);
+                try {
+                  localStorage.setItem(DAY_GRID_KEY, next ? "1" : "0");
+                } catch {
+                  /* sin almacenamiento: vale para esta vez */
+                }
+              }}
+            >
+              {dayGrid ? <List aria-hidden="true" className="size-5" /> : <LayoutGrid aria-hidden="true" className="size-5" />}
+            </IconButton>
+          </>
+        ) : (
+          <Button variant="secondary" icon={<CalendarOff aria-hidden="true" className="size-5" />} onClick={() => setClosing({ closure: null, day: firstDay })}>
+            Bloquear horas o días
+          </Button>
+        )}
         {team && admin && view === "week" && (
           <Button
             variant="ghost"
@@ -394,33 +443,67 @@ export function SchedulePage() {
         </div>
       )}
 
-      <AgendaGrid
-        columns={columns}
-        header={header}
-        appointments={appointments}
-        notes={data.data?.notes}
-        shifts={team ? shifts : []}
-        closures={closures}
-        canEditClosure={canEditClosure}
-        onClosure={(k) => setClosing({ closure: k, day: k.startsAt.slice(0, 10) })}
-        staff={team ? staff : []}
-        today={today}
-        showPerson={team && !byPerson && filter === undefined}
-        onOpen={setManaging}
-        onMove={(m) => void onMove(m)}
-        onSlot={(c, minutes) => setCreating({ kind: "appointment", start: atMinutes(c.day, minutes), person: c.person })}
-        onShift={team ? (s) => (admin || s.staffEmail === me) && setEditingShift(s) : undefined}
-        onHeader={
-          span > 1 && !byPerson
-            ? (c) => {
-                setAnchor(c.day);
-                setView("day");
-              }
-            : undefined
-        }
-        onZoom={zoom}
-        onSwipe={step}
-      />
+      {phoneDay && (
+        <WeekStrip
+          monday={monday}
+          selected={anchor}
+          today={today}
+          counts={countByDay((week.data?.items ?? []).filter((x) => filter === undefined || x.assignedTo === filter))}
+          closed={
+            new Set(
+              Array.from({ length: 7 }, (_, i) => addDays(monday, i)).filter((d) => {
+                const from = new Date(`${d}T00:00:00`).getTime();
+                return (week.data?.shut ?? []).some((k) => k.staffEmail === "" && Date.parse(k.startsAt) <= from && Date.parse(k.endsAt) >= from + 23 * 3_600_000);
+              }),
+            )
+          }
+          onPick={setAnchor}
+          onWeek={(n) => setAnchor(addDays(anchor, 7 * n))}
+        />
+      )}
+      {phoneDay && !dayGrid ? (
+        <DayList
+          day={anchor}
+          today={today}
+          rows={dayRows(anchor, appointments, closures, team ? shifts.filter((x) => (filter ? x.staffEmail === filter : x.staffEmail === me)) : [])}
+          staff={team ? staff : []}
+          notes={data.data?.notes}
+          waiting={week.data?.waiting ?? []}
+          canEditClosure={canEditClosure}
+          onOpen={setManaging}
+          onFree={(start) => setCreating({ kind: "appointment", start, person: filter === undefined ? undefined : filter })}
+          onClosure={(k) => setClosing({ closure: k, day: k.startsAt.slice(0, 10) })}
+          onNew={() => setCreating({ kind: "appointment", start: atMinutes(anchor, 10 * 60) })}
+        />
+      ) : (
+        <AgendaGrid
+          columns={columns}
+          header={header}
+          appointments={appointments}
+          notes={data.data?.notes}
+          shifts={team ? shifts : []}
+          closures={closures}
+          canEditClosure={canEditClosure}
+          onClosure={(k) => setClosing({ closure: k, day: k.startsAt.slice(0, 10) })}
+          staff={team ? staff : []}
+          today={today}
+          showPerson={team && !byPerson && filter === undefined}
+          onOpen={setManaging}
+          onMove={(m) => void onMove(m)}
+          onSlot={(c, minutes) => setCreating({ kind: "appointment", start: atMinutes(c.day, minutes), person: c.person })}
+          onShift={team ? (s) => (admin || s.staffEmail === me) && setEditingShift(s) : undefined}
+          onHeader={
+            span > 1 && !byPerson
+              ? (c) => {
+                  setAnchor(c.day);
+                  setView("day");
+                }
+              : undefined
+          }
+          onZoom={zoom}
+          onSwipe={step}
+        />
+      )}
       {/* La ayuda, abierta la primera vez; después, plegada (se recuerda en este dispositivo). */}
       <details
         className="text-sm text-text-muted"

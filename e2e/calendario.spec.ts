@@ -540,6 +540,8 @@ test.describe("Calendario del paciente", () => {
     // La agenda, cerrada mañana de 11:00 a 12:00 por formación.
     await page.goto("./agenda");
     await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    // En el móvil el día se ve en lista: la rejilla (para arrastrar y tocar huecos) está a un toque.
+    await page.getByRole("button", { name: "Ver el día en rejilla" }).click();
     await page.getByLabel("Ir a una fecha").fill(tomorrow);
     await page.getByRole("button", { name: "Bloquear horas o días" }).click();
     const block = page.getByRole("dialog", { name: "Bloquear horas o días" });

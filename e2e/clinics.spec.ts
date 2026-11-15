@@ -517,6 +517,8 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await nav.getByRole("link", { name: "Agenda" }).click();
     await expect(page.getByRole("heading", { name: "Agenda", exact: true })).toBeVisible();
     await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    // En el móvil el día va en lista; los turnos se ven en la rejilla, a un toque.
+    await page.getByRole("button", { name: "Ver el día en rejilla" }).click();
     await page.getByRole("button", { name: "Añadir turno" }).click();
     const sheet = page.getByRole("dialog", { name: "Nuevo turno" });
     await sheet.getByLabel("Persona").selectOption({ label: "bruno" });
@@ -560,6 +562,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(bruno.getByRole("status").filter({ hasText: "La nube es un espejo" })).toHaveCount(0);
     await bruno.getByRole("navigation", { name: "Principal" }).getByRole("link", { name: "Agenda" }).click();
     await bruno.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    await bruno.getByRole("button", { name: "Ver el día en rejilla" }).click();
     await expect(bruno.getByRole("button", { name: "Turno de Bruno Gil, 09:00–14:00" })).toBeVisible();
     await expect(bruno.getByRole("button", { name: /^Paciente Horario\s*,\s*10:00–10:45\s*,\s*con Bruno Gil/ })).toBeVisible();
     await bruno.getByRole("button", { name: "Añadir turno" }).click();

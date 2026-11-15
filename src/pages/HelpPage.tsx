@@ -125,7 +125,9 @@ const steps: { title: string; body: ReactNode }[] = [
       <>
         <b>Hoy</b> es el día en una lista: cada cita con <b>Atender</b> (apunta la sesión y vuelve aquí) y <b>Cobrar</b>; debajo, lo pendiente
         (reevaluaciones, lo que queda sin cobrar, quién tiene que firmar algo y quién vuelve de un viaje sin cita). <b>Día</b> y <b>Semana</b> son
-        la rejilla: toca un hueco para dar una cita; una cita con <b>un calendario pequeño</b> junto al nombre es de alguien que está de viaje,
+        tu agenda. En el móvil, <b>Día</b> es una lista: arriba, la semana en una tira (cuántas citas tiene cada día; tócalo o desliza para
+        cambiar de semana) y, debajo, las citas por orden con los ratos libres a un toque y lo cerrado; el botón de la cuadrícula la cambia por
+        la rejilla, que es donde se arrastra. En la rejilla, toca un hueco para dar una cita; una cita con <b>un calendario pequeño</b> junto al nombre es de alguien que está de viaje,
         recién operado o con un partido cerca (lo dice al abrir la cita o al pasar el ratón). Si arrastras una cita a un día en que tiene algo
         o a un rato con la agenda cerrada, se mueve igual y el aviso de «Deshacer» te lo dice. <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya
         escrito: los recordatorios de mañana, un mensaje para darle cita a quien vuelve de un viaje sin cita y, con el servidor de la clínica, la
