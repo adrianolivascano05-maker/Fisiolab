@@ -571,4 +571,39 @@ test.describe("Calendario del paciente", () => {
     await filters.getByRole("button", { name: "Ver 1 paciente" }).click();
     await expect(page.getByRole("list", { name: "Pacientes" }).getByRole("link", { name: /Dora Arrastre/ })).toBeVisible();
   });
+
+  test("CA9 la hoja «Tus próximas citas» para imprimir: sus citas pendientes, sin nada de su salud", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 780 });
+    const first = plus(madridDay(), 1);
+    await page.goto("./pacientes/nuevo");
+    await page.getByLabel("Nombre").fill("Pilar Papel");
+    await page.getByRole("button", { name: "Crear paciente" }).click();
+    await expect(page.getByRole("heading", { name: "Pilar Papel" })).toBeVisible();
+    const record = page.url();
+    // Tres citas, una por semana desde mañana.
+    await page.goto(`${record}/calendario?mes=${first.slice(0, 7)}&dia=${first}`);
+    await page.getByRole("button", { name: "Dar cita a las 10:00" }).click();
+    const visit = page.getByRole("dialog", { name: "Dar cita a Pilar Papel" });
+    await visit.getByLabel("Repetir").selectOption({ label: "Cada semana, 3 citas" });
+    await visit.getByRole("button", { name: "Dar las 3 citas" }).click();
+    await expect(page.getByText(/^3 citas dadas/)).toBeVisible();
+
+    // Sin permiso de contacto no hay WhatsApp, pero la hoja en papel sí.
+    await expect(page.getByText("3 citas pendientes")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sus próximas citas por WhatsApp" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Hoja para imprimir" }).click();
+    const sheet = page.getByRole("article", { name: "Tus próximas citas" });
+    await expect(sheet).toContainText("Hola, Pilar. Estas son tus próximas citas de fisioterapia");
+    await expect(sheet.getByRole("row")).toHaveCount(4);
+    await expect(sheet.getByRole("row").nth(1)).toContainText("10:00");
+    await expect(sheet.getByRole("columnheader", { name: "Con quién" })).toHaveCount(0);
+    await expect(sheet).toContainText("Si no puedes venir a alguna, avísanos cuanto antes");
+    await expect(page.getByRole("button", { name: "Imprimir" })).toBeVisible();
+    await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+    expect(await smallTargets(page)).toEqual([]);
+    await expectAccessible(page);
+    // Vuelve a su calendario.
+    await page.getByRole("link", { name: "Volver a Calendario" }).click();
+    await expect(page).toHaveURL(/\/calendario/);
+  });
 });

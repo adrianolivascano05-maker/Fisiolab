@@ -74,6 +74,12 @@ Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesi
   citas por WhatsApp** (o por correo): el mensaje «Sus próximas citas» de Ajustes › Mensajes a pacientes con la lista
   de las siguientes (día y hora, y con quién en una clínica; como mucho diez). Solo con el permiso de contacto firmado;
   sin él, se dice por qué y se le dicen en la consulta.
+- **Sus próximas citas en papel:** al lado, **Hoja para imprimir** (`/pacientes/:id/proximas-citas`,
+  `src/clinical/UpcomingSheetPage.tsx`): «Tus próximas citas» con el membrete de la clínica, un saludo, una tabla con
+  el día (con el año si no es este), la hora y, en una clínica, con quién (como mucho 30; si hay más, «Y N citas más
+  después»), «Si no puedes venir a alguna, avísanos cuanto antes» (con el teléfono de la clínica si está en Ajustes ›
+  Clínica) y la fecha en que se hizo. Se imprime o se guarda en PDF. No necesita el permiso de contacto (se le da en
+  mano) y no lleva nada de su salud. Las filas salen de `sheetRows` en `src/schedule/upcoming.ts`.
 - **Que lo apunte el paciente:** «Que lo apunte desde su móvil» (en su calendario, o en Formularios › «Su calendario») crea
   un enlace como los de la anamnesis: cifrado de extremo a extremo, sin cuenta, 14 días. Arriba, «Ya apuntado en la
   clínica»: sus próximas citas (como mucho diez) y lo que ya tiene en su calendario de hoy en adelante (como mucho 30,

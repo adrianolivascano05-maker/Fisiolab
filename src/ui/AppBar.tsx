@@ -17,12 +17,12 @@ function parentLabel(backTo: string | undefined): string {
   if (path === "/agenda") return "Agenda";
   if (path === "/biblioteca/cuestionarios") return "Cuestionarios";
   if (path.startsWith("/biblioteca") || path.startsWith("/exploracion")) return "Biblioteca";
-  const tab = /^\/pacientes\/[^/]+\/(anamnesis|valoracion|exploracion|mediciones|cuestionarios|sesiones|movilidad|test)(\/[^/]+)?$/.exec(path);
+  const tab = /^\/pacientes\/[^/]+\/(anamnesis|valoracion|exploracion|mediciones|cuestionarios|sesiones|calendario|movilidad|test)(\/[^/]+)?$/.exec(path);
   if (tab) {
     const sub: Record<string, string> = { saltos: "Saltos", fuerza: "Fuerza", sprint: "Sprint", carrera: "Carrera", isquios: "Nórdico", movilidad: "Movilidad" };
     if (tab[1] === "test" && tab[2]) return sub[tab[2].slice(1)] ?? "Medición";
     // Exploración, Mediciones y Cuestionarios viven en la pestaña Valoración.
-    if (!tab[2]) return { anamnesis: "Anamnesis", valoracion: "Valoración", exploracion: "Valoración", mediciones: "Valoración", cuestionarios: "Valoración", sesiones: "Sesiones", movilidad: "Movilidad", test: "Medición" }[tab[1]!]!;
+    if (!tab[2]) return { anamnesis: "Anamnesis", valoracion: "Valoración", exploracion: "Valoración", mediciones: "Valoración", cuestionarios: "Valoración", sesiones: "Sesiones", calendario: "Calendario", movilidad: "Movilidad", test: "Medición" }[tab[1]!]!;
   }
   if (/^\/pacientes\/[^/]+\/consentimientos$/.test(path)) return "Consentimientos";
   if (/^\/pacientes\/[^/]+\/cobros$/.test(path)) return "Cobros";

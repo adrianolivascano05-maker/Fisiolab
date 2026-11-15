@@ -3,7 +3,7 @@
 // partido, una prueba médica, un viaje: src/data/patientEvents.ts). Se filtra por «Citas» o «Eventos»; al tocar un día
 // se ve lo de ese día y se le puede dar cita o apuntar algo. El mes, el día y el filtro van en la dirección
 // (?mes=2026-11&dia=2026-11-12&ver=citas): al volver de una sesión, se sigue donde se estaba.
-import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, Mail, MessageCircle, NotebookPen, Plus, Repeat, Send } from "lucide-react";
+import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, Mail, MessageCircle, NotebookPen, Plus, Printer, Repeat, Send } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { todayDay } from "../app/dates";
@@ -303,20 +303,22 @@ export function CalendarPage() {
               <p className="text-sm">
                 <span className="font-semibold">{upcoming.length === 1 ? "1 cita pendiente" : `${upcoming.length} citas pendientes`}</span> · la próxima, {fmtVisit(upcoming[0]!.startsAt)}
               </p>
-              {mayMessage(contact) && (phone || patient.email) && (
-                <div className="flex flex-wrap gap-2">
-                  {phone && (
-                    <a href={whatsappUrl(phone, sendText)} target="_blank" rel="noopener noreferrer" className={cx(sendLink, "bg-accent text-on-accent hover:bg-accent-hover")}>
-                      <MessageCircle aria-hidden="true" className="size-4" /> Sus próximas citas por WhatsApp
-                    </a>
-                  )}
-                  {patient.email && (
-                    <a href={mailtoUrl(patient.email, messageSubject("citas", messages, { clinica: clinic.name }), sendText)} className={cx(sendLink, "border border-border bg-bg hover:bg-surface")}>
-                      <Mail aria-hidden="true" className="size-4" /> Por correo
-                    </a>
-                  )}
-                </div>
-              )}
+              <div className="flex flex-wrap gap-2">
+                {mayMessage(contact) && phone && (
+                  <a href={whatsappUrl(phone, sendText)} target="_blank" rel="noopener noreferrer" className={cx(sendLink, "bg-accent text-on-accent hover:bg-accent-hover")}>
+                    <MessageCircle aria-hidden="true" className="size-4" /> Sus próximas citas por WhatsApp
+                  </a>
+                )}
+                {mayMessage(contact) && patient.email && (
+                  <a href={mailtoUrl(patient.email, messageSubject("citas", messages, { clinica: clinic.name }), sendText)} className={cx(sendLink, "border border-border bg-bg hover:bg-surface")}>
+                    <Mail aria-hidden="true" className="size-4" /> Por correo
+                  </a>
+                )}
+                {/* En papel, para dársela en la consulta: no hace falta el permiso de contacto. */}
+                <Link to={`/pacientes/${id}/proximas-citas`} className={cx(sendLink, "border border-border bg-bg hover:bg-surface")}>
+                  <Printer aria-hidden="true" className="size-4" /> Hoja para imprimir
+                </Link>
+              </div>
               <ContactNote contact={contact} patientId={id} extra="Díselas en la consulta" />
             </div>
           )}

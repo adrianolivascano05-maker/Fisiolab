@@ -1165,7 +1165,8 @@ cambios cuando los tengas»):
   el aviso de «Deshacer» lo dice; (2) una cita o una serie fuera del turno de su fisio avisa antes de darla (en una
   clínica con turnos); (3) dos filtros más en Pacientes: «Se operan en los próximos 30 días» y «Vuelven de viaje en
   los próximos 7 días»; (4) la clínica de prueba trae eventos de calendario.
-- **Bloque 2, pendiente:** (6) hoja imprimible «Tus próximas citas» para dársela en papel.
+- **Bloque 2, hecho:** (6) hoja imprimible «Tus próximas citas» para dársela en papel (Ficha › Calendario › «Hoja
+  para imprimir»; también en PDF).
 - **Solo si el usuario lo pide:** (5) que el paciente marque desde su enlace algo apuntado como «esto ya no».
 
 Dos mejoras del editor vistas al hacer las capturas de la fase 2, sin hacer (esperan su sí): el botón «⋯» se queda

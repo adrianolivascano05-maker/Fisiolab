@@ -17,6 +17,7 @@ const ReferralPage = lazy(() => import("./ReferralPage").then((m) => ({ default:
 const AttendancePage = lazy(() => import("./AttendancePage").then((m) => ({ default: m.AttendancePage })));
 const ExercisesPage = lazy(() => import("./ExercisesPage").then((m) => ({ default: m.ExercisesPage })));
 const ReceiptPage = lazy(() => import("./ReceiptPage").then((m) => ({ default: m.ReceiptPage })));
+const UpcomingSheetPage = lazy(() => import("./UpcomingSheetPage").then((m) => ({ default: m.UpcomingSheetPage })));
 const BillingPage = lazy(() => import("./BillingPage").then((m) => ({ default: m.BillingPage })));
 const DischargePage = lazy(() => import("./DischargePage").then((m) => ({ default: m.DischargePage })));
 const CalendarPage = lazy(() => import("./CalendarPage").then((m) => ({ default: m.CalendarPage })));
@@ -51,6 +52,7 @@ export const clinicalRoutes = [
   { path: "/pacientes/:id/cuestionarios/nuevo", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/cuestionarios/:qid", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/calendario", element: l(<CalendarPage />) },
+  { path: "/pacientes/:id/proximas-citas", element: l(<UpcomingSheetPage />) },
   { path: "/pacientes/:id/informe", element: l(<ReportPage />) },
   { path: "/pacientes/:id/justificante", element: l(<AttendancePage />) },
   { path: "/pacientes/:id/derivacion", element: l(<ReferralPage />) },
