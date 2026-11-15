@@ -13,6 +13,8 @@ type PageProps = {
   /** Texto de «volver» si no basta con el que sale de `backTo` (p. ej. el nombre del paciente). */
   backLabel?: string;
   action?: ReactNode;
+  /** Con título grande o cabecera propia: lo que sale en la barra en lugar de `action` cuando la cabecera ya no se ve. */
+  actionPast?: ReactNode;
   /** La barra de abajo: en todas las pantallas salvo en formularios y en las de vídeo. */
   tabs?: boolean;
   tone?: "default" | "media";
@@ -49,7 +51,7 @@ function useScrolledPast() {
   return { ref, past };
 }
 
-export function Page({ title, backTo, backLabel, action, tabs = true, tone = "default", large = !backTo, header, wide = false, width = wide ? "wide" : "content", children }: PageProps) {
+export function Page({ title, backTo, backLabel, action, actionPast, tabs = true, tone = "default", large = !backTo, header, wide = false, width = wide ? "wide" : "content", children }: PageProps) {
   const big = large || !!header;
   const { ref, past } = useScrolledPast();
   const showTabs = tabs && tone !== "media";
@@ -59,7 +61,7 @@ export function Page({ title, backTo, backLabel, action, tabs = true, tone = "de
   const showSide = tone !== "media" && !inPane;
   return (
     <div className={cx("min-h-dvh", tone === "media" && "bg-media-bg text-media-text", showSide && "lg:pl-[var(--layout-side)]")}>
-      <TopBar title={title} backTo={backTo} backLabel={backLabel} action={action} large={big} titleShown={!big || past} />
+      <TopBar title={title} backTo={backTo} backLabel={backLabel} action={big && past && actionPast ? actionPast : action} large={big} titleShown={!big || past} />
       {/* La ficha (`record`) es un `@container`: sus pantallas se ponen en columnas según el ancho que les queda (con
           la lista de pacientes al lado, menos), no según el de la ventana; por debajo de 42 rem (el móvil siempre)
           nada cambia. Solo ahí: un contenedor también encierra lo `fixed` de dentro (la capa de arrastre de la agenda). */}

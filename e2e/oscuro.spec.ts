@@ -10,8 +10,8 @@ test.describe("Modo oscuro", () => {
   test("OS1 pantallas principales con contraste suficiente y documentos en papel claro", async ({ page }) => {
     await loadSeed(page);
     await page.goto("./");
-    // El fondo de la app es un verde bosque muy oscuro (#07211A).
-    expect(await background(page.locator("body"))).toBe("rgb(7, 33, 26)");
+    // El fondo de la app es casi negro con un punto de verde (#0B1512).
+    expect(await background(page.locator("body"))).toBe("rgb(11, 21, 18)");
     await expectAccessible(page);
 
     await page.getByRole("link", { name: /Marcos Vidal/ }).click();
@@ -64,7 +64,7 @@ test.describe("Modo oscuro", () => {
     expect(await background(page.locator("body"))).toBe("rgb(242, 244, 241)");
     // Oscuro, y la fila de Ajustes lo dice.
     await page.getByRole("radio", { name: /^Oscuro/ }).check();
-    expect(await background(page.locator("body"))).toBe("rgb(7, 33, 26)");
+    expect(await background(page.locator("body"))).toBe("rgb(11, 21, 18)");
     await page.goto("./ajustes");
     await expect(page.getByRole("link", { name: /Aspecto.*Oscuro/ })).toBeVisible();
     // Automático: como el dispositivo (aquí, oscuro); con el dispositivo en claro, claro.

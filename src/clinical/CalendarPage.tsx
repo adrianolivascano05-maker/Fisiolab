@@ -229,7 +229,7 @@ export function CalendarPage() {
               Hoy
             </Button>
           </div>
-          <table className="w-full table-fixed border-separate border-spacing-[2px]" {...swipe}>
+          <table data-swipe className="w-full table-fixed border-separate border-spacing-[2px]" {...swipe}>
             <caption className="sr-only">
               {monthTitle(month)}. Toca un día para ver lo que tiene. Desliza el dedo para cambiar de mes.
             </caption>

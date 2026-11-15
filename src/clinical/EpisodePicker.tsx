@@ -29,7 +29,8 @@ KEEP.add("fisio_previa");
 
 const records = (n: number | undefined) => (!n ? "sin registros" : n === 1 ? "1 registro" : `${n} registros`);
 
-export function EpisodePicker({ patientId }: { patientId: string }) {
+/** `plain`: como una línea de texto (la cabecera compacta de la ficha); `extra`: algo más tras el nombre («sesión 4 de 10»). */
+export function EpisodePicker({ patientId, plain = false, extra }: { patientId: string; plain?: boolean; extra?: string }) {
   const toast = useToast();
   const navigate = useNavigate();
   const data = useAsync(async () => {
@@ -148,10 +149,11 @@ export function EpisodePicker({ patientId }: { patientId: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-haspopup="dialog"
-        className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-pill border border-border bg-bg px-3 text-sm hover:bg-surface"
+        className={plain ? "inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-md text-left text-sm hover:bg-surface" : "inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-pill border border-border bg-bg px-3 text-sm hover:bg-surface"}
       >
         <span className="text-text-muted">Motivo:</span>
         <span className="truncate font-semibold">{label}</span>
+        {extra && <span className="shrink-0 text-text-muted">· {extra}</span>}
         <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
       </button>
       <Sheet open={open} onClose={close} title={view === "new" ? "Nuevo motivo de consulta" : "Motivo de consulta"}>

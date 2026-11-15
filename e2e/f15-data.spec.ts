@@ -185,7 +185,9 @@ test.describe("F15 Exportar, copiar y restaurar", () => {
 
     await page.goto("./");
     await page.getByRole("link", { name: /Ana Ruiz López/ }).click();
+    await page.getByRole("button", { name: "Más datos" }).click();
     await expect(page.getByText("612345678")).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.goto("./");
     await expect(page.getByRole("link", { name: /Luis Pérez/ })).toHaveCount(1);
     await expect(page.getByRole("link", { name: /Marta Gil/ })).toBeVisible();

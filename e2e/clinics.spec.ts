@@ -339,6 +339,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expectAccessible(page);
     await page.goto("./");
     await page.getByRole("link", { name: /Lucía Equipo/ }).click();
+    await page.getByRole("button", { name: "Más datos" }).click();
     await page.getByRole("link", { name: "Quién ha abierto esta ficha" }).click();
     await expect(page.getByText("Solo Lucía Equipo.")).toBeVisible();
     await expect(log).toContainText("Lucía Equipo · Abrió la ficha");

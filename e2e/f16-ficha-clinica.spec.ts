@@ -432,7 +432,7 @@ test.describe("F16 Ficha clínica", () => {
     const visit = page.getByRole("dialog", { name: "Cita de Nora Calendario" });
     await visit.getByRole("button", { name: "Cerrar" }).click();
     await expect(visit).toBeHidden();
-    await expect(page.getByText("Próxima cita:")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Próxima cita: / })).toBeVisible();
     await expect(page.getByText(/Siguiente cita: .* · 60 min/)).toBeVisible();
 
     // En el resumen, la próxima cita abre su hoja, con el botón del calendario.

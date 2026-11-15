@@ -18,7 +18,9 @@ test.describe("F01 Dar de alta un paciente", () => {
     await expect(page.getByText("Todavía no hay pacientes")).toBeVisible();
     await expectAccessible(page);
     await createPatient(page, { name: "Ana Martín López", mass: "62,5", pushOff: "38" });
+    await page.getByRole("button", { name: "Más datos" }).click();
     await expect(page.getByText("62,5 kg", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
     // El contacto va en la ficha (no en cada anamnesis) y sale en la cabecera.
     await page.getByRole("link", { name: "Editar datos", exact: true }).click();
     await expect(page.getByLabel("Distancia de empuje")).toHaveValue("38");
@@ -28,7 +30,10 @@ test.describe("F01 Dar de alta un paciente", () => {
     await expect(page.getByText("Ese correo no parece completo.")).toBeVisible();
     await page.getByLabel("Email").fill("ana@correo.es");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
-    await expect(page.getByText("612 34 56 78 · 62,5 kg")).toBeVisible();
+    await page.getByRole("button", { name: "Más datos" }).click();
+    await expect(page.getByRole("link", { name: "612 34 56 78" })).toBeVisible();
+    await expect(page.getByText("62,5 kg", { exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
     await expectAccessible(page);
     await page.getByRole("link", { name: "Volver" }).click();
     await expect(page.getByRole("link", { name: /Ana Martín López.*Sin visitas todavía/ })).toBeVisible();
@@ -76,7 +81,9 @@ test.describe("F01 Dar de alta un paciente", () => {
     await page.getByRole("link", { name: "Editar datos", exact: true }).click();
     await page.getByLabel("Peso").fill("58.5");
     await page.getByRole("button", { name: "Guardar cambios" }).click();
+    await page.getByRole("button", { name: "Más datos" }).click();
     await expect(page.getByText("58,5 kg")).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.goto("./");
     await page.getByLabel("Buscar paciente").fill("JOR");
     await expect(page.getByRole("link", { name: /Jorge Ruiz/ })).toBeVisible();
