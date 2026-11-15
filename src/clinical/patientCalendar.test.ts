@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import type { Appointment } from "../data/appointments";
 import type { PatientEvent } from "../data/patientEvents";
-import { addMonths, barOf, calendarItems, countText, dotsOf, isMonth, leadingBlanks, monthAgenda, monthDays, monthTitle, seriesIn, spanStep, type CalSource } from "./patientCalendar";
+import { addMonths, barOf, calendarItems, chipsOf, countText, dotsOf, familyOf, monthCounts, isMonth, leadingBlanks, monthAgenda, monthDays, monthTitle, seriesIn, spanStep, type CalSource } from "./patientCalendar";
 
 const visit = (id: string, startsAt: string, status: Appointment["status"] = "scheduled"): Appointment => ({ id, patientId: "p", startsAt, minutes: 45, status, assignedTo: null });
 const ev = (over: Partial<PatientEvent>): PatientEvent => ({
@@ -118,5 +118,49 @@ describe("el mes, de un vistazo", () => {
       { start: true, end: false },
       { start: false, end: true },
     ]);
+  });
+});
+
+describe("el mes con color", () => {
+  const src: CalSource = {
+    appointments: [visit("a", "2026-11-06T09:00:00.000Z", "done"), visit("b", "2026-11-09T09:00:00.000Z", "no_show"), visit("c", "2026-11-17T09:00:00.000Z"), visit("x", "2026-11-17T11:00:00.000Z", "cancelled")],
+    events: [
+      ev({ id: "op", kind: "surgery", startsOn: "2026-11-18" }),
+      ev({ id: "tr", kind: "training", startsOn: "2026-11-03", repeatDays: [2, 4], time: "19:30", minutes: 90 }),
+      ev({ id: "vi", kind: "travel", startsOn: "2026-11-20", endsOn: "2026-11-24" }),
+      ev({ id: "ot", kind: "other", startsOn: "2026-11-17", title: "Mudanza" }),
+    ],
+    sessions: [],
+    review: null,
+  };
+  const byDay = calendarItems(src, "2026-11-01", "2026-11-30");
+  const chips = (day: string) => chipsOf(byDay.get(day), day);
+
+  it("cada tipo de evento, a su familia", () => {
+    expect((["surgery", "medical", "test", "travel", "training", "competition", "other"] as const).map(familyOf)).toEqual(["medical", "medical", "medical", "travel", "sport", "sport", "other"]);
+  });
+
+  it("las etiquetas de un día: la cita con su hora (✓ atendida, «No vino»), como mucho dos y cuántas más; la anulada no sale", () => {
+    expect(chips("2026-11-06")).toEqual({ chips: [{ tone: "done", text: "✓ 10:00" }], more: 0 });
+    expect(chips("2026-11-09")).toEqual({ chips: [{ tone: "missed", text: "No vino" }], more: 0 });
+    // El 17: cita, entreno (martes) y la mudanza: primero la cita, luego lo suyo; el entreno, lo último.
+    expect(chips("2026-11-17")).toEqual({ chips: [{ tone: "visit", text: "10:00" }, { tone: "other", text: "Otro" }], more: 1 });
+    expect(chips("2026-11-18")).toEqual({ chips: [{ tone: "medical", text: "Cirugía" }], more: 0 });
+    expect(chips("2026-11-02")).toEqual({ chips: [], more: 0 });
+  });
+
+  it("un viaje dice su nombre el primer día y al empezar la semana; los demás días, solo la franja", () => {
+    expect(chips("2026-11-20").chips).toEqual([{ tone: "travel", text: "Viaje" }]);
+    expect(chips("2026-11-21").chips).toEqual([{ tone: "travel", text: "" }]);
+    expect(chips("2026-11-23").chips).toEqual([{ tone: "travel", text: "Viaje" }]);
+    expect(chips("2026-11-24").chips).toEqual([{ tone: "travel", text: "" }, { tone: "sport", text: "Entreno" }]);
+  });
+
+  it("los filtros por familia y sus números (un viaje y una serie cuentan una vez)", () => {
+    expect(monthCounts(src, "2026-11")).toEqual({ visits: 3, medical: 1, travel: 1, sport: 1, other: 1 });
+    const sport = calendarItems(src, "2026-11-01", "2026-11-30", "sport");
+    expect([...sport.values()].flat().every((i) => i.type === "event" && i.occurrence.event.kind === "training")).toBe(true);
+    expect(sport.size).toBeGreaterThan(5);
+    expect([...calendarItems(src, "2026-11-01", "2026-11-30", "travel").keys()]).toEqual(["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]);
   });
 });

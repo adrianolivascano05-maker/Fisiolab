@@ -6,7 +6,7 @@
 import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, Mail, MessageCircle, NotebookPen, Plus, Printer, Repeat, Send } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { todayDay } from "../app/dates";
+import { addDays, todayDay } from "../app/dates";
 import { useAsync } from "../app/useAsync";
 import { appointmentsOf, STATUS_LABELS, type Appointment } from "../data/appointments";
 import { sessionDays } from "../data/clinical";
@@ -45,11 +45,12 @@ import { Guard, localInput } from "./pageKit";
 import { PatientShell } from "./PatientShell";
 import {
   addMonths,
-  barOf,
   calendarItems,
+  chipsOf,
   countText,
-  dotsOf,
-  FILTERS,
+  FAMILIES,
+  familyOf,
+  monthCounts,
   isMonth,
   leadingBlanks,
   monthAgenda,
@@ -59,14 +60,27 @@ import {
   spanStep,
   type CalFilter,
   type CalItem,
-  type Dot,
+  type ChipTone,
 } from "./patientCalendar";
+import { closuresBetween } from "../data/closures";
+import { atMinutes } from "../schedule/layout";
 
-// Lo de cada semana, un punto hueco (suave): lo importante, relleno, destaca. Lo de varios días, una franja.
-const DOT: Record<Dot, string> = { visit: "bg-accent", event: "bg-tingle", routine: "border border-tingle", review: "bg-warning" };
-const DOT_LABEL: Record<Dot, string> = { visit: "Citas", event: "Eventos", routine: "Cada semana", review: "Reevaluación" };
-const PARAM: Record<CalFilter, string | null> = { all: null, visits: "citas", events: "eventos" };
-const sendLink = "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-md px-3 text-sm font-semibold";
+// Cada cosa del mes, con su color y su palabra (docs/rediseno-sencilla.md, «Colores»): la cita pendiente, en el verde
+// de lo que se toca; lo ya hecho, en gris; a la que no vino y lo médico, en rojo; viajes, deporte y otros, cada uno el suyo.
+const CHIP: Record<ChipTone, string> = {
+  visit: "bg-accent text-on-accent",
+  done: "bg-done-soft text-done",
+  missed: "border border-danger text-danger",
+  review: "bg-warning-soft text-warning",
+  medical: "bg-kind-medical-soft text-kind-medical",
+  travel: "bg-kind-travel-soft text-kind-travel",
+  sport: "bg-kind-sport-soft text-kind-sport",
+  other: "bg-kind-other-soft text-kind-other",
+};
+/** Los filtros del mes: en la dirección, `ver=…` (los de antes, «citas» y «eventos», siguen valiendo). */
+const PARAM: Record<CalFilter, string | null> = { all: null, visits: "citas", events: "eventos", medical: "medico", travel: "viajes", sport: "deporte", other: "otros" };
+const FILTER_OF = Object.fromEntries(Object.entries(PARAM).filter(([, v]) => v).map(([k, v]) => [v, k])) as Record<string, CalFilter>;
+const iconLink = "inline-flex size-11 shrink-0 items-center justify-center rounded-md text-accent hover:bg-surface";
 /** «Una cita cae durante su viaje», «2 citas caen el día de su operación»… */
 const awayTitle = (away: { hits: Occurrence[] }[]) => {
   const kinds = new Set(away.flatMap((x) => x.hits.map((h) => h.event.kind)));
@@ -86,7 +100,7 @@ export function CalendarPage() {
   const month = isMonth(params.get("mes")) ? params.get("mes")! : today.slice(0, 7);
   const dia = params.get("dia");
   const selected = isDay(dia) && dia.startsWith(month) ? dia : null;
-  const filter: CalFilter = params.get("ver") === "citas" ? "visits" : params.get("ver") === "eventos" ? "events" : "all";
+  const filter: CalFilter = FILTER_OF[params.get("ver") ?? ""] ?? "all";
   const staff = useStaff();
   const leave = useLeaveWaitlist();
   /** La hoja abierta: una cita (la que se toca o una nueva para un día) o un evento (el que se toca o uno nuevo). */
@@ -106,10 +120,13 @@ export function CalendarPage() {
         getClinic(db),
         loadMessages(db),
       ]);
-      return { patient, appointments, events, sessions, review: sessions[0]?.reviewOn ?? null, clinic, messages };
+      // Los días con la agenda cerrada para todos (un festivo, unas vacaciones de la clínica), para rayarlos en el mes.
+      const first = `${month}-01`;
+      const closures = (await closuresBetween(db, atMinutes(first, 0), atMinutes(addDays(first, 31), 0))).filter((c) => c.staffEmail === "");
+      return { patient, appointments, events, sessions, review: sessions[0]?.reviewOn ?? null, clinic, messages, closures };
     },
-    [id],
-    { tables: ["patients", "appointments", "sessions", "events", "settings"] },
+    [id, month],
+    { tables: ["patients", "appointments", "sessions", "events", "settings", "schedule"] },
   );
   if (!data.data) return <Guard state={data} title="Calendario" back={`/pacientes/${id}`} />;
   const { patient, events, clinic, messages } = data.data;
@@ -150,10 +167,15 @@ export function CalendarPage() {
   const weeks: (string | null)[][] = [];
   const cells = [...Array<null>(leadingBlanks(month)).fill(null), ...days];
   for (let i = 0; i < cells.length; i += 7) weeks.push([...cells.slice(i, i + 7), ...Array<null>(Math.max(0, i + 7 - cells.length)).fill(null)]);
-  // La leyenda, solo de lo que hay este mes.
-  const present = new Set([...byDay.values()].flatMap((items) => dotsOf(items)));
-  const legend = (["visit", "event", "routine", "review"] as Dot[]).filter((d) => present.has(d));
-  const hasBars = [...byDay.entries()].some(([day, items]) => barOf(items, day, month));
+  // Los filtros llevan su número: cuántas citas y cuántas cosas de cada familia hay este mes.
+  const counts = monthCounts(data.data, month);
+  const showsVisits = filter === "all" || filter === "visits";
+  // Un día está cerrado si un cierre de toda la clínica lo cubre entero.
+  const closedNote = (day: string) => {
+    const from = Date.parse(atMinutes(day, 0));
+    const c = data.data!.closures.find((x) => Date.parse(x.startsAt) <= from && Date.parse(x.endsAt) >= from + 23 * 3_600_000);
+    return c ? c.note || "Agenda cerrada" : null;
+  };
   // «Dar cita» propone su hora de siempre: la de su última cita (si no, las 10:00).
   const lastVisit = [...data.data.appointments].reverse().find((a) => a.status !== "cancelled");
   const usualTime = lastVisit ? localInput(lastVisit.startsAt).slice(11, 16) : "10:00";
@@ -172,7 +194,7 @@ export function CalendarPage() {
     },
   };
   // En la lista del mes, lo que se repite cada semana va una vez, arriba; día a día solo lo demás.
-  const series = filter === "visits" ? [] : seriesIn(events, month);
+  const series = filter === "visits" ? [] : seriesIn(filter === "all" || filter === "events" ? events : events.filter((e) => familyOf(e.kind) === filter), month);
   const monthList = monthAgenda(byDay);
   // Tocar un evento de un día: su hoja sabe qué día es (para «este día no» en lo que se repite).
   const row = (item: CalItem, i: number, whole = false) => (
@@ -202,19 +224,31 @@ export function CalendarPage() {
               Apuntar evento
             </Button>
           </div>
-          <div role="group" aria-label="Qué se ve" className="flex gap-1 rounded-lg border border-border bg-surface p-1">
-            {FILTERS.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                aria-pressed={filter === f.id}
-                onClick={() => go({ ver: f.id })}
-                className={cx("min-h-11 flex-1 rounded-md px-2 text-sm font-semibold", filter === f.id ? "bg-accent text-on-accent" : "text-text hover:bg-bg")}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          {/* Arriba, en una línea: su próxima cita, cuántas le quedan y cómo dárselas (WhatsApp, correo o en papel). */}
+          {upcoming.length > 0 && patient && (
+            <div className="flex flex-col gap-1 rounded-md border border-border bg-bg px-3 py-1.5">
+              <div className="flex items-center gap-1">
+                <p className="min-w-0 flex-1 text-sm">
+                  <span className="font-semibold">{upcoming.length === 1 ? "1 cita pendiente" : `${upcoming.length} citas pendientes`}</span> · la próxima, {fmtVisit(upcoming[0]!.startsAt)}
+                </p>
+                {mayMessage(contact) && phone && (
+                  <a href={whatsappUrl(phone, sendText)} target="_blank" rel="noopener noreferrer" aria-label="Sus próximas citas por WhatsApp" title="Sus próximas citas por WhatsApp" className={iconLink}>
+                    <MessageCircle aria-hidden="true" className="size-5" />
+                  </a>
+                )}
+                {mayMessage(contact) && patient.email && (
+                  <a href={mailtoUrl(patient.email, messageSubject("citas", messages, { clinica: clinic.name }), sendText)} aria-label="Por correo" title="Sus próximas citas por correo" className={iconLink}>
+                    <Mail aria-hidden="true" className="size-5" />
+                  </a>
+                )}
+                {/* En papel, para dársela en la consulta: no hace falta el permiso de contacto. */}
+                <Link to={`/pacientes/${id}/proximas-citas`} aria-label="Hoja para imprimir" title="Hoja para imprimir" className={iconLink}>
+                  <Printer aria-hidden="true" className="size-5" />
+                </Link>
+              </div>
+              <ContactNote contact={contact} patientId={id} extra="Díselas en la consulta" />
+            </div>
+          )}
           <div className="flex items-center gap-1">
             <IconButton label="Mes anterior" onClick={() => go({ mes: addMonths(month, -1), dia: null })}>
               <ChevronLeft aria-hidden="true" className="size-5" />
@@ -254,7 +288,7 @@ export function CalendarPage() {
                           selected={day === selected}
                           past={day < today}
                           items={byDay.get(day)}
-                          bar={barOf(byDay.get(day), day, month)}
+                          closed={closedNote(day)}
                           onClick={() => go({ dia: day === selected ? null : day })}
                         />
                       )}
@@ -264,62 +298,40 @@ export function CalendarPage() {
               ))}
             </tbody>
           </table>
-          {/* Que lo apunte desde su móvil (Formularios › «Su calendario»). */}
-          <Link
-            to={`/pacientes/${id}/formularios?enviar=calendario`}
-            className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-accent underline underline-offset-2"
-          >
-            <Send aria-hidden="true" className="size-4" /> Que lo apunte desde su móvil
-          </Link>
-          {(legend.length > 0 || hasBars) && (
-            <ul aria-label="Leyenda" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
-              {legend.map((d) => (
-                <li key={d} className="inline-flex items-center gap-1.5">
-                  <span aria-hidden="true" className={cx("size-2 rounded-full", DOT[d])} />
-                  {DOT_LABEL[d]}
-                </li>
-              ))}
-              {hasBars && (
-                <li className="inline-flex items-center gap-1.5">
-                  <span aria-hidden="true" className="h-1 w-4 rounded-pill bg-tingle/60" />
-                  Varios días
-                </li>
-              )}
-            </ul>
-          )}
+          {/* Los colores del mes son también el filtro, cada uno con su número. */}
+          <div role="group" aria-label="Qué se ve" className="flex flex-wrap gap-2">
+            {(
+              [
+                { id: "all", label: "Todo", n: null, tone: null },
+                { id: "visits", label: "Citas", n: counts.visits, tone: "visit" },
+                ...FAMILIES.filter((f) => counts[f.id] > 0 || filter === f.id).map((f) => ({ id: f.id, label: f.label, n: counts[f.id], tone: f.id })),
+              ] as { id: CalFilter; label: string; n: number | null; tone: ChipTone | null }[]
+            ).map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={filter === f.id}
+                onClick={() => go({ ver: filter === f.id ? "all" : f.id })}
+                className={cx(
+                  "inline-flex min-h-11 items-center gap-1.5 rounded-pill px-3 text-sm font-semibold",
+                  f.tone ? CHIP[f.tone] : "border border-border bg-bg text-text",
+                  filter === f.id ? "ring-2 ring-text ring-offset-2 ring-offset-canvas" : filter !== "all" && "opacity-60",
+                )}
+              >
+                {f.label}
+                {f.n !== null && <span className="nums">{f.n}</span>}
+              </button>
+            ))}
+          </div>
         </section>
 
         <section aria-labelledby="h-lista" className="flex flex-col gap-3">
-          {filter !== "events" && away.length > 0 && (
+          {showsVisits && away.length > 0 && (
             <div className="flex flex-col gap-2">
               <Alert tone="warning" title={awayTitle(away)}>
                 {away.length === 1 ? "Tócala para cambiarla o anularla." : "Toca cada una para cambiarla o anularla."}
               </Alert>
               <VisitList appointments={away.map((x) => x.appointment)} detail={(a) => hitNames(hitsOf.get(a.id) ?? [])} onVisit={(a) => setVisit({ appointment: a })} />
-            </div>
-          )}
-          {filter !== "events" && upcoming.length > 0 && patient && (
-            <div className="flex flex-col gap-2 rounded-md border border-border bg-bg p-3">
-              <p className="text-sm">
-                <span className="font-semibold">{upcoming.length === 1 ? "1 cita pendiente" : `${upcoming.length} citas pendientes`}</span> · la próxima, {fmtVisit(upcoming[0]!.startsAt)}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {mayMessage(contact) && phone && (
-                  <a href={whatsappUrl(phone, sendText)} target="_blank" rel="noopener noreferrer" className={cx(sendLink, "bg-accent text-on-accent hover:bg-accent-hover")}>
-                    <MessageCircle aria-hidden="true" className="size-4" /> Sus próximas citas por WhatsApp
-                  </a>
-                )}
-                {mayMessage(contact) && patient.email && (
-                  <a href={mailtoUrl(patient.email, messageSubject("citas", messages, { clinica: clinic.name }), sendText)} className={cx(sendLink, "border border-border bg-bg hover:bg-surface")}>
-                    <Mail aria-hidden="true" className="size-4" /> Por correo
-                  </a>
-                )}
-                {/* En papel, para dársela en la consulta: no hace falta el permiso de contacto. */}
-                <Link to={`/pacientes/${id}/proximas-citas`} className={cx(sendLink, "border border-border bg-bg hover:bg-surface")}>
-                  <Printer aria-hidden="true" className="size-4" /> Hoja para imprimir
-                </Link>
-              </div>
-              <ContactNote contact={contact} patientId={id} extra="Díselas en la consulta" />
             </div>
           )}
           {selected ? (
@@ -381,6 +393,13 @@ export function CalendarPage() {
               )}
             </>
           )}
+          {/* Que lo apunte desde su móvil (Formularios › «Su calendario»). */}
+          <Link
+            to={`/pacientes/${id}/formularios?enviar=calendario`}
+            className="inline-flex min-h-11 items-center gap-1.5 self-start text-sm font-semibold text-accent underline underline-offset-2"
+          >
+            <Send aria-hidden="true" className="size-4" /> Que lo apunte desde su móvil
+          </Link>
         </section>
       </div>
       {patient && (
@@ -406,7 +425,7 @@ function DayButton({
   selected,
   past,
   items,
-  bar,
+  closed,
   onClick,
 }: {
   day: string;
@@ -414,42 +433,43 @@ function DayButton({
   selected: boolean;
   past: boolean;
   items?: CalItem[];
-  bar: { start: boolean; end: boolean } | null;
+  /** El motivo, si ese día la agenda está cerrada para todos (sale rayado). */
+  closed: string | null;
   onClick: () => void;
 }) {
-  const dots = dotsOf(items);
+  const { chips, more } = chipsOf(items, day);
   return (
     <button
       type="button"
       aria-pressed={selected}
       aria-current={today ? "date" : undefined}
-      aria-label={`${dayLong(day)}${today ? ", hoy" : ""}: ${countText(items)}`}
       onClick={onClick}
       className={cx(
-        "relative flex h-12 w-full min-w-0 flex-col items-center justify-start gap-1 rounded-md pt-1.5 text-sm",
-        selected ? "bg-accent text-on-accent" : today ? "bg-accent-soft font-bold text-accent" : "hover:bg-surface",
-        !selected && !today && past && "text-text-muted",
+        "relative flex h-16 w-full min-w-0 flex-col items-stretch justify-start gap-0.5 overflow-hidden rounded-md px-px pt-1 text-sm",
+        closed ? "bg-[repeating-linear-gradient(135deg,var(--color-surface)_0_4px,transparent_4px_8px)]" : "bg-bg",
+        // El dorado es «hoy»; el día elegido, un marco del color de lo que se toca.
+        selected ? "ring-2 ring-accent ring-inset" : today ? "ring-2 ring-highlight ring-inset" : "hover:bg-surface",
       )}
     >
-      <span aria-hidden="true" className="nums leading-none">
+      {/* Para el lector de pantalla, el día entero en palabras; lo que se ve (número y etiquetas) es solo para la vista. */}
+      <span className="sr-only">{`${dayLong(day)}${today ? ", hoy" : ""}${closed ? `, agenda cerrada (${closed})` : ""}: ${countText(items)}`}</span>
+      <span aria-hidden="true" className={cx("nums text-center leading-none", today ? "font-bold" : past && "text-text-muted")}>
         {Number(day.slice(8))}
       </span>
-      <span aria-hidden="true" className="flex h-1.5 gap-0.5">
-        {dots.map((d) => (
-          <span key={d} className={cx("size-1.5 rounded-full", selected ? (d === "routine" ? "border border-on-accent" : "bg-on-accent") : DOT[d])} />
-        ))}
-      </span>
-      {/* Varios días (un viaje): una franja abajo que pasa de un día al siguiente. */}
-      {bar && (
+      {/* Como mucho dos etiquetas, cada una con su color y su palabra; lo de varios días sigue como franja sin texto. */}
+      {chips.map((c, i) => (
         <span
+          key={i}
           aria-hidden="true"
-          className={cx(
-            "absolute bottom-1 h-1",
-            selected ? "bg-on-accent/70" : "bg-tingle/60",
-            bar.start ? "left-1.5 rounded-l-pill" : "-left-px",
-            bar.end ? "right-1.5 rounded-r-pill" : "-right-px",
-          )}
-        />
+          className={cx("block h-3.5 overflow-hidden rounded-sm px-0.5 text-center text-[0.625rem] leading-[0.875rem] font-semibold whitespace-nowrap", CHIP[c.tone], !c.text && "-mx-px rounded-none")}
+        >
+          {c.text}
+        </span>
+      ))}
+      {more > 0 && (
+        <span aria-hidden="true" className="absolute right-0.5 top-0.5 text-[0.625rem] leading-none font-semibold text-text-muted">
+          +{more}
+        </span>
       )}
     </button>
   );

@@ -96,4 +96,5 @@ Decisiones que el usuario no contestó de forma expresa y se toman con lo recome
 | --- | --- |
 | 0 Colores | hecho, sin publicar |
 | 1 Cabecera de la ficha | hecho, sin publicar |
-| 2–14 | pendientes |
+| 2 Calendario con color | hecho (móvil; el mes grande en ancho, con el bloque 11), sin publicar |
+| 3–14 | pendientes |

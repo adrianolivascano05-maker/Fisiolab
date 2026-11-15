@@ -3,6 +3,20 @@
 Pedido el 12-11-2026: «añade un calendario dentro de cada paciente, para poder añadir dentro de cada paciente cuando
 tienen eventos como operaciones, o entrenamientos de ellos mismos, poder ver solo sus citas directamente».
 
+## El mes con color (rediseño de noviembre de 2026, bloque 2)
+
+En el mes, cada día enseña hasta dos etiquetas con su color **y su palabra** (el color nunca va solo), y «+N» si hay
+más (`chipsOf` en `src/clinical/patientCalendar.ts`): la cita pendiente con su hora (verde, lo que se toca), la
+atendida con «✓» (gris), «No vino» (borde rojo), «Reevaluar» (ámbar) y lo suyo por familias: médico (operación
+«Cirugía», consulta, prueba), viajes (una franja; dice «Viaje» el primer día y al empezar cada semana), deporte
+(«Entreno», «Compite») y otros. Las citas anuladas no salen en la celda (sí en la lista del día). Hoy lleva un marco
+dorado; el día elegido, uno verde. Los días con la agenda cerrada para toda la clínica (un cierre que cubre el día
+entero) salen rayados y el lector de pantalla lo dice («agenda cerrada (Festivo local)»). Debajo del mes, los colores
+son el filtro, con su número del mes (`monthCounts`): Todo, Citas, Médico, Viajes, Deporte, Otros (solo los que hay);
+en la dirección, `ver=citas|medico|viajes|deporte|otros` (`ver=eventos`, de antes, sigue valiendo: todo lo suyo).
+Arriba, en una línea, «N citas pendientes · la próxima, …» con WhatsApp, correo y la hoja para imprimir como iconos.
+«Que lo apunte desde su móvil» va al final.
+
 ## Qué hace
 
 Es la quinta pestaña de la ficha: **Resumen · Anamnesis · Valoración · Sesiones · Calendario**

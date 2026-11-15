@@ -83,15 +83,20 @@ test.describe("Calendario del paciente", () => {
     await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toHaveCount(1);
     await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toContainText(/Cada .* y .* desde el .*, sin fecha de fin · 19:00 · 90 min/);
 
-    // Los filtros: solo sus citas (ninguna aún) o solo sus eventos.
+    // Los filtros son los colores del mes, con su número: solo sus citas (ninguna aún) o solo el deporte.
     const filter = page.getByRole("group", { name: "Qué se ve" });
     await filter.getByRole("button", { name: "Citas" }).click();
     await expect(page.getByText(/^Ninguna cita este mes\./)).toBeVisible();
     await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toHaveCount(0);
     await expect(page).toHaveURL(/ver=citas/);
-    await filter.getByRole("button", { name: "Eventos" }).click();
+    await expect(filter.getByRole("button", { name: "Citas 0" })).toHaveAttribute("aria-pressed", "true");
+    await filter.getByRole("button", { name: "Deporte 1" }).click();
+    await expect(page).toHaveURL(/ver=deporte/);
     await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toBeVisible();
-    await filter.getByRole("button", { name: "Todo" }).click();
+    // La dirección de antes («solo sus eventos») sigue valiendo.
+    await page.goto(page.url().replace("ver=deporte", "ver=eventos"));
+    await expect(page.getByRole("button", { name: /^Fútbol con su equipo/ })).toBeVisible();
+    await page.getByRole("group", { name: "Qué se ve" }).getByRole("button", { name: "Todo" }).click();
 
     // Hoy: el entrenamiento a su hora. Darle cita a las 19:30 avisa de que se pisa; se da igualmente.
     await page.getByRole("button", { name: "Hoy", exact: true }).click();
@@ -194,8 +199,8 @@ test.describe("Calendario del paciente", () => {
     await sheet.getByLabel("Nombre (si quieres)").fill("Pádel");
     await sheet.getByRole("button", { name: "Apuntar" }).click();
     await expect(page.getByText("Evento apuntado")).toBeVisible();
-    // En el mes, lo de cada semana lleva su leyenda (punto hueco).
-    await expect(page.getByRole("list", { name: "Leyenda" })).toContainText("Cada semana");
+    // En el mes, lo de cada semana sale con el color del deporte, y su filtro lo cuenta.
+    await expect(page.getByRole("group", { name: "Qué se ve" }).getByRole("button", { name: "Deporte 1" })).toBeVisible();
 
     // Hoy no: se toca en el día y «Este día no».
     await page.getByRole("button", { name: "Hoy", exact: true }).click();
@@ -360,6 +365,8 @@ test.describe("Calendario del paciente", () => {
 
     // Una cita sola en el festivo: avisa (y se puede dar igualmente).
     await page.goto(`${record}/calendario?mes=${closed.slice(0, 7)}&dia=${closed}`);
+    // En el mes, el día cerrado sale rayado y lo dice.
+    await expect(page.getByRole("button", { name: /, agenda cerrada \(Festivo local\): / })).toBeVisible();
     await page.getByRole("button", { name: "Dar cita a las 10:00" }).click();
     visit = page.getByRole("dialog", { name: "Dar cita a Celia Cierre" });
     await visit.getByRole("button", { name: "Dar la cita" }).click();

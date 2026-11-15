@@ -3,10 +3,28 @@
 // patientEvents.ts). Sin base de datos ni pantalla: se prueba sola (patientCalendar.test.ts).
 import { addDays, dayOf } from "../app/dates";
 import type { Appointment } from "../data/appointments";
-import { daysBetween, occurrencesIn, timeOf, weekdayOf, type Occurrence, type PatientEvent } from "../data/patientEvents";
+import { daysBetween, occurrencesIn, timeOf, weekdayOf, type EventKind, type Occurrence, type PatientEvent } from "../data/patientEvents";
 
-/** Qué se ve: todo, solo lo de la clínica (citas, sesiones y reevaluación) o solo lo suyo (sus eventos). */
-export type CalFilter = "all" | "visits" | "events";
+/**
+ * Las familias de lo suyo, cada una con su color (docs/rediseno-sencilla.md, «Colores»): médico (operación, consulta y
+ * prueba), viaje, deporte (entrenamientos y competición) y otro. Las citas son la quinta familia.
+ */
+export type Family = "medical" | "travel" | "sport" | "other";
+export const FAMILIES: { id: Family; label: string }[] = [
+  { id: "medical", label: "Médico" },
+  { id: "travel", label: "Viajes" },
+  { id: "sport", label: "Deporte" },
+  { id: "other", label: "Otros" },
+];
+const FAMILY_OF: Record<EventKind, Family> = { surgery: "medical", medical: "medical", test: "medical", travel: "travel", training: "sport", competition: "sport", other: "other" };
+/** La familia de un tipo de evento (un tipo que esta versión no conoce va a «otro»). */
+export const familyOf = (kind: EventKind): Family => FAMILY_OF[kind] ?? "other";
+
+/**
+ * Qué se ve: todo, solo lo de la clínica (citas, sesiones y reevaluación), solo lo suyo (sus eventos) o solo una
+ * familia de lo suyo.
+ */
+export type CalFilter = "all" | "visits" | "events" | Family;
 export const FILTERS: { id: CalFilter; label: string }[] = [
   { id: "all", label: "Todo" },
   { id: "visits", label: "Citas" },
@@ -34,7 +52,7 @@ const ORDER = { review: 0, visit: 1, session: 2, event: 3 } as const;
 export function calendarItems(src: CalSource, from: string, to: string, filter: CalFilter = "all"): Map<string, CalItem[]> {
   const items: CalItem[] = [];
   const inRange = (day: string) => day >= from && day <= to;
-  if (filter !== "events") {
+  if (filter === "all" || filter === "visits") {
     const visitDays = new Set<string>();
     for (const a of src.appointments) {
       const day = dayOf(a.startsAt);
@@ -47,7 +65,9 @@ export function calendarItems(src: CalSource, from: string, to: string, filter: 
     }
     if (src.review && inRange(src.review)) items.push({ type: "review", day: src.review, time: null });
   }
-  if (filter !== "visits") for (const o of occurrencesIn(src.events, from, to)) items.push({ type: "event", day: o.day, time: o.event.time, occurrence: o });
+  if (filter !== "visits")
+    for (const o of occurrencesIn(src.events, from, to))
+      if (filter === "all" || filter === "events" || familyOf(o.event.kind) === filter) items.push({ type: "event", day: o.day, time: o.event.time, occurrence: o });
   items.sort((a, b) => a.day.localeCompare(b.day) || (a.time ?? "").localeCompare(b.time ?? "") || ORDER[a.type] - ORDER[b.type]);
   const byDay = new Map<string, CalItem[]>();
   for (const it of items) {
@@ -88,6 +108,55 @@ export function barOf(items: CalItem[] = [], day: string, month: string): { star
     start: spans.some((i) => i.occurrence.first) || wd === 1 || day === days[0],
     end: spans.some((i) => i.occurrence.last) || wd === 7 || day === days.at(-1),
   };
+}
+
+/** Cómo se pinta una etiqueta del mes: una cita pendiente, algo hecho, una cita a la que no vino, la reevaluación o una familia. */
+export type ChipTone = "visit" | "done" | "missed" | "review" | Family;
+export type Chip = { tone: ChipTone; text: string };
+const KIND_SHORT: Record<EventKind, string> = { surgery: "Cirugía", medical: "Médico", test: "Prueba", training: "Entreno", competition: "Compite", travel: "Viaje", other: "Otro" };
+const CHIP_ORDER: ChipTone[] = ["visit", "missed", "done", "medical", "review", "travel", "other", "sport"];
+
+/**
+ * Las etiquetas de un día en el mes: como mucho dos, con su palabra (el color nunca va solo), y cuántas cosas más hay.
+ * Las citas, con su hora (✓ si se atendió, «No vino»); las anuladas no salen aquí (sí en la lista del día). Lo de
+ * varios días (un viaje) dice su nombre el primer día y al empezar cada semana; los demás días, solo la franja.
+ * Primero lo de la clínica y lo importante; sus entrenamientos de cada semana, lo último.
+ */
+export function chipsOf(items: CalItem[] = [], day = ""): { chips: Chip[]; more: number } {
+  const all: Chip[] = [];
+  for (const it of items) {
+    if (it.type === "visit") {
+      const s = it.appointment.status;
+      if (s === "cancelled") continue;
+      all.push(s === "done" ? { tone: "done", text: `✓ ${it.time}` } : s === "no_show" ? { tone: "missed", text: "No vino" } : { tone: "visit", text: it.time });
+    } else if (it.type === "session") all.push({ tone: "done", text: "✓ Sesión" });
+    else if (it.type === "review") all.push({ tone: "review", text: "Reevaluar" });
+    else {
+      const e = it.occurrence.event;
+      const cont = !!e.endsOn && !it.occurrence.first && weekdayOf(day || it.day) !== 1 && !(day || it.day).endsWith("-01");
+      all.push({ tone: familyOf(e.kind), text: cont ? "" : (KIND_SHORT[e.kind] ?? "Otro") });
+    }
+  }
+  all.sort((a, b) => CHIP_ORDER.indexOf(a.tone) - CHIP_ORDER.indexOf(b.tone));
+  return { chips: all.slice(0, 2), more: Math.max(0, all.length - 2) };
+}
+
+/** Cuántas cosas de cada clase hay en el mes (para los filtros con su número): citas sin anular y eventos por familia (un viaje cuenta una vez). */
+export function monthCounts(src: CalSource, month: string): Record<"visits" | Family, number> {
+  const days = monthDays(month);
+  const from = days[0]!;
+  const to = days.at(-1)!;
+  const out = { visits: 0, medical: 0, travel: 0, sport: 0, other: 0 };
+  for (const a of src.appointments) if (a.status !== "cancelled" && dayOf(a.startsAt) >= from && dayOf(a.startsAt) <= to) out.visits++;
+  const seen = new Set<string>();
+  for (const o of occurrencesIn(src.events, from, to)) {
+    // Lo de varios días y lo de cada semana cuentan una vez.
+    const key = o.event.endsOn || o.event.repeatDays.length ? o.event.id : `${o.event.id}|${o.day}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out[familyOf(o.event.kind)]++;
+  }
+  return out;
 }
 
 /** Cuántas cosas tiene un día, en palabras (para el lector de pantalla del día en el mes): «1 cita y 2 eventos». */
