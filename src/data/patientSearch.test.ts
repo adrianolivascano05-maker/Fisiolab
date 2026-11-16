@@ -4,7 +4,7 @@ import { addPayment, setSessionPrice } from "./billing";
 import { getAnamnesis, saveAnamnesis, saveSession } from "./clinical";
 import { listConsents } from "./consents";
 import type { Db } from "./db";
-import { calendarPatients, findPatients, hasOwnPatients, NO_FILTERS, unsignedPatients, type PatientFilters } from "./patientSearch";
+import { calendarPatients, findPatients, hasOwnPatients, NO_FILTERS, quickCounts, unsignedPatients, type PatientFilters } from "./patientSearch";
 import { savePatientEvent, type EventInput } from "./patientEvents";
 import { appointmentsByPhysio, patientPhysios, setPatientPhysios } from "./patientStaff";
 import { savePatientPrivacy } from "./privacy";
@@ -207,5 +207,27 @@ describe("filtro por su calendario", () => {
     const pronto = await createPatient(db, person("Pablo Pronto"));
     await savePatientEvent(db, pronto, ev({ kind: "surgery", startsOn: "2026-11-17" }));
     expect([...(await calendarPatients(db, "seOperan", NOW))]).toEqual([pronto]);
+  });
+});
+
+describe("filtros rápidos de la lista y lo que dice cada fila", () => {
+  it("con cita hoy, sin cita por delante, y cuántos hay de cada uno; cada fila con su motivo y sus sesiones", async () => {
+    const hoy = await createPatient(db, person("Helena Hoy"));
+    const luego = await createPatient(db, person("Lucas Luego"));
+    const nada = await createPatient(db, person("Nadia Nada"));
+    // NOW son las 11:00 en Madrid: una cita esta tarde y otra la semana que viene.
+    await createAppointment(db, hoy, { startsAt: "2026-10-27T16:00:00.000Z", minutes: 45 });
+    await createAppointment(db, luego, { startsAt: "2026-11-03T09:00:00.000Z", minutes: 45 });
+    await saveAnamnesis(db, hoy, { motivo: "Dolor lumbar" });
+    await saveSession(db, hoy, session("2026-10-20T09:00:00.000Z"));
+    await saveSession(db, hoy, session("2026-10-22T09:00:00.000Z"));
+
+    expect(await names({ filters: only({ quick: "hoy" }) })).toEqual(["Helena Hoy"]);
+    expect(await names({ filters: only({ quick: "sinCita" }) })).toEqual(["Nadia Nada"]);
+    expect(await quickCounts(db, NOW)).toEqual({ all: 3, today: 1, noVisit: 1, owe: 0 });
+
+    const rows = (await findPatients(db, { now: NOW })).rows;
+    expect(rows.find((r) => r.id === hoy)).toMatchObject({ motive: "Dolor lumbar", sessions: 2 });
+    expect(rows.find((r) => r.id === nada)).toMatchObject({ motive: "", sessions: 0 });
   });
 });

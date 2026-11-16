@@ -8,7 +8,6 @@ import { RecoveryReminder } from "../cloud/RecoveryParts";
 import { LoadError, Loading, Page } from "../app/Page";
 import { isIos, isStandalone } from "../app/pwa";
 import { useAsync } from "../app/useAsync";
-import { fmtVisit } from "../clinical/calendar";
 import { useDataVersion } from "../app/dataVersion";
 import { sexLabels } from "../clinical/pageKit";
 import { getDb } from "../data/db";
@@ -23,6 +22,7 @@ import {
   PAGE_SIZE,
   pendingPatients,
   PENDINGS,
+  quickCounts,
   type PatientFilters,
   type PatientHit,
 } from "../data/patientSearch";
@@ -35,7 +35,8 @@ import { Button } from "../ui/Button";
 import { EmptyState } from "../ui/EmptyState";
 import { NumberField, SelectField } from "../ui/Field";
 import { Group } from "../ui/Grouped";
-import { PatientRow } from "../ui/ListItem";
+import { PatientRow, type RowTagTone } from "../ui/ListItem";
+import { cx } from "../ui/cx";
 import { Sheet } from "../ui/Sheet";
 
 export { QUICK_PATIENT } from "../data/repo";
@@ -43,18 +44,29 @@ export { QUICK_PATIENT } from "../data/repo";
 /** «10:00», en la hora de Madrid. */
 const hourOf = (iso: string) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 
-/** «Hoy, 10:00», «Mañana, 9:30» o «lun, 26 oct, 10:00». */
-function when(iso: string) {
-  const hour = hourOf(iso);
-  const day = madridDay(iso);
-  return day === dayPlus(0) ? `Hoy, ${hour}` : day === dayPlus(1) ? `Mañana, ${hour}` : fmtVisit(iso);
-}
-
-/** Lo que más sirve de cada paciente en la lista: su próxima cita o la última vez que vino. */
+/** Debajo del nombre: por qué viene y cuántas sesiones lleva; si no hay nada de eso, la última vez que vino. */
 function meta(p: PatientHit) {
-  if (p.nextAt) return `Próxima cita: ${when(p.nextAt)}`;
+  const n = p.sessions === 1 ? "1 sesión" : p.sessions > 1 ? `${p.sessions} sesiones` : "";
+  const motive = p.motive.trim().split("\n")[0] ?? "";
+  if (motive || n) return [motive, n].filter(Boolean).join(" · ");
   if (p.lastAt) return `Última visita: ${fmtDate(p.lastAt)}`;
   return "Sin visitas todavía";
+}
+
+/** «Hoy 10:00», «Mañana 9:30» o «26 oct, 10:00»: la próxima cita, en corto, para la etiqueta de la fila. */
+function shortWhen(iso: string) {
+  const day = madridDay(iso);
+  if (day === dayPlus(0)) return `Hoy ${hourOf(iso)}`;
+  if (day === dayPlus(1)) return `Mañana ${hourOf(iso)}`;
+  return `${new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", timeZone: "Europe/Madrid" }).replace(".", "")}, ${hourOf(iso)}`;
+}
+
+/** Lo más urgente de cada paciente, en una etiqueta: debe, está de viaje, su próxima cita o que no tiene ninguna. */
+function tagOf(p: PatientHit, marks: { owe: Set<string>; away: Set<string> } | undefined): { text: string; tone: RowTagTone; label?: string } {
+  if (marks?.owe.has(p.id)) return { text: "Debe", tone: "warning" };
+  if (marks?.away.has(p.id)) return { text: "De viaje", tone: "travel" };
+  if (p.nextAt) return { text: shortWhen(p.nextAt), tone: "visit", label: "Próxima cita: " };
+  return { text: "Sin cita", tone: "none" };
 }
 
 /** Primera letra para las secciones (sin tildes; «#» si no es una letra). */
@@ -118,7 +130,7 @@ function usePatientList() {
   // Si hay algún paciente (para la franja de hoy y la lista vacía) y alguno de verdad (para los avisos).
   const any = useAsync(async () => (await findPatients(getDb(), { limit: 0 })).total > 0, []);
   const own = useAsync(() => hasOwnPatients(getDb(), SEED_PREFIX, QUICK_PATIENT), []);
-  const narrowed = !!query.trim() || activeFilters(state.filters) > 0 || state.letter !== null;
+  const narrowed = !!query.trim() || activeFilters(state.filters) > 0 || !!state.filters.quick || state.letter !== null;
   return {
     ...state,
     query,
@@ -166,8 +178,43 @@ function PatientSearch({ list, compact }: { list: PatientList; compact?: boolean
           {n > 0 && <span className="rounded-pill bg-accent px-2 text-sm text-on-accent">{n}</span>}
         </button>
       </div>
+      <QuickFilters list={list} />
       <FilterChips list={list} />
       <FiltersSheet open={open} onClose={() => setOpen(false)} list={list} />
+    </div>
+  );
+}
+
+/** Los filtros de un toque, con cuántos hay: todos, con cita hoy, sin cita por delante y con algo por cobrar. */
+function QuickFilters({ list }: { list: PatientList }) {
+  const version = useDataVersion();
+  const counts = useAsync(() => quickCounts(getDb()), [version]);
+  const f = list.filters;
+  const on = f.quick === "hoy" ? "hoy" : f.quick === "sinCita" ? "sinCita" : f.pending === "cobrar" ? "deben" : activeFilters(f) === 0 ? "todos" : null;
+  const c = counts.data;
+  if (!c || c.all === 0) return null;
+  const chips: { id: string; label: string; n: number; set: Partial<PatientFilters> }[] = [
+    { id: "todos", label: "Todos", n: c.all, set: { quick: null, pending: null } },
+    { id: "hoy", label: "Hoy", n: c.today, set: { quick: "hoy", pending: null } },
+    { id: "sinCita", label: "Sin cita", n: c.noVisit, set: { quick: "sinCita", pending: null } },
+    { id: "deben", label: "Deben", n: c.owe, set: { quick: null, pending: "cobrar" } },
+  ];
+  return (
+    <div role="group" aria-label="Ver" className="flex flex-wrap gap-1.5">
+      {chips.map((chip) => (
+        <button
+          key={chip.id}
+          type="button"
+          aria-pressed={on === chip.id}
+          onClick={() => list.setFilters(chip.id === "todos" ? NO_FILTERS : { ...f, ...chip.set })}
+          className={cx(
+            "inline-flex min-h-11 items-center gap-1.5 rounded-pill border px-3 text-sm font-semibold",
+            on === chip.id ? "border-accent bg-accent text-on-accent" : "border-border bg-bg text-accent hover:bg-surface",
+          )}
+        >
+          {chip.label} <span className="nums font-normal">{chip.n}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -279,17 +326,26 @@ function FiltersSheet({ open, onClose, list }: { open: boolean; onClose: () => v
   );
 }
 
-/** Ir a los que empiezan por una letra. */
+/** Ir a los que empiezan por una letra: una tira que se desliza de lado, de la A a la Z (cada letra, de 44 px). */
 function LetterPicker({ list }: { list: PatientList }) {
   return (
-    <SelectField label="Empiezan por" value={list.letter ?? ""} onChange={(e) => list.setLetter(e.target.value || null)}>
-      <option value="">Cualquier letra</option>
+    <div role="group" aria-label="Empiezan por" className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1">
       {LETTERS.map((l) => (
-        <option key={l} value={l}>
-          {l === "#" ? "Otro signo o número" : l}
-        </option>
+        <button
+          key={l}
+          type="button"
+          aria-pressed={list.letter === l}
+          aria-label={l === "#" ? "Otro signo o número" : `Letra ${l}`}
+          onClick={() => list.setLetter(list.letter === l ? null : l)}
+          className={cx(
+            "tap inline-flex shrink-0 items-center justify-center rounded-md text-sm font-semibold",
+            list.letter === l ? "bg-accent text-on-accent" : "bg-surface text-accent hover:bg-accent-soft",
+          )}
+        >
+          {l}
+        </button>
       ))}
-    </SelectField>
+    </div>
   );
 }
 
@@ -322,7 +378,13 @@ function PatientRows({ list, currentId }: { list: PatientList; currentId?: strin
   const rows = found.data?.rows;
   const byLetter = new Map<string, PatientHit[]>();
   for (const p of rows ?? []) byLetter.set(letter(p.name), [...(byLetter.get(letter(p.name)) ?? []), p]);
-  const row = (p: PatientHit) => <PatientRow key={p.id} to={`/pacientes/${p.id}`} name={p.name} meta={meta(p)} active={p.id === currentId} />;
+  // Quién debe y quién está de viaje hoy: una vez (y al cambiar los datos), para la etiqueta de cada fila.
+  const version = useDataVersion();
+  const marks = useAsync(async () => {
+    const [owe, away] = await Promise.all([pendingPatients(getDb(), "cobrar"), calendarPatients(getDb(), "viaje")]);
+    return { owe, away };
+  }, [version]);
+  const row = (p: PatientHit) => <PatientRow key={p.id} to={`/pacientes/${p.id}`} name={p.name} meta={meta(p)} tag={tagOf(p, marks.data)} tinted active={p.id === currentId} />;
   if (found.error) return <LoadError error={found.error} />;
   if (!rows) return <Loading />;
   const total = found.data!.total;
@@ -334,7 +396,7 @@ function PatientRows({ list, currentId }: { list: PatientList; currentId?: strin
         {letters}
         <p className="py-6 text-center text-text-muted">
           {query.trim() ? `Ningún paciente coincide con «${query.trim()}»` : "Ningún paciente"}
-          {activeFilters(list.filters) > 0 || list.letter ? " con estos filtros." : "."}
+          {activeFilters(list.filters) > 0 || list.filters.quick || list.letter ? " con estos filtros." : "."}
         </p>
       </>
     ) : (
@@ -420,7 +482,7 @@ export function PatientsPage() {
   return (
     <Page title="Pacientes" action={newPatientLink}>
       <PatientSearch list={list} />
-      {!list.narrowed && list.hasPatients && today.data && <TodayStrip items={today.data} />}
+      {!list.narrowed && list.hasPatients && today.data && today.data.length > 0 && <TodayStrip items={today.data} />}
       <PatientRows list={list} />
       {!list.narrowed && <PatientNotices hasRealPatients={list.hasOwn} />}
     </Page>

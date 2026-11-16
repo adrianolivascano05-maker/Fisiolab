@@ -1,6 +1,6 @@
 // Comodidad del día a día: el DNI de la ficha llega al justificante y la reevaluación pendiente pasa a la sesión
 // siguiente hasta que se hace.
-import { add, ampliada, expect, expectAccessible, test } from "./fixtures";
+import { add, ampliada, expect, expectAccessible, openFold, test } from "./fixtures";
 
 test.describe("Comodidad del día a día", () => {
   test.beforeEach(async ({ page }) => {
@@ -64,6 +64,7 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByRole("region", { name: /Banderas rojas/ }).getByRole("link")).toHaveCount(0);
     const toLetter = async () => {
       await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
+      await openFold(page, "Documentos");
       await page.getByRole("link", { name: /^Carta de derivación/ }).click();
     };
     await toLetter();
@@ -168,6 +169,7 @@ test.describe("Comodidad del día a día", () => {
     await expect(page.getByText("Andar (d450.21): desempeño/realización: dificultad moderada; capacidad: dificultad ligera").first()).toBeVisible();
 
     await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Resumen" }).click();
+    await openFold(page, "Documentos");
     await page.getByRole("link", { name: /^Carta de derivación/ }).click();
     const letter = page.getByRole("article", { name: "Carta de derivación" });
     await expect(letter).toContainText("Funcionamiento (CIF)");
@@ -227,6 +229,9 @@ test.describe("Comodidad del día a día", () => {
     await page.goto("./ajustes");
     const setup = page.getByRole("region", { name: /Pon en marcha tu clínica/ });
     await expect(setup).toContainText("0 de 6");
+    // En una línea: el paso siguiente; los demás, al abrir «Ver los 6 pasos».
+    await expect(setup.getByRole("link", { name: /Siguiente: rellena los datos de tu clínica/ })).toHaveAttribute("href", /\/ajustes\/clinica$/);
+    await setup.getByRole("button", { name: "Ver los 6 pasos" }).click();
     await expect(setup.getByRole("link", { name: /Pon el precio de tus sesiones/ })).toHaveAttribute("href", /\/ajustes\/cobros$/);
     await expectAccessible(page);
 

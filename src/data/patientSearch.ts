@@ -56,7 +56,11 @@ export type PatientFilters = {
   lastVisit: LastVisit | null;
   pending: Pending | null;
   calendar: CalendarFilter | null;
+  /** Los filtros rápidos de encima de la lista: con cita hoy, o sin ninguna cita por delante. */
+  quick?: Quick | null;
 };
+
+export type Quick = "hoy" | "sinCita";
 export const NO_FILTERS: PatientFilters = { ageFrom: null, ageTo: null, sex: null, physio: null, upcoming: false, lastVisit: null, pending: null, calendar: null };
 
 /** Cuántos filtros hay puestos (para el botón «Filtros»). */
@@ -67,7 +71,12 @@ export const activeFilters = (f: PatientFilters) =>
 export const PAGE_SIZE = 50;
 
 /** Lo que enseña la lista de cada paciente. */
-export type PatientHit = Pick<PatientSummary, "id" | "name" | "phone" | "lastAt" | "nextAt">;
+export type PatientHit = Pick<PatientSummary, "id" | "name" | "phone" | "lastAt" | "nextAt"> & {
+  /** Por qué viene: el título de su motivo abierto más reciente o, si no tiene, el de su anamnesis. */
+  motive: string;
+  /** Cuántas sesiones lleva apuntadas (de todos sus motivos). */
+  sessions: number;
+};
 
 export type PatientQuery = {
   search?: string;
@@ -111,7 +120,7 @@ const daysAgo = (now: Date, n: number) => new Date(now.getTime() - n * 86_400_00
  * Las condiciones de la búsqueda y los filtros, con sus valores. `pendingIds`: los que tienen algo pendiente;
  * `calendarIds`: los que cumplen el filtro de su calendario.
  */
-function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "letter">>, now: Date, pendingIds: string[] | null, calendarIds: string[] | null) {
+function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "letter">>, now: Date, pendingIds: string[] | null, calendarIds: string[] | null, todayIds: string[] | null = null) {
   const where: string[] = [];
   const bind: Bind[] = [];
   const text = fold(q.search.trim());
@@ -176,6 +185,14 @@ function conditions(q: Required<Pick<PatientQuery, "search" | "filters" | "lette
     where.push(`${LAST_AT} ${older ? "<" : ">="} ?`);
     bind.push(daysAgo(now, Number(f.lastVisit.replace("mas", ""))));
   }
+  if (f.quick === "sinCita") {
+    where.push("not exists (select 1 from appointments a where a.patient_id = p.id and a.status = 'scheduled' and a.starts_at > ?)");
+    bind.push(now.toISOString());
+  }
+  if (todayIds) {
+    where.push("p.id in (select value from json_each(?))");
+    bind.push(JSON.stringify(todayIds));
+  }
   if (pendingIds) {
     where.push("p.id in (select value from json_each(?))");
     bind.push(JSON.stringify(pendingIds));
@@ -193,7 +210,8 @@ export async function findPatients(db: Db, query: PatientQuery = {}): Promise<{ 
   const filters = query.filters ?? NO_FILTERS;
   const pendingIds = filters.pending ? [...(query.pending ?? (await pendingPatients(db, filters.pending, now)))] : null;
   const calendarIds = filters.calendar ? [...(query.calendar ?? (await calendarPatients(db, filters.calendar, now)))] : null;
-  const { sql, bind } = conditions({ search: query.search ?? "", filters, letter: query.letter ?? null }, now, pendingIds, calendarIds);
+  const todayIds = filters.quick === "hoy" ? [...(await todayPatients(db, now))] : null;
+  const { sql, bind } = conditions({ search: query.search ?? "", filters, letter: query.letter ?? null }, now, pendingIds, calendarIds, todayIds);
   const limit = query.limit ?? PAGE_SIZE;
   const offset = query.offset ?? 0;
   // Una sola pasada: la página y, con ella, cuántos hay en total. Lo que cuesta (cuándo vino y su próxima cita), solo
@@ -202,6 +220,10 @@ export async function findPatients(db: Db, query: PatientQuery = {}): Promise<{ 
     `with page as (select p.id, count(*) over () as total from patients p ${sql} order by fold(p.name), p.name collate nocase, p.id limit ? offset ?)
      select p.id, p.name, coalesce(p.phone, '') as phone, ${LAST_AT} as lastAt,
             (select min(a.starts_at) from appointments a where a.patient_id = p.id and a.status = 'scheduled' and a.starts_at > ?) as nextAt,
+            coalesce(
+              nullif((select e.title from episodes e where e.patient_id = p.id and e.closed_at is null order by e.started_at desc, e.created_at desc limit 1), ''),
+              (select a.answers ->> '$.motivo' from anamnesis a where a.patient_id = p.id), '') as motive,
+            (select count(*) from sessions s where s.patient_id = p.id) as sessions,
             page.total
        from page join patients p on p.id = page.id
       order by fold(p.name), p.name collate nocase, p.id`,
@@ -217,6 +239,27 @@ export async function findPatients(db: Db, query: PatientQuery = {}): Promise<{ 
     }),
     total,
   };
+}
+
+/** Los que tienen hoy (día de Madrid) alguna cita que sigue en pie. */
+export async function todayPatients(db: Db, now = new Date()): Promise<Set<string>> {
+  const today = madridDay(now);
+  const rows = await db.query<{ patient_id: string; starts_at: string }>(
+    "select patient_id, starts_at from appointments where status <> 'cancelled' and starts_at >= ? and starts_at < ?",
+    [`${addDays(today, -1)}T20:00:00Z`, `${addDays(today, 1)}T04:00:00Z`],
+  );
+  return new Set(rows.filter((r) => madridDay(r.starts_at) === today).map((r) => r.patient_id));
+}
+
+/** Cuántos hay en cada filtro rápido de la lista de pacientes (todos, con cita hoy, sin cita y con algo por cobrar). */
+export async function quickCounts(db: Db, now = new Date()): Promise<{ all: number; today: number; noVisit: number; owe: number }> {
+  const [[all], today, [noVisit], owe] = await Promise.all([
+    db.query<{ n: number }>("select count(*) as n from patients"),
+    todayPatients(db, now),
+    db.query<{ n: number }>("select count(*) as n from patients p where not exists (select 1 from appointments a where a.patient_id = p.id and a.status = 'scheduled' and a.starts_at > ?)", [now.toISOString()]),
+    pendingPatients(db, "cobrar", now),
+  ]);
+  return { all: Number(all?.n ?? 0), today: today.size, noVisit: Number(noVisit?.n ?? 0), owe: owe.size };
 }
 
 /**

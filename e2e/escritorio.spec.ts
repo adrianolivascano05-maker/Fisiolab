@@ -94,7 +94,7 @@ test.describe("Ordenador", () => {
       expect(Math.abs(y.y - x.y), "a la misma altura").toBeLessThan(120);
     };
     // Resumen: la situación a la izquierda y los documentos a la derecha; la cabecera con los chips a la derecha del nombre.
-    await beside(page.getByRole("heading", { name: "Situación" }), page.getByRole("region", { name: "Documentos" }));
+    await beside(page.getByRole("main").getByRole("link", { name: "Nueva sesión" }), page.getByRole("region", { name: "Documentos" }));
     await beside(page.getByRole("heading", { name: /Marcos Vidal/ }), page.getByRole("button", { name: "Dar cita" }));
     expect(await scrollWidth(page)).toBeLessThanOrEqual(1280);
     await expectAccessible(page);
@@ -163,7 +163,7 @@ test.describe("Ordenador", () => {
     await expectAccessible(page);
     // Ajustes: Tu clínica y Dinero en dos columnas.
     await page.goto("./ajustes");
-    const [cl, da] = [(await page.getByRole("region", { name: "Tu clínica", exact: true }).boundingBox())!, (await page.getByRole("region", { name: "Dinero" }).boundingBox())!];
+    const [cl, da] = [(await page.getByRole("region", { name: "Tu clínica", exact: true }).boundingBox())!, (await page.getByRole("region", { name: "La consulta" }).boundingBox())!];
     expect(da.x).toBeGreaterThan(cl.x + cl.width - 1);
     expect(Math.abs(da.y - cl.y)).toBeLessThan(2);
     await expectAccessible(page);

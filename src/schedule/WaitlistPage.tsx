@@ -181,7 +181,7 @@ export function WaitlistPage() {
   const opening = !!patient && !already && !form;
 
   return (
-    <Page title="Lista de espera" backTo="/agenda?vista=hoy" backLabel="Hoy">
+    <Page title="Lista de espera" backTo="/agenda?vista=hoy" backLabel="Hoy" help="agenda">
       {free ? (
         <div className="flex flex-col gap-2">
           <Alert tone="info" title={`Hueco libre: ${dayText(free)}, a las ${hourText(free)}`}>

@@ -1,16 +1,17 @@
 // Ficha › Sesiones: la lista con la evolución del dolor y lo previsto, y apuntar o cambiar una sesión (con la siguiente
 // cita, el cobro y el calendario).
 import { SHOW_EXERCISES } from "../app/features";
-import { CalendarCheck, CalendarClock, ClipboardList, NotebookPen, Pencil, Trash, Wallet } from "lucide-react";
+import { CalendarCheck, CalendarClock, ChevronDown, ClipboardList, NotebookPen, Pencil, Trash, Wallet } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { fmtDate, fmtDateTime, testTitle } from "../app/format";
+import { fmtDate, fmtDateTime, fold, testTitle } from "../app/format";
 import { LoadError, Page } from "../app/Page";
 import { deleteSession, getAnamnesis, getSession, listFindings, listQuestionnaires, listSessions, saveSession, sessionCount, type Finding, type Session } from "../data/clinical";
 import { getAppointment, nextAppointmentOf } from "../data/appointments";
 import { PrecautionsNote } from "./PrecautionsNote";
 import { CalendarNote } from "./CalendarNote";
-import { afterSurgeryText, listPatientEvents, sinceSurgery } from "../data/patientEvents";
+import { afterSurgeryText, eventName, eventsAtVisit, listPatientEvents, sinceSurgery } from "../data/patientEvents";
+import { closedAt } from "./AppointmentForm";
 import { getDb } from "../data/db";
 import { getPatient, listTests, listWellness } from "../data/repo";
 import { Alert } from "../ui/Alert";
@@ -26,20 +27,27 @@ import { useAsync } from "../app/useAsync";
 import { CalendarSheet, DEFAULT_VISIT_MINUTES, fmtVisit, visitEvent, calendarPromptOff, setCalendarPromptOff } from "./CalendarButton";
 import { lastMethod, MethodPicker, rememberMethod } from "./billingForms";
 import { mainValue } from "./measures";
-import { Chips, findingText, PainChart, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
+import { Chips, findingText, PAIN_TONES, PainChart, PainScale, ResultBadge, sideShort, TextArea } from "./parts";
 import { buildTimeline, madridDay, painSeries, type EventKind } from "./timeline";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PatientShell } from "./PatientShell";
+import { monthTitle as monthText } from "./patientCalendar";
 import { addDays, dayText, Guard, localInput, primaryLink, todayDay, useLoad } from "./pageKit";
 import { dayOf } from "../app/dates";
 
 // ---------- Sesiones ----------
+
+/** Hasta tantas sesiones, todas abiertas y sin buscador: no hay nada que plegar. */
+const FEW = 3;
 
 export function SessionsPage() {
   const { id = "" } = useParams();
   const [params, setParams] = useSearchParams();
   // Con Google Calendar conectado la cita se apunta sola: no hace falta ofrecer el enlace.
   const autoCalendar = useAutoCalendar();
+  const [all, setAll] = useState(false);
+  const [toggled, setToggled] = useState<Record<string, boolean>>({});
+  const [find, setFind] = useState("");
   const data = useLoad(id, async () => {
     const db = getDb();
     const [patient, sessions, findings, tests, count, questionnaires, wellness, anamnesis, events] = await Promise.all([
@@ -69,6 +77,13 @@ export function SessionsPage() {
   const today = todayDay();
   // Al guardar una sesión con siguiente cita se ofrece pasarla al calendario (la próxima cita, con su botón, está en la cabecera).
   const justSaved = sessions.find((s) => s.id === params.get("calendario"));
+  // Filas que se abren: con pocas sesiones, todas abiertas; con más, solo la última, y «Abrir todas». Buscar dentro
+  // deja las que lo dicen, abiertas.
+  const few = sessions.length <= FEW;
+  const needle = fold(find.trim());
+  const shown = needle ? sessions.filter((s) => fold([s.subjective, s.objective, s.treatment, s.plan].join(" ")).includes(needle)) : sessions;
+  const isOpen = (sid: string, i: number) => !!needle || (toggled[sid] ?? (all || few || i === 0));
+  const monthOf = (at: string) => madridDay(at).slice(0, 7);
   const justSavedEvent = justSaved && patient && !autoCalendar && !calendarPromptOff() ? visitEvent(justSaved, patient) : null;
   return (
     <PatientShell patient={patient} id={id}>
@@ -103,11 +118,51 @@ export function SessionsPage() {
           Registra cada visita: el dolor de ese día, qué refiere, qué haces y cuándo reevaluar.
         </EmptyState>
       ) : (
-        <ol aria-label="Sesiones" className="flex flex-col gap-3">
-          {sessions.map((s, i) => (
-            <SessionCard key={s.id} s={s} n={sessions.length - i} id={id} afterOp={afterOp(s.performedAt)} findings={findings.filter((f) => madridDay(f.performedAt) === madridDay(s.performedAt))} tests={tests.filter((t) => madridDay(t.performedAt) === madridDay(s.performedAt))} />
-          ))}
-        </ol>
+        <>
+          {!few && (
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-0 flex-1">
+                <TextField label="Buscar en las sesiones" type="search" value={find} onChange={(e) => setFind(e.target.value)} />
+              </div>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setAll(!all);
+                  setToggled({});
+                }}
+              >
+                {all ? "Cerrar todas" : "Abrir todas"}
+              </Button>
+            </div>
+          )}
+          {needle && (
+            <p className="text-sm text-text-muted" aria-live="polite">
+              {shown.length === 0 ? "Ninguna sesión lo dice." : shown.length === 1 ? "1 sesión lo dice." : `${shown.length} sesiones lo dicen.`}
+            </p>
+          )}
+          <ol aria-label="Sesiones" className="flex flex-col gap-2">
+            {shown.map((s, i) => {
+              const n = sessions.length - sessions.indexOf(s);
+              const month = monthOf(s.performedAt);
+              const head = !few && (i === 0 || monthOf(shown[i - 1]!.performedAt) !== month);
+              const day = madridDay(s.performedAt);
+              return (
+                <SessionCard
+                  key={s.id}
+                  s={s}
+                  n={n}
+                  id={id}
+                  month={head ? `${monthText(month)} · ${shown.filter((x) => monthOf(x.performedAt) === month).length}` : null}
+                  open={isOpen(s.id, i)}
+                  onToggle={() => setToggled({ ...toggled, [s.id]: !isOpen(s.id, i) })}
+                  afterOp={afterOp(s.performedAt)}
+                  findings={findings.filter((f) => madridDay(f.performedAt) === day)}
+                  tests={tests.filter((t) => madridDay(t.performedAt) === day)}
+                />
+              );
+            })}
+          </ol>
+        </>
       )}
       </div>
       {timeline.length > 0 && (
@@ -185,6 +240,9 @@ function SessionCard({
   s,
   n,
   id,
+  month,
+  open,
+  onToggle,
   afterOp,
   findings,
   tests,
@@ -192,6 +250,10 @@ function SessionCard({
   s: Session;
   n: number;
   id: string;
+  /** «noviembre de 2026 · 4», encima de la primera sesión de cada mes (solo con muchas sesiones). */
+  month: string | null;
+  open: boolean;
+  onToggle: () => void;
   /** «4 semanas y 2 días tras la operación» (de su calendario), si la hubo en el año anterior. */
   afterOp: string | null;
   findings: Finding[];
@@ -203,22 +265,38 @@ function SessionCard({
     ["Tratamiento", s.treatment],
     ["Plan", s.plan],
   ];
+  // Plegada, la primera frase de lo que se hizo (o de lo que refiere).
+  const gist = (s.treatment || s.subjective || s.objective || s.plan).split("\n")[0] ?? "";
   return (
-    <li>
+    <li className="flex flex-col gap-2">
+      {month && <span className="pt-2 text-sm font-semibold text-text-muted first-letter:uppercase">{month}</span>}
       <Card className="flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-col">
-            <span className="font-semibold">Sesión {n}</span>
-            <span className="text-sm text-text-muted">{fmtDateTime(s.performedAt)}</span>
-            {afterOp && <span className="text-sm text-text-muted first-letter:uppercase">{afterOp}</span>}
-          </div>
+          <button type="button" aria-expanded={open} onClick={onToggle} className="-m-1 flex min-h-11 min-w-0 flex-1 items-start gap-2 rounded-md p-1 text-left hover:bg-surface">
+            <ChevronDown aria-hidden="true" className={cx("mt-1 size-4 shrink-0 text-accent transition-transform", !open && "-rotate-90")} />
+            <span className="flex min-w-0 flex-col">
+              <span className="font-semibold">Sesión {n}</span>
+              <span className="text-sm text-text-muted">{fmtDateTime(s.performedAt)}</span>
+              {afterOp && <span className="text-sm text-text-muted first-letter:uppercase">{afterOp}</span>}
+              {!open && gist && <span className="truncate text-sm">{gist}</span>}
+            </span>
+          </button>
           <div className="flex items-center gap-2">
-            {s.pain !== null && <span className="nums rounded-pill bg-danger-soft px-2.5 py-0.5 text-sm font-semibold text-danger">Dolor {s.pain}/10</span>}
+            {s.pain !== null && <span className={cx("nums rounded-pill px-2.5 py-0.5 text-sm font-semibold whitespace-nowrap", PAIN_TONES[s.pain])}>Dolor {s.pain}/10</span>}
             <Link to={`/pacientes/${id}/sesiones/${s.id}`} aria-label={`Editar la sesión ${n}`} className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
               <Pencil aria-hidden="true" className="size-4" />
             </Link>
           </div>
         </div>
+        {open && <SessionBody s={s} id={id} rows={rows} findings={findings} tests={tests} />}
+      </Card>
+    </li>
+  );
+}
+
+function SessionBody({ s, id, rows, findings, tests }: { s: Session; id: string; rows: [string, string][]; findings: Finding[]; tests: Awaited<ReturnType<typeof listTests>> }) {
+  return (
+    <>
         {rows.some(([, v]) => v) && (
           <dl className="flex flex-col gap-1.5 text-sm">
             {rows
@@ -277,8 +355,7 @@ function SessionCard({
             <CalendarClock aria-hidden="true" className="size-4" /> Reevaluar el {dayText(s.reviewOn)}
           </span>
         )}
-      </Card>
-    </li>
+    </>
   );
 }
 
@@ -314,17 +391,47 @@ export function SessionFormPage() {
     const now = new Date();
     return localInput(at && !Number.isNaN(Date.parse(at)) && Date.parse(at) <= now.getTime() ? at : now.toISOString());
   });
-  const [pain, setPain] = useState<number | null>(null);
-  const [subjective, setSubjective] = useState("");
-  const [objective, setObjective] = useState("");
-  const [treatment, setTreatment] = useState("");
-  const [plan, setPlan] = useState("");
+  // El borrador de una sesión nueva, si lo hay (se lee una vez, al abrir).
+  const draftKey = `fisiolab.session-draft.${id}`;
+  const [draft] = useState(() => {
+    if (sid) return null;
+    try {
+      return JSON.parse(sessionStorage.getItem(draftKey) ?? "null") as { pain: number | null; subjective: string; objective: string; treatment: string; plan: string; at: string } | null;
+    } catch {
+      return null;
+    }
+  });
+  const [pain, setPain] = useState<number | null>(draft?.pain ?? null);
+  const [subjective, setSubjective] = useState(draft?.subjective ?? "");
+  const [objective, setObjective] = useState(draft?.objective ?? "");
+  const [treatment, setTreatment] = useState(draft?.treatment ?? "");
+  const [plan, setPlan] = useState(draft?.plan ?? "");
   const [reviewOn, setReviewOn] = useState("");
   const [nextAt, setNextAt] = useState("");
   const [nextMinutes, setNextMinutes] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  // Borrador de una sesión nueva (docs/rediseno-sencilla.md, bloque 5): lo escrito se guarda en esta pestaña mientras
+  // se escribe, por si se sale a mitad (una llamada, otra pantalla); al volver, sigue ahí. Se borra al guardar la sesión.
+  const [draftAt, setDraftAt] = useState<string | null>(draft?.at ?? null);
+  useEffect(() => {
+    if (sid) return;
+    const empty = pain === null && !subjective && !objective && !treatment && !plan;
+    const t = setTimeout(() => {
+      try {
+        if (empty) sessionStorage.removeItem(draftKey);
+        else {
+          const at = new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+          sessionStorage.setItem(draftKey, JSON.stringify({ pain, subjective, objective, treatment, plan, at }));
+          setDraftAt(at);
+        }
+      } catch {
+        /* sin almacenamiento: no hay borrador */
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [sid, draftKey, pain, subjective, objective, treatment, plan]);
   /** Una sesión nueva: si la paga un bono o es suelta (y cobrarla al guardar). */
   const charge = useAsync(async () => {
     if (sid) return null;
@@ -350,6 +457,17 @@ export function SessionFormPage() {
       from = Date.parse(a.startsAt) + 60_000;
     }
   }, [id, sid, when, attending]);
+  // La siguiente cita, antes de guardar: si ese día tiene algo en su calendario (un viaje, una prueba…) o la agenda
+  // está cerrada a esa hora, se dice aquí mismo (lo mismo que avisa la hoja de dar cita).
+  const nextWarn = useAsync(async () => {
+    const at = new Date(nextAt);
+    if (!nextAt || Number.isNaN(at.getTime())) return null;
+    const iso = at.toISOString();
+    const mins = nextMinutes ?? DEFAULT_VISIT_MINUTES;
+    const [evs, shut] = await Promise.all([listPatientEvents(getDb(), id), closedAt(iso, mins, false, null)]);
+    const hits = [...new Set(eventsAtVisit(evs, iso, mins).map((o) => eventName(o.event)))];
+    return hits.length || shut ? { hits, shut: shut ? shut.note || "Cerrada" : null } : null;
+  }, [id, nextAt, nextMinutes]);
   const [payNow, setPayNow] = useState(false);
   const [payMethod, setPayMethod] = useState<Method>(lastMethod);
 
@@ -403,6 +521,11 @@ export function SessionFormPage() {
         await addPayment(getDb(), id, { amountCents: c.cents, method: payMethod, paidOn: when.slice(0, 10), concept: "Sesión de fisioterapia" });
       }
       const extra = !sid && c ? (c.kind === "pack" ? (c.leftAfter ? ` · bono: quedan ${c.leftAfter} de ${c.sessions}` : " · bono gastado") : c.kind === "loose" && payNow ? ` · cobrada ${euros(c.cents)}` : "") : "";
+      try {
+        sessionStorage.removeItem(draftKey);
+      } catch {
+        /* sin almacenamiento */
+      }
       toast(sid ? "Sesión guardada" : `Sesión registrada${extra}`, "success");
       // Cita nueva o cambiada: se ofrece pasarla al calendario.
       const changed = next !== null && (next !== session?.nextAt || minutes !== session?.nextMinutes);
@@ -426,6 +549,15 @@ export function SessionFormPage() {
     d.setMinutes(Math.round(d.getMinutes() / 15) * 15, 0, 0);
     return Number.isNaN(d.getTime()) ? "" : localInput(d.toISOString());
   };
+
+  /** «Igual que la última» junto a un cuadro: copia su propio texto de la sesión anterior (la app no escribe nada por él). */
+  const sameAsLast = (label: string, text: string | undefined, set: (v: string) => void) =>
+    text?.trim() ? (
+      <button type="button" onClick={() => set(text)} className="inline-flex min-h-11 items-center rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface">
+        <span aria-hidden="true">Igual que la última</span>
+        <span className="sr-only">Igual que la última: {label}</span>
+      </button>
+    ) : undefined;
 
   return (
     <Page title={sid ? "Editar sesión" : "Nueva sesión"} backTo={back} backLabel={backLabel} tabs={false} width="record">
@@ -494,11 +626,11 @@ export function SessionFormPage() {
       )}
       {/* En ancho (el ordenador), dos columnas: la sesión a la izquierda; la siguiente cita, reevaluar y guardar a la derecha. */}
       <form onSubmit={submit} className="flex flex-col gap-4 @2xl:grid @2xl:grid-cols-2 @2xl:items-start @2xl:gap-x-6" noValidate>
-      <div className="flex flex-col gap-4">
+      <div className="contents @2xl:flex @2xl:flex-col @2xl:gap-4">
         <TextField label="Fecha y hora" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-        <PainScale label="Dolor hoy (EVA 0-10)" value={pain} onChange={setPain} />
-        <TextArea label="Qué refiere" hint="Cómo ha ido desde la última sesión, qué nota." value={subjective} onChange={setSubjective} />
-        <TextArea label="Qué encuentras" hint="Exploración de hoy, cambios." value={objective} onChange={setObjective} />
+        <PainScale label="Dolor hoy (EVA 0-10)" value={pain} onChange={setPain} last={previous?.pain ?? null} hint={previous && previous.pain !== null ? `La última vez, ${previous.pain} (con borde dorado).` : undefined} />
+        <TextArea label="Qué refiere" hint="Cómo ha ido desde la última sesión, qué nota." value={subjective} onChange={setSubjective} rows={2} />
+        <TextArea label="Qué encuentras" hint="Exploración de hoy, cambios." value={objective} onChange={setObjective} rows={2} action={sameAsLast("Qué encuentras", previous?.objective, setObjective)} />
         {previous && (previous.treatment || previous.plan) && (
           <Button
             variant="secondary"
@@ -512,15 +644,15 @@ export function SessionFormPage() {
             Repetir el tratamiento de la última sesión ({fmtDate(previous.performedAt)})
           </Button>
         )}
-        <TextArea label="Tratamiento" value={treatment} onChange={setTreatment} rows={4} />
-        <TextArea label="Plan y ejercicios para casa" value={plan} onChange={setPlan} />
+        <TextArea label="Tratamiento" value={treatment} onChange={setTreatment} rows={3} action={sameAsLast("Tratamiento", previous?.treatment, setTreatment)} />
+        <TextArea label="Plan y ejercicios para casa" value={plan} onChange={setPlan} rows={2} action={sameAsLast("Plan y ejercicios para casa", previous?.plan, setPlan)} />
         {SHOW_EXERCISES && (
           <Link to={`/pacientes/${id}/ejercicios`} className="-mt-2 self-start text-sm font-semibold text-accent underline">
             Su hoja de ejercicios para casa (para imprimir o enviar)
           </Link>
         )}
       </div>
-      <div className="flex flex-col gap-4">
+      <div className="contents @2xl:flex @2xl:flex-col @2xl:gap-4">
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-semibold">Dar la siguiente cita</legend>
           <div className="flex flex-wrap gap-2">
@@ -541,6 +673,16 @@ export function SessionFormPage() {
             </p>
           )}
           <TextField label="Día y hora" type="datetime-local" value={nextAt} onChange={(e) => setNextAt(e.target.value)} />
+          {nextAt && !Number.isNaN(new Date(nextAt).getTime()) && (
+            <p className="text-sm font-semibold" aria-live="polite">
+              La siguiente cita: {fmtVisit(new Date(nextAt).toISOString())}
+            </p>
+          )}
+          {nextWarn.data && (
+            <Alert tone="warning" title={nextWarn.data.shut ? "Ese rato la agenda está cerrada" : "Ese día tiene algo en su calendario"}>
+              {[nextWarn.data.hits.join(", "), nextWarn.data.shut].filter(Boolean).join(" · ")}. Puedes cambiar el día o darla igualmente.
+            </Alert>
+          )}
           {nextAt && (
             <Chips label="Duración" options={["30", "45", "60", "90"]} render={(o) => `${o} min`} value={[String(minutes)]} onChange={(v) => v[0] && setNextMinutes(Number(v[0]))} />
           )}
@@ -574,9 +716,13 @@ export function SessionFormPage() {
           </div>
         </details>
         {error && <Alert tone="danger" title={error} />}
-        <Button type="submit" size="lg" block loading={saving}>
-          {sid ? "Guardar cambios" : "Guardar sesión"}
-        </Button>
+        {/* «Guardar», fijo abajo: siempre a la vista mientras se escribe. */}
+        <div className="safe-bottom sticky bottom-0 z-10 -mx-4 flex flex-col gap-1 border-t border-border bg-canvas/95 px-4 pt-2 pb-2 backdrop-blur @2xl:static @2xl:mx-0 @2xl:border-0 @2xl:bg-transparent @2xl:p-0">
+          {!sid && draftAt && <p className="text-center text-xs text-text-muted">Borrador guardado en este dispositivo · {draftAt}</p>}
+          <Button type="submit" size="lg" block loading={saving}>
+            {sid ? "Guardar cambios" : "Guardar sesión"}
+          </Button>
+        </div>
         {sid && (
           <Button variant="ghost" className="text-danger" icon={<Trash aria-hidden="true" className="size-4" />} onClick={() => setConfirm(true)}>
             Borrar sesión

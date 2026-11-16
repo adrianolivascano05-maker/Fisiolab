@@ -1,13 +1,13 @@
 // Ficha → Bonos y cobros (src/data/billing.ts): lo que el paciente tiene pendiente, sus bonos (cuántas sesiones le
 // quedan) y lo que ha pagado. Vender un bono y cobrar, en una hoja. No son facturas.
-import { FileText, Pencil, Plus, ReceiptText, RotateCw, Trash, Wallet } from "lucide-react";
+import { ChevronDown, FileText, Pencil, Plus, ReceiptText, RotateCw, Trash, Wallet } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
 import { fmtDate, plural } from "../app/format";
 import { LoadError, Loading, Page } from "../app/Page";
 import { useAsync } from "../app/useAsync";
-import { addPayment, createPack, deletePack, deletePayment, euros, getPackPresets, getPricing, methodLabel, parseEuros, patientAccount, setSessionPrice, updatePack, type PackState, type Payment } from "../data/billing";
+import { addPayment, createPack, deletePack, deletePayment, euros, getPackPresets, getPricing, methodLabel, parseEuros, patientAccount, setSessionPrice, updatePack, type Method, type PackState, type Payment } from "../data/billing";
 import { getDb } from "../data/db";
 import { invoicesOfPayments } from "../data/invoices";
 import { InvoiceRefSheet, type RefTarget } from "../invoices/InvoiceRefSheet";
@@ -20,6 +20,7 @@ import { TextField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { PackForm, PaymentForm } from "./billingForms";
 import { todayDay } from "./pageKit";
+import { monthTitle } from "./patientCalendar";
 
 const day = (d: string) => fmtDate(`${d}T12:00:00`);
 /** Cuántos meses duraba un bono (para renovarlo igual); null si no caducaba. */
@@ -43,6 +44,8 @@ export function BillingPage() {
   const [dropping, setDropping] = useState<{ kind: "pack"; item: PackState } | { kind: "payment"; item: Payment } | null>(null);
   /** El cobro al que se le apunta el número de su factura (hecha con el programa de facturación de la clínica). */
   const [billing, setBilling] = useState<RefTarget | null>(null);
+  /** Con muchos cobros, el que está abierto (Recibo, nº de factura y Borrar). */
+  const [openPay, setOpenPay] = useState<string | null>(null);
 
   if (data.error) return <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}><LoadError error={data.error} /></Page>;
   if (!data.data) return <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}><Loading /></Page>;
@@ -62,7 +65,7 @@ export function BillingPage() {
   }
 
   return (
-    <Page title="Bonos y cobros" backTo={`/pacientes/${id}`}>
+    <Page title="Bonos y cobros" backTo={`/pacientes/${id}`} help="cobros">
       <p className="-mt-2 font-semibold">{patient.name}</p>
 
       <Card className={cx("flex flex-col gap-1", a.balanceCents > 0 && "border-warning bg-warning-soft")}>
@@ -148,50 +151,69 @@ export function BillingPage() {
           <p className="text-sm text-text-muted">Sin cobros apuntados.</p>
         ) : (
           <ul aria-label="Cobros" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
-            {a.payments.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 px-3 py-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold tabular-nums">{euros(p.amountCents)}</p>
-                  <p className="text-sm text-text-muted">
-                    {day(p.paidOn)} · {methodLabel(p.method)}
-                    {p.concept ? ` · ${p.concept}` : ""}
-                  </p>
-                  {invoices.get(p.id) ? (
-                    <Link to={`/facturas/${invoices.get(p.id)!.id}`} className="tap inline-flex items-center gap-1.5 text-sm font-semibold text-accent">
-                      <ReceiptText aria-hidden="true" className="size-4" /> Factura {invoices.get(p.id)!.code}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      aria-label={
-                        p.invoiceRef
-                          ? `Factura ${p.invoiceRef} del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}: cambiar`
-                          : `Apuntar nº de factura del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`
-                      }
-                      className="tap inline-flex items-center gap-1.5 text-sm font-semibold text-accent"
-                      onClick={() => setBilling({ id: p.id, amountCents: p.amountCents, paidOn: p.paidOn, invoiceRef: p.invoiceRef })}
-                    >
-                      <ReceiptText aria-hidden="true" className="size-4" /> {p.invoiceRef ? `Factura ${p.invoiceRef}` : "Apuntar nº de factura"}
-                    </button>
+            {a.payments.map((p, i) => {
+              const inv = invoices.get(p.id);
+              const what = `${euros(p.amountCents)} del ${day(p.paidOn)}`;
+              const month = p.paidOn.slice(0, 7);
+              // Con pocos cobros, todo a la vista; con más, cada fila se abre y cada mes dice su total.
+              const few = a.payments.length <= 3;
+              const open = few || openPay === p.id;
+              const head = !few && (i === 0 || a.payments[i - 1]!.paidOn.slice(0, 7) !== month);
+              return (
+                <li key={p.id} className="flex flex-col">
+                  {head && (
+                    <p className="flex justify-between gap-2 bg-surface px-3 py-1.5 text-sm font-semibold text-text-muted">
+                      <span className="first-letter:uppercase">{monthTitle(month)}</span>
+                      <span className="tabular-nums">{euros(a.payments.filter((x) => x.paidOn.slice(0, 7) === month).reduce((t, x) => t + x.amountCents, 0))}</span>
+                    </p>
                   )}
-                </div>
-                <Link
-                  to={`/pacientes/${id}/recibo/${p.id}`}
-                  aria-label={`Recibo del cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
-                  className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface"
-                >
-                  <FileText aria-hidden="true" className="size-5" /> Recibo
-                </Link>
-                <button
-                  type="button"
-                  aria-label={`Borrar el cobro de ${euros(p.amountCents)} del ${day(p.paidOn)}`}
-                  className="inline-flex size-11 items-center justify-center rounded-md text-text-muted hover:bg-surface hover:text-danger"
-                  onClick={() => setDropping({ kind: "payment", item: p })}
-                >
-                  <Trash aria-hidden="true" className="size-5" />
-                </button>
-              </li>
-            ))}
+                  <div className="flex flex-col gap-1 px-3 py-2">
+                    {few ? (
+                      <PayLine p={p} />
+                    ) : (
+                      <button type="button" aria-expanded={open} onClick={() => setOpenPay(open ? null : p.id)} className="-mx-1 flex min-h-11 items-center gap-2 rounded-md px-1 text-left hover:bg-surface">
+                        <PayLine p={p} />
+                        <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 text-accent transition-transform", !open && "-rotate-90")} />
+                      </button>
+                    )}
+                    {open && (
+                      <div className="flex flex-wrap items-center gap-x-3">
+                        {inv ? (
+                          <Link to={`/facturas/${inv.id}`} className="tap inline-flex items-center gap-1.5 text-sm font-semibold text-accent">
+                            <ReceiptText aria-hidden="true" className="size-4" /> Factura {inv.code}
+                          </Link>
+                        ) : (
+                          <button
+                            type="button"
+                            aria-label={p.invoiceRef ? `Factura ${p.invoiceRef} del cobro de ${what}: cambiar` : `Apuntar nº de factura del cobro de ${what}`}
+                            className="tap inline-flex items-center gap-1.5 text-sm font-semibold text-accent"
+                            onClick={() => setBilling({ id: p.id, amountCents: p.amountCents, paidOn: p.paidOn, invoiceRef: p.invoiceRef })}
+                          >
+                            <ReceiptText aria-hidden="true" className="size-4" /> {p.invoiceRef ? `Factura ${p.invoiceRef}` : "Apuntar nº de factura"}
+                          </button>
+                        )}
+                        <span className="flex-1" />
+                        <Link
+                          to={`/pacientes/${id}/recibo/${p.id}`}
+                          aria-label={`Recibo del cobro de ${what}`}
+                          className="inline-flex h-11 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface"
+                        >
+                          <FileText aria-hidden="true" className="size-5" /> Recibo
+                        </Link>
+                        <button
+                          type="button"
+                          aria-label={`Borrar el cobro de ${what}`}
+                          className="inline-flex size-11 items-center justify-center rounded-md text-text-muted hover:bg-surface hover:text-danger"
+                          onClick={() => setDropping({ kind: "payment", item: p })}
+                        >
+                          <Trash aria-hidden="true" className="size-5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
         <Button icon={<Wallet aria-hidden="true" className="size-5" />} onClick={() => setSheet("payment")}>
@@ -274,6 +296,19 @@ export function BillingPage() {
 }
 
 /** El precio de la sesión suelta, aquí mismo, la primera vez (después se cambia en Ajustes → Precios y cobros). */
+/** Un cobro en una línea: cuánto, qué día y cómo. */
+function PayLine({ p }: { p: { amountCents: number; paidOn: string; method: Method; concept: string } }) {
+  return (
+    <span className="flex min-w-0 flex-1 flex-col">
+      <span className="font-semibold tabular-nums">{euros(p.amountCents)}</span>
+      <span className="text-sm text-text-muted">
+        {day(p.paidOn)} · {methodLabel(p.method)}
+        {p.concept ? ` · ${p.concept}` : ""}
+      </span>
+    </span>
+  );
+}
+
 function SessionPriceInline({ today }: { today: string }) {
   const toast = useToast();
   const [price, setPrice] = useState("");

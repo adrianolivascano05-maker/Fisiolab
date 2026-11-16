@@ -1,7 +1,7 @@
 // «Pon en marcha tu clínica», arriba de Ajustes: los pasos para empezar, cada uno con su enlace y si ya está hecho,
-// en vez de un punto rojo y apartados repartidos. Solo mira lo que ya hay (datos de la clínica, marca, precio, PIN,
+// en vez de un punto rojo y apartados repartidos. En una línea: cuántos van y el siguiente; «Ver los pasos» los abre todos. Solo mira lo que ya hay (datos de la clínica, marca, precio, PIN,
 // pacientes y copia); no guarda nada nuevo. Desaparece sola al completarla, o con «Ocultar» (en este dispositivo).
-import { CircleCheck, Circle } from "lucide-react";
+import { ChevronRight, CircleCheck, Circle } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router";
 import { useAsync } from "../app/useAsync";
@@ -43,6 +43,7 @@ export function SetupChecklist() {
   const cloud = useCloud();
   const brand = useBrand();
   const [off, setOff] = useState(hidden);
+  const [open, setOpen] = useState(false);
   const data = useAsync(async () => {
     const db = getDb();
     const [clinic, pricing, lastBackup, [row]] = await Promise.all([
@@ -57,6 +58,7 @@ export function SetupChecklist() {
   const steps = setupSteps({ ...data.data, ownBrand: !!ownIdentity(brand), pin: !!getLock() || !!cloud?.clinic });
   const done = steps.filter((s) => s.done).length;
   if (done === steps.length) return null;
+  const next = steps.find((s) => !s.done)!;
   return (
     <section aria-labelledby="puesta-en-marcha" className="flex flex-col gap-2 rounded-lg border border-border bg-bg p-3 lg:col-span-2">
       <div className="flex items-center justify-between gap-2">
@@ -78,7 +80,20 @@ export function SetupChecklist() {
           Ocultar
         </Button>
       </div>
-      <ol className="flex flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-x-2">
+        <Link to={next.to} className="flex min-h-11 min-w-0 flex-1 items-center gap-1 rounded-md px-1 font-semibold text-accent hover:bg-surface">
+          <span className="min-w-0">
+            <span className="font-normal text-text-muted">Siguiente: </span>
+            {next.title.charAt(0).toLowerCase() + next.title.slice(1)}
+          </span>
+          <ChevronRight aria-hidden="true" className="size-5 shrink-0" />
+        </Link>
+        <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setOpen(!open)}>
+          {open ? "Cerrar los pasos" : `Ver los ${steps.length} pasos`}
+        </Button>
+      </div>
+      {open && (
+      <ol aria-label="Pasos para empezar" className="flex flex-col">
         {steps.map((s) => (
           <li key={s.id}>
             <Link to={s.to} className="flex min-h-12 items-start gap-3 rounded-md px-1 py-2 hover:bg-surface">
@@ -94,6 +109,7 @@ export function SetupChecklist() {
           </li>
         ))}
       </ol>
+      )}
     </section>
   );
 }

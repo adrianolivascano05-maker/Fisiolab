@@ -170,12 +170,14 @@ test.describe("PWA: instalable y sin conexión", () => {
 
   test("PWA-E4 ajustes: un menú con cada apartado y cómo está", async ({ page }) => {
     await page.goto("./ajustes");
-    // Cuatro grupos de lo diario (Tu clínica, Dinero, Mensajes y formularios, App y datos) y, plegado, Avanzado.
+    // Cinco grupos de lo diario (Tu clínica, La consulta, Dinero, Mensajes, Seguridad y datos), la ayuda y, plegado, Avanzado.
     const groups: [string, RegExp[]][] = [
-      ["Tu clínica", [/Clínica y protección de datos/, /Marca de la clínica/, /Anamnesis de la clínica/, /La clínica en números/]],
+      ["Tu clínica", [/Clínica y protección de datos/, /Marca de la clínica/, /La clínica en números/]],
+      ["La consulta", [/Anamnesis de la clínica/, /Cuestionarios propios/, /Aspecto/]],
       ["Dinero", [/Precios y cobros/, /Para facturar/]],
-      ["Mensajes y formularios", [/Mensajes a pacientes/, /Envíos pendientes/]],
-      ["App y datos", [/Cuenta de Google/, /Copias y exportar/, /Importar datos/, /Bloqueo con PIN.*Desactivado/, /Privacidad/, /Instalar la app/, /Cómo se usa/]],
+      ["Mensajes", [/Mensajes a pacientes/, /Envíos pendientes/]],
+      ["Seguridad y datos", [/Cuenta de Google/, /Copias y exportar/, /Importar datos/, /Bloqueo con PIN.*Desactivado/, /Privacidad/, /Instalar la app/]],
+      ["Ayuda", [/Cómo se usa/, /Novedades/, /Algo no funciona/]],
     ];
     for (const [group, rows] of groups) for (const name of rows) await expect(page.getByRole("region", { name: group, exact: true }).getByRole("link", { name })).toBeVisible();
     // Lo técnico no estorba: está plegado en Avanzado y se abre con un toque.
@@ -184,7 +186,7 @@ test.describe("PWA: instalable y sin conexión", () => {
     await expect(page.getByRole("region", { name: "Avanzado", exact: true }).getByRole("link", { name: /Validación de las mediciones/ })).toBeVisible();
     await expect(page.getByText(/Base de datos SQLite/)).toBeVisible();
     await expectAccessible(page);
-    await page.getByRole("link", { name: /Cómo se usa/ }).click();
+    await page.getByRole("region", { name: "Ayuda", exact: true }).getByRole("link", { name: /Cómo se usa/ }).click();
     await expect(page.getByRole("heading", { name: "Cómo se usa" })).toBeVisible();
     await expect(page.getByRole("link", { name: "cenitfisiolab@gmail.com" })).toHaveAttribute("href", "mailto:cenitfisiolab@gmail.com");
     await expect(page.getByRole("list", { name: "Pasos" }).getByRole("listitem")).toHaveCount(11);

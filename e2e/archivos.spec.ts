@@ -3,7 +3,7 @@
 // enlace para que el paciente suba los suyos desde su móvil, que llegan solos a su ficha.
 import type { Browser, Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { createPatient, downloadFrom, expect, expectAccessible, smallTargets, test } from "./fixtures";
+import { createPatient, downloadFrom, expect, expectAccessible, openFold, smallTargets, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
 
 const users = {
@@ -55,6 +55,7 @@ test.describe("Archivos del paciente", () => {
     await enterClinic(page, google);
     await createPatient(page, { name: "Nora Archivos" });
     const ficha = page.url();
+    await openFold(page, "Documentos");
     await page.getByRole("link", { name: /Archivos del paciente/ }).click();
     await expect(page.getByRole("heading", { name: "Archivos del paciente" })).toBeVisible();
     await expect(page.getByText("Aún no tiene archivos.")).toBeVisible();
@@ -103,6 +104,7 @@ test.describe("Archivos del paciente", () => {
 
     // En la ficha, cuántos tiene.
     await page.goto(ficha);
+    await openFold(page, "Documentos");
     await expect(page.getByRole("link", { name: /Archivos del paciente/ })).toContainText("2 archivos");
 
     // Descargar todo: con sus archivos en PDF.

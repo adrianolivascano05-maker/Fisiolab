@@ -26,7 +26,12 @@ export const SCREENS: Screen[] = [
   { label: "Importar datos", to: "/ajustes/importar", words: "excel csv otro programa traer" },
   { label: "Bloqueo con PIN", to: "/ajustes/bloqueo", words: "pin contraseña clave seguridad bloquear" },
   { label: "Aspecto", to: "/ajustes/aspecto", words: "oscuro claro tema modo noche" },
+  { label: "Para facturar", to: "/facturas", words: "facturas excel gestoria programa de facturacion" },
+  { label: "Privacidad", to: "/privacidad", words: "datos donde se guardan rgpd" },
+  { label: "Instalar la app", to: "/instalar", words: "movil ordenador otro dispositivo icono" },
   { label: "Cómo se usa", to: "/ayuda", words: "ayuda manual instrucciones dudas" },
+  { label: "Novedades", to: "/novedades", words: "cambios nuevo donde esta ha cambiado" },
+  { label: "Algo no funciona", to: "/ayuda/fallos", words: "error fallo problema informe soporte" },
 ];
 
 const plain = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");

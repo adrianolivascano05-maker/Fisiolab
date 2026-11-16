@@ -1,24 +1,28 @@
 // «Cómo se usa»: cómo está organizada la app y dónde está cada cosa.
 import { BookOpen, CalendarDays, Settings, Users } from "lucide-react";
-import type { ReactNode } from "react";
-import { Link } from "react-router";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useLocation } from "react-router";
 import { SUPPORT_EMAIL } from "../app/contact";
 import { Page } from "../app/Page";
 import { PURPOSE_LONG, PURPOSE_SHORT } from "../app/purpose";
+import { fold } from "../app/format";
 import { Card } from "../ui/Card";
+import { TextField } from "../ui/Field";
 
 // Enlaces dentro de una frase: el relleno vertical agranda la zona táctil (44 px) sin mover el texto.
 const link = "py-3 font-semibold text-accent underline underline-offset-2";
 
-const steps: { title: string; body: ReactNode }[] = [
+/** `id`: el ancla del apartado, a donde lleva el «?» de cada pantalla (/ayuda#agenda). */
+const steps: { id?: string; title: string; body: ReactNode }[] = [
   {
+    id: "pacientes",
     title: "Pacientes",
     body: (
       <>
         Pulsa <b>+</b> arriba a la derecha para añadir uno (con el nombre basta). El <b>＋ redondo</b> del centro de la barra de abajo está en
         todas las pantallas: desde ahí das una cita, creas un paciente, vuelves a los últimos que has abierto y buscas un paciente o una
-        pantalla escribiendo («bono», «PIN»); dentro de una ficha te ofrece primero lo de ese paciente. Arriba salen sus <b>próximas citas</b> y las reevaluaciones
-        pendientes; debajo, todos por orden alfabético, de 50 en 50. Búscalos por nombre, teléfono o DNI, y con <b>Filtros</b> por edad, sexo,
+        pantalla escribiendo («bono», «PIN»); dentro de una ficha te ofrece primero lo de ese paciente. Debajo del buscador, <b>Todos, Hoy, Sin cita y Deben</b> filtran con un toque y dicen cuántos hay; cada fila dice por qué viene, cuántas
+        sesiones lleva y, en una etiqueta, lo más urgente (debe, de viaje, su próxima cita o que no tiene). Todos por orden alfabético, de 50 en 50. Búscalos por nombre, teléfono o DNI, y con <b>Filtros</b> por edad, sexo,
         fisio, si tienen cita, cuándo vinieron por última vez, si tienen algo pendiente de cobrar o de firmar, o por lo de su calendario (de
         viaje ahora o volviendo esta semana, operados en el último año o que se operan este mes, con una competición cerca). En una clínica con equipo,
         el botón <b>Asignar fisio</b> de la cabecera de la ficha dice qué fisios lo llevan (uno o varios).
@@ -26,6 +30,7 @@ const steps: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    id: "ficha",
     title: "La ficha de cada paciente",
     body: (
       <>
@@ -70,7 +75,10 @@ const steps: { title: string; body: ReactNode }[] = [
     body: (
       <>
         En el Resumen, <b>Nueva sesión</b> y <b>Valorar</b>: un test de exploración, un cuestionario (se rellena entero en la app y la nota se
-        calcula sola) o una medición (salto, fuerza, sprint, carrera, movilidad). En Valoración, cada bloque tiene su propio botón.
+        calcula sola) o una medición (salto, fuerza, sprint, carrera, movilidad). En Valoración, cada bloque tiene su propio botón. Al apuntar una sesión, el dolor de la última vez sale marcado, cada
+        texto tiene <b>Igual que la última</b>, lo que escribes se guarda como borrador en ese dispositivo por si se cierra la pantalla y{" "}
+        <b>Guardar</b> está siempre a la vista, abajo. En <b>Sesiones</b>, con más de tres, solo la última sale abierta: las demás se abren al
+        tocarlas, y hay <b>Abrir todas</b> y un buscador.
       </>
     ),
   },
@@ -106,6 +114,7 @@ const steps: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    id: "cobros",
     title: "Bonos, cobros y ejercicios para casa",
     body: (
       <>
@@ -122,6 +131,7 @@ const steps: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    id: "agenda",
     title: "La agenda",
     body: (
       <>
@@ -129,7 +139,7 @@ const steps: { title: string; body: ReactNode }[] = [
         (reevaluaciones, lo que queda sin cobrar, quién tiene que firmar algo y quién vuelve de un viaje sin cita). <b>Día</b> y <b>Semana</b> son
         tu agenda. En el móvil, <b>Día</b> es una lista: arriba, la semana en una tira (cuántas citas tiene cada día; tócalo o desliza para
         cambiar de semana) y, debajo, las citas por orden con los ratos libres a un toque y lo cerrado; el botón de la cuadrícula la cambia por
-        la rejilla, que es donde se arrastra. En la rejilla, toca un hueco para dar una cita; una cita con <b>un calendario pequeño</b> junto al nombre es de alguien que está de viaje,
+        la rejilla, que es donde se arrastra. En la rejilla, toca un hueco para dar una cita; al darla desde la ficha o desde el <b>＋</b>, la app propone <b>tres huecos libres</b> (primero su hora de siempre) y enseña las horas libres del día que elijas; una cita con <b>un calendario pequeño</b> junto al nombre es de alguien que está de viaje,
         recién operado o con un partido cerca (lo dice al abrir la cita o al pasar el ratón). Si arrastras una cita a un día en que tiene algo
         o a un rato con la agenda cerrada, se mueve igual y el aviso de «Deshacer» te lo dice. <b>Envíos</b> es la bandeja con lo que toca mandar hoy, ya
         escrito: los recordatorios de mañana, un mensaje para darle cita a quien vuelve de un viaje sin cita y, con el servidor de la clínica, la
@@ -161,18 +171,49 @@ const places: { icon: typeof Users; name: string; text: string }[] = [
     name: "Biblioteca",
     text: "los tests de exploración por articulación, los cuestionarios (qué mide cada uno, sus preguntas y sus permisos) y las mediciones. Un buscador para todo. Si llegas desde la ficha de un paciente, «Registrar el resultado», «Pasar a…» y «Medir en…» van a su ficha; si no, eliges el paciente.",
   },
-  { icon: Settings, name: "Ajustes", text: "en cuatro grupos: Tu clínica, Dinero, Mensajes y formularios, y App y datos (cuenta, copias, PIN, instalación). Lo técnico va plegado en Avanzado. Un punto rojo avisa si falta algo." },
+  { icon: Settings, name: "Ajustes", text: "con buscador y en cinco grupos: Tu clínica, La consulta, Dinero, Mensajes, y Seguridad y datos (cuenta, copias, PIN, instalación); debajo, Ayuda y Novedades. Lo técnico va plegado en Avanzado. Un punto rojo avisa si falta algo." },
 ];
 
 export function HelpPage() {
+  // Buscar en la ayuda: quedan los apartados que lo dicen (en el título o en el texto, sin tildes ni mayúsculas).
+  const [find, setFind] = useState("");
+  const [hits, setHits] = useState<Set<number> | null>(null);
+  const cards = useRef<(HTMLLIElement | null)[]>([]);
+  // Desde el «?» de una pantalla (/ayuda#agenda): baja hasta su apartado.
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (hash) document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash]);
+  function search(q: string) {
+    setFind(q);
+    const words = fold(q).split(/\s+/).filter(Boolean);
+    setHits(words.length ? new Set(steps.flatMap((_, i) => (words.every((w) => fold(cards.current[i]?.textContent ?? "").includes(w)) ? [i] : []))) : null);
+  }
   return (
     <Page title="Cómo se usa" backTo="/ajustes">
       <p className="rounded-md bg-accent-soft p-3 text-sm">
         <b>Qué es OmniClin.</b> {PURPOSE_SHORT}
       </p>
+      <TextField label="Buscar en la ayuda" type="search" placeholder="bono, recordatorio, consentimiento…" value={find} onChange={(e) => search(e.target.value)} />
+      {hits && (
+        <p role="status" className="text-sm text-text-muted">
+          {hits.size === 0 ? "Nada con esas palabras. Prueba con otra." : hits.size === 1 ? "1 apartado lo explica." : `${hits.size} apartados lo explican.`}
+        </p>
+      )}
+      <Link to="/novedades" className={`self-start ${link}`}>
+        Novedades: lo que ha cambiado de sitio
+      </Link>
       <ol aria-label="Pasos" className="flex flex-col gap-3">
         {steps.map((s, i) => (
-          <li key={s.title}>
+          <li
+            key={s.title}
+            id={s.id}
+            ref={(el) => {
+              cards.current[i] = el;
+            }}
+            hidden={!!hits && !hits.has(i)}
+            className="scroll-mt-16"
+          >
             <Card className="flex gap-3">
               <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-on-accent">
                 {i + 1}
@@ -186,8 +227,8 @@ export function HelpPage() {
         ))}
       </ol>
 
-      <section aria-labelledby="h-donde" className="flex flex-col gap-2">
-        <h2 id="h-donde" className="text-lg">
+      <section aria-labelledby="h-donde" className="flex scroll-mt-16 flex-col gap-2">
+        <h2 id="h-donde" className="scroll-mt-16 text-lg">
           Dónde está cada cosa
         </h2>
         <p className="text-sm text-text-muted">En la barra de abajo (en el ordenador, en el menú de la izquierda):</p>

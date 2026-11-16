@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { add, ampliada, createPatient, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { add, ampliada, createPatient, expect, expectAccessible, loadSeed, openFold, test } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
@@ -203,7 +203,7 @@ test.describe("F16 Ficha clínica", () => {
     await expect(list).toContainText("6/10");
 
     await tab(page, "Resumen").click();
-    await expect(page.getByRole("region", { name: "Situación" })).toContainText("Último cuestionario");
+    await expect(page.getByRole("list", { name: "En cifras" }).getByRole("link", { name: /Cuestionario.*Último cuestionario: BPI-SF/ })).toContainText("6/10");
     await tab(page, "Sesiones").click();
     await expect(page.getByRole("list", { name: "Historia del paciente" })).toContainText("Cuestionario");
     await tab(page, "Valoración").click();
@@ -374,6 +374,7 @@ test.describe("F16 Ficha clínica", () => {
 
     await tab(page, "Resumen").click();
     await expect(page.getByRole("region", { name: "Situación" })).not.toContainText("Simetría bajo");
+    await openFold(page, "Documentos");
     await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Informe de fisioterapia");
@@ -392,6 +393,8 @@ test.describe("F16 Ficha clínica", () => {
     await page.getByLabel("Tratamiento").fill("Ejercicio de carga");
     await page.getByRole("button", { name: "Cita en 1 semana" }).click();
     await page.getByText("60 min", { exact: true }).click();
+    // Abajo del todo, la barra fija de «Guardar» no tapa nada.
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await expectAccessible(page);
     await page.getByRole("button", { name: "Guardar sesión" }).click();
 

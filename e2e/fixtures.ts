@@ -247,3 +247,10 @@ export async function allowContact(page: Page, name: string) {
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await expect(page.getByText(/Información entregada el/)).toBeVisible();
 }
+
+/** En el Resumen de la ficha, Documentos y Legal van plegados en una fila: la abre si está cerrada. */
+export async function openFold(page: Page, title: "Documentos" | "Legal") {
+  const fold = page.getByRole("region", { name: title, exact: true }).getByRole("button", { name: new RegExp(`^${title}`) });
+  await expect(fold).toBeVisible();
+  if ((await fold.getAttribute("aria-expanded")) === "false") await fold.click();
+}

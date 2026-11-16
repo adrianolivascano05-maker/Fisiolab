@@ -1,4 +1,4 @@
-import { add, expect, expectAccessible, loadSeed, test } from "./fixtures";
+import { add, expect, expectAccessible, loadSeed, openFold, test } from "./fixtures";
 
 // El modo oscuro sigue el ajuste del teléfono. Aquí se emula y se pasa el escáner de accesibilidad (contraste
 // incluido) por las pantallas principales; los documentos se quedan en claro, como papel.
@@ -35,6 +35,7 @@ test.describe("Modo oscuro", () => {
 
     // El informe se ve como un papel blanco con texto oscuro.
     await tabs.getByRole("link", { name: "Resumen" }).click();
+    await openFold(page, "Documentos");
     await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
     const paper = page.getByRole("article", { name: "Informe" });
     await expect(paper).toBeVisible();
@@ -53,7 +54,7 @@ test.describe("Modo oscuro", () => {
   test("OS2 Ajustes → Aspecto: claro u oscuro a mano, se recuerda, y automático vuelve a seguir al dispositivo", async ({ page }) => {
     // El dispositivo está en oscuro (test.use arriba): «Claro» lo deja en claro.
     await page.goto("./ajustes");
-    await page.getByRole("region", { name: "App y datos", exact: true }).getByRole("link", { name: /Aspecto.*Automático/ }).click();
+    await page.getByRole("region", { name: "La consulta", exact: true }).getByRole("link", { name: /Aspecto.*Automático/ }).click();
     await expect(page.getByRole("heading", { name: "Aspecto" })).toBeVisible();
     await page.getByRole("radio", { name: /^Claro/ }).check();
     expect(await background(page.locator("body"))).toBe("rgb(242, 244, 241)");

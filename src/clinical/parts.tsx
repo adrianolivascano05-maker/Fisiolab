@@ -54,6 +54,8 @@ export function NumberScale({
   onChange,
   ends,
   hint,
+  tones,
+  last,
 }: {
   label: string;
   from: number;
@@ -63,6 +65,10 @@ export function NumberScale({
   /** Qué significan los extremos. */
   ends: [string, string];
   hint?: string;
+  /** El fondo de cada número (la escala del dolor: de claro a oscuro, una sola escala). */
+  tones?: string[];
+  /** El valor de la última vez: se marca con un borde dorado. */
+  last?: number | null;
 }) {
   const name = useId();
   const values = Array.from({ length: to - from + 1 }, (_, i) => from + i);
@@ -77,7 +83,11 @@ export function NumberScale({
             <span
               className={cx(
                 "tap nums flex items-center justify-center rounded-md border text-base font-semibold",
-                "border-border-input bg-bg text-text peer-checked:border-accent peer-checked:bg-accent peer-checked:text-on-accent",
+                tones
+                  ? // Con la escala de color, el elegido no cambia de color: lleva un marco grueso y se subraya.
+                    cx(tones[n - from], "border-transparent peer-checked:underline peer-checked:ring-[3px] peer-checked:ring-text peer-checked:ring-offset-2 peer-checked:ring-offset-canvas")
+                  : "border-border-input bg-bg text-text peer-checked:border-accent peer-checked:bg-accent peer-checked:text-on-accent",
+                last === n && "outline-2 outline-offset-1 outline-highlight",
                 "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-focus",
               )}
             >
@@ -102,8 +112,24 @@ export function NumberScale({
 }
 
 /** Dolor de 0 a 10 (escala numérica). */
-export function PainScale(props: { label: string; value: number | null; onChange: (v: number | null) => void; hint?: string }) {
-  return <NumberScale from={0} to={10} ends={["0 sin dolor", "10 el peor imaginable"]} {...props} />;
+/** Los once fondos de la escala del dolor (docs/rediseno-sencilla.md, «Colores»): texto oscuro hasta el 7, blanco del 8 al 10. */
+export const PAIN_TONES = [
+  "bg-pain-0 text-pain-ink",
+  "bg-pain-1 text-pain-ink",
+  "bg-pain-2 text-pain-ink",
+  "bg-pain-3 text-pain-ink",
+  "bg-pain-4 text-pain-ink",
+  "bg-pain-5 text-pain-ink",
+  "bg-pain-6 text-pain-ink",
+  "bg-pain-7 text-pain-ink",
+  "bg-pain-8 text-white",
+  "bg-pain-9 text-white",
+  "bg-pain-10 text-white",
+];
+
+/** El dolor de 0 a 10: de claro a oscuro, sin semáforo (dice cuánto, no si es bueno o malo). `last`: el de la última vez. */
+export function PainScale(props: { label: string; value: number | null; onChange: (v: number | null) => void; hint?: string; last?: number | null }) {
+  return <NumberScale from={0} to={10} ends={["0 sin dolor", "10 el peor imaginable"]} tones={PAIN_TONES} {...props} />;
 }
 
 /** Opciones en chips: una sola (radio) o varias (checkbox). Pulsar la elegida otra vez la quita. */
@@ -170,15 +196,35 @@ export function Chips({
   );
 }
 
-export function TextArea({ label, hint, value, onChange, rows = 3, maxLength }: { label: string; hint?: string; value: string; onChange: (v: string) => void; rows?: number; maxLength?: number }) {
+export function TextArea({
+  label,
+  hint,
+  value,
+  onChange,
+  rows = 3,
+  maxLength,
+  action,
+}: {
+  label: string;
+  hint?: string;
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+  maxLength?: number;
+  /** Algo a la derecha de la etiqueta (un botón corto: «Igual que la última»). */
+  action?: ReactNode;
+}) {
   const id = useId();
   /** Con tope: cuántos caracteres quedan, a partir del 90 %. */
   const near = maxLength && value.length >= Math.floor(maxLength * 0.9);
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-semibold">
-        {label}
-      </label>
+      <div className="flex min-h-6 items-end justify-between gap-2">
+        <label htmlFor={id} className="text-sm font-semibold">
+          {label}
+        </label>
+        {action}
+      </div>
       <textarea
         id={id}
         rows={rows}

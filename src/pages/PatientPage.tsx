@@ -1,6 +1,6 @@
 import { todayDay } from "../app/dates";
-import { Activity, CalendarClock, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Files, Hourglass, ListChecks, NotebookPen, Send, ShieldAlert, ShieldCheck, Stethoscope, Wallet } from "lucide-react";
-import { useState } from "react";
+import { Activity, ArrowRight, CalendarClock, ChevronDown, ClipboardList, Dumbbell, FileCheck, FilePen, FileText, Files, Hourglass, ListChecks, NotebookPen, Send, ShieldAlert, ShieldCheck, Stethoscope } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router";
 import { SHOW_EXERCISES } from "../app/features";
 import { fmtDate, testTitle } from "../app/format";
@@ -18,7 +18,7 @@ import { kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
 import { redFlagReview } from "../clinical/redFlags";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
-import { accountLine, patientAccount } from "../data/billing";
+import { accountLine, euros, patientAccount } from "../data/billing";
 import { getAnamnesis, listQuestionnaires, listSessions } from "../data/clinical";
 import { listConsents } from "../data/consents";
 import { countDocuments } from "../data/documents";
@@ -30,10 +30,60 @@ import { CONSENTS } from "../data/privacy";
 import { getPatient, listTests } from "../data/repo";
 import { preferText, waitlistOf } from "../data/waitlist";
 import { Card } from "../ui/Card";
+import { cx } from "../ui/cx";
 import { Group, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 
 const dayText = (d: string) => fmtDate(`${d}T12:00:00`);
+
+/** Una cifra del tablero: se toca y lleva a donde está el detalle. Dice el dato, no si es bueno o malo. */
+function Tile({ to, label, value, sub }: { to: string; label: string; value: string; sub: string }) {
+  return (
+    <li>
+      <Link to={to} className="flex h-full min-h-20 flex-col rounded-lg border border-border bg-bg px-3 py-2 hover:bg-surface">
+        <span className="text-xs font-semibold tracking-wide text-text-muted uppercase">{label}</span>
+        <span className="nums text-xl font-semibold text-accent">{value}</span>
+        <span className="line-clamp-2 text-xs text-text-muted">{sub}</span>
+      </Link>
+    </li>
+  );
+}
+
+const FOLD_KEY = "omniclin.resumen.abierto";
+/** Lo abierto del Resumen se recuerda mientras la app está abierta: quien usa los documentos, los deja a la vista. */
+function foldOpen(id: string): boolean | null {
+  try {
+    const v = sessionStorage.getItem(`${FOLD_KEY}.${id}`);
+    return v === null ? null : v === "1";
+  } catch {
+    return null;
+  }
+}
+
+/** Un grupo del Resumen plegado en una fila (Documentos, Legal): dice lo que hay y se abre al tocarlo. En el ordenador, abierto. */
+function Fold({ id, title, subtitle, warn, children }: { id: string; title: string; subtitle: string; warn?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(() => foldOpen(id) ?? (typeof matchMedia === "function" && matchMedia("(min-width: 1024px)").matches));
+  const toggle = () => {
+    try {
+      sessionStorage.setItem(`${FOLD_KEY}.${id}`, open ? "0" : "1");
+    } catch {
+      /* sin almacenamiento: no se recuerda */
+    }
+    setOpen(!open);
+  };
+  return (
+    <section aria-label={title} className="flex flex-col gap-1.5">
+      <button type="button" aria-expanded={open} onClick={toggle} className="flex min-h-12 items-center gap-2 rounded-lg border border-border bg-bg px-3 py-1.5 text-left hover:bg-surface">
+        <ChevronDown aria-hidden="true" className={cx("size-5 shrink-0 text-accent transition-transform", !open && "-rotate-90")} />
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="font-semibold">{title}</span>
+          {!open && <span className={cx("truncate text-sm", warn ? "text-warning" : "text-text-muted")}>{subtitle}</span>}
+        </span>
+      </button>
+      {open && <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">{children}</ul>}
+    </section>
+  );
+}
 
 /** S02 Ficha del paciente › Resumen: las dos acciones de cada día (sesión y valorar), cómo está (una tarjeta que informa,
  * no un menú), lo que falta y, en tres grupos, sus documentos, lo legal y su cuenta. Cada cosa sale una sola vez: la
@@ -97,8 +147,26 @@ export function PatientPage() {
   const lastValue = lastTest ? mainValue(lastTest) : null;
   const headline = summary?.diagnosis || summary?.reason || "";
   const where = [...(summary?.regions ?? []).map(regionLabel), summary?.side && summary.side !== "No aplica" ? summary.side.toLowerCase() : ""].filter(Boolean).join(" · ");
-  const hasSituation = !!(headline || where || alarms?.hits.length || marked.length || last || lastQ || lastTest || notes.length);
-  const pending = missing.length > 0 || !privacy.informedAt || (review !== null && review < today);
+  const hasSituation = !!(headline || where || alarms?.hits.length || marked.length || last || lastTest || notes.length);
+  // Lo pendiente, por orden de importancia: lo primero sale arriba como «Lo siguiente»; lo demás, en «Pendiente».
+  const todo: { key: string; to: string; icon: typeof CalendarClock; title: string; subtitle: string }[] = [];
+  if (review !== null && review < today) todo.push({ key: "reevaluar", to: `/pacientes/${id}/valoracion`, icon: CalendarClock, title: "Reevaluación pendiente", subtitle: `Desde el ${dayText(review)}` });
+  if (missing.length > 0)
+    todo.push({
+      key: "consentimiento",
+      to: `/pacientes/${id}/consentimientos`,
+      icon: FilePen,
+      title: missing.length === 1 ? `Consentimiento sin firmar: ${missing[0]!.title.toLowerCase()}` : `${missing.length} consentimientos sin firmar`,
+      subtitle: missing.length === 1 ? "Por escrito, según su anamnesis" : missing.map((t) => t.title.toLowerCase()).join(", "),
+    });
+  if (!privacy.informedAt) todo.push({ key: "rgpd", to: `/pacientes/${id}/proteccion-datos`, icon: ShieldAlert, title: "Hoja de protección de datos sin entregar", subtitle: "Para imprimir y que la firme" });
+  const [next, ...rest] = todo;
+  // Las cuatro cifras: el último dolor apuntado, las sesiones (y las previstas), el último cuestionario y su cuenta.
+  const lastPain = sessions.find((x) => x.pain !== null);
+  const plannedRaw = anamnesis?.answers.sesiones_previstas;
+  const plannedN = typeof plannedRaw === "number" ? plannedRaw : typeof plannedRaw === "string" ? Number(plannedRaw.replace(",", ".")) : NaN;
+  const planned = Number.isInteger(plannedN) && plannedN > 0 ? plannedN : null;
+  const openPack = account.packs.find((p) => p.left > 0 && !p.expired);
 
   return (
     <PatientShell patient={patient} id={id}>
@@ -120,6 +188,44 @@ export function PatientPage() {
           <Stethoscope aria-hidden="true" className="size-5 text-accent" /> Valorar
         </button>
       </div>
+
+      {/* Lo siguiente: el paso pendiente más importante, con su enlace. */}
+      {next && (
+        <section aria-label="Lo siguiente">
+          <Link to={next.to} className="flex min-h-14 items-center gap-3 rounded-lg border border-warning bg-warning-soft px-3 py-2 hover:brightness-95">
+            <next.icon aria-hidden="true" className="size-5 shrink-0 text-warning" />
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span aria-hidden="true" className="text-xs font-semibold tracking-wide text-text uppercase">Lo siguiente</span>
+              <span className="font-semibold text-text">{next.title}</span>
+              <span className="text-sm text-text">{next.subtitle}</span>
+            </span>
+            <ArrowRight aria-hidden="true" className="size-5 shrink-0 text-text" />
+          </Link>
+        </section>
+      )}
+
+      {/* Cuatro cifras que se tocan: el dato, sin decir si es bueno o malo. */}
+      <ul aria-label="En cifras" className="grid grid-cols-2 gap-2">
+        <Tile to={`/pacientes/${id}/sesiones`} label="Dolor" value={lastPain ? `${lastPain.pain}/10` : "—"} sub={lastPain ? `El ${fmtDate(lastPain.performedAt)}` : "Sin apuntar"} />
+        <Tile
+          to={`/pacientes/${id}/sesiones`}
+          label="Sesiones"
+          value={planned ? `${sessions.length} de ${planned}` : String(sessions.length)}
+          sub={last ? `La última, el ${fmtDate(last.performedAt)}` : "Ninguna todavía"}
+        />
+        <Tile
+          to={`/pacientes/${id}/valoracion`}
+          label="Cuestionario"
+          value={lastGroup && lastQ ? scoreText(kindOf(lastQ.kind, lastQ.details as QDetails), lastQ.score) : "—"}
+          sub={lastGroup && lastQ ? `Último cuestionario: ${lastGroup.name} · ${fmtDate(lastQ.performedAt)}` : "Ninguno pasado"}
+        />
+        <Tile
+          to={`/pacientes/${id}/cobros`}
+          label="Bonos y cobros"
+          value={account.balanceCents > 0 ? euros(account.balanceCents) : account.balanceCents < 0 ? euros(-account.balanceCents) : openPack ? `${openPack.left} de ${openPack.sessions}` : "—"}
+          sub={accountLine(account) ?? "Vender un bono o cobrar"}
+        />
+      </ul>
 
       <section aria-labelledby="h-situacion" className="flex flex-col gap-2">
         <h2 id="h-situacion" className="text-lg">
@@ -170,13 +276,7 @@ export function PatientPage() {
           {last && (
             <p className="text-sm">
               <span className="font-semibold">Última sesión</span> · {fmtDate(last.performedAt)}
-              {last.pain !== null && ` · dolor ${last.pain}/10`}
               {last.treatment && <span className="block line-clamp-1 text-text-muted">{last.treatment}</span>}
-            </p>
-          )}
-          {lastGroup && lastQ && (
-            <p className="text-sm">
-              <span className="font-semibold">Último cuestionario</span> · {lastGroup.name} {scoreText(kindOf(lastQ.kind, lastQ.details as QDetails), lastQ.score)} · {fmtDate(lastQ.performedAt)}
             </p>
           )}
           {lastTest && (
@@ -205,30 +305,17 @@ export function PatientPage() {
         </Card>
       </section>
 
-      {pending && (
+      {rest.length > 0 && (
         <Group title="Pendiente">
-          {review && review < today && (
-            <RowLink to={`/pacientes/${id}/valoracion`} icon={CalendarClock} tone="warning" title="Reevaluación pendiente" subtitle={`Desde el ${dayText(review)}`} warn />
-          )}
-          {missing.length > 0 && (
-            <RowLink
-              to={`/pacientes/${id}/consentimientos`}
-              icon={FilePen}
-              tone="warning"
-              title={missing.length === 1 ? `Consentimiento sin firmar: ${missing[0]!.title.toLowerCase()}` : `${missing.length} consentimientos sin firmar`}
-              subtitle={missing.length === 1 ? "Por escrito, según su anamnesis" : missing.map((t) => t.title.toLowerCase()).join(", ")}
-              warn
-            />
-          )}
-          {!privacy.informedAt && (
-            <RowLink to={`/pacientes/${id}/proteccion-datos`} icon={ShieldAlert} tone="warning" title="Hoja de protección de datos sin entregar" subtitle="Para imprimir y que la firme" warn />
-          )}
+          {rest.map((t) => (
+            <RowLink key={t.key} to={t.to} icon={t.icon} tone="warning" title={t.title} subtitle={t.subtitle} warn />
+          ))}
         </Group>
       )}
 
         </div>
         <div className="flex flex-col gap-4">
-      <Group title="Documentos">
+      <Fold id="documentos" title="Documentos" subtitle="Informe, alta, derivación, justificante y sus archivos">
         <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Para el paciente o su médico" />
         <RowLink to={`/pacientes/${id}/alta`} icon={FileCheck} title="Informe de alta" subtitle="Al cerrar el motivo de consulta" />
         <RowLink to={`/pacientes/${id}/derivacion`} icon={Send} title="Carta de derivación" subtitle="Pide otra valoración a su médico" />
@@ -249,8 +336,16 @@ export function PatientPage() {
             subtitle={plans.length ? `Hoja del ${fmtDate(plans[0]!.updatedAt)}` : "Para imprimir o enviar por WhatsApp"}
           />
         )}
-      </Group>
-      <Group title="Legal">
+      </Fold>
+      <Fold
+        id="legal"
+        title="Legal"
+        warn={missing.length > 0 || !privacy.informedAt}
+        subtitle={[
+          missing.length ? `${missing.length === 1 ? "1 consentimiento" : `${missing.length} consentimientos`} sin firmar` : inForce.length ? `${inForce.length === 1 ? "1 consentimiento firmado" : `${inForce.length} consentimientos firmados`}` : "Consentimientos",
+          privacy.informedAt ? "protección de datos entregada" : "protección de datos sin entregar",
+        ].join(" · ")}
+      >
         <RowLink
           to={`/pacientes/${id}/consentimientos`}
           icon={FilePen}
@@ -270,9 +365,8 @@ export function PatientPage() {
               : "Sin entregar"
           }
         />
-      </Group>
-      <Group title="Cuenta">
-        <RowLink to={`/pacientes/${id}/cobros`} icon={Wallet} title="Bonos y cobros" subtitle={accountLine(account) ?? "Vender un bono o cobrar"} />
+      </Fold>
+      <Group label="Lista de espera">
         <RowLink
           to={waiting ? "/agenda/espera" : `/agenda/espera?paciente=${id}`}
           icon={Hourglass}

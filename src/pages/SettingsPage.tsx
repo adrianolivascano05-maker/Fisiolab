@@ -26,6 +26,7 @@ import {
   SunMoon,
   UserRound,
   UsersRound,
+  Sparkles,
   Wallet,
   ListChecks,
 } from "lucide-react";
@@ -34,6 +35,7 @@ import { Link, useSearchParams } from "react-router";
 import { readErrors } from "../app/errorLog";
 import { fmtDateTime } from "../app/format";
 import { Page } from "../app/Page";
+import { findScreens } from "../app/screens";
 import { useInstall } from "../app/pwa";
 import { THEME_LABELS, useTheme, type Theme } from "../app/theme";
 import { getStartPage, START_LABELS, useStartPage } from "../app/startPage";
@@ -68,6 +70,8 @@ import { getLock } from "../privacy/pin";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { cx } from "../ui/cx";
+import { TextField } from "../ui/Field";
 import { Group, RowLink } from "../ui/Grouped";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
@@ -100,11 +104,23 @@ export function SettingsPage() {
   const clinic = state.data?.clinic;
   const [theme] = useTheme();
   const brand = useBrand();
+  // Sin PIN y sin clínica en el servidor (que ya pide entrar): cualquiera que coja el dispositivo ve los pacientes.
+  const noPin = !lock && !cloud?.clinic;
+  const [find, setFind] = useState("");
+  const found = findScreens(find, 8);
 
   return (
-    <Page title="Ajustes" tabs>
-      {/* En el ordenador, los cuatro grupos en dos columnas: Tu clínica y Dinero arriba; Mensajes y App y datos debajo. */}
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6">
+    <Page title="Ajustes" tabs help="h-donde">
+      {/* Cinco grupos y la ayuda; en el ordenador, en dos columnas. Con algo escrito en el buscador, solo lo que encaja. */}
+      <TextField label="Buscar en Ajustes" type="search" placeholder="precio, PIN, copia…" value={find} onChange={(e) => setFind(e.target.value)} />
+      {find.trim() && (
+        <Group title="Resultados" footer={found.length === 0 ? "Nada con ese nombre. Prueba con otra palabra." : undefined}>
+          {found.map((f) => (
+            <RowLink key={f.to} to={f.to} title={f.label} />
+          ))}
+        </Group>
+      )}
+      <div className={cx("flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-x-6", find.trim() && "hidden")}>
       <SetupChecklist />
       <Group title="Tu clínica">
         <RowLink
@@ -135,10 +151,14 @@ export function SettingsPage() {
             subtitle={solo ? `${cloud.clinic.name} · por mi cuenta (si abres una clínica, añade aquí a tu equipo)` : `${cloud.clinic.name} · ${ROLE_LABELS[cloud.clinic.role]}`}
           />
         )}
+        <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
+      </Group>
+
+      <Group title="La consulta">
         <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
         <RowLink to="/ajustes/cuestionarios-propios" icon={ListChecks} title="Cuestionarios propios" subtitle="Satisfacción, control semanal, adherencia… (no validados)" />
         {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
-        <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
+        <RowLink to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={`${theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} · abre en ${START_LABELS[getStartPage()].replace(" (lo de hoy)", "")}`} />
       </Group>
 
       <Group title="Dinero">
@@ -146,12 +166,12 @@ export function SettingsPage() {
         <RowLink to="/facturas" icon={ReceiptText} title="Para facturar" subtitle="Los cobros en Excel para tu programa de facturación" />
       </Group>
 
-      <Group title="Mensajes y formularios">
+      <Group title="Mensajes">
         <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle={`Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre${SHOW_EXERCISES ? ", ejercicios" : ""}`} />
         <RowLink to="/agenda/envios" icon={Send} title="Envíos pendientes" subtitle="Recordatorios, anamnesis y cuestionarios listos para mandar" />
       </Group>
 
-      <Group title="App y datos">
+      <Group title="Seguridad y datos">
         <RowLink
           to="/ajustes/cuenta"
           icon={UserRound}
@@ -168,7 +188,14 @@ export function SettingsPage() {
           tone={!cloud && state.data && !state.data.lastBackup ? "warning" : "accent"}
         />
         <RowLink to="/ajustes/importar" icon={FileSpreadsheet} title="Importar datos" subtitle="De otro programa: pacientes, citas e historial · Excel o CSV" />
-        <RowLink to="/ajustes/bloqueo" icon={Lock} title="Bloqueo con PIN" subtitle={lock ? "Activado" : "Desactivado"} />
+        <RowLink
+          to="/ajustes/bloqueo"
+          icon={Lock}
+          title="Bloqueo con PIN"
+          subtitle={lock ? "Activado" : noPin ? "Desactivado: quien coja este dispositivo ve los pacientes" : "Desactivado"}
+          warn={noPin}
+          tone={noPin ? "warning" : "accent"}
+        />
         <RowLink to="/privacidad" icon={ShieldCheck} title="Privacidad" subtitle="Qué datos guarda la app y dónde" />
         <RowLink
           to="/instalar"
@@ -176,8 +203,11 @@ export function SettingsPage() {
           title="Instalar la app"
           subtitle={install.state === "installed" ? "Instalada en este dispositivo" : "En este y en otros dispositivos"}
         />
-        <RowLink to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={`${theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} · abre en ${START_LABELS[getStartPage()].replace(" (lo de hoy)", "")}`} />
+      </Group>
+
+      <Group title="Ayuda">
         <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
+        <RowLink to="/novedades" icon={Sparkles} title="Novedades" subtitle="Lo que ha cambiado de sitio o es nuevo" />
         <RowLink to="/ayuda/fallos" icon={LifeBuoy} title="Algo no funciona" subtitle={errorCount(readErrors().length)} />
       </Group>
       </div>

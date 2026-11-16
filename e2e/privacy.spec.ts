@@ -1,7 +1,7 @@
 // Protección de datos (src/privacy): texto informativo y consentimientos de cada paciente, datos de la clínica,
 // aviso de conservación al borrar y bloqueo de la app con PIN.
 import type { Locator, Page } from "@playwright/test";
-import { add, createPatient, expect, expectAccessible, smallTargets, test } from "./fixtures";
+import { add, createPatient, expect, expectAccessible, openFold, smallTargets, test } from "./fixtures";
 
 /** Firma de mentira: un garabato con el ratón. */
 async function scribble(page: Page, pad: Locator) {
@@ -30,6 +30,7 @@ test.describe("Protección de datos", () => {
 
     await createPatient(page, { name: "Marta Datos" });
     // En el resumen de la ficha, en naranja mientras no se le haya dado.
+    await openFold(page, "Legal");
     await page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Sin entregar/ }).click();
     await expect(page.getByRole("heading", { name: "Protección de datos", level: 1 })).toBeVisible();
     const notice = page.getByRole("article", { name: "Información sobre protección de datos" });
@@ -45,6 +46,7 @@ test.describe("Protección de datos", () => {
 
     await page.getByRole("link", { name: "Volver" }).click();
     // La ficha resume cuándo se le informó y sus consentimientos.
+    await openFold(page, "Legal");
     const row = page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Entregada el/ });
     await expect(row).toContainText("Fotos y vídeos: sí · WhatsApp, SMS o correo: no");
   });
@@ -52,6 +54,7 @@ test.describe("Protección de datos", () => {
   test("PD4 la hoja de protección de datos (fotos, WhatsApp, docencia) se firma en la pantalla y se guarda tal cual", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 780 });
     await createPatient(page, { name: "Nora Firma" });
+    await openFold(page, "Legal");
     await page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Sin entregar/ }).click();
     await page.getByRole("group", { name: "Fotos y vídeos" }).getByText("Sí", { exact: true }).click();
     await page.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByText("No", { exact: true }).click();
@@ -82,6 +85,7 @@ test.describe("Protección de datos", () => {
 
     // En la ficha, firmada en la pantalla, con sus permisos de ahora.
     await page.getByRole("link", { name: "Volver" }).click();
+    await openFold(page, "Legal");
     await expect(page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Firmada en la pantalla el .*WhatsApp, SMS o correo: sí/ })).toBeVisible();
   });
 

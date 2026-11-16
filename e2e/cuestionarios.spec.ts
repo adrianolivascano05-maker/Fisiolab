@@ -1,7 +1,7 @@
 // Los cuestionarios (docs/cuestionarios.md): buscarlos, anotarlos, que lleguen con sus códigos CIF a la carta de
 // derivación (qué valoran, con las palabras de la CIF), los de solo nota con su hoja oficial y los de pago, fuera.
 import type { Page } from "@playwright/test";
-import { expect, expectAccessible, test } from "./fixtures";
+import { expect, expectAccessible, openFold, test } from "./fixtures";
 
 async function newPatient(page: Page, name: string) {
   await page.goto("./pacientes/nuevo");
@@ -34,6 +34,7 @@ test.describe("Cuestionarios nuevos", () => {
     // La carta: el cuestionario con los códigos de la CIF que valora, sin calificador (la app no gradúa: eso lo
     // decide el fisio en el perfil CIF de la anamnesis, y este paciente aún no lo tiene).
     await page.goto(`${record}`);
+    await openFold(page, "Documentos");
     await page.getByRole("link", { name: /^Carta de derivación/ }).click();
     const letter = page.getByRole("article", { name: "Carta de derivación" });
     await expect(letter).toContainText("RMDQ (lumbar, Roland-Morris)");

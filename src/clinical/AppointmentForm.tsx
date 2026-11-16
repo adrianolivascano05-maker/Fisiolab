@@ -3,7 +3,7 @@
 // `AppointmentForm` lo pinta.
 import { CalendarClock, Dumbbell } from "lucide-react";
 import { useEffect, useState } from "react";
-import { clashes, createSeries, updateAppointment, type AgendaItem, type Appointment } from "../data/appointments";
+import { agenda, appointmentsOf, clashes, createSeries, updateAppointment, type AgendaItem, type Appointment } from "../data/appointments";
 import { closesFor, closureSpan, closuresBetween, type Closure } from "../data/closures";
 import { closureAt, outsideShifts, planSeries, seriesReach, trainingWeek, type Skipped } from "../data/seriesPlan";
 import { shiftsBetween } from "../data/schedule";
@@ -12,6 +12,7 @@ import { dayOf } from "../app/dates";
 import { getDb } from "../data/db";
 import { memberEmail } from "../data/member";
 import { eventName, eventsAtVisit, eventTime, listPatientEvents, type Occurrence } from "../data/patientEvents";
+import { freeStarts, proposeSlots } from "../schedule/slots";
 import { staffName, useStaff } from "../schedule/useStaff";
 import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
@@ -98,6 +99,41 @@ export function useAppointmentForm({
   /** Sus entrenamientos de cada semana y los días en que no entrena, para elegir uno libre. */
   const training = whenIso ? trainingWeek(events.data ?? [], dayOf(whenIso)) : null;
 
+  /**
+   * Para proponer huecos al dar una cita nueva (src/schedule/slots.ts): las citas de las próximas tres semanas (las de
+   * con quién es, en una clínica), la agenda cerrada, sus turnos y las citas de antes del paciente (su hora de siempre).
+   */
+  const team = staff.length > 0;
+  const slotData = useAsync(
+    async () => {
+      if (!open || appointment || start || !patientId) return null;
+      const db = getDb();
+      const now = new Date();
+      const to = new Date(now.getTime() + 23 * 86_400_000).toISOString();
+      const [items, shut, shifts, past] = await Promise.all([
+        agenda(db, new Date(now.getTime() - 86_400_000).toISOString(), to),
+        closuresBetween(db, now.toISOString(), to),
+        team && assignedTo ? shiftsBetween(db, new Date(now.getTime() - 7 * 86_400_000).toISOString(), to) : [],
+        appointmentsOf(db, patientId),
+      ]);
+      return {
+        now,
+        busy: team ? items.filter((a) => (a.assignedTo ?? "") === assignedTo) : items,
+        closures: closuresFor(shut, team, assignedTo),
+        shifts: shifts.filter((x) => x.staffEmail === assignedTo),
+        past,
+      };
+    },
+    [open, appointment, start, patientId, assignedTo, team],
+    { tables: ["appointments", "schedule"] },
+  );
+  /** El día del que se miran las horas libres («Ver las horas libres de otro día»). */
+  const [pickDay, setPickDay] = useState("");
+  const slotInput = slotData.data ? { ...slotData.data, minutes, events: events.data ?? [] } : null;
+  /** Hasta tres huecos propuestos (primero su hora de siempre) y las horas libres del día elegido. */
+  const slots = slotInput ? proposeSlots(slotInput) : null;
+  const dayHours = slotInput && /^\d{4}-\d{2}-\d{2}$/.test(pickDay) ? freeStarts(slotInput, pickDay) : null;
+
   // Cada vez que se abre: con los datos de la cita, o vacía para dar una nueva.
   useEffect(() => {
     if (!open) return;
@@ -105,6 +141,7 @@ export function useAppointmentForm({
     setMinutes(appointment?.minutes ?? DEFAULT_VISIT_MINUTES);
     setAssignedTo(appointment ? (appointment.assignedTo ?? "") : person !== undefined ? (person ?? "") : (memberEmail() ?? ""));
     setPicked(null);
+    setPickDay("");
     setRepeat(1);
     setClash(null);
     setBusyDay(null);
@@ -175,7 +212,7 @@ export function useAppointmentForm({
     setClosed(null);
     setOffShift(null);
   };
-  return { picked, setPicked, patientId, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, busyDay, setBusyDay, closed, setClosed, offShift, clearWarnings, plan, training, save };
+  return { picked, setPicked, patientId, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, setClash, busyDay, setBusyDay, closed, setClosed, slots, dayHours, pickDay, setPickDay, whenIso, offShift, clearWarnings, plan, training, save };
 }
 
 export type AppointmentFormState = ReturnType<typeof useAppointmentForm>;
@@ -201,7 +238,13 @@ export function AppointmentForm({
   /** Al cambiar una cita: volver a verla sin guardar. */
   onBack: () => void;
 }) {
-  const { picked, setPicked, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, busyDay, closed, offShift, clearWarnings, plan, training, save } = form;
+  const { picked, setPicked, when, setWhen, minutes, setMinutes, assignedTo, setAssignedTo, repeat, setRepeat, clash, busyDay, closed, offShift, clearWarnings, plan, training, save, slots, dayHours, pickDay, setPickDay, whenIso } = form;
+  /** Elegir un hueco: lo pone en «Día y hora». */
+  const pick = (iso: string) => {
+    setWhen(localInput(iso));
+    clearWarnings();
+  };
+  const slotButton = (on: boolean) => `inline-flex min-h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-semibold ${on ? "border-accent bg-accent text-on-accent" : "border-border bg-bg text-accent hover:bg-surface"}`;
   const warned = !!clash || !!busyDay || !!closed || !!offShift;
   return (
     <form
@@ -221,6 +264,37 @@ export function AppointmentForm({
             clearWarnings();
           }}
         />
+      )}
+      {/* Huecos libres: tres propuestos (primero su hora de siempre) y las horas de otro día. A mano, en «Día y hora». */}
+      {slots && (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 font-semibold">Huecos libres</legend>
+          {slots.length === 0 ? (
+            <p className="text-sm text-text-muted">No hay huecos libres en las próximas tres semanas. Pon el día y la hora a mano.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {slots.map((x) => (
+                <button key={x.startsAt} type="button" aria-pressed={whenIso === x.startsAt} onClick={() => pick(x.startsAt)} className={slotButton(whenIso === x.startsAt)}>
+                  <span className="first-letter:uppercase">{fmtVisit(x.startsAt)}</span>
+                  {x.usual && <span className="font-normal">· su hora de siempre</span>}
+                </button>
+              ))}
+            </div>
+          )}
+          <TextField label="Ver las horas libres de otro día" type="date" value={pickDay} onChange={(e) => setPickDay(e.target.value)} />
+          {dayHours &&
+            (dayHours.length === 0 ? (
+              <p className="text-sm text-text-muted">Ese día no hay horas libres.</p>
+            ) : (
+              <div role="group" aria-label="Horas libres de ese día" className="flex flex-wrap gap-2">
+                {dayHours.map((iso) => (
+                  <button key={iso} type="button" aria-pressed={whenIso === iso} onClick={() => pick(iso)} className={slotButton(whenIso === iso)}>
+                    {new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                  </button>
+                ))}
+              </div>
+            ))}
+        </fieldset>
       )}
       <TextField
         label="Día y hora"
@@ -314,7 +388,7 @@ export function AppointmentForm({
         </Alert>
       )}
       <Button type="submit" block loading={busy}>
-        {appointment ? "Guardar el cambio" : repeat > 1 ? `Dar las ${repeat} citas` : "Dar la cita"}
+        {appointment ? "Guardar el cambio" : repeat > 1 ? `Dar las ${repeat} citas` : whenIso ? `Dar la cita · ${fmtVisit(whenIso)}` : "Dar la cita"}
       </Button>
       {warned && (
         <Button variant="secondary" block loading={busy} onClick={() => void save(true)}>

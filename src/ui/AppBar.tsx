@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChevronLeft, Plus, Settings, Users } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronLeft, CircleHelp, Plus, Settings, Users } from "lucide-react";
 import { QuickAdd, QuickAddFab } from "../app/QuickAdd";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -40,6 +40,7 @@ export function TopBar({
   backTo,
   backLabel,
   action,
+  help,
   large,
   titleShown = true,
 }: {
@@ -47,6 +48,8 @@ export function TopBar({
   backTo?: string;
   backLabel?: string;
   action?: ReactNode;
+  /** El «?»: el apartado de «Cómo se usa» que explica esta pantalla (su ancla). */
+  help?: string;
   /** El título grande está en la página: aquí solo se repite (sin ser encabezado) al bajar. */
   large?: boolean;
   titleShown?: boolean;
@@ -99,7 +102,14 @@ export function TopBar({
           // Mientras llega la pantalla (RouteFallback): el hueco del título, latiendo.
           <span aria-hidden="true" className="mx-auto block h-4 w-28 animate-pulse rounded-md bg-on-brand/20" />
         )}
-        <div className="flex min-w-0 items-center justify-end gap-1">{action}</div>
+        <div className="flex min-w-0 items-center justify-end gap-1">
+          {action}
+          {help && !action && (
+            <Link to={`/ayuda#${help}`} aria-label="Cómo se usa esta pantalla" className="tap inline-flex items-center justify-center rounded-md hover:bg-surface">
+              <CircleHelp aria-hidden="true" className="size-6" />
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );

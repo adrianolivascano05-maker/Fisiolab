@@ -2,7 +2,7 @@
 // dispositivo, uno a uno o todos seguidos: cada mensaje sale listo y se envía con un toque. Lo enviado se apunta (y se
 // sincroniza) para que no salga otra vez ni lo mande otra persona del equipo.
 import { ContactNote } from "../privacy/ContactNote";
-import { CircleSlash, Mail, MessageCircle, Send, SkipForward } from "lucide-react";
+import { ChevronDown, CircleSlash, Mail, MessageCircle, Send, SkipForward } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -50,6 +50,9 @@ const KIND: Record<OutboxRule, MessageKind> = { recordatorio: "recordatorio", an
 /** El mensaje de cada envío, ya con sus enlaces (y los formularios que lleva, que se apuntan al enviarlo). */
 type Prepared = { text: string; forms?: UploadedForm[] } | { error: string };
 
+/** Un tipo de envío con más de tantos mensajes sale plegado (se abre al tocarlo). */
+const LONG = 5;
+
 export function OutboxPage() {
   const toast = useToast();
   const cloud = useCloud();
@@ -65,6 +68,8 @@ export function OutboxPage() {
   /** Los envíos que se están mandando (uno o todos seguidos) y por cuál va. */
   const [run, setRun] = useState<{ ids: string[]; at: number } | null>(null);
   const [prepared, setPrepared] = useState<Record<string, Prepared>>({});
+  /** Los tipos de envío abiertos o cerrados a mano: los largos (más de LONG) salen plegados. */
+  const [folds, setFolds] = useState<Partial<Record<OutboxRule, boolean>>>({});
   const online = !!(cloud?.clinic && cloud.clinics);
 
   if (data.error) return <Page title="Envíos" backTo="/agenda?vista=hoy"><LoadError error={data.error} /></Page>;
@@ -112,7 +117,7 @@ export function OutboxPage() {
   const groups = (Object.keys(RULE_LABELS) as OutboxRule[]).map((rule) => ({ rule, list: items.filter((i) => i.rule === rule) })).filter((g) => g.list.length);
 
   return (
-    <Page title="Envíos" backTo="/agenda?vista=hoy" backLabel="Hoy">
+    <Page title="Envíos" backTo="/agenda?vista=hoy" backLabel="Hoy" help="agenda">
       <p className="text-sm text-text-muted">
         Lo que toca mandar hoy a tus pacientes, ya escrito. Se envía por WhatsApp o por correo desde este dispositivo, con un toque cada uno: sin coste por mensaje. Lo
         que envíes se apunta para que no salga otra vez.
@@ -139,11 +144,31 @@ export function OutboxPage() {
               .
             </Alert>
           )}
-          {groups.map(({ rule, list }) => (
+          {groups.map(({ rule, list }) => {
+            const open = folds[rule] ?? list.length <= LONG;
+            const can = list.filter((i) => !i.needsForms || online);
+            return (
             <section key={rule} aria-labelledby={`h-${rule}`} className="flex flex-col gap-2">
-              <h2 id={`h-${rule}`} className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase" style={{ fontFamily: "var(--font-sans)" }}>
-                {RULE_LABELS[rule].title} · {list.length}
-              </h2>
+              <div className="flex items-center justify-between gap-2">
+                <h2 id={`h-${rule}`} className="min-w-0 flex-1 text-xs font-semibold tracking-wide text-text-muted uppercase" style={{ fontFamily: "var(--font-sans)" }}>
+                  {list.length > LONG ? (
+                    <button type="button" aria-expanded={open} onClick={() => setFolds({ ...folds, [rule]: !open })} className="flex min-h-11 w-full items-center gap-1.5 rounded-md px-1 text-left tracking-wide uppercase hover:bg-surface">
+                      <ChevronDown aria-hidden="true" className={cx("size-4 shrink-0 text-accent transition-transform", !open && "-rotate-90")} />
+                      {RULE_LABELS[rule].title} · {list.length}
+                    </button>
+                  ) : (
+                    <span className="px-1">
+                      {RULE_LABELS[rule].title} · {list.length}
+                    </span>
+                  )}
+                </h2>
+                {groups.length > 1 && can.length > 1 && (
+                  <Button size="sm" variant="ghost" aria-label={`Enviar los ${can.length} de «${RULE_LABELS[rule].title}» uno tras otro`} onClick={() => setRun({ ids: can.map((i) => i.id), at: 0 })}>
+                    Enviar los {can.length}
+                  </Button>
+                )}
+              </div>
+              {open && (
               <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
                 {list.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
@@ -174,8 +199,10 @@ export function OutboxPage() {
                   </li>
                 ))}
               </ul>
+              )}
             </section>
-          ))}
+            );
+          })}
         </>
       )}
 

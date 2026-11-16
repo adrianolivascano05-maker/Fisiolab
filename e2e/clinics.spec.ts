@@ -2,7 +2,7 @@
 // de alta la clínica, añadir al equipo, compartir pacientes, que nadie de fuera los vea y llevar a la clínica lo que
 // había en el dispositivo.
 import type { Browser, Page } from "@playwright/test";
-import { createPatient, downloadFrom, expect, expectAccessible, smallTargets, test } from "./fixtures";
+import { createPatient, downloadFrom, expect, expectAccessible, openFold, smallTargets, test } from "./fixtures";
 import { FakeGoogle } from "./fakeGoogle";
 import { EXPECTED_SERVER_VERSION } from "../src/cloud/serverStatus";
 
@@ -1090,6 +1090,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
 
     // Con un «No» en el permiso de contacto, nunca: ni la tarjeta ni WhatsApp.
     const noUrl = await newPatient("Pablo Noquiere");
+    await openFold(page, "Legal");
     await page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Sin entregar/ }).click();
     await page.getByRole("group", { name: "WhatsApp, SMS o correo" }).getByText("No", { exact: true }).click();
     await page.getByRole("button", { name: "Guardar", exact: true }).click();
@@ -1147,6 +1148,7 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("button", { name: "Buscar respuestas" }).click();
     await expect(page.getByText("Lucas Primera ha rellenado: Anamnesis (su parte)")).toBeVisible();
     await page.goto(lucasUrl);
+    await openFold(page, "Legal");
     await page.getByRole("link", { name: /^Protección de datos \(RGPD\).*Sin entregar/ }).click();
     await expect(page.getByText(/^Leyó la información de protección de datos en el formulario online el /)).toBeVisible();
     const pending = page.getByRole("status").filter({ hasText: "Pedido en el formulario el" });

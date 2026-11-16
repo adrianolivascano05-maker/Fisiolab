@@ -1,7 +1,7 @@
 // Mejoras frente a la competencia (replica/fixes.md): mapa del dolor (cuestionario), bonos y cobros, lista de espera
 // y hoja de ejercicios para casa.
 import type { Page } from "@playwright/test";
-import { add, allowContact, ampliada, createPatient, expect, expectAccessible, importData, test } from "./fixtures";
+import { add, allowContact, ampliada, createPatient, expect, expectAccessible, importData, openFold, test } from "./fixtures";
 
 const tab = (page: Page, name: string) => page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name });
 
@@ -59,6 +59,7 @@ test.describe("Mejoras frente a la competencia", () => {
 
     const text = "Hombro derecho: dolor 6/10; Lumbar: hormigueo; Rodilla izquierda: dolor";
     await page.goto(page.url().replace(/\/(cuestionarios|valoracion).*$/, ""));
+    await openFold(page, "Documentos");
     await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText(text);
@@ -374,6 +375,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await page.locator("summary", { hasText: "Suelo pélvico" }).click();
     await expect(page.getByText("Al esfuerzo")).toBeVisible();
     await tab(page, "Resumen").click();
+    await openFold(page, "Documentos");
     await page.getByRole("link", { name: /^Informe(?! de alta)/ }).click();
     const report = page.getByRole("article", { name: "Informe" });
     await expect(report).toContainText("Escapes de orina");
