@@ -1,4 +1,5 @@
-import { BookOpen, CalendarDays, ChevronLeft, Settings, Users } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronLeft, Plus, Settings, Users } from "lucide-react";
+import { QuickAdd, QuickAddFab } from "../app/QuickAdd";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { getDb } from "../data/db";
@@ -153,11 +154,15 @@ export function TabBar() {
   const pending = useSettingsPending();
   return (
     <nav aria-label="Principal" className="safe-bottom fixed inset-x-0 bottom-0 z-20 border-t border-border bg-bg/95 backdrop-blur lg:hidden">
-      <ul className="mx-auto grid h-[var(--layout-tabbar)] max-w-[var(--layout-content-max)]" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
-        {tabs.map(({ root, label, icon: Icon }) => {
+      {/* En el centro, el «＋»: lo que más se hace, desde cualquier pantalla (src/app/QuickAdd.tsx). */}
+      <ul className="mx-auto grid h-[var(--layout-tabbar)] max-w-[var(--layout-content-max)]" style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}>
+        <li className="flex items-start justify-center" style={{ gridColumn: tabs.length / 2 + 1, gridRow: 1 }}>
+          <QuickAddFab />
+        </li>
+        {tabs.map(({ root, label, icon: Icon }, i) => {
           const active = root === current.root;
           return (
-            <li key={root}>
+            <li key={root} style={{ gridColumn: i < tabs.length / 2 ? i + 1 : i + 2, gridRow: 1 }}>
               <Link
                 to={active ? root : (lastIn.get(root) ?? root)}
                 aria-current={active ? "page" : undefined}
@@ -236,6 +241,12 @@ export function SideNav() {
         </span>
       </Link>
       <ul className="flex flex-col gap-1 p-2 xl:p-3">
+        <li>
+          <QuickAdd className="flex min-h-11 w-full items-center justify-center gap-3 rounded-md bg-accent px-2 text-sm font-semibold text-on-accent hover:bg-accent-hover xl:justify-start xl:px-3">
+            <Plus aria-hidden="true" className="size-6" />
+            <span className="sr-only xl:not-sr-only">Añadir o buscar</span>
+          </QuickAdd>
+        </li>
         {tabs.map(({ root, label, icon: Icon }) => {
           const active = root === current.root;
           return (

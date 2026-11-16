@@ -15,7 +15,9 @@ const steps: { title: string; body: ReactNode }[] = [
     title: "Pacientes",
     body: (
       <>
-        Pulsa <b>+</b> arriba a la derecha para añadir uno (con el nombre basta). Arriba salen sus <b>próximas citas</b> y las reevaluaciones
+        Pulsa <b>+</b> arriba a la derecha para añadir uno (con el nombre basta). El <b>＋ redondo</b> del centro de la barra de abajo está en
+        todas las pantallas: desde ahí das una cita, creas un paciente, vuelves a los últimos que has abierto y buscas un paciente o una
+        pantalla escribiendo («bono», «PIN»); dentro de una ficha te ofrece primero lo de ese paciente. Arriba salen sus <b>próximas citas</b> y las reevaluaciones
         pendientes; debajo, todos por orden alfabético, de 50 en 50. Búscalos por nombre, teléfono o DNI, y con <b>Filtros</b> por edad, sexo,
         fisio, si tienen cita, cuándo vinieron por última vez, si tienen algo pendiente de cobrar o de firmar, o por lo de su calendario (de
         viaje ahora o volviendo esta semana, operados en el último año o que se operan este mes, con una competición cerca). En una clínica con equipo,
