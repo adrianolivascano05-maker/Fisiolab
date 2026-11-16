@@ -141,7 +141,15 @@ function EventForm({
     try {
       await deletePatientEvent(getDb(), event.id);
       bumpData("events");
-      toast("Evento borrado", "success");
+      // Deshacer: se vuelve a apuntar tal como estaba.
+      const { kind, title, startsOn, endsOn, time, minutes, repeatDays, repeatUntil, notes, skipDays, patientId } = event;
+      toast("Evento borrado", "success", {
+        label: "Deshacer",
+        run: async () => {
+          await savePatientEvent(getDb(), patientId, { kind, title, startsOn, endsOn, time, minutes, repeatDays, repeatUntil, notes, skipDays });
+          bumpData("events");
+        },
+      });
       onDone();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));

@@ -3,7 +3,7 @@
 // `AppointmentForm` lo pinta.
 import { CalendarClock, Dumbbell } from "lucide-react";
 import { useEffect, useState } from "react";
-import { agenda, appointmentsOf, clashes, createSeries, updateAppointment, type AgendaItem, type Appointment } from "../data/appointments";
+import { agenda, appointmentsOf, clashes, createSeries, deleteAppointment, updateAppointment, type AgendaItem, type Appointment } from "../data/appointments";
 import { closesFor, closureSpan, closuresBetween, type Closure } from "../data/closures";
 import { closureAt, outsideShifts, planSeries, seriesReach, trainingWeek, type Skipped } from "../data/seriesPlan";
 import { shiftsBetween } from "../data/schedule";
@@ -48,7 +48,7 @@ const REPEATS = [1, 2, 3, 4, 5, 6, 8, 10, 12];
 
 export type Staff = ReturnType<typeof useStaff>;
 /** Hacer algo con la cita y, si sale bien, avisar, recargar las pantallas y cerrar la hoja (AppointmentSheet.tsx). */
-export type RunAction = (work: () => Promise<unknown>, done: string, after?: () => void) => Promise<void>;
+export type RunAction = (work: () => Promise<unknown>, done: string, after?: () => void, undo?: (result: unknown) => Promise<unknown>) => Promise<void>;
 
 export function useAppointmentForm({
   open,
@@ -202,6 +202,12 @@ export function useAppointmentForm({
           ? `${n} citas dadas, una por semana hasta el ${dayWithWeekday(dayOf(last))}${series.skipped.length ? `; ${skippedText(series.skipped)}` : ""}`
           : "Cita dada",
       appointment ? undefined : () => onCreated?.(patientId),
+      // Deshacer: la cita cambiada vuelve a como estaba; las dadas se quitan.
+      appointment
+        ? () => updateAppointment(getDb(), appointment.id, { startsAt: appointment.startsAt, minutes: appointment.minutes, ...(staff.length ? { assignedTo: appointment.assignedTo } : {}) })
+        : async (ids) => {
+            for (const id of ids as string[]) await deleteAppointment(getDb(), id);
+          },
     );
   };
 

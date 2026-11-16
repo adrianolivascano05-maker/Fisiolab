@@ -114,7 +114,15 @@ export function SessionsPage() {
         <Alert tone={review <= today ? "warning" : "info"} title={review < today ? `Reevaluación pendiente desde el ${dayText(review)}` : review === today ? "Reevaluar hoy" : `Próxima reevaluación: ${dayText(review)}`} />
       )}
       {sessions.length === 0 ? (
-        <EmptyState icon={ClipboardList} title="Sin sesiones todavía">
+        <EmptyState
+          icon={ClipboardList}
+          title="Sin sesiones todavía"
+          action={
+            <Link to={`/pacientes/${id}/sesiones/nueva`} className="inline-flex min-h-11 items-center font-semibold text-accent underline underline-offset-2">
+              Apuntar la primera sesión
+            </Link>
+          }
+        >
           Registra cada visita: el dolor de ese día, qué refiere, qué haces y cuándo reevaluar.
         </EmptyState>
       ) : (

@@ -18,7 +18,7 @@ import { addDays, todayDay } from "../clinical/pageKit";
 import { consentContext } from "../consent/context";
 import { TEMPLATES } from "../consent/templates";
 import { agenda, remindersBetween, STATUS_LABELS, type AgendaItem } from "../data/appointments";
-import { addPayment, dayAccounts, euros, getPricing, patientAccount, pendingAccounts, suggestedCharge, type DayAccount } from "../data/billing";
+import { addPayment, dayAccounts, deletePayment, euros, getPricing, patientAccount, pendingAccounts, suggestedCharge, type DayAccount } from "../data/billing";
 import { dueReviews, getAnamnesis, getSession } from "../data/clinical";
 import { listConsents } from "../data/consents";
 import { getDb } from "../data/db";
@@ -113,8 +113,29 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
   const notReminded = next.filter((a) => !a.remindedAt && !a.confirmedAt).length;
   const hasPending = reviews.length > 0 || debtors.length > 0 || unsigned.length > 0 || back.length > 0;
 
+  const alive = day.filter((a) => a.status !== "cancelled");
+  const toSee = alive.filter((a) => a.status === "scheduled").length;
+  const figure = "flex min-h-14 flex-col justify-center rounded-lg border border-border bg-bg px-2 py-1.5 text-center";
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Tres cifras del día: cuántas citas, cuántas quedan por atender y cuánto hay por cobrar (lleva a la lista). */}
+      <ul aria-label="Hoy en cifras" className="grid grid-cols-3 gap-2">
+        <li className={figure}>
+          <span className="nums text-lg font-semibold">{alive.length}</span>
+          <span className="text-xs text-text-muted">{alive.length === 1 ? "cita hoy" : "citas hoy"}</span>
+        </li>
+        <li className={figure}>
+          <span className="nums text-lg font-semibold">{toSee}</span>
+          <span className="text-xs text-text-muted">por atender</span>
+        </li>
+        <li>
+          <Link to="/agenda/cobros" className={`${figure} hover:bg-surface`}>
+            <span className="nums text-lg font-semibold text-accent">{euros(debt)}</span>
+            <span className="text-xs text-text-muted">por cobrar</span>
+          </Link>
+        </li>
+      </ul>
       <section aria-label="Citas de hoy" className="flex flex-col gap-1.5">
         <h2 className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase" style={{ fontFamily: "var(--font-sans)" }}>
           {dayTitle(day)}
@@ -346,8 +367,14 @@ function ChargeSheet({ item, onClose }: { item: AgendaItem; onClose: () => void 
           concept="Sesión de fisioterapia"
           submitLabel="Cobrar"
           onSave={async (input) => {
-            await addPayment(getDb(), item.patientId, input);
-            toast(`Cobrado: ${euros(input.amountCents)}`, "success");
+            const pid = await addPayment(getDb(), item.patientId, input);
+            toast(`Cobrado: ${euros(input.amountCents)}`, "success", {
+              label: "Deshacer",
+              run: async () => {
+                await deletePayment(getDb(), pid);
+                bumpData();
+              },
+            });
             bumpData();
             onClose();
           }}

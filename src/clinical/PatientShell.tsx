@@ -5,6 +5,7 @@
 import { todayDay } from "../app/dates";
 import { CalendarCheck, CalendarPlus, Ellipsis, MessageCircle, Wallet } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode, type TouchEvent } from "react";
+import { PatientAside, useWideScreen } from "./PatientAside";
 import { Link, useLocation, useNavigate } from "react-router";
 import { fmt } from "../app/format";
 import { Page } from "../app/Page";
@@ -74,6 +75,10 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
     if (loaded) void logAccess(getDb(), "abrir_ficha", id).catch(() => {});
   }, [id, loaded]);
   const visit = useAsync(() => nextAppointmentOf(getDb(), id), [id]);
+  // La columna de la derecha (PatientAside): solo en pantallas muy anchas y fuera del Resumen, que ya trae esas cifras.
+  const wide = useWideScreen();
+  const onSummary = /\/pacientes\/[^/]+\/?$/.test(useLocation().pathname);
+  const aside = wide && !!patient && !onSummary;
   // En una clínica, quién tocó la ficha por última vez.
   const cloud = useCloud();
   const team = !!cloud?.clinic;
@@ -264,9 +269,19 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
       }
     >
       <PatientNav id={id} />
-      <div data-tab-swipe className="flex flex-col gap-4" onTouchStart={swipe.start} onTouchEnd={swipe.end}>
-        {children}
-      </div>
+      {/* En pantallas muy anchas, a la derecha y en todas las pestañas menos el Resumen: lo esencial del paciente. */}
+      {aside ? (
+        <div className="grid grid-cols-[minmax(0,1fr)_15rem] items-start gap-6">
+          <div data-tab-swipe className="flex min-w-0 flex-col gap-4" onTouchStart={swipe.start} onTouchEnd={swipe.end}>
+            {children}
+          </div>
+          <PatientAside id={id} />
+        </div>
+      ) : (
+        <div data-tab-swipe className="flex flex-col gap-4" onTouchStart={swipe.start} onTouchEnd={swipe.end}>
+          {children}
+        </div>
+      )}
     </Page>
   );
 }

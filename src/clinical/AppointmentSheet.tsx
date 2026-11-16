@@ -129,12 +129,24 @@ export function AppointmentSheet({
     setError(null);
   }, [open, appointment, start, person]);
 
-  async function run(work: () => Promise<unknown>, done: string, after?: () => void) {
+  async function run(work: () => Promise<unknown>, done: string, after?: () => void, undo?: (result: unknown) => Promise<unknown>) {
     setBusy(true);
     setError(null);
     try {
-      await work();
-      toast(done, "success");
+      const result = await work();
+      // Con «Deshacer»: vuelve a dejarlo como estaba (quita la cita dada, la devuelve a su hora o a su estado).
+      toast(
+        done,
+        "success",
+        undo && {
+          label: "Deshacer",
+          run: async () => {
+            await undo(result);
+            bumpData("appointments", "waitlist");
+            toast("Deshecho", "info");
+          },
+        },
+      );
       bumpData("appointments", "waitlist");
       onClose();
       after?.();
@@ -147,7 +159,10 @@ export function AppointmentSheet({
 
   const form = useAppointmentForm({ open, appointment, start, person, fixedPatient, staff, run, setError, onCreated });
   const patientId = form.patientId;
-  const setStatus = (status: AppointmentStatus, done: string) => run(() => updateAppointment(getDb(), appointment!.id, { status }), done);
+  const setStatus = (status: AppointmentStatus, done: string) => {
+    const before = appointment!.status;
+    return run(() => updateAppointment(getDb(), appointment!.id, { status }), done, undefined, () => updateAppointment(getDb(), appointment!.id, { status: before }));
+  };
   /** «No vino»: se anota y, en vez de cerrar, se ofrece darle otra cita o deshacerlo. */
   async function markMissed() {
     const a = appointment!;
@@ -164,13 +179,25 @@ export function AppointmentSheet({
     }
   }
   /** Anular o borrar: si el hueco es futuro y alguien lo espera, se ofrece en vez de cerrar. */
-  async function release(work: () => Promise<unknown>, done: string) {
+  async function release(work: () => Promise<unknown>, done: string, undo?: () => Promise<unknown>) {
     const a = appointment!;
     setBusy(true);
     setError(null);
     try {
       await work();
-      toast(done, "success");
+      // Una cita anulada se puede deshacer (vuelve a como estaba); una borrada, no.
+      toast(
+        done,
+        "success",
+        undo && {
+          label: "Deshacer",
+          run: async () => {
+            await undo();
+            bumpData();
+            toast("Deshecho", "info");
+          },
+        },
+      );
       bumpData();
       const forWhom = staff.length && a.assignedTo ? a.assignedTo : undefined;
       const waiting = Date.parse(a.startsAt) > Date.now() ? (await listWaitlist(getDb(), forWhom)).filter((w) => w.patientId !== a.patientId).length : 0;
@@ -206,7 +233,7 @@ export function AppointmentSheet({
       form.setClosed(shut);
       return;
     }
-    return run(() => updateAppointment(getDb(), a.id, { startsAt: d.toISOString() }), `Cita movida ${label}: ${fmtVisit(d.toISOString())}`);
+    return run(() => updateAppointment(getDb(), a.id, { startsAt: d.toISOString() }), `Cita movida ${label}: ${fmtVisit(d.toISOString())}`, undefined, () => updateAppointment(getDb(), a.id, { startsAt: a.startsAt }));
   };
   const name = patientName ?? form.picked?.name ?? "";
 
@@ -328,6 +355,7 @@ export function AppointmentSheet({
                     void release(
                       () => (confirming === "cancel" ? updateAppointment(getDb(), appointment.id, { status: "cancelled" }) : deleteAppointment(getDb(), appointment.id)),
                       confirming === "cancel" ? "Cita anulada" : "Cita borrada",
+                      confirming === "cancel" ? () => updateAppointment(getDb(), appointment.id, { status: appointment.status }) : undefined,
                     )
                   }
                 >

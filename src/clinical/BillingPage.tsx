@@ -267,10 +267,16 @@ export function BillingPage() {
             today={today}
             suggested={a.balanceCents > 0 ? a.balanceCents : (pricing.sessionCents ?? null)}
             onSave={async (input) => {
-              await addPayment(getDb(), id, input);
+              const pid = await addPayment(getDb(), id, input);
               setSheet(null);
               bumpData();
-              toast("Cobro apuntado", "success");
+              toast("Cobro apuntado", "success", {
+                label: "Deshacer",
+                run: async () => {
+                  await deletePayment(getDb(), pid);
+                  bumpData();
+                },
+              });
             }}
           />
         )}

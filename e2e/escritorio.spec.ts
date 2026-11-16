@@ -243,3 +243,22 @@ test.describe("Ordenador", () => {
     await expectAccessible(page);
   });
 });
+
+test("ES7 pantalla muy ancha: lo esencial del paciente, fijo a la derecha en las pestañas de la ficha", async ({ page }) => {
+  await page.setViewportSize({ width: 1700, height: 950 });
+  await page.goto("./pacientes/nuevo");
+  await page.getByLabel("Nombre").fill("Ana Ancha");
+  await page.getByRole("button", { name: "Crear paciente" }).click();
+  await expect(page.getByRole("heading", { name: "Ana Ancha" })).toBeVisible();
+  // En el Resumen no sale (ya trae las cifras); en las demás pestañas, sí, con «Nueva sesión» y sus cifras.
+  const aside = page.getByRole("complementary", { name: "Lo esencial del paciente" });
+  await expect(aside).toHaveCount(0);
+  await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Sesiones" }).click();
+  await expect(aside.getByRole("link", { name: "Nueva sesión" })).toBeVisible();
+  await expect(aside.getByRole("link", { name: /Dolor/ })).toContainText("Sin apuntar");
+  await expect(aside.getByRole("link", { name: /Bonos y cobros/ })).toHaveAttribute("href", /\/cobros$/);
+  await expectAccessible(page);
+  // En una pantalla de portátil corriente no sale: no hay sitio.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await expect(aside).toHaveCount(0);
+});

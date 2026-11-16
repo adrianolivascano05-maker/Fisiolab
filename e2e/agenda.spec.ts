@@ -199,7 +199,7 @@ test.describe("Agenda y seguimiento", () => {
     await page.mouse.up();
     await expect(page.getByRole("button", { name: /^Eva Mueve\s*,\s*13:00–13:45/ })).toBeVisible();
     await expect(page.getByRole("status").filter({ hasText: "Movida" })).toContainText("Eva Mueve");
-    await page.getByRole("button", { name: "Deshacer" }).click();
+    await page.getByRole("status").getByRole("button", { name: "Deshacer" }).click();
     await expect(page.getByRole("button", { name: /^Eva Mueve\s*,\s*12:00–12:45/ })).toBeVisible();
 
     // Moverla una semana desde su hoja.

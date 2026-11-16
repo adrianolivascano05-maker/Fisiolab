@@ -120,7 +120,7 @@ test.describe("Clínica de prueba", () => {
     times["agenda"] = await timed(page, "./agenda", () => expect(page.getByRole("main")).toContainText(/\d+ citas|Hoy no hay citas/, { timeout: 30_000 }));
     // Cargada la lista de mañana, con citas o sin ellas (un viernes no hay): los datos salen al azar en cada carga.
     times["recordatorios"] = await timed(page, "./agenda/recordatorios", () => expect(page.getByText(/^\d+ citas? pendientes? · |^No hay citas pendientes ese día\.$/)).toBeVisible({ timeout: 30_000 }));
-    times["lista de espera"] = await timed(page, "./agenda/espera", () => expect(page.getByText(/hueco/).first()).toBeVisible({ timeout: 30_000 }));
+    times["lista de espera"] = await timed(page, "./agenda/espera", () => expect(page.getByText(/pacientes? esperando$|^No hay nadie esperando\.$/).first()).toBeVisible({ timeout: 30_000 }));
     times["cobros pendientes"] = await timed(page, "./agenda/cobros", () => expect(page.getByRole("main")).toContainText("€", { timeout: 30_000 }));
     const size = await page.evaluate(async () => (await navigator.storage.estimate()).usage ?? 0);
     const text = `${Object.entries(times).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)} s`).join(" · ")} · almacenamiento ${(size / 1e6).toFixed(1)} MB`;

@@ -23,6 +23,7 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
+import { HowItWorks } from "../ui/HowItWorks";
 import { SelectField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
@@ -118,10 +119,10 @@ export function OutboxPage() {
 
   return (
     <Page title="Envíos" backTo="/agenda?vista=hoy" backLabel="Hoy" help="agenda">
-      <p className="text-sm text-text-muted">
+      <HowItWorks>
         Lo que toca mandar hoy a tus pacientes, ya escrito. Se envía por WhatsApp o por correo desde este dispositivo, con un toque cada uno: sin coste por mensaje. Lo
         que envíes se apunta para que no salga otra vez.
-      </p>
+      </HowItWorks>
 
       {items.length === 0 ? (
         <Card className="text-center">

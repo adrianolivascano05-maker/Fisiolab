@@ -144,6 +144,7 @@ export function AssessmentPage() {
   const { patient, findings, questionnaires, tests, wellness, waiting } = data.data;
   if (!patient) return <Page title="Valoración" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
   const head = (b: Block) => BLOCKS.find((x) => x.id === b)!.label;
+  const counts: Record<Block, number> = { exploracion: findings.length, cuestionarios: questionnaires.length, mediciones: tests.length };
   return (
     <PatientShell patient={patient} id={id}>
       <nav aria-label="Bloques de la valoración" className="flex gap-1 rounded-lg border border-border p-1">
@@ -159,6 +160,8 @@ export function AssessmentPage() {
             className="flex min-h-11 flex-1 items-center justify-center rounded-md px-1 text-sm font-semibold text-accent hover:bg-surface"
           >
             {b.label}
+            {/* Cuántos hay en cada bloque: registros de exploración, cuestionarios pasados y mediciones. */}
+            <span className="nums ml-1 font-normal text-text-muted">{counts[b.id]}</span>
           </a>
         ))}
       </nav>

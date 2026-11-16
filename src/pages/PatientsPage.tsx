@@ -400,7 +400,15 @@ function PatientRows({ list, currentId }: { list: PatientList; currentId?: strin
         </p>
       </>
     ) : (
-      <EmptyState icon={Users} title="Todavía no hay pacientes">
+      <EmptyState
+        icon={Users}
+        title="Todavía no hay pacientes"
+        action={
+          <Link to="/pacientes/nuevo" className="inline-flex min-h-11 items-center font-semibold text-accent underline underline-offset-2">
+            Añadir el primer paciente
+          </Link>
+        }
+      >
         Pulsa «Nuevo» arriba para añadir el primero. Con el nombre basta. ¿Vienes de otro programa?{" "}
         <Link to="/ajustes/importar" className="font-semibold text-accent underline underline-offset-2">
           Trae tus pacientes desde Excel

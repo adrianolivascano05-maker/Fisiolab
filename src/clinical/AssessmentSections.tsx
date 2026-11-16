@@ -8,7 +8,7 @@ import type { Patient, TestSummary, WellnessEntry } from "../data/repo";
 import { wellnessTotal } from "../calc/wellness";
 import { Alert } from "../ui/Alert";
 import { AnalysisNav, TestList } from "./measureParts";
-import { QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
+import { questionnaireGroups, QuestionnaireTiles, SymmetryPanel } from "./outcomeParts";
 import { symmetryRows } from "./symmetry";
 
 // ---------- Valoración: cuestionarios y mediciones ----------
@@ -16,6 +16,10 @@ import { symmetryRows } from "./symmetry";
 
 /** Valoración › Cuestionarios: pasar uno aquí o mandarlo al móvil, sus tarjetas con la evolución y el bienestar diario. */
 export function QuestionnairesSection({ id, questionnaires, wellness, waiting }: { id: string; questionnaires: Questionnaire[]; wellness: WellnessEntry | null; waiting: number }) {
+  // Los últimos que se le pasaron (hasta tres distintos), para repetirlos.
+  const again = questionnaireGroups(questionnaires)
+    .slice(0, 3)
+    .map((g) => ({ name: g.name, kind: g.items[0]!.kind }));
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-[2fr_1fr] gap-2">
@@ -30,6 +34,21 @@ export function QuestionnairesSection({ id, questionnaires, wellness, waiting }:
         <Link to={`/pacientes/${id}/formularios`} className="text-sm font-semibold text-accent">
           {waiting === 1 ? "1 formulario esperando su respuesta" : `${waiting} formularios esperando su respuesta`} ›
         </Link>
+      )}
+      {/* Pasar otra vez los que ya se le han pasado: a un toque, con el suyo ya elegido. */}
+      {again.length > 0 && (
+        <div role="group" aria-label="Pasar otra vez" className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-text-muted">Pasar otra vez:</span>
+          {again.map((g) => (
+            <Link
+              key={g.kind}
+              to={`/pacientes/${id}/cuestionarios/nuevo?tipo=${encodeURIComponent(g.kind)}`}
+              className="inline-flex min-h-11 items-center rounded-pill border border-border bg-bg px-3 text-sm font-semibold text-accent hover:bg-surface"
+            >
+              {g.name}
+            </Link>
+          ))}
+        </div>
       )}
       {questionnaires.length ? (
         <QuestionnaireTiles patientId={id} items={questionnaires} />

@@ -50,6 +50,7 @@ import { Alert } from "../ui/Alert";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { cx } from "../ui/cx";
+import { HowItWorks } from "../ui/HowItWorks";
 import { SelectField, TextField } from "../ui/Field";
 import { Sheet } from "../ui/Sheet";
 import { useToast } from "../ui/Toast";
@@ -193,9 +194,7 @@ export function WaitlistPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-text-muted">
-            Apunta a quien quiere venir antes o espera un hueco, con cuándo le viene bien. Cuando se anule una cita, la app te enseñará esta lista para ofrecérselo.
-          </p>
+          <HowItWorks>Apunta a quien quiere venir antes o espera un hueco, con cuándo le viene bien. Cuando se anule una cita, la app te enseñará esta lista para ofrecérselo.</HowItWorks>
           {data.data && data.data.items.length > 0 && (
             <Button variant="secondary" className="self-start" icon={<CalendarClock aria-hidden="true" className="size-5" />} onClick={() => setSettingSlot(true)}>
               Tengo un hueco libre
