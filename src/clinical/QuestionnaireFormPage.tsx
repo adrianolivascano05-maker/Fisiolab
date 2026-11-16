@@ -447,9 +447,12 @@ export function QuestionnaireFormPage() {
         {!retired && known?.ranges && <RangesTable ranges={known.ranges} />}
         <TextArea label="Notas" value={notes} onChange={setNotes} rows={2} />
         {error && <Alert tone="danger" title={error} />}
-        <Button type="submit" size="lg" block loading={saving}>
-          {qid ? "Guardar cambios" : "Guardar cuestionario"}
-        </Button>
+        {/* «Guardar», fijo abajo: siempre a la vista mientras se contesta. */}
+        <div className="safe-bottom sticky bottom-0 z-10 -mx-4 border-t border-border bg-canvas/95 px-4 py-2 backdrop-blur">
+          <Button type="submit" size="lg" block loading={saving}>
+            {qid ? "Guardar cambios" : "Guardar cuestionario"}
+          </Button>
+        </div>
         {qid && (
           <Button variant="ghost" className="text-danger" icon={<Trash aria-hidden="true" className="size-4" />} onClick={() => setConfirm(true)}>
             Borrar cuestionario

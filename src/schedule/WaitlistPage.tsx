@@ -9,7 +9,7 @@
 // llega con ?paciente=… para apuntarlo.
 import { ContactNote } from "../privacy/ContactNote";
 import { useTeamMode } from "../cloud/teamMode";
-import { CalendarClock, CalendarPlus, Mail, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Trash, UserRound, X } from "lucide-react";
+import { CalendarClock, CalendarPlus, Ellipsis, Mail, MessageCircle, Pencil, Plus, Search, SlidersHorizontal, Trash, UserRound, X } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { bumpData, useDataVersion } from "../app/dataVersion";
@@ -101,6 +101,8 @@ export function WaitlistPage() {
   /** «Tengo un hueco libre»: ponerlo a mano para ver a quién le encaja. */
   const [settingSlot, setSettingSlot] = useState(false);
   /** «Quitar de la lista», a confirmar: se pierden la nota, las preferencias y desde cuándo espera. */
+  /** La fila con lo de menos uso abierto («⋯»). */
+  const [moreOf, setMoreOf] = useState<string | null>(null);
   const [removing, setRemoving] = useState<WaitItem | null>(null);
   const staff = useStaff();
   const toast = useToast();
@@ -315,6 +317,9 @@ export function WaitlistPage() {
                     <Button variant="secondary" loading={giving === w.id} icon={<CalendarPlus aria-hidden="true" className="size-5" />} onClick={() => void give(w)}>
                       Darle la cita
                     </Button>
+                    <button type="button" aria-label={`Más de ${w.name}`} aria-expanded={moreOf === w.id} onClick={() => setMoreOf(moreOf === w.id ? null : w.id)} className="tap inline-flex items-center justify-center rounded-md border border-border bg-bg hover:bg-surface">
+                      <Ellipsis aria-hidden="true" className="size-5" />
+                    </button>
                   </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
@@ -336,8 +341,13 @@ export function WaitlistPage() {
                     <Button variant="secondary" icon={<CalendarPlus aria-hidden="true" className="size-5" />} onClick={() => setBooking(w)}>
                       Dar cita
                     </Button>
+                    <button type="button" aria-label={`Más de ${w.name}`} aria-expanded={moreOf === w.id} onClick={() => setMoreOf(moreOf === w.id ? null : w.id)} className="tap inline-flex items-center justify-center rounded-md border border-border bg-bg hover:bg-surface">
+                      <Ellipsis aria-hidden="true" className="size-5" />
+                    </button>
                   </div>
                 )}
+                {/* Lo de menos uso (su ficha, cambiar y quitar), tras «⋯». */}
+                {moreOf === w.id && (
                 <div className="flex flex-wrap gap-1">
                   <Link
                     to={`/pacientes/${w.patientId}`}
@@ -358,6 +368,7 @@ export function WaitlistPage() {
                     Quitar de la lista
                   </Button>
                 </div>
+                )}
               </Card>
             </li>
           );

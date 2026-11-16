@@ -95,6 +95,7 @@ test("LE1 ordenar por tiempo de espera o prioridad y filtrar por franja, días, 
   await page.getByLabel("Buscar en la lista de espera").fill("");
 
   // Cambiar: las horas se ven al abrir y se pasan a tardes.
+  await page.getByRole("group", { name: "Carlos Horas" }).getByRole("button", { name: "Más de Carlos Horas" }).click();
   await page.getByRole("group", { name: "Carlos Horas" }).getByRole("button", { name: "Cambiar" }).click();
   const edit = page.getByRole("dialog", { name: "Lista de espera: Carlos Horas" });
   await expect(edit.getByLabel("Desde")).toHaveValue("18:00");
@@ -138,12 +139,14 @@ test("LE2 desde la lista: WhatsApp, su ficha (y volver), dar cita y quitarlo o n
   await expectAccessible(page);
 
   // Su ficha: con su WhatsApp, y «‹ Lista de espera» vuelve a la lista con su orden, también tras cambiar de pestaña.
+  await eva.getByRole("button", { name: "Más de Eva Ficha" }).click();
   await eva.getByRole("link", { name: "Ver ficha" }).click();
   await expect(page.getByRole("heading", { name: "Eva Ficha", level: 1 })).toBeVisible();
   await expect(page.getByRole("link", { name: "WhatsApp", exact: true })).toHaveAttribute("href", /^https:\/\/wa\.me\/34611000111/);
   await page.getByRole("navigation", { name: "Ficha del paciente" }).getByRole("link", { name: "Sesiones" }).click();
   await page.getByRole("link", { name: /Lista de espera/ }).first().click();
   await expect(page.getByLabel("Ordenar por")).toHaveValue("nombre");
+  await page.getByRole("group", { name: "Eva Ficha" }).getByRole("button", { name: "Más de Eva Ficha" }).click();
   await page.getByRole("group", { name: "Eva Ficha" }).getByRole("link", { name: "Ver ficha" }).click();
   await expect(page.getByRole("heading", { name: "Eva Ficha", level: 1 })).toBeVisible();
 

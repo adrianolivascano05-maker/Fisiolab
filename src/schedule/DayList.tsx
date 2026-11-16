@@ -2,7 +2,7 @@
 // los días cerrados rayados; se desliza para cambiar de semana) y el día como lista: las citas con su estado, los
 // huecos libres a un toque y los ratos con la agenda cerrada. Sin horas vacías. La rejilla para arrastrar sigue en
 // «Semana» y, si se prefiere, en el día («Ver en rejilla»).
-import { CalendarOff, CalendarDays, Check, NotebookPen, Plus } from "lucide-react";
+import { CalendarDays, CalendarOff, Check, NotebookPen, Plus, Wallet } from "lucide-react";
 import { useRef, type TouchEvent } from "react";
 import { Link } from "react-router";
 import { addDays } from "../app/dates";
@@ -11,7 +11,7 @@ import type { Closure } from "../data/closures";
 import { fits, type WaitItem } from "../data/waitlist";
 import { cx } from "../ui/cx";
 import { spanText, type DayRow } from "./dayRows";
-import type { Staff } from "../data/schedule";
+import { staffColor, type Staff } from "../data/schedule";
 
 const clock = (ms: number) => new Date(ms).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 const longDay = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
@@ -196,8 +196,15 @@ function Visit({ item, staff, note, atNow, onOpen }: { item: AgendaItem; staff: 
           {done && <Check className="size-4 shrink-0" />}
           <span className="min-w-0 break-words">{item.name}</span>
         </span>
-        <span aria-hidden="true" className="text-sm text-text-muted">
-          {item.minutes} min{who ? ` · con ${who}` : ""} · {STATUS_LABELS[item.status]}
+        <span aria-hidden="true" className="flex flex-wrap items-center gap-x-1.5 text-sm text-text-muted">
+          {item.minutes} min · {STATUS_LABELS[item.status]}
+          {/* Con quién es, en una etiqueta con su color del horario (el nombre lo dice; el color solo acompaña). */}
+          {who && (
+            <span className="inline-flex items-center gap-1 rounded-pill border border-border bg-bg px-2 text-xs font-semibold text-text">
+              {person && <span className="size-2 rounded-full" style={{ background: staffColor(person) }} />}
+              {who}
+            </span>
+          )}
         </span>
         {note && (
           <span aria-hidden="true" className="mt-0.5 flex items-start gap-1 text-sm">
@@ -211,6 +218,11 @@ function Visit({ item, staff, note, atNow, onOpen }: { item: AgendaItem; staff: 
           className="inline-flex min-h-11 items-center justify-center gap-1.5 self-start rounded-md bg-accent px-4 text-sm font-semibold text-on-accent hover:bg-accent-hover"
         >
           <NotebookPen aria-hidden="true" className="size-4" /> Atender a {item.name.split(" ")[0]}
+        </Link>
+      )}
+      {atNow && (
+        <Link to={`/pacientes/${item.patientId}/cobros`} className="-mt-1 inline-flex min-h-11 items-center gap-1.5 self-start rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface">
+          <Wallet aria-hidden="true" className="size-4" /> Cobrar a {item.name.split(" ")[0]}
         </Link>
       )}
     </div>

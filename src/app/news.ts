@@ -17,6 +17,7 @@ export const NEWS: NewsItem[] = [
   { title: "Dar cita eligiendo un hueco", text: "Al dar una cita, tres huecos libres propuestos (primero su hora de siempre) y las horas libres del día que elijas. La hora a mano sigue donde estaba." },
   { title: "«Deshacer»", text: "Al dar, cambiar o anular una cita, al cobrar y al borrar un evento de su calendario, el aviso lleva «Deshacer» durante unos segundos." },
   { title: "«Hoy», con tres cifras", text: "Arriba de Agenda › Hoy: cuántas citas hay, cuántas quedan por atender y cuánto hay por cobrar.", to: "/agenda?vista=hoy" },
+  { title: "Lista de espera", text: "«Ver ficha», «Cambiar» y «Quitar de la lista» están ahora tras el botón «⋯» de cada fila." },
   { title: "Ajustes, con buscador", text: "Escribe lo que buscas («precio», «PIN», «copia»). Los apartados están ahora en cinco grupos: Tu clínica, La consulta, Dinero, Mensajes, y Seguridad y datos.", to: "/ajustes" },
 ];
 

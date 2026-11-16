@@ -229,9 +229,12 @@ export function PatientFormPage() {
             className="w-full rounded-md border border-border-input bg-bg px-3 py-2 text-base"
           />
         </div>
-        <Button type="submit" size="lg" block loading={saving}>
-          {id ? "Guardar cambios" : "Crear paciente"}
-        </Button>
+        {/* «Guardar», fijo abajo: siempre a la vista mientras se rellena. */}
+        <div className="safe-bottom sticky bottom-0 z-10 -mx-4 border-t border-border bg-canvas/95 px-4 py-2 backdrop-blur">
+          <Button type="submit" size="lg" block loading={saving}>
+            {id ? "Guardar cambios" : "Crear paciente"}
+          </Button>
+        </div>
         {id && (
           <Button variant="ghost" className="text-danger" onClick={() => void askDelete()}>
             Borrar paciente

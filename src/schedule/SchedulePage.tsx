@@ -9,6 +9,8 @@ import { useSearchParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { bumpData } from "../app/dataVersion";
 import { Page } from "../app/Page";
+import { pendingAccounts } from "../data/billing";
+import { dueReviews } from "../data/clinical";
 import { useAsync } from "../app/useAsync";
 import { AppointmentSheet } from "../clinical/AppointmentSheet";
 import { fmtVisit } from "../clinical/calendar";
@@ -197,6 +199,16 @@ export function SchedulePage() {
     },
     [phoneDay, monday],
     { tables: ["appointments", "patients", "schedule", "waitlist"] },
+  );
+  // En el día de hoy (la lista del móvil): cuánto hay pendiente (reevaluaciones y cobros), para ir a «Hoy» con un toque.
+  const pendingToday = useAsync(
+    async () => {
+      if (!phoneDay || anchor !== today) return 0;
+      const [reviews, debtors] = await Promise.all([dueReviews(getDb(), today), pendingAccounts(getDb(), today)]);
+      return reviews.length + debtors.length;
+    },
+    [phoneDay, anchor, today],
+    { tables: ["appointments", "patients", "sessions", "payments"] },
   );
   const filter = who === "-" ? null : who || undefined;
   const shifts = useMemo(() => (data.data?.shifts ?? []).filter((s) => filter === undefined || s.staffEmail === filter), [data.data, filter]);
@@ -460,6 +472,15 @@ export function SchedulePage() {
           onPick={setAnchor}
           onWeek={(n) => setAnchor(addDays(anchor, 7 * n))}
         />
+      )}
+      {phoneDay && anchor === today && !!pendingToday.data && (
+        <button
+          type="button"
+          onClick={() => setView("today")}
+          className="inline-flex min-h-11 items-center gap-2 self-start rounded-pill border border-warning bg-warning-soft px-3 text-sm font-semibold text-text"
+        >
+          Pendiente <span className="nums rounded-pill bg-bg px-2">{pendingToday.data}</span>
+        </button>
       )}
       {phoneDay && !dayGrid ? (
         <DayList

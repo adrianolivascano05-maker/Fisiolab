@@ -75,12 +75,16 @@ const filled = (section: Section, a: Answers) => answeredCount(a, asked(section.
 const questions = (n: number) => (n === 1 ? "1 pregunta" : `${n} preguntas`);
 
 /** Un apartado de la anamnesis que se pliega: el título, cuántos campos tiene rellenos y el contenido. */
-function Fold({ id, title, count, open, children }: { id: string; title: string; count: string; open: boolean; children: ReactNode }) {
+function Fold({ id, title, count, open, summary, children }: { id: string; title: string; count: string; open: boolean; /** Plegado: lo respondido, en una línea. */ summary?: string; children: ReactNode }) {
   return (
     <details id={id} open={open || undefined} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
-        <span className="text-lg font-semibold text-brand-ink">{title.replace(/^\d+\.\s*/, "")}</span>
-        <span className="flex items-center gap-2 text-sm text-text-muted">
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="text-lg font-semibold text-brand-ink">{title.replace(/^\d+\.\s*/, "")}</span>
+          {/* El resumen va como contenido de estilo: es un eco de lo de dentro, no texto nuevo de la página. */}
+          {summary && <span data-summary={summary} className="truncate text-sm text-text-muted group-open:hidden after:content-[attr(data-summary)]" />}
+        </span>
+        <span className="flex shrink-0 items-center gap-2 text-sm text-text-muted">
           {count}
           <ChevronDown aria-hidden="true" className="size-5 transition-transform group-open:rotate-180" />
         </span>
@@ -451,7 +455,12 @@ export function AnamnesisPage() {
         const due = asked(section.fields).filter((f) => !f.extra || answered(a[f.id])).length;
         if (!due && !rows.length && section.id !== "datos") return null;
         return (
-          <Fold key={section.id} id={`an-${section.id}`} title={section.title} count={n ? `${n} de ${due}` : "Sin rellenar"} open={OPEN_FIRST.has(section.id) && n > 0}>
+          <Fold key={section.id} id={`an-${section.id}`} title={section.title} count={n ? `${n} de ${due}` : "Sin rellenar"} open={OPEN_FIRST.has(section.id) && n > 0}
+            summary={rows
+              .slice(0, 3)
+              .map((f) => answerText(f, a[f.id] ?? null).split("\n")[0])
+              .join(" · ")}
+          >
             {section.id === "datos" && <PatientBasics patient={patient} />}
             {rows.length > 0 ? (
               <dl className="flex flex-col gap-2 @2xl:grid @2xl:grid-cols-2 @2xl:gap-x-6">
