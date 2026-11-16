@@ -135,7 +135,7 @@ const steps: { id?: string; title: string; body: ReactNode }[] = [
     title: "La agenda",
     body: (
       <>
-        <b>Hoy</b> empieza con tres cifras (citas, por atender y por cobrar) y es el día en una lista: cada cita con <b>Atender</b> (apunta la sesión y vuelve aquí) y <b>Cobrar</b>; debajo, lo pendiente
+        En el móvil, <b>Día</b> enseña el día de hoy para atender (en el ordenador, <b>Hoy</b>); <b>Ver huecos libres</b> lo cambia por la lista con huecos y <b>Pendiente</b> baja hasta lo pendiente. Empieza con tres cifras (citas, por atender y por cobrar) y es el día en una lista: cada cita con <b>Atender</b> (apunta la sesión y vuelve aquí) y <b>Cobrar</b>; debajo, lo pendiente
         (reevaluaciones, lo que queda sin cobrar, quién tiene que firmar algo y quién vuelve de un viaje sin cita). <b>Día</b> y <b>Semana</b> son
         tu agenda. En el móvil, <b>Día</b> es una lista: arriba, la semana en una tira (cuántas citas tiene cada día; tócalo o desliza para
         cambiar de semana) y, debajo, las citas por orden con los ratos libres a un toque y lo cerrado; el botón de la cuadrícula la cambia por

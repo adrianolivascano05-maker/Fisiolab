@@ -9,8 +9,6 @@ import { useSearchParams } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import { bumpData } from "../app/dataVersion";
 import { Page } from "../app/Page";
-import { pendingAccounts } from "../data/billing";
-import { dueReviews } from "../data/clinical";
 import { useAsync } from "../app/useAsync";
 import { AppointmentSheet } from "../clinical/AppointmentSheet";
 import { fmtVisit } from "../clinical/calendar";
@@ -28,7 +26,7 @@ import { cx } from "../ui/cx";
 import { SelectField } from "../ui/Field";
 import { useToast } from "../ui/Toast";
 import { AgendaGrid, type Move } from "./AgendaGrid";
-import { TodayView } from "./TodayView";
+import { ChargeSheet, pendingCount, TodayView } from "./TodayView";
 import { DayList, WeekStrip } from "./DayList";
 import { countByDay, dayRows } from "./dayRows";
 import { listWaitlist } from "../data/waitlist";
@@ -103,16 +101,22 @@ export function SchedulePage() {
   // ?vista=hoy: la lista de hoy (desde la franja «Hoy» de Pacientes o al volver de atender una cita).
   // ?dia=AAAA-MM-DD: abrir la rejilla en ese día (al dar una cita desde la lista de espera, la nueva se ve al llegar).
   const [params] = useSearchParams();
-  const [view, setView] = useState<View>(() => {
+  const [rawView, setView] = useState<View>(() => {
     if (params.get("vista") === "hoy") return "today";
     const v = savedView();
     return v === "today" && /^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? "day" : v;
   });
   const [anchor, setAnchor] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(params.get("dia") ?? "") ? params.get("dia")! : today));
   const narrow = useMediaQuery(NARROW);
+  // En el móvil, «Hoy» y «Día» son una sola vista: el día, con su tira de la semana. Cuando el día es hoy, sale la lista
+  // para atender y cobrar con lo pendiente debajo; los huecos libres de hoy, con un toque (`gaps`).
+  const view: View = narrow && rawView === "today" ? "day" : rawView;
+  const [gaps, setGaps] = useState(false);
+  /** La cita que se cobra desde la lista del día (la misma hoja que en la lista de atender). */
+  const [charging, setCharging] = useState<AgendaItem | null>(null);
   // En pantallas anchas, lo de hoy (citas, pendiente, mañana, lista de espera) a la derecha de la rejilla.
   const hoyAside = useMediaQuery(HOY_ASIDE);
-  const views = narrow ? VIEWS.filter((v) => v.id !== "3days") : VIEWS;
+  const views = narrow ? VIEWS.filter((v) => v.id !== "3days" && v.id !== "today") : VIEWS;
   // Las vistas de rejilla, en orden: el pellizco pasa de una a otra.
   const gridViews = views.filter((v) => v.id !== "today");
   // «3 días» guardada de una pantalla ancha: en el móvil, el día.
@@ -188,6 +192,8 @@ export function SchedulePage() {
 
   // En el móvil, el día: la tira de la semana arriba y, debajo, la lista (o la rejilla, si se prefiere).
   const phoneDay = narrow && view === "day";
+  /** En el móvil y en el día de hoy: la lista para atender (lo que era «Hoy»), salvo que se pidan los huecos o la rejilla. */
+  const asToday = phoneDay && anchor === today && !gaps && !dayGrid;
   const monday = mondayOf(anchor);
   const week = useAsync(
     async () => {
@@ -204,11 +210,10 @@ export function SchedulePage() {
   const pendingToday = useAsync(
     async () => {
       if (!phoneDay || anchor !== today) return 0;
-      const [reviews, debtors] = await Promise.all([dueReviews(getDb(), today), pendingAccounts(getDb(), today)]);
-      return reviews.length + debtors.length;
+      return pendingCount(getDb(), today);
     },
     [phoneDay, anchor, today],
-    { tables: ["appointments", "patients", "sessions", "payments"] },
+    { tables: ["appointments", "patients", "sessions", "payments", "consents", "events"] },
   );
   const filter = who === "-" ? null : who || undefined;
   const shifts = useMemo(() => (data.data?.shifts ?? []).filter((s) => filter === undefined || s.staffEmail === filter), [data.data, filter]);
@@ -473,16 +478,30 @@ export function SchedulePage() {
           onWeek={(n) => setAnchor(addDays(anchor, 7 * n))}
         />
       )}
-      {phoneDay && anchor === today && !!pendingToday.data && (
-        <button
-          type="button"
-          onClick={() => setView("today")}
-          className="inline-flex min-h-11 items-center gap-2 self-start rounded-pill border border-warning bg-warning-soft px-3 text-sm font-semibold text-text"
-        >
-          Pendiente <span className="nums rounded-pill bg-bg px-2">{pendingToday.data}</span>
-        </button>
+      {/* Hoy, en el móvil: para atender (con lo pendiente debajo) o, con un toque, la lista con los huecos libres. */}
+      {phoneDay && anchor === today && !dayGrid && (
+        <div className="flex flex-wrap gap-2">
+          {!!pendingToday.data && (
+            <button
+              type="button"
+              onClick={() => {
+                setGaps(false);
+                // Con la lista de atender ya pintada, baja hasta «Pendiente».
+                setTimeout(() => document.getElementById("hoy-pendiente")?.scrollIntoView({ block: "start" }), 50);
+              }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-pill border border-warning bg-warning-soft px-3 text-sm font-semibold text-text"
+            >
+              Pendiente <span className="nums rounded-pill bg-bg px-2">{pendingToday.data}</span>
+            </button>
+          )}
+          <button type="button" aria-pressed={gaps} onClick={() => setGaps(!gaps)} className="inline-flex min-h-11 items-center rounded-pill border border-border bg-bg px-3 text-sm font-semibold text-accent hover:bg-surface">
+            {gaps ? "Volver a atender" : "Ver huecos libres"}
+          </button>
+        </div>
       )}
-      {phoneDay && !dayGrid ? (
+      {asToday ? (
+        <TodayView onOpen={setManaging} />
+      ) : phoneDay && !dayGrid ? (
         <DayList
           day={anchor}
           today={today}
@@ -492,6 +511,7 @@ export function SchedulePage() {
           waiting={week.data?.waiting ?? []}
           canEditClosure={canEditClosure}
           onOpen={setManaging}
+          onCharge={setCharging}
           onFree={(start) => setCreating({ kind: "appointment", start, person: filter === undefined ? undefined : filter })}
           onClosure={(k) => setClosing({ closure: k, day: k.startsAt.slice(0, 10) })}
           onNew={() => setCreating({ kind: "appointment", start: atMinutes(anchor, 10 * 60) })}
@@ -525,8 +545,10 @@ export function SchedulePage() {
           onSwipe={step}
         />
       )}
-      {/* La ayuda, abierta la primera vez; después, plegada (se recuerda en este dispositivo). */}
+      {/* La ayuda, abierta la primera vez; después, plegada (se recuerda en este dispositivo). En la lista para atender
+          de hoy no sale: habla de gestos de la rejilla. */}
       <details
+        hidden={asToday}
         className="text-sm text-text-muted"
         open={!helpSeen}
         onToggle={(e) => {
@@ -590,7 +612,8 @@ export function SchedulePage() {
           team={team}
         />
       )}
-      {managing && <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} backToToday={view === "today"} />}
+      {charging && <ChargeSheet item={charging} onClose={() => setCharging(null)} />}
+      {managing && <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} backToToday={view === "today" || asToday} />}
     </Page>
   );
 }

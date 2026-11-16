@@ -48,6 +48,18 @@ async function unsignedOf(patientId: string): Promise<string[]> {
   return [...(patient.privacy.informedAt ? [] : ["hoja de protección de datos"]), ...missing];
 }
 
+/**
+ * Cuánto hay pendiente hoy, como lo cuenta «Pendiente» en esta vista: reevaluaciones que tocan, pacientes con algo por
+ * cobrar, los que vienen hoy con algo por firmar y los que vuelven de un viaje sin cita.
+ */
+export async function pendingCount(db: ReturnType<typeof getDb>, today: string): Promise<number> {
+  const [items, reviews, debtors, back] = await Promise.all([agenda(db, dayStart(today), dayStart(addDays(today, 1))), dueReviews(db, today), pendingAccounts(db, today), backFromTrip(db, today)]);
+  const coming = [...new Set(items.filter((a) => madridDay(a.startsAt) === today && a.status !== "cancelled").map((a) => a.patientId))];
+  const flagged = coming.length ? await unsignedPatients(db) : new Set<string>();
+  const unsigned = (await Promise.all(coming.filter((id) => flagged.has(id)).map(unsignedOf))).filter((m) => m.length).length;
+  return reviews.length + debtors.length + unsigned + back.length;
+}
+
 export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
   const version = useDataVersion();
   const outbox = useOutboxCount();
@@ -167,7 +179,7 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
       </section>
 
       {hasPending && (
-        <Group title="Pendiente">
+        <Group id="hoy-pendiente" className="scroll-mt-20" title="Pendiente">
           {reviews.map((r) => (
             <RowLink
               key={r.patientId}
@@ -345,7 +357,7 @@ function TodayRow({
 }
 
 /** Cobrar desde la lista: con lo que debe o, si está al día, el precio de la sesión. */
-function ChargeSheet({ item, onClose }: { item: AgendaItem; onClose: () => void }) {
+export function ChargeSheet({ item, onClose }: { item: AgendaItem; onClose: () => void }) {
   const toast = useToast();
   const info = useAsync(async () => {
     const db = getDb();

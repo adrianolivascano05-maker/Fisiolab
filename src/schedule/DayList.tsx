@@ -106,6 +106,7 @@ export function DayList({
   waiting,
   canEditClosure,
   onOpen,
+  onCharge,
   onFree,
   onClosure,
   onNew,
@@ -119,6 +120,8 @@ export function DayList({
   waiting: WaitItem[];
   canEditClosure: (k: Closure) => boolean;
   onOpen: (a: AgendaItem) => void;
+  /** Cobrar la cita que toca ahora, en la hoja de cobro rápido. */
+  onCharge: (a: AgendaItem) => void;
   onFree: (startIso: string) => void;
   onClosure: (k: Closure) => void;
   onNew: () => void;
@@ -147,7 +150,7 @@ export function DayList({
               {clock(r.at)}
             </span>
             {r.type === "visit" ? (
-              <Visit item={r.item} staff={staff} note={notes?.get(r.item.id)} atNow={next?.item.id === r.item.id} onOpen={onOpen} />
+              <Visit item={r.item} staff={staff} note={notes?.get(r.item.id)} atNow={next?.item.id === r.item.id} onOpen={onOpen} onCharge={onCharge} />
             ) : r.type === "free" ? (
               <Free at={r.at} until={r.until} minutes={r.minutes} waiting={waiting} onFree={onFree} />
             ) : canEditClosure(r.closure) ? (
@@ -179,7 +182,7 @@ function ClosedText({ r }: { r: Extract<DayRow, { type: "closed" }> }) {
   );
 }
 
-function Visit({ item, staff, note, atNow, onOpen }: { item: AgendaItem; staff: Staff[]; note?: string; atNow: boolean; onOpen: (a: AgendaItem) => void }) {
+function Visit({ item, staff, note, atNow, onOpen, onCharge }: { item: AgendaItem; staff: Staff[]; note?: string; atNow: boolean; onOpen: (a: AgendaItem) => void; onCharge: (a: AgendaItem) => void }) {
   const start = Date.parse(item.startsAt);
   const time = `${clock(start)}–${clock(start + item.minutes * 60_000)}`;
   const person = item.assignedTo ? staff.find((s) => s.email === item.assignedTo) : undefined;
@@ -221,9 +224,9 @@ function Visit({ item, staff, note, atNow, onOpen }: { item: AgendaItem; staff: 
         </Link>
       )}
       {atNow && (
-        <Link to={`/pacientes/${item.patientId}/cobros`} className="-mt-1 inline-flex min-h-11 items-center gap-1.5 self-start rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface">
+        <button type="button" aria-haspopup="dialog" onClick={() => onCharge(item)} className="-mt-1 inline-flex min-h-11 items-center gap-1.5 self-start rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface">
           <Wallet aria-hidden="true" className="size-4" /> Cobrar a {item.name.split(" ")[0]}
-        </Link>
+        </button>
       )}
     </div>
   );

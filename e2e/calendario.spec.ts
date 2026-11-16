@@ -556,7 +556,8 @@ test.describe("Calendario del paciente", () => {
     // Arrastrar la cita una hora hacia abajo (56 px por hora): se mueve, y el aviso dice las dos cosas.
     const event = page.getByRole("button", { name: /^Dora Arrastre\s*,\s*10:00–10:45/ });
     await expect(event).toBeVisible();
-    await event.scrollIntoViewIfNeeded();
+    // En el centro de la pantalla: la rejilla se coloca según la hora que es, y al borde el arrastre se salía.
+    await event.evaluate((el) => el.scrollIntoView({ block: "center" }));
     const box = (await event.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + 8);
     await page.mouse.down();

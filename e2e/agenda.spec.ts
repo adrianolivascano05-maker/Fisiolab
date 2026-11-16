@@ -30,7 +30,7 @@ test.describe("Agenda y seguimiento", () => {
     // En Pacientes, una franja con las citas de hoy; lleva a Agenda › Hoy.
     await page.goto("./");
     await page.getByRole("link", { name: /^Hoy · 2 citas/ }).click();
-    await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Hoy" })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true })).toHaveAttribute("aria-pressed", "true");
     const today = page.getByRole("region", { name: "Citas de hoy" });
     await expect(today.getByRole("button", { name: /^\d\d:\d\d · / })).toHaveText([/11:00 · Bruno Falta.*45 min/, /12:30 · Ana Agenda.*45 min/]);
     // Sin sesiones de antes: es su primera visita.
@@ -335,6 +335,8 @@ test.describe("Agenda y seguimiento", () => {
     await giveAppointment(page, "Eva Justifica", "2026-10-20T09:00");
     await page.goto("./agenda");
     await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true }).click();
+    // Hoy sale primero la lista para atender; la del día con sus huecos, con un toque.
+    await page.getByRole("button", { name: "Ver huecos libres" }).click();
     await page.getByRole("button", { name: /^Eva Justifica\s*,\s*09:00/ }).click();
     await page.getByRole("dialog", { name: "Cita de Eva Justifica" }).getByRole("link", { name: "Justificante de asistencia" }).click();
     // Ya ha pasado, pero nadie la ha marcado como atendida: se avisa (el justificante dice que ha asistido).

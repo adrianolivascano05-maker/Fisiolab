@@ -8,7 +8,18 @@ import { downloadFrom, expect, expectAccessible, loadSeed, test, withoutCloud } 
 /** Lo que se ve en las pantallas que más se usan: lo mismo antes de perder el móvil y después de restaurar. */
 async function snapshot(page: Page) {
   const seen: Record<string, string> = {};
-  const text = async () => (await page.getByRole("main").innerText()).replace(/\s+/g, " ").trim();
+  const read = async () => (await page.getByRole("main").innerText()).replace(/\s+/g, " ").trim();
+  // El texto de la pantalla cuando ya no cambia (lo que carga después, como «Pendiente N», ya ha salido).
+  const text = async () => {
+    let last = await read();
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(400);
+      const now = await read();
+      if (now === last) return now;
+      last = now;
+    }
+    return last;
+  };
   // En la ficha, la cabecera termina de cargar después (el motivo y la cita): se espera a que esté entera.
   const header = async () => {
     await expect(page.getByRole("button", { name: /Motivo/ })).toBeVisible();

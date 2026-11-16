@@ -147,7 +147,7 @@ test.describe("Mejoras frente a la competencia", () => {
     await expectAccessible(page);
     await dana.getByRole("button", { name: "Darle la cita" }).click();
     await expect(page.getByText(/Cita dada a Dana Espera/)).toBeVisible();
-    await page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Hoy" }).click();
+    await page.goto("./agenda?vista=hoy");
     await page.getByRole("link", { name: /Lista de espera/ }).click();
     await expect(page.getByText("No hay nadie esperando.")).toBeVisible();
   });
