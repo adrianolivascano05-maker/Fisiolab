@@ -86,6 +86,7 @@ function moduleText(v: unknown): string {
 function cycleText(v: unknown): string {
   const doc = (typeof v === "string" ? parse(v) : v) as Record<string, unknown> | undefined;
   if (!doc || typeof doc !== "object") return "(vacío)";
+  if (Array.isArray(doc)) return `Enlaces de la semana mandados: ${doc.length}`;
   if (Array.isArray(doc.phases)) return `${typeof doc.goal === "string" && doc.goal ? `«${doc.goal}» · ` : ""}${doc.phases.length === 1 ? "1 fase" : `${doc.phases.length} fases`}`;
   if (Array.isArray(doc.sessions)) {
     const n = (doc.sessions as { exercises?: unknown[] }[]).reduce((t, x) => t + (x.exercises?.length ?? 0), 0);

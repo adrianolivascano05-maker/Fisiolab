@@ -1,7 +1,7 @@
 // Los ejercicios de una semana de una fase (un microciclo): el objetivo de la fase, sus sesiones tipo (A, B…) y, en
 // cada una, los ejercicios con sus parámetros. Los ejercicios se escriben a mano; cada uno recuerda los parámetros con
 // que se usó la última vez. El % 1RM se pasa a kilos con un 1RM aproximado que el fisio calcula aquí.
-import { ArrowDown, ArrowUp, Calculator, Copy, Ellipsis, Plus, Trash } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, Calculator, Copy, Ellipsis, Plus, Trash } from "lucide-react";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { bumpData } from "../../app/dataVersion";
@@ -34,7 +34,7 @@ import { Alert } from "../../ui/Alert";
 import { Button, IconButton } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { cx } from "../../ui/cx";
-import { TextField } from "../../ui/Field";
+import { TextAreaField, TextField } from "../../ui/Field";
 import { useToast } from "../../ui/Toast";
 import { Guard } from "../pageKit";
 import { DoseInputs, NumCell, paramLabel, Segmented, usePlan, usePlanParams } from "./parts";
@@ -85,6 +85,8 @@ function WeekEditor({
   const [calc, setCalc] = useState<string | null>(null);
   /** El ejercicio con los parámetros a la vista para añadir o quitar. */
   const [paramsOf, setParamsOf] = useState<string | null>(null);
+  /** El ejercicio con «Cómo se hace» abierto para escribirlo. */
+  const [howOf, setHowOf] = useState<string | null>(null);
   const session = doc.sessions.find((s) => s.id === tab) ?? doc.sessions[0]!;
   const cells: Record<string, Dose> = doc.weeks[week]?.[session.id] ?? {};
   const globalWeek = phaseStart(plan, index) + week;
@@ -117,9 +119,14 @@ function WeekEditor({
   async function save(then?: "progresion" | "plan") {
     setBusy(true);
     try {
-      const clean = { ...doc, goal: doc.goal.trim() };
+      // «Cómo se hace» vacío no se guarda.
+      const tidy = (e: PlanExercise): PlanExercise => {
+        const { how, ...rest } = e;
+        return how?.trim() ? { ...rest, how: how.trim() } : rest;
+      };
+      const clean = { ...doc, goal: doc.goal.trim(), sessions: doc.sessions.map((x) => ({ ...x, exercises: x.exercises.map(tidy) })) };
       await savePhase(getDb(), patientId, data.episode, clean);
-      await getDb().transaction(rememberSql(doc.sessions.flatMap((s) => s.exercises)));
+      await getDb().transaction(rememberSql(clean.sessions.flatMap((s) => s.exercises)));
       bumpData("settings");
       if (then !== "progresion") toast("Semana guardada", "success");
       if (then === "progresion") navigate(`/pacientes/${patientId}/ciclos/${ref.id}/progresion?${q}`);
@@ -231,14 +238,38 @@ function WeekEditor({
                   </p>
                 )}
                 {calc === ex.id && <OneRmCalculator onUse={(rm) => setExercises((l) => l.map((x) => (x.id === ex.id ? { ...x, oneRm: rm } : x)))} onClose={() => setCalc(null)} />}
-                <button
-                  type="button"
-                  aria-expanded={paramsOf === ex.id}
-                  onClick={() => setParamsOf(paramsOf === ex.id ? null : ex.id)}
-                  className="inline-flex min-h-11 items-center gap-1 self-start rounded-md border border-dashed border-border-input px-3 text-sm font-semibold text-accent hover:bg-surface"
-                >
-                  <Plus aria-hidden="true" className="size-4" /> Parámetros<span className="sr-only"> de {ex.name}</span>
-                </button>
+                {ex.how && howOf !== ex.id && <p className="text-sm whitespace-pre-line text-text-muted">Cómo se hace: {ex.how}</p>}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    aria-expanded={paramsOf === ex.id}
+                    onClick={() => setParamsOf(paramsOf === ex.id ? null : ex.id)}
+                    className="inline-flex min-h-11 items-center gap-1 rounded-md border border-dashed border-border-input px-3 text-sm font-semibold text-accent hover:bg-surface"
+                  >
+                    <Plus aria-hidden="true" className="size-4" /> Parámetros<span className="sr-only"> de {ex.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-expanded={howOf === ex.id}
+                    onClick={() => setHowOf(howOf === ex.id ? null : ex.id)}
+                    className="inline-flex min-h-11 items-center gap-1 rounded-md border border-dashed border-border-input px-3 text-sm font-semibold text-accent hover:bg-surface"
+                  >
+                    <BookOpen aria-hidden="true" className="size-4" /> Cómo se hace<span className="sr-only"> {ex.name}</span>
+                  </button>
+                </div>
+                {howOf === ex.id && (
+                  <TextAreaField
+                    label={`Cómo se hace ${ex.name}`}
+                    hint="Para el paciente: sale en el enlace de la semana. Se recuerda para la próxima vez que uses este ejercicio."
+                    rows={3}
+                    maxLength={LIMITS.how}
+                    value={ex.how ?? ""}
+                    onChange={(e) => {
+                      const how = e.target.value;
+                      setExercises((l) => l.map((x) => (x.id === ex.id ? { ...x, how } : x)));
+                    }}
+                  />
+                )}
                 {paramsOf === ex.id && (
                 <div role="group" aria-label={`Parámetros de ${ex.name}`} className="flex flex-wrap gap-1.5">
                   {ALL_PARAMS.filter((p) => p !== "effort" || plan.effort !== "none").map((p) => {

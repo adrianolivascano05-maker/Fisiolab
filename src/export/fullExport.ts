@@ -637,7 +637,19 @@ function cyclesHtml(c: Collected, pid: string, eps: Episode[]): string[] {
             tpl.exercises.map((e) => [e.name, ...Array.from({ length: ref.weeks }, (_, w) => doseText(doc!.weeks[w]?.[tpl.id]?.[e.id] ?? {}, plan.effort, e.timeUnit))]),
           ),
         );
+        const how = tpl.exercises.filter((e) => e.how?.trim());
+        if (how.length) out.push(`<ul>${how.map((e) => `<li><b>${h(e.name)}</b>, cómo se hace: ${h(e.how!.trim())}</li>`).join("")}</ul>`);
       }
+    }
+    // Los enlaces de «Enviar la semana al paciente».
+    const sent = mineKeys.find((x) => x.key === `${own.key}:envios`)?.value;
+    if (Array.isArray(sent) && sent.length) {
+      const rows = (sent as { week?: number; sentAt?: string; expiresAt?: string; cancelledAt?: string }[]).map((x) => [
+        `Semana ${(x.week ?? 0) + 1}`,
+        x.sentAt ? x.sentAt.slice(0, 10) : "",
+        x.cancelledAt ? `Anulado el ${x.cancelledAt.slice(0, 10)}` : x.expiresAt ? `Caduca el ${x.expiresAt.slice(0, 10)}` : "",
+      ]);
+      out.push(`<h3>Semanas enviadas al paciente</h3>`, table(["Semana", "Creado", "Estado"], rows));
     }
   }
   return out;

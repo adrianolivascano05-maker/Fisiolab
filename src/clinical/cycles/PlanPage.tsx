@@ -1,6 +1,6 @@
 // El plan por ciclos de un motivo: el macrociclo con su barra de fases, la fase en curso con la tabla ejercicios ×
 // semanas (cada casilla se cambia a mano) y las demás fases en una línea. Cambiar de fase es siempre a mano.
-import { CalendarPlus, ChevronDown, Pencil, TrendingUp } from "lucide-react";
+import { CalendarPlus, ChevronDown, Pencil, Send, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { bumpData } from "../../app/dataVersion";
@@ -99,6 +99,9 @@ function PlanView({ patientId, data, volver, reload }: { patientId: string; data
           {todayText}
           {at ? ` · hoy` : ""}
         </p>
+        <Link to={`${base}/enviar?${q}`} className="inline-flex min-h-11 items-center gap-1.5 self-start rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface">
+          <Send aria-hidden="true" className="size-4" /> Enviar la semana al paciente
+        </Link>
       </Card>
 
       <ol aria-label="Fases" className="flex flex-col gap-2">

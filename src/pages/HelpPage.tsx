@@ -80,7 +80,9 @@ const steps: { id?: string; title: string; body: ReactNode }[] = [
         <b>Guardar</b> está siempre a la vista, abajo. En <b>Sesiones</b>, con más de tres, solo la última sale abierta: las demás se abren al
         tocarlas, y hay <b>Abrir todas</b> y un buscador. Si quieres, bajo Tratamiento, <b>Organizar por ciclos</b>: el objetivo, las fases con
         sus semanas y los ejercicios de cada semana; la progresión se rellena con la regla que elijas (la app solo hace esa cuenta) y en cada sesión
-        sale lo que toca hoy, con <b>Todo hecho como estaba</b>, que lo escribe en Tratamiento.
+        sale lo que toca hoy, con <b>Todo hecho como estaba</b>, que lo escribe en Tratamiento. Desde el plan, <b>Enviar la semana al paciente</b>{" "}
+        le manda un enlace para ver en su móvil sus ejercicios de esa semana (los kilos, el esfuerzo y las fases, solo si los marcas), con
+        «Cómo se hace» si lo has escrito y sus próximas citas. Caduca al acabar la semana y se puede anular.
       </>
     ),
   },

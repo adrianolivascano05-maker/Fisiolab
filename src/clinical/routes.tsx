@@ -16,6 +16,7 @@ const PlanPage = lazy(() => cycles().then((m) => ({ default: m.PlanPage })));
 const PlanCreatePage = lazy(() => cycles().then((m) => ({ default: m.PlanCreatePage })));
 const WeekPage = lazy(() => cycles().then((m) => ({ default: m.WeekPage })));
 const ProgressPage = lazy(() => cycles().then((m) => ({ default: m.ProgressPage })));
+const SendWeekPage = lazy(() => cycles().then((m) => ({ default: m.SendWeekPage })));
 const QuestionnaireFormPage = lazy(() => import("./QuestionnaireFormPage").then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
 const ReferralPage = lazy(() => import("./ReferralPage").then((m) => ({ default: m.ReferralPage })));
@@ -56,6 +57,7 @@ export const clinicalRoutes = [
   // El plan por ciclos de un motivo (src/data/cycles.ts): ?motivo=… (si no, el que se ve) y ?volver=…
   { path: "/pacientes/:id/ciclos", element: l(<PlanPage />) },
   { path: "/pacientes/:id/ciclos/nuevo", element: l(<PlanCreatePage />) },
+  { path: "/pacientes/:id/ciclos/enviar", element: l(<SendWeekPage />) },
   { path: "/pacientes/:id/ciclos/:fase/semana/:w", element: l(<WeekPage />) },
   { path: "/pacientes/:id/ciclos/:fase/progresion", element: l(<ProgressPage />) },
   { path: "/pacientes/:id/cuestionarios", element: <ToAssessment block="cuestionarios" /> },

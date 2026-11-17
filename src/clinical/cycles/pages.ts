@@ -2,4 +2,5 @@
 export { PlanCreatePage } from "./PlanCreatePage";
 export { PlanPage } from "./PlanPage";
 export { ProgressPage } from "./ProgressPage";
+export { SendWeekPage } from "./SendWeekPage";
 export { WeekPage } from "./WeekPage";

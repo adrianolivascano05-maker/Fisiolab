@@ -10,9 +10,10 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { FormFill, formResult } from "../clinical/FormFill";
 import { AnamnesisStep, focusField, missingRequired, withoutHidden } from "./AnamnesisStep";
 import { citeOf, formFor, type Answers as FormAnswers } from "../clinical/forms";
+import { WeekView } from "./WeekView";
 import { CalendarFill } from "./CalendarFill";
 import type { EventInput } from "../data/patientEvents";
-import { ANAMNESIS_KIND, CALENDAR_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, RESPONDENTS, seal, unseal, type FormRequest, type Respondent, type SentDoc } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, CALENDAR_KIND, WEEK_KIND, DOCS_KIND, DOCS_PER_LINK, formWhat, isSignKind, RESPONDENTS, seal, unseal, type FormRequest, type Respondent, type SentDoc } from "../clinical/patientForms";
 import { sizeText } from "../data/documents";
 import { sealDoc } from "../documents/docCrypto";
 import { prepareFiles } from "../documents/prepare";
@@ -87,7 +88,7 @@ export function PublicFormPage() {
         // La marca de la clínica que trae el formulario (o la de OmniClin): colores, logo, favicon y título.
         const brand = brandFromForm(request.brand);
         applyBrand(brand, false);
-        document.title = `Formulario · ${ownIdentity(brand)?.name ?? "OmniClin"}`;
+        document.title = `${request.kind === WEEK_KIND ? "Tus ejercicios" : "Formulario"} · ${ownIdentity(brand)?.name ?? "OmniClin"}`;
         setPhase({ kind: "form", request });
       } catch (e) {
         setPhase({ kind: "error", text: e instanceof Error && e.message !== "Failed to fetch" ? e.message : "No hay conexión. Prueba otra vez en un momento." });
@@ -97,7 +98,7 @@ export function PublicFormPage() {
 
   // Lo que va escribiendo se guarda en el móvil hasta que lo envía.
   useEffect(() => {
-    if (phase.kind !== "form" || isSignKind(phase.request.kind)) return;
+    if (phase.kind !== "form" || isSignKind(phase.request.kind) || phase.request.kind === WEEK_KIND) return;
     try {
       localStorage.setItem(draftKey(id), JSON.stringify(answers));
     } catch {
@@ -199,7 +200,7 @@ export function PublicFormPage() {
         </div>
       </header>
       <main className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-5 pb-16">
-        {phase.kind === "loading" && <p className="text-text-muted">Abriendo el formulario…</p>}
+        {phase.kind === "loading" && <p className="text-text-muted">Abriendo…</p>}
         {phase.kind === "error" && <Alert tone="danger" title={phase.text} />}
         {phase.kind === "answered" && (
           <Alert tone="success" title="Este formulario ya se envió">
@@ -216,7 +217,9 @@ export function PublicFormPage() {
             Tu clínica te lo dará para que lo leas y lo firmes allí, en la pantalla o en papel. No hace falta que hagas nada más con este enlace.
           </Alert>
         )}
-        {request && !toSign && (
+        {/* «Enviar la semana al paciente»: solo para leer, sin nada que enviar. */}
+        {request?.kind === WEEK_KIND && <WeekView request={request} />}
+        {request && !toSign && request.kind !== WEEK_KIND && (
           <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
             {(!stepped || step === 0) && (
               <>

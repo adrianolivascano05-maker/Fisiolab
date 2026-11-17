@@ -1,10 +1,11 @@
 // Crear un formulario para el paciente (su parte de la anamnesis o un cuestionario): se cifra con una clave nueva,
 // se sube al servidor de la clínica y se apunta en su ficha. Lo usan la ficha (SendFormsPage) y la bandeja de envíos.
-import { ANAMNESIS_KIND, CALENDAR_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, isSignKind, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
+import { ANAMNESIS_KIND, CALENDAR_KIND, WEEK_KIND, DOCS_KIND, DOCS_PER_LINK, FORM_DAYS, formLink, isSignKind, newFormId, newFormKey, patientSections, seal, type FormRequest } from "../clinical/patientForms";
 import { addDays, dayOf } from "../app/dates";
 import { appointmentsOf } from "../data/appointments";
 import { listPatientEvents, occurrencesIn } from "../data/patientEvents";
 import { UPCOMING_MAX, upcomingOf } from "../schedule/upcoming";
+import type { WeekShare } from "../data/cyclesShare";
 import { CALENDAR_MAX } from "./calendarForm";
 import type { Section } from "../clinical/anamnesis";
 import { markTemplateUsed, templateFor, type ResolvedTemplate } from "../data/anamnesisTemplates";
@@ -131,6 +132,40 @@ export async function uploadPatientForm(
   await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt, ...(p.kind === DOCS_KIND ? { maxDocs: DOCS_PER_LINK } : {}) });
   const episodeId = await currentEpisode(db, p.patientId);
   return { record: { id, patientId: p.patientId, episodeId, kind: p.kind, key, expiresAt, meta }, url: formLink(id, key) };
+}
+
+/**
+ * «Enviar la semana al paciente» (src/data/cyclesShare.ts): sube su semana cifrada con una clave nueva, con sus
+ * próximas citas, y caduca en `expiresAt` (al acabar la semana). No se apunta entre los formularios de su ficha: lo
+ * apunta su plan.
+ */
+export async function uploadWeekLink(
+  db: Db,
+  cloud: Cloud | null,
+  p: { patientId: string; patientName: string; clinicName: string; week: WeekShare; expiresAt: string },
+): Promise<{ id: string; key: string; url: string }> {
+  const token = getToken();
+  if (!token || !cloud?.clinic || !cloud.clinics) throw new Error("Tu sesión de Google ha caducado: vuelve a entrar en Ajustes → Cuenta y prueba otra vez.");
+  const id = newFormId();
+  const key = newFormKey();
+  const clinic = await getClinic(db).catch(() => null);
+  const brand = await formBrand(currentBrand(), clinic ?? {});
+  const visits = upcomingOf(await appointmentsOf(db, p.patientId))
+    .slice(0, UPCOMING_MAX)
+    .map((a) => a.startsAt);
+  const request: FormRequest = {
+    v: 1,
+    clinic: p.clinicName,
+    name: p.patientName.trim().split(/\s+/)[0] ?? "",
+    kind: WEEK_KIND,
+    expiresAt: p.expiresAt,
+    ...(brand ? { brand } : {}),
+    controller: { name: clinic?.name || p.clinicName, email: clinic?.email ?? "" },
+    visits,
+    week: p.week,
+  };
+  await cloud.clinics.forms.create(token, cloud.clinic.id, { id, request: await seal(request, key), expiresAt: p.expiresAt });
+  return { id, key, url: formLink(id, key) };
 }
 
 /** La plantilla con la que se le manda su parte de la anamnesis: la de su motivo de consulta (la de por defecto si aún

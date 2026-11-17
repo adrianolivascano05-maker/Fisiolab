@@ -4,6 +4,7 @@
 // recogerlas (src/patientForm/FormInbox.tsx), se rellena lo que estaba vacío en la anamnesis o se guarda el
 // cuestionario con su nota. El servidor (cloudflare/worker.js) solo ve bytes ilegibles.
 import type { EventInput } from "../data/patientEvents";
+import type { WeekShare } from "../data/cyclesShare";
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { FormBrand } from "../brand/form";
 import type { Db } from "../data/db";
@@ -27,6 +28,9 @@ export const DOCS_PER_LINK = 5;
 /** «Tu calendario»: el paciente apunta lo suyo (entrenamientos, partidos, una operación, un viaje) y llega a su
  *  calendario en la ficha (src/patientForm/calendarForm.ts). */
 export const CALENDAR_KIND = "calendario";
+/** «Enviar la semana al paciente» (src/data/cyclesShare.ts): sus ejercicios de esa semana, solo para leer. No se
+ *  contesta ni se apunta entre los formularios de su ficha: se guarda con su plan. */
+export const WEEK_KIND = "ciclos-semana";
 /**
  * Firmar por enlace se retiró el 30-10-2026: la hoja de protección de datos («proteccion-datos») y los consentimientos
  * («consentimiento:<plantilla>») se firman en la clínica. Estos tipos quedan solo para leer lo firmado antes de esa
@@ -83,6 +87,8 @@ export type FormRequest = {
    */
   events?: EventInput[];
   visits?: string[];
+  /** «Enviar la semana al paciente»: sus ejercicios de esa semana (solo para leer). */
+  week?: WeekShare;
 };
 /**
  * Lo que vuelve cifrado: las respuestas por id de campo (anamnesis) o de ítem (cuestionario); si se le pidieron archivos,
@@ -126,6 +132,7 @@ export const sendableKinds = () => [...SENDABLE, ...ownKinds()];
 /** «tu historia clínica» o «el cuestionario «X»», para el mensaje y la ficha. */
 export function formWhat(kind: string): string {
   if (kind === DOCS_KIND) return "tus informes o pruebas";
+  if (kind === WEEK_KIND) return "tus ejercicios de esta semana";
   if (kind === CALENDAR_KIND) return "tu calendario (entrenamientos, partidos, una operación, una prueba médica o un viaje)";
   if (kind === PRIVACY_KIND) return "la hoja de protección de datos";
   if (isConsentKind(kind)) return "el consentimiento informado";
@@ -137,6 +144,8 @@ export const formTitle = (kind: string) =>
     ? "Sus informes y pruebas"
     : kind === CALENDAR_KIND
       ? "Su calendario (lo apunta él)"
+      : kind === WEEK_KIND
+      ? "Sus ejercicios de la semana"
       : kind === ANAMNESIS_KIND
       ? "Anamnesis (su parte)"
       : kind === PRIVACY_KIND

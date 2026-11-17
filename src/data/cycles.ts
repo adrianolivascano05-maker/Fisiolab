@@ -9,6 +9,7 @@
 // sincronizando y ve el texto de Tratamiento de cada sesión como siempre):
 //   ciclos:<paciente>:<motivo>               el macrociclo y la lista de fases
 //   ciclos:<paciente>:<motivo>:<fase>        las sesiones tipo, sus ejercicios y las casillas de cada semana de esa fase
+//   ciclos:<paciente>:<motivo>:envios        los enlaces de «Enviar la semana al paciente» (src/data/cyclesShare.ts)
 //   ciclos_hecho:<paciente>:<sesión>         lo marcado como hecho en una sesión
 //   ciclos_ej:<nombre del ejercicio>         los últimos parámetros con que se usó un ejercicio (de la clínica)
 // Cada clave es una fila: si dos dispositivos cambian la misma a la vez, se queda la más reciente y la otra se guarda en
@@ -41,6 +42,8 @@ export type PlanExercise = {
   timeUnit: "s" | "min";
   /** 1RM aproximado (kg) calculado con la calculadora, para pasar el % 1RM a kilos; null si no se ha calculado. */
   oneRm: number | null;
+  /** «Cómo se hace», escrito por el fisio para el paciente (sale en el enlace de la semana). Opcional. */
+  how?: string;
 };
 export type SessionTpl = { id: string; label: string; exercises: PlanExercise[] };
 /** Las casillas de una semana: sesión tipo → ejercicio → lo que toca. */
@@ -91,7 +94,7 @@ export type DoneDoc = {
 
 // ---------- Límites y valores de partida ----------
 
-export const LIMITS = { phases: 8, weeks: 12, maxWeeks: 26, perWeek: 5, sessions: 4, exercises: 15, deloadPct: 60 } as const;
+export const LIMITS = { phases: 8, weeks: 12, maxWeeks: 26, perWeek: 5, sessions: 4, exercises: 15, deloadPct: 60, how: 400, sent: 8 } as const;
 export const DEFAULT_PARAMS: ParamKey[] = ["sets", "reps", "kg", "effort"];
 export const PARAM_LABELS: Record<ParamKey, string> = {
   sets: "Series",
@@ -214,8 +217,16 @@ export function emptyPhase(id: string, weeks: number): PhaseDoc {
   return { v: 1, id, goal: "", sessions: [], weeks: Array.from({ length: weeks }, () => ({})), manual: [], deloadPct: 40 };
 }
 
-export function newExercise(name: string, remembered?: { params?: ParamKey[]; rule?: Rule; timeUnit?: "s" | "min" } | null): PlanExercise {
-  return { id: newId(), name: name.trim(), params: remembered?.params?.length ? remembered.params : [...DEFAULT_PARAMS], rule: remembered?.rule ?? "same", timeUnit: remembered?.timeUnit ?? "s", oneRm: null };
+export function newExercise(name: string, remembered?: Remembered | null): PlanExercise {
+  return {
+    id: newId(),
+    name: name.trim(),
+    params: remembered?.params?.length ? remembered.params : [...DEFAULT_PARAMS],
+    rule: remembered?.rule ?? "same",
+    timeUnit: remembered?.timeUnit ?? "s",
+    oneRm: null,
+    ...(remembered?.how?.trim() ? { how: remembered.how.trim() } : {}),
+  };
 }
 
 /** «Alargar 1 semana» la fase de esa posición: si tiene descarga, la nueva va antes de ella (copia de la anterior). */
@@ -416,6 +427,8 @@ const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T;
 
 export const planKey = (patientId: string, episodeId: string) => `ciclos:${patientId}:${episodeId}`;
 export const phaseKey = (patientId: string, episodeId: string, phaseId: string) => `${planKey(patientId, episodeId)}:${phaseId}`;
+/** Los enlaces de «Enviar la semana al paciente» de ese plan (para volver a copiarlos o anularlos). */
+export const sentKey = (patientId: string, episodeId: string) => `${planKey(patientId, episodeId)}:envios`;
 export const doneKey = (patientId: string, sessionId: string) => `ciclos_hecho:${patientId}:${sessionId}`;
 export const memoryKey = (name: string) => `ciclos_ej:${fold(name.trim()).replace(/\s+/g, " ")}`;
 /** Si una clave de settings es de un plan por ciclos (para «Cambios sustituidos»). */
@@ -461,7 +474,7 @@ export async function savePlan(db: Db, patientId: string, episodeId: string, pla
   const err = checkPlan(plan);
   if (err) throw new RangeError(err);
   // Las fases que ya no están en el plan, fuera (sus sesiones no se tocan).
-  const keep = new Set(plan.phases.map((p) => phaseKey(patientId, episodeId, p.id)));
+  const keep = new Set([...plan.phases.map((p) => phaseKey(patientId, episodeId, p.id)), sentKey(patientId, episodeId)]);
   const existing = await db.query<{ key: string }>("select key from settings where key like ? || ':%'", [planKey(patientId, episodeId)]);
   await db.transaction([
     upsert(planKey(patientId, episodeId), plan),
@@ -529,12 +542,16 @@ export const doneSql = (patientId: string, sessionId: string, done: DoneDoc | nu
   done && (done.items.length || done.extra.length) ? [upsert(doneKey(patientId, sessionId), done)] : sessionCyclesDeleteSql(patientId, sessionId);
 
 /** Los últimos parámetros con que se usó un ejercicio (de la clínica, sin datos del paciente). */
-export async function rememberedExercise(db: Db, name: string): Promise<{ params: ParamKey[]; rule: Rule; timeUnit: "s" | "min" } | null> {
+export type Remembered = { params?: ParamKey[]; rule?: Rule; timeUnit?: "s" | "min"; how?: string };
+export async function rememberedExercise(db: Db, name: string): Promise<Remembered | null> {
   const [row] = await db.query<{ value: string }>("select value from settings where key = ?", [memoryKey(name)]);
-  return row ? (JSON.parse(row.value) as { params: ParamKey[]; rule: Rule; timeUnit: "s" | "min" }) : null;
+  return row ? (JSON.parse(row.value) as Remembered) : null;
 }
+/** Lo que se recuerda de cada ejercicio (de la clínica, sin datos del paciente): sus parámetros, cómo progresa y «Cómo se hace». */
 export const rememberSql = (exercises: PlanExercise[]) =>
-  exercises.filter((e) => e.name.trim()).map((e) => upsert(memoryKey(e.name), { name: e.name.trim(), params: e.params, rule: e.rule, timeUnit: e.timeUnit }));
+  exercises
+    .filter((e) => e.name.trim())
+    .map((e) => upsert(memoryKey(e.name), { name: e.name.trim(), params: e.params, rule: e.rule, timeUnit: e.timeUnit, ...(e.how?.trim() ? { how: e.how.trim() } : {}) }));
 
 /** Los nombres de ejercicio ya usados en la clínica, para sugerirlos al escribir. */
 export async function knownExerciseNames(db: Db): Promise<string[]> {
