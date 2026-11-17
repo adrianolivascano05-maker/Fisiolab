@@ -160,7 +160,7 @@ export function EpisodePicker({ patientId, plain = false, extra }: { patientId: 
         {view === "list" && (
           <>
             <p className="text-sm text-text-muted">La ficha enseña la anamnesis, las sesiones, la exploración, las mediciones y los cuestionarios del motivo que elijas. Lo que añadas va a ese motivo.</p>
-            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+            <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
               {episodes.map((e) => option(e.id, episodeLabel(e), `Desde el ${fmtDate(e.startedAt)} · ${records(counts[e.id])}`, !!e.closedAt))}
               {several && option(ALL, "Todos los motivos", "Todo junto, del más reciente al más antiguo")}
             </ul>

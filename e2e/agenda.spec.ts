@@ -27,9 +27,10 @@ test.describe("Agenda y seguimiento", () => {
     await createPatient(page, { name: "Bruno Falta" });
     await giveAppointment(page, "Bruno Falta", "2026-10-20T11:00");
 
-    // En Pacientes, una franja con las citas de hoy; lleva a Agenda › Hoy.
+    // En Pacientes, el filtro «Hoy» cuenta quién viene hoy; lo de hoy, para atender, está en Agenda › Hoy.
     await page.goto("./");
-    await page.getByRole("link", { name: /^Hoy · 2 citas/ }).click();
+    await expect(page.getByRole("group", { name: "Ver" }).getByRole("button", { name: /^Hoy/ })).toContainText("2");
+    await page.goto("./agenda?vista=hoy");
     await expect(page.getByRole("group", { name: "Vista" }).getByRole("button", { name: "Día", exact: true })).toHaveAttribute("aria-pressed", "true");
     const today = page.getByRole("region", { name: "Citas de hoy" });
     await expect(today.getByRole("button", { name: /^\d\d:\d\d · / })).toHaveText([/11:00 · Bruno Falta.*45 min/, /12:30 · Ana Agenda.*45 min/]);

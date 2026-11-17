@@ -41,9 +41,9 @@ const dayText = (d: string) => fmtDate(`${d}T12:00:00`);
 function Tile({ to, label, value, sub }: { to: string; label: string; value: string; sub: string }) {
   return (
     <li>
-      <Link to={to} className="flex h-full min-h-20 flex-col rounded-lg border border-border bg-bg px-3 py-2 hover:bg-surface">
+      <Link to={to} className="flex h-full min-h-20 flex-col card-edge rounded-lg border bg-bg shadow-card px-3 py-2 hover:bg-surface">
         <span className="text-xs font-semibold tracking-wide text-text-muted uppercase">{label}</span>
-        <span className="nums text-xl font-semibold text-accent">{value}</span>
+        <span className="nums text-lg font-semibold text-accent">{value}</span>
         <span className="line-clamp-2 text-xs text-text-muted">{sub}</span>
       </Link>
     </li>
@@ -74,14 +74,14 @@ function Fold({ id, title, subtitle, warn, children }: { id: string; title: stri
   };
   return (
     <section aria-label={title} className="flex flex-col gap-1.5">
-      <button type="button" aria-expanded={open} onClick={toggle} className="flex min-h-12 items-center gap-2 rounded-lg border border-border bg-bg px-3 py-1.5 text-left hover:bg-surface">
+      <button type="button" aria-expanded={open} onClick={toggle} className="flex min-h-12 items-center gap-2 card-edge rounded-lg border bg-bg shadow-card px-3 py-1.5 text-left hover:bg-surface">
         <ChevronDown aria-hidden="true" className={cx("size-5 shrink-0 text-accent transition-transform", !open && "-rotate-90")} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-semibold">{title}</span>
           {!open && <span className={cx("truncate text-sm", warn ? "text-warning" : "text-text-muted")}>{subtitle}</span>}
         </span>
       </button>
-      {open && <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">{children}</ul>}
+      {open && <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">{children}</ul>}
     </section>
   );
 }
@@ -177,14 +177,14 @@ export function PatientPage() {
         <div className="flex flex-col gap-4">
           {/* Las dos acciones de cada visita. */}
           <div className="grid grid-cols-[3fr_2fr] gap-2">
-        <Link to={`/pacientes/${id}/sesiones/nueva`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
+        <Link to={`/pacientes/${id}/sesiones/nueva`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
           <NotebookPen aria-hidden="true" className="size-5" /> Nueva sesión
         </Link>
         <button
           type="button"
           aria-haspopup="dialog"
           onClick={() => setAssessing(true)}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-border bg-bg px-3 font-semibold hover:bg-surface"
         >
           <Stethoscope aria-hidden="true" className="size-5 text-accent" /> Valorar
         </button>
@@ -193,7 +193,7 @@ export function PatientPage() {
       {/* Lo siguiente: el paso pendiente más importante, con su enlace. */}
       {next && (
         <section aria-label="Lo siguiente">
-          <Link to={next.to} className="flex min-h-14 items-center gap-3 rounded-lg border border-warning bg-warning-soft px-3 py-2 hover:brightness-95">
+          <Link to={next.to} className="flex min-h-14 items-center gap-3 rounded-lg bg-warning-soft px-3 py-2 hover:brightness-95">
             <next.icon aria-hidden="true" className="size-5 shrink-0 text-warning" />
             <span className="flex min-w-0 flex-1 flex-col">
               <span aria-hidden="true" className="text-xs font-semibold tracking-wide text-text uppercase">Lo siguiente</span>
@@ -383,7 +383,7 @@ export function PatientPage() {
         {proposedQ.length + proposedM.length > 0 && (
           <section aria-label={`Lo que propone la plantilla «${tpl!.name}»`} className="flex flex-col gap-2">
             <h3 className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase">Propuestos para «{tpl!.name}»</h3>
-            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+            <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
               {proposedQ.map((k) => (
                 <RowLink key={k.id} to={`/pacientes/${id}/cuestionarios/nuevo?tipo=${encodeURIComponent(k.id)}`} icon={ListChecks} title={k.name} subtitle="Cuestionario" />
               ))}
@@ -393,7 +393,7 @@ export function PatientPage() {
             </ul>
           </section>
         )}
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+        <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
           <RowLink to={`/pacientes/${id}/exploracion/nuevo`} icon={Stethoscope} title="Registrar un test" subtitle="Lachman, Neer, Slump… los de su zona, primero" />
           <RowLink to={`/pacientes/${id}/cuestionarios/nuevo`} icon={ListChecks} title="Pasar un cuestionario" subtitle="Aquí o enviado a su móvil" />
           <RowLink to={`/pacientes/${id}/test`} icon={Activity} title="Nueva medición" subtitle="Saltos, fuerza, sprint, carrera, movilidad o nórdico" />

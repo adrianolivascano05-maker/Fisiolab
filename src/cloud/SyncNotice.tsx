@@ -98,7 +98,7 @@ function DoubleBookingNotice() {
       ? `${d.first.name} tiene dos citas a la vez (${when}).`
       : `Hay dos citas a la vez (${when}): ${d.first.name} y ${d.second.name}.`;
   return (
-    <div role="status" className="flex flex-col gap-2 rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
+    <div role="status" className="flex flex-col gap-2 rounded-lg bg-warning-soft px-3 py-2 text-sm">
       <span>
         <span className="font-semibold">Cita doble. </span>
         {text} Se han dado a la vez en dos dispositivos.
@@ -132,7 +132,7 @@ function SyncNoticeRow() {
   );
   if (s.overwritten?.length)
     return (
-      <div role="status" className="flex flex-col gap-2 rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm">
+      <div role="status" className="flex flex-col gap-2 rounded-lg bg-warning-soft px-3 py-2 text-sm">
         <span>
           Otra persona ha cambiado a la vez lo mismo que acababas de guardar; se ha quedado su versión, y la tuya está guardada: {s.overwritten.join("; ")}.
         </span>

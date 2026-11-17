@@ -26,8 +26,8 @@ export function PrecautionsNote({ patientId, className }: { patientId: string; c
   if (!data.data || (!data.data.precautions.length && !data.data.allergies)) return null;
   const { precautions, allergies } = data.data;
   return (
-    <p role="note" aria-label="Precauciones" className={cx("flex items-start gap-2 rounded-md border border-warning bg-warning-soft px-3 py-2 text-sm", className)}>
-      <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+    <p role="note" aria-label="Precauciones" className={cx("flex items-start gap-2 rounded-lg bg-warning-soft px-3 py-2 text-sm", className)}>
+      <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-warning" />
       <span>
         {precautions.length > 0 && (
           <>

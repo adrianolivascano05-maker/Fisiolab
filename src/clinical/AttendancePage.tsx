@@ -84,7 +84,7 @@ export function AttendancePage() {
       <style>{"@page { size: A4; margin: 18mm 18mm 20mm; } @media print { body { background: white; } }"}</style>
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
-        <form className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden" onSubmit={(e) => e.preventDefault()}>
+        <form className="flex flex-col gap-3 card-edge rounded-lg border bg-bg shadow-card p-4 print:hidden" onSubmit={(e) => e.preventDefault()}>
           <TextField label="Día y hora de la consulta" type="datetime-local" value={valid ? localInput(start.toISOString()) : ""} onChange={(e) => setWhen(e.target.value)} />
           <TextField
             label="Duración (minutos)"

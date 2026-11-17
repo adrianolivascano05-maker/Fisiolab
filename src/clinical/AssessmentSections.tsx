@@ -55,7 +55,7 @@ export function QuestionnairesSection({ id, questionnaires, wellness, waiting }:
       ) : (
         <p className="text-sm text-text-muted">Sin cuestionarios todavía. Se rellenan aquí pregunta a pregunta y la nota sale sola; si lo hizo en papel, puedes anotar solo la puntuación.</p>
       )}
-      <Link to={`/pacientes/${id}/bienestar`} className="flex min-h-12 items-center gap-3 rounded-lg border border-border bg-bg px-3 py-2 hover:bg-surface">
+      <Link to={`/pacientes/${id}/bienestar`} className="flex min-h-12 items-center gap-3 card-edge rounded-lg border bg-bg shadow-card px-3 py-2 hover:bg-surface">
         <HeartPulse aria-hidden="true" className="size-5 shrink-0 text-accent" />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="font-semibold">Bienestar diario</span>

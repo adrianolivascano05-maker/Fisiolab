@@ -225,17 +225,13 @@ export function CalendarPage() {
           pacientes al lado no caben las dos: una debajo de la otra, como en el móvil. */}
       <div className="flex flex-col gap-4 @3xl:grid @3xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)] @3xl:items-start @3xl:gap-x-6">
         <section aria-labelledby="h-calendario" className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="h-calendario" className="text-xl">
-              Calendario
-            </h2>
-            <Button size="sm" icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setEvent({ event: null, day: selected })}>
-              Apuntar evento
-            </Button>
-          </div>
+          {/* «Apuntar evento» va con el día: al elegir uno, «Apuntar evento este día»; sin día, debajo del mes. */}
+          <h2 id="h-calendario" className="text-xl">
+            Calendario
+          </h2>
           {/* Arriba, en una línea: su próxima cita, cuántas le quedan y cómo dárselas (WhatsApp, correo o en papel). */}
           {upcoming.length > 0 && patient && (
-            <div className="flex flex-col gap-1 rounded-md border border-border bg-bg px-3 py-1.5">
+            <div className="card-edge flex flex-col gap-1 rounded-lg border bg-bg px-3 py-1.5 shadow-card">
               <div className="flex items-center gap-1">
                 <p className="min-w-0 flex-1 text-sm">
                   <span className="font-semibold">{upcoming.length === 1 ? "1 cita pendiente" : `${upcoming.length} citas pendientes`}</span> · la próxima, {fmtVisit(upcoming[0]!.startsAt)}
@@ -308,6 +304,14 @@ export function CalendarPage() {
               ))}
             </tbody>
           </table>
+          {!selected && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="text-sm text-text-muted">Toca un día para dar cita o apuntar un evento.</p>
+              <Button size="sm" variant="secondary" icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setEvent({ event: null, day: null })}>
+                Apuntar evento
+              </Button>
+            </div>
+          )}
           {/* Los colores del mes son también el filtro, cada uno con su número. */}
           <div role="group" aria-label="Qué se ve" className="flex flex-wrap gap-2">
             {(
@@ -377,7 +381,8 @@ export function CalendarPage() {
               ) : (
                 <ul className="flex flex-col gap-2">{byDay.get(selected)!.map((it, i) => <li key={i}>{row(it, i)}</li>)}</ul>
               )}
-              {/* Apuntar algo ese día: con «Apuntar evento», arriba (ya usa el día elegido). Aquí, la cita. */}
+              {/* Lo de ese día: darle cita (si no ha pasado) y apuntar un evento suyo (también en un día ya pasado: una
+                  operación o un viaje que ya ocurrió). */}
               {selected >= today && (
                 <Button
                   variant="secondary"
@@ -387,6 +392,9 @@ export function CalendarPage() {
                   Dar cita a las {usualTime}
                 </Button>
               )}
+              <Button variant="secondary" icon={<Plus aria-hidden="true" className="size-5" />} onClick={() => setEvent({ event: null, day: selected })}>
+                Apuntar evento este día
+              </Button>
               <Button variant="ghost" onClick={() => go({ dia: null })}>
                 Ver todo {monthTitle(month).replace(/ de \d+$/, "").toLowerCase()}
               </Button>
@@ -511,7 +519,7 @@ function DayButton({
   );
 }
 
-const rowClass = "flex min-h-12 w-full items-center gap-3 rounded-md border border-border bg-bg px-3 py-2 text-left hover:border-accent";
+const rowClass = "card-edge flex min-h-12 w-full items-center gap-3 rounded-lg border bg-bg px-3 py-2 text-left shadow-card hover:border-accent";
 
 function EventButton({ event, detail, onClick }: { event: PatientEvent; detail: string; onClick: () => void }) {
   const Icon = KIND_ICON[event.kind];

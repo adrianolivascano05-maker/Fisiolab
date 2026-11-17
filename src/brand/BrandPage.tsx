@@ -394,7 +394,7 @@ function BrandForm({ saved, clinicName, onSaved, toast }: { saved: Brand | null;
           </Card>
 
           {own && (
-          <details className="rounded-lg border border-border bg-bg">
+          <details className="card-edge rounded-lg border bg-bg shadow-card">
             <summary className="flex min-h-11 cursor-pointer items-center px-4 font-semibold">Avanzado: los tonos y el color de los botones</summary>
             <div className="flex flex-col gap-4 px-4 pb-4">
               <p className="text-sm text-text-muted">La escala de cada color, de claro (50) a oscuro (900). Los tonos con ✓ sirven para texto sobre blanco; los demás, para fondos.</p>

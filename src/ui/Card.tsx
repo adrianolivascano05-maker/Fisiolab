@@ -2,7 +2,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx";
 
 export function Card({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cx("rounded-lg border border-border bg-bg p-4 shadow-card", className)} {...rest} />;
+  return <div className={cx("card-edge rounded-lg border bg-bg p-4 shadow-card", className)} {...rest} />;
 }
 
 type MetricCardProps = {

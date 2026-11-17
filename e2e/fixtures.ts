@@ -213,7 +213,9 @@ export async function smallTargets(page: Page): Promise<string[]> {
       const target = el instanceof HTMLInputElement && (el.type === "checkbox" || el.type === "radio") ? (el.closest("label") ?? el) : el;
       const r = target.getBoundingClientRect();
       if (r.width === 0 && r.height === 0) continue;
-      if (r.height < 43.5 || r.width < 43.5) out.push(`${el.tagName.toLowerCase()} «${(el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 40)}» ${Math.round(r.width)}×${Math.round(r.height)}`);
+      // En una fila que lo marca (la escala EVA en una fila), el mínimo de WCAG 2.2 AA: 24 px de ancho.
+      const minW = el.closest("[data-min-tap='24']") ? 23.5 : 43.5;
+      if (r.height < 43.5 || r.width < minW) out.push(`${el.tagName.toLowerCase()} «${(el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 40)}» ${Math.round(r.width)}×${Math.round(r.height)}`);
     }
     return out;
   });

@@ -150,7 +150,7 @@ export function BillingPage() {
         {a.payments.length === 0 ? (
           <p className="text-sm text-text-muted">Sin cobros apuntados.</p>
         ) : (
-          <ul aria-label="Cobros" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
+          <ul aria-label="Cobros" className="flex flex-col divide-y divide-border card-edge rounded-lg border bg-bg shadow-card">
             {a.payments.map((p, i) => {
               const inv = invoices.get(p.id);
               const what = `${euros(p.amountCents)} del ${day(p.paidOn)}`;

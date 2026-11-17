@@ -77,7 +77,7 @@ const questions = (n: number) => (n === 1 ? "1 pregunta" : `${n} preguntas`);
 /** Un apartado de la anamnesis que se pliega: el título, cuántos campos tiene rellenos y el contenido. */
 function Fold({ id, title, count, open, summary, children }: { id: string; title: string; count: string; open: boolean; /** Plegado: lo respondido, en una línea. */ summary?: string; children: ReactNode }) {
   return (
-    <details id={id} open={open || undefined} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
+    <details id={id} open={open || undefined} className="group scroll-mt-20 card-edge rounded-lg border bg-bg shadow-card">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="text-lg font-semibold text-brand-ink">{title.replace(/^\d+\.\s*/, "")}</span>
@@ -313,7 +313,7 @@ export function AnamnesisPage() {
           <div className="min-w-0 flex-1">
             <LevelSwitch wide={wide} onChange={toggle} base={questions(asked(allFields.filter((f) => !f.extra)).length)} full={questions(asked(allFields).length)} />
           </div>
-          <button type="button" onClick={() => void modify()} className="inline-flex min-h-12 flex-col items-center justify-center rounded-lg border border-border bg-bg px-3 text-sm leading-tight font-semibold text-accent hover:bg-surface">
+          <button type="button" onClick={() => void modify()} className="inline-flex min-h-12 flex-col items-center justify-center card-edge rounded-lg border bg-bg shadow-card px-3 text-sm leading-tight font-semibold text-accent hover:bg-surface">
             Modificar
             <span className="text-xs font-normal text-text-muted">preguntas</span>
           </button>
@@ -354,7 +354,7 @@ export function AnamnesisPage() {
           {/* La base: tres bloques a la vista, sin plegar. */}
           {!wide &&
             baseBlocks(sections, fieldsOf).map((block) => (
-              <section key={block.id} id={`anamnesis-${block.id}`} aria-labelledby={`h-anamnesis-${block.id}`} className="flex scroll-mt-20 flex-col gap-4 rounded-lg border border-border bg-bg p-4 shadow-card">
+              <section key={block.id} id={`anamnesis-${block.id}`} aria-labelledby={`h-anamnesis-${block.id}`} className="flex scroll-mt-20 flex-col gap-4 card-edge rounded-lg border bg-bg shadow-card p-4">
                 <h3 id={`h-anamnesis-${block.id}`} className="text-lg font-semibold text-brand-ink">
                   {block.title}
                 </h3>

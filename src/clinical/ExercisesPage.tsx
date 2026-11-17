@@ -147,7 +147,7 @@ export function ExercisesPage() {
       <style>{"@page { size: A4; margin: 16mm 16mm 18mm; } @media print { body { background: white; } }"}</style>
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
-        <div className="flex flex-col gap-2 rounded-lg border border-border bg-bg p-4 print:hidden">
+        <div className="flex flex-col gap-2 card-edge rounded-lg border bg-bg shadow-card p-4 print:hidden">
           <div className="flex flex-wrap gap-2">
             {mayMessage(contact) && phone && (
               <a href={whatsappUrl(phone, text)} target="_blank" rel="noopener noreferrer" className={cx(link, "bg-accent text-on-accent hover:bg-accent-hover")}>
@@ -220,7 +220,7 @@ export function ExercisesPage() {
             <h2 id="h-anteriores" className="text-lg">
               Todas sus hojas
             </h2>
-            <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
+            <ul className="flex flex-col divide-y divide-border card-edge rounded-lg border bg-bg shadow-card">
               {plans.map((p) => (
                 <li key={p.id}>
                   <Link
@@ -345,7 +345,7 @@ function PlanEditor({
       {value.items.length === 0 && <Alert tone="info" title="Añade los ejercicios">De la biblioteca de la clínica, de una plantilla o escritos a mano. Luego se imprime o se envía.</Alert>}
       <ol aria-label="Ejercicios de la hoja" className="flex flex-col gap-2">
         {value.items.map((i, n) => (
-          <li key={n} className="flex flex-col rounded-lg border border-border bg-bg">
+          <li key={n} className="flex flex-col card-edge rounded-lg border bg-bg shadow-card">
             <div className="flex items-center gap-2 py-1 pr-1 pl-3">
               <span className="font-semibold text-text-muted">{n + 1}.</span>
               <button type="button" aria-expanded={open === n} className="flex min-h-11 min-w-0 flex-1 flex-col items-start text-left" onClick={() => setOpen(open === n ? null : n)}>

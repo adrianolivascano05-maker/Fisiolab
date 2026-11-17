@@ -10,7 +10,7 @@ export function Bone({ className }: { className?: string }) {
 /** Varias filas como las de una lista (icono, título y detalle), dentro de un recuadro. */
 export function SkeletonList({ rows = 3, className }: { rows?: number; className?: string }) {
   return (
-    <div role="status" aria-busy="true" className={cx("flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg", className)}>
+    <div role="status" aria-busy="true" className={cx("flex flex-col divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card", className)}>
       <span className="sr-only">Cargando…</span>
       {Array.from({ length: rows }, (_, i) => (
         <span key={i} className="flex min-h-14 items-center gap-3 px-3 py-2">

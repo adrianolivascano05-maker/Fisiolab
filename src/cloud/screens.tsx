@@ -240,7 +240,7 @@ export function ClinicScreen({ config, account, me, error, localPatients, notice
                 <li key={c.id}>
                   <button
                     type="button"
-                    className="flex min-h-14 w-full items-center gap-3 rounded-lg border border-border bg-bg px-4 py-2 text-left hover:bg-surface"
+                    className="flex min-h-14 w-full items-center gap-3 card-edge rounded-lg border bg-bg shadow-card px-4 py-2 text-left hover:bg-surface"
                     onClick={() => pick(c)}
                   >
                     <Building2 aria-hidden="true" className="size-5 shrink-0 text-accent" />
@@ -248,7 +248,7 @@ export function ClinicScreen({ config, account, me, error, localPatients, notice
                       <span className="truncate font-semibold">{c.name}</span>
                       <span className="text-sm text-text-muted">{ROLE_LABELS[c.role]}</span>
                     </span>
-                    <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+                    <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
                   </button>
                 </li>
               ))}
@@ -256,7 +256,7 @@ export function ClinicScreen({ config, account, me, error, localPatients, notice
           )}
           {me.canCreate && me.clinics.length > 0 ? (
             // Con clínica ya, dar de alta otra queda plegado: así nadie crea una segunda sin querer en otro dispositivo.
-            <details className="rounded-lg border border-border bg-bg p-4">
+            <details className="card-edge rounded-lg border bg-bg shadow-card p-4">
               <summary className="cursor-pointer font-semibold">Dar de alta otra clínica distinta</summary>
               <div className="mt-3">
               <form className="flex flex-col gap-3" noValidate onSubmit={create}>

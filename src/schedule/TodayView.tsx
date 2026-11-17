@@ -127,12 +127,12 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
 
   const alive = day.filter((a) => a.status !== "cancelled");
   const toSee = alive.filter((a) => a.status === "scheduled").length;
-  const figure = "flex min-h-14 flex-col justify-center rounded-lg border border-border bg-bg px-2 py-1.5 text-center";
+  const figure = "flex min-h-14 flex-col justify-center px-2 py-1.5 text-center";
 
   return (
     <div className="flex flex-col gap-4">
       {/* Tres cifras del día: cuántas citas, cuántas quedan por atender y cuánto hay por cobrar (lleva a la lista). */}
-      <ul aria-label="Hoy en cifras" className="grid grid-cols-3 gap-2">
+      <ul aria-label="Hoy en cifras" className="card-edge grid grid-cols-3 divide-x divide-border overflow-hidden rounded-lg border bg-bg shadow-card">
         <li className={figure}>
           <span className="nums text-lg font-semibold">{alive.length}</span>
           <span className="text-xs text-text-muted">{alive.length === 1 ? "cita hoy" : "citas hoy"}</span>
@@ -155,7 +155,7 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
         {day.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border-input px-3 py-4 text-center text-sm text-text-muted">Da una con «Nueva cita», arriba.</p>
         ) : (
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+          <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
             {folded > 0 && (
               <li>
                 <button type="button" onClick={() => setShowEarlier(true)} className="flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm font-semibold text-accent hover:bg-surface">
@@ -308,7 +308,7 @@ function TodayRow({
     .join(" · ");
   return (
     <li className="flex flex-col">
-      <button type="button" onClick={onOpen} className="flex min-h-14 min-w-0 items-center gap-3 px-3 pt-2 pb-1 text-left hover:bg-surface">
+      <button type="button" onClick={onOpen} className="flex min-h-14 min-w-0 items-center gap-3 px-3 pt-3 pb-1 text-left hover:bg-surface">
         <Icon aria-hidden="true" className={cx("size-5 shrink-0", off ? "text-warning" : "text-accent")} />
         <span className="flex min-w-0 flex-col">
           <span className={cx("truncate font-semibold", a.status === "cancelled" && "line-through")}>
@@ -324,7 +324,7 @@ function TodayRow({
         </span>
       </button>
       {/* Las acciones del día, debajo del nombre: en el móvil el nombre se lee entero. */}
-      <div className="flex flex-wrap gap-2 pr-3 pb-2 pl-11">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 pr-3 pb-2.5 pl-11">
           {a.status === "scheduled" && (
             <Link
               to={`/pacientes/${a.patientId}/sesiones/nueva?hora=${encodeURIComponent(a.startsAt)}&volver=hoy`}
@@ -343,12 +343,12 @@ function TodayRow({
               type="button"
               onClick={onCharge}
               aria-label={`Cobrar a ${a.name}`}
-              className="tap inline-flex items-center justify-center gap-1 rounded-md border border-border px-3 text-sm font-semibold hover:bg-surface"
+              className="tap inline-flex items-center justify-center gap-1 rounded-md px-1 text-sm font-semibold text-accent hover:bg-surface"
             >
               <Wallet aria-hidden="true" className="size-4" /> Cobrar
             </button>
           )}
-          <Link to={`/pacientes/${a.patientId}`} aria-label={`Ficha de ${a.name}`} className="tap inline-flex items-center justify-center gap-1 rounded-md px-3 text-sm font-semibold text-accent hover:bg-surface">
+          <Link to={`/pacientes/${a.patientId}`} aria-label={`Ficha de ${a.name}`} className="tap inline-flex items-center justify-center gap-1 rounded-md px-1 text-sm font-semibold text-accent hover:bg-surface">
             <UserRound aria-hidden="true" className="size-4" /> Ficha
           </Link>
         </div>

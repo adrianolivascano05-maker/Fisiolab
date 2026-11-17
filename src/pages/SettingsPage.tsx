@@ -117,7 +117,7 @@ export function SettingsPage() {
       {find.trim() && (
         <Group title="Resultados" footer={found.length === 0 ? "Nada con ese nombre. Prueba con otra palabra." : undefined}>
           {found.map((f) => (
-            <RowLink key={f.to} to={f.to} title={f.label} />
+            <RowLink clamp key={f.to} to={f.to} title={f.label} />
           ))}
         </Group>
       )}
@@ -125,6 +125,7 @@ export function SettingsPage() {
       <SetupChecklist />
       <Group title="Tu clínica">
         <RowLink
+          clamp
           to="/ajustes/clinica"
           icon={Building2}
           title="Clínica y protección de datos"
@@ -133,6 +134,7 @@ export function SettingsPage() {
           tone={clinic && !clinicComplete(clinic) ? "warning" : "accent"}
         />
         <RowLink
+          clamp
           to="/ajustes/marca"
           icon={Palette}
           title="Marca de la clínica"
@@ -146,35 +148,37 @@ export function SettingsPage() {
         />
         {cloud?.clinic && (
           <RowLink
+            clamp
             to="/ajustes/equipo"
             icon={UsersRound}
             title={solo ? "Mi consulta" : "Equipo de la clínica"}
             subtitle={solo ? `${cloud.clinic.name} · por mi cuenta (si abres una clínica, añade aquí a tu equipo)` : `${cloud.clinic.name} · ${ROLE_LABELS[cloud.clinic.role]}`}
           />
         )}
-        <RowLink to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
+        <RowLink clamp to="/ajustes/estadisticas" icon={ChartColumn} title="La clínica en números" subtitle="Sesiones, pacientes nuevos, ausencias y altas" />
       </Group>
 
       <Group title="La consulta">
-        <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
-        <RowLink to="/ajustes/cuestionarios-propios" icon={ListChecks} title="Cuestionarios propios" subtitle="Satisfacción, control semanal, adherencia… (no validados)" />
-        <RowLink to="/ajustes/plantillas-ciclos" icon={Layers} title="Plantillas de plan por ciclos" subtitle="Las guardadas desde un plan: renombrar, duplicar o archivar" />
-        {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
-        <RowLink to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={`${theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} · abre en ${START_LABELS[getStartPage()].replace(" (lo de hoy)", "")}`} />
+        <RowLink clamp to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
+        <RowLink clamp to="/ajustes/cuestionarios-propios" icon={ListChecks} title="Cuestionarios propios" subtitle="Satisfacción, control semanal, adherencia… (no validados)" />
+        <RowLink clamp to="/ajustes/plantillas-ciclos" icon={Layers} title="Plantillas de plan por ciclos" subtitle="Las guardadas desde un plan: renombrar, duplicar o archivar" />
+        {SHOW_EXERCISES && <RowLink clamp to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
+        <RowLink clamp to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={`${theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} · abre en ${START_LABELS[getStartPage()].replace(" (lo de hoy)", "")}`} />
       </Group>
 
       <Group title="Dinero">
-        <RowLink to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, bonos, lo cobrado y lo pendiente" />
-        <RowLink to="/facturas" icon={ReceiptText} title="Para facturar" subtitle="Los cobros en Excel para tu programa de facturación" />
+        <RowLink clamp to="/ajustes/cobros" icon={Wallet} title="Precios y cobros" subtitle="Precio de la sesión, bonos, lo cobrado y lo pendiente" />
+        <RowLink clamp to="/facturas" icon={ReceiptText} title="Para facturar" subtitle="Los cobros en Excel para tu programa de facturación" />
       </Group>
 
       <Group title="Mensajes">
-        <RowLink to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle={`Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre${SHOW_EXERCISES ? ", ejercicios" : ""}`} />
-        <RowLink to="/agenda/envios" icon={Send} title="Envíos pendientes" subtitle="Recordatorios, anamnesis y cuestionarios listos para mandar" />
+        <RowLink clamp to="/ajustes/mensajes" icon={MessageSquareText} title="Mensajes a pacientes" subtitle={`Lo que sale por WhatsApp y correo: recordatorio, formularios, hueco libre${SHOW_EXERCISES ? ", ejercicios" : ""}`} />
+        <RowLink clamp to="/agenda/envios" icon={Send} title="Envíos pendientes" subtitle="Recordatorios, anamnesis y cuestionarios listos para mandar" />
       </Group>
 
       <Group title="Seguridad y datos">
         <RowLink
+          clamp
           to="/ajustes/cuenta"
           icon={UserRound}
           title={cloud ? cloud.account.name : "Cuenta de Google"}
@@ -182,6 +186,7 @@ export function SettingsPage() {
           warn={!!sync && (sync.status === "needs-auth" || sync.status === "needs-key" || sync.status === "needs-password" || sync.status === "error")}
         />
         <RowLink
+          clamp
           to="/ajustes/datos"
           icon={Database}
           title="Copias y exportar"
@@ -189,8 +194,9 @@ export function SettingsPage() {
           warn={!cloud && !!state.data && !state.data.lastBackup}
           tone={!cloud && state.data && !state.data.lastBackup ? "warning" : "accent"}
         />
-        <RowLink to="/ajustes/importar" icon={FileSpreadsheet} title="Importar datos" subtitle="De otro programa: pacientes, citas e historial · Excel o CSV" />
+        <RowLink clamp to="/ajustes/importar" icon={FileSpreadsheet} title="Importar datos" subtitle="De otro programa: pacientes, citas e historial · Excel o CSV" />
         <RowLink
+          clamp
           to="/ajustes/bloqueo"
           icon={Lock}
           title="Bloqueo con PIN"
@@ -198,8 +204,9 @@ export function SettingsPage() {
           warn={noPin}
           tone={noPin ? "warning" : "accent"}
         />
-        <RowLink to="/privacidad" icon={ShieldCheck} title="Privacidad" subtitle="Qué datos guarda la app y dónde" />
+        <RowLink clamp to="/privacidad" icon={ShieldCheck} title="Privacidad" subtitle="Qué datos guarda la app y dónde" />
         <RowLink
+          clamp
           to="/instalar"
           icon={MonitorSmartphone}
           title="Instalar la app"
@@ -208,9 +215,9 @@ export function SettingsPage() {
       </Group>
 
       <Group title="Ayuda">
-        <RowLink to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
-        <RowLink to="/novedades" icon={Sparkles} title="Novedades" subtitle="Lo que ha cambiado de sitio o es nuevo" />
-        <RowLink to="/ayuda/fallos" icon={LifeBuoy} title="Algo no funciona" subtitle={errorCount(readErrors().length)} />
+        <RowLink clamp to="/ayuda" icon={BookOpenCheck} title="Cómo se usa" />
+        <RowLink clamp to="/novedades" icon={Sparkles} title="Novedades" subtitle="Lo que ha cambiado de sitio o es nuevo" />
+        <RowLink clamp to="/ayuda/fallos" icon={LifeBuoy} title="Algo no funciona" subtitle={errorCount(readErrors().length)} />
       </Group>
       </div>
 
@@ -225,6 +232,7 @@ export function SettingsPage() {
           <Group label="Avanzado">
             {cloud?.operator && (
               <RowLink
+                clamp
                 to="/ajustes/proveedor"
                 icon={Briefcase}
                 title="Proveedor"
@@ -240,8 +248,8 @@ export function SettingsPage() {
                 warn={!!provider.data?.requests || !!provider.data?.cloudflare.length || !!provider.data?.busy}
               />
             )}
-            <RowLink to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
-            <RowLink to="/ajustes/datos" icon={Database} title="Datos de prueba" subtitle="Pacientes inventados para probar la app (en Copias y exportar)" />
+            <RowLink clamp to="/validacion" icon={ClipboardCheck} title="Validación de las mediciones" subtitle="Compararlas con una plataforma, un encoder o un goniómetro" />
+            <RowLink clamp to="/ajustes/datos" icon={Database} title="Datos de prueba" subtitle="Pacientes inventados para probar la app (en Copias y exportar)" />
           </Group>
         </div>
       </details>
@@ -557,7 +565,7 @@ export function AppearancePage() {
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 text-sm text-text-muted">Cómo se ve la app en este dispositivo. Los informes y documentos se ven siempre en claro, como en papel.</legend>
         {options.map((o) => (
-          <label key={o.id} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-border bg-bg px-4 py-2 has-[:checked]:border-accent">
+          <label key={o.id} className="flex min-h-14 cursor-pointer items-center gap-3 card-edge rounded-lg border bg-bg shadow-card px-4 py-2 has-[:checked]:border-accent">
             <input type="radio" name="tema" className="size-5 shrink-0 accent-[var(--color-accent)]" checked={theme === o.id} onChange={() => setTheme(o.id)} />
             <span className="flex flex-col">
               <span className="font-semibold">{THEME_LABELS[o.id]}</span>
@@ -569,7 +577,7 @@ export function AppearancePage() {
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-2 font-semibold">Al abrir la app desde su icono</legend>
         {(["agenda", "pacientes"] as const).map((id) => (
-          <label key={id} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-lg border border-border bg-bg px-4 py-2 has-[:checked]:border-accent">
+          <label key={id} className="flex min-h-14 cursor-pointer items-center gap-3 card-edge rounded-lg border bg-bg shadow-card px-4 py-2 has-[:checked]:border-accent">
             <input type="radio" name="inicio" className="size-5 shrink-0 accent-[var(--color-accent)]" checked={start === id} onChange={() => setStart(id)} />
             <span className="font-semibold">{START_LABELS[id]}</span>
           </label>

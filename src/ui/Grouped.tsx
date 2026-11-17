@@ -10,7 +10,7 @@ export function Group({ title, label, footer, children, className, id }: { title
   return (
     <section id={id} aria-label={label ?? title} className={cx("flex flex-col gap-1.5", className)}>
       {title && <h2 className="px-1 text-xs font-semibold tracking-wide text-text-muted uppercase" style={{ fontFamily: "var(--font-sans)" }}>{title}</h2>}
-      <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">{children}</ul>
+      <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">{children}</ul>
       {footer && <p className="px-1 text-xs text-text-muted">{footer}</p>}
     </section>
   );
@@ -27,9 +27,11 @@ type RowProps = {
   value?: ReactNode;
   /** El subtítulo en color de aviso. */
   warn?: boolean;
+  /** El subtítulo en dos líneas como mucho (las explicaciones de Ajustes). */
+  clamp?: boolean;
 };
 
-function Body({ icon: Icon, tone = "accent", title, subtitle, value, warn, chevron }: RowProps & { chevron: boolean }) {
+function Body({ icon: Icon, tone = "accent", title, subtitle, value, warn, clamp, chevron }: RowProps & { chevron: boolean }) {
   return (
     <>
       {Icon && (
@@ -45,10 +47,10 @@ function Body({ icon: Icon, tone = "accent", title, subtitle, value, warn, chevr
       )}
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="truncate font-semibold">{title}</span>
-        {subtitle && <span className={cx("text-sm", warn ? "text-warning" : "text-text-muted")}>{subtitle}</span>}
+        {subtitle && <span className={cx("text-sm", clamp && "line-clamp-2", warn ? "text-warning" : "text-text-muted")}>{subtitle}</span>}
       </span>
       {value && <span className="shrink-0 text-sm text-text-muted">{value}</span>}
-      {chevron && <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />}
+      {chevron && <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />}
     </>
   );
 }

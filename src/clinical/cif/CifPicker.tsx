@@ -322,7 +322,7 @@ function CifSheet({
             <button type="button" onClick={() => drill(e.code)} className="flex min-h-11 flex-1 items-center gap-3 rounded-md px-2 py-2 text-left font-semibold hover:bg-surface">
               <span className="nums w-16 shrink-0 text-accent">{e.code}</span>
               <span className="flex-1">{e.title}</span>
-              <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+              <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
             </button>
           ) : (
             <button
@@ -420,7 +420,7 @@ function CifSheet({
                     <button type="button" onClick={() => setPath([`g:${g.id}`])} className="flex min-h-11 w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-surface">
                       <span className="flex-1 font-semibold">{g.label}</span>
                       {n > 0 && <span className="text-sm text-text-muted">{n} elegido{n === 1 ? "" : "s"}</span>}
-                      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+                      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
                     </button>
                   </li>
                 );
@@ -428,7 +428,7 @@ function CifSheet({
               <li>
                 <button type="button" onClick={() => setPath(["capitulos"])} className="flex min-h-11 w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-surface">
                   <span className="flex-1">Todos los capítulos de la CIF</span>
-                  <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+                  <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
                 </button>
               </li>
             </ul>

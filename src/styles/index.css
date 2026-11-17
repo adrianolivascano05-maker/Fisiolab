@@ -53,6 +53,13 @@
 @utility nums {
   font-variant-numeric: tabular-nums;
 }
+/* Tarjetas sin borde gris (fondo blanco y sombra suave): en claro, el borde es del color de la tarjeta; en oscuro, uno
+   muy tenue para que se distinga del fondo. En la capa de componentes, para que un border-* de la página le gane. */
+@layer components {
+  .card-edge {
+    border-color: var(--color-card-edge);
+  }
+}
 @utility safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
 }

@@ -95,7 +95,7 @@ export function ReportProblemPage() {
         <ul className="flex flex-col gap-2">
           {FAQ.map((f) => (
             <li key={f.q}>
-              <details className="group rounded-lg border border-border bg-bg">
+              <details className="group card-edge rounded-lg border bg-bg shadow-card">
                 <summary className="flex min-h-12 cursor-pointer list-none items-center px-4 py-2 font-semibold [&::-webkit-details-marker]:hidden">{f.q}</summary>
                 <p className="px-4 pb-3 text-sm">{f.a}</p>
               </details>
@@ -113,7 +113,7 @@ export function ReportProblemPage() {
           No sale nada si no lo mandas tú. No lleva datos de pacientes; aun así, puedes leerlo antes de enviarlo.
         </p>
         <TextArea label="Qué pasó" hint="Qué estabas haciendo y qué esperabas que pasara." value={note} onChange={setNote} />
-        <details className="rounded-lg border border-border bg-bg">
+        <details className="card-edge rounded-lg border bg-bg shadow-card">
           <summary className="flex min-h-12 cursor-pointer items-center px-4 font-semibold">Ver el informe</summary>
           <pre aria-label="Informe de fallo" className="max-h-80 overflow-auto px-4 pb-3 text-xs whitespace-pre-wrap break-words">
             {report}

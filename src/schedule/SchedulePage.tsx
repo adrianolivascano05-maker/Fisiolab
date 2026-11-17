@@ -80,6 +80,9 @@ function markHelpSeen() {
   }
 }
 
+/** Las píldoras de la fila del día en el móvil (huecos libres, Bloquear, Cuadrícula o Lista). */
+const pill = "inline-flex min-h-11 items-center gap-1.5 rounded-pill border border-border bg-bg px-3 text-sm font-semibold text-accent hover:bg-surface";
+
 export function SchedulePage() {
   const [helpSeen] = useState(() => {
     try {
@@ -328,13 +331,23 @@ export function SchedulePage() {
             {cap(fmt(today, { weekday: "long", day: "numeric", month: "long" }))}
           </h2>
         )}
+        {view !== "today" && (
+          <button
+            type="button"
+            disabled={showsToday}
+            onClick={() => setAnchor(today)}
+            className="tap ml-auto inline-flex items-center rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface disabled:text-text-muted disabled:hover:bg-transparent"
+          >
+            Ir a hoy
+          </button>
+        )}
       </div>
       {view === "today" ? (
         <TodayView onOpen={setManaging} />
       ) : (
       <div className={cx("flex flex-col gap-4", hoyAside && "grid grid-cols-[minmax(0,1fr)_21rem] items-start gap-6")}>
       <div className="flex min-w-0 flex-col gap-4">
-      {/* Una sola fila: ‹ fecha › y «Ir a hoy». La fecha, si no cabe, en dos líneas. */}
+      {/* Una sola fila: ‹ fecha ›. La fecha, si no cabe, en dos líneas («Ir a hoy» va arriba, junto a la vista). */}
         <div className="flex items-center gap-1">
         <IconButton label={`${noun} anterior${view === "3days" ? "es" : ""}`} onClick={() => step(-1)}>
           <ChevronLeft aria-hidden="true" className="size-6" />
@@ -362,10 +375,8 @@ export function SchedulePage() {
         <IconButton label={`${noun} siguiente${view === "3days" ? "s" : ""}`} onClick={() => step(1)}>
           <ChevronRight aria-hidden="true" className="size-6" />
         </IconButton>
-        <Button size="sm" variant="secondary" disabled={showsToday} onClick={() => setAnchor(today)}>
-          Ir a hoy
-        </Button>
         </div>
+      {(team || !phoneDay) && (
       <div className="flex flex-wrap items-end gap-2">
         {team && (
           <div className="min-w-48 flex-1">
@@ -385,27 +396,7 @@ export function SchedulePage() {
             Añadir turno
           </Button>
         )}
-        {phoneDay ? (
-          <>
-            <IconButton label="Bloquear horas o días" onClick={() => setClosing({ closure: null, day: firstDay })}>
-              <CalendarOff aria-hidden="true" className="size-5" />
-            </IconButton>
-            <IconButton
-              label={dayGrid ? "Ver el día en lista" : "Ver el día en rejilla"}
-              onClick={() => {
-                const next = !dayGrid;
-                setDayGrid(next);
-                try {
-                  localStorage.setItem(DAY_GRID_KEY, next ? "1" : "0");
-                } catch {
-                  /* sin almacenamiento: vale para esta vez */
-                }
-              }}
-            >
-              {dayGrid ? <List aria-hidden="true" className="size-5" /> : <LayoutGrid aria-hidden="true" className="size-5" />}
-            </IconButton>
-          </>
-        ) : (
+        {phoneDay ? null : (
           <Button variant="secondary" icon={<CalendarOff aria-hidden="true" className="size-5" />} onClick={() => setClosing({ closure: null, day: firstDay })}>
             Bloquear horas o días
           </Button>
@@ -433,6 +424,7 @@ export function SchedulePage() {
           </Button>
         )}
       </div>
+      )}
 
       {undo && (
         <div role="status" className="flex items-center justify-between gap-2 rounded-md bg-text px-3 py-2 text-sm text-bg">
@@ -476,10 +468,11 @@ export function SchedulePage() {
           onWeek={(n) => setAnchor(addDays(anchor, 7 * n))}
         />
       )}
-      {/* Hoy, en el móvil: para atender (con lo pendiente debajo) o, con un toque, la lista con los huecos libres. */}
-      {phoneDay && anchor === today && !dayGrid && (
+      {/* En el móvil, una fila de píldoras: hoy, lo pendiente y los huecos libres; siempre, «Bloquear» y pasar de la
+          lista a la cuadrícula (si no caben, en dos líneas). */}
+      {phoneDay && (
         <div className="flex flex-wrap gap-2">
-          {!!pendingToday.data && (
+          {anchor === today && !dayGrid && !!pendingToday.data && (
             <button
               type="button"
               onClick={() => {
@@ -492,8 +485,30 @@ export function SchedulePage() {
               Pendiente <span className="nums rounded-pill bg-bg px-2">{pendingToday.data}</span>
             </button>
           )}
-          <button type="button" aria-pressed={gaps} onClick={() => setGaps(!gaps)} className="inline-flex min-h-11 items-center rounded-pill border border-border bg-bg px-3 text-sm font-semibold text-accent hover:bg-surface">
-            {gaps ? "Volver a atender" : "Ver huecos libres"}
+          {anchor === today && !dayGrid && (
+            <button type="button" aria-pressed={gaps} onClick={() => setGaps(!gaps)} className={pill}>
+              {gaps ? "Volver a atender" : "Ver huecos libres"}
+            </button>
+          )}
+          <button type="button" onClick={() => setClosing({ closure: null, day: firstDay })} className={pill}>
+            <CalendarOff aria-hidden="true" className="size-4" /> Bloquear<span className="sr-only"> horas o días</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !dayGrid;
+              setDayGrid(next);
+              try {
+                localStorage.setItem(DAY_GRID_KEY, next ? "1" : "0");
+              } catch {
+                /* sin almacenamiento: vale para esta vez */
+              }
+            }}
+            className={pill}
+          >
+            {dayGrid ? <List aria-hidden="true" className="size-4" /> : <LayoutGrid aria-hidden="true" className="size-4" />}
+            {dayGrid ? "Lista" : "Cuadrícula"}
+            <span className="sr-only">{dayGrid ? ": ver el día en lista" : ": ver el día en rejilla"}</span>
           </button>
         </div>
       )}

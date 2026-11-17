@@ -170,7 +170,7 @@ export function OutboxPage() {
                 )}
               </div>
               {open && (
-              <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+              <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
                 {list.map((i) => (
                   <li key={i.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2">
                     <span className="flex min-w-0 flex-1 flex-col">

@@ -56,6 +56,7 @@ export function NumberScale({
   hint,
   tones,
   last,
+  oneRow,
 }: {
   label: string;
   from: number;
@@ -69,6 +70,11 @@ export function NumberScale({
   tones?: string[];
   /** El valor de la última vez: se marca con un borde dorado. */
   last?: number | null;
+  /**
+   * En una sola fila (la EVA): 11 columnas iguales de 44 px de alto. Si el sitio no da para que cada una mida 24 px
+   * de ancho, los huecos bajan de 3 a 2 px y, si aún no cabe, vuelve a dos filas.
+   */
+  oneRow?: boolean;
 }) {
   const name = useId();
   const values = Array.from({ length: to - from + 1 }, (_, i) => from + i);
@@ -76,13 +82,22 @@ export function NumberScale({
   return (
     <fieldset className="flex flex-col gap-2">
       <legend className="text-sm font-semibold">{label}</legend>
-      <div className={cx("grid gap-1.5", values.length > 11 ? "grid-cols-5 sm:grid-cols-15" : "grid-cols-6 sm:grid-cols-11")}>
+      {/* data-min-tap: en una fila, cada número mide al menos 24 px de ancho (WCAG 2.2 AA) y 44 de alto. */}
+      <div className={cx(oneRow && "@container")} data-min-tap={oneRow ? "24" : undefined}>
+      <div
+        className={cx(
+          "grid",
+          oneRow
+            ? "grid-cols-6 gap-1.5 @[17.75rem]:grid-cols-11 @[17.75rem]:gap-[2px] @[18.375rem]:gap-[3px]"
+            : cx("gap-1.5", values.length > 11 ? "grid-cols-5 sm:grid-cols-15" : "grid-cols-6 sm:grid-cols-11"),
+        )}
+      >
         {values.map((n) => (
           <label key={n} className="relative">
             <input type="radio" name={name} value={n} checked={value === n} onChange={() => onChange(n)} className="peer sr-only" />
             <span
               className={cx(
-                "tap nums flex items-center justify-center rounded-md border text-base font-semibold",
+                oneRow ? "nums flex h-11 min-w-0 items-center justify-center rounded-md border text-base font-semibold" : "tap nums flex items-center justify-center rounded-md border text-base font-semibold",
                 tones
                   ? // Con la escala de color, el elegido no cambia de color: lleva un marco grueso y se subraya.
                     cx(tones[n - from], "border-transparent peer-checked:underline peer-checked:ring-[3px] peer-checked:ring-text peer-checked:ring-offset-2 peer-checked:ring-offset-canvas")
@@ -95,6 +110,7 @@ export function NumberScale({
             </span>
           </label>
         ))}
+      </div>
       </div>
       <div className="flex items-center justify-between gap-2 text-xs text-text-muted">
         <span>{ends[0]}</span>
@@ -129,7 +145,7 @@ export const PAIN_TONES = [
 
 /** El dolor de 0 a 10: de claro a oscuro, sin semáforo (dice cuánto, no si es bueno o malo). `last`: el de la última vez. */
 export function PainScale(props: { label: string; value: number | null; onChange: (v: number | null) => void; hint?: string; last?: number | null }) {
-  return <NumberScale from={0} to={10} ends={["0 sin dolor", "10 el peor imaginable"]} tones={PAIN_TONES} {...props} />;
+  return <NumberScale from={0} to={10} ends={["0 sin dolor", "10 el peor imaginable"]} tones={PAIN_TONES} oneRow {...props} />;
 }
 
 /** Opciones en chips: una sola (radio) o varias (checkbox). Pulsar la elegida otra vez la quita. */

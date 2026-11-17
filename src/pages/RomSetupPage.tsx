@@ -99,7 +99,7 @@ export function RomSetupPage() {
       {/* Goniometría en vídeo con pose por IA (src/free): cualquier articulación, a lo largo de un movimiento. */}
       <Link
         to={`/pacientes/${id}/medicion-libre`}
-        className="flex items-center gap-3 rounded-lg border border-border bg-bg p-3 hover:border-accent"
+        className="flex items-center gap-3 card-edge rounded-lg border bg-bg shadow-card p-3 hover:border-accent"
       >
         <ScanLine aria-hidden="true" className="size-6 shrink-0 text-accent" />
         <span className="flex flex-col">

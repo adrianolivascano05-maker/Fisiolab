@@ -113,7 +113,7 @@ export function OwnFormsPage() {
       )}
       {active.length > 0 && (
         <section aria-label="Cuestionarios de la clínica" className="flex flex-col gap-1.5">
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">{active.map(row)}</ul>
+          <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">{active.map(row)}</ul>
         </section>
       )}
       {archived.length > 0 && (
@@ -122,7 +122,7 @@ export function OwnFormsPage() {
             Archivados
           </h2>
           <p className="px-1 text-sm text-text-muted">No se pasan ni se mandan; lo respondido se sigue viendo en la ficha de cada paciente.</p>
-          <ul aria-label="Cuestionarios archivados" className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+          <ul aria-label="Cuestionarios archivados" className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
             {archived.map(row)}
           </ul>
         </section>
@@ -133,7 +133,7 @@ export function OwnFormsPage() {
             Biblioteca de OmniClin
           </h2>
           <p className="px-1 text-sm text-text-muted">Ya hechos, para no empezar de cero. Al añadir uno pasa a ser de tu clínica: lo cambias a tu gusto (textos, preguntas, nota). No están validados.</p>
-          <ul aria-label="Biblioteca de OmniClin" className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+          <ul aria-label="Biblioteca de OmniClin" className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
             {OWN_FORMS_LIBRARY.map((f) => (
               <li key={f.lib} className="flex items-center gap-2 pr-2">
                 <button type="button" onClick={() => open(f)} className="flex min-h-14 min-w-0 flex-1 flex-col justify-center px-3 py-1 text-left hover:bg-surface">

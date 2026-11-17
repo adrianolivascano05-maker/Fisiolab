@@ -73,7 +73,7 @@ function MovementCard({ patientId, movement, entries }: { patientId: string; mov
       <Card className="flex flex-col gap-2 hover:border-accent">
         <span className="flex items-center justify-between gap-2 font-semibold">
           {movementLabel(movement)}
-          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+          <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
         </span>
         {movement.sided ? (
           <span className="grid grid-cols-3 gap-2">

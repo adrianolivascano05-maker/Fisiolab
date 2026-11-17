@@ -68,9 +68,9 @@ export function Page({ title, backTo, backLabel, action, actionPast, help, tabs 
       {/* La ficha (`record`) es un `@container`: sus pantallas se ponen en columnas según el ancho que les queda (con
           la lista de pacientes al lado, menos), no según el de la ventana; por debajo de 42 rem (el móvil siempre)
           nada cambia. Solo ahí: un contenedor también encierra lo `fixed` de dentro (la capa de arrastre de la agenda). */}
-      <main className={cx("mx-auto flex flex-col gap-4 px-4 pt-2 lg:px-6", width === "record" && "@container", WIDTHS[width], showTabs ? "pb-28 lg:pb-12" : "pb-12")}>
-        {header ?? (big && <h1 className="text-[2rem] leading-tight font-bold">{title}</h1>)}
-        {big && <div ref={ref} aria-hidden="true" className="-mt-4 h-0" />}
+      <main className={cx("mx-auto flex flex-col gap-3 px-4 pt-2 lg:px-6", width === "record" && "@container", WIDTHS[width], showTabs ? "pb-28 lg:pb-12" : "pb-12")}>
+        {header ?? (big && <h1 className="text-[1.75rem] leading-tight font-bold">{title}</h1>)}
+        {big && <div ref={ref} aria-hidden="true" className="-mt-3 h-0" />}
         <SyncNotice />
         {showTabs && !backTo && <NewsNotice />}
         {children}

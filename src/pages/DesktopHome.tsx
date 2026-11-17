@@ -21,7 +21,7 @@ export function DesktopHome() {
   const [managing, setManaging] = useState<AgendaItem | null>(null);
   const own = useAsync(() => hasOwnPatients(getDb(), SEED_PREFIX, QUICK_PATIENT), []);
   return (
-    <Page title="Hoy" header={<h1 className="text-[2rem] leading-tight font-bold">{todayText()}</h1>}>
+    <Page title="Hoy" header={<h1 className="text-[1.75rem] leading-tight font-bold">{todayText()}</h1>}>
       <TodayView onOpen={setManaging} />
       <PatientNotices hasRealPatients={!!own.data} />
       {managing && <AppointmentSheet open onClose={() => setManaging(null)} patientId={managing.patientId} patientName={managing.name} appointment={managing} backToToday />}

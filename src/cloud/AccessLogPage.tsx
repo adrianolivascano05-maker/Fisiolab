@@ -65,7 +65,7 @@ export function AccessLogPage() {
       </Card>
       {rows.data && rows.data.length === 0 && <p className="text-sm text-text-muted">Ningún acceso anotado{name || member || patientId ? " con ese filtro" : " todavía"}.</p>}
       {rows.data && rows.data.length > 0 && (
-        <ul aria-label="Accesos" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
+        <ul aria-label="Accesos" className="flex flex-col divide-y divide-border card-edge rounded-lg border bg-bg shadow-card">
           {rows.data.map((r) => (
             <li key={r.id} className="flex flex-col gap-0.5 px-3 py-2">
               <span className="font-semibold">

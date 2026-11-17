@@ -80,7 +80,7 @@ function ExplorationSection({ id, findings }: { id: string; findings: Finding[] 
         ))
       )}
       {older.length > 0 && (
-        <details className="rounded-lg border border-border bg-bg p-3">
+        <details className="card-edge rounded-lg border bg-bg shadow-card p-3">
           <summary className="min-h-8 cursor-pointer font-semibold">Resultados anteriores ({older.length})</summary>
           <ul className="mt-2 flex flex-col gap-2">
             {older.map((f) => (
@@ -235,7 +235,7 @@ function TestPicker({ regions, onPick }: { regions: string[]; onPick: (t: Specia
     list.length > 0 && (
       <section className="flex flex-col gap-1.5">
         <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">{title}</h3>
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+        <ul className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
           {list.map((t) => (
             <li key={t.id}>
               <button type="button" onClick={() => onPick(t)} className="flex min-h-14 w-full flex-col items-start px-3 py-2 text-left hover:bg-surface">

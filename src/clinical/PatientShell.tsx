@@ -147,7 +147,7 @@ export function PatientShell({ patient, id, tabs = true, children }: { patient: 
                   aria-label="Más datos"
                   title="Más datos"
                   onClick={() => setMore(true)}
-                  className="inline-flex size-11 items-center justify-center rounded-pill border border-border bg-bg text-accent hover:bg-surface"
+                  className="inline-flex size-11 items-center justify-center rounded-pill bg-surface text-text hover:brightness-95"
                 >
                   <Ellipsis aria-hidden="true" className="size-5" />
                 </button>

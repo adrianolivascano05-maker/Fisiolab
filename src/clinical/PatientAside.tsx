@@ -48,7 +48,7 @@ export function PatientAside({ id }: { id: string }) {
     ["Bonos y cobros", accountLine(account) ?? "Nada pendiente apuntado", `/pacientes/${id}/cobros`],
   ];
   return (
-    <aside aria-label="Lo esencial del paciente" className="sticky top-[calc(var(--layout-header)+1rem)] flex flex-col gap-3 rounded-lg border border-border bg-bg p-3">
+    <aside aria-label="Lo esencial del paciente" className="sticky top-[calc(var(--layout-header)+1rem)] flex flex-col gap-3 card-edge rounded-lg border bg-bg shadow-card p-3">
       <Link to={`/pacientes/${id}/sesiones/nueva`} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
         <NotebookPen aria-hidden="true" className="size-5" /> Nueva sesión
       </Link>

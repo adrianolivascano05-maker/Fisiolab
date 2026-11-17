@@ -65,7 +65,7 @@ export function PatientRow({ to, name, meta, icon: Icon, active, tag, tinted }: 
             {tag.text}
           </span>
         )}
-        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
       </Link>
     </li>
   );
@@ -73,7 +73,7 @@ export function PatientRow({ to, name, meta, icon: Icon, active, tag, tinted }: 
 
 export function List({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <ul aria-label={label} className="divide-y divide-border rounded-lg border border-border bg-bg">
+    <ul aria-label={label} className="divide-y divide-border card-edge rounded-lg border bg-bg shadow-card">
       {children}
     </ul>
   );

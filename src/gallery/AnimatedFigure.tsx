@@ -196,7 +196,7 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
   const ctl = "inline-flex size-11 items-center justify-center rounded-full bg-bg/90 text-text shadow-sm ring-1 ring-border backdrop-blur hover:bg-surface";
   const seg = (on: boolean) => cx("h-11 min-w-11 rounded-md px-2.5 text-xs font-semibold transition-colors", on ? "bg-bg text-text shadow-sm" : "text-text-muted hover:text-text");
   return (
-    <figure className="flex flex-col overflow-hidden rounded-2xl border border-border bg-bg">
+    <figure className="flex flex-col overflow-hidden card-edge rounded-2xl border bg-bg shadow-card">
       <div ref={frame} className="relative aspect-[4/3] w-full" style={figVars}>
         {mode === "2d" ? (
           <div ref={svgBox} className="h-full w-full [&>svg]:h-full [&>svg]:w-full" dangerouslySetInnerHTML={{ __html: still }} />

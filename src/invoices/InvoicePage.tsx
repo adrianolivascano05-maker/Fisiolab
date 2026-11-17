@@ -66,7 +66,7 @@ export function InvoicePage() {
       <style>{"@page { size: A4; margin: 18mm 18mm 20mm; } @media print { body { background: white; } }"}</style>
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden">
+        <div className="flex flex-col gap-3 card-edge rounded-lg border bg-bg shadow-card p-4 print:hidden">
           {rectification && (
             <Alert tone="warning" title={`Anulada con la rectificativa ${rectification.code}`}>
               <Link className="font-semibold text-accent underline" to={`/facturas/${rectification.id}`}>

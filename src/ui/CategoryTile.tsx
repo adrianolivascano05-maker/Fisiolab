@@ -8,7 +8,7 @@ export function CategoryTile({ to, icon: Icon, title, detail }: CategoryTileProp
   return (
     <Link
       to={to}
-      className="flex min-h-28 flex-col justify-between gap-2 rounded-lg border border-border bg-bg p-4 shadow-card hover:border-accent"
+      className="flex min-h-28 flex-col justify-between gap-2 card-edge rounded-lg border bg-bg shadow-card p-4 hover:border-accent"
     >
       <Icon aria-hidden="true" className="size-6 text-accent" />
       <span className="flex flex-col">

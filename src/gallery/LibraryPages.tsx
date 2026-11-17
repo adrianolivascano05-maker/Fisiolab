@@ -140,7 +140,7 @@ export function QuestionnaireCard() {
       />
 
       {form && questions > 0 && (
-        <div className="overflow-hidden rounded-lg border border-border bg-bg">
+        <div className="overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
           <Disclosure title={`Ver las ${questions} preguntas`} open={open} onToggle={setOpen}>
             <div className="flex flex-col gap-3 text-sm">
               <p className="text-text-muted">{form.instructions}</p>

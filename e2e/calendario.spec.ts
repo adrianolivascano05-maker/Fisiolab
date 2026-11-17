@@ -330,6 +330,10 @@ test.describe("Calendario del paciente", () => {
     const href = decodeURIComponent((await send.getAttribute("href"))!);
     expect(href).toContain("Hola, Tomás. Tus próximas citas de fisioterapia en");
     expect(href.match(/· [a-záéíóúñ]+, \d+ de [a-z]+ a las 10:00/g)).toHaveLength(4);
+    // El aviso con «Deshacer» es pasajero: se revisa la página cuando se ha ido.
+    await expect(page.getByText(/^4 citas dadas/)).toHaveCount(0, { timeout: 20_000 });
+    // Arriba del todo: las pestañas fijas de la ficha no tapan ninguna fila del mes al revisar.
+    await page.evaluate(() => window.scrollTo(0, 0));
     await expectAccessible(page);
   });
 

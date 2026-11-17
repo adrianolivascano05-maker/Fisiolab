@@ -19,7 +19,7 @@ export function AccountCard() {
   const s = useSyncState();
   if (cloud && s)
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-border bg-bg px-3 py-2">
+      <div className="flex items-center gap-3 card-edge rounded-lg border bg-bg shadow-card px-3 py-2">
         <span aria-hidden="true" className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft font-semibold text-accent">
           {cloud.account.name.slice(0, 1).toUpperCase()}
         </span>
@@ -150,7 +150,7 @@ export function SignInSetupPage() {
         </Button>
       </Card>
 
-      <details className="rounded-lg border border-border bg-bg p-4">
+      <details className="card-edge rounded-lg border bg-bg shadow-card p-4">
         <summary className="cursor-pointer font-semibold">Lo activo yo, o ya tengo el ID de cliente</summary>
         <div className="mt-3 flex flex-col gap-3">
           <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm">

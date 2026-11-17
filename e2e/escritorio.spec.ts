@@ -142,8 +142,8 @@ test.describe("Ordenador", () => {
     const hoy = page.getByRole("complementary", { name: /^Hoy · / });
     await expect(hoy).toBeVisible();
     await expect(hoy.getByRole("link", { name: /Lista de espera/ })).toBeVisible();
-    // (El selector de vista va arriba, a todo el ancho; las columnas empiezan en la fila de la fecha.)
-    const [v, d, h] = [(await views.boundingBox())!, (await page.getByRole("button", { name: "Ir a hoy" }).boundingBox())!, (await hoy.boundingBox())!];
+    // (El selector de vista y «Ir a hoy» van arriba, a todo el ancho; las columnas empiezan en la fila de la fecha.)
+    const [v, d, h] = [(await views.boundingBox())!, (await page.getByRole("button", { name: /anterior$/ }).boundingBox())!, (await hoy.boundingBox())!];
     expect(h.x).toBeGreaterThan(v.x + v.width);
     expect(Math.abs(h.y - d.y)).toBeLessThan(40);
     expect(await scrollWidth(page)).toBeLessThanOrEqual(1440);

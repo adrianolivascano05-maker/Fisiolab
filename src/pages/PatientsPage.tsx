@@ -1,5 +1,5 @@
 import { addDays, todayDay } from "../app/dates";
-import { CalendarCheck, ChevronLeft, ChevronRight, Info, Plus, Search, SlidersHorizontal, Users, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, Plus, Search, SlidersHorizontal, Users, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { fmtDate, madridDay } from "../app/format";
@@ -27,7 +27,6 @@ import {
   type PatientHit,
 } from "../data/patientSearch";
 import { getSetting, QUICK_PATIENT, type Sex } from "../data/repo";
-import { agenda, type AgendaItem } from "../data/appointments";
 import { SEED_PREFIX } from "../data/seed";
 import { useStaff } from "../schedule/useStaff";
 import { Alert } from "../ui/Alert";
@@ -199,7 +198,8 @@ function QuickFilters({ list }: { list: PatientList }) {
     { id: "deben", label: "Deben", n: c.owe, set: { quick: null, pending: "cobrar" } },
   ];
   return (
-    <div role="group" aria-label="Ver" className="flex flex-wrap gap-1.5">
+    // Los cuatro en una fila; en un móvil estrecho, la fila se desliza (no salta de línea).
+    <div role="group" aria-label="Ver" className="-mx-4 flex gap-1.5 overflow-x-auto px-4">
       {chips.map((chip) => (
         <button
           key={chip.id}
@@ -207,7 +207,7 @@ function QuickFilters({ list }: { list: PatientList }) {
           aria-pressed={on === chip.id}
           onClick={() => list.setFilters(chip.id === "todos" ? NO_FILTERS : { ...f, ...chip.set })}
           className={cx(
-            "inline-flex min-h-11 items-center gap-1.5 rounded-pill border px-3 text-sm font-semibold",
+            "inline-flex min-h-11 shrink-0 items-center gap-1 rounded-pill border px-2.5 text-sm font-semibold whitespace-nowrap",
             on === chip.id ? "border-accent bg-accent text-on-accent" : "border-border bg-bg text-accent hover:bg-surface",
           )}
         >
@@ -328,7 +328,8 @@ function FiltersSheet({ open, onClose, list }: { open: boolean; onClose: () => v
 /** Ir a los que empiezan por una letra: una tira que se desliza de lado, de la A a la Z (cada letra, de 44 px). */
 function LetterPicker({ list }: { list: PatientList }) {
   return (
-    <div role="group" aria-label="Empiezan por" className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1">
+    // data-min-tap: cada letra mide 44 px de alto y al menos 24 de ancho (WCAG 2.2 AA).
+    <div role="group" aria-label="Empiezan por" data-min-tap="24" className="-mx-4 flex gap-1 overflow-x-auto px-4 pb-1">
       {LETTERS.map((l) => (
         <button
           key={l}
@@ -337,8 +338,9 @@ function LetterPicker({ list }: { list: PatientList }) {
           aria-label={l === "#" ? "Otro signo o número" : `Letra ${l}`}
           onClick={() => list.setLetter(list.letter === l ? null : l)}
           className={cx(
-            "tap inline-flex shrink-0 items-center justify-center rounded-md text-sm font-semibold",
-            list.letter === l ? "bg-accent text-on-accent" : "bg-surface text-accent hover:bg-accent-soft",
+            // Solo la letra (sin caja): 44 px de alto y al menos 24 de ancho para tocarla.
+            "inline-flex h-11 min-w-7 shrink-0 items-center justify-center rounded-md px-1 text-sm font-semibold",
+            list.letter === l ? "bg-accent text-on-accent" : "text-accent hover:bg-accent-soft",
           )}
         >
           {l}
@@ -476,20 +478,13 @@ const newPatientLink = (
   </Link>
 );
 
-/** S01 Pacientes (el móvil): el buscador, una franja con las citas de hoy (lleva a Agenda › Hoy, donde está lo
- * pendiente) y la lista. Los avisos van al final. */
+/** S01 Pacientes (el móvil): el buscador con los filtros (con «Hoy», quién viene hoy) y la lista. Los avisos van al
+ * final. Quien quiera atender y cobrar lo de hoy lo tiene en Agenda › Hoy. */
 export function PatientsPage() {
   const list = usePatientList();
-  const version = useDataVersion();
-  // Las citas de hoy que siguen en pie (sin las anuladas), para la franja.
-  const today = useAsync(
-    async () => (await agenda(getDb(), `${dayPlus(-1)}T20:00:00Z`, `${dayPlus(1)}T04:00:00Z`)).filter((a) => madridDay(a.startsAt) === dayPlus(0) && a.status !== "cancelled"),
-    [version],
-  );
   return (
     <Page title="Pacientes" action={newPatientLink}>
       <PatientSearch list={list} />
-      {!list.narrowed && list.hasPatients && today.data && today.data.length > 0 && <TodayStrip items={today.data} />}
       <PatientRows list={list} />
       {!list.narrowed && <PatientNotices hasRealPatients={list.hasOwn} />}
     </Page>
@@ -508,29 +503,6 @@ export function PatientsPane({ currentId }: { currentId: string | null }) {
       <PatientSearch list={list} compact />
       <PatientRows list={list} currentId={currentId} />
     </div>
-  );
-}
-
-/** Hoy en una fila: cuántas citas y a quién, y un toque a Agenda › Hoy (allí, atender, cobrar y lo pendiente). */
-function TodayStrip({ items }: { items: AgendaItem[] }) {
-  const sorted = [...items].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-  const first = (name: string) => name.trim().split(/\s+/)[0] ?? name;
-  const shown = sorted.slice(0, 3).map((a) => `${hourOf(a.startsAt)} ${first(a.name)}`);
-  const more = sorted.length - shown.length;
-  return (
-    <Link
-      to="/agenda?vista=hoy"
-      className="flex min-h-14 items-center gap-3 rounded-lg bg-accent-soft px-3 py-2 hover:bg-surface"
-    >
-      <CalendarCheck aria-hidden="true" className="size-5 shrink-0 text-accent" />
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="font-semibold">Hoy · {sorted.length === 0 ? "sin citas" : sorted.length === 1 ? "1 cita" : `${sorted.length} citas`}</span>
-        <span className="truncate text-sm text-text-muted">
-          {sorted.length ? `${shown.join(" · ")}${more > 0 ? ` y ${more} más` : ""}` : "Lo pendiente de la clínica, en la agenda"}
-        </span>
-      </span>
-      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
-    </Link>
   );
 }
 

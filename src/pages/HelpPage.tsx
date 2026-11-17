@@ -37,7 +37,7 @@ const steps: { id?: string; title: string; body: ReactNode }[] = [
         Arriba, sus datos y una fila con el <b>motivo</b>, su <b>próxima cita</b> y lo que <b>debe</b>. Debajo, cinco pestañas fijas al bajar:{" "}
         <b>Resumen</b> (cómo está, lo pendiente y sus documentos), <b>Anamnesis</b>, <b>Valoración</b> (tests de exploración, cuestionarios y
         mediciones, en una página), <b>Sesiones</b> (cada visita, la curva del dolor y su historia) y <b>Calendario</b>: sus citas mes a mes (con
-        «Citas», solo ellas) y lo suyo fuera de la clínica, que apuntas con «Apuntar evento»: una operación, sus entrenamientos (cada semana, los
+        «Citas», solo ellas) y lo suyo fuera de la clínica, que apuntas al tocar un día («Apuntar evento este día») o, sin día elegido, con «Apuntar evento» debajo del mes: una operación, sus entrenamientos (cada semana, los
         días que sean; un día suelto se quita con «Este día no»), un partido, una prueba médica, un viaje. En el mes, cada cosa lleva su
         color y su palabra: la cita con su hora (✓ si ya vino), lo médico, los viajes (una franja), el deporte y lo demás; los días con la
         agenda cerrada salen rayados. Los botones de colores de debajo filtran el mes. Desliza el dedo sobre el mes para cambiarlo. No ocupan la agenda ni se
@@ -171,7 +171,7 @@ const steps: { id?: string; title: string; body: ReactNode }[] = [
 ];
 
 const places: { icon: typeof Users; name: string; text: string }[] = [
-  { icon: Users, name: "Pacientes", text: "el buscador, las citas de hoy en una fila y la lista de tus pacientes." },
+  { icon: Users, name: "Pacientes", text: "el buscador, los filtros (Hoy, Sin cita, Deben) y la lista de tus pacientes." },
   { icon: CalendarDays, name: "Agenda", text: "hoy (atender, cobrar y lo pendiente), el día o la semana, los recordatorios y la lista de espera." },
   {
     icon: BookOpen,

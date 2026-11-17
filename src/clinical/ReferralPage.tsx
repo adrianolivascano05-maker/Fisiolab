@@ -135,7 +135,7 @@ export function ReferralPage() {
       <style>{"@page { size: A4; margin: 14mm 14mm 16mm; } @media print { body { background: white; } }"}</style>
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden">
+        <div className="flex flex-col gap-3 card-edge rounded-lg border bg-bg shadow-card p-4 print:hidden">
           <p className="text-sm text-text-muted">Sale redactada con lo que hay en la ficha. Revísala y cambia lo que quieras: no se guarda.</p>
           <TextField label="Dirigida a" value={to} onChange={(e) => setTo(e.target.value)} />
           <fieldset className="flex flex-col gap-2">

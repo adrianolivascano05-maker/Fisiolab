@@ -44,7 +44,7 @@ export function DebtorsPage() {
           <p className="text-lg font-semibold">
             {euros(total)} · {data.data.debtors.length === 1 ? "1 paciente" : `${data.data.debtors.length} pacientes`}
           </p>
-          <ul aria-label="Pendiente de cobro" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
+          <ul aria-label="Pendiente de cobro" className="flex flex-col divide-y divide-border card-edge rounded-lg border bg-bg shadow-card">
             {data.data.debtors.map((x) => (
               <li key={x.patientId} className="flex items-stretch">
                 <Link to={`/pacientes/${x.patientId}/cobros`} className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-3 py-2 hover:bg-surface">

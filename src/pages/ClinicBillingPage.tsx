@@ -118,7 +118,7 @@ export function ClinicBillingPage() {
         </h2>
         <p className="text-sm text-text-muted">Los que vendes siempre: al vender un bono a un paciente, se eligen con un toque.</p>
         {presets.length > 0 && (
-          <ul aria-label="Bonos de la clínica" className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
+          <ul aria-label="Bonos de la clínica" className="flex flex-col divide-y divide-border card-edge rounded-lg border bg-bg shadow-card">
             {presets.map((p) => (
               <li key={p.id} className="flex items-center gap-2 py-1 pr-1 pl-3">
                 <span className="min-w-0 flex-1">
@@ -229,7 +229,7 @@ function PresetForm({ initial, onSave }: { initial: PackPreset; onSave: (p: Pack
 
 function Tile({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="flex flex-col rounded-lg border border-border bg-bg p-3">
+    <div className="flex flex-col card-edge rounded-lg border bg-bg shadow-card p-3">
       <dt className="text-sm text-text-muted first-letter:uppercase">{label}</dt>
       <dd className="text-2xl font-semibold tabular-nums">{value}</dd>
       <dd className="text-xs text-text-muted">{detail}</dd>

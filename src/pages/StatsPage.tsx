@@ -119,7 +119,7 @@ export function StatsPage() {
 
 function Tile({ label, value, detail, warn }: { label: string; value: string; detail?: string; warn?: boolean }) {
   return (
-    <div className="flex flex-col rounded-lg border border-border bg-bg p-3">
+    <div className="flex flex-col card-edge rounded-lg border bg-bg shadow-card p-3">
       <dt className="text-sm text-text-muted">{label}</dt>
       <dd className={cx("text-2xl font-semibold tabular-nums", warn && "text-warning")}>{value}</dd>
       {detail && <dd className="text-xs text-text-muted">{detail}</dd>}

@@ -742,7 +742,7 @@ export function CustomFieldsPage() {
         </h2>
         <p className="text-sm text-text-muted">Bloques de preguntas de una especialidad. Lo que cambies en un módulo se ve en todas las plantillas que lo llevan.</p>
         {inTemplate.length > 0 && (
-          <ul aria-label="Módulos de esta plantilla" className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+          <ul aria-label="Módulos de esta plantilla" className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
             {inTemplate.map(({ tm, rm }) => (
               <li key={tm.id} className="flex flex-col gap-2 px-3 py-2">
                 <span className="flex flex-col">
@@ -788,7 +788,7 @@ export function CustomFieldsPage() {
           <>
             <h3 className="text-base">De la clínica</h3>
             {freeOwn.length > 0 && (
-              <ul aria-label="Módulos de la clínica" className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+              <ul aria-label="Módulos de la clínica" className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
                 {freeOwn.map((m) => (
                   <li key={m.id} className="flex flex-col gap-2 px-3 py-2">
                     <span className="flex flex-col">
@@ -826,7 +826,7 @@ export function CustomFieldsPage() {
             )}
             <h3 className="text-base">Biblioteca de OmniClin</h3>
             {MODULES_LIBRARY.some((m) => !doc.delta.modules.some((t) => t.id === m.id)) && (
-              <ul aria-label="Módulos de OmniClin" className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+              <ul aria-label="Módulos de OmniClin" className="divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
                 {MODULES_LIBRARY.filter((m) => !doc.delta.modules.some((t) => t.id === m.id)).map((m) => (
                   <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                     <span className="flex min-w-0 flex-col">

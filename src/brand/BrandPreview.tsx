@@ -43,7 +43,7 @@ function Phone({ brand, tokens, label }: { brand: Brand; tokens: Tokens; label: 
               <span className="text-text-muted">5 citas</span>
             </div>
             {ROWS.map(([h, n, w, st]) => (
-              <div key={h} className="flex items-center gap-2 rounded-lg border border-border bg-bg px-2 py-1.5">
+              <div key={h} className="flex items-center gap-2 card-edge rounded-lg border bg-bg shadow-card px-2 py-1.5">
                 <b className="nums text-accent">{h}</b>
                 <span className="min-w-0 flex-1">
                   <b className="block truncate">{n}</b>
@@ -52,7 +52,7 @@ function Phone({ brand, tokens, label }: { brand: Brand; tokens: Tokens; label: 
                 {st && <span className={st === "Cobrar" ? "rounded-full bg-highlight px-1.5 py-0.5 text-[8px] font-bold text-on-highlight" : "rounded-full bg-accent px-1.5 py-0.5 text-[8px] font-bold text-on-accent"}>{st}</span>}
               </div>
             ))}
-            <div className="rounded-lg border border-border bg-bg px-2 py-1.5">
+            <div className="card-edge rounded-lg border bg-bg shadow-card px-2 py-1.5">
               <span className="text-[7px] font-bold tracking-wider text-text-muted uppercase">Esta semana</span>
               <div className="mt-1 flex h-6 items-end gap-1">
                 {[5, 7, 4, 8, 6].map((v, i) => (

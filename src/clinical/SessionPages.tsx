@@ -590,7 +590,7 @@ export function SessionFormPage() {
       {/* Su calendario, contado desde el día de la sesión, y apuntar en él lo que cuente sin salir de aquí. */}
       <CalendarNote patientId={id} day={base} />
       {previous && (previous.subjective || previous.objective || previous.treatment || previous.plan || previous.pain !== null) && (
-        <details className="rounded-md border border-border px-3">
+        <details className="card-edge rounded-lg border bg-bg px-3 shadow-card">
           <summary className="flex min-h-11 cursor-pointer items-center font-semibold">
             Última sesión: {fmtDate(previous.performedAt)}
             {previous.pain !== null && ` · EVA ${previous.pain}`}
@@ -616,7 +616,7 @@ export function SessionFormPage() {
       )}
       {!sid && count.planned !== null && count.done >= count.planned && (
         <Alert tone="warning" title={`Ya lleva las ${count.planned} sesiones previstas`}>
-          Si sigue, cambia el número en su anamnesis (Objetivos → Sesiones previstas).
+          Si sigue, cambia el número en su anamnesis.
         </Alert>
       )}
       {charge.data && charge.data.kind !== "none" && (

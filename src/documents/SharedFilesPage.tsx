@@ -103,7 +103,7 @@ export function SharedFilesPage() {
               </ul>
             </Alert>
           )}
-          <ul aria-label="Pacientes" className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+          <ul aria-label="Pacientes" className="flex flex-col divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
             {(patients.data ?? []).slice(0, 30).map((p) => (
               <li key={p.id}>
                 <Button variant="ghost" block loading={busy === p.id} disabled={busy !== null} icon={<FilePlus2 aria-hidden="true" className="size-5" />} onClick={() => void save(p.id, p.name)}>

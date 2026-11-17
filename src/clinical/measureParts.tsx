@@ -6,7 +6,7 @@ import type { TestSummary } from "../data/repo";
 import { Card } from "../ui/Card";
 import { mainValue } from "./measures";
 
-const tile = "flex min-h-14 items-center gap-2 rounded-lg border border-border bg-bg p-3 font-semibold shadow-card hover:border-accent";
+const tile = "flex min-h-14 items-center gap-2 card-edge rounded-lg border bg-bg shadow-card p-3 font-semibold hover:border-accent";
 
 /** Accesos a los análisis que ya tienen datos. */
 export function AnalysisNav({ id, tests }: { id: string; tests: TestSummary[] }) {

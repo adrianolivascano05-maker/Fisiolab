@@ -203,7 +203,7 @@ export function Options({ value, locked, onChange }: { value: string[]; locked: 
 /** Un apartado que se pliega: el título, lo que lleva y el contenido. */
 export function Fold({ id, title, count, open, tag, children }: { id: string; title: string; count: string; open: boolean; tag?: string; children: ReactNode }) {
   return (
-    <details id={id} open={open || undefined} className="group scroll-mt-20 rounded-lg border border-border bg-bg shadow-card">
+    <details id={id} open={open || undefined} className="group scroll-mt-20 card-edge rounded-lg border bg-bg shadow-card">
       <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-3 px-4 py-2 [&::-webkit-details-marker]:hidden">
         <span className="flex min-w-0 flex-col">
           <span className="text-lg font-semibold break-words text-brand-ink">{title}</span>

@@ -157,7 +157,7 @@ export function DischargePage() {
       <style>{"@page { size: A4; margin: 14mm 14mm 16mm; } @media print { body { background: white; } }"}</style>
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden">
+        <div className="flex flex-col gap-3 card-edge rounded-lg border bg-bg shadow-card p-4 print:hidden">
           {!episode.closedAt && (
             <Alert tone="info" title="Este motivo de consulta sigue abierto">
               Al darlo por terminado (arriba en la ficha, «Motivo» → «Dar por terminado») la fecha de alta queda puesta.

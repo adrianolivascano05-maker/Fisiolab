@@ -1,6 +1,6 @@
 // Apuntar una sesión (docs/rediseno-sencilla.md, bloque 5): el dolor con su escala de color y el de la última vez,
 // «Igual que la última» en cada cuadro, la siguiente cita dicha antes de guardar, el borrador y «Guardar» fijo abajo.
-import { expect, expectAccessible, smallTargets, test } from "./fixtures";
+import { ampliada, expect, expectAccessible, smallTargets, test } from "./fixtures";
 
 test("SE1 sesión: dolor de la última vez, «Igual que la última», borrador al recargar, la siguiente cita y «Guardar» siempre a la vista", async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 780 });
@@ -51,4 +51,35 @@ test("SE1 sesión: dolor de la última vez, «Igual que la última», borrador a
   await page.goto(`${record}/sesiones/nueva`);
   await expect(page.getByLabel("Qué refiere")).toHaveValue("");
   await expect(page.getByText(/^Borrador guardado/)).toHaveCount(0);
+});
+
+test("SE2 la escala EVA en una sola fila: once números de al menos 24 px de ancho y 44 de alto (sesión a 320 px; anamnesis, dos filas a 320 y una a 360)", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto("./pacientes/nuevo");
+  await page.getByLabel("Nombre").fill("Eva Fila");
+  await page.getByRole("button", { name: "Crear paciente" }).click();
+  await expect(page.getByRole("heading", { name: "Eva Fila" })).toBeVisible();
+  const record = page.url();
+  const measure = async (legend: RegExp, rows = 1) => {
+    const spans = page.locator("fieldset", { has: page.locator("legend", { hasText: legend }) }).first().locator("label > span");
+    await expect(spans).toHaveCount(11);
+    const boxes = await spans.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ x: r.x, y: Math.round(r.y), w: r.width, h: r.height })));
+    expect(boxes).toHaveLength(11);
+    expect(new Set(boxes.map((b) => b.y)).size).toBe(rows);
+    for (const b of boxes) {
+      expect(b.w).toBeGreaterThanOrEqual(24);
+      expect(b.h).toBeGreaterThanOrEqual(44);
+    }
+  };
+  await page.goto(`${record}/sesiones/nueva`);
+  await measure(/^Dolor hoy/);
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 320);
+  expect(await smallTargets(page)).toEqual([]);
+  // En la anamnesis va dentro de una caja: a 320 px no caben once de 24 px y pasa a dos filas; a 360, en una.
+  await page.goto(`${record}/anamnesis`);
+  await ampliada(page);
+  await measure(/^Intensidad \(EVA/, 2);
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 320);
+  await page.setViewportSize({ width: 360, height: 720 });
+  await measure(/^Intensidad \(EVA/);
 });

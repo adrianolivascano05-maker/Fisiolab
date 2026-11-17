@@ -137,7 +137,7 @@ export function ToBillPage() {
       {shown.length === 0 ? (
         <p className="text-text-muted">{rows.length ? "Todos los cobros de este mes tienen su factura." : `Sin cobros en ${monthYear(month)}.`}</p>
       ) : (
-        <ul aria-label={`Cobros de ${monthYear(month)}`} className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
+        <ul aria-label={`Cobros de ${monthYear(month)}`} className="flex flex-col divide-y divide-border card-edge rounded-lg border bg-bg shadow-card">
           {shown.map((r) => (
             <li key={r.id} className="flex flex-col gap-1 px-3 py-2">
               <div className="flex items-start gap-3">

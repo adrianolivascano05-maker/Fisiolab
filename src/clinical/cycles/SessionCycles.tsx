@@ -116,7 +116,7 @@ export function PlanLine({ patientId, c }: { patientId: string; c: SessionCycles
             "Plan por ciclos: terminado"
           )}
         </span>
-        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
       </span>
     </Link>
     {/* Semana de valoración (la marca el fisio en la semana): lo de valorar, a mano. */}
@@ -148,7 +148,7 @@ export function OrganizeButton({ patientId, c }: { patientId: string; c: Session
         <span className="font-semibold">Organizar por ciclos</span>
         <span className="text-sm text-text-muted">Macro, meso y microciclos con sus ejercicios</span>
       </span>
-      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+      <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
     </Link>
   );
 }
@@ -166,7 +166,7 @@ export function TodayToca({ c }: { c: SessionCycles }) {
   const scale = effort === "rir" ? [0, 1, 2, 3, 4, 5] : [6, 7, 8, 9, 10];
 
   return (
-    <section aria-labelledby="hoy-toca" className="flex flex-col gap-2 rounded-lg border border-border bg-bg p-3">
+    <section aria-labelledby="hoy-toca" className="flex flex-col gap-2 card-edge rounded-lg border bg-bg shadow-card p-3">
       <div className="flex items-center justify-between gap-2">
         <h3 id="hoy-toca" className="text-base font-semibold">
           Tratamiento · hoy toca
@@ -322,14 +322,14 @@ export function PlanCard({ patientId }: { patientId: string }) {
   return (
     <Link
       to={`/pacientes/${patientId}/ciclos?motivo=${encodeURIComponent(info.data!.episode)}&volver=${encodeURIComponent(pathname + search)}`}
-      className="flex flex-col gap-1.5 rounded-lg border border-border bg-bg px-3 py-2 hover:bg-surface"
+      className="flex flex-col gap-1.5 card-edge rounded-lg border bg-bg shadow-card px-3 py-2 hover:bg-surface"
     >
       <span className="flex items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2 font-semibold">
           <Layers aria-hidden="true" className="size-5 shrink-0 text-accent" />
           <span className="truncate">Plan por ciclos{plan.goal ? `: ${plan.goal}` : ""}</span>
         </span>
-        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
       </span>
       <PhaseBar plan={plan} week={week} />
       <span className="text-sm text-text-muted">

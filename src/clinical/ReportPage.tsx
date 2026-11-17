@@ -130,7 +130,7 @@ export function ReportPage() {
       <style>{"@page { size: A4; margin: 14mm 14mm 16mm; } @media print { body { background: white; } }"}</style>
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden">
+        <div className="flex flex-col gap-3 card-edge rounded-lg border bg-bg shadow-card p-4 print:hidden">
           <fieldset className="flex flex-col gap-2">
             <legend className="text-sm font-semibold">Qué incluir</legend>
             <div className="flex flex-wrap gap-x-4 gap-y-2">

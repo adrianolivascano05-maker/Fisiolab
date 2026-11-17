@@ -60,7 +60,7 @@ export function LicensesPage() {
           <ul className="flex flex-col gap-2">
             {state.list.map((p) => (
               <li key={`${p.name}@${p.version}`}>
-                <details className="group rounded-lg border border-border bg-bg">
+                <details className="group card-edge rounded-lg border bg-bg shadow-card">
                   <summary className="flex min-h-11 cursor-pointer flex-wrap items-center gap-x-2 px-3 py-2">
                     <span className="font-semibold break-all">{p.name}</span>
                     <span className="text-sm text-text-muted">

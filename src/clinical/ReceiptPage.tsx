@@ -63,7 +63,7 @@ export function ReceiptPage() {
       <style>{"@page { size: A4; margin: 18mm 18mm 20mm; } @media print { body { background: white; } }"}</style>
       {bar}
       <main className="mx-auto flex max-w-3xl flex-col gap-4 px-4 pt-4 pb-12 print:max-w-none print:p-0">
-        <form className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden" onSubmit={(e) => e.preventDefault()}>
+        <form className="flex flex-col gap-3 card-edge rounded-lg border bg-bg shadow-card p-4 print:hidden" onSubmit={(e) => e.preventDefault()}>
           <TextField label="DNI o NIE del paciente (opcional)" value={idDoc} onChange={(e) => setIdDoc(e.target.value)} hint="Sale de su ficha; si lo cambias aquí, solo vale para este recibo." />
           {!issuer && <p className="text-sm text-warning">Faltan los datos de la clínica: rellénalos en Ajustes → Clínica para que salgan en el recibo.</p>}
           <Button size="lg" icon={<Printer aria-hidden="true" className="size-5" />} onClick={() => window.print()}>

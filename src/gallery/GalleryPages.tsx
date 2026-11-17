@@ -98,14 +98,14 @@ function TestRow({ t, showRegion }: { t: SpecialTest; showRegion?: boolean }) {
             {showRegion && <span className="text-xs text-text-muted">· {regionOf(t.region).label}</span>}
           </span>
         </span>
-        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+        <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
       </Link>
     </li>
   );
 }
 
 const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-const listBox = "divide-y divide-border overflow-hidden rounded-xl border border-border bg-bg";
+const listBox = "divide-y divide-border overflow-hidden card-edge rounded-xl border bg-bg shadow-card";
 /** Al buscar, los primeros tests; el resto con «Ver los N tests», para que se vean también cuestionarios y mediciones. */
 const FIRST_TESTS = 10;
 /** Título de estante, como el de los grupos (pequeño, en mayúsculas). */
@@ -215,7 +215,7 @@ export function GalleryHome() {
                 const groups = new Set(list.map((t) => t.group)).size;
                 return (
                   <li key={r.id}>
-                    <Link to={`${GALLERY}/${r.slug}`} className="flex h-full min-h-20 flex-col justify-between rounded-xl border border-border bg-bg p-3 hover:border-accent hover:bg-surface">
+                    <Link to={`${GALLERY}/${r.slug}`} className="flex h-full min-h-20 flex-col justify-between card-edge rounded-xl border bg-bg shadow-card p-3 hover:border-accent hover:bg-surface">
                       <span className="font-semibold leading-tight">{r.label}</span>
                       <span className="text-xs text-text-muted">
                         {list.length} tests · {groups} {groups === 1 ? "patología" : "patologías"}

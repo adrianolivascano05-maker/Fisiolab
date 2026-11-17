@@ -67,7 +67,7 @@ export function UpcomingSheetPage() {
           </Alert>
         ) : (
           <>
-            <div className="flex flex-col gap-3 rounded-lg border border-border bg-bg p-4 print:hidden">
+            <div className="flex flex-col gap-3 card-edge rounded-lg border bg-bg shadow-card p-4 print:hidden">
               <p className="text-sm text-text-muted">
                 Para dársela en la consulta. Solo lleva sus citas (como mucho {SHEET_MAX}), nada de su salud.
               </p>

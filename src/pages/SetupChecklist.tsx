@@ -60,7 +60,7 @@ export function SetupChecklist() {
   if (done === steps.length) return null;
   const next = steps.find((s) => !s.done)!;
   return (
-    <section aria-labelledby="puesta-en-marcha" className="flex flex-col gap-2 rounded-lg border border-border bg-bg p-3 lg:col-span-2">
+    <section aria-labelledby="puesta-en-marcha" className="flex flex-col gap-2 card-edge rounded-lg border bg-bg shadow-card p-3 lg:col-span-2">
       <div className="flex items-center justify-between gap-2">
         <h2 id="puesta-en-marcha" className="text-base">
           Pon en marcha tu clínica · {done} de {steps.length}

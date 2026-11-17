@@ -61,7 +61,7 @@ export function ExerciseLibraryPage() {
           <h2 id={`h-ej-${r.id || "otros"}`} className="text-lg">
             {r.label}
           </h2>
-          <ul className="flex flex-col divide-y divide-border rounded-lg border border-border bg-bg">
+          <ul className="flex flex-col divide-y divide-border card-edge rounded-lg border bg-bg shadow-card">
             {items.map((e) => (
               <li key={e.id}>
                 <button

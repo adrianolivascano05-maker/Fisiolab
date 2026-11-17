@@ -134,7 +134,7 @@ export function DocumentsPage() {
       )}
 
       {docs.length > 0 ? (
-        <ul aria-label="Archivos" className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border bg-bg">
+        <ul aria-label="Archivos" className="flex flex-col divide-y divide-border overflow-hidden card-edge rounded-lg border bg-bg shadow-card">
           {docs.map((d) => (
             <li key={d.id}>
               <button type="button" className="flex min-h-14 w-full items-center gap-3 px-3 py-2 text-left hover:bg-surface" onClick={() => setOpen(d)}>

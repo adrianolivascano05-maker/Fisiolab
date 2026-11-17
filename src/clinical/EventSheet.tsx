@@ -263,7 +263,7 @@ export function VisitList({ appointments, onVisit, detail }: { appointments: App
               <span className="font-semibold first-letter:uppercase">{fmtVisit(a.startsAt)}</span>
               {detail && <span className="text-sm text-text-muted">{detail(a)}</span>}
             </span>
-            <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
+            <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-chevron" />
           </button>
         </li>
       ))}

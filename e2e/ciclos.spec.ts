@@ -25,6 +25,8 @@ test("CI1 crear un plan por ciclos con ejercicios, rellenar la progresión y apu
   await expect(fases.getByRole("listitem")).toHaveCount(4);
   await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
   expect(await smallTargets(page)).toEqual([]);
+  // Abajo del todo: la barra fija de «Siguiente» no tapa ninguna fila al revisar.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expectAccessible(page);
   await page.getByRole("button", { name: "Siguiente: ejercicios de la semana 1" }).click();
 
