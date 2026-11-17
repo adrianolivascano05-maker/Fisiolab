@@ -2,7 +2,7 @@
 // (cada minuto, sync.ts) dice si hay alguna; entonces se bajan, se ponen en la ficha (collect.ts) y se avisa. Con un
 // servidor de una versión anterior, que no lo dice, se preguntan aparte cada minuto (y al volver a la app o recuperar
 // la conexión). Sin servidor, nada.
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useLayoutEffect } from "react";
 import { bumpData } from "../app/dataVersion";
 import { formTitle, PRIVACY_KIND } from "../clinical/patientForms";
 import { useAnamnesisTemplate } from "../clinical/useAnamnesis";
@@ -71,7 +71,9 @@ export function FormInbox() {
   const collect = useCollectForms();
   // La última versión (con la ficha de la clínica al día), sin volver a poner los temporizadores a cada cambio.
   const latest = useRef(collect);
-  latest.current = collect;
+  useLayoutEffect(() => {
+    latest.current = collect;
+  });
   // Con la app bloqueada no se recoge (los avisos llevan el nombre del paciente y se verían sobre el PIN).
   const { locked } = useAppLock();
   const active = !!cloud?.clinic && !locked;
@@ -99,6 +101,6 @@ export function FormInbox() {
       document.removeEventListener("visibilitychange", run);
       window.removeEventListener("online", run);
     };
-  }, [ask]);
+  }, [ask, cloud?.closing]);
   return null;
 }

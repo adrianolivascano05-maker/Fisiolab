@@ -6,7 +6,7 @@
 import { ChevronLeft, ChevronRight, FileText, Lock, Send, Upload, X } from "lucide-react";
 import { RESPONDENT } from "../clinical/answerMeta";
 import { buildForm, isOwnKind, ownLabelFor } from "../clinical/forms/own";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, useLayoutEffect } from "react";
 import { FormFill, formResult } from "../clinical/FormFill";
 import { AnamnesisStep, focusField, missingRequired, withoutHidden } from "./AnamnesisStep";
 import { citeOf, formFor, type Answers as FormAnswers } from "../clinical/forms";
@@ -46,7 +46,7 @@ function fromUrl() {
 
 export function PublicFormPage() {
   const [{ id, key }] = useState(fromUrl);
-  const [phase, setPhase] = useState<Phase>({ kind: "loading" });
+  const [phase, setPhase] = useState<Phase>(() => (id && key ? { kind: "loading" } : { kind: "error", text: "El enlace está incompleto. Ábrelo tal como te llegó, entero." }));
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => {
     try {
       return JSON.parse(localStorage.getItem(draftKey(id)) ?? "{}") as Record<string, unknown>;
@@ -65,10 +65,7 @@ export function PublicFormPage() {
 
   useEffect(() => {
     document.title = "Formulario · OmniClin";
-    if (!id || !key) {
-      setPhase({ kind: "error", text: "El enlace está incompleto. Ábrelo tal como te llegó, entero." });
-      return;
-    }
+    if (!id || !key) return;
     void (async () => {
       try {
         const base = await serverUrl();
@@ -104,7 +101,7 @@ export function PublicFormPage() {
     } catch {
       /* sin almacenamiento: no pasa nada */
     }
-  }, [answers, id, phase.kind]);
+  }, [answers, id, phase]);
 
   const request = phase.kind === "form" ? phase.request : null;
   // Un enlace para firmar (la hoja de protección de datos o un consentimiento, de antes del 30-10-2026): ya no se
@@ -370,7 +367,9 @@ function DocsUpload({ formId, linkKey, max, docs, onChange }: { formId: string; 
   const [problems, setProblems] = useState<string[]>([]);
   // Lo último que hay (aunque aún no se haya vuelto a pintar) y la fila: si elige más mientras sube, va después.
   const latest = useRef(docs);
-  latest.current = docs;
+  useLayoutEffect(() => {
+    latest.current = docs;
+  });
   const queue = useRef<Promise<void>>(Promise.resolve());
   const add = (files: File[]) => {
     if (!files.length) return;

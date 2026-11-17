@@ -5,7 +5,7 @@
 import { todayDay as today } from "../app/dates";
 import { FilePen, Printer, ShieldCheck } from "lucide-react";
 import { TopBar } from "../ui/AppBar";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
 import { fmtDate } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
@@ -59,9 +59,12 @@ export function PatientPrivacyPage() {
   const [signature, setSignature] = useState<string | null>(null);
   const [viewing, setViewing] = useState<SignedPrivacySheet | null>(null);
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    if (data.data?.patient) setForm({ informedAt: today(), ...data.data.patient.privacy });
-  }, [data.data]);
+  // Al llegar sus datos, el formulario con lo que tiene (se ajusta al dibujar).
+  const [formFrom, setFormFrom] = useState<unknown>(null);
+  if (data.data?.patient && data.data !== formFrom) {
+    setFormFrom(data.data);
+    setForm({ informedAt: today(), ...data.data.patient.privacy });
+  }
 
   const back = `/pacientes/${id}`;
   const bar = (

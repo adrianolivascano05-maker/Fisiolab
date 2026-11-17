@@ -1,6 +1,6 @@
 // Con la app abierta en una clínica, los archivos del paciente se ponen al día solos: cada minuto (y al volver a la
 // app o recuperar la conexión) se sube lo pendiente y se borra del servidor lo borrado aquí (docSync.ts).
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useLayoutEffect } from "react";
 import { bumpData } from "../app/dataVersion";
 import { getToken } from "../cloud/auth";
 import { clinicScope, type DocsUsage } from "../cloud/clinic";
@@ -37,6 +37,7 @@ export function useDocsUsage(): { usage: DocsUsage | null; refresh: () => Promis
     }
   }, [server]);
   useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- pide al servidor (fuera de React) lo usado al cambiar de servidor
     void refresh();
   }, [refresh]);
   return { usage, refresh };
@@ -69,7 +70,9 @@ export function DocSync() {
     })();
   }, [server, space, cloud?.closing, toast]);
   const latest = useRef(run);
-  latest.current = run;
+  useLayoutEffect(() => {
+    latest.current = run;
+  });
   const active = !!server && !locked;
   useEffect(() => {
     if (!active) return;

@@ -50,6 +50,7 @@ export function ShiftSheet({
   useEffect(() => {
     if (!open) return;
     const later = (hhmm: string, hours: number) => `${String(Math.min(23, Number(hhmm.slice(0, 2)) + hours)).padStart(2, "0")}${hhmm.slice(2)}`;
+    // oxlint-disable-next-line react/set-state-in-effect -- cada vez que se abre la hoja vuelve a empezar con sus datos
     setWho(shift?.staffEmail ?? (admin && person ? person : me));
     setDate(shift ? localInput(shift.startsAt).slice(0, 10) : day);
     setFrom(shift ? localInput(shift.startsAt).slice(11) : (presetFrom ?? "09:00"));

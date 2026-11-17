@@ -19,11 +19,13 @@ import { useToast } from "../ui/Toast";
 import { localInput } from "./pageKit";
 import { Letterhead, SignatureLine } from "./reportParts";
 import { safeName, saveFile } from "../app/download";
+import { useNowIso } from "../app/useNow";
 
 const hour = (d: Date) => d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 const longDay = (d: Date) => d.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Europe/Madrid" });
 
 export function AttendancePage() {
+  const now = useNowIso();
   const { id = "" } = useParams();
   const [params] = useSearchParams();
   const toast = useToast();
@@ -68,7 +70,7 @@ export function AttendancePage() {
   const end = new Date(start.getTime() + length * 60_000);
   const valid = !Number.isNaN(start.getTime());
   /** Una hora que aún no ha llegado: no se puede justificar una asistencia. */
-  const future = valid && start.getTime() > Date.now();
+  const future = valid && start.getTime() > Date.parse(now);
   const physio = clinic.professional;
   const fileName = safeName(`Justificante ${patient.name} ${valid ? start.toISOString().slice(0, 10) : ""}.pdf`);
 
@@ -146,7 +148,7 @@ export function AttendancePage() {
           aria-label="Justificante de asistencia"
           className="flex flex-col gap-6 relative theme-light rounded-lg border border-border bg-white p-8 text-base leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none"
         >
-          <Letterhead clinic={clinic} title="Justificante de asistencia" subtitle={fmtDate(new Date().toISOString())} />
+          <Letterhead clinic={clinic} title="Justificante de asistencia" subtitle={fmtDate(now)} />
           {valid ? (
             <p>
               {physio ? (
@@ -165,8 +167,8 @@ export function AttendancePage() {
             <p className="text-text-muted">Pon el día y la hora de la consulta.</p>
           )}
           {purpose.trim() && <p>Se expide {purpose.trim().replace(/\.$/, "")}.</p>}
-          <p>Y para que conste, se firma en {clinic.city || "________________"}, a {fmtDate(new Date().toISOString())}.</p>
-          <SignatureLine name={physio} license={clinic.license} date={fmtDate(new Date().toISOString())} />
+          <p>Y para que conste, se firma en {clinic.city || "________________"}, a {fmtDate(now)}.</p>
+          <SignatureLine name={physio} license={clinic.license} date={fmtDate(now)} />
         </article>
       </main>
     </div>

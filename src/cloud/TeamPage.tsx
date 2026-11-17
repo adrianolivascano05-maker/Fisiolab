@@ -473,6 +473,7 @@ function DeleteClinicSheet({ onClose }: { onClose: () => void }) {
                 // Un servidor de antes de la papelera borraría la clínica de golpe: se comprueba primero.
                 if (!("deleted" in (await cloud.clinics!.me(token)))) throw new Error("El servidor de la clínica está sin actualizar: hasta que se actualice no se puede borrar una clínica.");
                 // Desde ya, nada en segundo plano llama al servidor por esta clínica (contestaría que está borrada).
+                // oxlint-disable-next-line react/immutability -- cloud.closing es un aviso para lo que corre en segundo plano, no estado de React
                 cloud.closing = true;
                 const until = await cloud.clinics!.remove(token, current.id, `${DELETE_DECLARATION} — ${cloud.account.email}`);
                 const date = new Date(until).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });

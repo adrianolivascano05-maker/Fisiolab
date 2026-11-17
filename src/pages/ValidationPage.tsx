@@ -1,5 +1,5 @@
 import { Download, Gauge, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { CartesianGrid, ReferenceArea, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from "recharts";
 import { fmt, fmtDate, parseDecimal, testLabel } from "../app/format";
@@ -284,7 +284,12 @@ function BlandAltman({ pairs, ag, delta, kind }: { pairs: ValidationPair[]; ag: 
 function DeltaEditor({ kind, delta, onSaved }: { kind: KindInfo; delta: number; onSaved: () => void }) {
   const toast = useToast();
   const [text, setText] = useState(fmt(delta, kind.digits + 1));
-  useEffect(() => setText(fmt(delta, kind.digits + 1)), [delta, kind.digits]);
+  // Si cambia lo guardado, el texto vuelve a ser ese (se ajusta al dibujar).
+  const [shownFor, setShownFor] = useState(fmt(delta, kind.digits + 1));
+  if (shownFor !== fmt(delta, kind.digits + 1)) {
+    setShownFor(fmt(delta, kind.digits + 1));
+    setText(fmt(delta, kind.digits + 1));
+  }
   const value = parseDecimal(text);
   return (
     <form
@@ -320,9 +325,12 @@ function AddPairForm({ kind, onAdded, preselect }: { kind: KindInfo; onAdded: ()
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const chosen = list.data?.find((c) => c.testId === testId);
-  useEffect(() => {
-    if (chosen) setOmniClin(fmt(chosen.value, kind.digits + 1));
-  }, [chosen, kind.digits]);
+  // Al elegir una medición, su valor de OmniClin (se ajusta al dibujar).
+  const [filledFrom, setFilledFrom] = useState<typeof chosen>(undefined);
+  if (chosen && chosen !== filledFrom) {
+    setFilledFrom(chosen);
+    setOmniClin(fmt(chosen.value, kind.digits + 1));
+  }
   const a = parseDecimal(impulso);
   const b = parseDecimal(reference);
   const ok = a !== null && b !== null && Number.isFinite(a) && Number.isFinite(b);

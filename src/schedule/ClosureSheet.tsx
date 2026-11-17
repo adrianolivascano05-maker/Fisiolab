@@ -79,6 +79,7 @@ export function ClosureSheet({
 
   useEffect(() => {
     if (!open) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- al abrir la hoja vuelve a empezar; y cuenta en la base las citas de esos días
     setForm(
       closure
         ? fromClosure(closure)
@@ -91,6 +92,7 @@ export function ClosureSheet({
   useEffect(() => {
     if (!open) return;
     const input = toInput(form);
+    // oxlint-disable-next-line react/set-state-in-effect -- al abrir la hoja vuelve a empezar; y cuenta en la base las citas de esos días
     if (typeof input === "string") return setInside(0);
     let alive = true;
     void appointmentsInside(getDb(), input).then((n) => alive && setInside(n));

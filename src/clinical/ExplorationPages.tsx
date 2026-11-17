@@ -34,6 +34,7 @@ import { allRegions, findTest, galleryRegionLabel, galleryTests, galleryUrl, sea
 import { Chips, findingText, fmtMeasure, ResultBadge, resultLabels, TextArea } from "./parts";
 import { PatientShell } from "./PatientShell";
 import { Guard, localInput, useLoad } from "./pageKit";
+import { useNowIso } from "../app/useNow";
 
 // ---------- Exploración ----------
 
@@ -289,6 +290,7 @@ function TestPicker({ regions, onPick }: { regions: string[]; onPick: (t: Specia
 }
 
 export function FindingFormPage() {
+  const now = useNowIso();
   const { id = "", fid } = useParams();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -310,6 +312,7 @@ export function FindingFormPage() {
   useEffect(() => {
     const f = data.data?.finding;
     if (!f) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- al llegar lo guardado, se copia al formulario para editarlo
     setResult(f.result);
     setValue(typeof f.value === "number" ? String(f.value).replace(".", ",") : "");
     setSide(f.side);
@@ -455,7 +458,7 @@ export function FindingFormPage() {
         )}
       </form>
       <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar este resultado?">
-        <p>Se borrará el resultado de {name} del {fmtDate(finding?.performedAt ?? new Date().toISOString())}.</p>
+        <p>Se borrará el resultado de {name} del {fmtDate(finding?.performedAt ?? now)}.</p>
         <Button variant="danger" block onClick={remove}>
           Borrar
         </Button>

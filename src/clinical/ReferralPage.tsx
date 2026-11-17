@@ -26,6 +26,7 @@ import { cifPhrases, informsText, latestQuestionnaires } from "./referral";
 import { redFlagReview } from "./redFlags";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { SharePdf } from "./SharePdf";
+import { useNowIso } from "../app/useNow";
 
 /**
  * La prioridad la decide quien escribe la carta: la app no la propone ni la deduce de las banderas rojas. Sin elegir,
@@ -41,6 +42,7 @@ const lower = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 const listText = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} y ${xs.at(-1)}`);
 
 export function ReferralPage() {
+  const now = useNowIso();
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
@@ -118,7 +120,7 @@ export function ReferralPage() {
   const confirmed = redFlagReview(a).hits.filter((h) => h.from === "marcada");
   const years = ageOn(patient.birthDate);
   const results = latestQuestionnaires(questionnaires);
-  const today = new Date().toISOString();
+  const today = now;
   const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
   const facts: [string, string][] = [
     ["Paciente", patient.name],

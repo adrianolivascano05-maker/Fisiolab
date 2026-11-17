@@ -161,6 +161,7 @@ export function AnamnesisPage() {
     if (editEpisode && data.data.current === editEpisode) {
       autoStarted.current = true;
       base.current = { ...data.data.anamnesis?.answers };
+      // oxlint-disable-next-line react/set-state-in-effect -- al llegar la anamnesis empieza a editar y limpia la dirección
       setDraft({ ...data.data.anamnesis?.answers });
       setEditing(true);
       navigate(".", { replace: true, state: null });

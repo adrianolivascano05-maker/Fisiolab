@@ -29,6 +29,7 @@ import { isOwnKind } from "./forms/own";
 import { OWN_TOPIC, ownDetails, ownSpec } from "./ownCatalog";
 import { OwnLabel, OwnNote } from "./OwnFormNote";
 import { Guard, localInput, useLoad } from "./pageKit";
+import { useNowIso } from "../app/useNow";
 
 // ---------- Cuestionarios ----------
 
@@ -60,6 +61,7 @@ function ownTexts(form: QuestionForm, answers: FormAnswers, texts: Record<string
 }
 
 export function QuestionnaireFormPage() {
+  const now = useNowIso();
   const { id = "", qid } = useParams();
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -93,6 +95,7 @@ export function QuestionnaireFormPage() {
     const q = data.data?.record;
     if (!q) return;
     const d = q.details as QDetails;
+    // oxlint-disable-next-line react/set-state-in-effect -- al llegar lo guardado (o el PSFS anterior, una vez), se copia al formulario
     setWhen(localInput(q.performedAt));
     setScore(decimalText(q.score));
     setSubscale(d.subscale ? [d.subscale] : []);
@@ -112,6 +115,7 @@ export function QuestionnaireFormPage() {
     prefilled.current = kind;
     const prev = data.data.all.find((q) => q.kind === "psfs");
     const names = (prev?.details as QDetails | undefined)?.activities?.map((a) => a.name) ?? [];
+    // oxlint-disable-next-line react/set-state-in-effect -- al llegar lo guardado (o el PSFS anterior, una vez), se copia al formulario
     if (names.length) setActivities(names.map((name) => ({ name, score: null })));
   }, [qid, kind, data.data]);
 
@@ -461,7 +465,7 @@ export function QuestionnaireFormPage() {
       </form>
       )}
       <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar este cuestionario?">
-        <p>Se borrará el registro del {fmtDate(record?.performedAt ?? new Date().toISOString())}.</p>
+        <p>Se borrará el registro del {fmtDate(record?.performedAt ?? now)}.</p>
         <Button variant="danger" block onClick={remove}>
           Borrar
         </Button>

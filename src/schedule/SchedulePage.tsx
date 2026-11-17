@@ -120,9 +120,7 @@ export function SchedulePage() {
   // Las vistas de rejilla, en orden: el pellizco pasa de una a otra.
   const gridViews = views.filter((v) => v.id !== "today");
   // «3 días» guardada de una pantalla ancha: en el móvil, el día.
-  useEffect(() => {
-    if (narrow && view === "3days") setView("day");
-  }, [narrow, view]);
+  if (narrow && view === "3days") setView("day");
   const [who, setWho] = useState("");
   const [creating, setCreating] = useState<Creating | null>(null);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);

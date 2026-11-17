@@ -204,9 +204,10 @@ export function TodayToca({ c }: { c: SessionCycles }) {
                 <button type="button" aria-expanded={editing} onClick={() => setOpen(editing ? null : e.id)} className="flex min-h-11 min-w-0 flex-1 flex-col items-start text-left">
                   <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="font-semibold">{e.name}</span>
-                    <span className={cx("rounded-pill px-2 text-xs font-semibold", it?.state === "changed" ? "bg-info-soft text-info" : it ? "bg-success-soft text-success" : "bg-surface text-text-muted")}>
-                      {it?.state === "changed" ? "Cambiado" : it ? "✓ Hecho" : "Pendiente"}
-                    </span>
+                    {/* «Hecho» ya lo dice el botón de la derecha: aquí, solo «Cambiado» o «Pendiente». */}
+                    {it?.state !== "done" && (
+                      <span className={cx("rounded-pill px-2 text-xs font-semibold", it ? "bg-info-soft text-info" : "bg-surface text-text-muted")}>{it ? "Cambiado" : "Pendiente"}</span>
+                    )}
                   </span>
                   <span className="text-sm text-text-muted">{real ? `Hecho: ${doseText(real, effort, e.timeUnit)}` : doseText(plan, effort, e.timeUnit) || "Sin parámetros"}</span>
                 </button>

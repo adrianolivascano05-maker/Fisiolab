@@ -58,6 +58,7 @@ import { firstName, loadMessages, messageSubject, messageText } from "../message
 import { useLeaveWaitlist } from "./LeaveWaitlist";
 import { appointmentVars, dayText, hourText, mailtoUrl, offerText, waPhone, whatsappUrl } from "./reminders";
 import { staffName, useStaff } from "./useStaff";
+import { useNow } from "../app/useNow";
 
 const waiting = (iso: string) => {
   const days = waitingDays(iso);
@@ -93,6 +94,7 @@ function readView(p: URLSearchParams): { sort: WaitSort; filters: WaitFilters } 
 }
 
 export function WaitlistPage() {
+  const now = useNow();
   const { team } = useTeamMode();
   const location = useLocation();
   /** Dar cita a alguien de la lista (sin un hueco concreto) y, después, preguntar si sale de ella. */
@@ -112,7 +114,7 @@ export function WaitlistPage() {
   const slot = params.get("hueco");
   const slotMinutes = Number(params.get("min")) || 45;
   const slotWho = params.get("con") || null;
-  const free = slot && !Number.isNaN(Date.parse(slot)) && Date.parse(slot) > Date.now() ? slot : null;
+  const free = slot && !Number.isNaN(Date.parse(slot)) && Date.parse(slot) > now ? slot : null;
   const forPatient = params.get("paciente");
   const data = useAsync(async () => {
     const db = getDb();

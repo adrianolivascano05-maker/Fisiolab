@@ -3,7 +3,7 @@
 // recomendaciones al alta (se guardan en su anamnesis, «Recomendaciones al alta»). Más corto que el informe completo.
 import { todayDay } from "../app/dates";
 import { Printer } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useParams } from "react-router";
 import { fmt, fmtDate, testTitle } from "../app/format";
 import { LoadError, Loading } from "../app/Page";
@@ -27,6 +27,7 @@ import { kindOf, scoreText, type QDetails } from "./questionnaires";
 import { ownNoteText } from "./OwnFormNote";
 import { Block, Letterhead, SignatureLine } from "./reportParts";
 import { painSeries } from "./timeline";
+import { useNowIso } from "../app/useNow";
 
 const th = "border-b border-border px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide text-text-muted";
 const td = "border-b border-border px-2 py-1.5 align-top";
@@ -36,6 +37,7 @@ const day = (iso: string) => fmtDate(iso.length === 10 ? `${iso}T12:00:00` : iso
 const verdict = (first: number, last: number, better: "higher" | "lower") => (last === first ? "Igual" : (last > first) === (better === "higher") ? "Mejor" : "Peor");
 
 export function DischargePage() {
+  const now = useNowIso();
   const { id = "" } = useParams();
   const toast = useToast();
   const article = useRef<HTMLElement>(null);
@@ -56,10 +58,13 @@ export function DischargePage() {
   }, [id]);
   const [advice, setAdvice] = useState("");
   const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    const v = data.data?.anamnesis?.answers.alta_recomendaciones;
+  // Al llegar su anamnesis, sus recomendaciones de alta (se ajusta al dibujar).
+  const [adviceFrom, setAdviceFrom] = useState<unknown>(null);
+  if (data.data && data.data.anamnesis !== adviceFrom) {
+    setAdviceFrom(data.data.anamnesis);
+    const v = data.data.anamnesis?.answers.alta_recomendaciones;
     setAdvice(typeof v === "string" ? v : "");
-  }, [data.data?.anamnesis]);
+  }
 
   const back = `/pacientes/${id}`;
   const bar = (
@@ -90,7 +95,7 @@ export function DischargePage() {
 
   const a = anamnesis?.answers ?? {};
   const str = (k: string) => (typeof a[k] === "string" ? (a[k] as string) : "");
-  const today = new Date().toISOString();
+  const today = now;
   const ordered = [...sessions].reverse(); // de la primera a la última
   const valued = str("fecha_valoracion");
   const start = valued || ordered[0]?.performedAt || episode.startedAt;

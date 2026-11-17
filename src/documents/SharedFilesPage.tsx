@@ -18,6 +18,7 @@ import { useToast } from "../ui/Toast";
 import { addPatientFiles } from "./docSync";
 import { useDocsServer, useDocsUsage } from "./DocsAutoSync";
 import { prepareFiles } from "./prepare";
+import { nowIso } from "../app/dates";
 
 const SHARED = "cenit-compartidos";
 
@@ -53,7 +54,7 @@ export function SharedFilesPage() {
     if (!space || !files.data?.length) return;
     setBusy(patientId);
     try {
-      const { ready, problems } = await prepareFiles(files.data, `Fotos del ${fmtDate(new Date().toISOString())}`);
+      const { ready, problems } = await prepareFiles(files.data, `Fotos del ${fmtDate(nowIso())}`);
       setProblems(problems);
       if (!ready.length) return;
       const r = await addPatientFiles(getDb(), space, server, patientId, ready);

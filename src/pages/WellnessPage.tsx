@@ -1,6 +1,6 @@
 import { dayOf as day } from "../app/dates";
 import { HeartPulse, Trash } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { useParams } from "react-router";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { compareToBaseline, lowItems, wellnessItems, wellnessTotal, type WellnessItem, type WellnessScores } from "../calc/wellness";
@@ -16,6 +16,7 @@ import { EmptyState } from "../ui/EmptyState";
 import { NumberField, TextField } from "../ui/Field";
 import { Scale } from "../ui/Scale";
 import { useToast } from "../ui/Toast";
+import { useNow, useNowIso } from "../app/useNow";
 
 const itemLabel = Object.fromEntries(wellnessItems.map((i) => [i.id, i.label])) as Record<WellnessItem, string>;
 const itemShort = Object.fromEntries(wellnessItems.map((i) => [i.id, i.short])) as Record<WellnessItem, string>;
@@ -24,6 +25,7 @@ const empty: Answers = { fatigue: null, sleep: null, soreness: null, stress: nul
 
 /** S21 Bienestar: cuestionario diario y su evolución. */
 export function WellnessPage() {
+  const now = useNowIso();
   const { id = "" } = useParams();
   const toast = useToast();
   const data = useAsync(async () => ({ patient: await getPatient(getDb(), id), entries: await listWellness(getDb(), id) }), [id]);
@@ -34,14 +36,15 @@ export function WellnessPage() {
   const [painError, setPainError] = useState<string>();
   const [saving, setSaving] = useState(false);
 
-  const todayEntry = data.data?.entries.find((e) => day(e.performedAt) === day(new Date().toISOString())) ?? null;
+  const todayEntry = data.data?.entries.find((e) => day(e.performedAt) === day(now)) ?? null;
   // Si ya respondió hoy, el formulario empieza con sus respuestas para poder corregirlas.
-  useEffect(() => {
-    if (!todayEntry) return;
+  const [filledFrom, setFilledFrom] = useState<string | null>(null);
+  if (todayEntry && todayEntry.id !== filledFrom) {
+    setFilledFrom(todayEntry.id);
     setAnswers({ fatigue: todayEntry.fatigue, sleep: todayEntry.sleep, soreness: todayEntry.soreness, stress: todayEntry.stress, mood: todayEntry.mood });
     setPain(todayEntry.pain === null ? "" : String(todayEntry.pain));
     setNotes(todayEntry.notes);
-  }, [todayEntry?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const title = "Bienestar";
   const back = `/pacientes/${id}/valoracion#cuestionarios`;
@@ -113,10 +116,11 @@ export function WellnessPage() {
 }
 
 function TodaySummary({ entry, previous }: { entry: WellnessEntry; previous: WellnessEntry[] }) {
+  const now = useNow();
   const total = wellnessTotal(entry);
   const low = lowItems(entry);
   // Media de los 30 días anteriores.
-  const since = Date.now() - 30 * 24 * 3600 * 1000;
+  const since = now - 30 * 24 * 3600 * 1000;
   const base = compareToBaseline(total, previous.filter((e) => new Date(e.performedAt).getTime() >= since).map(wellnessTotal));
   return (
     <section aria-label="Resumen de hoy" className="flex flex-col gap-3">

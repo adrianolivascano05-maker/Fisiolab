@@ -29,6 +29,7 @@ import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { localInput, todayDay } from "./pageKit";
 import { AppointmentForm, closedAt, useAppointmentForm } from "./AppointmentForm";
 import { FreedSlotPanel, MissedPanel, PayPanel, ReminderActions, type FreedSlot } from "./appointmentPanels";
+import { nowMs } from "../app/dates";
 
 export function AppointmentSheet({
   open,
@@ -109,13 +110,14 @@ export function AppointmentSheet({
     if (confirming) confirmRef.current?.focus();
   }, [confirming]);
   /** Antes del día de la cita («future»), el día o después sin marcar («now»), o ya marcada. */
-  const phase = !appointment || appointment.status !== "scheduled" ? "marked" : madridDay(appointment.startsAt) > madridDay(new Date().toISOString()) ? "future" : "now";
+  const phase = !appointment || appointment.status !== "scheduled" ? "marked" : madridDay(appointment.startsAt) > todayDay() ? "future" : "now";
   /** Al anular o borrar una cita futura con gente en la lista de espera: el hueco, para ofrecérselo. */
   const [freed, setFreed] = useState<FreedSlot | null>(null);
   /** Después de «No vino»: la cita marcada, para deshacerlo o darle otra. */
   const [missed, setMissed] = useState<Appointment | null>(null);
   useEffect(() => {
     if (open) {
+      // oxlint-disable-next-line react/set-state-in-effect -- cada vez que se abre la hoja (no se desmonta al cerrarse) vuelve a empezar
       setFreed(null);
       setMissed(null);
       setConfirming(null);
@@ -125,6 +127,7 @@ export function AppointmentSheet({
   // Cada vez que se abre: ver la cita, o el formulario vacío para dar una nueva.
   useEffect(() => {
     if (!open) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- cada vez que se abre la hoja (no se desmonta al cerrarse) vuelve a empezar
     setEditing(!appointment);
     setError(null);
   }, [open, appointment, start, person]);
@@ -219,7 +222,7 @@ export function AppointmentSheet({
     const d = new Date(a.startsAt);
     if (Math.abs(minutes) >= 24 * 60) d.setDate(d.getDate() + minutes / (24 * 60));
     else d.setMinutes(d.getMinutes() + minutes);
-    if (d.getTime() < Date.now()) return setError(`${fmtVisit(d.toISOString())} ya ha pasado: elige otra hora con «Cambiar el día o la hora».`);
+    if (d.getTime() < nowMs()) return setError(`${fmtVisit(d.toISOString())} ya ha pasado: elige otra hora con «Cambiar el día o la hora».`);
     const found = await clashes(getDb(), d.toISOString(), a.minutes, staff.length ? (a.assignedTo ?? null) : undefined, a.id);
     // Y si ese día el paciente tiene algo en su calendario (src/data/patientEvents.ts), también se avisa.
     const his = eventsAtVisit(await listPatientEvents(getDb(), a.patientId), d.toISOString(), a.minutes);
@@ -297,7 +300,7 @@ export function AppointmentSheet({
           {extra.data && <PayPanel account={extra.data.a} pricing={extra.data.pricing} patientId={appointment.patientId} onPaid={extra.reload} />}
 
           {/* Solo de una cita que ya ha empezado: el justificante dice que ha asistido. */}
-          {(appointment.status === "done" || (appointment.status === "scheduled" && Date.parse(appointment.startsAt) <= Date.now())) && (
+          {(appointment.status === "done" || (appointment.status === "scheduled" && Date.parse(appointment.startsAt) <= nowMs())) && (
             <Link
               to={`/pacientes/${patientId}/justificante?cita=${appointment.id}`}
               onClick={onClose}

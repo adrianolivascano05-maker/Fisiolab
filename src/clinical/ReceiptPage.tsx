@@ -17,10 +17,12 @@ import { Button } from "../ui/Button";
 import { TextField } from "../ui/Field";
 import { SharePdf } from "./SharePdf";
 import { Letterhead, SignatureLine } from "./reportParts";
+import { useNowIso } from "../app/useNow";
 
 const longDay = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
 
 export function ReceiptPage() {
+  const now = useNowIso();
   const { id = "", pid = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
@@ -75,7 +77,7 @@ export function ReceiptPage() {
           aria-label="Recibo"
           className="flex flex-col gap-6 relative theme-light rounded-lg border border-border bg-white p-8 text-base leading-relaxed text-text shadow-card print:rounded-none print:border-0 print:p-0 print:shadow-none"
         >
-          <Letterhead clinic={clinic} title="Recibo" subtitle={fmtDate(new Date().toISOString())} />
+          <Letterhead clinic={clinic} title="Recibo" subtitle={fmtDate(now)} />
           <p>
             {issuer ? <b>{issuer}</b> : "La clínica"}
             {clinic.taxId ? `, con NIF ${clinic.taxId},` : ""} ha recibido de <b>{patient.name}</b>
@@ -84,7 +86,7 @@ export function ReceiptPage() {
           </p>
           <p>Forma de pago: {methodLabel(payment.method).toLowerCase()}.</p>
           <p className="text-sm text-text-muted">Este documento justifica el pago y no es una factura.</p>
-          <SignatureLine name={physio} license={clinic.license} date={fmtDate(new Date().toISOString())} />
+          <SignatureLine name={physio} license={clinic.license} date={fmtDate(now)} />
         </article>
       </main>
     </div>

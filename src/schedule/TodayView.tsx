@@ -90,7 +90,7 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
         .map((pid) => [pid, eventNotes(events.get(pid) ?? [], today, { brief: true }).map((n) => n.text).join(" · ")] as const)
         .filter(([, text]) => text),
     );
-    return { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: tomorrowItems, calendar, back };
+    return { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: tomorrowItems, calendar, back, now: new Date().toISOString() };
   }, [version, today]);
   const [charging, setCharging] = useState<AgendaItem | null>(null);
   // Lo ya pasado (atendidas, no vino, anuladas) antes de la siguiente cita pendiente se pliega: la lista empieza en lo que toca.
@@ -114,10 +114,10 @@ export function TodayView({ onOpen }: { onOpen: (a: AgendaItem) => void }) {
         <SkeletonList rows={2} />
       </div>
     );
-  const { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: next, calendar, back } = data.data;
+  const { day, reviews, debtors, owes, accounts, waiting, unsigned, tomorrow: next, calendar, back, now } = data.data;
   // Se pliegan las primeras ya pasadas: hasta la primera pendiente, la primera que aún no ha llegado o la primera de
   // alguien que debe algo (su «debe» y su Cobrar no se esconden).
-  const nowIso = new Date().toISOString();
+  const nowIso = now;
   const firstOpen = day.findIndex((a) => a.status === "scheduled" || a.startsAt >= nowIso || (owes.get(a.patientId) ?? 0) > 0);
   const foldable = firstOpen === -1 ? day.length : firstOpen;
   const folded = foldable >= FOLD_FROM && !showEarlier ? foldable : 0;

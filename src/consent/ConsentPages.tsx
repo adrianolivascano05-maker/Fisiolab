@@ -139,6 +139,7 @@ export function ConsentNewPage() {
   useEffect(() => {
     if (!data.data || !t || techniques) return;
     const { clinic, ctx } = data.data;
+    // oxlint-disable-next-line react/set-state-in-effect -- valores de partida al llegar los datos, una sola vez
     setForm((f) => ({ ...f, professional: clinic.professional, license: clinic.license, place: clinic.city, idDoc: f.idDoc || (data.data?.patient?.dni ?? "") }));
     // La primera palabra de cada técnica («punción», «ultrasonido»…) escrita en el plan.
     const first = (label: string) => label.toLowerCase().split(" ")[0]!.normalize("NFD").replace(/\p{Diacritic}/gu, "");

@@ -22,9 +22,10 @@ export function RecoveryKit({ code, salt, onClose }: { code: string; salt: strin
   const kit = useRef<HTMLElement>(null);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  // El día en que se hace el kit (el de abrirlo).
+  const [today] = useState(() => new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }));
   if (!cloud?.clinic) return null;
   const clinic = cloud.clinic.name;
-  const today = new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
   return (
     <Sheet open onClose={onClose} title="Kit de recuperación de la clínica">
       <article ref={kit} aria-label="Kit de recuperación" className="flex flex-col gap-3 rounded-md border border-border bg-bg p-4">

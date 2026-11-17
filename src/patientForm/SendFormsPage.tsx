@@ -94,6 +94,7 @@ export function SendFormsPage() {
   useEffect(() => {
     if (!toShare || !data.data) return;
     const f = data.data.forms.find((x) => x.id === toShare);
+    // oxlint-disable-next-line react/set-state-in-effect -- ?compartir=<id> de la dirección: abre su hoja una vez y limpia la dirección
     if (f) setSharing(f);
     setParams({}, { replace: true });
   }, [toShare, data.data, setParams]);
@@ -342,8 +343,7 @@ function ShareForm({ f, patient, clinicName, messages, isNew, onBooking }: { f: 
     : formMessage({ name: firstName(patient), clinic: clinicName, kind: f.kind, url, expiresAt: f.expiresAt }, messages);
   const subject = first ? firstMessageSubject(clinicName) : messageSubject(f.kind === DOCS_KIND ? "archivos" : "formulario", messages, { clinica: clinicName, formulario: formWhat(f.kind) });
   const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
-  const [canShare, setCanShare] = useState(false);
-  useEffect(() => setCanShare(typeof navigator.share === "function"), []);
+  const [canShare] = useState(() => typeof navigator.share === "function");
   const channels: { id: ContactChannel; label: string }[] = [
     ...(phone ? [{ id: "whatsapp" as const, label: `WhatsApp al ${patient.phone}` }] : []),
     ...(patient.email ? [{ id: "email" as const, label: `Correo a ${patient.email}` }] : []),

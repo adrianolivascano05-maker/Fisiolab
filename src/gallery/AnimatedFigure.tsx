@@ -64,6 +64,7 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
   useEffect(() => {
     let alive = true;
     let st: Stage | null = null;
+    // oxlint-disable-next-line react/set-state-in-effect -- el motor 3D se descarga (fuera de React): estado de carga
     setMode("loading");
     setRotated(false);
     import("./three/stage")
@@ -106,8 +107,12 @@ export function AnimatedFigure({ spec, title, uid, texts }: { spec: FigureSpec; 
     };
   }, [spec, title, attempt, retry]);
 
-  // Otro test: vuelve a tener sus dos intentos.
-  useEffect(() => setAttempt(0), [spec]);
+  // Otro test: vuelve a tener sus dos intentos (se ajusta al dibujar, sin un dibujo de más).
+  const [attemptsFor, setAttemptsFor] = useState(spec);
+  if (attemptsFor !== spec) {
+    setAttemptsFor(spec);
+    setAttempt(0);
+  }
 
   useEffect(() => {
     stage.current?.setMode(view);

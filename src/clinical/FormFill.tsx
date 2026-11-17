@@ -145,7 +145,8 @@ export function FormFill({
     else next[id] = v;
     onChange(next);
   };
-  let n = start;
+  // El número de la primera pregunta de cada apartado (siguen contando de uno a otro).
+  const firstOf = form.sections.map((_, i) => start + form.sections.slice(0, i).reduce((t, x) => t + x.items.length, 0));
   return (
     <div className="flex flex-col gap-4">
       {intro && (
@@ -158,8 +159,8 @@ export function FormFill({
         <section key={`${i}-${s.title}`} aria-label={s.title || undefined} className="flex flex-col gap-3">
           {s.title && <h2 className="text-lg">{s.title}</h2>}
           {s.intro && <p className="-mt-2 text-sm text-text-muted">{s.intro}</p>}
-          {s.items.map((item) => {
-            n += 1;
+          {s.items.map((item, j) => {
+            const n = firstOf[i]! + j + 1;
             return (
               <Card key={item.id}>
                 <Question

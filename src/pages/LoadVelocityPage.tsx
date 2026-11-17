@@ -1,6 +1,6 @@
 import { dayOf as day } from "../app/dates";
 import { Dumbbell, Trash } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { CartesianGrid, ComposedChart, Legend, Line, ReferenceLine, ResponsiveContainer, Scatter, Tooltip, XAxis, YAxis } from "recharts";
 import { exercises, getExercise, loadVelocityProfile, velocityAtLoad, type ExerciseId, type LoadVelocityProfile } from "../calc/strength";
@@ -38,14 +38,17 @@ export function LoadVelocityPage() {
   const sets = useMemo(() => data.data?.sets.filter((s) => s.exercise === exercise) ?? [], [data.data, exercise]);
 
   // Al entrar o cambiar de ejercicio: se proponen las series del último día y el umbral guardado.
-  useEffect(() => {
-    if (!sets.length) return setChosen(new Set());
-    const last = day(sets[0]!.performedAt);
+  const [chosenFor, setChosenFor] = useState<typeof sets | null>(null);
+  if (sets !== chosenFor) {
+    setChosenFor(sets);
+    const last = sets.length ? day(sets[0]!.performedAt) : null;
     setChosen(new Set(sets.filter((s) => day(s.performedAt) === last).map((s) => s.testId)));
-  }, [sets]);
-  useEffect(() => {
-    if (storedMvt.data !== undefined) setMvtText(decimalText(storedMvt.data));
-  }, [storedMvt.data]);
+  }
+  const [mvtFrom, setMvtFrom] = useState<typeof storedMvt.data>(undefined);
+  if (storedMvt.data !== undefined && storedMvt.data !== mvtFrom) {
+    setMvtFrom(storedMvt.data);
+    setMvtText(decimalText(storedMvt.data));
+  }
 
   const title = "Perfil carga-velocidad";
   const back = `/pacientes/${id}/mediciones`;

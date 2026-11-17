@@ -32,6 +32,7 @@ export function useTimeline(file: File, video: RefObject<HTMLVideoElement | null
   const [state, setState] = useState<{ timeline: Timeline | null; ready: boolean }>({ timeline: null, ready: false });
   useEffect(() => {
     let alive = true;
+    // oxlint-disable-next-line react/set-state-in-effect -- vídeo nuevo (fuera de React): se vacía mientras se lee
     setState({ timeline: null, ready: false });
     (async () => {
       let times: number[] = [];

@@ -31,6 +31,7 @@ import { kindOf, scoreText, type QDetails } from "./questionnaires";
 import { ownNoteText } from "./OwnFormNote";
 import { symmetryRows } from "./symmetry";
 import { painSeries } from "./timeline";
+import { useNowIso } from "../app/useNow";
 
 const sexLabels = { female: "Mujer", male: "Hombre", other: "Otro" } as const;
 const sideText = { left: "Izquierdo", right: "Derecho", both: "Los dos" } as const;
@@ -57,6 +58,7 @@ const th = "border-b border-border px-2 py-1.5 text-left text-xs font-semibold u
 const td = "border-b border-border px-2 py-1.5 align-top";
 
 export function ReportPage() {
+  const now = useNowIso();
   const { id = "" } = useParams();
   const data = useAsync(async () => {
     const db = getDb();
@@ -107,7 +109,7 @@ export function ReportPage() {
   const oldMapMarks = !lastQMap && Array.isArray(oldMap) && oldMap.length ? oldMap : null;
   // El fisioterapeuta de Ajustes → Clínica; las anamnesis antiguas lo llevaban dentro.
   const physio = clinic.professional || (typeof a.fisioterapeuta === "string" ? a.fisioterapeuta : "");
-  const today = new Date().toISOString();
+  const today = now;
   // Apartados de la anamnesis con algo escrito (la exploración física va con los tests).
   const sections = template.filter((s) => s.id !== "exploracion")
     .map((s) => ({ s, rows: s.fields.filter((f) => answerText(f, a[f.id] ?? null) !== "" && !["fecha_valoracion", "fisioterapeuta"].includes(f.id)) }))

@@ -390,9 +390,7 @@ function MarkingWorkspace({ testId, file, type, captureFps, containerFps, frameC
 
   // Con la lupa, la barra muestra ~1 s del archivo alrededor del fotograma actual.
   const half = Math.max(10, Math.round(containerFps / 2));
-  useEffect(() => {
-    if (zoom && Math.abs(frame - center) > half) setCenter(frame);
-  }, [frame, zoom, center, half]);
+  if (zoom && Math.abs(frame - center) > half) setCenter(frame);
   const rangeStart = zoom ? Math.max(0, Math.min(center - half, last - 2 * half)) : 0;
   const rangeEnd = zoom ? Math.min(last, rangeStart + 2 * half) : last;
 

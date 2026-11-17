@@ -137,6 +137,7 @@ export function useAppointmentForm({
   // Cada vez que se abre: con los datos de la cita, o vacía para dar una nueva.
   useEffect(() => {
     if (!open) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- cada vez que se abre el formulario vuelve a empezar con los datos de la cita
     setWhen(appointment ? localInput(appointment.startsAt) : start ? localInput(start) : "");
     setMinutes(appointment?.minutes ?? DEFAULT_VISIT_MINUTES);
     setAssignedTo(appointment ? (appointment.assignedTo ?? "") : person !== undefined ? (person ?? "") : (memberEmail() ?? ""));

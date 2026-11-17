@@ -38,6 +38,7 @@ import { Group } from "../ui/Grouped";
 import { PatientRow, type RowTagTone } from "../ui/ListItem";
 import { cx } from "../ui/cx";
 import { Sheet } from "../ui/Sheet";
+import { useNow } from "../app/useNow";
 
 export { QUICK_PATIENT } from "../data/repo";
 
@@ -124,9 +125,7 @@ function usePatientList() {
   );
   // Una página que se ha quedado vacía (se han borrado pacientes): a la primera.
   const empty = !!found.data && found.data.rows.length === 0 && state.page > 0;
-  useEffect(() => {
-    if (empty) setState((s) => ({ ...s, page: 0 }));
-  }, [empty]);
+  if (empty) setState((s) => ({ ...s, page: 0 }));
   // Si hay algún paciente (para la franja de hoy y la lista vacía) y alguno de verdad (para los avisos).
   const any = useAsync(async () => (await findPatients(getDb(), { limit: 0 })).total > 0, []);
   const own = useAsync(() => hasOwnPatients(getDb(), SEED_PREFIX, QUICK_PATIENT), []);
@@ -561,8 +560,9 @@ const BACKUP_EVERY_DAYS = 7;
  * dispositivos, y no hay «copia de ayer»; «Descargar todo» cada semana la pone fuera.
  */
 function BackupReminder({ cloud, hasRealPatients, lastBackup }: { cloud: boolean; hasRealPatients: boolean; lastBackup: string | null | undefined }) {
+  const now = useNow();
   if (!hasRealPatients || lastBackup === undefined) return null;
-  const days = lastBackup ? Math.floor((Date.now() - new Date(lastBackup).getTime()) / 86_400_000) : null;
+  const days = lastBackup ? Math.floor((now - Date.parse(lastBackup)) / 86_400_000) : null;
   if (days !== null && days < BACKUP_EVERY_DAYS) return null;
   if (cloud) {
     return (

@@ -44,11 +44,13 @@ import { BODY_REGIONS, clinicalSummary, regionLabel } from "./anamnesis";
 import { TextArea } from "./parts";
 import { Letterhead } from "./reportParts";
 import { safeName, saveFile } from "../app/download";
+import { useNowIso } from "../app/useNow";
 
 const link = "inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 font-semibold";
 const fold = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 export function ExercisesPage() {
+  const now = useNowIso();
   const { id = "" } = useParams();
   const [params, setParams] = useSearchParams();
   const toast = useToast();
@@ -91,7 +93,7 @@ export function ExercisesPage() {
 
   const shown = plans.find((p) => p.id === params.get("hoja")) ?? plans[0] ?? null;
   const editing = draft ?? (plans.length === 0 ? { items: [], note: DEFAULT_PLAN_NOTE } : null);
-  const fileName = safeName(`Ejercicios ${patient.name} ${(shown?.updatedAt ?? new Date().toISOString()).slice(0, 10)}.pdf`);
+  const fileName = safeName(`Ejercicios ${patient.name} ${(shown?.updatedAt ?? now).slice(0, 10)}.pdf`);
 
   async function save() {
     if (!editing) return;

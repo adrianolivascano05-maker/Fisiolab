@@ -6,7 +6,7 @@
 // (pinProof.ts), o borrar los datos del dispositivo; volver a entrar con Google no vale (la sesión ya está abierta).
 // Opcional: Face ID o huella (passkey.ts).
 import { Delete, Fingerprint, Lock, Repeat } from "lucide-react";
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode, useLayoutEffect } from "react";
 import { getAccount } from "../cloud/account";
 import { startLogin } from "../cloud/auth";
 import { chosenClinic, clinicScope } from "../cloud/clinic";
@@ -66,9 +66,12 @@ export function AppLock({ children }: { children: ReactNode }) {
   const [proved, setProved] = useState(false);
   /** El contador de fallos de IndexedDB ya está mirado (si alguien borró el de localStorage, manda el mayor). */
   const [failsReady, setFailsReady] = useState(false);
-  const lastActive = useRef(Date.now());
+  const [openedAt] = useState(() => Date.now());
+  const lastActive = useRef(openedAt);
   const lockedRef = useRef(locked);
-  lockedRef.current = locked;
+  useLayoutEffect(() => {
+    lockedRef.current = locked;
+  });
   const hiddenAt = useRef<number | null>(null);
 
   // Una hoja abierta (<dialog> modal) se pinta por encima de todo, también de la pantalla de bloqueo: se cierra.
@@ -209,7 +212,9 @@ function PinPad({
   // Lo tecleado hasta ahora, al momento: si se teclea deprisa, dos teclas llegan antes de que se vuelva a pintar, y
   // con el `value` de la última pintada la segunda pisaba a la primera («2468» se quedaba en «28»).
   const typed = useRef(value);
-  typed.current = value;
+  useLayoutEffect(() => {
+    typed.current = value;
+  });
   const set = useCallback(
     (v: string) => {
       typed.current = v;

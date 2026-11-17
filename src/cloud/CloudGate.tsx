@@ -136,6 +136,7 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void, 
 export function CloudGate({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
   const [version, setVersion] = useState(0);
+  const remount = () => setVersion((v) => v + 1);
   const started = useRef(false);
 
   useEffect(() => {
@@ -274,7 +275,6 @@ export function CloudGate({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const remount = () => setVersion((v) => v + 1);
 
   switch (phase.kind) {
     case "loading":

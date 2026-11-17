@@ -21,3 +21,7 @@ export const addDays = (day: string, n: number) => {
 
 /** AAAA-MM del día o del instante dado (o de hoy), en la hora de Madrid. */
 export const monthOf = (at: string | Date = new Date()) => (typeof at === "string" && /^\d{4}-\d{2}-\d{2}$/.test(at) ? at : dayOf(at)).slice(0, 7);
+
+/** Ahora (ms y texto ISO), para usar al tocar un botón o al guardar; para dibujar, `useNow` (src/app/useNow.ts). */
+export const nowMs = () => Date.now();
+export const nowIso = () => new Date().toISOString();

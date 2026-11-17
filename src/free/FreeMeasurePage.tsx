@@ -1,6 +1,6 @@
 // Medición libre biomecánica: vídeo → pose 3D por fotograma → esqueleto superpuesto → ángulo
 // dinámico entre una referencia (plomada o eje del cuerpo) y un segmento que se mueve.
-import { todayDay } from "../app/dates";
+import { todayDay, nowIso } from "../app/dates";
 import { Crosshair, Download, FlaskConical, Hand, Play, Save, ScanLine, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router";
@@ -507,7 +507,7 @@ function Workspace({ file, patientId, patientName, onDone }: { file: File; patie
     const m: BiomechanicalMeasurement = {
       id: crypto.randomUUID(),
       patientId,
-      createdAt: new Date().toISOString(),
+      createdAt: nowIso(),
       anatomicalPlane: cfg.plane,
       referenceType: cfg.reference.type,
       referenceVector: cfg.reference.type === "axial_body" ? { startJoint: cfg.reference.start, endJoint: cfg.reference.end } : { startJoint: "vertical", endJoint: "vertical" },

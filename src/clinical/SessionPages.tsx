@@ -36,6 +36,7 @@ import { doneSql } from "../data/cycles";
 import { monthTitle as monthText } from "./patientCalendar";
 import { addDays, dayText, Guard, localInput, primaryLink, todayDay, useLoad } from "./pageKit";
 import { dayOf } from "../app/dates";
+import { useNowIso } from "../app/useNow";
 
 // ---------- Sesiones ----------
 
@@ -371,6 +372,7 @@ function SessionBody({ s, id, rows, findings, tests }: { s: Session; id: string;
 }
 
 export function SessionFormPage() {
+  const now = useNowIso();
   const { id = "", sid } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
@@ -487,6 +489,7 @@ export function SessionFormPage() {
   useEffect(() => {
     const s = data.data?.session;
     if (!s) return;
+    // oxlint-disable-next-line react/set-state-in-effect -- al llegar lo guardado, se copia al formulario para editarlo
     setWhen(localInput(s.performedAt));
     setPain(s.pain);
     setSubjective(s.subjective);
@@ -503,9 +506,11 @@ export function SessionFormPage() {
 
   // Una sesión nueva sigue con la reevaluación pendiente de la anterior (si no, se perdía al guardar sin fecha).
   const carried = !sid ? (data.data?.previous?.reviewOn ?? null) : null;
-  useEffect(() => {
-    if (carried) setReviewOn((r) => r || carried);
-  }, [carried]);
+  const [carriedSeen, setCarriedSeen] = useState<string | null>(null);
+  if (carried && carried !== carriedSeen) {
+    setCarriedSeen(carried);
+    setReviewOn((r) => r || carried);
+  }
 
   // Desde Agenda › Hoy («Atender»): se vuelve a Hoy, con la cita ya atendida.
   const fromToday = query.get("volver") === "hoy";
@@ -749,7 +754,7 @@ export function SessionFormPage() {
       </div>
       </form>
       <Sheet open={confirm} onClose={() => setConfirm(false)} title="¿Borrar esta sesión?">
-        <p>Se borrará la sesión del {fmtDateTime(session?.performedAt ?? new Date().toISOString())}. Las mediciones y los tests de ese día no se borran.</p>
+        <p>Se borrará la sesión del {fmtDateTime(session?.performedAt ?? now)}. Las mediciones y los tests de ese día no se borran.</p>
         <Button variant="danger" block onClick={remove}>
           Borrar
         </Button>
