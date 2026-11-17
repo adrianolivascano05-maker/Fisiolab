@@ -78,7 +78,9 @@ const steps: { id?: string; title: string; body: ReactNode }[] = [
         calcula sola) o una medición (salto, fuerza, sprint, carrera, movilidad). En Valoración, cada bloque tiene su propio botón. Al apuntar una sesión, el dolor de la última vez sale marcado, cada
         texto tiene <b>Igual que la última</b>, lo que escribes se guarda como borrador en ese dispositivo por si se cierra la pantalla y{" "}
         <b>Guardar</b> está siempre a la vista, abajo. En <b>Sesiones</b>, con más de tres, solo la última sale abierta: las demás se abren al
-        tocarlas, y hay <b>Abrir todas</b> y un buscador.
+        tocarlas, y hay <b>Abrir todas</b> y un buscador. Si quieres, bajo Tratamiento, <b>Organizar por ciclos</b>: el objetivo, las fases con
+        sus semanas y los ejercicios de cada semana; la progresión se rellena con la regla que elijas (la app solo hace esa cuenta) y en cada sesión
+        sale lo que toca hoy, con <b>Todo hecho como estaba</b>, que lo escribe en Tratamiento.
       </>
     ),
   },

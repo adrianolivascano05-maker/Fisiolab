@@ -182,6 +182,8 @@ export async function deleteSession(db: Db, id: string): Promise<void> {
   await db.transaction([
     { sql: "delete from sessions where id = ?", bind: [id] },
     { sql: "delete from appointments where id = ? and status = 'scheduled'", bind: [id] },
+    // Lo marcado como hecho de su plan por ciclos (src/data/cycles.ts): settings no se borra en cascada.
+    { sql: "delete from settings where key like 'ciclos_hecho:%:' || ?", bind: [id] },
   ]);
 }
 

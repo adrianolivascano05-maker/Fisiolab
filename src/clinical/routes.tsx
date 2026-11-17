@@ -11,6 +11,11 @@ const FindingFormPage = lazy(() => exploration().then((m) => ({ default: m.Findi
 const sessions = () => import("./SessionPages");
 const SessionsPage = lazy(() => sessions().then((m) => ({ default: m.SessionsPage })));
 const SessionFormPage = lazy(() => sessions().then((m) => ({ default: m.SessionFormPage })));
+const cycles = () => import("./cycles/pages");
+const PlanPage = lazy(() => cycles().then((m) => ({ default: m.PlanPage })));
+const PlanCreatePage = lazy(() => cycles().then((m) => ({ default: m.PlanCreatePage })));
+const WeekPage = lazy(() => cycles().then((m) => ({ default: m.WeekPage })));
+const ProgressPage = lazy(() => cycles().then((m) => ({ default: m.ProgressPage })));
 const QuestionnaireFormPage = lazy(() => import("./QuestionnaireFormPage").then((m) => ({ default: m.QuestionnaireFormPage })));
 const ReportPage = lazy(() => import("./ReportPage").then((m) => ({ default: m.ReportPage })));
 const ReferralPage = lazy(() => import("./ReferralPage").then((m) => ({ default: m.ReferralPage })));
@@ -48,6 +53,11 @@ export const clinicalRoutes = [
   { path: "/pacientes/:id/sesiones", element: l(<SessionsPage />) },
   { path: "/pacientes/:id/sesiones/nueva", element: l(<SessionFormPage />) },
   { path: "/pacientes/:id/sesiones/:sid", element: l(<SessionFormPage />) },
+  // El plan por ciclos de un motivo (src/data/cycles.ts): ?motivo=… (si no, el que se ve) y ?volver=…
+  { path: "/pacientes/:id/ciclos", element: l(<PlanPage />) },
+  { path: "/pacientes/:id/ciclos/nuevo", element: l(<PlanCreatePage />) },
+  { path: "/pacientes/:id/ciclos/:fase/semana/:w", element: l(<WeekPage />) },
+  { path: "/pacientes/:id/ciclos/:fase/progresion", element: l(<ProgressPage />) },
   { path: "/pacientes/:id/cuestionarios", element: <ToAssessment block="cuestionarios" /> },
   { path: "/pacientes/:id/cuestionarios/nuevo", element: l(<QuestionnaireFormPage />) },
   { path: "/pacientes/:id/cuestionarios/:qid", element: l(<QuestionnaireFormPage />) },

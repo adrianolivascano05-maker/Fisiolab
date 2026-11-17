@@ -3,6 +3,7 @@
 import { answerText, getField } from "../clinical/anamnesis";
 import { changeCount, isTemplateKey, type TemplateDoc } from "./anamnesisTemplates";
 import { isModuleKey, type ModuleDoc } from "./anamnesisModules";
+import { isCycleKey } from "./cycles";
 import type { Db } from "./db";
 
 export type LostChange = {
@@ -81,6 +82,19 @@ function moduleText(v: unknown): string {
   return `«${doc.name ?? "módulo"}»: ${n === 1 ? "1 pregunta o cambio" : `${n} preguntas o cambios`}${doc.by ? `, de ${doc.by}` : ""}`;
 }
 
+/** Un trozo del plan por ciclos (src/data/cycles.ts), en pocas palabras. */
+function cycleText(v: unknown): string {
+  const doc = (typeof v === "string" ? parse(v) : v) as Record<string, unknown> | undefined;
+  if (!doc || typeof doc !== "object") return "(vacío)";
+  if (Array.isArray(doc.phases)) return `${typeof doc.goal === "string" && doc.goal ? `«${doc.goal}» · ` : ""}${doc.phases.length === 1 ? "1 fase" : `${doc.phases.length} fases`}`;
+  if (Array.isArray(doc.sessions)) {
+    const n = (doc.sessions as { exercises?: unknown[] }[]).reduce((t, x) => t + (x.exercises?.length ?? 0), 0);
+    return `Una fase: ${n === 1 ? "1 ejercicio" : `${n} ejercicios`}`;
+  }
+  if (Array.isArray(doc.items)) return `Lo hecho en una sesión: ${(doc.items as unknown[]).length} ejercicios marcados`;
+  return "(no se puede leer)";
+}
+
 function templateText(v: unknown): string {
   const doc = (typeof v === "string" ? parse(v) : v) as Partial<TemplateDoc> | undefined;
   if (!doc || typeof doc !== "object" || !doc.delta) return "(vacío)";
@@ -117,8 +131,11 @@ export async function lostChanges(db: Db): Promise<LostChange[]> {
   const rows = await db.query<Raw>(`select id, tbl, pk, field, mine, theirs, by_device, at from sync_conflicts where ${NOT_META} order by at desc, id desc`);
   const out: LostChange[] = [];
   for (const r of rows) {
-    const patientId =
-      r.tbl === "patients" || r.tbl === "anamnesis"
+    // El plan por ciclos de un paciente (ciclos:<paciente>:…): con su nombre.
+    const cycle = r.tbl === "settings" && isCycleKey(r.pk);
+    const patientId = cycle
+      ? r.pk.split(":")[1]
+      : r.tbl === "patients" || r.tbl === "anamnesis"
         ? r.pk
         : ["appointments", "sessions", "episodes"].includes(r.tbl)
           ? (await db.query<{ p: string }>(`select patient_id as p from ${r.tbl} where id = ?`, [r.pk]))[0]?.p
@@ -132,10 +149,10 @@ export async function lostChanges(db: Db): Promise<LostChange[]> {
     const mod = r.tbl === "settings" && isModuleKey(r.pk);
     out.push({
       id: r.id,
-      what: tpl ? "Plantilla de anamnesis de la clínica" : mod ? "Módulo de anamnesis de la clínica" : fieldText(r.tbl, r.field),
+      what: cycle ? "Plan por ciclos" : tpl ? "Plantilla de anamnesis de la clínica" : mod ? "Módulo de anamnesis de la clínica" : fieldText(r.tbl, r.field),
       patient: p ?? null,
-      mine: tpl ? templateText(parse(r.mine)) : mod ? moduleText(parse(r.mine)) : valueText(r.tbl, r.field, parse(r.mine)),
-      theirs: tpl ? templateText(parse(r.theirs)) : mod ? moduleText(parse(r.theirs)) : valueText(r.tbl, r.field, parse(r.theirs)),
+      mine: cycle ? cycleText(parse(r.mine)) : tpl ? templateText(parse(r.mine)) : mod ? moduleText(parse(r.mine)) : valueText(r.tbl, r.field, parse(r.mine)),
+      theirs: cycle ? cycleText(parse(r.theirs)) : tpl ? templateText(parse(r.theirs)) : mod ? moduleText(parse(r.theirs)) : valueText(r.tbl, r.field, parse(r.theirs)),
       by: who?.name ?? null,
       at: r.at,
       gone: !exists.length,

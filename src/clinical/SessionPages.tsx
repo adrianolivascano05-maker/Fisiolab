@@ -31,6 +31,8 @@ import { Chips, findingText, PAIN_TONES, PainChart, PainScale, ResultBadge, side
 import { buildTimeline, madridDay, painSeries, type EventKind } from "./timeline";
 import { useAutoCalendar } from "../cloud/CalendarSettings";
 import { PatientShell } from "./PatientShell";
+import { OrganizeButton, PlanCard, PlanLine, TodayToca, useSessionCycles } from "./cycles/SessionCycles";
+import { doneSql } from "../data/cycles";
 import { monthTitle as monthText } from "./patientCalendar";
 import { addDays, dayText, Guard, localInput, primaryLink, todayDay, useLoad } from "./pageKit";
 import { dayOf } from "../app/dates";
@@ -96,6 +98,7 @@ export function SessionsPage() {
           <NotebookPen aria-hidden="true" className="size-5" /> Nueva sesión
         </Link>
       </div>
+      <PlanCard patientId={id} />
       {count.planned !== null && <SessionMeter done={count.done} planned={count.planned} />}
       {pain.length > 0 && (
         <section aria-labelledby="h-dolor" className="flex flex-col gap-2">
@@ -478,6 +481,8 @@ export function SessionFormPage() {
   }, [id, nextAt, nextMinutes]);
   const [payNow, setPayNow] = useState(false);
   const [payMethod, setPayMethod] = useState<Method>(lastMethod);
+  // El plan por ciclos de su motivo, si lo tiene (src/data/cycles.ts): lo que toca hoy y lo marcado como hecho.
+  const cycles = useSessionCycles({ patientId: id, sid, when, treatment, setTreatment });
 
   useEffect(() => {
     const s = data.data?.session;
@@ -523,6 +528,8 @@ export function SessionFormPage() {
         { performedAt: new Date(when).toISOString(), pain, subjective, objective, treatment, plan, reviewOn: reviewOn || null, nextAt: next, nextMinutes: next ? minutes : null },
         sid,
       );
+      // Lo marcado del plan por ciclos, aparte (el texto ya va en Tratamiento, para quien no tenga la app al día).
+      if (cycles.done || sid) await getDb().transaction(doneSql(id, saved, cycles.done));
       const c = charge.data;
       if (!sid && payNow && c?.kind === "loose" && c.cents > 0) {
         rememberMethod(payMethod);
@@ -573,6 +580,7 @@ export function SessionFormPage() {
         {patient?.name}
         {!sid && count.planned !== null && ` · sesión ${count.done + 1} de ${count.planned} previstas`}
       </p>
+      <PlanLine patientId={id} c={cycles} />
       <PrecautionsNote patientId={id} />
       {/* Su calendario, contado desde el día de la sesión, y apuntar en él lo que cuente sin salir de aquí. */}
       <CalendarNote patientId={id} day={base} />
@@ -652,7 +660,9 @@ export function SessionFormPage() {
             Repetir el tratamiento de la última sesión ({fmtDate(previous.performedAt)})
           </Button>
         )}
+        <TodayToca c={cycles} />
         <TextArea label="Tratamiento" value={treatment} onChange={setTreatment} rows={3} action={sameAsLast("Tratamiento", previous?.treatment, setTreatment)} />
+        <OrganizeButton patientId={id} c={cycles} />
         <TextArea label="Plan y ejercicios para casa" value={plan} onChange={setPlan} rows={2} action={sameAsLast("Plan y ejercicios para casa", previous?.plan, setPlan)} />
         {SHOW_EXERCISES && (
           <Link to={`/pacientes/${id}/ejercicios`} className="-mt-2 self-start text-sm font-semibold text-accent underline">

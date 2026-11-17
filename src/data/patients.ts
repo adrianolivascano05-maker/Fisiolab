@@ -3,6 +3,7 @@
 import { fold, phoneDigits } from "../app/format";
 import type { Db } from "./db";
 import { parsePrivacy, type PatientPrivacy } from "./privacy";
+import { patientCyclesDeleteSql } from "./cycles";
 import { newId, now } from "./ids";
 
 export type Sex = "female" | "male" | "other";
@@ -185,6 +186,8 @@ export async function deletePatient(db: Db, id: string): Promise<void> {
     // Sus archivos se borran con él (en cascada): se apuntan para borrarlos también del servidor (src/documents).
     { sql: "insert or ignore into document_trash (id, at) select id, ? from documents where patient_id = ?", bind: [new Date().toISOString(), id] },
     { sql: "delete from patients where id = ?", bind: [id] },
+    // Sus planes por ciclos y lo hecho en sus sesiones (en settings, que no se borra en cascada).
+    ...patientCyclesDeleteSql(id),
   ]);
 }
 

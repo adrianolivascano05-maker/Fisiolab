@@ -15,6 +15,7 @@
 // cifrado en la cuenta no se sube nada («needs-password»); con ella pero sin la clave en este dispositivo, no se baja
 // ni se sube nada hasta escribirla («needs-key»). Una copia antigua sin cifrar se sigue pudiendo bajar y juntar.
 import { logError } from "../app/errorLog";
+import { cleanOrphanCycles } from "../data/cycles";
 import { onDbChange, type Db } from "../data/db";
 import { describeOverwritten } from "../data/editors";
 import { getSetting } from "../data/repo";
@@ -294,6 +295,9 @@ export class SyncController {
       const info = this.store.deltas && (await this.store.deltas.info(token));
       this.set({ forms: info && typeof info.forms === "number" ? info.forms : null });
       const pulled = info ? await this.deltaRound(token, info, this.store.deltas!) : await this.wholeRound(token);
+      // Lo del plan por ciclos que se ha quedado sin dueño (un paciente, motivo o sesión borrados en otro dispositivo):
+      // settings no se borra en cascada. Si falla, no para la sincronización.
+      if (pulled > 0) await this.own(() => cleanOrphanCycles(this.db)).catch(() => 0);
       await this.refreshPending();
       this.set({ status: "idle", lastSyncAt: this.meta()?.lastSyncAt ?? null, newData: this.state.newData || pulled > 0, keySalt: null, error: null, failing: null });
     } catch (e) {

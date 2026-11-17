@@ -2,6 +2,7 @@
 // registros van aparte. El primer motivo tiene el id del paciente; los registros nuevos se apuntan solos al motivo
 // que se está viendo (un disparador de la migración). Las listas de la ficha enseñan solo los del motivo elegido.
 import type { Answers } from "./clinical";
+import { planDeleteSql } from "./cycles";
 import type { Db } from "./db";
 
 export const ALL = "all";
@@ -128,6 +129,9 @@ export async function deleteEpisode(db: Db, patientId: string, id: string): Prom
   await db.transaction([
     ...["sessions", "findings", "questionnaires", "tests", "consents"].map((t) => ({ sql: `delete from ${t} where patient_id = ? and episode_id = ?`, bind: [patientId, id] })),
     { sql: "delete from episodes where id = ? and patient_id = ?", bind: [id, patientId] },
+    // Su plan por ciclos (settings no se borra en cascada); lo hecho en sus sesiones se va con ellas, abajo.
+    ...planDeleteSql(patientId, id),
+    { sql: "delete from settings where key like 'ciclos_hecho:' || ? || ':%' and substr(key, length('ciclos_hecho:' || ?) + 2) not in (select id from sessions)", bind: [patientId, patientId] },
     { sql: "update episode_focus set episode_id = ? where patient_id = ? and episode_id = ?", bind: [ALL, patientId, id] },
   ]);
 }

@@ -9,8 +9,8 @@ test("AD1 el día de hoy: una sola vista, «Pendiente N», huecos libres y cobra
   await page.getByRole("button", { name: "Crear paciente" }).click();
   await expect(page.getByRole("heading", { name: "Hugo Hoy" })).toBeVisible();
   // Una cita hoy, a última hora.
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  // Hoy en Madrid (la app y el navegador de las pruebas van en esa hora; la máquina, no siempre).
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
   await page.getByRole("button", { name: "Dar cita" }).click();
   const sheet = page.getByRole("dialog", { name: "Dar cita a Hugo Hoy" });
   await sheet.getByLabel("Día y hora").fill(`${today}T23:00`);

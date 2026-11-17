@@ -26,6 +26,7 @@ import { displayName, kindOf, scoreText, type QDetails } from "../clinical/quest
 import type { AnswerValue, Answers } from "../data/clinical";
 import type { Db } from "../data/db";
 import { STATUS_LABELS, type AppointmentStatus } from "../data/appointments";
+import { doseText, parsePhase, parsePlan, planSpanText } from "../data/cycles";
 import { eventFromRow, eventSpan, eventTime, kindLabel, repeatText } from "../data/patientEvents";
 import { CONSENTS, getClinic, parsePrivacy, type ClinicInfo, type SignedPrivacySheet } from "../data/privacy";
 import { euros, methodLabel } from "../data/billing";
@@ -80,6 +81,8 @@ export type Collected = {
   /** Los cuestionarios propios de la clínica: los de ahora (con si están archivados) y todas sus versiones. */
   ownForms?: OwnFormDoc[];
   ownSnapshots?: OwnFormSpec[];
+  /** Los planes por ciclos (src/data/cycles.ts), que van en settings: clave y valor. */
+  cycles?: { key: string; value: unknown }[];
 };
 
 /** Las tablas que se exportan (las de la clínica; no los ajustes del dispositivo ni los de cada persona). */
@@ -109,7 +112,8 @@ export async function collect(db: Db): Promise<Collected> {
     .filter((t) => t.key.startsWith("anamnesis_tpl_v:"))
     .map((t) => ({ ...(t.value as Resolved), ref: t.key.slice("anamnesis_tpl_v:".length).replace(":", "@") }));
   const [ownForms, ownSnapshots] = await Promise.all([listOwnForms(db), listOwnSnapshots(db)]);
-  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: now.sections, byTemplate, known: [now, ...snaps], templates, ownForms, ownSnapshots };
+  const cycles = (await db.query<{ key: string; value: string }>("select key, value from settings where key like 'ciclos:%'")).map((r) => ({ key: r.key, value: JSON.parse(r.value) as unknown }));
+  return { clinic: await getClinic(db), schema: (await db.info()).schemaVersion, tables, template: now.sections, byTemplate, known: [now, ...snaps], templates, ownForms, ownSnapshots, cycles };
 }
 
 // ---------- Lo de cada paciente ----------
@@ -468,6 +472,8 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
     }
   }
 
+  parts.push(...cyclesHtml(c, s(p.id), eps));
+
   const findings = mine("findings").sort((a, b) => s(a.performed_at).localeCompare(s(b.performed_at)));
   if (findings.length)
     parts.push(
@@ -610,6 +616,33 @@ function patientHtml(c: Collected, p: R, exportedAt = new Date(), files: FilePat
 }
 
 /** Un consentimiento tal como se firmó: el documento entero, las firmas y, si se retiró, cuándo. */
+/** Los planes por ciclos del paciente: el objetivo, las fases y, de cada una, sus ejercicios semana a semana. */
+function cyclesHtml(c: Collected, pid: string, eps: Episode[]): string[] {
+  const out: string[] = [];
+  const mineKeys = (c.cycles ?? []).filter((x) => x.key.startsWith(`ciclos:${pid}:`));
+  for (const own of mineKeys.filter((x) => x.key.split(":").length === 3)) {
+    const plan = parsePlan(own.value);
+    if (!plan) continue;
+    const episode = own.key.split(":")[2]!;
+    out.push(
+      `<h2>Plan por ciclos${eps.length > 1 ? ` · ${h(episodeName(eps, episode === pid ? null : episode))}` : ""}</h2><p>${h(plan.goal || "Sin objetivo escrito")}</p><p class="muted">${h(planSpanText(plan))}</p>`,
+    );
+    for (const [i, ref] of plan.phases.entries()) {
+      const doc = parsePhase(mineKeys.find((x) => x.key === `${own.key}:${ref.id}`)?.value);
+      out.push(`<h3>${i + 1} · ${h(ref.name)} (${ref.weeks === 1 ? "1 semana" : `${ref.weeks} semanas`})</h3>${doc?.goal ? `<p>${h(doc.goal)}</p>` : ""}`);
+      for (const tpl of doc?.sessions.filter((x) => x.exercises.length) ?? []) {
+        out.push(
+          table(
+            [`Sesión ${tpl.label}`, ...Array.from({ length: ref.weeks }, (_, w) => `Semana ${w + 1}`)],
+            tpl.exercises.map((e) => [e.name, ...Array.from({ length: ref.weeks }, (_, w) => doseText(doc!.weeks[w]?.[tpl.id]?.[e.id] ?? {}, plan.effort, e.timeUnit))]),
+          ),
+        );
+      }
+    }
+  }
+  return out;
+}
+
 function consentHtml(r: R, linkSignedAt: string | null): string {
   const doc = json<{
     title?: string;

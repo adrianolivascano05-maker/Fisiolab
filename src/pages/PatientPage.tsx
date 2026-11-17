@@ -14,6 +14,7 @@ import { useCloud } from "../cloud/cloudContext";
 import { mainValue } from "../clinical/measures";
 import { questionnaireGroups } from "../clinical/outcomeParts";
 import { PatientShell } from "../clinical/PatientShell";
+import { PlanCard } from "../clinical/cycles/SessionCycles";
 import { kindOf, scoreText, type QDetails } from "../clinical/questionnaires";
 import { redFlagReview } from "../clinical/redFlags";
 import { consentContext } from "../consent/context";
@@ -315,6 +316,7 @@ export function PatientPage() {
 
         </div>
         <div className="flex flex-col gap-4">
+      <PlanCard patientId={id} />
       <Fold id="documentos" title="Documentos" subtitle="Informe, alta, derivación, justificante y sus archivos">
         <RowLink to={`/pacientes/${id}/informe`} icon={FileText} title="Informe" subtitle="Para el paciente o su médico" />
         <RowLink to={`/pacientes/${id}/alta`} icon={FileCheck} title="Informe de alta" subtitle="Al cerrar el motivo de consulta" />
