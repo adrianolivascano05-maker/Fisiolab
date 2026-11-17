@@ -1,7 +1,7 @@
 // La tabla de una fase: ejercicios en filas y semanas en columnas. Las semanas ya pasadas, en gris con ✓; la de hoy,
 // marcada; la de descarga, en ámbar con ↓. Con `onCell`, cada casilla se toca para cambiarla.
 import { useState } from "react";
-import type { Dose, Effort, PhaseDoc } from "../../data/cycles";
+import { isAssessWeek, type Dose, type Effort, type PhaseDoc } from "../../data/cycles";
 import { cx } from "../../ui/cx";
 import { doseLines, Segmented } from "./parts";
 import { phaseChip } from "./phaseColors";
@@ -55,6 +55,14 @@ export function PhaseTable({
                     </span>
                   )}
                   {isDeload(w) && <span className="sr-only"> (descarga)</span>}
+                  {isAssessWeek(doc, w) && (
+                    <span className="mt-0.5 block">
+                      <span aria-hidden="true" className="rounded-pill bg-info-soft px-1.5 text-[0.6875rem] font-semibold text-info">
+                        Valorar
+                      </span>
+                      <span className="sr-only"> (valoración)</span>
+                    </span>
+                  )}
                 </th>
               ))}
             </tr>
@@ -106,6 +114,7 @@ export function PhaseTable({
       <p className="text-xs text-text-muted">
         {today !== undefined && today !== null ? "✓ hecha · " : ""}
         {deload ? "↓ descarga" : ""}
+        {doc.assess?.length ? `${deload || (today !== undefined && today !== null) ? " · " : ""}Valorar: semana de valoración` : ""}
         {onCell ? `${deload || (today !== undefined && today !== null) ? " · " : ""}Toca una casilla para cambiarla` : ""}
       </p>
     </div>

@@ -30,6 +30,8 @@ export type WeekShare = {
   perWeek: number;
   /** Las sesiones tipo de esa semana: con su letra solo si hay más de una. */
   sessions: { label: string | null; items: SharedItem[] }[];
+  /** El fisio la ha marcado como semana de valoración. */
+  assess?: boolean;
   /** Solo si el fisio lo marca: el objetivo general, los nombres de las fases y dónde está. */
   plan?: { goal: string; phases: string[]; at: number; week: number; weeks: number };
 };
@@ -69,6 +71,7 @@ export function weekShare(loaded: LoadedPlan, week: number, opts: ShareOptions):
     from,
     to,
     perWeek: plan.perWeek,
+    ...(doc?.assess?.includes(at.week) ? { assess: true } : {}),
     sessions: tpls.map((s) => ({
       label: tpls.length > 1 ? s.label : null,
       items: s.exercises

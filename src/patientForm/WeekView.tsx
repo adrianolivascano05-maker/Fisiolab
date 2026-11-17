@@ -45,6 +45,7 @@ export function WeekView({ request, preview = false }: { request: FormRequest; p
         Tus ejercicios de esta semana, del <span className="whitespace-nowrap">{dayText(week.from)}</span> al <span className="whitespace-nowrap">{dayText(week.to)}</span>.
         {week.perWeek > 0 ? ` ${week.perWeek === 1 ? "1 sesión" : `${week.perWeek} sesiones`} por semana.` : ""}
       </p>
+      {week.assess && <p className="rounded-md bg-info-soft px-3 py-2 text-sm font-semibold text-info">Esta semana toca valoración en la consulta.</p>}
       {request.brand?.patient?.welcome && <p className="text-lg">{request.brand.patient.welcome}</p>}
 
       {plan && Array.isArray(plan.phases) && plan.phases.length > 0 && (

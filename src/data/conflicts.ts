@@ -4,6 +4,7 @@ import { answerText, getField } from "../clinical/anamnesis";
 import { changeCount, isTemplateKey, type TemplateDoc } from "./anamnesisTemplates";
 import { isModuleKey, type ModuleDoc } from "./anamnesisModules";
 import { isCycleKey } from "./cycles";
+import { parseTemplate, templateSummary, TEMPLATE_PREFIX } from "./cycleTemplates";
 import type { Db } from "./db";
 
 export type LostChange = {
@@ -96,6 +97,11 @@ function cycleText(v: unknown): string {
   return "(no se puede leer)";
 }
 
+function cycleTemplateText(v: unknown): string {
+  const t = parseTemplate(typeof v === "string" ? parse(v) : v);
+  return t ? `«${t.name}» · ${templateSummary(t)}${t.archived ? " · archivada" : ""}` : "(vacío)";
+}
+
 function templateText(v: unknown): string {
   const doc = (typeof v === "string" ? parse(v) : v) as Partial<TemplateDoc> | undefined;
   if (!doc || typeof doc !== "object" || !doc.delta) return "(vacío)";
@@ -148,12 +154,14 @@ export async function lostChanges(db: Db): Promise<LostChange[]> {
     const tpl = r.tbl === "settings" && isTemplateKey(r.pk);
     // Un módulo de anamnesis de la clínica (anamnesis_mod:…): con su nombre y cuántas preguntas suyas o cambios tenía.
     const mod = r.tbl === "settings" && isModuleKey(r.pk);
+    // Una plantilla de plan por ciclos de la clínica (ciclos_plantilla:…): con su nombre.
+    const cyTpl = r.tbl === "settings" && r.pk.startsWith(TEMPLATE_PREFIX);
     out.push({
       id: r.id,
-      what: cycle ? "Plan por ciclos" : tpl ? "Plantilla de anamnesis de la clínica" : mod ? "Módulo de anamnesis de la clínica" : fieldText(r.tbl, r.field),
+      what: cyTpl ? "Plantilla de plan por ciclos" : cycle ? "Plan por ciclos" : tpl ? "Plantilla de anamnesis de la clínica" : mod ? "Módulo de anamnesis de la clínica" : fieldText(r.tbl, r.field),
       patient: p ?? null,
-      mine: cycle ? cycleText(parse(r.mine)) : tpl ? templateText(parse(r.mine)) : mod ? moduleText(parse(r.mine)) : valueText(r.tbl, r.field, parse(r.mine)),
-      theirs: cycle ? cycleText(parse(r.theirs)) : tpl ? templateText(parse(r.theirs)) : mod ? moduleText(parse(r.theirs)) : valueText(r.tbl, r.field, parse(r.theirs)),
+      mine: cyTpl ? cycleTemplateText(parse(r.mine)) : cycle ? cycleText(parse(r.mine)) : tpl ? templateText(parse(r.mine)) : mod ? moduleText(parse(r.mine)) : valueText(r.tbl, r.field, parse(r.mine)),
+      theirs: cyTpl ? cycleTemplateText(parse(r.theirs)) : cycle ? cycleText(parse(r.theirs)) : tpl ? templateText(parse(r.theirs)) : mod ? moduleText(parse(r.theirs)) : valueText(r.tbl, r.field, parse(r.theirs)),
       by: who?.name ?? null,
       at: r.at,
       gone: !exists.length,

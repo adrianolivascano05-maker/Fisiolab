@@ -633,7 +633,7 @@ function cyclesHtml(c: Collected, pid: string, eps: Episode[]): string[] {
       for (const tpl of doc?.sessions.filter((x) => x.exercises.length) ?? []) {
         out.push(
           table(
-            [`Sesión ${tpl.label}`, ...Array.from({ length: ref.weeks }, (_, w) => `Semana ${w + 1}`)],
+            [`Sesión ${tpl.label}`, ...Array.from({ length: ref.weeks }, (_, w) => `Semana ${w + 1}${doc!.assess?.includes(w) ? " (valoración)" : ""}`)],
             tpl.exercises.map((e) => [e.name, ...Array.from({ length: ref.weeks }, (_, w) => doseText(doc!.weeks[w]?.[tpl.id]?.[e.id] ?? {}, plan.effort, e.timeUnit))]),
           ),
         );

@@ -16,7 +16,9 @@ import {
   knownExerciseNames,
   LIMITS,
   newExercise,
+  isAssessWeek,
   oneRmEpley,
+  toggleAssess,
   phaseStart,
   rememberedExercise,
   rememberSql,
@@ -149,6 +151,13 @@ function WeekEditor({
         {week > 0 ? " · lo que cambies aquí no lo pisa «Rellenar»" : ""}
       </p>
       <TextField label="Objetivo de la fase" hint="Opcional, en una línea" value={doc.goal} maxLength={120} onChange={(e) => setDoc({ ...doc, goal: e.target.value })} />
+      <label className="flex min-h-11 items-center gap-3">
+        <input type="checkbox" className="size-5 shrink-0 accent-accent" checked={isAssessWeek(doc, week)} onChange={() => setDoc(toggleAssess(doc, week))} />
+        <span>
+          Semana de valoración
+          <span className="block text-sm text-text-muted">En la sesión salen a mano «Nueva medición», «Pasar un cuestionario» y «Registrar un test».</span>
+        </span>
+      </label>
 
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">

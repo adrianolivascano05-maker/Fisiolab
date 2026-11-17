@@ -61,6 +61,8 @@ export type PhaseDoc = {
   manual: string[];
   /** Cuánta carga se quita en la semana de descarga, en % (0 a 60). */
   deloadPct: number;
+  /** Las semanas de valoración que ha marcado el fisio (de la fase, desde 0). Opcional. */
+  assess?: number[];
 };
 
 export type PhaseRef = { id: string; name: string; weeks: number };
@@ -242,7 +244,8 @@ export function extendPhase(plan: PlanDoc, doc: PhaseDoc | null, index: number):
     const [w, ...rest] = k.split(":");
     return Number(w) >= at ? [Number(w) + 1, ...rest].join(":") : k;
   });
-  return { plan: { ...plan, phases }, doc: { ...doc, weeks, manual } };
+  const assess = doc.assess?.map((w) => (w >= at ? w + 1 : w));
+  return { plan: { ...plan, phases }, doc: { ...doc, weeks, manual, ...(assess ? { assess } : {}) } };
 }
 
 /** «Pasar a la siguiente fase»: la fase de esa posición acaba con la semana `week` (de la fase, desde 0). */
@@ -250,7 +253,11 @@ export function finishPhase(plan: PlanDoc, doc: PhaseDoc | null, index: number, 
   const keep = clamp(week + 1, 1, plan.phases[index]!.weeks);
   const phases = plan.phases.map((p, i) => (i === index ? { ...p, weeks: keep } : p));
   if (!doc) return { plan: { ...plan, phases }, doc };
-  return { plan: { ...plan, phases }, doc: { ...doc, weeks: doc.weeks.slice(0, keep), manual: doc.manual.filter((k) => Number(k.split(":")[0]) < keep) } };
+  const assess = doc.assess?.filter((w) => w < keep);
+  return {
+    plan: { ...plan, phases },
+    doc: { ...doc, weeks: doc.weeks.slice(0, keep), manual: doc.manual.filter((k) => Number(k.split(":")[0]) < keep), ...(assess ? { assess } : {}) },
+  };
 }
 
 /**
@@ -264,6 +271,15 @@ export function phaseFromPrevious(prev: PhaseDoc, prevDeload: boolean, id: strin
   doc.weeks[0] = clone(prev.weeks[last] ?? {});
   doc.deloadPct = prev.deloadPct;
   return doc;
+}
+
+/** Si una semana de la fase (desde 0) es de valoración. */
+export const isAssessWeek = (doc: Pick<PhaseDoc, "assess"> | null | undefined, week: number) => !!doc?.assess?.includes(week);
+/** Marca o quita una semana de valoración. */
+export function toggleAssess(doc: PhaseDoc, week: number): PhaseDoc {
+  const on = isAssessWeek(doc, week);
+  const assess = on ? doc.assess!.filter((w) => w !== week) : [...(doc.assess ?? []), week].sort((a, b) => a - b);
+  return { ...doc, assess };
 }
 
 /** «Lo de la última sesión»: la sesión tipo de la semana anterior (o, en la primera semana de una fase, de la anterior). */

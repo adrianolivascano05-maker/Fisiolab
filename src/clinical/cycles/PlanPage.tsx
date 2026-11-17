@@ -1,6 +1,6 @@
 // El plan por ciclos de un motivo: el macrociclo con su barra de fases, la fase en curso con la tabla ejercicios ×
 // semanas (cada casilla se cambia a mano) y las demás fases en una línea. Cambiar de fase es siempre a mano.
-import { CalendarPlus, ChevronDown, Pencil, Send, TrendingUp } from "lucide-react";
+import { BookmarkPlus, CalendarPlus, ChartLine, ChevronDown, Pencil, Send, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { bumpData } from "../../app/dataVersion";
@@ -21,6 +21,8 @@ import {
   type PhaseDoc,
 } from "../../data/cycles";
 import { getDb } from "../../data/db";
+import { saveTemplate, templateFromPlan } from "../../data/cycleTemplates";
+import { TextField } from "../../ui/Field";
 import { Button } from "../../ui/Button";
 import { Card } from "../../ui/Card";
 import { cx } from "../../ui/cx";
@@ -53,6 +55,8 @@ function PlanView({ patientId, data, volver, reload }: { patientId: string; data
   const [editing, setEditing] = useState<{ phase: PhaseDoc; week: number; sessionId: string; exId: string; dose: Dose } | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [busy, setBusy] = useState(false);
+  /** «Guardar como plantilla»: el nombre que se escribe (null: la hoja cerrada). */
+  const [tplName, setTplName] = useState<string | null>(null);
   const q = `motivo=${encodeURIComponent(data.episode)}&volver=${encodeURIComponent(volver)}`;
   const base = `/pacientes/${patientId}/ciclos`;
   const ref = plan.phases[current]!;
@@ -102,6 +106,9 @@ function PlanView({ patientId, data, volver, reload }: { patientId: string; data
         </p>
         <Link to={`${base}/enviar?${q}`} className="inline-flex min-h-11 items-center gap-1.5 self-start rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface">
           <Send aria-hidden="true" className="size-4" /> Enviar la semana al paciente
+        </Link>
+        <Link to={`${base}/evolucion?${q}`} className="-mt-2 inline-flex min-h-11 items-center gap-1.5 self-start rounded-md px-2 text-sm font-semibold text-accent hover:bg-surface">
+          <ChartLine aria-hidden="true" className="size-4" /> Evolución por ejercicio
         </Link>
       </Card>
 
@@ -212,10 +219,34 @@ function PlanView({ patientId, data, volver, reload }: { patientId: string; data
         <Link to={`${base}/nuevo?${q}&editar=1`} className="inline-flex min-h-11 items-center rounded-md border border-border-input bg-bg px-4 font-semibold hover:bg-surface">
           Cambiar el plan
         </Link>
+        <Button variant="secondary" icon={<BookmarkPlus aria-hidden="true" className="size-5" />} onClick={() => setTplName(plan.phases.map((p) => p.name).join(" · ").slice(0, 60))}>
+          Guardar como plantilla
+        </Button>
         <Button variant="ghost" className="text-danger" onClick={() => setConfirm({ kind: "quitar" })}>
           Quitar el plan
         </Button>
       </div>
+
+      <Sheet open={tplName !== null} onClose={() => setTplName(null)} title="Guardar como plantilla">
+        <p>
+          Para usarlo con otros pacientes: se guardan las fases, sus semanas y los ejercicios con sus casillas y «Cómo se hace». No se guardan las fechas, el
+          objetivo ni el 1RM de este paciente.
+        </p>
+        <TextField label="Nombre de la plantilla" maxLength={60} value={tplName ?? ""} onChange={(e) => setTplName(e.target.value)} />
+        <Button
+          block
+          loading={busy}
+          disabled={!tplName?.trim()}
+          onClick={() =>
+            void run(async () => {
+              await saveTemplate(getDb(), templateFromPlan(data.loaded!, tplName ?? ""));
+              setTplName(null);
+            }, "Plantilla guardada: sale al organizar otro plan")
+          }
+        >
+          Guardar la plantilla
+        </Button>
+      </Sheet>
 
       <Sheet open={!!editing} onClose={() => setEditing(null)} title={editing ? `Semana ${editing.week + 1}: ${editing.phase.sessions.flatMap((s) => s.exercises).find((e) => e.id === editing.exId)?.name ?? ""}` : ""}>
         {editing && (

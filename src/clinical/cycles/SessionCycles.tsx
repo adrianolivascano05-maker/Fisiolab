@@ -9,6 +9,7 @@ import { dayOf } from "../../app/dates";
 import { useAsync } from "../../app/useAsync";
 import {
   doseText,
+  isAssessWeek,
   loadDone,
   loadPlan,
   nextTreatment,
@@ -93,7 +94,9 @@ export function PlanLine({ patientId, c }: { patientId: string; c: SessionCycles
   const to = usePlanLink(patientId, c.episode);
   if (!c.loaded) return null;
   const plan = c.loaded.plan;
+  const assess = !!c.pos && isAssessWeek(c.doc, c.pos.week);
   return (
+    <>
     <Link to={to} className="-mx-1 flex flex-col gap-1.5 rounded-md px-1 py-1.5 hover:bg-surface">
       <PhaseBar plan={plan} week={c.week} />
       <span className="flex min-h-6 items-center justify-between gap-2 text-sm">
@@ -105,6 +108,7 @@ export function PlanLine({ patientId, c }: { patientId: string; c: SessionCycles
               </span>{" "}
               · semana {c.pos.week + 1} de {c.pos.weeks}
               {c.pos.deload && <span className="ml-1.5 rounded-pill bg-warning-soft px-2 text-xs font-semibold text-text">descarga</span>}
+              {assess && <span className="ml-1.5 rounded-pill bg-info-soft px-2 text-xs font-semibold text-info">valoración</span>}
             </>
           ) : c.week < 0 ? (
             "Plan por ciclos: aún no ha empezado"
@@ -115,6 +119,21 @@ export function PlanLine({ patientId, c }: { patientId: string; c: SessionCycles
         <ChevronRight aria-hidden="true" className="size-5 shrink-0 text-text-muted" />
       </span>
     </Link>
+    {/* Semana de valoración (la marca el fisio en la semana): lo de valorar, a mano. */}
+    {assess && (
+      <nav aria-label="Semana de valoración" className="flex flex-wrap gap-1.5">
+        {[
+          { to: `/pacientes/${patientId}/test`, label: "Nueva medición" },
+          { to: `/pacientes/${patientId}/cuestionarios/nuevo`, label: "Pasar un cuestionario" },
+          { to: `/pacientes/${patientId}/exploracion/nuevo`, label: "Registrar un test" },
+        ].map((l) => (
+          <Link key={l.to} to={l.to} className="inline-flex min-h-11 items-center rounded-pill border border-info bg-info-soft px-3 text-sm font-semibold text-info hover:underline">
+            {l.label}
+          </Link>
+        ))}
+      </nav>
+    )}
+    </>
   );
 }
 

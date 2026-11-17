@@ -7,7 +7,9 @@ import { useNavigate, useParams, useSearchParams } from "react-router";
 import { todayDay } from "../../app/dates";
 import { bumpData } from "../../app/dataVersion";
 import { Page } from "../../app/Page";
-import { checkPlan, emptyPhase, LIMITS, mondayOf, newPlan, PHASE_TEMPLATES, planSpanText, savePlan, type Effort, type PlanDoc } from "../../data/cycles";
+import { checkPlan, emptyPhase, LIMITS, mondayOf, newPlan, PHASE_TEMPLATES, planSpanText, savePlan, type Effort, type PhaseDoc, type PlanDoc } from "../../data/cycles";
+import { listTemplates, phaseFromTemplate, templateSummary, type CycleTemplate } from "../../data/cycleTemplates";
+import { useAsync } from "../../app/useAsync";
 import { getDb } from "../../data/db";
 import { Alert } from "../../ui/Alert";
 import { Button, IconButton } from "../../ui/Button";
@@ -17,7 +19,8 @@ import { TextAreaField, TextField } from "../../ui/Field";
 import { Guard } from "../pageKit";
 import { Segmented, usePlan, usePlanParams } from "./parts";
 
-type Row = { id?: string; name: string; weeks: number };
+/** Una fase en el formulario; `doc`: sus ejercicios, si vienen de una plantilla de la clínica. */
+type Row = { id?: string; name: string; weeks: number; doc?: PhaseDoc };
 const EFFORTS: Effort[] = ["rpe", "rir", "none"];
 const EFFORT_TEXT: Record<Effort, string> = { rpe: "RPE", rir: "RIR", none: "No anotar" };
 
@@ -53,6 +56,22 @@ function PlanForm({
   const [effort, setEffort] = useState<Effort>(old?.effort ?? "rpe");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Las plantillas que ha guardado la clínica (sin las archivadas).
+  const clinic = useAsync(async () => (await listTemplates(getDb())).filter((t) => !t.archived), [], { tables: ["settings"] });
+  const applyClinicTemplate = (t: CycleTemplate) => {
+    setTemplate(`clinica:${t.id}`);
+    setRows(
+      t.phases.map((p, i) => {
+        const id = crypto.randomUUID();
+        const doc = t.docs[i];
+        return { id, name: p.name, weeks: p.weeks, ...(doc ? { doc: phaseFromTemplate(doc, id, p.weeks) } : {}) };
+      }),
+    );
+    setPerWeek(t.perWeek);
+    setDeload(t.deload);
+    setEffort(t.effort);
+  };
+  const fromClinic = rows.some((r) => r.doc);
 
   const draft: PlanDoc = (() => {
     const p = newPlan({ goal, start, phases: rows, perWeek, deload, effort });
@@ -77,8 +96,14 @@ function PlanForm({
     if (err) return setError(err);
     setBusy(true);
     try {
-      const fresh = draft.phases.filter((p) => !data.loaded?.phases[p.id]).map((p) => emptyPhase(p.id, p.weeks));
-      await savePlan(getDb(), patientId, data.episode, draft, editing ? [] : fresh.slice(0, 1));
+      // Las fases de una plantilla de la clínica llevan sus ejercicios (con sus semanas ajustadas a las de ahora).
+      const fromTpl = rows.flatMap((r, i) => {
+        if (!r.doc) return [];
+        const weeks = draft.phases[i]!.weeks;
+        return [{ ...r.doc, weeks: Array.from({ length: weeks }, (_, w) => r.doc!.weeks[w] ?? {}), manual: r.doc.manual.filter((k) => Number(k.split(":")[0]) < weeks), assess: r.doc.assess?.filter((w) => w < weeks) }];
+      });
+      const fresh = draft.phases.filter((p) => !data.loaded?.phases[p.id] && !fromTpl.some((d) => d.id === p.id)).map((p) => emptyPhase(p.id, p.weeks));
+      await savePlan(getDb(), patientId, data.episode, draft, [...fromTpl, ...(editing || fromTpl.length ? [] : fresh.slice(0, 1))]);
       bumpData("settings");
       const q = `motivo=${encodeURIComponent(data.episode)}&volver=${encodeURIComponent(volver)}`;
       navigate(next === "semana" ? `/pacientes/${patientId}/ciclos/${draft.phases[0]!.id}/semana/0?${q}` : `/pacientes/${patientId}/ciclos?${q}`, { replace: true });
@@ -121,6 +146,33 @@ function PlanForm({
             </button>
           ))}
         </div>
+        {(clinic.data?.length ?? 0) > 0 && (
+          <>
+            <p className="text-sm font-semibold">Plantillas de la clínica</p>
+            <div role="group" aria-label="Plantillas de la clínica" className="flex flex-wrap gap-2">
+              {clinic.data!.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  aria-pressed={template === `clinica:${t.id}`}
+                  onClick={() => applyClinicTemplate(t)}
+                  className={cx(
+                    "flex min-h-11 flex-col items-start justify-center rounded-lg border px-3 py-1 text-left",
+                    template === `clinica:${t.id}` ? "border-accent bg-accent text-on-accent" : "border-border bg-bg text-text hover:bg-surface",
+                  )}
+                >
+                  <span className="text-sm font-semibold">{t.name}</span>
+                  <span className={cx("text-xs", template === `clinica:${t.id}` ? "" : "text-text-muted")}>{templateSummary(t)}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {fromClinic && (
+          <p className="text-sm text-text-muted">
+            Con los ejercicios de la plantilla{editing ? ": al guardar, las fases y sus ejercicios se cambian por los de la plantilla (las sesiones ya apuntadas no se tocan)" : ""}. El objetivo y el 1RM se ponen para este paciente.
+          </p>
+        )}
         <ol aria-label="Fases" className="flex flex-col divide-y divide-border">
           {rows.map((r, i) => (
             <li key={r.id ?? i} className="flex flex-col gap-2 py-2">
@@ -202,7 +254,7 @@ function PlanForm({
               Siguiente: ejercicios de la semana 1
             </Button>
             <Button variant="ghost" block disabled={busy} onClick={() => void save("plan")}>
-              Crear sin ejercicios
+              {fromClinic ? "Crear y ver el plan" : "Crear sin ejercicios"}
             </Button>
           </>
         )}

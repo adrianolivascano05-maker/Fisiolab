@@ -107,8 +107,42 @@ sincronizando y ve el texto de Tratamiento de cada sesión como siempre (va en `
   La copia de seguridad, como siempre, lo lleva todo.
 - **Cifrado y accesos**: va en la misma base, cifrada igual; las pantallas del plan son de la ficha.
 
+## Fase C: plantillas, evolución y semana de valoración
+
+### Plantillas de la clínica (`src/data/cycleTemplates.ts`, probadas en `cycleTemplates.test.ts`)
+
+- En el plan, **Guardar como plantilla** (con un nombre): guarda las fases y sus semanas, las sesiones por semana, la
+  descarga, el esfuerzo y, de cada fase, sus sesiones tipo, ejercicios («Cómo se hace» incluido), casillas, marcas «a
+  mano» y semanas de valoración. **No guarda** las fechas, el objetivo general ni los de cada fase (pueden hablar del
+  paciente) ni el 1RM calculado.
+- Al organizar un plan (o en «Cambiar el plan»), **Plantillas de la clínica** sale debajo de las de OmniClin, cada una
+  con su resumen («4 fases · 20 semanas · 2 por semana · 1 ejercicio»). Al elegir una, las fases traen sus ejercicios
+  con ids nuevos; el objetivo y el 1RM se ponen para ese paciente. Al cambiar un plan con una plantilla, se avisa de que
+  sus fases y ejercicios se sustituyen (las sesiones ya apuntadas no se tocan).
+- **Ajustes › Plantillas de plan por ciclos**: renombrar, duplicar («… (copia)») y archivar. Archivar no borra: deja de
+  salir al crear un plan y se puede recuperar.
+- Clave `ciclos_plantilla:<id>` en settings (de toda la clínica, se sincroniza; en «Cambios sustituidos» sale como
+  «Plantilla de plan por ciclos» con su nombre).
+
+### Evolución por ejercicio (`src/data/cycleEvolution.ts`, probada en `cycleEvolution.test.ts`)
+
+- Desde el plan, **Evolución por ejercicio**: se elige el ejercicio (se reconoce por su nombre en todas las fases) y se
+  ven dos gráficas, cada una con su eje: los kilos (o, sin kilos, las repeticiones, el tiempo o la distancia) y el
+  esfuerzo. Lo previsto, discontinuo; lo hecho, continuo con puntos. Las fases van como bandas de su color.
+- **Lo hecho** sale de lo marcado en las sesiones de esa semana: «Hecho» cuenta como lo previsto, «Cambiado» con lo
+  real. Con varias sesiones en la semana, el mayor; el esfuerzo, la media. Debajo, la tabla con los mismos números
+  (solo las semanas con algo).
+- Sin colores por valores ni nada que diga si va bien o mal.
+
+### Semana de valoración
+
+- En la semana, la casilla **Semana de valoración** (se guarda en la fase, `assess`). Se corre al alargar la fase y se
+  quita si la fase acaba antes.
+- Sale como «Valorar» en la tabla de la fase y como «valoración» en la línea del plan de la sesión, con **Nueva
+  medición**, **Pasar un cuestionario** y **Registrar un test** a un toque. En el enlace de la semana al paciente: «Esta
+  semana toca valoración en la consulta». En la exportación, «Semana N (valoración)».
+
 ## Pendiente
 
-- **Fase C**: plantillas de la clínica, gráfica de evolución por ejercicio y semana de valoración.
 - La biblioteca de ejercicios de la clínica no se usa por ahora: los ejercicios se escriben a mano (con sugerencias de
   los ya usados).

@@ -211,3 +211,95 @@ test("CI2 enviar la semana al paciente: qué se enseña, el enlace por WhatsApp,
   await legend.click();
   await expect(page.getByRole("heading", { name: "Plan por ciclos" })).toBeVisible();
 });
+
+test("CI3 semana de valoración, evolución por ejercicio y plantillas de la clínica (guardar, usar, renombrar, duplicar y archivar)", async ({ page }) => {
+  test.slow();
+  await page.setViewportSize({ width: 360, height: 780 });
+  const check = async () => {
+    await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+    expect(await smallTargets(page)).toEqual([]);
+    await expectAccessible(page);
+  };
+  await page.goto("./pacientes/nuevo");
+  await page.getByLabel("Nombre").fill("Marta Plantilla");
+  await page.getByRole("button", { name: "Crear paciente" }).click();
+  await expect(page.getByRole("heading", { name: "Marta Plantilla" })).toBeVisible();
+  const record = page.url();
+
+  // El plan con un ejercicio y la semana 1 de valoración.
+  await page.goto(`${record}/ciclos/nuevo`);
+  await page.getByLabel("Objetivo general").fill("Subir escaleras sin dolor");
+  await page.getByRole("button", { name: "Siguiente: ejercicios de la semana 1" }).click();
+  await page.getByLabel("Semana de valoración").check();
+  await page.getByLabel("Añadir un ejercicio").fill("Prensa bilateral");
+  await page.getByRole("button", { name: "Añadir", exact: true }).click();
+  const inputs = page.getByRole("list", { name: /^Ejercicios de la sesión A/ }).locator('input[inputmode="decimal"]');
+  for (const [i, v] of ["3", "10", "40", "6"].entries()) await inputs.nth(i).fill(v);
+  await page.getByRole("button", { name: "Guardar y ver el plan" }).click();
+  await expect(page.getByRole("table", { name: /^1 · Adaptación/ }).getByRole("columnheader", { name: /valoración/ })).toBeVisible();
+
+  // En la sesión: la etiqueta y los accesos a valorar; «Todo hecho» y guardar.
+  await page.goto(`${record}/sesiones/nueva`);
+  const assess = page.getByRole("navigation", { name: "Semana de valoración" });
+  await expect(assess.getByRole("link", { name: "Nueva medición" })).toBeVisible();
+  await expect(assess.getByRole("link", { name: "Pasar un cuestionario" })).toBeVisible();
+  await page.getByRole("region", { name: "Tratamiento · hoy toca" }).getByRole("button", { name: "Todo hecho como estaba" }).click();
+  await page.getByRole("button", { name: "Guardar sesión" }).click();
+  await expect(page.getByRole("listitem").filter({ hasText: "Sesión 1" }).first()).toContainText("Prensa bilateral 3 × 10 con 40 kg");
+
+  // Evolución: previsto y hecho de la semana 1.
+  await page.goto(`${record}/ciclos`);
+  await page.getByRole("link", { name: "Evolución por ejercicio" }).click();
+  await expect(page.getByRole("heading", { name: "Evolución por ejercicio" })).toBeVisible();
+  await expect(page.getByLabel("Ejercicio")).toHaveValue("Prensa bilateral");
+  await expect(page.getByRole("img", { name: /^Kilos \(kg\)/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /^Esfuerzo \(RPE\)/ })).toBeVisible();
+  const row = page.getByRole("table", { name: "Prensa bilateral, semana a semana" }).getByRole("row").nth(1);
+  await expect(row).toContainText("40");
+  await expect(row.getByRole("cell").nth(1)).toHaveText("40");
+  await check();
+
+  // Guardar como plantilla.
+  await page.goto(`${record}/ciclos`);
+  await page.getByRole("button", { name: "Guardar como plantilla" }).click();
+  await page.getByLabel("Nombre de la plantilla").fill("Rodilla 20 semanas");
+  await page.getByRole("button", { name: "Guardar la plantilla" }).click();
+  await expect(page.getByText("Plantilla guardada: sale al organizar otro plan")).toBeVisible();
+
+  // Otro paciente: la plantilla de la clínica trae las fases y el ejercicio.
+  await page.goto("./pacientes/nuevo");
+  await page.getByLabel("Nombre").fill("Pablo Plantilla");
+  await page.getByRole("button", { name: "Crear paciente" }).click();
+  await expect(page.getByRole("heading", { name: "Pablo Plantilla" })).toBeVisible();
+  const second = page.url();
+  await page.goto(`${second}/ciclos/nuevo`);
+  const clinic = page.getByRole("group", { name: "Plantillas de la clínica" });
+  await clinic.getByRole("button", { name: /Rodilla 20 semanas/ }).click();
+  await expect(page.getByText(/Con los ejercicios de la plantilla/)).toBeVisible();
+  // Abajo del todo: la barra fija de «Siguiente» no tapa ninguna fila al revisar.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await check();
+  await page.getByRole("button", { name: "Crear y ver el plan" }).click();
+  const table = page.getByRole("table", { name: /^1 · Adaptación/ });
+  await expect(table.getByRole("row", { name: /Prensa bilateral/ })).toContainText("40 kg");
+  await expect(table.getByRole("columnheader", { name: /valoración/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Sin objetivo escrito" })).toBeVisible();
+
+  // Ajustes: renombrar, duplicar y archivar.
+  await page.goto("./ajustes");
+  await page.getByRole("link", { name: /Plantillas de plan por ciclos/ }).click();
+  await expect(page.getByRole("heading", { name: "Plantillas de plan por ciclos" })).toBeVisible();
+  await page.getByRole("button", { name: "Renombrar «Rodilla 20 semanas»" }).click();
+  await page.getByRole("dialog").getByLabel("Nombre de la plantilla").fill("Rodilla");
+  await page.getByRole("button", { name: "Guardar el nombre" }).click();
+  await page.getByRole("button", { name: "Duplicar «Rodilla»" }).click();
+  await expect(page.getByRole("list", { name: "Plantillas" }).getByRole("listitem")).toHaveCount(2);
+  await page.getByRole("button", { name: "Archivar «Rodilla (copia)»" }).click();
+  await expect(page.getByRole("list", { name: "Plantillas" }).getByRole("listitem")).toHaveCount(1);
+  await page.getByRole("button", { name: "Ver las archivadas (1)" }).click();
+  await expect(page.getByRole("button", { name: "Recuperar «Rodilla (copia)»" })).toBeVisible();
+  await check();
+  // La archivada ya no sale al organizar un plan.
+  await page.goto(`${second}/ciclos/nuevo?editar=1`);
+  await expect(page.getByRole("group", { name: "Plantillas de la clínica" }).getByRole("button")).toHaveCount(1);
+});

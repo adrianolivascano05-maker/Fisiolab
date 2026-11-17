@@ -27,3 +27,6 @@ const BORDER = ["border-phase-1", "border-phase-2", "border-phase-3", "border-ph
 export const phaseBorder = (i: number) => at(BORDER, i);
 /** Solo el fondo suave. */
 export const phaseSoft = (i: number) => at(LIGHT, i);
+const FILL = ["fill-phase-1-soft", "fill-phase-2-soft", "fill-phase-3-soft", "fill-phase-4-soft", "fill-phase-5-soft", "fill-phase-6-soft", "fill-phase-7-soft", "fill-phase-8-soft"] as const;
+/** El relleno suave para SVG (las bandas de las fases en la gráfica de evolución). */
+export const phaseFill = (i: number) => at(FILL, i);

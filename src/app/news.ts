@@ -3,7 +3,7 @@
 export type NewsItem = { title: string; text: string; to?: string };
 
 /** Sube con cada tanda de cambios que mueve cosas de sitio. */
-export const NEWS_VERSION = 3;
+export const NEWS_VERSION = 4;
 
 export const NEWS: NewsItem[] = [
   { title: "Botón «＋» en el centro de la barra", text: "Dar una cita, crear un paciente, volver a los últimos que has abierto y buscar un paciente o una pantalla escribiendo. Dentro de una ficha, primero lo de ese paciente." },
@@ -16,6 +16,7 @@ export const NEWS: NewsItem[] = [
   { title: "La lista de pacientes", text: "Debajo del buscador, Todos, Hoy, Sin cita y Deben filtran con un toque. Cada fila dice por qué viene, cuántas sesiones lleva y lo más urgente. Las letras de la A a la Z van en una tira que se desliza." },
   { title: "Dar cita eligiendo un hueco", text: "Al dar una cita, tres huecos libres propuestos (primero su hora de siempre) y las horas libres del día que elijas. La hora a mano sigue donde estaba." },
   { title: "«Deshacer»", text: "Al dar, cambiar o anular una cita, al cobrar y al borrar un evento de su calendario, el aviso lleva «Deshacer» durante unos segundos." },
+  { title: "Plan por ciclos: plantillas, evolución y valoración", text: "Desde un plan, «Guardar como plantilla» para usarlo con otro paciente (en Ajustes se renombran, duplican o archivan); «Evolución por ejercicio» con lo previsto y lo hecho semana a semana, y la casilla «Semana de valoración», que deja a mano medir o pasar un cuestionario en la sesión.", to: "/ajustes/plantillas-ciclos" },
   { title: "Organizar el tratamiento por ciclos", text: "Opcional. En una sesión, bajo Tratamiento, «Organizar por ciclos»: el objetivo, las fases con sus semanas y los ejercicios de cada semana. La progresión se rellena con la regla que elijas y en cada sesión sale lo que toca hoy para marcarlo de un toque. Desde el plan, «Enviar la semana al paciente» le manda un enlace para ver sus ejercicios en el móvil. Si no lo usas, nada cambia." },
   { title: "«Hoy» y «Día», una sola vista en el móvil", text: "En la Agenda ya no hay un botón «Hoy» aparte: «Día» enseña el día de hoy para atender y cobrar, con lo pendiente debajo. «Ver huecos libres» lo cambia por la lista con huecos; la tira de la semana lleva a otros días.", to: "/agenda?vista=hoy" },
   { title: "«Hoy», con tres cifras", text: "Arriba de Agenda › Hoy: cuántas citas hay, cuántas quedan por atender y cuánto hay por cobrar.", to: "/agenda?vista=hoy" },

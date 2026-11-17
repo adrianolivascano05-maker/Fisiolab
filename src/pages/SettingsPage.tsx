@@ -29,6 +29,7 @@ import {
   Sparkles,
   Wallet,
   ListChecks,
+  Layers,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
@@ -157,6 +158,7 @@ export function SettingsPage() {
       <Group title="La consulta">
         <RowLink to="/ajustes/anamnesis" icon={ClipboardList} title="Anamnesis de la clínica" subtitle="Tus propias preguntas en la ficha" />
         <RowLink to="/ajustes/cuestionarios-propios" icon={ListChecks} title="Cuestionarios propios" subtitle="Satisfacción, control semanal, adherencia… (no validados)" />
+        <RowLink to="/ajustes/plantillas-ciclos" icon={Layers} title="Plantillas de plan por ciclos" subtitle="Las guardadas desde un plan: renombrar, duplicar o archivar" />
         {SHOW_EXERCISES && <RowLink to="/ajustes/ejercicios" icon={Dumbbell} title="Biblioteca de ejercicios" subtitle="Para las hojas de ejercicios para casa" />}
         <RowLink to="/ajustes/aspecto" icon={SunMoon} title="Aspecto" subtitle={`${theme === "auto" ? "Automático, como el dispositivo" : THEME_LABELS[theme]} · abre en ${START_LABELS[getStartPage()].replace(" (lo de hoy)", "")}`} />
       </Group>
