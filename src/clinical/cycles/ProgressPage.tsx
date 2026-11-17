@@ -15,6 +15,7 @@ import { Sheet } from "../../ui/Sheet";
 import { useToast } from "../../ui/Toast";
 import { Guard } from "../pageKit";
 import { PhaseTable } from "./PhaseTable";
+import { phaseChip } from "./phaseColors";
 import { usePlan, usePlanParams } from "./parts";
 
 const FOR_ALL: Rule[] = ["same", "rep1", "pct5"];
@@ -66,8 +67,11 @@ function Progress({ patientId, data, index, volver }: { patientId: string; data:
 
   return (
     <Page title="Cómo progresa" backTo={`/pacientes/${patientId}/ciclos?${q}`} backLabel="Plan" tabs={false}>
-      <p className="-mt-2 text-sm text-text-muted">
-        Mesociclo {index + 1} · {ref.name} · {ref.weeks === 1 ? "1 semana" : `${ref.weeks} semanas`}
+      <p className="-mt-2 flex flex-wrap items-center gap-1.5 text-sm text-text-muted">
+        <span className={cx("rounded-pill px-2 py-0.5 font-semibold", phaseChip(index))}>
+          {index + 1} · {ref.name}
+        </span>
+        Mesociclo · {ref.weeks === 1 ? "1 semana" : `${ref.weeks} semanas`}
       </p>
       {!all.length ? (
         <Alert tone="info" title="Esta fase aún no tiene ejercicios">
@@ -131,7 +135,7 @@ function Progress({ patientId, data, index, volver }: { patientId: string; data:
               </div>
             )}
           </Card>
-          <PhaseTable doc={preview} weeks={ref.weeks} deload={deload} effort={plan.effort} label="Vista previa" />
+          <PhaseTable doc={preview} weeks={ref.weeks} deload={deload} effort={plan.effort} label="Vista previa" phase={index} />
           <p className="text-sm text-text-muted">La app solo hace la cuenta que eliges. Cualquier casilla se cambia a mano.</p>
           {kept > 0 && (
             <Alert tone="info" title={kept === 1 ? "Una casilla cambiada a mano no se ha tocado" : `${kept} casillas cambiadas a mano no se han tocado`}>

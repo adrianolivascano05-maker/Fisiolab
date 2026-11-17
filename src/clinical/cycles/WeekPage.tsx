@@ -37,6 +37,7 @@ import { cx } from "../../ui/cx";
 import { TextAreaField, TextField } from "../../ui/Field";
 import { useToast } from "../../ui/Toast";
 import { Guard } from "../pageKit";
+import { phaseChip } from "./phaseColors";
 import { DoseInputs, NumCell, paramLabel, Segmented, usePlan, usePlanParams } from "./parts";
 
 export function WeekPage() {
@@ -141,6 +142,9 @@ function WeekEditor({
   return (
     <Page title={`Semana ${globalWeek + 1} · ${ref.name}`} backTo={`/pacientes/${patientId}/ciclos?${q}`} backLabel="Plan" tabs={false}>
       <p className="-mt-2 text-sm text-text-muted">
+        <span className={cx("mr-1.5 rounded-pill px-2 py-0.5 font-semibold", phaseChip(index))}>
+          Fase {index + 1}
+        </span>
         Microciclo · {shortDay(from)} – {shortDay(to)} · {plan.perWeek === 1 ? "1 sesión" : `${plan.perWeek} sesiones`}
         {week > 0 ? " · lo que cambies aquí no lo pisa «Rellenar»" : ""}
       </p>

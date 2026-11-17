@@ -5,7 +5,7 @@
 // (?mes=2026-11&dia=2026-11-12&ver=citas): al volver de una sesión, se sigue donde se estaba.
 import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, ClipboardCheck, Mail, MessageCircle, NotebookPen, Plus, Printer, Repeat, Send } from "lucide-react";
 import { useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router";
+import { Link, useLocation, useParams, useSearchParams } from "react-router";
 import { addDays, todayDay } from "../app/dates";
 import { useAsync } from "../app/useAsync";
 import { appointmentsOf, STATUS_LABELS, type Appointment } from "../data/appointments";
@@ -63,6 +63,8 @@ import {
   type ChipTone,
 } from "./patientCalendar";
 import { closuresBetween } from "../data/closures";
+import { loadPatientPlans, phaseOnDay } from "../data/cycles";
+import { phaseChip, phaseSolid } from "./cycles/phaseColors";
 import { atMinutes } from "../schedule/layout";
 
 // Cada cosa del mes, con su color y su palabra (docs/rediseno-sencilla.md, «Colores»): la cita pendiente, en el verde
@@ -108,22 +110,24 @@ export function CalendarPage() {
   const [event, setEvent] = useState<{ event: PatientEvent | null; day: string | null } | null>(null);
   /** Deslizar el dedo sobre el mes: a la izquierda, el siguiente; a la derecha, el anterior. */
   const touch = useRef<{ x: number; y: number } | null>(null);
+  const { pathname, search } = useLocation();
 
   const data = useAsync(
     async () => {
       const db = getDb();
-      const [patient, appointments, events, sessions, clinic, messages] = await Promise.all([
+      const [patient, appointments, events, sessions, clinic, messages, plans] = await Promise.all([
         getPatient(db, id),
         appointmentsOf(db, id),
         listPatientEvents(db, id),
         sessionDays(db, id),
         getClinic(db),
         loadMessages(db),
+        loadPatientPlans(db, id),
       ]);
       // Los días con la agenda cerrada para todos (un festivo, unas vacaciones de la clínica), para rayarlos en el mes.
       const first = `${month}-01`;
       const closures = (await closuresBetween(db, atMinutes(first, 0), atMinutes(addDays(first, 31), 0))).filter((c) => c.staffEmail === "");
-      return { patient, appointments, events, sessions, review: sessions[0]?.reviewOn ?? null, clinic, messages, closures };
+      return { patient, appointments, events, sessions, review: sessions[0]?.reviewOn ?? null, clinic, messages, closures, plans };
     },
     [id, month],
     { tables: ["patients", "appointments", "sessions", "events", "settings", "schedule"] },
@@ -151,6 +155,11 @@ export function CalendarPage() {
   const away = inside.filter((x) => x.hits.some((h) => AWAY_KINDS.includes(h.event.kind)));
   const days = monthDays(month);
   const byDay = calendarItems(data.data, days[0]!, days.at(-1)!, filter);
+  // Su plan por ciclos (src/data/cycles.ts): cada día, la fase en la que cae, con el color de esa fase.
+  const phaseOf = (day: string) => phaseOnDay(data.data!.plans, day);
+  const planLink = (episode: string) => `/pacientes/${id}/ciclos?motivo=${encodeURIComponent(episode)}&volver=${encodeURIComponent(pathname + search)}`;
+  const monthPhases = [...new Map(days.map(phaseOf).filter((x) => x !== null).map((x) => [`${x.episode}:${x.index}`, x])).values()];
+  const selectedPhase = selected ? phaseOf(selected) : null;
   const go = (next: { mes?: string; dia?: string | null; ver?: CalFilter }) => {
     const p = new URLSearchParams(params);
     const m = next.mes ?? month;
@@ -289,6 +298,7 @@ export function CalendarPage() {
                           past={day < today}
                           items={byDay.get(day)}
                           closed={closedNote(day)}
+                          phase={phaseOf(day)}
                           onClick={() => go({ dia: day === selected ? null : day })}
                         />
                       )}
@@ -323,6 +333,20 @@ export function CalendarPage() {
               </button>
             ))}
           </div>
+          {/* La franja de color bajo cada día: en qué fase de su plan por ciclos cae. Toca una para ver el plan. */}
+          {monthPhases.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <p className="text-sm font-semibold text-text-muted">Plan por ciclos (franja bajo cada día)</p>
+              <div className="flex flex-wrap gap-2">
+                {monthPhases.map((x) => (
+                  <Link key={`${x.episode}:${x.index}`} to={planLink(x.episode)} className={cx("inline-flex min-h-11 items-center gap-1.5 rounded-pill border px-3 text-sm font-semibold", phaseChip(x.index))}>
+                    <span aria-hidden="true" className={cx("h-1 w-4 rounded-pill", phaseSolid(x.index))} />
+                    {x.index + 1} · {x.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <section aria-labelledby="h-lista" className="flex flex-col gap-3">
@@ -340,6 +364,14 @@ export function CalendarPage() {
                 {dayLong(selected)}
                 {selected === today && <span className="ml-2 rounded-pill bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent">Hoy</span>}
               </h3>
+              {selectedPhase && (
+                <Link to={planLink(selectedPhase.episode)} className={cx("inline-flex min-h-11 items-center self-start rounded-pill border px-3 text-sm", phaseChip(selectedPhase.index))}>
+                  <span className="font-semibold">
+                    Fase {selectedPhase.index + 1} · {selectedPhase.name}
+                  </span>
+                  &nbsp;· semana {selectedPhase.week + 1} de {selectedPhase.weeks}
+                </Link>
+              )}
               {(byDay.get(selected) ?? []).length === 0 ? (
                 <p className="text-sm text-text-muted">{filter === "visits" ? "Ninguna cita este día." : filter === "events" ? "Ningún evento este día." : "Nada este día."}</p>
               ) : (
@@ -426,6 +458,7 @@ function DayButton({
   past,
   items,
   closed,
+  phase,
   onClick,
 }: {
   day: string;
@@ -435,6 +468,8 @@ function DayButton({
   items?: CalItem[];
   /** El motivo, si ese día la agenda está cerrada para todos (sale rayado). */
   closed: string | null;
+  /** La fase de su plan por ciclos en la que cae (franja de su color abajo). */
+  phase?: { index: number; name: string } | null;
   onClick: () => void;
 }) {
   const { chips, more } = chipsOf(items, day);
@@ -452,7 +487,7 @@ function DayButton({
       )}
     >
       {/* Para el lector de pantalla, el día entero en palabras; lo que se ve (número y etiquetas) es solo para la vista. */}
-      <span className="sr-only">{`${dayLong(day)}${today ? ", hoy" : ""}${closed ? `, agenda cerrada (${closed})` : ""}: ${countText(items)}`}</span>
+      <span className="sr-only">{`${dayLong(day)}${today ? ", hoy" : ""}${closed ? `, agenda cerrada (${closed})` : ""}${phase ? `, fase ${phase.index + 1} (${phase.name})` : ""}: ${countText(items)}`}</span>
       <span aria-hidden="true" className={cx("nums text-center leading-none", today ? "font-bold" : past && "text-text-muted")}>
         {Number(day.slice(8))}
       </span>
@@ -466,6 +501,7 @@ function DayButton({
           {c.text}
         </span>
       ))}
+      {phase && <span aria-hidden="true" className={cx("absolute inset-x-0 bottom-0 h-1", phaseSolid(phase.index))} />}
       {more > 0 && (
         <span aria-hidden="true" className="absolute right-0.5 top-0.5 text-[0.625rem] leading-none font-semibold text-text-muted">
           +{more}

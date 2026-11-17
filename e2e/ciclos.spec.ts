@@ -190,4 +190,24 @@ test("CI2 enviar la semana al paciente: qué se enseña, el enlace por WhatsApp,
   await phone.reload();
   await expect(phone.getByText(/Este enlace ya no vale/)).toBeVisible({ timeout: 15_000 });
   await ctx.close();
+
+  // Los colores de las fases: los filtros del plan y la franja bajo cada día del calendario.
+  await page.goto(`${record}/ciclos`);
+  await expect(page.getByRole("group", { name: "Ir a una fase" }).getByRole("button", { name: /^1 · Adaptación/ })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("group", { name: "Ir a una fase" }).getByRole("button", { name: /^2 · Desarrollo/ }).click();
+  await expect(page.getByRole("button", { name: /Desarrollo/, expanded: true })).toBeVisible();
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+  expect(await smallTargets(page)).toEqual([]);
+  await expectAccessible(page);
+  await page.goto(`${record}/calendario`);
+  await expect(page.getByRole("button", { name: /fase 1 \(Adaptación\)/ }).first()).toBeVisible();
+  const legend = page.getByRole("link", { name: "1 · Adaptación", exact: true });
+  await expect(legend).toBeVisible();
+  await page.getByRole("button", { name: /, hoy, fase 1 \(Adaptación\)/ }).click();
+  await expect(page.getByRole("link", { name: /^Fase 1 · Adaptación · semana 1 de 4/ })).toBeVisible();
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+  expect(await smallTargets(page)).toEqual([]);
+  await expectAccessible(page);
+  await legend.click();
+  await expect(page.getByRole("heading", { name: "Plan por ciclos" })).toBeVisible();
 });

@@ -27,6 +27,7 @@ import { currentEpisode } from "../../data/episodes";
 import { Button } from "../../ui/Button";
 import { cx } from "../../ui/cx";
 import { DoseInputs, effortLabel, PhaseBar, Segmented } from "./parts";
+import { phaseChip } from "./phaseColors";
 
 /** Lo del plan en una sesión: qué toca, lo marcado y lo que se guarda con ella. */
 export function useSessionCycles({ patientId, sid, when, treatment, setTreatment }: { patientId: string; sid?: string; when: string; treatment: string; setTreatment: (t: string) => void }) {
@@ -99,7 +100,7 @@ export function PlanLine({ patientId, c }: { patientId: string; c: SessionCycles
         <span className="min-w-0">
           {c.pos && c.ref ? (
             <>
-              <span className="font-semibold">
+              <span className={cx("rounded-pill px-2 py-0.5 font-semibold", phaseChip(c.pos.index))}>
                 Fase {c.pos.index + 1} · {c.ref.name}
               </span>{" "}
               · semana {c.pos.week + 1} de {c.pos.weeks}
@@ -182,7 +183,12 @@ export function TodayToca({ c }: { c: SessionCycles }) {
             <li key={e.id} className={cx("flex flex-col gap-2 rounded-md border px-3 py-2", editing ? "border-accent" : "border-border")}>
               <div className="flex items-center gap-2">
                 <button type="button" aria-expanded={editing} onClick={() => setOpen(editing ? null : e.id)} className="flex min-h-11 min-w-0 flex-1 flex-col items-start text-left">
-                  <span className="font-semibold">{e.name}</span>
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="font-semibold">{e.name}</span>
+                    <span className={cx("rounded-pill px-2 text-xs font-semibold", it?.state === "changed" ? "bg-info-soft text-info" : it ? "bg-success-soft text-success" : "bg-surface text-text-muted")}>
+                      {it?.state === "changed" ? "Cambiado" : it ? "✓ Hecho" : "Pendiente"}
+                    </span>
+                  </span>
                   <span className="text-sm text-text-muted">{real ? `Hecho: ${doseText(real, effort, e.timeUnit)}` : doseText(plan, effort, e.timeUnit) || "Sin parámetros"}</span>
                 </button>
                 <button
@@ -307,7 +313,18 @@ export function PlanCard({ patientId }: { patientId: string }) {
       </span>
       <PhaseBar plan={plan} week={week} />
       <span className="text-sm text-text-muted">
-        {pos ? `Fase ${pos.index + 1} · ${plan.phases[pos.index]!.name} · semana ${week + 1} de ${total}` : week < 0 ? "Aún no ha empezado" : "Terminado"}
+        {pos ? (
+          <>
+            <span className={cx("rounded-pill px-2 py-0.5 font-semibold", phaseChip(pos.index))}>
+              Fase {pos.index + 1} · {plan.phases[pos.index]!.name}
+            </span>{" "}
+            · semana {week + 1} de {total}
+          </>
+        ) : week < 0 ? (
+          "Aún no ha empezado"
+        ) : (
+          "Terminado"
+        )}
       </span>
     </Link>
   );

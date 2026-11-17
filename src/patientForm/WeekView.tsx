@@ -5,6 +5,7 @@ import { CalendarCheck, Lock } from "lucide-react";
 import type { FormRequest } from "../clinical/patientForms";
 import type { WeekShare } from "../data/cyclesShare";
 import { cx } from "../ui/cx";
+import { phaseChip } from "../clinical/cycles/phaseColors";
 
 const TZ = "Europe/Madrid";
 /** «lunes 16 de noviembre» (un día AAAA-MM-DD). */
@@ -57,7 +58,7 @@ export function WeekView({ request, preview = false }: { request: FormRequest; p
               <li
                 key={`${i}-${name}`}
                 aria-current={i === plan.at ? "step" : undefined}
-                className={cx("rounded-md border px-3 py-1 text-sm", i === plan.at ? "border-accent bg-accent-soft font-semibold" : "border-border text-text-muted")}
+                className={cx("rounded-md border px-3 py-1 text-sm", phaseChip(i), i === plan.at ? "border-2 font-semibold" : "border-transparent")}
               >
                 {i + 1} · {name}
                 {i === plan.at && <span className="block text-xs">Estás aquí · semana {plan.week + 1} de {plan.weeks}</span>}

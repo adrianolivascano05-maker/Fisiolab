@@ -15,6 +15,7 @@ import {
   finishPhase,
   kgOfPct,
   loadDone,
+  loadPatientPlans,
   loadPlan,
   newExercise,
   newPlan,
@@ -22,6 +23,7 @@ import {
   oneRmEpley,
   phaseAt,
   phaseFromPrevious,
+  phaseOnDay,
   planEnd,
   planSpanText,
   progress,
@@ -288,6 +290,22 @@ describe("en la base", () => {
     // El domingo 13 a las 23:30 de Madrid es de la semana anterior.
     expect(await sessionsBeforeInWeek(db, pid, pid, "2026-09-16T08:00:00.000Z")).toBe(1);
     expect(await sessionsBeforeInWeek(db, pid, pid, "2026-09-14T07:00:00.000Z")).toBe(0);
+  });
+
+  it("en el calendario: la fase de cada día, de cualquiera de sus planes", async () => {
+    const pid = await createPatient(db, person("Clara Calendario"));
+    const ep = await createEpisode(db, pid, { title: "Hombro", startedAt: "2026-10-01T10:00:00.000Z", answers: {} });
+    await savePlan(db, pid, pid, plan());
+    await savePlan(db, pid, ep, plan({ start: "2027-06-02", phases: [{ id: "x", name: "Fase 1", weeks: 2 }] }));
+    const plans = await loadPatientPlans(db, pid);
+    expect(plans).toHaveLength(2);
+    expect(phaseOnDay(plans, "2026-09-13")).toBeNull();
+    expect(phaseOnDay(plans, "2026-09-14")).toMatchObject({ episode: pid, index: 0, name: "Adaptación", week: 0, weeks: 4 });
+    expect(phaseOnDay(plans, "2026-10-12")).toMatchObject({ index: 1, name: "Desarrollo", week: 0 });
+    expect(phaseOnDay(plans, "2027-02-01")).toBeNull();
+    // Un plan que empieza en miércoles: el lunes y el martes de esa semana aún no son del plan.
+    expect(phaseOnDay(plans, "2027-06-01")).toBeNull();
+    expect(phaseOnDay(plans, "2027-06-02")).toMatchObject({ episode: ep, name: "Fase 1" });
   });
 
   it("guarda una fase sin tocar las demás", async () => {

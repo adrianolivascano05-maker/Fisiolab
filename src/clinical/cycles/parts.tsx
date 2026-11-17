@@ -1,5 +1,6 @@
 // Piezas comunes de las pantallas del plan por ciclos (src/data/cycles.ts): cargar el plan de un motivo, la barra de
 // fases, las casillas de los parámetros y la línea corta de cada casilla de la tabla.
+import { phaseSoft, phaseSolid } from "./phaseColors";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
 import { todayDay } from "../../app/dates";
@@ -51,7 +52,7 @@ export function doseLines(d: Dose | undefined, effort: Effort): [string, string]
   return [first, second];
 }
 
-/** La barra de fases, cada una del largo de sus semanas; lo ya pasado, relleno. */
+/** La barra de fases, cada una del largo de sus semanas y de su color (phaseColors.ts); lo ya pasado, relleno. */
 export function PhaseBar({ plan, week, className }: { plan: PlanDoc; week: number; className?: string }) {
   const starts = plan.phases.map((_, i) => plan.phases.slice(0, i).reduce((n, x) => n + x.weeks, 0));
   return (
@@ -60,8 +61,8 @@ export function PhaseBar({ plan, week, className }: { plan: PlanDoc; week: numbe
         const start = starts[i]!;
         const done = Math.max(0, Math.min(p.weeks, week + 1 - start));
         return (
-          <span key={p.id} className="h-1.5 overflow-hidden rounded-pill bg-border" style={{ flexGrow: p.weeks, flexBasis: 0 }}>
-            <span className="block h-full rounded-pill bg-accent" style={{ width: `${(done / p.weeks) * 100}%` }} />
+          <span key={p.id} className={cx("h-2 overflow-hidden rounded-pill", phaseSoft(i))} style={{ flexGrow: p.weeks, flexBasis: 0 }}>
+            <span className={cx("block h-full rounded-pill", phaseSolid(i))} style={{ width: `${(done / p.weeks) * 100}%` }} />
           </span>
         );
       })}

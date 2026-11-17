@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Dose, Effort, PhaseDoc } from "../../data/cycles";
 import { cx } from "../../ui/cx";
 import { doseLines, Segmented } from "./parts";
+import { phaseChip } from "./phaseColors";
 
 export function PhaseTable({
   doc,
@@ -11,6 +12,7 @@ export function PhaseTable({
   deload,
   effort,
   label,
+  phase,
   today,
   onCell,
 }: {
@@ -19,6 +21,8 @@ export function PhaseTable({
   deload: boolean;
   effort: Effort;
   label: string;
+  /** La posición de la fase en el plan (para su color); sin ella, sin color. */
+  phase?: number;
   /** La semana de hoy dentro de la fase (desde 0); las anteriores salen como hechas. null: ninguna. */
   today?: number | null;
   onCell?: (week: number, sessionId: string, exId: string, dose: Dose) => void;
@@ -44,7 +48,7 @@ export function PhaseTable({
                   {today === w ? (
                     <span className="rounded-pill bg-accent px-2 py-0.5 text-on-accent">Hoy</span>
                   ) : (
-                    <span className={cx(isDeload(w) ? "text-warning" : "text-text-muted")}>
+                    <span className={cx("inline-block rounded-pill px-1.5 py-0.5", isDeload(w) ? "bg-warning-soft text-warning" : phase !== undefined ? phaseChip(phase) : "text-text-muted")}>
                       S{w + 1}
                       {today !== undefined && today !== null && w < today ? " ✓" : ""}
                       {isDeload(w) ? " ↓" : ""}

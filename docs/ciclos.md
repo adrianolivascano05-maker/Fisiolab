@@ -68,6 +68,22 @@ Sesiones y en el Resumen.
 - **«Cómo se hace»**: un texto opcional por ejercicio (hasta 400 letras), que escribe el fisio en la semana. Como la
   biblioteca de ejercicios no se usa por ahora, se recuerda con el nombre del ejercicio para la próxima vez.
 
+## Colores de las fases (`src/clinical/cycles/phaseColors.ts`)
+
+- Cada fase tiene su color por su posición (1, 2, 3…), el mismo en todas partes: la barra de fases, los filtros «Ir a
+  una fase» del plan (al tocar uno se abre su tarjeta), la tarjeta y la tabla de cada fase, la línea del plan en la
+  sesión y en la tarjeta de Sesiones y del Resumen, la página que recibe el paciente y el calendario de su ficha.
+- **El color dice qué fase es, nunca si algo va bien o mal**: siempre va con su número y su nombre, ninguna fase es roja
+  y nada se colorea por valores (ni el RPE ni los kilos). La descarga sigue en ámbar con ↓, lo hecho en verde con ✓ y
+  la semana de hoy marcada.
+- **En la sesión**, cada ejercicio de «hoy toca» lleva su estado: «Pendiente» (gris), «✓ Hecho» (verde) o «Cambiado»
+  (azul, lo real distinto de lo previsto).
+- **En el calendario del paciente**, una franja fina del color de la fase bajo cada día del plan (de cualquiera de sus
+  motivos; el lector de pantalla dice «fase 1 (Adaptación)»). Debajo del mes, las fases de ese mes como enlaces al plan,
+  y al tocar un día, «Fase 1 · Adaptación · semana 2 de 4». Sin plan no sale nada.
+- Los tonos («phase-1» a «phase-8», claro y oscuro) están en `src/styles/tokens.json`, con su contraste AA comprobado
+  en `tokens.test.ts`.
+
 ## Cómo se guarda
 
 En la tabla `settings`, que ya se sincroniza fila a fila. No hay migración: un dispositivo sin actualizar sigue

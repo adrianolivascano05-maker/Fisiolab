@@ -28,6 +28,7 @@ import { Sheet } from "../../ui/Sheet";
 import { useToast } from "../../ui/Toast";
 import { Guard } from "../pageKit";
 import { PhaseTable } from "./PhaseTable";
+import { phaseBorder, phaseChip } from "./phaseColors";
 import { DoseInputs, PhaseBar, planToday, usePlan, usePlanParams } from "./parts";
 
 type Confirm = { kind: "pasar" | "alargar" | "quitar" };
@@ -104,6 +105,28 @@ function PlanView({ patientId, data, volver, reload }: { patientId: string; data
         </Link>
       </Card>
 
+      {/* Las fases con su color, como los filtros del calendario: al tocar una, se abre su tarjeta. */}
+      <div role="group" aria-label="Ir a una fase" className="-mt-1 flex flex-wrap gap-1.5">
+        {plan.phases.map((p, i) => {
+          const isOpen = open === null ? i === current : open === p.id;
+          return (
+            <button
+              key={p.id}
+              type="button"
+              aria-pressed={isOpen}
+              onClick={() => {
+                setOpen(p.id);
+                document.getElementById(`fase-${p.id}`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+              }}
+              className={cx("inline-flex min-h-11 items-center gap-1 rounded-pill border px-3 text-sm font-semibold", phaseChip(i), isOpen ? "border-2" : "border-transparent")}
+            >
+              {i + 1} · {p.name}
+              <span className="font-normal"> · {p.weeks} sem{at?.index === i ? " · hoy" : ""}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <ol aria-label="Fases" className="flex flex-col gap-2">
         {plan.phases.map((p, i) => {
           const d = phases[p.id];
@@ -112,15 +135,14 @@ function PlanView({ patientId, data, volver, reload }: { patientId: string; data
           const today = at?.index === i ? at.week : i < current || week >= total ? p.weeks : null;
           const first = phaseStart(plan, i);
           return (
-            <li key={p.id}>
-              <Card className={cx("flex flex-col gap-2", isOpen && "border-accent")}>
+            <li key={p.id} id={`fase-${p.id}`} className="scroll-mt-20">
+              <Card className={cx("flex flex-col gap-2 border-l-4", phaseBorder(i))}>
                 <div className="flex items-center justify-between gap-2">
                   <button type="button" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? "" : p.id)} className="flex min-h-11 min-w-0 flex-1 items-center gap-2 text-left">
                     <ChevronDown aria-hidden="true" className={cx("size-5 shrink-0 text-accent transition-transform", !isOpen && "-rotate-90")} />
                     <span className="min-w-0">
-                      <span className="font-semibold">
-                        {i + 1} · {p.name}
-                      </span>
+                      <span className={cx("mr-1 rounded-pill px-2 py-0.5 text-sm font-semibold", phaseChip(i))}>{i + 1}</span>
+                      <span className="font-semibold">{p.name}</span>
                       <span className="text-sm text-text-muted">
                         {" "}
                         · {p.weeks === 1 ? "1 semana" : `${p.weeks} semanas`} · {shortDay(weekDays(plan, first)[0])}
@@ -148,6 +170,7 @@ function PlanView({ patientId, data, volver, reload }: { patientId: string; data
                           deload={plan.deload && p.weeks > 1}
                           effort={plan.effort}
                           label={`${i + 1} · ${p.name}`}
+                          phase={i}
                           today={today}
                           onCell={(w, sessionId, exId, dose) => setEditing({ phase: d, week: w, sessionId, exId, dose })}
                         />

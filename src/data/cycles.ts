@@ -487,6 +487,25 @@ export async function savePhase(db: Db, patientId: string, episodeId: string, do
   await db.transaction([upsert(phaseKey(patientId, episodeId, doc.id), doc)]);
 }
 
+/** Los planes de un paciente, de todos sus motivos (para el calendario). */
+export async function loadPatientPlans(db: Db, patientId: string): Promise<{ episode: string; plan: PlanDoc }[]> {
+  const rows = await db.query<{ key: string; value: string }>("select key, value from settings where key like ? || '%'", [`ciclos:${patientId}:`]);
+  return rows
+    .filter((r) => r.key.split(":").length === 3)
+    .map((r) => ({ episode: r.key.split(":")[2]!, plan: parsePlan(JSON.parse(r.value)) }))
+    .filter((x): x is { episode: string; plan: PlanDoc } => !!x.plan);
+}
+
+/** En qué fase de alguno de sus planes cae un día (el primero que lo cubre); null si en ninguna. */
+export function phaseOnDay(plans: { episode: string; plan: PlanDoc }[], day: string): { episode: string; index: number; name: string; week: number; weeks: number } | null {
+  for (const { episode, plan } of plans) {
+    if (day < plan.start) continue;
+    const at = phaseAt(plan, weekIndexOf(plan, day));
+    if (at) return { episode, index: at.index, name: plan.phases[at.index]!.name, week: at.week, weeks: at.weeks };
+  }
+  return null;
+}
+
 /** Quita el plan de un motivo (sus sesiones y lo apuntado en ellas no se tocan). */
 export async function deletePlan(db: Db, patientId: string, episodeId: string): Promise<void> {
   await db.transaction(planDeleteSql(patientId, episodeId));

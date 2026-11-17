@@ -82,7 +82,7 @@ const steps: { id?: string; title: string; body: ReactNode }[] = [
         sus semanas y los ejercicios de cada semana; la progresión se rellena con la regla que elijas (la app solo hace esa cuenta) y en cada sesión
         sale lo que toca hoy, con <b>Todo hecho como estaba</b>, que lo escribe en Tratamiento. Desde el plan, <b>Enviar la semana al paciente</b>{" "}
         le manda un enlace para ver en su móvil sus ejercicios de esa semana (los kilos, el esfuerzo y las fases, solo si los marcas), con
-        «Cómo se hace» si lo has escrito y sus próximas citas. Caduca al acabar la semana y se puede anular.
+        «Cómo se hace» si lo has escrito y sus próximas citas. Caduca al acabar la semana y se puede anular. Cada fase tiene su color, también en el calendario del paciente (una franja bajo cada día del plan).
       </>
     ),
   },
