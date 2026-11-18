@@ -37,8 +37,12 @@ test("MS1 «＋»: paciente nuevo, lo de su ficha primero, cita sin salir, busca
 
   // Buscar: una pantalla por otra palabra («contraseña» → el PIN) y un paciente por un trozo del nombre.
   await page.goto("./agenda");
+  // Con la Agenda ya cargada: si la hoja se abre mientras aún carga, la carga la cierra.
+  await expect(page.getByRole("group", { name: "Vista" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Hoy en cifras" }).or(page.getByRole("button", { name: /anterior$/ })).first()).toBeVisible();
   await nav.getByRole("button", { name: "Añadir o buscar" }).click();
   const search = sheet.getByRole("searchbox", { name: "Buscar un paciente o una pantalla" });
+  await expect(search).toBeVisible();
   await search.fill("contraseña");
   await expect(sheet.getByRole("link", { name: "Bloqueo con PIN" })).toBeVisible();
   await search.fill("rápido");

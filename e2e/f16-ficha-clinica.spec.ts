@@ -81,6 +81,23 @@ test.describe("F16 Ficha clínica", () => {
     await expect(page.getByText("Ningún test registrado")).toBeVisible();
   });
 
+  test("F16-H2c en el móvil, al guardar un test se vuelve a Valoración con el test a la vista y resaltado (también tras bajar por la página)", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const record = await createPatient(page, { name: "Marta Móvil" });
+    // Bajando por Valoración antes de registrarlo, como en el móvil.
+    await page.goto(`${record}/valoracion`);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.getByRole("link", { name: "Registrar un test" }).click();
+    await page.getByRole("searchbox", { name: "Buscar test" }).fill("lachman");
+    await page.getByRole("button", { name: /Test de Lachman/ }).first().click();
+    await page.getByText("Positivo", { exact: true }).click();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.getByRole("button", { name: "Guardar resultado" }).click();
+    const row = page.getByRole("link", { name: /Recién guardado.*Test de Lachman.*Positivo/ });
+    await expect(row).toBeVisible();
+    await expect(row).toBeInViewport();
+  });
+
   test("F16-H2b prueba funcional: se apunta la cifra con su unidad, no positivo o negativo", async ({ page }) => {
     await createPatient(page, { name: "Irene Funcional" });
     await add(page, "Exploración").click();

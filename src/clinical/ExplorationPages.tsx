@@ -43,15 +43,21 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 /** Valoración › Exploración: los tests especiales registrados (los de la zona de la anamnesis encabezan el selector de
  * «Registrar un test»). */
-function ExplorationSection({ id, findings }: { id: string; findings: Finding[] }) {
+function ExplorationSection({ id, findings, saved }: { id: string; findings: Finding[]; saved?: string | null }) {
   const current = latestFindings(findings).sort((x, y) => resultOrder[x.result] - resultOrder[y.result]);
   const currentIds = new Set(current.map((f) => f.id));
   const older = findings.filter((f) => !currentIds.has(f.id));
   const count = (r: FindingResult) => current.filter((f) => f.result === r).length;
   const byRegion = new Map<string, Finding[]>();
   for (const f of current) byRegion.set(f.region, [...(byRegion.get(f.region) ?? []), f]);
+  const hidden = !!saved && !findings.some((f) => f.id === saved);
   return (
     <div className="flex flex-col gap-3">
+      {hidden && (
+        <Alert tone="info" title="Guardado en otro motivo de consulta">
+          Para verlo, cambia de motivo arriba (en «Motivo») o elige «Todos los motivos».
+        </Alert>
+      )}
       <Link to={`/pacientes/${id}/exploracion/nuevo`} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-accent px-3 font-semibold text-on-accent hover:bg-accent-hover">
         <Plus aria-hidden="true" className="size-5" /> Registrar un test
       </Link>
@@ -73,18 +79,19 @@ function ExplorationSection({ id, findings }: { id: string; findings: Finding[] 
             </h4>
             <ul className="flex flex-col gap-2">
               {list.map((f) => (
-                <FindingRow key={f.id} f={f} id={id} />
+                <FindingRow key={f.id} f={f} id={id} saved={saved} />
               ))}
             </ul>
           </section>
         ))
       )}
       {older.length > 0 && (
-        <details className="card-edge rounded-lg border bg-bg shadow-card p-3">
+        // Si lo recién guardado es más antiguo que otro resultado del mismo test (por su fecha), queda aquí: abierto.
+        <details open={older.some((f) => f.id === saved) || undefined} className="card-edge rounded-lg border bg-bg shadow-card p-3">
           <summary className="min-h-8 cursor-pointer font-semibold">Resultados anteriores ({older.length})</summary>
           <ul className="mt-2 flex flex-col gap-2">
             {older.map((f) => (
-              <FindingRow key={f.id} f={f} id={id} />
+              <FindingRow key={f.id} f={f} id={id} saved={saved} />
             ))}
           </ul>
         </details>
@@ -120,7 +127,9 @@ const lastBlock = (patientId: string): Block | null => {
  * Se abre en el bloque que pide la dirección (#cuestionarios…) o en el último que se usó con este paciente. */
 export function AssessmentPage() {
   const { id = "" } = useParams();
-  const { hash } = useLocation();
+  const { hash, state } = useLocation();
+  /** El test que se acaba de guardar (FindingFormPage): se resalta y se baja hasta él. */
+  const saved = (state as { saved?: string } | null)?.saved ?? null;
   const data = useLoad(id, async () => {
     const db = getDb();
     const [patient, findings, questionnaires, tests, wellness, forms] = await Promise.all([
@@ -136,11 +145,21 @@ export function AssessmentPage() {
   const ready = !!data.data;
   useEffect(() => {
     if (!ready) return;
+    // Al volver de guardar un test: hasta él (o, si no sale aquí, hasta el bloque de Exploración). Antes la página se
+    // quedaba a la altura del botón «Guardar» del formulario y, en el móvil, el test quedaba arriba, fuera de la vista.
+    if (saved) {
+      (document.getElementById(`test-${saved}`) ?? document.getElementById("valoracion-exploracion"))?.scrollIntoView({ block: "center" });
+      return;
+    }
     const wanted = (hash.slice(1) as Block) || lastBlock(id);
+    if (wanted === "exploracion" && hash) {
+      document.getElementById("valoracion-exploracion")?.scrollIntoView({ block: "start" });
+      return;
+    }
     if (!wanted || wanted === "exploracion") return;
     document.getElementById(`valoracion-${wanted}`)?.scrollIntoView({ block: "start" });
     rememberBlock(id, wanted);
-  }, [ready, hash, id]);
+  }, [ready, hash, id, saved]);
   if (!data.data) return <Guard state={data} title="Valoración" back={`/pacientes/${id}`} />;
   const { patient, findings, questionnaires, tests, wellness, waiting } = data.data;
   if (!patient) return <Page title="Valoración" backTo="/"><LoadError error={new Error("Este paciente no existe.")} /></Page>;
@@ -174,7 +193,7 @@ export function AssessmentPage() {
         <h2 id="h-exploracion" className="text-xl">
           {head("exploracion")}
         </h2>
-        <ExplorationSection id={id} findings={findings} />
+        <ExplorationSection id={id} findings={findings} saved={saved} />
       </section>
       <section id="valoracion-cuestionarios" aria-labelledby="h-cuestionarios" className="flex scroll-mt-40 flex-col gap-3 border-t border-border pt-4 @4xl:border-t-0 @4xl:pt-0">
         <h2 id="h-cuestionarios" className="text-xl">
@@ -194,11 +213,12 @@ export function AssessmentPage() {
   );
 }
 
-function FindingRow({ f, id }: { f: Finding; id: string }) {
+function FindingRow({ f, id, saved }: { f: Finding; id: string; saved?: string | null }) {
   return (
-    <li>
+    <li id={`test-${f.id}`} className="scroll-mt-40">
       <Link to={`/pacientes/${id}/exploracion/${f.id}`} className="block">
-        <Card className="flex flex-col gap-1.5 hover:border-accent">
+        <Card className={cx("flex flex-col gap-1.5 hover:border-accent", saved === f.id && "border-2 border-accent bg-accent-soft")}>
+          {saved === f.id && <span className="text-xs font-semibold tracking-wide text-accent uppercase">Recién guardado</span>}
           <span className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-semibold">
               {f.testName}
@@ -356,7 +376,7 @@ export function FindingFormPage() {
     setSaving(true);
     setError(null);
     try {
-      await saveFinding(
+      const savedId = await saveFinding(
         getDb(),
         id,
         {
@@ -373,7 +393,7 @@ export function FindingFormPage() {
         fid,
       );
       toast(`${name}: ${measure ? fmtMeasure(measured!, measure.unit) : resultLabels[finalResult].toLowerCase()}`, "success");
-      navigate(back, { replace: true });
+      navigate(`/pacientes/${id}/valoracion#exploracion`, { replace: true, state: { saved: savedId } });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
       setSaving(false);
