@@ -57,11 +57,11 @@ async function patients(page: Page) {
   await expect(list).toBeVisible({ timeout: 15_000 });
 }
 
-/** En «Elige tu PIN»: el 2580, dos veces. */
+/** En «Elige tu PIN»: el 258036, dos veces. */
 async function choosePin(page: Page) {
-  await page.keyboard.type("2580");
+  await page.keyboard.type("258036");
   await page.getByRole("button", { name: "Siguiente" }).click();
-  await page.keyboard.type("2580");
+  await page.keyboard.type("258036");
   await page.getByRole("button", { name: "Guardar el PIN" }).click();
   // Guardar la huella del PIN tarda un poco (PBKDF2): hasta que no desaparece la pantalla no está guardado.
   await expect(page.getByRole("heading", { name: "Repite el PIN" })).toBeHidden();
@@ -592,10 +592,10 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await page.getByRole("button", { name: "Bloquear ahora" }).click();
     await expect(page.getByRole("button", { name: "Cambiar de cuenta de Google" })).toBeVisible();
     for (const left of ["Quedan 4 intentos", "Quedan 3 intentos", "Quedan 2 intentos", "Queda 1 intento"]) {
-      await page.keyboard.type("0000");
+      await page.keyboard.type("000000");
       await expect(page.getByText(`PIN incorrecto. ${left}.`)).toBeVisible();
     }
-    await page.keyboard.type("0000");
+    await page.keyboard.type("000000");
     // 5 fallos: volver a entrar con Google no vale (la sesión ya está abierta); hay que escribir la contraseña de la clínica.
     await expect(page.getByRole("heading", { name: "Demasiados intentos" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Entrar con Google" })).toHaveCount(0);

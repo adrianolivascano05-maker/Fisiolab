@@ -26,6 +26,16 @@ import { decrypt, deriveKey, encrypt, encryptToPieces, ENCRYPTION_KEY, forgetKey
 import { AuthError } from "./drive";
 import { driveStore, RemoteConflict, type DeltaApi, type DeltaInfo, type RemoteStore } from "./remote";
 
+
+/**
+ * La copia entera que manda el servidor de la clínica va siempre cifrada. Si este dispositivo ya recibió antes una
+ * cifrada de esta clínica (`seenSalt`), una sin cifrar no es de la clínica: alguien la ha cambiado en el servidor y no
+ * se junta. La de una clínica que aún no tenía contraseña (nunca vista cifrada aquí) se acepta como siempre.
+ */
+export function checkServerCopy(raw: Uint8Array, seenSalt: string | undefined): void {
+  if (!isEncrypted(raw) && seenSalt) throw new Error("La copia del servidor no viene cifrada: no se ha cargado. Avisa al administrador de la clínica.");
+}
+
 export type SyncStatus = "idle" | "syncing" | "offline" | "needs-auth" | "needs-key" | "needs-password" | "error";
 export type SyncState = {
   status: SyncStatus;
@@ -417,6 +427,10 @@ export class SyncController {
     let uploadWhole = false;
     if (!current) {
       const raw = await store.download(token, { id: "copia", version });
+      // La copia del servidor de la clínica va siempre cifrada: si este dispositivo ya ha recibido una cifrada de esta
+      // clínica, una sin cifrar no es de la clínica (alguien la ha cambiado en el servidor) y no se junta. La de una
+      // clínica que aún no tenía contraseña (nunca vista cifrada aquí) se acepta como siempre.
+      checkServerCopy(raw, meta?.salt);
       const bytes = await this.open(raw, key);
       snapSalt = isEncrypted(raw) ? saltOf(raw) : undefined;
       const r = await this.own(() => this.db.merge(bytes));

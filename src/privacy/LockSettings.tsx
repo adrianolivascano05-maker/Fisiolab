@@ -56,7 +56,7 @@ export function LockSettings() {
       setMode(null);
       return toast("Bloqueo quitado", "success");
     }
-    if (!isPin(pin)) return setError({ field: "pin", text: "De 4 a 8 cifras." });
+    if (!isPin(pin)) return setError({ field: "pin", text: "De 6 a 8 cifras." });
     if (pin !== repeat) return setError({ field: "repeat", text: "No coincide con el PIN." });
     setBusy(true);
     await setPin(pin);
@@ -171,7 +171,7 @@ export function LockSettings() {
             <>
               <TextField
                 label={shown === "change" ? "PIN nuevo" : "PIN"}
-                hint="De 4 a 8 cifras. No uses tu fecha de nacimiento ni el PIN del móvil."
+                hint="De 6 a 8 cifras. No uses tu fecha de nacimiento ni el PIN del móvil."
                 {...pinProps}
                 value={pin}
                 error={error?.field === "pin" ? error.text : undefined}

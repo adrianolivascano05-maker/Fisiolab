@@ -19,7 +19,7 @@ import { TextField } from "../ui/Field";
 import { LogoMark, Wordmark } from "../ui/Logo";
 import { Sheet } from "../ui/Sheet";
 import { checkPasskey } from "./passkey";
-import { checkPin, clearLock, failCount, getLock, isPin, lastActiveAt, lockedOnOpen, markActive, markPinSet, MAX_FAILS, setLockScope, setPin, syncFailsFromDevice, unlockedOtherwise, waitUntil } from "./pin";
+import { checkPin, clearLock, failCount, getLock, isPin, lastActiveAt, lockedOnOpen, markActive, markPinSet, MAX_FAILS, pinTooShort, setLockScope, setPin, syncFailsFromDevice, unlockedOtherwise, waitUntil } from "./pin";
 import { checkClinicPassword, checkRecoveryCode, proofNeeded, proofWaitUntil, type Proof } from "./pinProof";
 
 type LockApi = { lockNow: () => void; required: boolean; /** La pantalla del PIN tapa la app. */ locked: boolean };
@@ -139,6 +139,7 @@ export function AppLock({ children }: { children: ReactNode }) {
         <ChoosePin
           name={account?.name ?? ""}
           proved={proved}
+          tooShort={proved && pinTooShort()}
           onDone={() => {
             lastActive.current = Date.now();
             markActive();
@@ -156,6 +157,11 @@ export function AppLock({ children }: { children: ReactNode }) {
               lastActive.current = Date.now();
               markActive();
               setLocked(false);
+              // Un PIN de antes con menos de 6 cifras: se ha acertado, así que se elige otro sin pedir más.
+              if (pinTooShort()) {
+                setProved(true);
+                setNeedsPin(true);
+              }
             }}
             onReset={() => {
               // Ha demostrado que puede abrir la clínica: fuera el PIN de aquí y a elegir otro.
@@ -527,7 +533,7 @@ function ProvePin({ title, subtitle, onProved, onCancel }: { title: string; subt
  * En una clínica, la primera vez en el dispositivo: elegir el PIN (dos veces). Si aquí ya hubo un PIN (alguien lo
  * borró del navegador), antes hay que demostrar que se puede abrir la clínica (ProvePin), salvo que ya lo haya hecho.
  */
-function ChoosePin({ name, proved, onDone }: { name: string; proved: boolean; onDone: () => void }) {
+function ChoosePin({ name, proved, tooShort, onDone }: { name: string; proved: boolean; tooShort?: boolean; onDone: () => void }) {
   const [ok, setOk] = useState(proved);
   const [first, setFirst] = useState<string | null>(null);
   const [pin, setPinText] = useState("");
@@ -536,7 +542,7 @@ function ChoosePin({ name, proved, onDone }: { name: string; proved: boolean; on
   const proven = useCallback(() => setOk(true), []);
   if (!ok) return <ProvePin title="Antes de elegir el PIN" subtitle={name || undefined} onProved={proven} />;
   const next = async () => {
-    if (!isPin(pin)) return setError("De 4 a 8 cifras.");
+    if (!isPin(pin)) return setError("De 6 a 8 cifras.");
     if (first === null) {
       setFirst(pin);
       setPinText("");
@@ -555,13 +561,19 @@ function ChoosePin({ name, proved, onDone }: { name: string; proved: boolean; on
   return (
     <Shell
       title={first === null ? "Elige tu PIN" : "Repite el PIN"}
-      subtitle={first === null ? `${name ? `${name}: ` : ""}en una clínica la app se abre con PIN, como el móvil. De 4 a 8 cifras.` : undefined}
+      subtitle={
+        first === null
+          ? tooShort
+            ? `${name ? `${name}: tu` : "Tu"} PIN tiene menos de 6 cifras. Para que sea más difícil de adivinar, elige uno nuevo de 6 a 8 cifras.`
+            : `${name ? `${name}: ` : ""}en una clínica la app se abre con PIN, como el móvil. De 6 a 8 cifras.`
+          : undefined
+      }
     >
       <PinPad value={pin} onChange={(v) => (setError(null), setPinText(v))} onEnter={() => void next()} disabled={busy} />
       <p role="alert" className="min-h-5 text-sm font-semibold text-danger">
         {error}
       </p>
-      <Button size="lg" block loading={busy} disabled={pin.length < 4} onClick={() => void next()}>
+      <Button size="lg" block loading={busy} disabled={pin.length < 6} onClick={() => void next()}>
         {first === null ? "Siguiente" : "Guardar el PIN"}
       </Button>
     </Shell>

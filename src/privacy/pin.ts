@@ -8,10 +8,15 @@
 import { deviceDelete, deviceGet, devicePut } from "../cloud/crypt";
 
 const BASE_KEY = "fisiolab.lock";
-const ITERATIONS = 150_000;
+/** Vueltas de PBKDF2 de los PIN nuevos (OWASP 2023 para PBKDF2-SHA-256). Los de antes (sin `it`) usaban 150 000:
+ *  se rehacen solos con estas la primera vez que se acierta el PIN. */
+const ITERATIONS = 600_000;
+const OLD_ITERATIONS = 150_000;
+/** Cifras mínimas de un PIN nuevo. Uno más corto de antes sigue abriendo, pero al acertarlo se pide uno nuevo. */
+export const MIN_PIN = 6;
 
 /** `length`: cifras del PIN (para comprobarlo al teclear la última); `passkey`: Face ID o huella (passkey.ts). */
-export type LockConfig = { salt: string; hash: string; afterMs: number; length?: number; passkey?: string; v?: number };
+export type LockConfig = { salt: string; hash: string; afterMs: number; length?: number; passkey?: string; v?: number; it?: number };
 
 let scope: string | null = null;
 /** De quién es el PIN: la cuenta que ha entrado (su `sub`), o null sin cuenta. */
@@ -38,14 +43,19 @@ const OLD_DEFAULT = 60 * 60_000;
 /** Fallos seguidos tras los que, con cuenta, hay que volver a entrar con Google. */
 export const MAX_FAILS = 5;
 
-export const isPin = (pin: string) => /^\d{4,8}$/.test(pin);
+export const isPin = (pin: string) => /^\d{6,8}$/.test(pin);
+/** Si el PIN guardado es de antes y tiene menos de 6 cifras (o no se sabe cuántas): hay que elegir otro. */
+export const pinTooShort = () => {
+  const c = getLock();
+  return !!c && (c.length ?? 0) < MIN_PIN;
+};
 
 const b64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
 const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
-async function digest(pin: string, salt: Uint8Array): Promise<string> {
+async function digest(pin: string, salt: Uint8Array, iterations = ITERATIONS): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: salt as BufferSource, iterations: ITERATIONS }, key, 256);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: salt as BufferSource, iterations }, key, 256);
   return b64(new Uint8Array(bits));
 }
 
@@ -74,7 +84,7 @@ const save = (c: LockConfig) => localStorage.setItem(key(), JSON.stringify(c));
 
 export async function setPin(pin: string, afterMs = getLock()?.afterMs ?? DEFAULT_LOCK_AFTER): Promise<void> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  save({ ...getLock(), salt: b64(salt), hash: await digest(pin, salt), afterMs, length: pin.length, v: 2 });
+  save({ ...getLock(), salt: b64(salt), hash: await digest(pin, salt), afterMs, length: pin.length, v: 2, it: ITERATIONS });
   localStorage.removeItem(failsKey());
   await deviceDelete(failsKey());
   await devicePut(setKey(scope), true);
@@ -130,10 +140,16 @@ export async function checkPin(pin: string): Promise<boolean> {
   const c = getLock();
   if (!c) return true;
   if (waitUntil()) return false;
-  const ok = (await digest(pin, unb64(c.salt))) === c.hash;
+  const iterations = c.it ?? OLD_ITERATIONS;
+  const ok = (await digest(pin, unb64(c.salt), iterations)) === c.hash;
   if (ok) {
     localStorage.removeItem(failsKey());
     void deviceDelete(failsKey());
+    // Un PIN guardado con menos vueltas: se rehace con las de ahora (mismo PIN, sal nueva).
+    if (iterations < ITERATIONS) {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      save({ ...c, salt: b64(salt), hash: await digest(pin, salt), length: pin.length, it: ITERATIONS });
+    }
     return true;
   }
   const count = fails().count + 1;

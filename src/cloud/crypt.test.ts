@@ -166,3 +166,15 @@ describe("la clave guardada en el dispositivo", () => {
     await deviceDelete("fallos.prueba");
   });
 });
+
+describe("la copia entera del servidor de la clínica", () => {
+  it("sin cifrar se rechaza si aquí ya se recibió una cifrada; si nunca, se acepta como antes; cifrada, siempre", async () => {
+    const { checkServerCopy } = await import("./sync");
+    const plain = new TextEncoder().encode("SQLite format 3\u0000 …");
+    const sealed = new Uint8Array(64).fill(1);
+    sealed.set(new TextEncoder().encode("CENITENC2"), 0);
+    expect(() => checkServerCopy(plain, "sal-vista")).toThrow(/no viene cifrada/);
+    expect(() => checkServerCopy(plain, undefined)).not.toThrow();
+    expect(() => checkServerCopy(sealed, "sal-vista")).not.toThrow();
+  });
+});

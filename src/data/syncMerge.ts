@@ -92,6 +92,17 @@ const changes = (db: DB): Change[] => db.exec({ sql: "select tbl, pk, op, at, de
  * Sentencias preparadas una vez y reutilizadas: al juntar una copia entera se escriben cientos de miles de filas, y
  * preparar cada sentencia cada vez es lo que más tarda. `close` al terminar.
  */
+/** Llega un dato con una columna que esta versión no tiene: no se junta nada del lote (hay que actualizar la app). */
+export class UnknownColumn extends Error {
+  constructor(
+    readonly table: string,
+    readonly column: string,
+  ) {
+    super(`Ha llegado un dato que esta versión de la app no sabe guardar (${table}.${column.slice(0, 40)}): actualiza la app para sincronizar.`);
+    this.name = "UnknownColumn";
+  }
+}
+
 class Stmts {
   private cache = new Map<string, { bind(v: unknown[]): unknown; step(): boolean; get(o: object): Record<string, unknown>; reset(): unknown; stepReset(): unknown; finalize(): unknown }>();
   constructor(private db: DB) {}
@@ -459,9 +470,25 @@ function applyWith(
   // Las claves ajenas se comprueban al final: así no importa en qué orden llegan padres e hijos.
   local.exec("pragma defer_foreign_keys = on");
 
+  /** Las columnas de cada tabla en esta base: solo con ellas se escribe (nunca con nombres que vengan de fuera). */
+  const columns = new Map<string, Set<string>>();
+  const columnsOf = (tbl: string) => {
+    let set = columns.get(tbl);
+    if (!set) {
+      const info = local.exec({ sql: `pragma table_info(${tbl})`, rowMode: "object", returnValue: "resultRows" }) as { name: string }[];
+      set = new Set(info.map((r) => r.name));
+      columns.set(tbl, set);
+    }
+    return set;
+  };
+
   /** Escribe una fila (alta o cambio). Otra fila de aquí con la misma clave única pierde frente a esta. */
   const write = (c: Change, row: Record<string, unknown>) => {
     const spec = specs.get(c.tbl)!;
+    // Una columna que esta base no tiene (una versión más nueva de la app, o un dato manipulado): fuera todo el lote.
+    const known = columnsOf(c.tbl);
+    const unknown = Object.keys(row).find((col) => !known.has(col));
+    if (unknown !== undefined) throw new UnknownColumn(c.tbl, unknown);
     for (const cols of spec.unique ?? []) {
       const clash = q.all(`select ${pkExpr(spec)} as k from ${c.tbl} where ${cols.map((col) => `${col} is ?`).join(" and ")} and not (${pkWhere(spec)})`, [
         ...cols.map((col) => row[col]),

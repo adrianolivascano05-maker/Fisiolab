@@ -56,6 +56,21 @@ describe("lo que falta por subir", () => {
 });
 
 describe("aplicar un lote", () => {
+  it("un lote con una columna que esta base no tiene (o un nombre con SQL dentro) se rechaza entero: no se guarda nada", async () => {
+    await createPatient(a, patient("Ana"));
+    const pid = await createPatient(a, patient("Bea"));
+    const items = await push(a);
+    const bad = items.map((i) => (i.row && i.row.id === pid ? { ...i, row: { ...i.row, "notes) values (1); drop table patients; --": "x" } } : i));
+    await expect(b.apply(bad, SCHEMA)).rejects.toThrow(/actualiza la app/);
+    expect(await names(b)).toEqual([]);
+    const unknown = items.map((i) => (i.row && i.row.id === pid ? { ...i, row: { ...i.row, columna_futura: 1 } } : i));
+    await expect(b.apply(unknown, SCHEMA)).rejects.toThrow(/actualiza la app/);
+    expect(await names(b)).toEqual([]);
+    // El lote bueno, sí.
+    await b.apply(items, SCHEMA);
+    expect(await names(b)).toEqual(["Ana", "Bea"]);
+  });
+
   it("altas, cambios y borrados (en cascada) llegan; repetir un lote no cambia nada", async () => {
     const pid = await createPatient(a, patient("Ana"));
     await saveSession(a, pid, session("2026-10-01T10:00:00.000Z"));

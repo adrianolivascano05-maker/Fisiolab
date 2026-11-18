@@ -1,6 +1,7 @@
 // Dónde vive la copia de la base de cada cuenta: Google Drive (la carpeta oculta de la app) o el servidor de la
 // clínica en Cloudflare (cloudflare/README.md: base de datos en la UE y solo copias cifradas). sync.ts habla con
 // los dos igual.
+import { fetchWithTimeout } from "./fetchTimeout";
 import type { Token } from "./auth";
 import { isPieces } from "./crypt";
 import { AuthError, createFile, deleteFile, download, listFiles, updateFile } from "./drive";
@@ -108,7 +109,7 @@ const fromBase64 = (text: string) => Uint8Array.from(atob(text.trim()), (c) => c
  * ha cambiado (412) y ServerError con el mensaje del servidor en lo demás. `ok`: otros estados que no son error.
  */
 export async function serverCall(baseUrl: string, t: Token, path: string, init: RequestInit = {}, ok: number[] = []): Promise<Response> {
-  const res = await fetch(`${baseUrl.replace(/\/+$/, "")}${path}`, {
+  const res = await fetchWithTimeout(`${baseUrl.replace(/\/+$/, "")}${path}`, {
     ...init,
     headers: { ...init.headers, Authorization: `Bearer ${t.accessToken}` },
     cache: "no-store",

@@ -1,5 +1,6 @@
 // Piezas comunes de las pantallas del plan por ciclos (src/data/cycles.ts): cargar el plan de un motivo, la barra de
 // fases, las casillas de los parámetros y la línea corta de cada casilla de la tabla.
+import { internalPath } from "../../app/internalPath";
 import { phaseSoft, phaseSolid } from "./phaseColors";
 import { useState } from "react";
 import { useSearchParams } from "react-router";
@@ -18,7 +19,7 @@ export function usePlanParams(patientId: string) {
   const [params] = useSearchParams();
   const motivo = params.get("motivo");
   const volver = params.get("volver");
-  return { motivo, volver: volver && volver.startsWith("/") ? volver : `/pacientes/${patientId}/sesiones` };
+  return { motivo, volver: internalPath(volver) ?? `/pacientes/${patientId}/sesiones` };
 }
 
 /** El paciente, el motivo (con su nombre y su anamnesis) y su plan, si lo tiene. */

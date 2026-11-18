@@ -36,7 +36,9 @@ Los datos de las funciones están en `../data/privacy.ts`.
 - **PIN.** Como el del móvil: teclado numérico que sale al instante mientras la app (base y sincronización) carga
   por detrás, invisible e `inert`. Con cuenta de Google, cada persona tiene el suyo en el dispositivo (en una tablet
   compartida, «Cambiar de cuenta de Google» desde la pantalla del PIN); en una clínica es obligatorio y se elige al
-  entrar por primera vez. Se guarda su huella con PBKDF2-SHA-256 (150 000 vueltas y sal), nunca el PIN. Se pide al
+  entrar por primera vez. De 6 a 8 cifras (desde el 18-11-2026; uno de antes de 4 o 5 sigue abriendo, pero al
+  acertarlo se pide elegir otro). Se guarda su huella con PBKDF2-SHA-256 (600 000 vueltas y sal; los de antes, con
+  150 000, se rehacen solos al acertar el PIN), nunca el PIN. Se pide al
   abrir la app, al volver a ella y tras el tiempo elegido sin usarla (por defecto 15 minutos; en una clínica, como
   mucho 1 hora); recargar dentro de ese tiempo no lo pide. Tras 5 fallos hay que esperar 30 s (el doble con cada
   fallo, hasta 15 min). Para poner un PIN nuevo donde ya hubo uno (tras 5 fallos, con «He olvidado el PIN» o si

@@ -1,6 +1,7 @@
 // Google Drive: la copia de la base en la carpeta oculta de la app (appDataFolder), solo si la app no tiene servidor
 // de Cloudflare (public/cloud.json). Solo esta app la ve; la persona puede borrarla desde Drive → Configuración →
 // Gestionar aplicaciones. La app ya no guarda archivos a la vista en el Drive de nadie. API REST v3 con fetch.
+import { fetchWithTimeout } from "./fetchTimeout";
 import type { Account } from "./account";
 
 const FILES = "https://www.googleapis.com/drive/v3/files";
@@ -27,7 +28,7 @@ export class GoogleError extends Error {
 
 /** Petición a una API de Google con el token. Los errores, como AuthError o GoogleError. */
 export async function call(token: string, url: string, init: RequestInit = {}): Promise<Response> {
-  const res = await fetch(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}` } });
+  const res = await fetchWithTimeout(url, { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}` } });
   if (res.status === 401) throw new AuthError("La sesión de Google ha caducado.");
   if (!res.ok) {
     let detail = "";

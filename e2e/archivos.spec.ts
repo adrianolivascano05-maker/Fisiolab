@@ -28,9 +28,9 @@ async function enterClinic(page: Page, google: FakeGoogle) {
   const choose = page.getByRole("heading", { name: "Elige tu PIN" });
   await expect(list.or(choose)).toBeVisible({ timeout: 15_000 });
   if (await choose.isVisible()) {
-    await page.keyboard.type("2580");
+    await page.keyboard.type("258036");
     await page.getByRole("button", { name: "Siguiente" }).click();
-    await page.keyboard.type("2580");
+    await page.keyboard.type("258036");
     await page.getByRole("button", { name: "Guardar el PIN" }).click();
   }
   await expect(list).toBeVisible({ timeout: 15_000 });

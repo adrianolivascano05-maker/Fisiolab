@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { checkPin, clearLock, failCount, getLock, isPin, MAX_FAILS, pinWasSet, setLockScope, setPin, syncFailsFromDevice, waitUntil } from "./pin";
+import { checkPin, clearLock, failCount, getLock, isPin, MAX_FAILS, pinTooShort, pinWasSet, setLockScope, setPin, syncFailsFromDevice, waitUntil } from "./pin";
 
 // Un almacenamiento en memoria en lugar del del navegador (sin IndexedDB: crypt.ts guarda lo del dispositivo en memoria).
 function memoryStorage() {
@@ -28,11 +28,35 @@ describe("PIN del dispositivo", () => {
     vi.unstubAllGlobals();
   });
 
-  it("acepta de 4 a 8 cifras", () => {
-    expect(isPin("2580")).toBe(true);
+  it("un PIN nuevo, de 6 a 8 cifras", () => {
+    expect(isPin("258036")).toBe(true);
     expect(isPin("12345678")).toBe(true);
-    expect(isPin("123")).toBe(false);
-    expect(isPin("12a4")).toBe(false);
+    expect(isPin("2580")).toBe(false);
+    expect(isPin("123456789")).toBe(false);
+    expect(isPin("12a456")).toBe(false);
+  });
+
+  it("un PIN de antes de 4 cifras sigue abriendo, pero pide uno nuevo; uno de 6, no", async () => {
+    await setPin("2580");
+    expect(pinTooShort()).toBe(true);
+    expect(await checkPin("2580")).toBe(true);
+    await setPin("258036");
+    expect(pinTooShort()).toBe(false);
+  });
+
+  it("un PIN guardado con 150 000 vueltas se rehace con 600 000 al acertarlo, y sigue abriendo", async () => {
+    // Como lo guardaba la versión anterior: sin «it».
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("258036"), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 150_000 }, key, 256);
+    const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+    storage.setItem("fisiolab.lock", JSON.stringify({ salt: b64(salt), hash: b64(new Uint8Array(bits)), afterMs: 0, length: 6, v: 2 }));
+    expect(await checkPin("000000")).toBe(false);
+    expect(getLock()?.it).toBeUndefined();
+    expect(await checkPin("258036")).toBe(true);
+    expect(getLock()?.it).toBe(600_000);
+    expect(getLock()?.hash).not.toBe(b64(new Uint8Array(bits)));
+    expect(await checkPin("258036")).toBe(true);
   });
 
   it("guarda solo una huella y comprueba el PIN", async () => {

@@ -95,6 +95,35 @@ export class Engine {
     return db;
   }
 
+  /** Disparadores y vistas que crea la app (los de una base nueva con todas las migraciones). */
+  private appObjects: Set<string> | null = null;
+  private objectsOf(db: DB): string[] {
+    return (db.selectValues("select type || ':' || name from sqlite_master where type in ('trigger', 'view') order by 1") as string[]) ?? [];
+  }
+
+  /**
+   * Antes de restaurar una copia, en memoria y sin tocar la base: que no sea de una versión más nueva de la app (su
+   * esquema no se conoce y se sincronizaría al resto del equipo) y que, puesta al día, no traiga disparadores ni vistas
+   * que la app no crea (un archivo preparado a mano podría dejarlos en la base).
+   */
+  private checkRestorable(bytes: Uint8Array) {
+    if (!this.appObjects) {
+      const fresh = this.migrate(new this.sqlite3.oo1.DB(":memory:", "c"), { backup: false });
+      this.appObjects = new Set(this.objectsOf(fresh));
+      fresh.close();
+    }
+    const copy = this.openBytes(bytes);
+    try {
+      const version = copy.selectValue("pragma user_version") as number;
+      if (version > this.latestVersion) throw new Error("La copia es de una versión más nueva de la app: actualiza la app en este dispositivo y vuelve a probar.");
+      this.migrate(copy, { backup: false });
+      const extra = this.objectsOf(copy).filter((o) => !this.appObjects!.has(o));
+      if (extra.length) throw new Error("La copia trae piezas que esta app no crea: no se restaura (puede estar manipulada).");
+    } finally {
+      copy.close();
+    }
+  }
+
   private get latestVersion() {
     return Math.max(...this.migrations.map((m) => m.version));
   }
@@ -210,6 +239,7 @@ export class Engine {
     if (!this.storage.replace) throw new Error("Este navegador no permite restaurar copias.");
     const header = new TextDecoder().decode(bytes.slice(0, 16));
     if (header !== SQLITE_HEADER) throw new Error("El archivo no es una copia de seguridad válida.");
+    this.checkRestorable(bytes);
     const previous = this.sqlite3.capi.sqlite3_js_db_export(this.db) as Uint8Array;
     const invoices = this.query("select * from invoices") as Record<string, Bind[number]>[];
     this.db.close();

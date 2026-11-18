@@ -153,9 +153,9 @@ test.describe("Clínica de prueba en el servidor", () => {
     const choose = page.getByRole("heading", { name: "Elige tu PIN" });
     await expect(choose.or(page.getByRole("heading", { name: "Pacientes", exact: true }))).toBeVisible({ timeout: 20_000 });
     if (await choose.isVisible()) {
-      await page.keyboard.type("2580");
+      await page.keyboard.type("258036");
       await page.getByRole("button", { name: "Siguiente" }).click();
-      await page.keyboard.type("2580");
+      await page.keyboard.type("258036");
       await page.getByRole("button", { name: "Guardar el PIN" }).click();
     }
     const notice = page.getByRole("status").filter({ hasText: "va siempre cifrada" });

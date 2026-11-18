@@ -79,9 +79,9 @@ test.describe("Bandeja de envíos", () => {
     await page.getByLabel("Nombre de tu consulta (o el tuyo)").fill("Consulta Ana");
     await page.getByRole("button", { name: "Empezar" }).click();
     await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 20_000 });
-    await page.keyboard.type("2580");
+    await page.keyboard.type("258036");
     await page.getByRole("button", { name: "Siguiente" }).click();
-    await page.keyboard.type("2580");
+    await page.keyboard.type("258036");
     await page.getByRole("button", { name: "Guardar el PIN" }).click();
     await expect(page.getByRole("heading", { name: "Pacientes", exact: true })).toBeVisible({ timeout: 15_000 });
 

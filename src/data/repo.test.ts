@@ -142,6 +142,21 @@ describe("base de datos", () => {
     await db.importBytes(backup);
     expect((await listPatients(db)).map((p) => p.name)).toEqual(["Ana Martín"]);
   });
+
+  it("no restaura una copia de una versión más nueva de la app ni una con disparadores puestos a mano; la base queda como estaba", async () => {
+    await createPatient(db, ana);
+    const base = await db.exportBytes();
+    // Una copia manipulada: con un disparador que la app no crea.
+    await db.transaction([{ sql: "create trigger espia after insert on patients begin update patients set notes = 'x' where id = new.id; end" }]);
+    const tampered = await db.exportBytes();
+    await db.transaction([{ sql: "drop trigger espia" }, { sql: "pragma user_version = 999" }]);
+    const newer = await db.exportBytes();
+    await db.importBytes(base);
+    await expect(db.importBytes(tampered)).rejects.toThrow(/piezas que esta app no crea/);
+    await expect(db.importBytes(newer)).rejects.toThrow(/versión más nueva/);
+    expect((await listPatients(db)).map((p) => p.name)).toEqual(["Ana Martín"]);
+    expect(await db.query("select name from sqlite_master where type = 'trigger' and name = 'espia'")).toEqual([]);
+  });
 });
 
 describe("migración 012: el contacto pasa de la anamnesis a la ficha", () => {

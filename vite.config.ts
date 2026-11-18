@@ -121,8 +121,18 @@ export default defineConfig({
         globIgnores: ["**/{fraunces,manrope,lora,dm-sans}-*.woff2", "**/{source-sans-3,bricolage-grotesque}-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2", "**/vision_*", "**/sqlite3-worker1-*"],
         // Motor de pose (src/ai): ≈ 19 MB, se descarga la primera vez que se usa la IA y queda guardado.
         runtimeCaching: [
-          { urlPattern: /\/assets\/(vision_|pose_landmarker)/, handler: "CacheFirst", options: { cacheName: "ia-pose" } },
-          { urlPattern: /\/assets\/(fraunces|manrope|lora|dm-sans)-.*\.woff2$/, handler: "CacheFirst", options: { cacheName: "letras" } },
+          // Con tope: cada versión nueva del motor de pose (unos 19 MB, con su huella en el nombre) se guardaba sin
+          // borrar la anterior. Se quedan los últimos archivos usados; si el dispositivo se queda sin sitio, se vacían.
+          {
+            urlPattern: /\/assets\/(vision_|pose_landmarker)/,
+            handler: "CacheFirst",
+            options: { cacheName: "ia-pose", expiration: { maxEntries: 6, purgeOnQuotaError: true } },
+          },
+          {
+            urlPattern: /\/assets\/(fraunces|manrope|lora|dm-sans)-.*\.woff2$/,
+            handler: "CacheFirst",
+            options: { cacheName: "letras", expiration: { maxEntries: 30, purgeOnQuotaError: true } },
+          },
         ],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: `${base}index.html`,

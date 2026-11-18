@@ -117,9 +117,9 @@ test.describe("Protección de datos", () => {
     await sheet.getByLabel("PIN", { exact: true }).fill("12");
     await sheet.getByLabel("Repite el PIN").fill("12");
     await sheet.getByRole("button", { name: "Activar el bloqueo" }).click();
-    await expect(sheet.getByText("De 4 a 8 cifras.")).toBeVisible();
-    await sheet.getByLabel("PIN", { exact: true }).fill("2468");
-    await sheet.getByLabel("Repite el PIN").fill("2468");
+    await expect(sheet.getByText("De 6 a 8 cifras.")).toBeVisible();
+    await sheet.getByLabel("PIN", { exact: true }).fill("246813");
+    await sheet.getByLabel("Repite el PIN").fill("246813");
     await sheet.getByRole("button", { name: "Activar el bloqueo" }).click();
     await expect(page.getByText("Esta app pide PIN en este dispositivo")).toBeVisible();
 
@@ -128,9 +128,9 @@ test.describe("Protección de datos", () => {
     await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeVisible();
     await expectAccessible(page);
     const keypad = page.getByRole("group", { name: "Teclado del PIN" });
-    for (const d of "1111") await keypad.getByRole("button", { name: d, exact: true }).click();
+    for (const d of "111111") await keypad.getByRole("button", { name: d, exact: true }).click();
     await expect(page.getByText("PIN incorrecto.")).toBeVisible();
-    for (const d of "2468") await keypad.getByRole("button", { name: d, exact: true }).click();
+    for (const d of "246813") await keypad.getByRole("button", { name: d, exact: true }).click();
     await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeHidden();
     await expect(page.getByText("Esta app pide PIN en este dispositivo")).toBeVisible();
 
@@ -143,7 +143,7 @@ test.describe("Protección de datos", () => {
     await page.goto("./");
     await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeVisible();
     await expect(page.getByText("Paciente Secreto")).toBeHidden();
-    await page.keyboard.type("2468");
+    await page.keyboard.type("246813");
     await expect(page.getByRole("link", { name: /Paciente Secreto/ })).toBeVisible();
 
     // Quitarlo pide el PIN actual.
@@ -151,14 +151,44 @@ test.describe("Protección de datos", () => {
     await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeVisible();
     // Con el teclado de la pantalla (el del ordenador ya se ha probado arriba): no depende de que la pantalla de
     // bloqueo ya escuche el teclado cuando la máquina va cargada.
-    for (const d of "2468") await page.getByRole("group", { name: "Teclado del PIN" }).getByRole("button", { name: d, exact: true }).click();
+    for (const d of "246813") await page.getByRole("group", { name: "Teclado del PIN" }).getByRole("button", { name: d, exact: true }).click();
     await page.getByRole("button", { name: "Quitar el bloqueo" }).click();
     const remove = page.getByRole("dialog", { name: "Quitar el bloqueo" });
-    await remove.getByLabel("PIN actual").fill("2468");
+    await remove.getByLabel("PIN actual").fill("246813");
     await remove.getByRole("button", { name: "Quitar el bloqueo" }).click();
     await expect(page.getByRole("button", { name: "Activar el bloqueo" })).toBeVisible();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Bloqueo con PIN" })).toBeVisible();
+  });
+
+  test("PD3b un PIN de antes de 4 cifras sigue abriendo, pero pide elegir uno nuevo de 6 a 8 cifras", async ({ page }) => {
+    test.slow();
+    await createPatient(page, { name: "Paciente Corto" });
+    // Como lo guardaba la versión anterior: 4 cifras y 150 000 vueltas de PBKDF2.
+    await page.evaluate(async () => {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const key = await crypto.subtle.importKey("raw", new TextEncoder().encode("2580"), "PBKDF2", false, ["deriveBits"]);
+      const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 150_000 }, key, 256);
+      const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+      localStorage.setItem("fisiolab.lock", JSON.stringify({ salt: b64(salt), hash: b64(new Uint8Array(bits)), afterMs: 0, length: 4, v: 2 }));
+      localStorage.setItem("fisiolab.lock.active", "0");
+    });
+    await page.goto("./");
+    await expect(page.getByRole("heading", { name: "Introduce tu PIN" })).toBeVisible({ timeout: 15_000 });
+    for (const d of "2580") await page.getByRole("group", { name: "Teclado del PIN" }).getByRole("button", { name: d, exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Elige tu PIN" })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/PIN tiene menos de 6 cifras/)).toBeVisible();
+    await expect(page.getByText("Paciente Corto")).toBeHidden();
+    // Con menos de 6 cifras, «Siguiente» no se activa.
+    await page.keyboard.type("2580");
+    await expect(page.getByRole("button", { name: "Siguiente" })).toBeDisabled();
+    for (let i = 0; i < 4; i++) await page.keyboard.press("Backspace");
+    await page.keyboard.type("246813");
+    await page.getByRole("button", { name: "Siguiente" }).click();
+    await page.keyboard.type("246813");
+    await page.getByRole("button", { name: "Guardar el PIN" }).click();
+    await expect(page.getByRole("link", { name: /Paciente Corto/ })).toBeVisible();
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("fisiolab.lock")!).it)).toBe(600_000);
   });
 });
 

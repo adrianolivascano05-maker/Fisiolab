@@ -26,9 +26,9 @@ async function start(page: Page, google: FakeGoogle) {
   // En el servidor, la app pide elegir un PIN (puede salir un momento después de la lista).
   await expect(choose).toBeVisible({ timeout: 20_000 });
   {
-    await page.keyboard.type("2580");
+    await page.keyboard.type("258036");
     await page.getByRole("button", { name: "Siguiente" }).click();
-    await page.keyboard.type("2580");
+    await page.keyboard.type("258036");
     await page.getByRole("button", { name: "Guardar el PIN" }).click();
   }
   await expect(list).toBeVisible({ timeout: 15_000 });
