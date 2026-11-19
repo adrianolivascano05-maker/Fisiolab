@@ -83,6 +83,20 @@ function PlanForm({
     setTemplate(null);
     setRows(rows.map((x, j) => (j === i ? { ...x, ...r } : x)));
   };
+  // El contador de mesociclos: al subir, una fase nueva al final; al bajar, fuera la última (si ya tiene ejercicios,
+  // se pregunta antes).
+  const [confirmLess, setConfirmLess] = useState(false);
+  const hasExercises = (r: Row) => (r.doc ?? (r.id ? data.loaded?.phases[r.id] : undefined))?.sessions.some((x) => x.exercises.some((e) => e.name.trim())) ?? false;
+  const addPhase = () => {
+    setTemplate(null);
+    setConfirmLess(false);
+    setRows([...rows, { name: `Fase ${rows.length + 1}`, weeks: 4 }]);
+  };
+  const removeLast = () => {
+    setTemplate(null);
+    setConfirmLess(false);
+    setRows(rows.slice(0, -1));
+  };
   const move = (i: number, by: number) => {
     const next = [...rows];
     const [r] = next.splice(i, 1);
@@ -173,6 +187,37 @@ function PlanForm({
             Con los ejercicios de la plantilla{editing ? ": al guardar, las fases y sus ejercicios se cambian por los de la plantilla (las sesiones ya apuntadas no se tocan)" : ""}. El objetivo y el 1RM se ponen para este paciente.
           </p>
         )}
+        <div className="flex items-center gap-2">
+          <span id="n-meso" className="min-w-0 flex-1 font-semibold">
+            Mesociclos
+          </span>
+          <IconButton label="Un mesociclo menos" onClick={() => (hasExercises(rows[rows.length - 1]!) ? setConfirmLess(true) : removeLast())} disabled={rows.length <= 1}>
+            <Minus aria-hidden="true" className="size-5" />
+          </IconButton>
+          <output aria-labelledby="n-meso" aria-live="polite" className="nums w-10 shrink-0 text-center text-xl font-semibold">
+            {rows.length}
+          </output>
+          <IconButton label="Un mesociclo más" onClick={addPhase} disabled={rows.length >= LIMITS.phases}>
+            <Plus aria-hidden="true" className="size-5" />
+          </IconButton>
+        </div>
+        <p className="-mt-2 text-xs text-text-muted">De 1 a {LIMITS.phases}. Al subir se añade una fase al final; al bajar se quita la última.</p>
+        {confirmLess && (
+          <div role="alert" className="flex flex-col gap-2 rounded-md border border-warning bg-warning-soft p-3 text-sm">
+            <p>
+              La fase {rows.length} («{rows[rows.length - 1]!.name}») ya tiene ejercicios. Si la quitas, salen del plan al guardar (las sesiones ya
+              apuntadas no se tocan).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="danger" size="sm" onClick={removeLast}>
+                Quitar la fase {rows.length}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setConfirmLess(false)}>
+                Dejarla
+              </Button>
+            </div>
+          </div>
+        )}
         <ol aria-label="Fases" className="flex flex-col divide-y divide-border">
           {rows.map((r, i) => (
             <li key={r.id ?? i} className="flex flex-col gap-2 py-2">
@@ -209,6 +254,7 @@ function PlanForm({
                     label={`Quitar la fase ${i + 1}`}
                     onClick={() => {
                       setTemplate(null);
+                      setConfirmLess(false);
                       setRows(rows.filter((_, j) => j !== i));
                     }}
                   >
@@ -220,10 +266,7 @@ function PlanForm({
           ))}
         </ol>
         {rows.length < LIMITS.phases && (
-          <Button variant="secondary" size="sm" className="self-start" icon={<Plus aria-hidden="true" className="size-4" />} onClick={() => {
-              setTemplate(null);
-              setRows([...rows, { name: `Fase ${rows.length + 1}`, weeks: 4 }]);
-            }}>
+          <Button variant="secondary" size="sm" className="self-start" icon={<Plus aria-hidden="true" className="size-4" />} onClick={addPhase}>
             Añadir una fase
           </Button>
         )}

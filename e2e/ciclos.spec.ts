@@ -305,3 +305,69 @@ test("CI3 semana de valoración, evolución por ejercicio y plantillas de la cl�
   await page.goto(`${second}/ciclos/nuevo?editar=1`);
   await expect(page.getByRole("group", { name: "Plantillas de la clínica" }).getByRole("button")).toHaveCount(1);
 });
+
+test("CI4 el número de mesociclos se cambia con el contador (de 1 a 8); quitar uno con ejercicios pide confirmación", async ({ page }) => {
+  test.slow();
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto("./pacientes/nuevo");
+  await page.getByLabel("Nombre").fill("Pablo Mesociclos");
+  await page.getByRole("button", { name: "Crear paciente" }).click();
+  await expect(page.getByRole("heading", { name: "Pablo Mesociclos" })).toBeVisible();
+  const record = page.url();
+
+  await page.goto(`${record}/ciclos/nuevo`);
+  const fases = page.getByRole("list", { name: "Fases" }).getByRole("listitem");
+  const more = page.getByRole("button", { name: "Un mesociclo más" });
+  const less = page.getByRole("button", { name: "Un mesociclo menos" });
+  const count = page.getByRole("status").or(page.locator("output"));
+  await expect(fases).toHaveCount(4);
+  for (let n = 5; n <= 8; n++) {
+    await more.click();
+    await expect(fases).toHaveCount(n);
+  }
+  await expect(count).toHaveText("8");
+  await expect(more).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Añadir una fase" })).toHaveCount(0);
+  for (let n = 7; n >= 1; n--) {
+    await less.click();
+    await expect(fases).toHaveCount(n);
+  }
+  await expect(less).toBeDisabled();
+  await more.click();
+  await expect(fases).toHaveCount(2);
+  await expect(page.getByLabel("Nombre de la fase 2")).toHaveValue("Fase 2");
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+  expect(await smallTargets(page)).toEqual([]);
+  // Abajo del todo: la barra fija no tapa ningún botón al revisar.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expectAccessible(page);
+
+  // La fase 1 con un ejercicio; al cambiar el plan, se pasa al final y se intenta quitar.
+  await page.getByRole("button", { name: "Siguiente: ejercicios de la semana 1" }).click();
+  await page.getByLabel("Añadir un ejercicio").fill("Puente de glúteo");
+  await page.getByRole("button", { name: "Añadir", exact: true }).click();
+  await page.getByRole("button", { name: "Guardar y ver el plan" }).click();
+  await page.goto(`${record}/ciclos/nuevo?editar=1`);
+  await expect(page.getByRole("heading", { name: "Cambiar el plan" })).toBeVisible();
+  await expect(fases).toHaveCount(2);
+  await page.getByRole("button", { name: "Bajar la fase 1" }).click();
+  await less.click();
+  const warn = page.getByRole("alert").filter({ hasText: "ya tiene ejercicios" });
+  await expect(warn).toBeVisible();
+  await expect(page.locator("html")).toHaveJSProperty("scrollWidth", 360);
+  expect(await smallTargets(page)).toEqual([]);
+  // Abajo del todo: la barra fija no tapa ningún botón al revisar.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expectAccessible(page);
+  await warn.getByRole("button", { name: "Dejarla" }).click();
+  await expect(warn).toHaveCount(0);
+  await expect(fases).toHaveCount(2);
+  await less.click();
+  await warn.getByRole("button", { name: "Quitar la fase 2" }).click();
+  await expect(fases).toHaveCount(1);
+  await expect(page.getByLabel("Nombre de la fase 1")).toHaveValue("Fase 2");
+  await page.getByRole("button", { name: "Guardar los cambios" }).click();
+  await expect(page.getByRole("heading", { name: "Plan por ciclos" })).toBeVisible();
+  await expect(page.getByText("Semana 1 de 4", { exact: false })).toBeVisible();
+  await expect(page.getByText("sin ejercicios aún")).toBeVisible();
+});
