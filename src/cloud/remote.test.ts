@@ -1,7 +1,7 @@
 // La copia de la clínica en el servidor de Cloudflare (remote.ts): por trozos a R2 si el servidor lo dice, o entera en
 // base64 como antes. fetch sustituido por un servidor de mentira que apunta lo que le llega.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cloudflareStore, RemoteConflict, ServerError } from "./remote";
+import { cloudflareStore, RemoteConflict, serverCall, ServerError } from "./remote";
 import { shouldCompact } from "./sync";
 
 const BASE = "https://cenit-datos.pruebas.workers.dev";
@@ -117,5 +117,28 @@ describe("cuándo se resume (copia entera nueva)", () => {
     expect(shouldCompact(big, 999, 5 * 1024 * 1024)).toBe(false);
     expect(shouldCompact(big, 1000, 0)).toBe(true);
     expect(shouldCompact(big, 10, big / 10)).toBe(true);
+  });
+});
+
+describe("la sesión que va al servidor", () => {
+  it("va el token de identidad; un servidor de antes que lo rechaza recibe el de acceso, y ya siempre ese", async () => {
+    const t = { ...token, idToken: "aaa.bbb.ccc" };
+    const NEW = "https://nuevo.pruebas.workers.dev";
+    const OLD = "https://viejo.pruebas.workers.dev";
+    const seen: { host: string; auth: string | null }[] = [];
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
+      const u = new URL(url);
+      const auth = new Headers(init.headers).get("Authorization");
+      seen.push({ host: u.host, auth });
+      // El viejo solo entiende el token de acceso.
+      return u.host.startsWith("viejo") && auth !== "Bearer tok" ? json({ error: "no" }, 401) : json({ ok: true });
+    });
+    expect((await serverCall(NEW, t, "/v1/yo")).status).toBe(200);
+    expect((await serverCall(OLD, t, "/v1/yo")).status).toBe(200);
+    expect((await serverCall(OLD, t, "/v1/yo")).status).toBe(200);
+    expect(seen.map((x) => `${x.host.split(".")[0]} ${x.auth}`)).toEqual(["nuevo Bearer aaa.bbb.ccc", "viejo Bearer aaa.bbb.ccc", "viejo Bearer tok", "viejo Bearer tok"]);
+    // Sin token de identidad (una sesión de antes), el de acceso.
+    expect((await serverCall(NEW, token, "/v1/yo")).status).toBe(200);
+    expect(seen.at(-1)!.auth).toBe("Bearer tok");
   });
 });

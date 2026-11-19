@@ -48,17 +48,42 @@ export async function forgetDocs(db, docs, items) {
   if (!items.length) return;
   await deleteDocs(docs, items.map((d) => docKey(d.clinicId, d.id)));
   await db.batch(items.map((d) => db.prepare("DELETE FROM documents WHERE clinic_id = ? AND id = ?").bind(d.clinicId, d.id)));
+  noteStored(-1);
 }
 
 /**
  * Lo que ocupa todo el almacén: los documentos y las copias de las clínicas que están en R2. El tope es de todo (el
- * nivel gratuito de R2 es de la cuenta).
+ * nivel gratuito de R2 es de la cuenta). Sumarlo lee todas las filas de las dos tablas: se recuerda unos minutos en
+ * cada copia del servidor, se le suma lo que esta sube y se vuelve a sumar de verdad antes de rechazar nada.
  */
-async function storedBytes(/** @type {D1Database} */ db) {
+let stored = { bytes: 0, at: -Infinity };
+const STORED_MS = 5 * 60_000;
+
+async function storedBytes(/** @type {D1Database} */ db, fresh = false) {
+  const now = Date.now();
+  if (!fresh && now - stored.at < STORED_MS) return stored.bytes;
   const row = await db
     .prepare("SELECT (SELECT coalesce(sum(size), 0) FROM documents) + (SELECT coalesce(sum(size), 0) FROM heads WHERE parts = 0) AS bytes")
     .first();
-  return Number(row?.bytes ?? 0);
+  stored = { bytes: Number(row?.bytes ?? 0), at: now };
+  return stored.bytes;
+}
+
+/** Si caben `extra` bytes más (con lo recordado si va holgado; si no, sumando otra vez). */
+async function fits(/** @type {D1Database} */ db, /** @type {number} */ extra, /** @type {number} */ cap) {
+  if ((await storedBytes(db)) + extra <= cap * 0.95) return true;
+  return (await storedBytes(db, true)) + extra <= cap;
+}
+
+/** Lo que esta copia del servidor acaba de guardar (o, si se ha borrado algo, que se vuelva a sumar). */
+function noteStored(/** @type {number} */ delta) {
+  if (delta < 0) stored.at = -Infinity;
+  else stored.bytes += delta;
+}
+
+/** Solo para las pruebas. */
+export function resetStoredBytes() {
+  stored = { bytes: 0, at: -Infinity };
 }
 
 /**
@@ -127,12 +152,13 @@ export async function clinicDoc(request, db, env, clinicId, docId, keep, now) {
   const bytes = await readDoc(request);
   if (row) return json(200, { id: docId, size: Number(row.size) });
   const { cap } = docsLimits(env);
-  if ((await storedBytes(db)) + bytes.byteLength > cap) throw full(cap);
+  if (!(await fits(db, bytes.byteLength, cap))) throw full(cap);
   await docs.put(docKey(clinicId, docId), bytes);
   await db
     .prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES (?, ?, NULL, ?, ?) ON CONFLICT (clinic_id, id) DO NOTHING")
     .bind(clinicId, docId, bytes.byteLength, new Date(now()).toISOString())
     .run();
+  noteStored(bytes.byteLength);
   return json(201, { id: docId, size: bytes.byteLength });
 }
 
@@ -163,7 +189,7 @@ export async function publicFormDoc(request, env, formId, n, now) {
   const bytes = await readDoc(request);
   const id = `${formId}.${n}`;
   const before = await db.prepare("SELECT size FROM documents WHERE clinic_id = ? AND id = ?").bind(clinicId, id).first();
-  if ((await storedBytes(db)) - Number(before?.size ?? 0) + bytes.byteLength > docsLimits(env).cap) {
+  if (!(await fits(db, bytes.byteLength - Number(before?.size ?? 0), docsLimits(env).cap))) {
     throw new HttpError(507, "Ahora mismo la clínica no puede recibir más documentos. Díselo a tu fisioterapeuta.");
   }
   await env.DOCS.put(docKey(clinicId, id), bytes);
@@ -174,5 +200,6 @@ export async function publicFormDoc(request, env, formId, n, now) {
     )
     .bind(clinicId, id, formId, bytes.byteLength, new Date(now()).toISOString())
     .run();
+  noteStored(bytes.byteLength - Number(before?.size ?? 0));
   return json(200, { ok: true });
 }

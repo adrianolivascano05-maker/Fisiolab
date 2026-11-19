@@ -175,6 +175,8 @@ describe("la copia entera del servidor de la clínica", () => {
     sealed.set(new TextEncoder().encode("CENITENC2"), 0);
     expect(() => checkServerCopy(plain, "sal-vista")).toThrow(/no viene cifrada/);
     expect(() => checkServerCopy(plain, undefined)).not.toThrow();
+    // La marca del dispositivo (IndexedDB), aunque se haya perdido lo de la sincronización en localStorage.
+    expect(() => checkServerCopy(plain, true)).toThrow(/no viene cifrada/);
     expect(() => checkServerCopy(sealed, "sal-vista")).not.toThrow();
   });
 });

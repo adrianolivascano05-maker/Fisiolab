@@ -22,7 +22,7 @@ import { getSetting } from "../data/repo";
 import type { DeltaItem, MergeResult } from "../data/syncMerge";
 import type { Account } from "./account";
 import { clearToken, getToken, type Token } from "./auth";
-import { decrypt, deriveKey, encrypt, encryptToPieces, ENCRYPTION_KEY, forgetKey, isEncrypted, saltOf, storedKey, storeKey, WrongPassword, type EncryptionSetting, type StoredKey } from "./crypt";
+import { decrypt, deriveKey, deviceDelete, deviceGet, devicePut, encrypt, encryptToPieces, ENCRYPTION_KEY, forgetKey, isEncrypted, saltOf, storedKey, storeKey, WrongPassword, type EncryptionSetting, type StoredKey } from "./crypt";
 import { AuthError } from "./drive";
 import { driveStore, RemoteConflict, type DeltaApi, type DeltaInfo, type RemoteStore } from "./remote";
 
@@ -32,9 +32,16 @@ import { driveStore, RemoteConflict, type DeltaApi, type DeltaInfo, type RemoteS
  * cifrada de esta clínica (`seenSalt`), una sin cifrar no es de la clínica: alguien la ha cambiado en el servidor y no
  * se junta. La de una clínica que aún no tenía contraseña (nunca vista cifrada aquí) se acepta como siempre.
  */
-export function checkServerCopy(raw: Uint8Array, seenSalt: string | undefined): void {
-  if (!isEncrypted(raw) && seenSalt) throw new Error("La copia del servidor no viene cifrada: no se ha cargado. Avisa al administrador de la clínica.");
+export function checkServerCopy(raw: Uint8Array, seenEncrypted: string | boolean | undefined): void {
+  if (!isEncrypted(raw) && seenEncrypted) throw new Error("La copia del servidor no viene cifrada: no se ha cargado. Avisa al administrador de la clínica.");
 }
+
+/**
+ * En este dispositivo ya ha llegado (o se ha subido) una copia cifrada de esta clínica. Va en IndexedDB, aparte de lo
+ * de la sincronización en localStorage, para que no se pierda si eso se borra. Solo se quita a mano: al sustituir la
+ * copia de la nube desde aquí («He olvidado la contraseña») o al borrar los datos de este dispositivo.
+ */
+const seenEncryptedKey = (scope: string) => `copia-cifrada:${scope}`;
 
 export type SyncStatus = "idle" | "syncing" | "offline" | "needs-auth" | "needs-key" | "needs-password" | "error";
 export type SyncState = {
@@ -178,8 +185,10 @@ export class SyncController {
   private saveMeta(m: Meta) {
     localStorage.setItem(this.metaKey, JSON.stringify(m));
   }
-  forgetMeta() {
+  /** Olvida por dónde iba la sincronización, y la marca de copia cifrada: al sustituir la copia o borrar este dispositivo. */
+  async forgetMeta() {
     localStorage.removeItem(this.metaKey);
+    await deviceDelete(seenEncryptedKey(this.scope));
   }
 
   get current() {
@@ -414,6 +423,7 @@ export class SyncController {
       await this.markPushed(snap.changes);
       await this.clearLegacy();
       save({ version: f.version, lastSyncAt: now(), epoch: f.epoch ?? null, seq: f.base ?? 0, salt: saltOf(sealed) });
+      if (isEncrypted(sealed)) await devicePut(seenEncryptedKey(this.scope), true);
       return 0;
     }
 
@@ -430,7 +440,7 @@ export class SyncController {
       // La copia del servidor de la clínica va siempre cifrada: si este dispositivo ya ha recibido una cifrada de esta
       // clínica, una sin cifrar no es de la clínica (alguien la ha cambiado en el servidor) y no se junta. La de una
       // clínica que aún no tenía contraseña (nunca vista cifrada aquí) se acepta como siempre.
-      checkServerCopy(raw, meta?.salt);
+      checkServerCopy(raw, meta?.salt || (await deviceGet<boolean>(seenEncryptedKey(this.scope))));
       const bytes = await this.open(raw, key);
       snapSalt = isEncrypted(raw) ? saltOf(raw) : undefined;
       const r = await this.own(() => this.db.merge(bytes));
@@ -504,6 +514,7 @@ export class SyncController {
       }
     }
     save({ version, lastSyncAt: now(), epoch, seq: cursor, salt: snapSalt });
+    if (snapSalt) await devicePut(seenEncryptedKey(this.scope), true);
     return pulled;
   }
 
@@ -611,7 +622,7 @@ export class SyncController {
     const token = getToken();
     if (!token) throw new Error("Vuelve a entrar con Google.");
     for (const f of await this.store.list(token)) await this.store.remove(token, f);
-    this.forgetMeta();
+    await this.forgetMeta();
     this.set({ keySalt: null });
     await this.sync();
   }

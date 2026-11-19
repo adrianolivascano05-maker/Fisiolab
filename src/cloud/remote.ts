@@ -104,16 +104,25 @@ function toBase64(bytes: Uint8Array): string {
 }
 const fromBase64 = (text: string) => Uint8Array.from(atob(text.trim()), (c) => c.charCodeAt(0));
 
+/** Servidores que aún no entienden el token de identidad (se ve en la primera petición). */
+const accessOnly = new Set<string>();
+
 /**
  * Una petición al servidor de Cloudflare con la sesión de Google. AuthError si ha caducado, RemoteConflict si la copia
  * ha cambiado (412) y ServerError con el mensaje del servidor en lo demás. `ok`: otros estados que no son error.
  */
 export async function serverCall(baseUrl: string, t: Token, path: string, init: RequestInit = {}, ok: number[] = []): Promise<Response> {
-  const res = await fetchWithTimeout(`${baseUrl.replace(/\/+$/, "")}${path}`, {
-    ...init,
-    headers: { ...init.headers, Authorization: `Bearer ${t.accessToken}` },
-    cache: "no-store",
-  });
+  const base = baseUrl.replace(/\/+$/, "");
+  const send = (bearer: string) => fetchWithTimeout(`${base}${path}`, { ...init, headers: { ...init.headers, Authorization: `Bearer ${bearer}` }, cache: "no-store" });
+  // Al servidor va el token de identidad. Un servidor de antes de noviembre de 2026 solo entiende el de acceso: si
+  // rechaza el de identidad, otra vez con el de acceso, y en esta sesión ya siempre así (hasta que se actualice).
+  const useId = !!t.idToken && !accessOnly.has(base);
+  let res = await send(useId ? t.idToken! : t.accessToken);
+  if (res.status === 401 && useId) {
+    const retry = await send(t.accessToken);
+    if (retry.status !== 401) accessOnly.add(base);
+    res = retry;
+  }
   if (res.ok || ok.includes(res.status)) return res;
   let detail = "";
   try {

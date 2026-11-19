@@ -180,6 +180,13 @@ export class FakeGoogle {
       this.tokens.set(token, user);
       params.set("access_token", token);
       params.set("token_type", "Bearer");
+      // El token de identidad (sin firma de verdad: el servidor simulado lo reconoce por su texto), con el nonce pedido.
+      if ((u.searchParams.get("response_type") ?? "").split(" ").includes("id_token")) {
+        const part = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+        const id = `${part({ alg: "RS256", kid: "pruebas" })}.${part({ sub: user.sub, email: user.email, nonce: u.searchParams.get("nonce"), exp: Math.floor(Date.now() / 1000) + 3599 })}.firma-${this.next}`;
+        this.tokens.set(id, user);
+        params.set("id_token", id);
+      }
       params.set("expires_in", "3599");
       params.set("scope", u.searchParams.get("scope")!.split(" ").filter((sc) => !this.withheld.some((w) => sc.endsWith(w))).join(" "));
     }

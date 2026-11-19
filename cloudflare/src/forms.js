@@ -56,10 +56,11 @@ export async function clinicForms(request, db, docs, clinicId, formId, who, now)
     // Anulado sin responder: se borra entero. Los documentos que subió y la clínica no ha guardado, fuera.
     const { results = [] } = await db.prepare("SELECT id FROM documents WHERE clinic_id = ? AND form_id = ?").bind(clinicId, formId).all();
     await forgetDocs(db, docs, results.map((r) => ({ clinicId, id: String(r.id) })));
+    // doc_requests no lleva la clínica: se borra solo si el formulario es de esta clínica (antes de borrarlo).
     await db.batch([
+      db.prepare("DELETE FROM doc_requests WHERE form_id = ? AND EXISTS (SELECT 1 FROM patient_forms WHERE clinic_id = ? AND id = ?)").bind(formId, clinicId, formId),
       db.prepare("UPDATE patient_forms SET request = '', response = NULL WHERE clinic_id = ? AND id = ? AND answered_at IS NOT NULL").bind(clinicId, formId),
       db.prepare("DELETE FROM patient_forms WHERE clinic_id = ? AND id = ? AND answered_at IS NULL").bind(clinicId, formId),
-      db.prepare("DELETE FROM doc_requests WHERE form_id = ?").bind(formId),
     ]);
     return new Response(null, { status: 204 });
   }

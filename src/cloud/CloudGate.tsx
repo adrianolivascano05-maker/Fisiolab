@@ -84,7 +84,7 @@ function startCloud(config: CloudConfig, account: Account, remount: () => void, 
   /** Borra de este dispositivo los datos de la base abierta, sin tocar la copia de la nube. */
   const wipe = async () => {
     await getDb().wipe();
-    sync.forgetMeta();
+    await sync.forgetMeta();
     await forgetKey(sync.scope);
     await cacheDrop(sync.scope); // los archivos de los pacientes guardados aquí (src/documents)
   };

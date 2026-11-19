@@ -188,7 +188,7 @@
  * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
-const SERVER_VERSION = "2026-11-02";
+const SERVER_VERSION = "2026-11-19";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 const MAGIC = "Q0VOSVRFTkMx";
@@ -289,6 +289,8 @@ export default {
 /** Solo para las pruebas: el tope de peticiones por IP vuelve a cero (cloudflare/src/ratelimit.js). */
 export function resetLimitsForTests() {
   resetRateLimits();
+  resetGoogleKeys();
+  resetStoredBytes();
 }
 
 /**
@@ -1450,10 +1452,11 @@ async function clinicForms(request, db, docs, clinicId, formId, who, now) {
     // Anulado sin responder: se borra entero. Los documentos que subió y la clínica no ha guardado, fuera.
     const { results = [] } = await db.prepare("SELECT id FROM documents WHERE clinic_id = ? AND form_id = ?").bind(clinicId, formId).all();
     await forgetDocs(db, docs, results.map((r) => ({ clinicId, id: String(r.id) })));
+    // doc_requests no lleva la clínica: se borra solo si el formulario es de esta clínica (antes de borrarlo).
     await db.batch([
+      db.prepare("DELETE FROM doc_requests WHERE form_id = ? AND EXISTS (SELECT 1 FROM patient_forms WHERE clinic_id = ? AND id = ?)").bind(formId, clinicId, formId),
       db.prepare("UPDATE patient_forms SET request = '', response = NULL WHERE clinic_id = ? AND id = ? AND answered_at IS NOT NULL").bind(clinicId, formId),
       db.prepare("DELETE FROM patient_forms WHERE clinic_id = ? AND id = ? AND answered_at IS NULL").bind(clinicId, formId),
-      db.prepare("DELETE FROM doc_requests WHERE form_id = ?").bind(formId),
     ]);
     return new Response(null, { status: 204 });
   }
@@ -1560,17 +1563,42 @@ async function forgetDocs(db, docs, items) {
   if (!items.length) return;
   await deleteDocs(docs, items.map((d) => docKey(d.clinicId, d.id)));
   await db.batch(items.map((d) => db.prepare("DELETE FROM documents WHERE clinic_id = ? AND id = ?").bind(d.clinicId, d.id)));
+  noteStored(-1);
 }
 
 /**
  * Lo que ocupa todo el almacén: los documentos y las copias de las clínicas que están en R2. El tope es de todo (el
- * nivel gratuito de R2 es de la cuenta).
+ * nivel gratuito de R2 es de la cuenta). Sumarlo lee todas las filas de las dos tablas: se recuerda unos minutos en
+ * cada copia del servidor, se le suma lo que esta sube y se vuelve a sumar de verdad antes de rechazar nada.
  */
-async function storedBytes(/** @type {D1Database} */ db) {
+let stored = { bytes: 0, at: -Infinity };
+const STORED_MS = 5 * 60_000;
+
+async function storedBytes(/** @type {D1Database} */ db, fresh = false) {
+  const now = Date.now();
+  if (!fresh && now - stored.at < STORED_MS) return stored.bytes;
   const row = await db
     .prepare("SELECT (SELECT coalesce(sum(size), 0) FROM documents) + (SELECT coalesce(sum(size), 0) FROM heads WHERE parts = 0) AS bytes")
     .first();
-  return Number(row?.bytes ?? 0);
+  stored = { bytes: Number(row?.bytes ?? 0), at: now };
+  return stored.bytes;
+}
+
+/** Si caben `extra` bytes más (con lo recordado si va holgado; si no, sumando otra vez). */
+async function fits(/** @type {D1Database} */ db, /** @type {number} */ extra, /** @type {number} */ cap) {
+  if ((await storedBytes(db)) + extra <= cap * 0.95) return true;
+  return (await storedBytes(db, true)) + extra <= cap;
+}
+
+/** Lo que esta copia del servidor acaba de guardar (o, si se ha borrado algo, que se vuelva a sumar). */
+function noteStored(/** @type {number} */ delta) {
+  if (delta < 0) stored.at = -Infinity;
+  else stored.bytes += delta;
+}
+
+/** Solo para las pruebas. */
+function resetStoredBytes() {
+  stored = { bytes: 0, at: -Infinity };
 }
 
 /**
@@ -1639,12 +1667,13 @@ async function clinicDoc(request, db, env, clinicId, docId, keep, now) {
   const bytes = await readDoc(request);
   if (row) return json(200, { id: docId, size: Number(row.size) });
   const { cap } = docsLimits(env);
-  if ((await storedBytes(db)) + bytes.byteLength > cap) throw full(cap);
+  if (!(await fits(db, bytes.byteLength, cap))) throw full(cap);
   await docs.put(docKey(clinicId, docId), bytes);
   await db
     .prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES (?, ?, NULL, ?, ?) ON CONFLICT (clinic_id, id) DO NOTHING")
     .bind(clinicId, docId, bytes.byteLength, new Date(now()).toISOString())
     .run();
+  noteStored(bytes.byteLength);
   return json(201, { id: docId, size: bytes.byteLength });
 }
 
@@ -1675,7 +1704,7 @@ async function publicFormDoc(request, env, formId, n, now) {
   const bytes = await readDoc(request);
   const id = `${formId}.${n}`;
   const before = await db.prepare("SELECT size FROM documents WHERE clinic_id = ? AND id = ?").bind(clinicId, id).first();
-  if ((await storedBytes(db)) - Number(before?.size ?? 0) + bytes.byteLength > docsLimits(env).cap) {
+  if (!(await fits(db, bytes.byteLength - Number(before?.size ?? 0), docsLimits(env).cap))) {
     throw new HttpError(507, "Ahora mismo la clínica no puede recibir más documentos. Díselo a tu fisioterapeuta.");
   }
   await env.DOCS.put(docKey(clinicId, id), bytes);
@@ -1686,6 +1715,7 @@ async function publicFormDoc(request, env, formId, n, now) {
     )
     .bind(clinicId, id, formId, bytes.byteLength, new Date(now()).toISOString())
     .run();
+  noteStored(bytes.byteLength - Number(before?.size ?? 0));
   return json(200, { ok: true });
 }
 
@@ -1760,6 +1790,8 @@ async function authenticate(request, env, deps) {
     who = { sub: id.sub, email: id.email, until: now + expiresIn * 1000 };
   }
   if (expiresIn !== undefined && expiresIn > 0) remember(key, who, now);
+  // Una sesión que hace peticiones sin parar (una app rota o una sesión robada) no se come las consultas de los demás.
+  hit("account", who.sub, ACCOUNT_PER_MINUTE, now);
   return who;
 }
 
@@ -1781,38 +1813,185 @@ function remember(key, value, now) {
 }
 
 /**
- * Comprueba con Google un token de acceso: que sea de esta app (GOOGLE_CLIENT_ID) y que el correo esté verificado.
- * Lo que puede hacer esa cuenta se mira después, en cada ruta.
+ * Hasta este día se aceptan también los tokens de acceso de Google (los que mandaba la app hasta noviembre de 2026),
+ * para que nadie se quede fuera mientras su app se actualiza sola. Después, solo el token de identidad.
+ */
+const ACCESS_TOKENS_UNTIL = Date.parse("2027-01-15T00:00:00Z");
+
+/**
+ * Comprueba la sesión de Google: que sea de esta app (GOOGLE_CLIENT_ID, exacto) y que el correo esté verificado. Lo
+ * que puede hacer esa cuenta se mira después, en cada ruta.
+ *
+ * Lo normal es un token de identidad de Google (un JWT firmado por Google, que la app pide con un «nonce» suyo): se
+ * comprueba aquí mismo la firma con las claves públicas de Google, quién lo emite, para qué app es (aud) y que no
+ * haya caducado, sin preguntar a Google por cada sesión. Mientras dure el paso (ACCESS_TOKENS_UNTIL), un token de
+ * acceso se comprueba como antes, con Google, pero solo si es de esta app (aud, no azp).
  * @param {string} token
  * @param {Env} env
  * @returns {Promise<Identity>}
  */
 async function verifyGoogleToken(token, env) {
-  const invalid = () => new HttpError(401, "La sesión de Google no es válida o ha caducado. Vuelve a entrar con tu cuenta.");
-  const unavailable = () => new HttpError(503, "No se ha podido comprobar la sesión con Google. Inténtalo de nuevo en unos minutos.");
+  const clientId = (env.GOOGLE_CLIENT_ID ?? "").trim();
+  if (!clientId) throw invalidSession();
+  if (looksLikeJwt(token)) return verifyIdToken(token, clientId, Date.now());
+  if (Date.now() >= ACCESS_TOKENS_UNTIL) throw invalidSession();
+  return verifyAccessToken(token, clientId);
+}
+
+/** Tres partes y la primera es una cabecera JSON: un JWT (un token de acceso de Google nunca lo es). */
+function looksLikeJwt(/** @type {string} */ token) {
+  const parts = token.split(".");
+  if (parts.length !== 3) return false;
+  try {
+    return typeof JSON.parse(new TextDecoder().decode(b64url(/** @type {string} */ (parts[0])))) === "object";
+  } catch {
+    return false;
+  }
+}
+
+const invalidSession = () => new HttpError(401, "La sesión de Google no es válida o ha caducado. Vuelve a entrar con tu cuenta.");
+const googleUnavailable = () => new HttpError(503, "No se ha podido comprobar la sesión con Google. Inténtalo de nuevo en unos minutos.");
+
+/**
+ * Pregunta a Google por un token de acceso (el paso de transición).
+ * @param {string} token
+ * @param {string} clientId
+ * @returns {Promise<Identity>}
+ */
+async function verifyAccessToken(token, clientId) {
   /** @type {Response} */
   let res;
   try {
     // Si Google tarda, mejor un 503 a los 8 segundos que dejar la petición colgada.
     res = await fetch("https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=" + encodeURIComponent(token), { signal: AbortSignal.timeout(8000) });
   } catch {
-    throw unavailable();
+    throw googleUnavailable();
   }
-  if (res.status >= 500) throw unavailable();
-  if (!res.ok) throw invalid();
+  if (res.status >= 500) throw googleUnavailable();
+  if (!res.ok) throw invalidSession();
   /** @type {Record<string, unknown>} */
   let info;
   try {
     info = await res.json();
   } catch {
-    throw unavailable();
+    throw googleUnavailable();
   }
-  const clientId = (env.GOOGLE_CLIENT_ID ?? "").trim();
-  const forThisApp = clientId !== "" && (info.aud === clientId || info.azp === clientId);
+  // Solo «aud»: un token pedido por otra app («azp» de esta) no vale.
   const verified = info.email_verified === true || info.email_verified === "true";
-  if (!forThisApp || !verified || typeof info.sub !== "string" || !info.sub || typeof info.email !== "string") throw invalid();
+  if (info.aud !== clientId || !verified || typeof info.sub !== "string" || !info.sub || typeof info.email !== "string") throw invalidSession();
   const expiresIn = Number(info.expires_in);
   return { sub: info.sub, email: info.email, expiresIn: Number.isFinite(expiresIn) ? expiresIn : undefined };
+}
+
+// ---------- Token de identidad (JWT de Google) ----------
+
+const JWKS_URL = "https://www.googleapis.com/oauth2/v3/certs";
+const ISSUERS = ["https://accounts.google.com", "accounts.google.com"];
+/** Margen para relojes un poco desajustados. */
+const SKEW_SECONDS = 60;
+
+/** Las claves públicas de Google, por «kid», y hasta cuándo valen (ms). Se piden otra vez al caducar o si llega un kid nuevo. */
+let jwks = { keys: /** @type {Map<string, CryptoKey>} */ (new Map()), until: 0, fetchedAt: 0 };
+
+/** Solo para las pruebas. */
+function resetGoogleKeys() {
+  jwks = { keys: new Map(), until: 0, fetchedAt: 0 };
+}
+
+/**
+ * @param {string} part
+ * @returns {Uint8Array<ArrayBuffer>}
+ */
+function b64url(part) {
+  const b64 = part.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((part.length + 3) % 4);
+  return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+}
+
+/**
+ * @param {string} kid
+ * @param {number} now ms
+ * @returns {Promise<CryptoKey | undefined>}
+ */
+async function googleKey(kid, now) {
+  const fresh = jwks.until > now;
+  if (fresh && jwks.keys.has(kid)) return jwks.keys.get(kid);
+  // Un kid que no está: Google ha cambiado sus claves. Se vuelve a pedir, pero como mucho una vez por minuto (que
+  // tokens con kids inventados no hagan preguntar a Google sin parar).
+  if (fresh && now - jwks.fetchedAt < 60_000) return undefined;
+  /** @type {Response} */
+  let res;
+  try {
+    res = await fetch(JWKS_URL, { signal: AbortSignal.timeout(8000) });
+  } catch {
+    throw googleUnavailable();
+  }
+  if (!res.ok) throw googleUnavailable();
+  /** @type {{ keys?: JsonWebKey[] }} */
+  let body;
+  try {
+    body = await res.json();
+  } catch {
+    throw googleUnavailable();
+  }
+  /** @type {Map<string, CryptoKey>} */
+  const keys = new Map();
+  for (const k of body.keys ?? []) {
+    const id = /** @type {{ kid?: unknown }} */ (k).kid;
+    if (k.kty !== "RSA" || typeof id !== "string") continue;
+    try {
+      keys.set(id, await crypto.subtle.importKey("jwk", { kty: "RSA", n: k.n, e: k.e }, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]));
+    } catch {
+      /* una clave rara: fuera */
+    }
+  }
+  if (!keys.size) throw googleUnavailable();
+  const maxAge = Number(/max-age=(\d+)/.exec(res.headers.get("Cache-Control") ?? "")?.[1] ?? 3600);
+  jwks = { keys, until: now + Math.min(Math.max(maxAge, 60), 86_400) * 1000, fetchedAt: now };
+  return keys.get(kid);
+}
+
+/**
+ * @param {string} token
+ * @param {string} clientId
+ * @param {number} now ms
+ * @returns {Promise<Identity>}
+ */
+async function verifyIdToken(token, clientId, now) {
+  const [h, p, s] = /** @type {[string, string, string]} */ (token.split("."));
+  /** @type {Record<string, unknown>} */
+  let header;
+  /** @type {Record<string, unknown>} */
+  let claims;
+  /** @type {Uint8Array<ArrayBuffer>} */
+  let signature;
+  try {
+    header = JSON.parse(new TextDecoder().decode(b64url(h)));
+    claims = JSON.parse(new TextDecoder().decode(b64url(p)));
+    signature = b64url(s);
+  } catch {
+    throw invalidSession();
+  }
+  if (header.alg !== "RS256" || typeof header.kid !== "string") throw invalidSession();
+  const key = await googleKey(header.kid, now);
+  if (!key) throw invalidSession();
+  const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, signature, new TextEncoder().encode(`${h}.${p}`));
+  if (!ok) throw invalidSession();
+  const t = Math.floor(now / 1000);
+  const exp = Number(claims.exp);
+  const verified = claims.email_verified === true || claims.email_verified === "true";
+  if (
+    !ISSUERS.includes(/** @type {string} */ (claims.iss)) ||
+    claims.aud !== clientId ||
+    !Number.isFinite(exp) ||
+    exp + SKEW_SECONDS <= t ||
+    Number(claims.iat) > t + SKEW_SECONDS ||
+    !verified ||
+    typeof claims.sub !== "string" ||
+    !claims.sub ||
+    typeof claims.email !== "string"
+  )
+    throw invalidSession();
+  return { sub: claims.sub, email: claims.email, expiresIn: Math.max(exp - t, 0) };
 }
 
 /** @param {string} text */
@@ -1824,7 +2003,7 @@ async function sha256Hex(text) {
 // ---------- Tope de peticiones por dirección IP ----------
 //
 // Lo que se abre sin sesión (los formularios de los pacientes y /v1/salud) y las sesiones de Google que no valen
-// llevan un tope por IP y por minuto. Se cuenta en la memoria de cada copia del servidor que tenga Cloudflare en
+// llevan un tope por IP y por minuto; lo que va con sesión, un tope por cuenta y minuto. Se cuenta en la memoria de cada copia del servidor que tenga Cloudflare en
 // marcha (no es un contador global): frena a quien repite peticiones sin parar desde una dirección, ahorra las
 // consultas a la base y a Google, y no necesita nada que configurar. Lo que no puede hacer es evitar que esas
 // peticiones cuenten en el límite diario del plan gratuito: para eso hace falta una regla de límite de Cloudflare
@@ -1834,6 +2013,11 @@ async function sha256Hex(text) {
 const PUBLIC_PER_MINUTE = 60;
 /** Sesiones de Google que no valen, por IP y minuto, antes de dejar de preguntar a Google. */
 const BAD_TOKENS_PER_MINUTE = 10;
+/**
+ * Peticiones con sesión por cuenta y minuto. La app, sincronizando y subiendo archivos, no pasa de unas 100; una
+ * copia grande por trozos, de unas 300.
+ */
+const ACCOUNT_PER_MINUTE = 600;
 /** Direcciones recordadas como mucho (la memoria de cada copia del servidor es pequeña). */
 const MAX_KEYS = 5000;
 

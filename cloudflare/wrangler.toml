@@ -25,8 +25,10 @@ GOOGLE_CLIENT_ID = "1084216324372-0mrfdeckqcfu8p2t1tjsosdebs7g2tmb.apps.googleus
 # Los correos de Google de los fisioterapeutas que pueden guardar copias, separados por comas.
 # Vacío: no entra nadie.
 ALLOWED_EMAILS = ""
-# Las direcciones desde donde se abre la app, separadas por comas.
-ALLOWED_ORIGINS = "https://adrianolivascano05-maker.github.io,http://localhost:5173"
+# Las direcciones desde donde se abre la app, separadas por comas: la de GitHub (la clínica) y la de Cloudflare Pages
+# (la app y los enlaces de los pacientes). Solo https. Para probar con «npm run dev», añade «,http://localhost:5173»
+# solo mientras pruebas, en un servidor de pruebas (nunca en el de la clínica).
+ALLOWED_ORIGINS = "https://adrianolivascano05-maker.github.io,https://cenitfisiolab.pages.dev"
 
 # Sin registros guardados en Cloudflare: no hacen falta y así no queda constancia de cada petición.
 # (El servidor nunca escribe en el registro el contenido de una copia ni el token.)

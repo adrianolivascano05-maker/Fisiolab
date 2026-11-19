@@ -109,12 +109,12 @@
 // que no tiene límite al día).
 // Nunca se escribe en el registro el contenido de una petición ni el token.
 
-import { authenticate, verifyGoogleToken } from "./auth.js";
+import { authenticate, resetGoogleKeys, verifyGoogleToken } from "./auth.js";
 import { clientIp, hit, PUBLIC_PER_MINUTE, resetRateLimits } from "./ratelimit.js";
 import { accessRequest, canCreate, clinicOwner, me, normalEmail } from "./clinics.js";
 import { DELETE_GRACE_DAYS } from "./constants.js";
 import { clinicCopy, copyMethod, copyRoute } from "./copy.js";
-import { clinicDoc, docsUsage, publicFormDoc } from "./documents.js";
+import { clinicDoc, docsUsage, publicFormDoc, resetStoredBytes } from "./documents.js";
 import { clinicForms, publicForm } from "./forms.js";
 import { health } from "./health.js";
 import { clinicName, createClinic, operatorRoute, putMember, removeMember } from "./provider.js";
@@ -137,6 +137,8 @@ export default {
 /** Solo para las pruebas: el tope de peticiones por IP vuelve a cero (cloudflare/src/ratelimit.js). */
 export function resetLimitsForTests() {
   resetRateLimits();
+  resetGoogleKeys();
+  resetStoredBytes();
 }
 
 /**

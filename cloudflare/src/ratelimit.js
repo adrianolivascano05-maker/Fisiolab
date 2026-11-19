@@ -3,7 +3,7 @@
 // ---------- Tope de peticiones por dirección IP ----------
 //
 // Lo que se abre sin sesión (los formularios de los pacientes y /v1/salud) y las sesiones de Google que no valen
-// llevan un tope por IP y por minuto. Se cuenta en la memoria de cada copia del servidor que tenga Cloudflare en
+// llevan un tope por IP y por minuto; lo que va con sesión, un tope por cuenta y minuto. Se cuenta en la memoria de cada copia del servidor que tenga Cloudflare en
 // marcha (no es un contador global): frena a quien repite peticiones sin parar desde una dirección, ahorra las
 // consultas a la base y a Google, y no necesita nada que configurar. Lo que no puede hacer es evitar que esas
 // peticiones cuenten en el límite diario del plan gratuito: para eso hace falta una regla de límite de Cloudflare
@@ -15,6 +15,11 @@ import { HttpError } from "./util.js";
 export const PUBLIC_PER_MINUTE = 60;
 /** Sesiones de Google que no valen, por IP y minuto, antes de dejar de preguntar a Google. */
 export const BAD_TOKENS_PER_MINUTE = 10;
+/**
+ * Peticiones con sesión por cuenta y minuto. La app, sincronizando y subiendo archivos, no pasa de unas 100; una
+ * copia grande por trozos, de unas 300.
+ */
+export const ACCOUNT_PER_MINUTE = 600;
 /** Direcciones recordadas como mucho (la memoria de cada copia del servidor es pequeña). */
 const MAX_KEYS = 5000;
 

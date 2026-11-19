@@ -407,8 +407,19 @@ describe("comprobación con Google", () => {
     google(200, valid);
     expect((await info("g/ok+1")).status).toBe(200);
     expect(tokenInfo).toHaveBeenCalledWith("https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=g%2Fok%2B1");
+    // Solo «aud»: un token pedido por otra app, aunque diga «azp» de esta, no vale.
     google(200, { ...valid, aud: "otra-app", email_verified: true });
-    expect((await info("g-azp")).status).toBe(200);
+    expect((await info("g-azp")).status).toBe(401);
+  });
+
+  it("los tokens de acceso dejan de valer al acabar el paso (ACCESS_TOKENS_UNTIL)", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2027-01-15T00:00:01Z"));
+    try {
+      expect((await info("g-tarde")).status).toBe(401);
+      expect(tokenInfo).not.toHaveBeenCalled();
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it("rechaza tokens de otra app, correos sin verificar y tokens caducados", async () => {
@@ -430,6 +441,89 @@ describe("comprobación con Google", () => {
       throw new DOMException("The operation timed out.", "TimeoutError");
     });
     expect((await info("g-lenta")).status).toBe(503);
+  });
+});
+
+describe("tope por cuenta", () => {
+  it("una sesión que hace peticiones sin parar recibe 429; las demás cuentas siguen", async () => {
+    let last = 0;
+    for (let i = 0; i < 601; i++) last = (await call("GET", "/v1/yo", { token: "tok-ana" })).status;
+    expect(last).toBe(429);
+    expect((await call("GET", "/v1/yo", { token: "tok-luis" })).status).toBe(200);
+  });
+});
+
+describe("token de identidad de Google (JWT)", () => {
+  const certs = vi.fn<(url: string) => Response>();
+  let keys: CryptoKeyPair;
+  let jwk: JsonWebKey;
+  const b64u = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64url");
+  const enc = (o: unknown) => b64u(new TextEncoder().encode(JSON.stringify(o)));
+  const t = () => Math.floor(Date.now() / 1000);
+  const claims = (over: Record<string, unknown> = {}) => ({
+    iss: "https://accounts.google.com",
+    aud: CLIENT_ID,
+    azp: CLIENT_ID,
+    sub: "111",
+    email: "ana@clinica.es",
+    email_verified: true,
+    iat: t(),
+    exp: t() + 3600,
+    nonce: "n",
+    ...over,
+  });
+  async function jwt(body: Record<string, unknown>, { kid = "k1", alg = "RS256", key = keys.privateKey }: { kid?: string; alg?: string; key?: CryptoKey } = {}) {
+    const head = `${enc({ alg, kid, typ: "JWT" })}.${enc(body)}`;
+    const sig = new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(head)));
+    return `${head}.${b64u(sig)}`;
+  }
+  const info = async (token: string) => handle(request("GET", "/v1/copia/info", { token }), env());
+
+  beforeEach(async () => {
+    keys = (await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"])) as CryptoKeyPair;
+    jwk = await crypto.subtle.exportKey("jwk", keys.publicKey);
+    certs.mockReset();
+    certs.mockImplementation(() => new Response(JSON.stringify({ keys: [{ ...jwk, kid: "k1", alg: "RS256", use: "sig" }] }), { headers: { "Cache-Control": "public, max-age=20000" } }));
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      if (url !== "https://www.googleapis.com/oauth2/v3/certs") throw new Error(`No se esperaba ${url}`);
+      return certs(url);
+    });
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("acepta uno firmado por Google para esta app, y las claves se piden una sola vez", async () => {
+    expect((await info(await jwt(claims()))).status).toBe(200);
+    expect((await info(await jwt(claims({ iss: "accounts.google.com", sub: "111" })))).status).toBe(200);
+    expect(certs).toHaveBeenCalledTimes(1);
+  });
+
+  it("rechaza otra app (aunque «azp» sea esta), otro emisor, caducado, sin verificar, otra firma y otro algoritmo", async () => {
+    const other = (await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"])) as CryptoKeyPair;
+    for (const token of [
+      await jwt(claims({ aud: "otra-app" })),
+      await jwt(claims({ iss: "https://otro.example" })),
+      await jwt(claims({ exp: t() - 120 })),
+      await jwt(claims({ iat: t() + 600 })),
+      await jwt(claims({ email_verified: false })),
+      await jwt(claims(), { key: other.privateKey }),
+      await jwt(claims(), { alg: "HS256" }),
+      `${(await jwt(claims())).split(".").slice(0, 2).join(".")}.${b64u(new Uint8Array(256))}`,
+      `${enc({ alg: "RS256", kid: "k1" })}.no-es-json.${b64u(new Uint8Array(256))}`,
+    ])
+      expect((await info(token)).status).toBe(401);
+  });
+
+  it("un kid desconocido vuelve a pedir las claves, pero como mucho una vez por minuto", async () => {
+    expect((await info(await jwt(claims()))).status).toBe(200);
+    expect((await info(await jwt(claims({ sub: "111", nonce: "x" }), { kid: "nueva" }))).status).toBe(401);
+    expect((await info(await jwt(claims({ sub: "111", nonce: "y" }), { kid: "otra" }))).status).toBe(401);
+    expect(certs).toHaveBeenCalledTimes(1);
+  });
+
+  it("si Google no da sus claves, 503", async () => {
+    certs.mockImplementation(() => new Response("", { status: 500 }));
+    expect((await info(await jwt(claims()))).status).toBe(503);
   });
 });
 
@@ -1158,13 +1252,27 @@ describe("documentos", () => {
     expect(await count("SELECT count(*) AS n FROM documents")).toBe(0);
   });
 
+  it("otra clínica no puede borrar lo que pide un formulario que no es suyo", async () => {
+    const mine = await clinic();
+    const other = await clinic("tok-luis");
+    const F = "f".repeat(22);
+    const res = await go("POST", `/v1/clinicas/${mine}/formularios`, { token: "tok-ana", json: { id: F, request: "QUJD", expiresAt: expiresAt(), maxDocs: 2 } });
+    expect(res.status).toBe(201);
+    expect((await go("DELETE", `/v1/clinicas/${other}/formularios/${F}`, { token: "tok-luis" })).status).toBe(204);
+    expect(await count("SELECT count(*) AS n FROM doc_requests")).toBe(1);
+    expect((await go("DELETE", `/v1/clinicas/${mine}/formularios/${F}`, { token: "tok-ana" })).status).toBe(204);
+    expect(await count("SELECT count(*) AS n FROM doc_requests")).toBe(0);
+  });
+
   it("DOCS_CAP_GB cambia el tope del almacén; se avisa al 70 %", async () => {
     const id = await clinic();
+    await db.prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES ('otra', ?, NULL, ?, '2026-10-01')").bind(DOC, 1_999_999_500).run();
     expect(await (await go("GET", `/v1/clinicas/${id}/documentos`, { token: "tok-ana" }, { DOCS_CAP_GB: "50" })).json()).toMatchObject({
       cap: 50_000_000_000,
       warnAt: 35_000_000_000,
+      total: 1_999_999_500,
     });
-    await db.prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES ('otra', ?, NULL, ?, '2026-10-01')").bind(DOC, 1_999_999_500).run();
+    // Lo que ocupa se recuerda unos minutos; cerca del tope se vuelve a sumar antes de rechazar.
     const res = await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(1000) }, { DOCS_CAP_GB: "2" });
     expect(res.status).toBe(507);
     expect(((await res.json()) as { error: string }).error).toContain("2 GB");

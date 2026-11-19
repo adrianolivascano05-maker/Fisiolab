@@ -92,6 +92,29 @@ Después, en **cada** dispositivo de la clínica:
 Cuando estén mudados todos los dispositivos, la versión de GitHub puede quedarse como está (sigue funcionando) o
 puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dímelo y lo preparo.
 
+## 3 ter. Cloudflare: pegar el `worker.js` de la versión `2026-11-19` (unos 5 minutos)
+
+**Pendiente.** Mientras no lo pegues, la app sigue funcionando (manda la sesión de antes) y Ajustes › Proveedor lo
+recuerda en naranja. Las tablas no cambian: no hay que ejecutar `schema.sql`.
+
+Qué trae: el servidor comprueba él mismo la sesión de Google con su firma (token de identidad, solo de esta app), un
+tope de peticiones por cuenta, que otra clínica no pueda tocar lo que pide un formulario ajeno y menos lecturas de la
+base al subir archivos.
+
+1. Cloudflare → **Workers & Pages** → `cenit-datos` → **Edit code** → borra todo, pega `cloudflare/worker.js` →
+   **Deploy**.
+2. Abre `https://cenit-datos.adrianolivascano05.workers.dev/v1/salud`: tiene que decir `"version":"2026-11-19"`.
+3. **Settings** → **Variables and Secrets** → `ALLOWED_ORIGINS`: que sea
+   `https://adrianolivascano05-maker.github.io,https://cenitfisiolab.pages.dev`. Si tiene `http://localhost:5173`,
+   quítalo (solo sirve para probar en un ordenador) y **Deploy**.
+4. Abre la app, entra con Google y comprueba que sincroniza (Ajustes › Sincronización, sin errores).
+
+Si algo falla: **Deployments** → la versión anterior → **Rollback**; la app vuelve a mandar la sesión de antes sola.
+
+Lo que sigue sin poder evitarse sin pagar: que alguien gaste las 100.000 peticiones diarias del plan gratuito (cada
+petición cuenta aunque se rechace). Solo lo para una regla de límite de Cloudflare delante del servidor, que pide un
+dominio propio (ver el final del apartado 3 bis).
+
 ## 3 bis. Cloudflare: pegar el `worker.js` de la versión `2026-11-02` (unos 3 minutos)
 
 **Hecho el 03-11-2026** (pegado por quien administra; `/v1/salud` dice `2026-11-02`).
