@@ -92,28 +92,40 @@ Después, en **cada** dispositivo de la clínica:
 Cuando estén mudados todos los dispositivos, la versión de GitHub puede quedarse como está (sigue funcionando) o
 puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dímelo y lo preparo.
 
-## 3 ter. Cloudflare: pegar el `worker.js` de la versión `2026-11-19` (unos 5 minutos)
+## 3 ter. Cloudflare: pegar el `worker.js` de la versión `2026-11-20` (unos 10 minutos)
 
 **Pendiente.** Mientras no lo pegues, la app sigue funcionando (manda la sesión de antes) y Ajustes › Proveedor lo
-recuerda en naranja. Las tablas no cambian: no hay que ejecutar `schema.sql`.
+recuerda en naranja.
 
 Qué trae: el servidor comprueba él mismo la sesión de Google con su firma (token de identidad, solo de esta app), un
-tope de peticiones por cuenta, que otra clínica no pueda tocar lo que pide un formulario ajeno y menos lecturas de la
-base al subir archivos.
+tope de peticiones por cuenta, que otra clínica no pueda tocar lo que pide un formulario ajeno, menos lecturas de la
+base al subir archivos, solo direcciones `https` en `ALLOWED_ORIGINS`, una línea técnica por petición en el registro
+(sin datos) y la cuenta de peticiones rechazadas de las últimas 24 horas en Ajustes › Proveedor.
 
-1. Cloudflare → **Workers & Pages** → `cenit-datos` → **Edit code** → borra todo, pega `cloudflare/worker.js` →
-   **Deploy**.
-2. Abre `https://cenit-datos.adrianolivascano05.workers.dev/v1/salud`: tiene que decir `"version":"2026-11-19"`.
-3. **Settings** → **Variables and Secrets** → `ALLOWED_ORIGINS`: que sea
+1. **Antes, la tabla nueva.** Apunta el marcador de Time Travel (`cloudflare/README.md`, «Antes de ejecutar un
+   `schema.sql` nuevo»). Después, Cloudflare → **Storage & Databases** → **D1** → `cenit-datos` → **Console**: pega
+   `cloudflare/schema.sql` entero → **Execute**. Solo crea la tabla `alerts`; no borra nada. (Si dice «No SQL
+   statements detected», pega solo el último `CREATE TABLE IF NOT EXISTS alerts (…);`.)
+2. **Workers & Pages** → `cenit-datos` → **Edit code** → borra todo, pega `cloudflare/worker.js` → **Deploy**.
+3. Abre `https://cenit-datos.adrianolivascano05.workers.dev/v1/salud`: tiene que decir `"version":"2026-11-20"`.
+4. **Settings** → **Variables and Secrets** → `ALLOWED_ORIGINS`: que sea
    `https://adrianolivascano05-maker.github.io,https://cenitfisiolab.pages.dev`. Si tiene `http://localhost:5173`,
-   quítalo (solo sirve para probar en un ordenador) y **Deploy**.
-4. Abre la app, entra con Google y comprueba que sincroniza (Ajustes › Sincronización, sin errores).
+   quítalo (el servidor ya no lo admite: solo vale en un servidor de pruebas) y **Deploy**.
+5. Abre la app, entra con Google y comprueba que sincroniza (Ajustes › Sincronización, sin errores). En Ajustes ›
+   Proveedor, la fila «Rechazadas en las últimas 24 horas» tiene que dar números (si dice «Falta la tabla», repite el
+   paso 1).
+6. **Registros (opcional).** **Settings** → **Observability** → enciende **Workers Logs** solo si puedes dejar
+   **apagado** el registro de cada invocación (invocation logs): ese registro guarda la dirección completa de cada
+   petición, y el id de un formulario la abre. Si el panel no te deja apagarlo, déjalo todo apagado: los rechazos del
+   paso 5 se cuentan igual. Desde la terminal (`npx wrangler deploy -c wrangler.toml`), `wrangler.toml` ya lo deja así.
 
 Si algo falla: **Deployments** → la versión anterior → **Rollback**; la app vuelve a mandar la sesión de antes sola.
+La tabla `alerts` puede quedarse: no molesta.
 
 Lo que sigue sin poder evitarse sin pagar: que alguien gaste las 100.000 peticiones diarias del plan gratuito (cada
 petición cuenta aunque se rechace). Solo lo para una regla de límite de Cloudflare delante del servidor, que pide un
-dominio propio (ver el final del apartado 3 bis).
+dominio propio (ver el final del apartado 3 bis). Al pasar a `omniclin.es`, en `ALLOWED_ORIGINS` solo
+`https://omniclin.es`.
 
 ## 3 bis. Cloudflare: pegar el `worker.js` de la versión `2026-11-02` (unos 3 minutos)
 

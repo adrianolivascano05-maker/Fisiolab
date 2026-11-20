@@ -123,7 +123,9 @@ export function list(value) {
 }
 
 /**
- * Cabeceras CORS si la petición viene de una dirección de ALLOWED_ORIGINS; null si no.
+ * Cabeceras CORS si la petición viene de una dirección de ALLOWED_ORIGINS; null si no. Solo direcciones https: una
+ * http de la lista (localhost, para probar en un ordenador) solo vale en un servidor de pruebas (DEV = "1",
+ * [env.dev] en wrangler.toml), nunca en el de la clínica aunque se haya quedado en la lista.
  * @param {Request} request
  * @param {Env} env
  * @returns {Record<string, string> | null}
@@ -131,7 +133,10 @@ export function list(value) {
 export function corsHeaders(request, env) {
   const origin = request.headers.get("Origin");
   if (!origin) return null;
-  const allowed = list(env.ALLOWED_ORIGINS).map((o) => o.replace(/\/+$/, "").toLowerCase());
+  const dev = env.DEV === "1";
+  const allowed = list(env.ALLOWED_ORIGINS)
+    .map((o) => o.replace(/\/+$/, "").toLowerCase())
+    .filter((o) => o.startsWith("https://") || (dev && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)));
   if (!allowed.includes(origin.toLowerCase())) return null;
   return {
     "Access-Control-Allow-Origin": origin,

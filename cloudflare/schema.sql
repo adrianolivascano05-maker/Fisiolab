@@ -132,3 +132,12 @@ CREATE TABLE IF NOT EXISTS doc_requests (
   form_id TEXT PRIMARY KEY,
   max_docs INTEGER NOT NULL
 );
+
+-- Rechazos (respuestas 401, 403 y 429) por hora, para el panel del proveedor: sesiones que no valen, permisos que no
+-- hay y demasiadas peticiones. Solo la hora, el código y cuántos: nada de quién ni desde dónde. Se borran a los dos días.
+CREATE TABLE IF NOT EXISTS alerts (
+  hour TEXT NOT NULL,
+  status INTEGER NOT NULL,
+  n INTEGER NOT NULL,
+  PRIMARY KEY (hour, status)
+);

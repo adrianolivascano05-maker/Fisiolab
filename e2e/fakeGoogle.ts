@@ -100,6 +100,8 @@ export class FakeGoogle {
   databaseBytes = 2_000_000;
   /** La versión del servidor que dice al proveedor (cloudflare/worker.js, SERVER_VERSION); null: uno anterior, que no la dice. */
   serverVersion: string | null = EXPECTED_SERVER_VERSION;
+  /** Los rechazos de las últimas 24 h (cloudflare/src/activity.js); null: falta la tabla. */
+  rejected: { since: string; unauthorized: number; forbidden: number; tooMany: number } | null = { since: new Date(Date.now() - 86_400_000).toISOString(), unauthorized: 0, forbidden: 0, tooMany: 0 };
   /** Las peticiones de hoy de la cuenta (cloudflare/worker.js, /v1/proveedor/peticiones); null: sin token de Cloudflare. */
   requestsToday: number | null = 6200;
   /** Las clínicas del servidor simulado, con su equipo (correo → papel). */
@@ -279,9 +281,12 @@ export class FakeGoogle {
       if (rest === "/peticiones")
         return send(
           200,
-          this.requestsToday === null
-            ? { configured: false, limit: 100_000, warnAt: 70_000 }
-            : { configured: true, today: this.requestsToday, errors: 0, since: new Date().toISOString().slice(0, 10) + "T00:00:00.000Z", limit: 100_000, warnAt: 70_000 },
+          {
+            ...(this.requestsToday === null
+              ? { configured: false, limit: 100_000, warnAt: 70_000 }
+              : { configured: true, today: this.requestsToday, errors: 0, since: new Date().toISOString().slice(0, 10) + "T00:00:00.000Z", limit: 100_000, warnAt: 70_000 }),
+            rejected: this.rejected,
+          },
         );
       if (rest === "/contrato") return send(200, { html: "<p><strong>BORRADOR para revisar con un profesional.</strong></p><h2>Contrato de encargo del tratamiento</h2>" });
       const alta = /^\/altas\/(.+)$/.exec(rest);

@@ -40,7 +40,8 @@
  * @property {R2Bucket} [DOCS] el almacén de los documentos (R2, en la UE); sin él no hay documentos
  * @property {string} [GOOGLE_CLIENT_ID] el ID de cliente de Google de la app
  * @property {string} [ALLOWED_EMAILS] correos que pueden crear clínicas, separados por comas o espacios (vacío: nadie)
- * @property {string} [ALLOWED_ORIGINS] direcciones de la app, separadas por comas
+ * @property {string} [ALLOWED_ORIGINS] direcciones de la app, separadas por comas (solo https; http://localhost solo con DEV)
+ * @property {string} [DEV] "1" en un servidor de pruebas: admite http://localhost en ALLOWED_ORIGINS
  * @property {string} [OPERATOR_EMAILS] correos de quien gestiona el servidor (el panel del proveedor)
  * @property {string} [DOCS_CAP_GB] el tope del almacén R2, en GB (10 si no está)
  * @property {string} [D1_CAP_MB] lo que puede ocupar la base D1, en MB, para los avisos del panel (500 si no está)

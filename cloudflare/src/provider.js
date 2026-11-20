@@ -1,5 +1,6 @@
 // @ts-check
 
+import { recentAlerts } from "./activity.js";
 import { authenticate } from "./auth.js";
 import { inList, normalEmail, purgeExpired, roleIn } from "./clinics.js";
 import { D1_CAP_MB, DAILY_REQUESTS, MAX_MEMBERS, SERVER_VERSION, WARN_SHARE } from "./constants.js";
@@ -248,7 +249,8 @@ const lastAdmin = () => new HttpError(409, "La clínica tiene que tener al menos
 async function requestUsage(env, deps) {
   const n = Number(env.DAILY_REQUESTS);
   const limit = env.DAILY_REQUESTS !== undefined && env.DAILY_REQUESTS !== "" && Number.isFinite(n) && n >= 0 ? Math.round(n) : DAILY_REQUESTS;
-  const base = { limit, warnAt: Math.round(limit * WARN_SHARE) };
+  // Los rechazos de las últimas 24 horas (activity.js): no dependen del token de Cloudflare.
+  const base = { limit, warnAt: Math.round(limit * WARN_SHARE), rejected: env.DB ? await recentAlerts(env.DB, deps.now()) : null };
   const account = (env.CF_ACCOUNT_ID ?? "").trim();
   const token = (env.CF_API_TOKEN ?? "").trim();
   if (!account || !token) return { configured: false, ...base };

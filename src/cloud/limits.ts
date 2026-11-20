@@ -11,7 +11,31 @@ export type LimitWarning = { title: string; detail: string };
  * Las peticiones de hoy de toda la cuenta de Cloudflare (cloudflare/worker.js, /v1/proveedor/peticiones). Sin token,
  * `configured: false`; si Cloudflare falla, `today: null` y `error`. `limit: 0`: plan de pago, sin límite al día.
  */
-export type RequestUsage = { configured: boolean; today?: number | null; errors?: number | null; since?: string; limit: number; warnAt: number; error?: string };
+export type RequestUsage = {
+  configured: boolean;
+  today?: number | null;
+  errors?: number | null;
+  since?: string;
+  limit: number;
+  warnAt: number;
+  error?: string;
+  /** Las respuestas rechazadas de las últimas 24 h (servidor 2026-11-20 o posterior); null si falta su tabla. */
+  rejected?: Rejected | null;
+};
+/** 401: sesiones que no valen; 403: sin permiso; 429: demasiadas peticiones seguidas. */
+export type Rejected = { since: string; unauthorized: number; forbidden: number; tooMany: number };
+
+/** A partir de cuántos rechazos en 24 h se avisa: con uso normal hay unos pocos (sesiones caducadas). */
+export const REJECTED_WARN = 200;
+
+/** Los rechazos de las últimas 24 h en una línea, para el panel. */
+export function rejectedText(u: RequestUsage | null): string {
+  if (!u || u.rejected === undefined) return "Hace falta el servidor 2026-11-20 o posterior (pega el worker.js nuevo).";
+  if (u.rejected === null) return "Falta la tabla «alerts»: ejecuta cloudflare/schema.sql en la Console de la base (no borra nada).";
+  const r = u.rejected;
+  const n = (x: number) => x.toLocaleString("es-ES");
+  return `${n(r.unauthorized)} sin sesión válida · ${n(r.forbidden)} sin permiso · ${n(r.tooMany)} por demasiadas peticiones`;
+}
 
 /** Sin almacén R2, cada copia va en la base D1 y no puede pasar de 50 MB (cloudflare/worker.js, MAX_CHARS). */
 export const D1_COPY_CAP = 50 * 1024 * 1024;
@@ -47,6 +71,14 @@ export function limitWarnings(o: {
       title: `Las peticiones de hoy van por el ${Math.floor(req * 100)} % (${o.requests!.today!.toLocaleString("es-ES")} de ${o.requests!.limit.toLocaleString("es-ES")})`,
       detail:
         "Son las de toda la cuenta de Cloudflare y se ponen a cero a las 00:00 UTC (la 1 o las 2 en España). Al llegar al límite, el servidor da error hasta entonces: las clínicas siguen trabajando en sus dispositivos y sincronizan después. Para que no pase, pasa al plan de pago de Workers (unos 5 $ al mes, sin límite al día) y pon DAILY_REQUESTS = 0 en el Worker.",
+    });
+  const rej = o.requests?.rejected;
+  const rejTotal = rej ? rej.unauthorized + rej.forbidden + rej.tooMany : 0;
+  if (rej && rejTotal >= REJECTED_WARN)
+    out.push({
+      title: `${rejTotal.toLocaleString("es-ES")} peticiones rechazadas en las últimas 24 horas`,
+      detail:
+        "Muchas sesiones que no valen, sin permiso o demasiado seguidas: puede ser una app que falla en algún dispositivo o alguien probando el servidor. Los datos siguen cifrados y el servidor ya rechaza esas peticiones. Si se repite, mira en Cloudflare (Workers & Pages → el servidor → Logs, si los has encendido) qué rutas son, y cuéntaselo a quien mantiene la app.",
     });
   const docs = o.documents;
   if (docs?.enabled && docs.total >= docs.warnAt)

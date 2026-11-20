@@ -152,7 +152,8 @@
  * @property {R2Bucket} [DOCS] el almacén de los documentos (R2, en la UE); sin él no hay documentos
  * @property {string} [GOOGLE_CLIENT_ID] el ID de cliente de Google de la app
  * @property {string} [ALLOWED_EMAILS] correos que pueden crear clínicas, separados por comas o espacios (vacío: nadie)
- * @property {string} [ALLOWED_ORIGINS] direcciones de la app, separadas por comas
+ * @property {string} [ALLOWED_ORIGINS] direcciones de la app, separadas por comas (solo https; http://localhost solo con DEV)
+ * @property {string} [DEV] "1" en un servidor de pruebas: admite http://localhost en ALLOWED_ORIGINS
  * @property {string} [OPERATOR_EMAILS] correos de quien gestiona el servidor (el panel del proveedor)
  * @property {string} [DOCS_CAP_GB] el tope del almacén R2, en GB (10 si no está)
  * @property {string} [D1_CAP_MB] lo que puede ocupar la base D1, en MB, para los avisos del panel (500 si no está)
@@ -188,7 +189,7 @@
  * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
-const SERVER_VERSION = "2026-11-19";
+const SERVER_VERSION = "2026-11-20";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 const MAGIC = "Q0VOSVRFTkMx";
@@ -291,6 +292,7 @@ export function resetLimitsForTests() {
   resetRateLimits();
   resetGoogleKeys();
   resetStoredBytes();
+  resetAlerts();
 }
 
 /**
@@ -302,6 +304,7 @@ export function resetLimitsForTests() {
  */
 export async function handle(request, env, deps = {}) {
   const now = deps.now ?? Date.now;
+  const started = Date.now();
   const verifyToken = deps.verifyToken ?? verifyGoogleToken;
   const cors = corsHeaders(request, env);
   /** @type {Response} */
@@ -321,6 +324,10 @@ export async function handle(request, env, deps = {}) {
   // El navegador no adivina el tipo: lo que dice ser texto o JSON no se ejecuta nunca como otra cosa.
   response.headers.set("X-Content-Type-Options", "nosniff");
   if (cors) for (const [name, value] of Object.entries(cors)) response.headers.set(name, value);
+  // Lo técnico de la petición, sin datos (activity.js); y los rechazos, para el panel del proveedor.
+  logRequest(request.method, new URL(request.url).pathname, response.status, Date.now() - started);
+  noteStatus(response.status, now());
+  await flushAlerts(env.DB, now());
   return response;
 }
 
@@ -1366,7 +1373,8 @@ const lastAdmin = () => new HttpError(409, "La clínica tiene que tener al menos
 async function requestUsage(env, deps) {
   const n = Number(env.DAILY_REQUESTS);
   const limit = env.DAILY_REQUESTS !== undefined && env.DAILY_REQUESTS !== "" && Number.isFinite(n) && n >= 0 ? Math.round(n) : DAILY_REQUESTS;
-  const base = { limit, warnAt: Math.round(limit * WARN_SHARE) };
+  // Los rechazos de las últimas 24 horas (activity.js): no dependen del token de Cloudflare.
+  const base = { limit, warnAt: Math.round(limit * WARN_SHARE), rejected: env.DB ? await recentAlerts(env.DB, deps.now()) : null };
   const account = (env.CF_ACCOUNT_ID ?? "").trim();
   const token = (env.CF_API_TOKEN ?? "").trim();
   if (!account || !token) return { configured: false, ...base };
@@ -2000,6 +2008,130 @@ async function sha256Hex(text) {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// ---------- Actividad: registro técnico y rechazos ----------
+//
+// Cada petición deja una línea en el registro de Cloudflare (Workers Logs, si quien gestiona el servidor lo enciende)
+// con lo justo para ver un ataque o un fallo: el método, la ruta con los datos cambiados por su nombre
+// («/v1/formularios/:id», nunca el id real, que abre el formulario), el código de respuesta y lo que tardó (la hora la
+// pone Cloudflare). Nunca la dirección completa, la IP, el correo, el token ni el contenido.
+//
+// Y las respuestas 401, 403 y 429 (sesiones que no valen, permisos que no hay, demasiadas peticiones) se cuentan por
+// hora en la tabla «alerts», para que el panel del proveedor enseñe las de las últimas 24 horas. Cada copia del
+// servidor las junta en memoria y las escribe como mucho una vez por minuto: un ataque no multiplica las escrituras.
+
+/** Las partes fijas de las rutas; lo demás (ids, correos, versiones, números) se cambia por «:id». */
+const WORDS = new Set([
+  "v1",
+  "salud",
+  "yo",
+  "solicitud",
+  "clinicas",
+  "miembros",
+  "copia",
+  "info",
+  "cambios",
+  "subida",
+  "fin",
+  "recuperacion",
+  "recuperar",
+  "proveedor",
+  "altas",
+  "suspender",
+  "contrato",
+  "peticiones",
+  "solicitudes",
+  "formularios",
+  "respuesta",
+  "documentos",
+  "guardar",
+]);
+
+/** La ruta sin datos: «/v1/clinicas/abc/formularios/xyz» → «/v1/clinicas/:id/formularios/:id». */
+function routePattern(/** @type {string} */ path) {
+  return (
+    path
+      .replace(/\/+$/, "")
+      .split("/")
+      .map((s) => (s === "" || WORDS.has(s) ? s : ":id"))
+      .join("/")
+      .slice(0, 120) || "/"
+  );
+}
+
+/**
+ * La línea del registro de una petición (un JSON corto).
+ * @param {string} method
+ * @param {string} path
+ * @param {number} status
+ * @param {number} ms
+ */
+function logRequest(method, path, status, ms) {
+  const m = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"].includes(method) ? method : "OTRO";
+  console.log(JSON.stringify({ m, r: routePattern(path), s: status, ms: Math.max(0, Math.round(ms)) }));
+}
+
+const COUNTED = [401, 403, 429];
+/** Rechazos aún sin escribir: «<hora>|<código>» → cuántos. */
+let pending = new Map();
+let lastFlush = 0;
+const FLUSH_MS = 60_000;
+
+/** La hora en UTC, «2026-11-20T09». */
+const hourOf = (/** @type {number} */ ms) => new Date(ms).toISOString().slice(0, 13);
+
+/** Apunta un rechazo (solo 401, 403 y 429). */
+function noteStatus(/** @type {number} */ status, /** @type {number} */ now) {
+  if (!COUNTED.includes(status)) return;
+  const key = `${hourOf(now)}|${status}`;
+  pending.set(key, (pending.get(key) ?? 0) + 1);
+}
+
+/**
+ * Escribe los rechazos apuntados, como mucho una vez por minuto, y borra los de hace más de dos días. Si la tabla aún
+ * no existe (falta ejecutar schema.sql) o la base falla, se pierden sin romper la petición.
+ * @param {D1Database | undefined} db
+ * @param {number} now
+ */
+async function flushAlerts(db, now) {
+  if (!db || !pending.size || now - lastFlush < FLUSH_MS) return;
+  const rows = [...pending];
+  pending = new Map();
+  lastFlush = now;
+  try {
+    await db.batch([
+      ...rows.map(([key, n]) => {
+        const [hour, status] = key.split("|");
+        return db.prepare("INSERT INTO alerts (hour, status, n) VALUES (?, ?, ?) ON CONFLICT (hour, status) DO UPDATE SET n = n + excluded.n").bind(hour, Number(status), n);
+      }),
+      db.prepare("DELETE FROM alerts WHERE hour < ?").bind(hourOf(now - 48 * 3_600_000)),
+    ]);
+  } catch {
+    /* sin la tabla: se cuentan otra vez cuando exista */
+  }
+}
+
+/**
+ * Los rechazos de las últimas 24 horas (por código), para el panel del proveedor. Null si aún no hay tabla.
+ * @param {D1Database} db
+ * @param {number} now
+ */
+async function recentAlerts(db, now) {
+  const since = hourOf(now - 24 * 3_600_000);
+  try {
+    const { results = [] } = await db.prepare("SELECT status, sum(n) AS n FROM alerts WHERE hour > ? GROUP BY status").bind(since).all();
+    const of = (/** @type {number} */ s) => Number(results.find((r) => Number(r.status) === s)?.n ?? 0);
+    return { since: `${since}:00:00.000Z`, unauthorized: of(401), forbidden: of(403), tooMany: of(429) };
+  } catch {
+    return null;
+  }
+}
+
+/** Solo para las pruebas. */
+function resetAlerts() {
+  pending = new Map();
+  lastFlush = 0;
+}
+
 // ---------- Tope de peticiones por dirección IP ----------
 //
 // Lo que se abre sin sesión (los formularios de los pacientes y /v1/salud) y las sesiones de Google que no valen
@@ -2184,7 +2316,9 @@ function list(value) {
 }
 
 /**
- * Cabeceras CORS si la petición viene de una dirección de ALLOWED_ORIGINS; null si no.
+ * Cabeceras CORS si la petición viene de una dirección de ALLOWED_ORIGINS; null si no. Solo direcciones https: una
+ * http de la lista (localhost, para probar en un ordenador) solo vale en un servidor de pruebas (DEV = "1",
+ * [env.dev] en wrangler.toml), nunca en el de la clínica aunque se haya quedado en la lista.
  * @param {Request} request
  * @param {Env} env
  * @returns {Record<string, string> | null}
@@ -2192,7 +2326,10 @@ function list(value) {
 function corsHeaders(request, env) {
   const origin = request.headers.get("Origin");
   if (!origin) return null;
-  const allowed = list(env.ALLOWED_ORIGINS).map((o) => o.replace(/\/+$/, "").toLowerCase());
+  const dev = env.DEV === "1";
+  const allowed = list(env.ALLOWED_ORIGINS)
+    .map((o) => o.replace(/\/+$/, "").toLowerCase())
+    .filter((o) => o.startsWith("https://") || (dev && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o)));
   if (!allowed.includes(origin.toLowerCase())) return null;
   return {
     "Access-Control-Allow-Origin": origin,

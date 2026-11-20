@@ -86,7 +86,7 @@
   <body>
     <main>
       <h1>Política de privacidad de OmniClin</h1>
-      <p class="muted">Última actualización: 27 de octubre de 2026</p>
+      <p class="muted">Última actualización: 20 de noviembre de 2026</p>
 
       <p>
         OmniClin es una aplicación web para fisioterapeutas: historia clínica, agenda, cuestionarios y mediciones de sus
@@ -185,6 +185,13 @@
       <p>
         El alojamiento web solo sirve los archivos de la aplicación y, como cualquier web, puede registrar la dirección IP de quien la abre. OmniClin no
         usa analítica, publicidad ni cookies.
+      </p>
+      <p>
+        Para detectar fallos y ataques, el servidor de la clínica puede dejar en el registro de Cloudflare una línea técnica por cada petición: el
+        tipo de petición, la ruta sin ningún dato (por ejemplo, «/v1/formularios/:id», nunca el enlace real), el resultado y lo que tardó, con su
+        hora. No se registran direcciones IP, correos, nombres, sesiones ni contenido. Cloudflare borra esas líneas sola a los pocos días. Además se
+        cuentan, por hora y durante dos días, las peticiones rechazadas (sin sesión válida, sin permiso o demasiado seguidas), sin saber de
+        quién son.
       </p>
 
       <h2>Cuánto tiempo se guardan</h2>

@@ -75,6 +75,8 @@ async function count(sql: string, ...params: unknown[]) {
 
 beforeEach(async () => {
   resetLimitsForTests();
+  // La línea técnica de cada petición (activity.js) no ensucia la salida de las pruebas.
+  vi.spyOn(console, "log").mockImplementation(() => {});
   db = await createD1();
   verifyToken = vi.fn(async (token: string) => {
     const user = USERS[token];
@@ -176,9 +178,16 @@ describe("CORS", () => {
     expect(pre.headers.get("Access-Control-Max-Age")).toBe("86400");
     expect(verifyToken).not.toHaveBeenCalled();
 
-    const res = await call("GET", "/v1/copia/info", { token: "tok-ana", headers: { Origin: "http://localhost:5173" } });
-    expect(res.headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
+    const res = await call("GET", "/v1/copia/info", { token: "tok-ana", headers: { Origin: APP } });
     expect(res.headers.get("Access-Control-Expose-Headers")).toBe("ETag");
+  });
+
+  it("http://localhost solo en un servidor de pruebas (DEV), aunque esté en la lista; ninguna otra http", async () => {
+    const local = { headers: { Origin: "http://localhost:5173" }, token: "tok-ana" };
+    expect((await call("GET", "/v1/copia/info", local)).headers.get("Access-Control-Allow-Origin")).toBeNull();
+    expect((await call("GET", "/v1/copia/info", local, { DEV: "1" })).headers.get("Access-Control-Allow-Origin")).toBe("http://localhost:5173");
+    const plain = { headers: { Origin: "http://adrianolivascano05-maker.github.io" }, token: "tok-ana" };
+    expect((await call("GET", "/v1/copia/info", plain, { DEV: "1", ALLOWED_ORIGINS: "http://adrianolivascano05-maker.github.io" })).headers.get("Access-Control-Allow-Origin")).toBeNull();
   });
 
   it("a otra web no", async () => {
@@ -441,6 +450,46 @@ describe("comprobación con Google", () => {
       throw new DOMException("The operation timed out.", "TimeoutError");
     });
     expect((await info("g-lenta")).status).toBe(503);
+  });
+});
+
+describe("actividad: registro técnico y rechazos", () => {
+  it("la línea del registro lleva método, ruta sin datos, código y tiempo; nunca ids, correos ni tokens", async () => {
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    const fid = "f".repeat(22);
+    await call("GET", `/v1/formularios/${fid}`);
+    await call("PUT", "/v1/clinicas/abc-123/miembros/ana%40clinica.es", { token: "tok-ana", body: "{}" });
+    const lines = log.mock.calls.map((c) => JSON.parse(String(c[0])) as Record<string, unknown>);
+    expect(lines.map((l) => [l.m, l.r, typeof l.s, typeof l.ms])).toEqual([
+      ["GET", "/v1/formularios/:id", "number", "number"],
+      ["PUT", "/v1/clinicas/:id/miembros/:id", "number", "number"],
+    ]);
+    const all = JSON.stringify(log.mock.calls);
+    for (const secret of [fid, "abc-123", "ana", "tok-ana"]) expect(all).not.toContain(secret);
+  });
+
+  it("los 401, 403 y 429 se cuentan por hora (una escritura por minuto) y el proveedor ve los de 24 h", async () => {
+    let now = Date.UTC(2026, 10, 20, 9, 0);
+    const at = (method: string, path: string, opts?: Parameters<typeof request>[2]) => handle(request(method, path, opts), env({ OPERATOR_EMAILS: "luis@clinica.es" }), { verifyToken, now: () => now });
+    expect((await at("GET", "/v1/yo", { token: "tok-nadie" })).status).toBe(401);
+    expect((await at("GET", "/v1/yo", { token: "tok-nadie" })).status).toBe(401);
+    // En el mismo minuto aún no se ha escrito el segundo.
+    expect(await count("SELECT sum(n) AS n FROM alerts")).toBe(1);
+    now += 61_000;
+    expect((await at("GET", "/v1/proveedor/peticiones", { token: "tok-ana" })).status).toBe(403);
+    expect(await count("SELECT sum(n) AS n FROM alerts")).toBe(3);
+    // Al día siguiente, lo de hace más de 24 h ya no sale.
+    const body = async () => ((await (await at("GET", "/v1/proveedor/peticiones", { token: "tok-luis" })).json()) as { rejected: Record<string, unknown> }).rejected;
+    expect(await body()).toMatchObject({ unauthorized: 2, forbidden: 1, tooMany: 0 });
+    now += 25 * 3_600_000;
+    expect(await body()).toMatchObject({ unauthorized: 0, forbidden: 0 });
+  });
+
+  it("sin la tabla (falta ejecutar schema.sql), nada se rompe y el panel lo sabe", async () => {
+    db.db.exec("DROP TABLE alerts");
+    const res = await handle(request("GET", "/v1/proveedor/peticiones", { token: "tok-luis" }), env({ OPERATOR_EMAILS: "luis@clinica.es" }), { verifyToken });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { rejected: unknown }).rejected).toBeNull();
   });
 });
 
@@ -1317,7 +1366,7 @@ describe("peticiones de hoy (panel del proveedor)", () => {
 
   it("sin token, dice que falta configurarlo (y el límite del plan gratuito)", async () => {
     const cf = answer(rows([1, 0]));
-    expect((await ask({}, cf)).body).toEqual({ configured: false, limit: 100_000, warnAt: 70_000 });
+    expect((await ask({}, cf)).body).toEqual({ configured: false, limit: 100_000, warnAt: 70_000, rejected: { since: "2026-10-26T15:00:00.000Z", unauthorized: 0, forbidden: 0, tooMany: 0 } });
     expect(cf).not.toHaveBeenCalled();
   });
 
@@ -1325,7 +1374,7 @@ describe("peticiones de hoy (panel del proveedor)", () => {
     const cf = answer(rows([60_000, 12], [15_000, 3]));
     const { status, body } = await ask(keys, cf);
     expect(status).toBe(200);
-    expect(body).toEqual({ configured: true, today: 75_000, errors: 15, since: "2026-10-27T00:00:00.000Z", limit: 100_000, warnAt: 70_000 });
+    expect(body).toEqual({ configured: true, today: 75_000, errors: 15, since: "2026-10-27T00:00:00.000Z", limit: 100_000, warnAt: 70_000, rejected: { since: "2026-10-26T15:00:00.000Z", unauthorized: 0, forbidden: 0, tooMany: 0 } });
     const [url, init] = (cf as unknown as Mock).mock.calls[0] as [string, RequestInit];
     expect(url).toBe("https://api.cloudflare.com/client/v4/graphql");
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer secreto-de-prueba");

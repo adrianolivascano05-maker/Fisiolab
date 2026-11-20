@@ -26,15 +26,34 @@ GOOGLE_CLIENT_ID = "1084216324372-0mrfdeckqcfu8p2t1tjsosdebs7g2tmb.apps.googleus
 # Vacío: no entra nadie.
 ALLOWED_EMAILS = ""
 # Las direcciones desde donde se abre la app, separadas por comas: la de GitHub (la clínica) y la de Cloudflare Pages
-# (la app y los enlaces de los pacientes). Solo https. Para probar con «npm run dev», añade «,http://localhost:5173»
-# solo mientras pruebas, en un servidor de pruebas (nunca en el de la clínica).
+# (la app y los enlaces de los pacientes). Solo https: el servidor no admite ninguna http aquí. Al pasar a omniclin.es,
+# deja solo esa dirección (https://omniclin.es).
 ALLOWED_ORIGINS = "https://adrianolivascano05-maker.github.io,https://cenitfisiolab.pages.dev"
 
-# Sin registros guardados en Cloudflare: no hacen falta y así no queda constancia de cada petición.
-# (El servidor nunca escribe en el registro el contenido de una copia ni el token.)
+# El registro (Workers Logs): solo la línea técnica que escribe el servidor (cloudflare/src/activity.js: método, ruta
+# sin datos, código y tiempo). El registro automático de cada petición queda APAGADO (invocation_logs = false): llevaría
+# la dirección entera, y el id de un formulario abre el formulario. El servidor nunca escribe IPs, correos, tokens ni
+# contenido.
 [observability]
-enabled = false
+enabled = true
 
 [observability.logs]
-enabled = false
+enabled = true
 invocation_logs = false
+
+# Un servidor de pruebas aparte (nunca el de la clínica), para probar la app con «npm run dev»:
+# npx wrangler deploy --env dev -c wrangler.toml. Lleva su propia base (crea otra con otro nombre y pega su id).
+# Solo aquí vale http://localhost (DEV = "1").
+[env.dev]
+name = "cenit-datos-pruebas"
+
+[[env.dev.d1_databases]]
+binding = "DB"
+database_name = "cenit-datos-pruebas"
+database_id = "PEGA-AQUI-EL-ID-DE-LA-BASE-DE-PRUEBAS"
+
+[env.dev.vars]
+GOOGLE_CLIENT_ID = "1084216324372-0mrfdeckqcfu8p2t1tjsosdebs7g2tmb.apps.googleusercontent.com"
+ALLOWED_EMAILS = ""
+ALLOWED_ORIGINS = "http://localhost:5173"
+DEV = "1"

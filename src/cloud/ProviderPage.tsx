@@ -21,7 +21,7 @@ import { useToast } from "../ui/Toast";
 import { getToken } from "./auth";
 import type { OperatorClinic } from "./clinic";
 import { errText, useCloud } from "./cloudContext";
-import { limitWarnings, requestsText } from "./limits";
+import { limitWarnings, rejectedText, requestsText } from "./limits";
 import { cloudflarePending } from "./serverStatus";
 import { saveFile } from "../app/download";
 
@@ -170,6 +170,7 @@ export function ProviderPage() {
           <Row title="Base de datos (D1)" subtitle={`${sizeText(data.data.database.bytes)} de ${sizeText(data.data.database.cap)}`} />
         )}
         <Row title="Peticiones de hoy (toda la cuenta)" subtitle={usage.loading ? "Cargando…" : requestsText(usage.data ?? null)} />
+        <Row title="Rechazadas en las últimas 24 horas" subtitle={usage.loading ? "Cargando…" : rejectedText(usage.data ?? null)} />
       </Group>
 
       <Group title="Clínicas">

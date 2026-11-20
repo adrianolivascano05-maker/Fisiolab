@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { limitWarnings, requestShare, requestsText, type RequestUsage } from "./limits";
+import { limitWarnings, rejectedText, requestShare, requestsText, type RequestUsage } from "./limits";
 
 const clinic = (name: string, size: number) => ({ name, size, deletedAt: null });
 
@@ -57,5 +57,19 @@ describe("avisos de los límites del servidor (panel del proveedor)", () => {
     expect(requestsText({ configured: true, today: null, error: "Cloudflare dice: no", limit: 100_000, warnAt: 70_000 })).toBe("Cloudflare dice: no");
     expect(requestsText({ configured: true, today: 6200, limit: 100_000, warnAt: 70_000 })).toMatch(/^6\.?200 de 100\.000 \(6 %\) · se ponen a cero/);
     expect(requestsText({ configured: true, today: 6200, limit: 0, warnAt: 0 })).toMatch(/hoy · plan de pago, sin límite al día$/);
+  });
+});
+
+describe("rechazos de las últimas 24 horas", () => {
+  const base: RequestUsage = { configured: false, limit: 100_000, warnAt: 70_000 };
+  const rejected = (unauthorized: number, forbidden = 0, tooMany = 0) => ({ ...base, rejected: { since: "2026-11-19T09:00:00.000Z", unauthorized, forbidden, tooMany } });
+  it("en una línea; sin servidor nuevo o sin tabla, qué falta", () => {
+    expect(rejectedText(rejected(3, 1, 1200))).toBe("3 sin sesión válida · 1 sin permiso · 1200 por demasiadas peticiones".replace("1200", (1200).toLocaleString("es-ES")));
+    expect(rejectedText(base)).toContain("worker.js nuevo");
+    expect(rejectedText({ ...base, rejected: null })).toContain("schema.sql");
+  });
+  it("avisa a partir de 200", () => {
+    expect(limitWarnings({ clinics: [], requests: rejected(150, 49) })).toEqual([]);
+    expect(limitWarnings({ clinics: [], requests: rejected(150, 30, 20) })[0]!.title).toBe("200 peticiones rechazadas en las últimas 24 horas");
   });
 });

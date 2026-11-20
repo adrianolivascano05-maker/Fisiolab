@@ -810,6 +810,15 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     await expect(summary.getByText(/Sin configurar: añade CF_ACCOUNT_ID/)).toBeVisible();
     await expect(page.getByText(/Las peticiones de hoy van por/)).toHaveCount(0);
     google.requestsToday = 6200;
+    // Los rechazos de las últimas 24 h: la fila y, a partir de 200, el aviso.
+    await expect(summary.getByText("0 sin sesión válida · 0 sin permiso · 0 por demasiadas peticiones")).toBeVisible();
+    google.rejected = { since: new Date().toISOString(), unauthorized: 180, forbidden: 5, tooMany: 40 };
+    await page.reload();
+    await expect(page.getByText("225 peticiones rechazadas en las últimas 24 horas")).toBeVisible();
+    google.rejected = null;
+    await page.reload();
+    await expect(summary.getByText(/Falta la tabla «alerts»/)).toBeVisible();
+    google.rejected = { since: new Date().toISOString(), unauthorized: 0, forbidden: 0, tooMany: 0 };
     await page.getByLabel("Correo del responsable").fill("carla@otra.test");
     await page.getByRole("button", { name: "Dar de alta" }).click();
     await expect(page.getByRole("region", { name: "Pueden crear clínicas" }).getByRole("button", { name: /carla@otra\.test/ })).toBeVisible();

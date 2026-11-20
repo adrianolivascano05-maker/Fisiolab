@@ -335,7 +335,11 @@ recuerda lo que diga Google), el emisor (`accounts.google.com`), que `aud` sea *
 caducidad y que el correo esté verificado. Hasta el 15-01-2027 (`ACCESS_TOKENS_UNTIL` en `src/auth.js`) acepta también
 el token de acceso de antes, preguntando a Google y solo si su `aud` es `GOOGLE_CLIENT_ID` (ya no basta `azp`). La app
 manda el de acceso si el servidor rechaza el de identidad (un servidor sin actualizar). Cada cuenta tiene un tope de
-600 peticiones por minuto en cada copia del servidor. Lo que puede hacer cada cuenta depende de la ruta:
+600 peticiones por minuto en cada copia del servidor. Cada petición deja una línea técnica en el registro (`src/activity.js`: método, ruta sin
+datos, código y tiempo; nunca IPs, correos, tokens ni contenido) y los 401, 403 y 429 se cuentan por hora en la
+tabla `alerts` (escritura como mucho una vez por minuto en cada copia del servidor; se borran a los dos días), que
+`GET /v1/proveedor/peticiones` devuelve como `rejected`. `ALLOWED_ORIGINS` solo admite direcciones `https`;
+`http://localhost` solo con `DEV = "1"` (`[env.dev]` de `wrangler.toml`, un servidor de pruebas aparte). Lo que puede hacer cada cuenta depende de la ruta:
 dar de alta clínicas, si su correo está en `ALLOWED_EMAILS`; usar una clínica, si es de su equipo (tabla
 `members`, por correo en minúsculas). La copia de cada clínica va en `heads`/`parts` con `owner = "clinic:<id>"`.
 Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "error": "…" }` en español. El servidor se edita en `cloudflare/src/*.js` y después `npm run worker` vuelve a generar `worker.js` (una

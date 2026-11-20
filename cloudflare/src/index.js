@@ -109,6 +109,7 @@
 // que no tiene límite al día).
 // Nunca se escribe en el registro el contenido de una petición ni el token.
 
+import { flushAlerts, logRequest, noteStatus, resetAlerts } from "./activity.js";
 import { authenticate, resetGoogleKeys, verifyGoogleToken } from "./auth.js";
 import { clientIp, hit, PUBLIC_PER_MINUTE, resetRateLimits } from "./ratelimit.js";
 import { accessRequest, canCreate, clinicOwner, me, normalEmail } from "./clinics.js";
@@ -139,6 +140,7 @@ export function resetLimitsForTests() {
   resetRateLimits();
   resetGoogleKeys();
   resetStoredBytes();
+  resetAlerts();
 }
 
 /**
@@ -150,6 +152,7 @@ export function resetLimitsForTests() {
  */
 export async function handle(request, env, deps = {}) {
   const now = deps.now ?? Date.now;
+  const started = Date.now();
   const verifyToken = deps.verifyToken ?? verifyGoogleToken;
   const cors = corsHeaders(request, env);
   /** @type {Response} */
@@ -169,6 +172,10 @@ export async function handle(request, env, deps = {}) {
   // El navegador no adivina el tipo: lo que dice ser texto o JSON no se ejecuta nunca como otra cosa.
   response.headers.set("X-Content-Type-Options", "nosniff");
   if (cors) for (const [name, value] of Object.entries(cors)) response.headers.set(name, value);
+  // Lo técnico de la petición, sin datos (activity.js); y los rechazos, para el panel del proveedor.
+  logRequest(request.method, new URL(request.url).pathname, response.status, Date.now() - started);
+  noteStatus(response.status, now());
+  await flushAlerts(env.DB, now());
   return response;
 }
 
