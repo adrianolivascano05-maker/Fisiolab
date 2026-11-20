@@ -94,7 +94,7 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 
 ## 3 ter. Cloudflare: pegar el `worker.js` de la versión `2026-11-20` (unos 10 minutos)
 
-**En curso desde el 20-11-2026 a las 10:57 (hora de Madrid).**
+**Hecho el 20-11-2026** (pegado por quien administra; tabla `alerts` creada, `/v1/salud` dice `2026-11-20`, `ALLOWED_ORIGINS` solo con las dos direcciones https; la app sincroniza y Ajustes › Proveedor da los rechazos).
 
 **Punto de vuelta de la base (Time Travel):** `2026-11-20T09:57:00Z` (10:57 en Madrid), justo antes de ejecutar el
 `schema.sql` con la tabla `alerts`. Cloudflare lo guarda solo durante 7 días (hasta el 27-11-2026). Para volver:
