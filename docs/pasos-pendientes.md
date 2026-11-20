@@ -94,8 +94,14 @@ puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dí
 
 ## 3 ter. Cloudflare: pegar el `worker.js` de la versión `2026-11-20` (unos 10 minutos)
 
-**Pendiente.** Mientras no lo pegues, la app sigue funcionando (manda la sesión de antes) y Ajustes › Proveedor lo
-recuerda en naranja.
+**En curso desde el 20-11-2026 a las 10:57 (hora de Madrid).**
+
+**Punto de vuelta de la base (Time Travel):** `2026-11-20T09:57:00Z` (10:57 en Madrid), justo antes de ejecutar el
+`schema.sql` con la tabla `alerts`. Cloudflare lo guarda solo durante 7 días (hasta el 27-11-2026). Para volver:
+panel de D1 → `cenit-datos` → **Time Travel**, a esa hora; o, desde la terminal, en la carpeta `cloudflare/`:
+`npx wrangler d1 time-travel restore cenit-datos --timestamp=2026-11-20T09:57:00Z -c wrangler.toml`. Deshace todo lo
+que cambiara en el servidor después (formularios recibidos, miembros añadidos…); las copias cifradas de las clínicas se
+vuelven a subir solas desde los dispositivos.
 
 Qué trae: el servidor comprueba él mismo la sesión de Google con su firma (token de identidad, solo de esta app), un
 tope de peticiones por cuenta, que otra clínica no pueda tocar lo que pide un formulario ajeno, menos lecturas de la
