@@ -1,6 +1,6 @@
 // @ts-check
 
-import { COPY_MAGIC, COPY_PART_BYTES, DELTAS_PER_TRIP, DELTA_TRIP_CHARS, MAGIC, MAX_COPY_BYTES, PART_CHARS } from "./constants.js";
+import { COPY_MAGIC, COPY_PART_BYTES, DELTAS_PER_TRIP, DELTA_TRIP_CHARS, MAGIC, MAX_COPY_BYTES, MAX_DELTAS, MAX_OPEN_UPLOADS, PART_CHARS, UPLOAD_DAYS } from "./constants.js";
 import { conflict, getHead, precondition, readCopy, writeCopy } from "./copyStore.js";
 import { HttpError, approxBytes, json, notFound, readBytes, readJson } from "./util.js";
 
@@ -82,14 +82,17 @@ export async function clinicCopy(request, db, docs, owner, rest, now) {
       if (text.length > PART_CHARS) throw new HttpError(413, "El lote de cambios es demasiado grande: la app tiene que partirlo.");
       if (!(text.length > MAGIC.length && text.startsWith(MAGIC))) throw new HttpError(415, "Solo se guardan copias cifradas.");
       // El número siguiente al último que hay (o al de la copia entera, si ya se borraron los anteriores).
+      // Con un tope de lotes sin juntar (la app sube la copia entera mucho antes): comprobado en la misma orden.
       const row = await db
         .prepare(
           `INSERT INTO deltas (owner, seq, data, created_at)
-           VALUES (?, max(coalesce((SELECT max(seq) FROM deltas WHERE owner = ?), 0), coalesce((SELECT seq FROM delta_base WHERE owner = ?), 0)) + 1, ?, ?)
+           SELECT ?, max(coalesce((SELECT max(seq) FROM deltas WHERE owner = ?), 0), coalesce((SELECT seq FROM delta_base WHERE owner = ?), 0)) + 1, ?, ?
+           WHERE (SELECT count(*) FROM deltas WHERE owner = ?) < ?
            RETURNING seq`,
         )
-        .bind(owner, owner, owner, text, new Date(now()).toISOString())
+        .bind(owner, owner, owner, text, new Date(now()).toISOString(), owner, MAX_DELTAS)
         .first();
+      if (!row) throw new HttpError(507, "Hay demasiados cambios sin juntar en el servidor: la app tiene que subir la copia entera.");
       return json(200, { seq: Number(row?.seq) });
     }
     const since = Number(params.get("desde") ?? "0");
@@ -207,15 +210,29 @@ async function copyUpload(request, db, docs, owner, rest, params, now) {
     const { expected, create } = precondition(request);
     const current = await getHead(db, owner);
     if (create ? current !== null : current?.version !== expected) throw conflict(current);
+    // Las abiertas de hace más de 7 días ya no valen (R2 las tira solo); y como mucho unas pocas a la vez por clínica.
+    const at = now();
+    await db.prepare("DELETE FROM copy_uploads WHERE owner = ? AND created_at < ?").bind(owner, new Date(at - UPLOAD_DAYS * 86_400_000).toISOString()).run();
+    const open = await db.prepare("SELECT count(*) AS n FROM copy_uploads WHERE owner = ?").bind(owner).first();
+    if (Number(open?.n ?? 0) >= MAX_OPEN_UPLOADS) throw new HttpError(429, "Hay demasiadas subidas de la copia a medias: espera unos minutos y vuelve a intentarlo.");
     const v = crypto.randomUUID();
     const started = await docs.createMultipartUpload(copyKey(owner, v));
+    // Se apunta: solo se aceptan trozos, final o anulación de las subidas que ha abierto el servidor.
+    await db
+      .prepare("INSERT INTO copy_uploads (owner, version, upload_id, created_at) VALUES (?, ?, ?, ?)")
+      .bind(owner, v, started.uploadId, new Date(at).toISOString())
+      .run();
     return json(200, { version: v, upload: started.uploadId, partBytes: COPY_PART_BYTES });
   }
   const id = params.get("id") ?? "";
   if (!id) throw new HttpError(400, "Falta «id»: la subida.");
+  const known = await db.prepare("SELECT 1 AS ok FROM copy_uploads WHERE owner = ? AND version = ? AND upload_id = ?").bind(owner, version, id).first();
+  if (!known) throw new HttpError(404, "Esa subida de la copia no existe o ya ha terminado: se volverá a empezar.");
+  const forget = () => db.prepare("DELETE FROM copy_uploads WHERE owner = ? AND version = ?").bind(owner, version).run();
   const up = docs.resumeMultipartUpload(copyKey(owner, version), id);
   if (request.method === "DELETE") {
     await up.abort().catch(() => {});
+    await forget();
     return new Response(null, { status: 204 });
   }
   if (step !== "fin") {
@@ -246,6 +263,7 @@ async function copyUpload(request, db, docs, owner, rest, params, now) {
   } catch {
     throw new HttpError(502, "No se ha podido juntar la copia en el almacén: se volverá a subir.");
   }
+  await forget();
   if (object.size !== size) {
     await docs.delete(key);
     throw new HttpError(400, "A la copia le faltan trozos: se volverá a subir.");
@@ -261,7 +279,8 @@ async function copyUpload(request, db, docs, owner, rest, params, now) {
     throw conflict(await getHead(db, owner));
   }
   // Lo de la copia anterior sobra: en R2, o sus trozos en D1 (si la clínica la tenía allí), si esta sigue vigente.
-  if (expected) await docs.delete(copyKey(owner, expected));
+  // Nunca la de la versión que acaba de quedar vigente.
+  if (expected && expected !== version) await docs.delete(copyKey(owner, expected));
   await db
     .prepare("DELETE FROM parts WHERE owner = ? AND EXISTS (SELECT 1 FROM heads WHERE owner = ? AND version = ?)")
     .bind(owner, owner, version)

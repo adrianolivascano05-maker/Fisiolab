@@ -875,6 +875,40 @@ describe("clínicas", () => {
     expect(await count("SELECT count(*) AS n FROM delta_base")).toBe(0);
   });
 
+  it("como mucho 2.000 lotes de cambios sin juntar; después, hay que subir la copia entera", async () => {
+    const c = await clinic();
+    const base = `/v1/clinicas/${c.id}/copia`;
+    await call("PUT", `${base}?v=2&seq=0`, { token: "tok-ana", body: encrypted(3000), headers: { "If-None-Match": "*" } });
+    const owner = `clinic:${c.id}`;
+    db.db.exec(`WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 1999) INSERT INTO deltas (owner, seq, data, created_at) SELECT '${owner}', i, 'x', '2026-11-01' FROM n`);
+    expect((await call("POST", `${base}/cambios?v=2`, { token: "tok-ana", body: encrypted(100) })).status).toBe(200);
+    const res = await call("POST", `${base}/cambios?v=2`, { token: "tok-ana", body: encrypted(100) });
+    expect(res.status).toBe(507);
+    expect(((await res.json()) as { error: string }).error).toContain("copia entera");
+    expect(await count("SELECT count(*) AS n FROM deltas")).toBe(2000);
+  });
+
+  it("la cuenta de Google que entra la primera vez con un correo es la que vale; otra con el mismo correo, no", async () => {
+    const c = await clinic();
+    await send("PUT", `/v1/clinicas/${c.id}/miembros/eva%40clinica.es`, "tok-ana", { role: "member" });
+    expect((await call("GET", `/v1/clinicas/${c.id}/miembros`, { token: "tok-eva" })).status).toBe(200);
+    expect(await db.prepare("SELECT sub FROM member_subs WHERE email = 'eva@clinica.es'").first()).toEqual({ sub: "444" });
+    // Otra cuenta de Google con el mismo correo (un correo de empresa reasignado): no entra, y se dice por qué.
+    USERS["tok-otra-eva"] = { sub: "999", email: "eva@clinica.es" };
+    try {
+      const res = await call("GET", `/v1/clinicas/${c.id}/miembros`, { token: "tok-otra-eva" });
+      expect(res.status).toBe(403);
+      expect(((await res.json()) as { error: string }).error).toContain("te vuelva a añadir");
+      // Quitarla y volver a añadirla: vale la que entre entonces.
+      expect((await send("DELETE", `/v1/clinicas/${c.id}/miembros/eva%40clinica.es`, "tok-ana")).status).toBe(204);
+      await send("PUT", `/v1/clinicas/${c.id}/miembros/eva%40clinica.es`, "tok-ana", { role: "member" });
+      expect((await call("GET", `/v1/clinicas/${c.id}/miembros`, { token: "tok-otra-eva" })).status).toBe(200);
+      expect((await call("GET", `/v1/clinicas/${c.id}/miembros`, { token: "tok-eva" })).status).toBe(403);
+    } finally {
+      delete USERS["tok-otra-eva"];
+    }
+  });
+
   it("suspendida: se bajan los cambios, no se suben", async () => {
     const c = await clinic();
     const base = `/v1/clinicas/${c.id}/copia`;
@@ -1186,7 +1220,7 @@ describe("documentos", () => {
     expect(got.status).toBe(200);
     expect(got.headers.get("Content-Type")).toBe("application/octet-stream");
     expect(new Uint8Array(await got.arrayBuffer())).toEqual(doc);
-    expect(await usage(id)).toEqual({ enabled: true, count: 1, used: 1000, total: 1000, cap: 10_000_000_000, warnAt: 7_000_000_000, maxBytes: 5 * 1024 * 1024 });
+    expect(await usage(id)).toEqual({ enabled: true, clinicCap: 5_000_000_000, count: 1, used: 1000, total: 1000, cap: 10_000_000_000, warnAt: 7_000_000_000, maxBytes: 5 * 1024 * 1024 });
 
     expect((await go("DELETE", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana" })).status).toBe(204);
     expect(r2.objects.size).toBe(0);
@@ -1238,8 +1272,10 @@ describe("documentos", () => {
     expect((await upload(1, sealedDoc(300))).status).toBe(200);
     expect((await upload(3, sealedDoc(300))).status).toBe(400);
     expect((await upload(2, sealedDoc(500))).status).toBe(200);
-    // Mientras no envía, puede cambiarlo: se sustituye.
+    // Mientras no envía, puede cambiarlo: se sustituye (unas pocas veces, no sin parar).
+    for (let i = 0; i < 4; i++) expect((await upload(2, sealedDoc(200, 10 + i))).status).toBe(200);
     expect((await upload(2, sealedDoc(200, 7))).status).toBe(200);
+    expect((await upload(2, sealedDoc(200, 8))).status).toBe(429);
     expect([...r2.objects.keys()].sort()).toEqual([`${id}/${fid}.1`, `${id}/${fid}.2`]);
     expect(await usage(id)).toMatchObject({ count: 0, used: 0, total: 500 });
     // La clínica los baja con su id (para abrirlos con la clave del enlace).
@@ -1255,6 +1291,17 @@ describe("documentos", () => {
     expect([...r2.objects.keys()]).toEqual([`${id}/${fid}.1`]);
     expect(await usage(id)).toMatchObject({ count: 1, used: 300, total: 300 });
     expect(await count("SELECT count(*) AS n FROM doc_requests")).toBe(0);
+  });
+
+  it("cada clínica tiene su tope (CLINIC_DOCS_CAP_GB, 5 GB si no se dice): no puede llenar el almacén de todas", async () => {
+    const id = await clinic();
+    await db.prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES (?, ?, NULL, ?, '2026-10-01')").bind(id, "y".repeat(22), 1_999_999_500).run();
+    const res = await go("PUT", `/v1/clinicas/${id}/documentos/${DOC}`, { token: "tok-ana", body: sealedDoc(1000) }, { CLINIC_DOCS_CAP_GB: "2" });
+    expect(res.status).toBe(507);
+    expect(((await res.json()) as { error: string }).error).toContain("Esta clínica ha llegado a su tope");
+    // Otra clínica, con el mismo almacén, sí puede.
+    const other = await clinic("tok-luis");
+    expect((await go("PUT", `/v1/clinicas/${other}/documentos/${DOC}`, { token: "tok-luis", body: sealedDoc(1000) }, { CLINIC_DOCS_CAP_GB: "2" })).status).toBe(201);
   });
 
   it("un formulario que no pide documentos no admite subidas, y sin R2 no se pueden pedir", async () => {
@@ -1290,7 +1337,7 @@ describe("documentos", () => {
       documents: Record<string, unknown>;
     };
     expect(panel.clinics.find((c) => c.id === id)?.docs).toBe(1000);
-    expect(panel.documents).toEqual({ enabled: true, total: 1000, copies: 0, cap: 10_000_000_000, warnAt: 7_000_000_000 });
+    expect(panel.documents).toEqual({ enabled: true, clinicCap: 5_000_000_000, total: 1000, copies: 0, cap: 10_000_000_000, warnAt: 7_000_000_000 });
 
     const declaration = "Conservo la copia descargada de la clínica.";
     expect((await go("DELETE", `/v1/clinicas/${id}`, { token: "tok-ana", json: { declaration } })).status).toBe(200);
@@ -1536,15 +1583,34 @@ describe("copia de la clínica en R2", () => {
     expect((await fin([p1])).status).toBe(400);
     expect(r2Keys()).toEqual([]);
     expect(await count("SELECT count(*) AS n FROM heads")).toBe(0);
-    // Esa subida ya no existe (R2 la cerró al juntarla).
-    expect((await fin([p1, p2])).status).toBe(502);
-    // Dejarla: R2 se olvida de los trozos y no queda copia.
-    expect((await go("DELETE", `${base}/${s.version}${NEW}&id=${s.upload}`, { token: "tok-eva" })).status).toBe(204);
+    // Esa subida ya no existe: el servidor la ha olvidado al juntarla (y R2 la cerró).
+    expect((await fin([p1, p2])).status).toBe(404);
+    expect(await count("SELECT count(*) AS n FROM copy_uploads")).toBe(0);
+    // Dejarla: R2 se olvida de los trozos, el servidor también y no queda copia.
+    const s2 = (await (await go("POST", `${base}${NEW}`, { headers: { "If-None-Match": "*" } })).json()) as Started;
+    expect(await count("SELECT count(*) AS n FROM copy_uploads")).toBe(1);
+    expect((await go("DELETE", `${base}/${s2.version}${NEW}&id=${s2.upload}`, { token: "tok-eva" })).status).toBe(204);
     expect(r2.uploads.size).toBe(0);
+    expect(await count("SELECT count(*) AS n FROM copy_uploads")).toBe(0);
+    expect((await go("PUT", `${base}/${s2.version}/1${NEW}&id=${s2.upload}`, { body: sealedCopy(MiB) })).status).toBe(404);
     expect((await go("GET", `/v1/clinicas/${id}/copia/info${NEW}`)).status).toBe(200);
     expect(r2Keys()).toEqual([]);
     // Quien no es del equipo, nada.
     expect((await go("POST", `${base}${NEW}`, { token: "tok-luis", headers: { "If-None-Match": "*" } })).status).toBe(403);
+  });
+
+  it("solo se aceptan las subidas que abrió el servidor, y como mucho 5 a la vez por clínica", async () => {
+    const id = await clinic();
+    const base = `/v1/clinicas/${id}/copia/subida`;
+    const start = async () => go("POST", `${base}${NEW}`, { headers: { "If-None-Match": "*" } });
+    const s = (await (await start()).json()) as Started;
+    // Otra versión, otro id o la subida de otra clínica: no.
+    const other = "00000000-0000-4000-8000-000000000000";
+    expect((await go("PUT", `${base}/${other}/1${NEW}&id=${s.upload}`, { body: sealedCopy(MiB) })).status).toBe(404);
+    expect((await go("PUT", `${base}/${s.version}/1${NEW}&id=otro`, { body: sealedCopy(MiB) })).status).toBe(404);
+    expect((await go("DELETE", `${base}/${other}${NEW}&id=${s.upload}`)).status).toBe(404);
+    for (let i = 0; i < 4; i++) expect((await start()).status).toBe(200);
+    expect((await start()).status).toBe(429);
   });
 
   it("sin almacén R2 todo sigue en D1; con él, la copia pasa de D1 a R2 al subirla y vuelve si se sube entera", async () => {

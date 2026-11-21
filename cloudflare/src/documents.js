@@ -1,7 +1,7 @@
 // @ts-check
 
 import { clinicStatus } from "./clinics.js";
-import { DOCS_CAP_GB, DOC_ID, DOC_MAGIC, MAX_DOC_BYTES, WARN_SHARE } from "./constants.js";
+import { CLINIC_DOCS_CAP_GB, DOCS_CAP_GB, DOC_ID, DOC_MAGIC, MAX_DOC_BYTES, MAX_DOC_REWRITES, WARN_SHARE } from "./constants.js";
 import { HttpError, database, json, readBytes } from "./util.js";
 
 /** @typedef {import("./types.js").D1Database} D1Database */
@@ -16,13 +16,25 @@ const full = (/** @type {number} */ cap) =>
   new HttpError(507, `El almacén de documentos está lleno (${cap / 1e9} GB, el tope que ha puesto quien gestiona el servidor): borra los documentos que ya no hagan falta.`);
 
 /**
- * El tope del almacén (DOCS_CAP_GB, o 10 GB) y desde cuándo se avisa (al 70 %).
+ * El tope del almacén (DOCS_CAP_GB, o 10 GB) y desde cuándo se avisa (al 70 %). Y el de cada clínica
+ * (CLINIC_DOCS_CAP_GB, o 5 GB, nunca más que el de todo): una sola clínica no puede llenarlo para las demás.
  * @param {Env} env
  */
 function docsLimits(env) {
   const gb = Number(env.DOCS_CAP_GB);
   const cap = Math.round((Number.isFinite(gb) && gb > 0 ? gb : DOCS_CAP_GB) * 1e9);
-  return { cap, warnAt: Math.round(cap * WARN_SHARE) };
+  const per = Number(env.CLINIC_DOCS_CAP_GB);
+  const clinicCap = Math.min(cap, Math.round((Number.isFinite(per) && per > 0 ? per : CLINIC_DOCS_CAP_GB) * 1e9));
+  return { cap, warnAt: Math.round(cap * WARN_SHARE), clinicCap };
+}
+
+const clinicFull = (/** @type {number} */ cap) =>
+  new HttpError(507, `Esta clínica ha llegado a su tope de documentos (${cap / 1e9} GB): borra los que ya no hagan falta o habla con quien os da la app.`);
+
+/** Lo que ocupan los documentos de una clínica (también los que han subido sus pacientes). */
+async function clinicBytes(/** @type {D1Database} */ db, /** @type {string} */ clinicId) {
+  const row = await db.prepare("SELECT coalesce(sum(size), 0) AS bytes FROM documents WHERE clinic_id = ?").bind(clinicId).first();
+  return Number(row?.bytes ?? 0);
 }
 
 /** Dónde está un documento en R2. */
@@ -151,8 +163,9 @@ export async function clinicDoc(request, db, env, clinicId, docId, keep, now) {
   if (docId.includes(".")) throw new HttpError(400, "Ese id es el de un documento que sube un paciente.");
   const bytes = await readDoc(request);
   if (row) return json(200, { id: docId, size: Number(row.size) });
-  const { cap } = docsLimits(env);
+  const { cap, clinicCap } = docsLimits(env);
   if (!(await fits(db, bytes.byteLength, cap))) throw full(cap);
+  if ((await clinicBytes(db, clinicId)) + bytes.byteLength > clinicCap) throw clinicFull(clinicCap);
   await docs.put(docKey(clinicId, docId), bytes);
   await db
     .prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES (?, ?, NULL, ?, ?) ON CONFLICT (clinic_id, id) DO NOTHING")
@@ -189,8 +202,22 @@ export async function publicFormDoc(request, env, formId, n, now) {
   const bytes = await readDoc(request);
   const id = `${formId}.${n}`;
   const before = await db.prepare("SELECT size FROM documents WHERE clinic_id = ? AND id = ?").bind(clinicId, id).first();
-  if (!(await fits(db, bytes.byteLength - Number(before?.size ?? 0), docsLimits(env).cap))) {
+  const { cap, clinicCap } = docsLimits(env);
+  const extra = bytes.byteLength - Number(before?.size ?? 0);
+  if (!(await fits(db, extra, cap)) || (await clinicBytes(db, clinicId)) + extra > clinicCap) {
     throw new HttpError(507, "Ahora mismo la clínica no puede recibir más documentos. Díselo a tu fisioterapeuta.");
+  }
+  // Cambiar el mismo documento: unas pocas veces (se equivoca de foto), no sin parar. Contado en la misma orden.
+  if (before) {
+    const counted = await db
+      .prepare(
+        `INSERT INTO form_doc_writes (form_id, n, writes) VALUES (?, ?, 1)
+         ON CONFLICT (form_id, n) DO UPDATE SET writes = writes + 1 WHERE writes < ?
+         RETURNING writes`,
+      )
+      .bind(formId, n, MAX_DOC_REWRITES)
+      .first();
+    if (!counted) throw new HttpError(429, "Ya has cambiado este documento varias veces. Si aún no es el bueno, díselo a tu fisioterapeuta.");
   }
   await env.DOCS.put(docKey(clinicId, id), bytes);
   await db

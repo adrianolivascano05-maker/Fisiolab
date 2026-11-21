@@ -234,6 +234,8 @@ export async function removeMember(db, id, email) {
     .bind(id, email, id)
     .run();
   if (result.meta?.changes !== 1) throw lastAdmin();
+  // Si se le vuelve a añadir, la cuenta de Google que entre entonces es la que vale.
+  await db.prepare("DELETE FROM member_subs WHERE clinic_id = ? AND email = ?").bind(id, email).run();
   return new Response(null, { status: 204 });
 }
 

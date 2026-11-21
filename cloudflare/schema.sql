@@ -141,3 +141,30 @@ CREATE TABLE IF NOT EXISTS alerts (
   n INTEGER NOT NULL,
   PRIMARY KEY (hour, status)
 );
+
+-- Subidas de la copia por trozos a R2 que ha abierto el servidor (se aceptan solo esas). Se borran al terminar o
+-- abandonar la subida, y a los 7 días.
+CREATE TABLE IF NOT EXISTS copy_uploads (
+  owner TEXT NOT NULL,
+  version TEXT NOT NULL,
+  upload_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (owner, version)
+);
+
+-- Veces que un paciente ha cambiado cada documento que sube con su enlace (hay un tope).
+CREATE TABLE IF NOT EXISTS form_doc_writes (
+  form_id TEXT NOT NULL,
+  n INTEGER NOT NULL,
+  writes INTEGER NOT NULL,
+  PRIMARY KEY (form_id, n)
+);
+
+-- La cuenta de Google (su «sub») de cada correo del equipo, guardada la primera vez que entra en la clínica.
+CREATE TABLE IF NOT EXISTS member_subs (
+  clinic_id TEXT NOT NULL,
+  email TEXT NOT NULL,
+  sub TEXT NOT NULL,
+  since TEXT NOT NULL,
+  PRIMARY KEY (clinic_id, email)
+);

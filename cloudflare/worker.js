@@ -156,6 +156,7 @@
  * @property {string} [DEV] "1" en un servidor de pruebas: admite http://localhost en ALLOWED_ORIGINS
  * @property {string} [OPERATOR_EMAILS] correos de quien gestiona el servidor (el panel del proveedor)
  * @property {string} [DOCS_CAP_GB] el tope del almacén R2, en GB (10 si no está)
+ * @property {string} [CLINIC_DOCS_CAP_GB] el tope de documentos de cada clínica, en GB (5 si no está)
  * @property {string} [D1_CAP_MB] lo que puede ocupar la base D1, en MB, para los avisos del panel (500 si no está)
  * @property {string} [CF_ACCOUNT_ID] el ID de la cuenta de Cloudflare, para leer sus estadísticas
  * @property {string} [CF_API_TOKEN] token de Cloudflare de solo lectura (Account Analytics: Read); un secreto
@@ -189,7 +190,7 @@
  * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
-const SERVER_VERSION = "2026-11-20";
+const SERVER_VERSION = "2026-11-21";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 const MAGIC = "Q0VOSVRFTkMx";
@@ -275,6 +276,19 @@ const DOC_PURGE_BATCH = 100;
 const CACHE_ENTRIES = 200;
 
 const CACHE_SECONDS = 300;
+
+/** Subidas de la copia por trozos abiertas a la vez en una clínica, y días que vale una (R2 tira las que nadie acaba). */
+const MAX_OPEN_UPLOADS = 5;
+const UPLOAD_DAYS = 7;
+
+/** Lotes de cambios sin juntar en una clínica (la app sube la copia entera a los 200 o 2 MB; esto solo frena abusos). */
+const MAX_DELTAS = 2000;
+
+/** Lo que pueden ocupar los documentos de una clínica si CLINIC_DOCS_CAP_GB no dice otra cosa (GB). */
+const CLINIC_DOCS_CAP_GB = 5;
+
+/** Veces que el paciente puede cambiar un documento que ya ha subido con su enlace (antes de enviar el formulario). */
+const MAX_DOC_REWRITES = 5;
 
 export default {
   /**
@@ -407,11 +421,22 @@ async function route(request, env, deps, originAllowed) {
   const db = database(env);
   // Quien no es del equipo no sabe ni si la clínica existe.
   // El papel y el estado de la clínica, en un solo viaje a la base (esta ruta la usa cada dispositivo cada minuto).
+  // Con la cuenta de Google que entró la primera vez con ese correo (su «sub», que no cambia): si con el mismo correo
+  // entra otra cuenta (un correo de empresa reasignado, una cuenta borrada y creada otra vez), no pasa.
+  const email = who.email.trim().toLowerCase();
   const row = await db
-    .prepare("SELECT m.role, s.suspended_at, s.deleted_at FROM members m LEFT JOIN clinic_status s ON s.clinic_id = m.clinic_id WHERE m.clinic_id = ? AND m.email = ?")
-    .bind(id, who.email.trim().toLowerCase())
+    .prepare(
+      `SELECT m.role, s.suspended_at, s.deleted_at, ms.sub FROM members m LEFT JOIN clinic_status s ON s.clinic_id = m.clinic_id
+       LEFT JOIN member_subs ms ON ms.clinic_id = m.clinic_id AND ms.email = m.email WHERE m.clinic_id = ? AND m.email = ?`,
+    )
+    .bind(id, email)
     .first();
   if (!row) throw new HttpError(403, "Tu cuenta no forma parte de esta clínica.");
+  if (row.sub === null || row.sub === undefined) {
+    await db.prepare("INSERT OR IGNORE INTO member_subs (clinic_id, email, sub, since) VALUES (?, ?, ?, ?)").bind(id, email, who.sub, new Date(deps.now()).toISOString()).run();
+  } else if (row.sub !== who.sub) {
+    throw new HttpError(403, "Esta cuenta de Google no es la que se añadió a la clínica con este correo. Pide a quien la administra que te quite del equipo y te vuelva a añadir.");
+  }
   const role = row.role === "admin" ? "admin" : "member";
   const admin = () => {
     if (role !== "admin") throw new HttpError(403, "Solo quien administra la clínica puede hacerlo.");
@@ -573,14 +598,17 @@ async function clinicCopy(request, db, docs, owner, rest, now) {
       if (text.length > PART_CHARS) throw new HttpError(413, "El lote de cambios es demasiado grande: la app tiene que partirlo.");
       if (!(text.length > MAGIC.length && text.startsWith(MAGIC))) throw new HttpError(415, "Solo se guardan copias cifradas.");
       // El número siguiente al último que hay (o al de la copia entera, si ya se borraron los anteriores).
+      // Con un tope de lotes sin juntar (la app sube la copia entera mucho antes): comprobado en la misma orden.
       const row = await db
         .prepare(
           `INSERT INTO deltas (owner, seq, data, created_at)
-           VALUES (?, max(coalesce((SELECT max(seq) FROM deltas WHERE owner = ?), 0), coalesce((SELECT seq FROM delta_base WHERE owner = ?), 0)) + 1, ?, ?)
+           SELECT ?, max(coalesce((SELECT max(seq) FROM deltas WHERE owner = ?), 0), coalesce((SELECT seq FROM delta_base WHERE owner = ?), 0)) + 1, ?, ?
+           WHERE (SELECT count(*) FROM deltas WHERE owner = ?) < ?
            RETURNING seq`,
         )
-        .bind(owner, owner, owner, text, new Date(now()).toISOString())
+        .bind(owner, owner, owner, text, new Date(now()).toISOString(), owner, MAX_DELTAS)
         .first();
+      if (!row) throw new HttpError(507, "Hay demasiados cambios sin juntar en el servidor: la app tiene que subir la copia entera.");
       return json(200, { seq: Number(row?.seq) });
     }
     const since = Number(params.get("desde") ?? "0");
@@ -698,15 +726,29 @@ async function copyUpload(request, db, docs, owner, rest, params, now) {
     const { expected, create } = precondition(request);
     const current = await getHead(db, owner);
     if (create ? current !== null : current?.version !== expected) throw conflict(current);
+    // Las abiertas de hace más de 7 días ya no valen (R2 las tira solo); y como mucho unas pocas a la vez por clínica.
+    const at = now();
+    await db.prepare("DELETE FROM copy_uploads WHERE owner = ? AND created_at < ?").bind(owner, new Date(at - UPLOAD_DAYS * 86_400_000).toISOString()).run();
+    const open = await db.prepare("SELECT count(*) AS n FROM copy_uploads WHERE owner = ?").bind(owner).first();
+    if (Number(open?.n ?? 0) >= MAX_OPEN_UPLOADS) throw new HttpError(429, "Hay demasiadas subidas de la copia a medias: espera unos minutos y vuelve a intentarlo.");
     const v = crypto.randomUUID();
     const started = await docs.createMultipartUpload(copyKey(owner, v));
+    // Se apunta: solo se aceptan trozos, final o anulación de las subidas que ha abierto el servidor.
+    await db
+      .prepare("INSERT INTO copy_uploads (owner, version, upload_id, created_at) VALUES (?, ?, ?, ?)")
+      .bind(owner, v, started.uploadId, new Date(at).toISOString())
+      .run();
     return json(200, { version: v, upload: started.uploadId, partBytes: COPY_PART_BYTES });
   }
   const id = params.get("id") ?? "";
   if (!id) throw new HttpError(400, "Falta «id»: la subida.");
+  const known = await db.prepare("SELECT 1 AS ok FROM copy_uploads WHERE owner = ? AND version = ? AND upload_id = ?").bind(owner, version, id).first();
+  if (!known) throw new HttpError(404, "Esa subida de la copia no existe o ya ha terminado: se volverá a empezar.");
+  const forget = () => db.prepare("DELETE FROM copy_uploads WHERE owner = ? AND version = ?").bind(owner, version).run();
   const up = docs.resumeMultipartUpload(copyKey(owner, version), id);
   if (request.method === "DELETE") {
     await up.abort().catch(() => {});
+    await forget();
     return new Response(null, { status: 204 });
   }
   if (step !== "fin") {
@@ -737,6 +779,7 @@ async function copyUpload(request, db, docs, owner, rest, params, now) {
   } catch {
     throw new HttpError(502, "No se ha podido juntar la copia en el almacén: se volverá a subir.");
   }
+  await forget();
   if (object.size !== size) {
     await docs.delete(key);
     throw new HttpError(400, "A la copia le faltan trozos: se volverá a subir.");
@@ -752,7 +795,8 @@ async function copyUpload(request, db, docs, owner, rest, params, now) {
     throw conflict(await getHead(db, owner));
   }
   // Lo de la copia anterior sobra: en R2, o sus trozos en D1 (si la clínica la tenía allí), si esta sigue vigente.
-  if (expected) await docs.delete(copyKey(owner, expected));
+  // Nunca la de la versión que acaba de quedar vigente.
+  if (expected && expected !== version) await docs.delete(copyKey(owner, expected));
   await db
     .prepare("DELETE FROM parts WHERE owner = ? AND EXISTS (SELECT 1 FROM heads WHERE owner = ? AND version = ?)")
     .bind(owner, owner, version)
@@ -1034,6 +1078,8 @@ async function removeClinic(db, id, docs) {
     db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM deltas WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM delta_base WHERE owner = ?").bind(owner),
+    db.prepare("DELETE FROM copy_uploads WHERE owner = ?").bind(owner),
+    db.prepare("DELETE FROM member_subs WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM members WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM recovery WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM patient_forms WHERE clinic_id = ?").bind(id),
@@ -1358,6 +1404,8 @@ async function removeMember(db, id, email) {
     .bind(id, email, id)
     .run();
   if (result.meta?.changes !== 1) throw lastAdmin();
+  // Si se le vuelve a añadir, la cuenta de Google que entre entonces es la que vale.
+  await db.prepare("DELETE FROM member_subs WHERE clinic_id = ? AND email = ?").bind(id, email).run();
   return new Response(null, { status: 204 });
 }
 
@@ -1442,6 +1490,7 @@ async function purgeForms(db, now, docs) {
     .all();
   await forgetDocs(db, docs, results.map((r) => ({ clinicId: String(r.clinic_id), id: String(r.id) })));
   await db.prepare("DELETE FROM doc_requests WHERE form_id NOT IN (SELECT id FROM patient_forms)").run();
+  await db.prepare("DELETE FROM form_doc_writes WHERE form_id NOT IN (SELECT id FROM patient_forms)").run();
 }
 
 /**
@@ -1539,13 +1588,25 @@ const full = (/** @type {number} */ cap) =>
   new HttpError(507, `El almacén de documentos está lleno (${cap / 1e9} GB, el tope que ha puesto quien gestiona el servidor): borra los documentos que ya no hagan falta.`);
 
 /**
- * El tope del almacén (DOCS_CAP_GB, o 10 GB) y desde cuándo se avisa (al 70 %).
+ * El tope del almacén (DOCS_CAP_GB, o 10 GB) y desde cuándo se avisa (al 70 %). Y el de cada clínica
+ * (CLINIC_DOCS_CAP_GB, o 5 GB, nunca más que el de todo): una sola clínica no puede llenarlo para las demás.
  * @param {Env} env
  */
 function docsLimits(env) {
   const gb = Number(env.DOCS_CAP_GB);
   const cap = Math.round((Number.isFinite(gb) && gb > 0 ? gb : DOCS_CAP_GB) * 1e9);
-  return { cap, warnAt: Math.round(cap * WARN_SHARE) };
+  const per = Number(env.CLINIC_DOCS_CAP_GB);
+  const clinicCap = Math.min(cap, Math.round((Number.isFinite(per) && per > 0 ? per : CLINIC_DOCS_CAP_GB) * 1e9));
+  return { cap, warnAt: Math.round(cap * WARN_SHARE), clinicCap };
+}
+
+const clinicFull = (/** @type {number} */ cap) =>
+  new HttpError(507, `Esta clínica ha llegado a su tope de documentos (${cap / 1e9} GB): borra los que ya no hagan falta o habla con quien os da la app.`);
+
+/** Lo que ocupan los documentos de una clínica (también los que han subido sus pacientes). */
+async function clinicBytes(/** @type {D1Database} */ db, /** @type {string} */ clinicId) {
+  const row = await db.prepare("SELECT coalesce(sum(size), 0) AS bytes FROM documents WHERE clinic_id = ?").bind(clinicId).first();
+  return Number(row?.bytes ?? 0);
 }
 
 /** Dónde está un documento en R2. */
@@ -1674,8 +1735,9 @@ async function clinicDoc(request, db, env, clinicId, docId, keep, now) {
   if (docId.includes(".")) throw new HttpError(400, "Ese id es el de un documento que sube un paciente.");
   const bytes = await readDoc(request);
   if (row) return json(200, { id: docId, size: Number(row.size) });
-  const { cap } = docsLimits(env);
+  const { cap, clinicCap } = docsLimits(env);
   if (!(await fits(db, bytes.byteLength, cap))) throw full(cap);
+  if ((await clinicBytes(db, clinicId)) + bytes.byteLength > clinicCap) throw clinicFull(clinicCap);
   await docs.put(docKey(clinicId, docId), bytes);
   await db
     .prepare("INSERT INTO documents (clinic_id, id, form_id, size, created_at) VALUES (?, ?, NULL, ?, ?) ON CONFLICT (clinic_id, id) DO NOTHING")
@@ -1712,8 +1774,22 @@ async function publicFormDoc(request, env, formId, n, now) {
   const bytes = await readDoc(request);
   const id = `${formId}.${n}`;
   const before = await db.prepare("SELECT size FROM documents WHERE clinic_id = ? AND id = ?").bind(clinicId, id).first();
-  if (!(await fits(db, bytes.byteLength - Number(before?.size ?? 0), docsLimits(env).cap))) {
+  const { cap, clinicCap } = docsLimits(env);
+  const extra = bytes.byteLength - Number(before?.size ?? 0);
+  if (!(await fits(db, extra, cap)) || (await clinicBytes(db, clinicId)) + extra > clinicCap) {
     throw new HttpError(507, "Ahora mismo la clínica no puede recibir más documentos. Díselo a tu fisioterapeuta.");
+  }
+  // Cambiar el mismo documento: unas pocas veces (se equivoca de foto), no sin parar. Contado en la misma orden.
+  if (before) {
+    const counted = await db
+      .prepare(
+        `INSERT INTO form_doc_writes (form_id, n, writes) VALUES (?, ?, 1)
+         ON CONFLICT (form_id, n) DO UPDATE SET writes = writes + 1 WHERE writes < ?
+         RETURNING writes`,
+      )
+      .bind(formId, n, MAX_DOC_REWRITES)
+      .first();
+    if (!counted) throw new HttpError(429, "Ya has cambiado este documento varias veces. Si aún no es el bueno, díselo a tu fisioterapeuta.");
   }
   await env.DOCS.put(docKey(clinicId, id), bytes);
   await db
@@ -1736,7 +1812,7 @@ async function health(env) {
     problems.push("Falta el enlace «DB» con la base de datos D1 (Settings → Bindings).");
   } else {
     try {
-      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests", "patient_forms", "documents", "doc_requests"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
+      await env.DB.batch(["heads", "parts", "clinics", "members", "recovery", "creators", "clinic_status", "deltas", "delta_base", "access_requests", "patient_forms", "documents", "doc_requests", "copy_uploads", "form_doc_writes", "member_subs"].map((t) => /** @type {D1Database} */ (env.DB).prepare(`SELECT 1 FROM ${t} LIMIT 0`)));
     } catch {
       problems.push("La base de datos no tiene las tablas: ejecuta schema.sql en su consola.");
     }

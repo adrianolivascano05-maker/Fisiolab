@@ -6,7 +6,7 @@
  * La versión de este servidor (el día del último cambio; «.2» si es el segundo de ese día). La app la compara con la que espera
  * (src/cloud/serverStatus.ts) y, si es anterior, avisa a quien gestiona el servidor de que pegue el worker.js nuevo.
  */
-export const SERVER_VERSION = "2026-11-20";
+export const SERVER_VERSION = "2026-11-21";
 
 /** Las copias cifradas por la app (src/cloud/crypt.ts) empiezan por «CENITENC1»: en base64, así. */
 export const MAGIC = "Q0VOSVRFTkMx";
@@ -92,3 +92,16 @@ export const DOC_PURGE_BATCH = 100;
 export const CACHE_ENTRIES = 200;
 
 export const CACHE_SECONDS = 300;
+
+/** Subidas de la copia por trozos abiertas a la vez en una clínica, y días que vale una (R2 tira las que nadie acaba). */
+export const MAX_OPEN_UPLOADS = 5;
+export const UPLOAD_DAYS = 7;
+
+/** Lotes de cambios sin juntar en una clínica (la app sube la copia entera a los 200 o 2 MB; esto solo frena abusos). */
+export const MAX_DELTAS = 2000;
+
+/** Lo que pueden ocupar los documentos de una clínica si CLINIC_DOCS_CAP_GB no dice otra cosa (GB). */
+export const CLINIC_DOCS_CAP_GB = 5;
+
+/** Veces que el paciente puede cambiar un documento que ya ha subido con su enlace (antes de enviar el formulario). */
+export const MAX_DOC_REWRITES = 5;

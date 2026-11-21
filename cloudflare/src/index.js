@@ -255,11 +255,22 @@ async function route(request, env, deps, originAllowed) {
   const db = database(env);
   // Quien no es del equipo no sabe ni si la clínica existe.
   // El papel y el estado de la clínica, en un solo viaje a la base (esta ruta la usa cada dispositivo cada minuto).
+  // Con la cuenta de Google que entró la primera vez con ese correo (su «sub», que no cambia): si con el mismo correo
+  // entra otra cuenta (un correo de empresa reasignado, una cuenta borrada y creada otra vez), no pasa.
+  const email = who.email.trim().toLowerCase();
   const row = await db
-    .prepare("SELECT m.role, s.suspended_at, s.deleted_at FROM members m LEFT JOIN clinic_status s ON s.clinic_id = m.clinic_id WHERE m.clinic_id = ? AND m.email = ?")
-    .bind(id, who.email.trim().toLowerCase())
+    .prepare(
+      `SELECT m.role, s.suspended_at, s.deleted_at, ms.sub FROM members m LEFT JOIN clinic_status s ON s.clinic_id = m.clinic_id
+       LEFT JOIN member_subs ms ON ms.clinic_id = m.clinic_id AND ms.email = m.email WHERE m.clinic_id = ? AND m.email = ?`,
+    )
+    .bind(id, email)
     .first();
   if (!row) throw new HttpError(403, "Tu cuenta no forma parte de esta clínica.");
+  if (row.sub === null || row.sub === undefined) {
+    await db.prepare("INSERT OR IGNORE INTO member_subs (clinic_id, email, sub, since) VALUES (?, ?, ?, ?)").bind(id, email, who.sub, new Date(deps.now()).toISOString()).run();
+  } else if (row.sub !== who.sub) {
+    throw new HttpError(403, "Esta cuenta de Google no es la que se añadió a la clínica con este correo. Pide a quien la administra que te quite del equipo y te vuelva a añadir.");
+  }
   const role = row.role === "admin" ? "admin" : "member";
   const admin = () => {
     if (role !== "admin") throw new HttpError(403, "Solo quien administra la clínica puede hacerlo.");

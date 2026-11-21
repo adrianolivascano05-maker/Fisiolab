@@ -92,6 +92,32 @@ Después, en **cada** dispositivo de la clínica:
 Cuando estén mudados todos los dispositivos, la versión de GitHub puede quedarse como está (sigue funcionando) o
 puedo hacer que avise «La app se ha mudado» y lleve a la dirección nueva. Dímelo y lo preparo.
 
+## 3 quater. Cloudflare: pegar el `worker.js` de la versión `2026-11-21` (unos 10 minutos)
+
+**Pendiente.** Mientras no lo pegues, la app sigue funcionando y Ajustes › Proveedor lo recuerda en naranja.
+
+Qué trae: el servidor solo acepta los trozos de las subidas de la copia que ha abierto él (como mucho 5 a la vez por
+clínica) y nunca borra la copia vigente al terminar una; cada clínica tiene su tope de documentos (5 GB, o lo que diga
+la variable `CLINIC_DOCS_CAP_GB`); como mucho 2.000 lotes de cambios sin juntar; el paciente puede cambiar cada
+documento que sube como mucho 5 veces; y cada correo del equipo queda unido a la cuenta de Google que entró con él la
+primera vez (si entra otra cuenta con el mismo correo, no pasa: hay que quitarla del equipo y volver a añadirla).
+
+1. **Antes, las tablas nuevas.** Apunta la hora (punto de vuelta de Time Travel). En Cloudflare → **Storage &
+   Databases** → **D1** → `cenit-datos` → **Console**, pega estas tres líneas, una cada vez, y pulsa **Execute**
+   después de cada una (solo crean tablas; no borran nada):
+   ```sql
+   CREATE TABLE IF NOT EXISTS copy_uploads (owner TEXT NOT NULL, version TEXT NOT NULL, upload_id TEXT NOT NULL, created_at TEXT NOT NULL, PRIMARY KEY (owner, version));
+   CREATE TABLE IF NOT EXISTS form_doc_writes (form_id TEXT NOT NULL, n INTEGER NOT NULL, writes INTEGER NOT NULL, PRIMARY KEY (form_id, n));
+   CREATE TABLE IF NOT EXISTS member_subs (clinic_id TEXT NOT NULL, email TEXT NOT NULL, sub TEXT NOT NULL, since TEXT NOT NULL, PRIMARY KEY (clinic_id, email));
+   ```
+   Tiene que ser **antes** de pegar el `worker.js`: sin ellas, el servidor nuevo no deja entrar en las clínicas.
+2. **Workers & Pages** → `cenit-datos` → **Edit code** → borra todo, pega `cloudflare/worker.js` → **Deploy**.
+3. Abre `https://cenit-datos.adrianolivascano05.workers.dev/v1/salud`: tiene que decir `"ok":true` y
+   `"version":"2026-11-21"` (si dice que faltan tablas, repite el paso 1).
+4. Abre la app, entra con Google y comprueba que sincroniza.
+
+Si algo falla: **Deployments** → la versión anterior → **Rollback**. Las tablas nuevas pueden quedarse.
+
 ## 3 ter. Cloudflare: pegar el `worker.js` de la versión `2026-11-20` (unos 10 minutos)
 
 **Hecho el 20-11-2026** (pegado por quien administra; tabla `alerts` creada, `/v1/salud` dice `2026-11-20`, `ALLOWED_ORIGINS` solo con las dos direcciones https; la app sincroniza y Ajustes › Proveedor da los rechazos).

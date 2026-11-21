@@ -87,6 +87,8 @@ async function removeClinic(db, id, docs) {
     db.prepare("DELETE FROM parts WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM deltas WHERE owner = ?").bind(owner),
     db.prepare("DELETE FROM delta_base WHERE owner = ?").bind(owner),
+    db.prepare("DELETE FROM copy_uploads WHERE owner = ?").bind(owner),
+    db.prepare("DELETE FROM member_subs WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM members WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM recovery WHERE clinic_id = ?").bind(id),
     db.prepare("DELETE FROM patient_forms WHERE clinic_id = ?").bind(id),

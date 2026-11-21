@@ -38,6 +38,7 @@ async function purgeForms(db, now, docs) {
     .all();
   await forgetDocs(db, docs, results.map((r) => ({ clinicId: String(r.clinic_id), id: String(r.id) })));
   await db.prepare("DELETE FROM doc_requests WHERE form_id NOT IN (SELECT id FROM patient_forms)").run();
+  await db.prepare("DELETE FROM form_doc_writes WHERE form_id NOT IN (SELECT id FROM patient_forms)").run();
 }
 
 /**

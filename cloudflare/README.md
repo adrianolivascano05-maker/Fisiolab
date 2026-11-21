@@ -339,7 +339,12 @@ manda el de acceso si el servidor rechaza el de identidad (un servidor sin actua
 datos, código y tiempo; nunca IPs, correos, tokens ni contenido) y los 401, 403 y 429 se cuentan por hora en la
 tabla `alerts` (escritura como mucho una vez por minuto en cada copia del servidor; se borran a los dos días), que
 `GET /v1/proveedor/peticiones` devuelve como `rejected`. `ALLOWED_ORIGINS` solo admite direcciones `https`;
-`http://localhost` solo con `DEV = "1"` (`[env.dev]` de `wrangler.toml`, un servidor de pruebas aparte). Lo que puede hacer cada cuenta depende de la ruta:
+`http://localhost` solo con `DEV = "1"` (`[env.dev]` de `wrangler.toml`, un servidor de pruebas aparte). Las subidas de la
+copia por trozos se apuntan en `copy_uploads` (solo se aceptan esas; como mucho 5 abiertas por clínica; se olvidan al
+terminar, al dejarlas o a los 7 días). Cada clínica tiene un tope de documentos (`CLINIC_DOCS_CAP_GB`, 5 GB si no se
+dice, nunca más que `DOCS_CAP_GB`), un tope de 2.000 lotes de cambios sin juntar (507 a partir de ahí) y el paciente
+puede cambiar cada documento 5 veces como mucho (`form_doc_writes`). La pertenencia a una clínica se comprueba por
+correo y por la cuenta de Google (`member_subs`: el `sub` de la primera vez que entra; quitar del equipo lo olvida). Lo que puede hacer cada cuenta depende de la ruta:
 dar de alta clínicas, si su correo está en `ALLOWED_EMAILS`; usar una clínica, si es de su equipo (tabla
 `members`, por correo en minúsculas). La copia de cada clínica va en `heads`/`parts` con `owner = "clinic:<id>"`.
 Todas las respuestas llevan `Cache-Control: no-store`. Los errores son JSON `{ "error": "…" }` en español. El servidor se edita en `cloudflare/src/*.js` y después `npm run worker` vuelve a generar `worker.js` (una

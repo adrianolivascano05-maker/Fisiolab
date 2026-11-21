@@ -44,6 +44,7 @@
  * @property {string} [DEV] "1" en un servidor de pruebas: admite http://localhost en ALLOWED_ORIGINS
  * @property {string} [OPERATOR_EMAILS] correos de quien gestiona el servidor (el panel del proveedor)
  * @property {string} [DOCS_CAP_GB] el tope del almacén R2, en GB (10 si no está)
+ * @property {string} [CLINIC_DOCS_CAP_GB] el tope de documentos de cada clínica, en GB (5 si no está)
  * @property {string} [D1_CAP_MB] lo que puede ocupar la base D1, en MB, para los avisos del panel (500 si no está)
  * @property {string} [CF_ACCOUNT_ID] el ID de la cuenta de Cloudflare, para leer sus estadísticas
  * @property {string} [CF_API_TOKEN] token de Cloudflare de solo lectura (Account Analytics: Read); un secreto
