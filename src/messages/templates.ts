@@ -26,7 +26,7 @@ export type MessageSpec = {
 export const DEFAULT_TEMPLATE =
   "Hola, {nombre}. Te recordamos tu cita de fisioterapia{con} en {clinica} el {dia} a las {hora}. Si no puedes venir, avísanos respondiendo a este mensaje. ¡Gracias!";
 
-const PRIVATE = "Tus respuestas van cifradas y solo las verá tu fisioterapeuta.";
+const PRIVATE = "Tus respuestas van cifradas y solo las verá tu fisioterapeuta. Este enlace es solo para ti: no lo reenvíes.";
 
 export const MESSAGES: MessageSpec[] = [
   { kind: "recordatorio", label: "Recordatorio de cita", where: "Agenda › Recordatorios, la hoja de la cita y la bandeja de envíos", text: DEFAULT_TEMPLATE, subject: "Recordatorio de tu cita", vars: ["{nombre}", "{dia}", "{hora}", "{clinica}", "{con}"] },

@@ -1,6 +1,6 @@
 // Recoger las respuestas de los pacientes (src/clinical/patientForms.ts): las que el servidor tiene ya contestadas se
 // descifran con la clave de cada envío, se ponen en la ficha y se borran del servidor. Los archivos que ha subido (sus
-// informes y pruebas) se quedan en el servidor: la clínica se los guarda y se apuntan en sus archivos. Lo que llega de un envío que
+// informes y pruebas) se vuelven a cifrar con una clave propia, se apuntan en sus archivos y se suben como los demás. Lo que llega de un envío que
 // este dispositivo aún no conoce (lo hizo un compañero y no ha llegado por la sincronización) se deja para después.
 // Las firmas por enlace (la hoja de protección de datos o un consentimiento) se retiraron el 30-10-2026: si llega una
 // respuesta de un enlace de esos, no se guarda nada, el envío queda anulado y se avisa para firmarlo en la clínica. Lo
@@ -12,6 +12,7 @@ import { cancelSentForm, getSentForm, markImported } from "../data/patientForms"
 import { recordIntake } from "../data/privacy";
 import { addDocument, cleanName, getDocument, MAX_DOC_BYTES } from "../data/documents";
 import { ServerError } from "../cloud/remote";
+import { newDocKey, openDoc, sealDoc } from "../documents/docCrypto";
 import type { Field, Section } from "../clinical/anamnesis";
 import { RESPONDENT, stampSources, TPL } from "../clinical/answerMeta";
 import { isMetaKey } from "../clinical/anamnesis";
@@ -26,11 +27,22 @@ import { ANAMNESIS_KIND, CALENDAR_KIND, RESPONDENTS, type Respondent, cleanFormA
 /** Días que se guardan en el servidor unas respuestas de un envío que este dispositivo no conoce. */
 const ORPHAN_DAYS = 7;
 
+/**
+ * El id del archivo ya vuelto a cifrar: sale del original y de la clave del enlace (que el servidor no tiene), así una
+ * recogida repetida no lo apunta dos veces y nadie puede adivinarlo.
+ */
+async function rekeyedId(linkKey: string, original: string): Promise<string> {
+  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${linkKey}|${original}`)));
+  return btoa(String.fromCharCode(...hash.subarray(0, 24))).replace(/\+/g, "-").replace(/\//g, "_");
+}
+
 export type FormsApi = {
   answered: () => Promise<{ id: string; response: string; answeredAt: string }[]>;
   remove: (formId: string) => Promise<void>;
-  /** Quedarse en el servidor con un archivo que subió el paciente («<formulario>.<n>»); si no, se borra al recoger. */
-  keepDoc: (docId: string) => Promise<void>;
+  /** Bajar un archivo que subió el paciente («<formulario>.<n>»), cifrado con la clave del enlace (404 si ya no está). */
+  getDoc: (docId: string) => Promise<Uint8Array>;
+  /** Guardar en este dispositivo un archivo ya cifrado con su clave nueva (se sube solo después, como los demás). */
+  stash: (docId: string, sealed: Uint8Array) => Promise<void>;
 };
 
 /** Lo que se ha puesto en la ficha: de quién, qué y cuántas respuestas no se pusieron porque ya había algo. `files`:
@@ -126,33 +138,42 @@ export async function collectAnswered(db: Db, api: FormsApi, tpl: CollectTemplat
     let skipped: string[] = [];
     let incomplete = false;
     if (sent.kind === DOCS_KIND) {
-      // Cada archivo: la clínica se lo guarda en el servidor y se apunta en su ficha (ya subido, cifrado con la clave
-      // del enlace). Si uno ya no está en el servidor, se deja fuera; si falla otra cosa, se vuelve a intentar después.
+      // Cada archivo se baja, se abre con la clave del enlace y se vuelve a cifrar con una clave nueva, como los que
+      // añade la clínica: quien tenga el enlace ya no puede abrirlo. Se apunta en su ficha y se sube solo (DocsAutoSync);
+      // el original, con la clave del enlace, se borra del servidor al recoger el formulario. Si uno ya no está en el
+      // servidor o no se abre con su clave, se deja fuera; si falla otra cosa, se vuelve a intentar después.
       const docs = sentDocs(incoming);
       const kept: SentDoc[] = [];
       for (const d of docs) {
-        const docId = `${f.id}.${d.n}`;
-        try {
-          await api.keepDoc(docId);
-        } catch (e) {
-          if (e instanceof ServerError && e.status === 404) continue;
-          throw e;
+        const newId = await rekeyedId(sent.key, `${f.id}.${d.n}`);
+        // Ya recogido (una recogida que se cortó y se repite).
+        if (await getDocument(db, newId)) {
+          kept.push(d);
+          continue;
         }
-        kept.push(d);
-        if (await getDocument(db, docId)) continue;
+        let plain: Uint8Array;
+        try {
+          plain = await openDoc(await api.getDoc(`${f.id}.${d.n}`), sent.key);
+        } catch (e) {
+          // Sin conexión o un fallo del servidor: se vuelve a intentar después. Ya no está (404) o no se abre: fuera.
+          if ((e instanceof ServerError && e.status !== 404) || e instanceof TypeError) throw e;
+          continue;
+        }
+        const key = newDocKey();
+        await api.stash(newId, await sealDoc(plain, key));
         await addDocument(db, {
-          id: docId,
+          id: newId,
           patientId: sent.patientId,
           episodeId: episode,
           name: d.name,
           mime: "application/pdf",
-          size: d.size,
-          key: sent.key,
+          size: plain.byteLength,
+          key,
           source: "patient",
           formId: f.id,
-          uploadedAt: f.answeredAt,
           createdAt: f.answeredAt,
         });
+        kept.push(d);
       }
       await markImported(db, f.id, { answeredAt: f.answeredAt, answers: { docs: kept }, skipped: [] });
       await api.remove(f.id);

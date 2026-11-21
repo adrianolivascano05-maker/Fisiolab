@@ -19,24 +19,29 @@ import { addLibraryForm, archiveOwnForm, newOwnFormId, saveOwnForm } from "../da
 import { addPatientEventOnce, listPatientEvents, savePatientEvent } from "../data/patientEvents";
 import { createAppointment } from "../data/appointments";
 import { FROM_PATIENT } from "./calendarForm";
+import { openDoc, sealDoc } from "../documents/docCrypto";
 
 const patient = (name: string) => ({ name, birthDate: null, sex: null, bodyMassKg: null, heightCm: null, legLengthCm: null, pushOffDistanceCm: null, notes: "" });
 
 /** Un servidor de mentira con las respuestas ya contestadas; apunta lo que se borra. */
-function server(answered: { id: string; response: string; answeredAt: string }[], onServer: string[] = []) {
+function server(answered: { id: string; response: string; answeredAt: string }[], onServer: Record<string, Uint8Array> = {}) {
   const removed: string[] = [];
-  const kept: string[] = [];
+  const stashed = new Map<string, Uint8Array>();
   const api: FormsApi = {
     answered: async () => answered.filter((f) => !removed.includes(f.id)),
     remove: async (id) => {
       removed.push(id);
     },
-    keepDoc: async (id) => {
-      if (!onServer.includes(id)) throw new ServerError("Ese documento ya no está en el servidor.", 404);
-      kept.push(id);
+    getDoc: async (id) => {
+      const bytes = onServer[id];
+      if (!bytes) throw new ServerError("Ese documento ya no está en el servidor.", 404);
+      return bytes;
+    },
+    stash: async (id, sealed) => {
+      stashed.set(id, sealed);
     },
   };
-  return { api, removed, kept };
+  return { api, removed, stashed };
 }
 
 describe("formularios para el paciente", () => {
@@ -177,7 +182,7 @@ describe("formularios para el paciente", () => {
     const response = await seal({ v: 1, answers: { i1: 1, i2: 1, i3: 1, i4: 1, i5: 1, i6: 1, i7: 1 } }, f.key);
     const at = new Date().toISOString();
     // Los dos ven la respuesta antes de que el otro la borre.
-    const both: FormsApi = { answered: async () => [{ id: f.id, response, answeredAt: at }], remove: async () => {}, keepDoc: async () => {} };
+    const both: FormsApi = { answered: async () => [{ id: f.id, response, answeredAt: at }], remove: async () => {}, getDoc: async () => new Uint8Array(), stash: async () => {} };
     await collectAnswered(a, both, ANAMNESIS);
     const first = (await listQuestionnaires(a, pid)).map((q) => q.id);
     await a.transaction([{ sql: "update patient_forms set imported_at = null where id = ?", bind: [f.id] }]);
@@ -245,7 +250,7 @@ describe("formularios para el paciente", () => {
     expect(text).toContain("https://x/formulario/abc#k");
     expect(text).toContain("hasta el 4 de noviembre");
   });
-  it("los archivos que envía el paciente: la clínica se los queda en el servidor y se apuntan en sus archivos", async () => {
+  it("los archivos que envía el paciente: se vuelven a cifrar con una clave nueva, se apuntan en sus archivos y el original se borra", async () => {
     const db = await createTestDb();
     const pid = await createPatient(db, patient("Nora Enlace"));
     const id = newFormId();
@@ -259,16 +264,29 @@ describe("formularios para el paciente", () => {
       { n: 3, name: "Ya no está", size: 10 },
       { n: 9, name: "Fuera del enlace", size: 10 },
     ];
-    const { api, removed, kept } = server([{ id, response: await seal({ v: 1, answers: { docs } }, key), answeredAt: at }], [`${id}.1`, `${id}.2`]);
+    const pdf1 = new TextEncoder().encode("%PDF-1.4 resonancia");
+    const pdf2 = new TextEncoder().encode("%PDF-1.4 analítica");
+    const response = await seal({ v: 1, answers: { docs } }, key);
+    const { api, removed, stashed } = server([{ id, response, answeredAt: at }], { [`${id}.1`]: await sealDoc(pdf1, key), [`${id}.2`]: await sealDoc(pdf2, key) });
     const got = await collectAnswered(db, api, ANAMNESIS);
     expect(got).toEqual([{ patientId: pid, name: "Nora Enlace", kind: DOCS_KIND, skipped: 0, incomplete: false, files: 2 }]);
-    expect(kept).toEqual([`${id}.1`, `${id}.2`]);
     expect(removed).toEqual([id]);
     const files = await listDocuments(db, pid);
-    expect(files.map((f) => [f.id, f.name, f.source, f.key, f.uploadedAt]).sort()).toEqual([
-      [`${id}.1`, "Resonancia rodilla", "patient", key, at],
-      [`${id}.2`, "Analítica", "patient", key, at],
+    expect(files.map((f) => [f.name, f.source, f.uploadedAt]).sort()).toEqual([
+      ["Analítica", "patient", null],
+      ["Resonancia rodilla", "patient", null],
     ]);
+    // Con una clave nueva cada uno (no la del enlace) y otro id; lo guardado aquí se abre con ella, no con la del enlace.
+    for (const f of files) {
+      expect(f.key).not.toBe(key);
+      expect(f.id).not.toContain(id);
+      const sealed = stashed.get(f.id)!;
+      expect(new TextDecoder().decode(await openDoc(sealed, f.key))).toBe(f.name === "Analítica" ? "%PDF-1.4 analítica" : "%PDF-1.4 resonancia");
+      await expect(openDoc(sealed, key)).rejects.toThrow();
+    }
+    // Recogerlo otra vez (se cortó antes de borrarlo del servidor): no se repite.
+    await collectAnswered(db, server([{ id, response, answeredAt: at }], { [`${id}.1`]: await sealDoc(pdf1, key) }).api, ANAMNESIS);
+    expect((await listDocuments(db, pid)).length).toBe(2);
     expect((await getSentForm(db, id))?.answers).toEqual({ docs: [{ n: 1, name: "Resonancia rodilla", size: 120_000 }, { n: 2, name: "Analítica", size: 50_000 }] });
     // El mensaje para pedírselos.
     expect(formMessage({ name: "Nora", clinic: "Fisiolab", kind: DOCS_KIND, url: "https://x/formulario/a#b", expiresAt: at })).toMatch(/^Hola Nora: desde Fisiolab te pedimos que nos envíes tus informes o pruebas \(en PDF o en foto\)/);

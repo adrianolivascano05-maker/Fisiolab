@@ -30,6 +30,8 @@ export default defineConfig({
       ? `BASE_PATH=${base} npm run build && cp dist/index.html dist/404.html && GHPAGES=1 BASE=${base} node tools/serve-dist.mjs`
       : "npm run build && node tools/serve-dist.mjs",
     url: `http://localhost:4173${base}`,
+    // El servidor de la clínica simulado (e2e/fakeGoogle.ts): la CSP real solo deja el de verdad.
+    env: { CSP_EXTRA_CONNECT: "https://cenit-datos.pruebas.workers.dev" },
     reuseExistingServer: false,
     timeout: 120_000,
   },

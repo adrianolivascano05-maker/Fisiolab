@@ -38,7 +38,10 @@ async function loadHeaders() {
       rules.push(current);
     } else if (current) {
       const i = line.indexOf(":");
-      current.headers[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+      let value = line.slice(i + 1).trim();
+      // Las pruebas de pantalla: su servidor simulado (playwright.config.ts, CSP_EXTRA_CONNECT).
+      if (process.env.CSP_EXTRA_CONNECT && line.slice(0, i).trim() === "Content-Security-Policy") value = value.replace("connect-src ", `connect-src ${process.env.CSP_EXTRA_CONNECT} `);
+      current.headers[line.slice(0, i).trim()] = value;
     }
   }
   return rules;

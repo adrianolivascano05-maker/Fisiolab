@@ -5,6 +5,7 @@
 // sincronizar; no está pensado a prueba de manipulación.
 import type { Db } from "./db";
 import { memberEmail } from "./member";
+import { csvCell } from "./csv";
 
 export type AccessAction = "abrir_ficha" | "exportar" | "imprimir_historia";
 export const ACTION_LABELS: Record<AccessAction, string> = { abrir_ficha: "Abrió la ficha", exportar: "Exportó sus datos", imprimir_historia: "Imprimió la historia" };
@@ -84,7 +85,7 @@ export async function pruneAccessLog(db: Db, now = new Date()): Promise<number> 
 
 /** El registro en CSV para Excel (separado por «;», como las demás exportaciones). */
 export function accessCsv(rows: AccessRow[]): string {
-  const cell = (s: string) => `"${s.replace(/"/g, '""')}"`;
+  const cell = (s: string) => csvCell(s, { quote: true });
   const lines = [["Fecha y hora", "Persona", "Paciente", "Acción"].map(cell).join(";")];
   for (const r of rows) lines.push([r.at, r.member, r.patientName ?? `(paciente borrado: ${r.patientId})`, ACTION_LABELS[r.action] ?? r.action].map(cell).join(";"));
   return `﻿${lines.join("\r\n")}\r\n`;

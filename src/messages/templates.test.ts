@@ -24,7 +24,7 @@ describe("mensajes a pacientes", () => {
       "Hola, Ana. Se ha quedado libre un hueco de fisioterapia con Bruno en Fisiolab el martes, 27 de octubre a las 10:30. ¿Te viene bien? Responde a este mensaje y te lo guardamos.",
     );
     expect(anamnesisText({ name: "Ana Ruiz", clinic: "Fisiolab", startsAt: "2026-10-22T07:00:00.000Z", url: "https://x/f#k" })).toBe(
-      "Hola, Ana. Tu primera cita de fisioterapia en Fisiolab es el jueves, 22 de octubre a las 09:00.\nPara aprovecharla al máximo, rellena antes unas preguntas sobre tu salud:\nhttps://x/f#k\nTus respuestas van cifradas y solo las verá tu fisioterapeuta.",
+      "Hola, Ana. Tu primera cita de fisioterapia en Fisiolab es el jueves, 22 de octubre a las 09:00.\nPara aprovecharla al máximo, rellena antes unas preguntas sobre tu salud:\nhttps://x/f#k\nTus respuestas van cifradas y solo las verá tu fisioterapeuta. Este enlace es solo para ti: no lo reenvíes.",
     );
     expect(followUpText({ name: "Ana", clinic: "", reviewOn: "2026-10-22", links: [{ title: "NDI", url: "https://x/1" }] })).toContain("Antes, rellena este cuestionario:\nNDI: https://x/1");
     expect(messageSubject("formulario", null, { clinica: "" })).toBe("Un formulario de la clínica");

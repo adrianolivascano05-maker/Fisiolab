@@ -8,6 +8,7 @@
 // Las cantidades van en céntimos.
 import type { Db } from "./db";
 import { dayDmy } from "../app/format";
+import { csvCell } from "./csv";
 
 export type InvoiceKind = "completa" | "simplificada" | "rectificativa";
 export const KIND_LABELS: Record<InvoiceKind, string> = { completa: "Factura", simplificada: "Factura simplificada", rectificativa: "Factura rectificativa" };
@@ -193,7 +194,7 @@ export async function checkInvoices(invoices: Invoice[]): Promise<ChainProblem[]
 // ---------- Libro de facturas ----------
 
 const eurosCell = (c: number) => (c / 100).toFixed(2).replace(".", ",");
-const cell = (s: string) => (/[;"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+const cell = (s: string) => csvCell(s);
 
 /** El libro de facturas emitidas en CSV para Excel (punto y coma, coma decimal y BOM), para la gestoría. */
 export function invoicesCsv(invoices: Invoice[]): string {

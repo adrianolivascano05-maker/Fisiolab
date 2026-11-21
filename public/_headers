@@ -1,10 +1,19 @@
 # Cabeceras para el alojamiento estático (formato de Cloudflare Pages y Netlify).
+# connect-src lleva la dirección exacta del servidor de la clínica (la de public/cloud.json): si cambia, cámbiala aquí
+# también. GitHub Pages no admite cabeceras: allí la CSP va como <meta> (vite.config.ts), sin frame-ancestors (no vale
+# en <meta>), así que allí no hay protección contra meter la app en un marco de otra web; en Cloudflare Pages, sí.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://*.workers.dev; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' https://www.googleapis.com https://oauth2.googleapis.com https://cenit-datos.adrianolivascano05.workers.dev; manifest-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(self), microphone=(), geolocation=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000
+
+# Los formularios del paciente (con su enlace): ni buscadores ni cachés intermedias.
+/formulario/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store
 
 # El service worker y el manifiesto se revisan siempre: así llegan las actualizaciones.
 /sw.js

@@ -915,6 +915,10 @@ test.describe("Nube: clínicas en el servidor de Cloudflare", () => {
     const phone = await ctx.newPage();
     await phone.goto(`./formulario/${id}#${key}`);
     await expect(phone.getByText("Este documento se firma en la clínica")).toBeVisible({ timeout: 15_000 });
+    // La clave sale de la dirección en cuanto se lee (ni historial ni al compartir la página); recargar sigue valiendo.
+    expect(phone.url()).not.toContain("#");
+    await phone.reload();
+    await expect(phone.getByText("Este documento se firma en la clínica")).toBeVisible({ timeout: 15_000 });
     await expect(phone.getByText(/Tu clínica te lo dará para que lo leas y lo firmes allí/)).toBeVisible();
     await expect(phone.getByRole("button", { name: /Firmar|Enviar/ })).toHaveCount(0);
     await expectAccessible(phone);

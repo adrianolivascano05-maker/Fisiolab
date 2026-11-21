@@ -13,6 +13,9 @@ import { useAppLock } from "../privacy/AppLock";
 import { useToast } from "../ui/Toast";
 import { calendarToast } from "./calendarForm";
 import { cancelSignLinks, collectAnswered } from "./collect";
+import { clinicScope } from "../cloud/clinic";
+import { cachePut } from "../documents/cache";
+import { syncDocuments } from "../documents/docSync";
 
 /** Una búsqueda cada vez (dos pantallas a la vez no recogen lo mismo dos veces). */
 let running: Promise<number | null> | null = null;
@@ -35,7 +38,12 @@ export function useCollectForms(): () => Promise<number | null> {
         const cancelled = await cancelSignLinks(getDb(), (id) => api.forms.remove(token, clinic.id, id));
         const got = await collectAnswered(
           getDb(),
-          { answered: () => api.forms.answered(token, clinic.id), remove: (id) => api.forms.remove(token, clinic.id, id), keepDoc: (id) => api.docs.keep(token, clinic.id, id) },
+          {
+            answered: () => api.forms.answered(token, clinic.id),
+            remove: (id) => api.forms.remove(token, clinic.id, id),
+            getDoc: (id) => api.docs.get(token, clinic.id, id),
+            stash: (id, sealed) => cachePut(clinicScope(cloud.account, clinic), id, sealed),
+          },
           tpl,
         );
         for (const g of got) {
@@ -53,6 +61,10 @@ export function useCollectForms(): () => Promise<number | null> {
           }
           const extra = g.incomplete ? " (incompleto: sin nota)" : g.skipped ? ` · ${g.skipped === 1 ? "1 respuesta no se puso" : `${g.skipped} no se pusieron`}: ya había algo escrito` : "";
           toast(`${g.name || "Un paciente"} ha rellenado: ${formTitle(g.kind)}${extra}`, "success");
+        }
+        // Los archivos que ha enviado, ya con su clave nueva: se suben ya (si no se puede, se suben solos después).
+        if (got.some((g) => g.files)) {
+          void syncDocuments(getDb(), clinicScope(cloud.account, clinic), { api: api.docs, clinicId: clinic.id, token: getToken }).catch(() => {});
         }
         if (got.length || cancelled) bumpData();
         return got.length;

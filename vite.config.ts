@@ -13,6 +13,12 @@ import { thirdPartyLicenses } from "./tools/licenses";
 const base = process.env.BASE_PATH ?? "/";
 
 /**
+ * Solo para las pruebas de pantalla (playwright.config.ts): su servidor de la clínica simulado tiene otra dirección.
+ * En la app publicada no se pone nada (connect-src lleva solo el servidor real).
+ */
+const withTestServer = (d: string) => (process.env.CSP_EXTRA_CONNECT && d.startsWith("connect-src ") ? `${d} ${process.env.CSP_EXTRA_CONNECT}` : d);
+
+/**
  * La CSP de public/_headers, también como <meta> en el build: GitHub Pages no permite cabeceras.
  * (frame-ancestors no vale en <meta>; donde hay cabeceras, la pone _headers.) Solo en el build:
  * el servidor de desarrollo usa scripts en línea que la CSP bloquearía.
@@ -28,6 +34,7 @@ function cspMeta(): Plugin {
     .split(";")
     .map((d) => d.trim())
     .filter((d) => d && !d.startsWith("frame-ancestors"))
+    .map(withTestServer)
     .join("; ");
   return {
     name: "csp-meta",

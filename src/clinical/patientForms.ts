@@ -42,7 +42,7 @@ export const isConsentKind = (kind: string) => kind.startsWith(CONSENT_PREFIX);
 export const isSignKind = (kind: string) => kind === PRIVACY_KIND || isConsentKind(kind);
 
 /** Días que vale un enlace. */
-export const FORM_DAYS = 14;
+export const FORM_DAYS = 7;
 
 /** Lo que va cifrado en el enlace: qué preguntar y a quién. */
 export type FormRequest = {

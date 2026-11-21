@@ -7,6 +7,13 @@ const SHARED = "cenit-compartidos";
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method !== "POST" || url.origin !== self.location.origin || !url.pathname.endsWith("/compartir")) return;
+  // Solo lo que manda el propio sistema al compartir (none) o la propia app (same-origin): un formulario de otra web
+  // que mandara archivos aquí no los mete en la app. Los navegadores que no mandan la cabecera, como hasta ahora.
+  const site = event.request.headers.get("Sec-Fetch-Site");
+  if (site && site !== "none" && site !== "same-origin") {
+    event.respondWith(Response.redirect(new URL("compartir?n=0", self.registration.scope).href, 303));
+    return;
+  }
   event.respondWith(
     (async () => {
       const form = await event.request.formData();

@@ -180,10 +180,12 @@ test.describe("Archivos del paciente", () => {
     await expect(files(page).getByRole("button")).toHaveCount(2);
     await expect(files(page)).toContainText("Analítica marzo");
     await expect(files(page)).toContainText("Lo envió el paciente");
-    // El que quitó no se queda en el servidor; los otros dos, sí (ya de la clínica).
+    // Los originales (con la clave del enlace) se borran del servidor; en su lugar, los dos vueltos a cifrar con una
+    // clave nueva cada uno, como los de la clínica, con otro id.
+    await expect.poll(() => [...google.docs.keys()].filter((k) => !k.includes(".")).length, { timeout: 15_000 }).toBe(2);
     expect(google.docs.size).toBe(2);
-    expect([...google.docs.values()].every((d) => !d.formId)).toBe(true);
-    // Se abre con la clave de su enlace.
+    expect([...google.docs.values()].every((d) => !d.formId && d.bytes.subarray(0, 9).toString() === "CENITDOC1")).toBe(true);
+    // Se abre (con su clave nueva).
     await files(page).getByRole("button", { name: /Analítica marzo/ }).click();
     const [dl] = await Promise.all([
       page.waitForEvent("download"),

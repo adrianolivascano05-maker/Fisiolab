@@ -29,19 +29,49 @@ import { Logo } from "../ui/Logo";
 type Phase = { kind: "loading" } | { kind: "error"; text: string } | { kind: "form"; request: FormRequest } | { kind: "answered" } | { kind: "sent" };
 
 const draftKey = (id: string) => `cenit.formulario.${id}`;
+/** Hasta cuándo vale el enlace de un borrador: pasado ese día, el borrador se borra aunque no se haya enviado. */
+const draftUntilKey = (id: string) => `cenit.formulario.${id}.caduca`;
+/** La clave del enlace, solo en esta pestaña (para poder recargar la página sin tenerla en la dirección). */
+const tabKey = (id: string) => `cenit.formulario.${id}.clave`;
 /** Lo escrito en el móvil se borra en cuanto ya no hace falta (puede ser un móvil compartido). */
 const dropDraft = (id: string) => {
   try {
     localStorage.removeItem(draftKey(id));
+    localStorage.removeItem(draftUntilKey(id));
   } catch {
     /* nada */
   }
 };
 
-/** El id del formulario en la dirección y la clave, después de «#». */
+/** Los borradores de enlaces ya caducados, fuera (también los de otros formularios de este móvil). */
+function dropExpiredDrafts(now = Date.now()) {
+  try {
+    for (const k of Object.keys(localStorage)) {
+      const m = /^cenit\.formulario\.([A-Za-z0-9_-]{22,64})\.caduca$/.exec(k);
+      if (m && !(Date.parse(localStorage.getItem(k) ?? "") > now)) dropDraft(m[1]!);
+    }
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+
+/**
+ * El id del formulario en la dirección y la clave, después de «#». La clave se quita de la dirección en cuanto se lee
+ * (que no quede en el historial ni se copie al compartir la página) y se guarda solo en esta pestaña.
+ */
 function fromUrl() {
   const id = /\/formulario\/([A-Za-z0-9_-]{22,64})\/?$/.exec(location.pathname)?.[1] ?? "";
-  return { id, key: location.hash.slice(1) };
+  let key = location.hash.slice(1);
+  try {
+    if (id && key) {
+      sessionStorage.setItem(tabKey(id), key);
+      history.replaceState(history.state, "", location.pathname + location.search);
+    } else if (id) key = sessionStorage.getItem(tabKey(id)) ?? "";
+  } catch {
+    /* sin almacenamiento: la clave se queda en la dirección */
+  }
+  dropExpiredDrafts();
+  return { id, key };
 }
 
 export function PublicFormPage() {
@@ -86,6 +116,11 @@ export function PublicFormPage() {
         const brand = brandFromForm(request.brand);
         applyBrand(brand, false);
         document.title = `${request.kind === WEEK_KIND ? "Tus ejercicios" : "Formulario"} · ${ownIdentity(brand)?.name ?? "OmniClin"}`;
+        try {
+          if (request.expiresAt) localStorage.setItem(draftUntilKey(id), request.expiresAt);
+        } catch {
+          /* sin almacenamiento */
+        }
         setPhase({ kind: "form", request });
       } catch (e) {
         setPhase({ kind: "error", text: e instanceof Error && e.message !== "Failed to fetch" ? e.message : "No hay conexión. Prueba otra vez en un momento." });

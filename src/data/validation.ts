@@ -4,6 +4,7 @@ import { computeJump, type JumpType, type MarkInput } from "../calc/results";
 import { velocitiesFromMarks, type RepMark } from "../calc/strength";
 import type { Db } from "./db";
 import { getSetting, setSetting } from "./repo";
+import { csvCell } from "./csv";
 
 export type ValidationKind = "jump_height" | "bar_velocity" | "nordic_torque" | "rom_angle" | "free_angle" | "sprint_time";
 export type Comparison = "reference" | "remark" | "ai";
@@ -211,7 +212,7 @@ export function primaryValue(type: string, marks: MarkInput[], captureFps: numbe
 /** Pares en CSV para Excel (punto y coma, coma decimal). */
 export function pairsCsv(pairs: ValidationPair[], unit: string): string {
   const num = (n: number) => String(Number(n.toFixed(4))).replace(".", ",");
-  const cell = (s: string) => (/[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const cell = (s: string) => csvCell(s);
   const header = ["fecha", "comparacion", "referencia", "paciente", `impulso_${unit}`, `referencia_${unit}`, `diferencia_${unit}`, "notas"];
   const rows = pairs.map((p) =>
     [p.createdAt.slice(0, 10), p.comparison, cell(p.referenceLabel), cell(p.patientName ?? ""), num(p.impulsoValue), num(p.referenceValue), num(p.impulsoValue - p.referenceValue), cell(p.notes)].join(";"),

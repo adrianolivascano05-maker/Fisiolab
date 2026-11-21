@@ -4,6 +4,7 @@ import { getMovement, methodLabels, movementLabel, type RomMethod } from "../cal
 import { isCodType } from "../calc/cod";
 import { getExercise } from "../calc/strength";
 import type { Db } from "./db";
+import { csvCell } from "./csv";
 
 /**
  * Todos los resultados en CSV "largo" (una fila por métrica), pensado para Excel en español:
@@ -39,7 +40,7 @@ export async function exportCsv(db: Db): Promise<string> {
   );
   const num = (n: number | null, digits = 4) =>
     n === null ? "" : String(Number(n.toFixed(digits))).replace(".", ",");
-  const cell = (s: string) => (/[;"\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const cell = (s: string) => csvCell(s);
   const header = ["paciente", "fecha", "test", "movimiento", "lado", "metodo", "carga_kg", "altura_caida_cm", "fps_grabacion", "intento", "metrica", "valor", "unidad"];
   const lines = rows.map((r) => {
     const movement = r.movement ? getMovement(r.movement) : undefined;
